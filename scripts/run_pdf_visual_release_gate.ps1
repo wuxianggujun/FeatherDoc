@@ -209,6 +209,7 @@ $contactSheetScriptPath = Join-Path $repoRoot "scripts\build_image_contact_sheet
 $unicodeScriptPath = Join-Path $repoRoot "scripts\run_pdf_unicode_font_roundtrip_visual_regression.ps1"
 $pdfCliExportLog = Join-Path $reportDir "pdf-cli-export-test.log"
 $pdfRegressionLog = Join-Path $reportDir "pdf-regression-test.log"
+$unicodeRoundtripLog = Join-Path $reportDir "pdf-unicode-roundtrip-test.log"
 $unicodeLog = Join-Path $reportDir "unicode-font.log"
 $aggregateContactSheetPath = Join-Path $reportDir "aggregate-contact-sheet.png"
 $summaryPath = Join-Path $reportDir "summary.json"
@@ -234,10 +235,18 @@ Invoke-CapturedCommand `
 
 if (-not $SkipUnicodeBaseline) {
     Write-Step "Running unicode font visual regression"
-    & $unicodeScriptPath -BuildDir $resolvedBuildDir -OutputDir $unicodeOutputDir -Dpi $Dpi
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unicode font visual regression failed."
-    }
+    Invoke-CapturedCommand `
+        -ExecutablePath "powershell" `
+        -Arguments @("-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", $unicodeScriptPath, "-BuildDir", $resolvedBuildDir, "-OutputDir", $unicodeOutputDir, "-Dpi", [string]$Dpi) `
+        -LogPath $unicodeLog `
+        -FailureMessage "Unicode font visual regression failed."
+} else {
+    Write-Step "Running unicode font roundtrip regression for RTL baseline PDFs"
+    Invoke-CapturedCommand `
+        -ExecutablePath "ctest" `
+        -Arguments @("--test-dir", $resolvedBuildDir, "-R", "^pdf_unicode_font_roundtrip$", "--output-on-failure", "--timeout", "60") `
+        -LogPath $unicodeRoundtripLog `
+        -FailureMessage "pdf_unicode_font_roundtrip regression failed."
 }
 
 $renderPython = Get-RenderPython -RepoRoot $repoRoot
@@ -289,6 +298,62 @@ $samples = @(
         pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-latin-ligature-text.pdf"
         output = Join-Path $baselineDir "latin-ligature-text"
         expected_pages = 1
+    },
+    [ordered]@{
+        name = "rtl-table-cell-hebrew-mixed-boundaries"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-hebrew-rtl-table-cell-boundary.pdf"
+        output = Join-Path $baselineDir "rtl-table-cell-hebrew-mixed-boundaries"
+        expected_pages = 1
+        style_focus = @("rtl-table-cell-normalization", "hebrew", "arabic-indic-digits", "punctuation")
+    },
+    [ordered]@{
+        name = "rtl-table-cell-persian-digit-boundaries"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-hebrew-rtl-table-cell-persian-digit-boundary.pdf"
+        output = Join-Path $baselineDir "rtl-table-cell-persian-digit-boundaries"
+        expected_pages = 1
+        style_focus = @("rtl-table-cell-normalization", "hebrew", "extended-arabic-indic-digits", "punctuation")
+    },
+    [ordered]@{
+        name = "rtl-table-cell-arabic-core-boundaries"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-arabic-rtl-table-cell-boundary.pdf"
+        output = Join-Path $baselineDir "rtl-table-cell-arabic-core-boundaries"
+        expected_pages = 1
+        style_focus = @("rtl-table-cell-normalization", "arabic", "arabic-indic-digits", "extended-arabic-indic-digits", "punctuation")
+    },
+    [ordered]@{
+        name = "rtl-table-cell-split-mixed-bidi-raw-spans"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-hebrew-rtl-table-cell-split-mixed-bidi-boundary.pdf"
+        output = Join-Path $baselineDir "rtl-table-cell-split-mixed-bidi-raw-spans"
+        expected_pages = 1
+        style_focus = @("rtl-table-cell-raw-preservation", "split-mixed-bidi", "raw-spans")
+    },
+    [ordered]@{
+        name = "rtl-table-cell-split-pure-rtl-raw-spans"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-hebrew-rtl-table-cell-split-pure-rtl-boundary.pdf"
+        output = Join-Path $baselineDir "rtl-table-cell-split-pure-rtl-raw-spans"
+        expected_pages = 1
+        style_focus = @("rtl-table-cell-raw-preservation", "split-pure-rtl", "raw-spans")
+    },
+    [ordered]@{
+        name = "rtl-table-cell-arabic-split-pure-rtl-normalized"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-arabic-rtl-table-cell-split-pure-rtl-boundary.pdf"
+        output = Join-Path $baselineDir "rtl-table-cell-arabic-split-pure-rtl-normalized"
+        expected_pages = 1
+        style_focus = @("rtl-table-cell-normalization", "arabic", "split-pure-rtl")
+    },
+    [ordered]@{
+        name = "rtl-table-cell-hebrew-combining-mark-raw-spans"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-hebrew-rtl-table-cell-combining-mark-boundary.pdf"
+        output = Join-Path $baselineDir "rtl-table-cell-hebrew-combining-mark-raw-spans"
+        expected_pages = 1
+        style_focus = @("rtl-table-cell-raw-preservation", "hebrew", "combining-mark", "raw-spans")
+    },
+    [ordered]@{
+        name = "rtl-table-cell-arabic-combining-mark-raw-spans"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-arabic-rtl-table-cell-combining-mark-boundary.pdf"
+        output = Join-Path $baselineDir "rtl-table-cell-arabic-combining-mark-raw-spans"
+        expected_pages = 1
+        style_focus = @("rtl-table-cell-raw-preservation", "arabic", "combining-mark", "raw-spans")
     },
     [ordered]@{
         name = "document-invoice-table-text"
@@ -355,6 +420,16 @@ if ($LASTEXITCODE -ne 0) {
     throw "Failed to build aggregate contact sheet."
 }
 
+$logPaths = [ordered]@{
+    pdf_cli_export = $pdfCliExportLog
+    pdf_regression = $pdfRegressionLog
+}
+if ($SkipUnicodeBaseline) {
+    $logPaths["pdf_unicode_roundtrip"] = $unicodeRoundtripLog
+} else {
+    $logPaths["unicode_font"] = $unicodeLog
+}
+
 $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
     repo_root = $repoRoot
@@ -362,11 +437,7 @@ $summary = [ordered]@{
     output_dir = $resolvedOutputDir
     unicode_output_dir = $unicodeOutputDir
     aggregate_contact_sheet = $aggregateContactSheetPath
-    logs = [ordered]@{
-        pdf_cli_export = $pdfCliExportLog
-        pdf_regression = $pdfRegressionLog
-        unicode_font = $unicodeLog
-    }
+    logs = $logPaths
     baselines = $renderedSamples
 }
 

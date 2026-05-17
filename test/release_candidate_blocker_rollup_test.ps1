@@ -240,6 +240,8 @@ Write-JsonFile -Path $autoDiscoverProjectSummaryPath -Value ([ordered]@{
     release_blockers = @(
         [ordered]@{
             id = "project_template_onboarding.schema_approval"
+            project_id = "project-alpha"
+            template_name = "invoice-template"
             severity = "error"
             status = "blocked"
             message = "Autodiscovered project template schema approval is pending."
@@ -252,6 +254,8 @@ Write-JsonFile -Path $autoDiscoverProjectSummaryPath -Value ([ordered]@{
     action_items = @(
         [ordered]@{
             id = "review_invoice_schema"
+            project_id = "project-alpha"
+            template_name = "invoice-template"
             action = "review_schema_update_candidate"
             title = "Review invoice schema before release"
             open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
@@ -336,11 +340,12 @@ if ($Scenario -eq "handoff") {
     $handoffReleaseSummaryPath = Join-Path $handoffOutputDir "report\summary.json"
     $handoffFinalReviewPath = Join-Path $handoffOutputDir "report\final_review.md"
     $handoffReleaseHandoffPath = Join-Path $handoffOutputDir "report\release_handoff.md"
+    $handoffArtifactGuidePath = Join-Path $handoffOutputDir "report\ARTIFACT_GUIDE.md"
     $handoffChecklistPath = Join-Path $handoffOutputDir "report\REVIEWER_CHECKLIST.md"
     $handoffSummaryPath = Join-Path $handoffOutputDir "report\release-governance-handoff\summary.json"
     $handoffMarkdownPath = Join-Path $handoffOutputDir "report\release-governance-handoff\release_governance_handoff.md"
     $handoffNestedRollupSummaryPath = Join-Path $handoffOutputDir "report\release-governance-handoff\release-blocker-rollup\summary.json"
-    foreach ($path in @($handoffReleaseSummaryPath, $handoffFinalReviewPath, $handoffReleaseHandoffPath, $handoffChecklistPath, $handoffSummaryPath, $handoffMarkdownPath, $handoffNestedRollupSummaryPath)) {
+    foreach ($path in @($handoffReleaseSummaryPath, $handoffFinalReviewPath, $handoffReleaseHandoffPath, $handoffArtifactGuidePath, $handoffChecklistPath, $handoffSummaryPath, $handoffMarkdownPath, $handoffNestedRollupSummaryPath)) {
         Assert-True -Condition (Test-Path -LiteralPath $path) `
             -Message "Expected release governance handoff artifact to exist: $path"
     }
@@ -363,12 +368,24 @@ if ($Scenario -eq "handoff") {
     Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
         -Message "Release candidate summary should carry handoff blocker source schema."
+    Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-alpha" `
+        -Message "Release candidate summary should carry handoff blocker project id."
+    Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.action_items | ForEach-Object { [string]$_.template_name }) -join "`n") `
+        -ExpectedText "invoice-template" `
+        -Message "Release candidate summary should carry handoff action template name."
     Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
         -Message "Release candidate summary should carry handoff warning ids."
     Assert-ContainsText -Text (($handoffReleaseSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Release candidate step summary should carry handoff action open command."
+    Assert-ContainsText -Text (($handoffReleaseSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "build_numbering_catalog_governance_report.ps1" `
+        -Message "Release candidate handoff should default missing numbering action open commands."
+    Assert-ContainsText -Text (($handoffReleaseSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "build_table_layout_delivery_governance_report.ps1" `
+        -Message "Release candidate handoff should default missing table action open commands."
     Assert-Equal -Actual ([string]$handoffReleaseSummary.steps.release_governance_handoff.status) -Expected "blocked" `
         -Message "Release candidate step status should mirror governance handoff status."
 
@@ -391,19 +408,43 @@ if ($Scenario -eq "handoff") {
         -Message "Final review should include handoff warning id."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1" `
         -Message "Final review should include handoff source schema."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "project_template: project_id=project-alpha template_name=invoice-template" `
+        -Message "Final review should include project-template handoff identity."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Final review should include handoff action item open command."
 
     $handoffReleaseHandoff = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffReleaseHandoffPath
+    $handoffArtifactGuide = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffArtifactGuidePath
     $handoffChecklist = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffChecklistPath
+    $handoffMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffMarkdownPath
     Assert-ContainsText -Text $handoffReleaseHandoff -ExpectedText "Release Governance Handoff Details" `
         -Message "Release handoff bundle should include governance handoff details."
     Assert-ContainsText -Text $handoffReleaseHandoff -ExpectedText "source_json_display: .\output\schema-patch-confidence-calibration\summary.json" `
         -Message "Release handoff bundle should include handoff source JSON display."
+    Assert-ContainsText -Text $handoffReleaseHandoff -ExpectedText "project_template: project_id=project-alpha template_name=invoice-template" `
+        -Message "Release handoff bundle should include project-template identity."
+    Assert-ContainsText -Text $handoffArtifactGuide -ExpectedText "Release Governance Handoff Details" `
+        -Message "Artifact guide should include governance handoff details."
+    Assert-ContainsText -Text $handoffArtifactGuide -ExpectedText "source_report_display:" `
+        -Message "Artifact guide should include handoff source report display."
+    Assert-ContainsText -Text $handoffArtifactGuide -ExpectedText "auto-discover-output\schema-patch-confidence-calibration\summary.json" `
+        -Message "Artifact guide should point handoff source report display at the discovered source report."
+    Assert-ContainsText -Text $handoffArtifactGuide -ExpectedText "source_json_display: .\output\schema-patch-confidence-calibration\summary.json" `
+        -Message "Artifact guide should include handoff source JSON display."
     Assert-ContainsText -Text $handoffChecklist -ExpectedText "Handoff Action Items" `
         -Message "Reviewer checklist should include handoff action items."
     Assert-ContainsText -Text $handoffChecklist -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Reviewer checklist should include handoff open command."
+    Assert-ContainsText -Text $handoffChecklist -ExpectedText "project_template: project_id=project-alpha template_name=invoice-template" `
+        -Message "Reviewer checklist should include project-template identity."
+    Assert-ContainsText -Text $handoffMarkdown -ExpectedText 'project=`project-alpha` template=`invoice-template`' `
+        -Message "Nested handoff Markdown should include project-template identity."
+    Assert-ContainsText -Text $handoffMarkdown -ExpectedText 'schema=`featherdoc.schema_patch_confidence_calibration_report.v1`' `
+        -Message "Nested handoff Markdown should include source schema."
+    Assert-ContainsText -Text $handoffMarkdown -ExpectedText 'source_json_display: `.\output\schema-patch-confidence-calibration\summary.json`' `
+        -Message "Nested handoff Markdown should include source JSON display."
+    Assert-ContainsText -Text $handoffMarkdown -ExpectedText 'open_command: `pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1`' `
+        -Message "Nested handoff Markdown should include handoff open command."
 
     Write-Host "Release candidate governance handoff regression passed."
     exit 0
@@ -466,6 +507,12 @@ Assert-ContainsText -Text (($summary.release_blocker_rollup.release_blockers | F
 Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "build_document_skeleton_governance_rollup_report.ps1" `
     -Message "Release candidate step summary should carry action item open command."
+Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "build_numbering_catalog_governance_report.ps1" `
+    -Message "Release candidate step summary should default missing numbering action open commands."
+Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "build_table_layout_delivery_governance_report.ps1" `
+    -Message "Release candidate step summary should default missing table action open commands."
 
 $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
@@ -581,6 +628,12 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "project-template-onboarding-governance\summary.json" `
     -Message "Auto-discovered rollup should carry onboarding governance source JSON display."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.project_id }) -join "`n") `
+    -ExpectedText "project-alpha" `
+    -Message "Auto-discovered rollup should carry project-template blocker project id."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.template_name }) -join "`n") `
+    -ExpectedText "invoice-template" `
+    -Message "Auto-discovered rollup should carry project-template action template name."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "schema-patch-confidence-calibration\summary.json" `
     -Message "Auto-discovered rollup should carry calibration source JSON display."

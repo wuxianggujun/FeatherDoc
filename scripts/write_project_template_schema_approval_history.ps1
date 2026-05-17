@@ -265,6 +265,8 @@ function Get-SummaryInputPaths {
 function New-SchemaApprovalHistoryApprovalItem {
     param(
         [string]$RepoRoot,
+        [string]$ProjectId,
+        [string]$DefaultTemplateName,
         $Item
     )
 
@@ -273,9 +275,17 @@ function New-SchemaApprovalHistoryApprovalItem {
     $approvalResult = Get-OptionalStringProperty -Object $Item -Name "approval_result"
     $schemaUpdateCandidate = Get-OptionalStringProperty -Object $Item -Name "schema_update_candidate"
     $reviewJson = Get-OptionalStringProperty -Object $Item -Name "review_json"
+    $name = Get-OptionalStringProperty -Object $Item -Name "name"
+    $itemProjectId = Get-OptionalStringProperty -Object $Item -Name "project_id" -DefaultValue $ProjectId
+    $templateName = Get-OptionalStringProperty -Object $Item -Name "template_name" -DefaultValue $DefaultTemplateName
+    if ([string]::IsNullOrWhiteSpace($templateName)) {
+        $templateName = $name
+    }
 
     return [pscustomobject]@{
-        name = Get-OptionalStringProperty -Object $Item -Name "name"
+        name = $name
+        project_id = $itemProjectId
+        template_name = $templateName
         status = $status
         decision = Get-OptionalStringProperty -Object $Item -Name "decision"
         action = Get-OptionalStringProperty -Object $Item -Name "action"
@@ -305,6 +315,10 @@ function New-SchemaApprovalHistoryRun {
         $projectTemplateSmoke = $Summary
         "project_template_smoke_summary"
     }
+    $projectId = Get-OptionalStringProperty -Object $projectTemplateSmoke -Name "project_id" `
+        -DefaultValue (Get-OptionalStringProperty -Object $Summary -Name "project_id")
+    $templateName = Get-OptionalStringProperty -Object $projectTemplateSmoke -Name "template_name" `
+        -DefaultValue (Get-OptionalStringProperty -Object $Summary -Name "template_name")
 
     $approvalItems = @(Get-OptionalArrayProperty -Object $projectTemplateSmoke -Name "schema_patch_approval_items")
     $pendingCount = Get-OptionalIntegerProperty -Object $projectTemplateSmoke -Name "schema_patch_approval_pending_count"
@@ -335,7 +349,11 @@ function New-SchemaApprovalHistoryRun {
     $approvalItemSnapshots = New-Object 'System.Collections.Generic.List[object]'
     $blockedItems = New-Object 'System.Collections.Generic.List[object]'
     foreach ($item in $approvalItems) {
-        $approvalItem = New-SchemaApprovalHistoryApprovalItem -RepoRoot $RepoRoot -Item $item
+        $approvalItem = New-SchemaApprovalHistoryApprovalItem `
+            -RepoRoot $RepoRoot `
+            -ProjectId $projectId `
+            -DefaultTemplateName $templateName `
+            -Item $item
         [void]$approvalItemSnapshots.Add($approvalItem)
         if ([bool]$approvalItem.blocked) {
             [void]$blockedItems.Add($approvalItem)
@@ -350,6 +368,8 @@ function New-SchemaApprovalHistoryRun {
     return [pscustomobject]@{
         generated_at = $generatedAt
         source_kind = $sourceKind
+        project_id = $projectId
+        template_name = $templateName
         summary_json = $SummaryPath
         summary_json_display = Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path $SummaryPath
         execution_status = Get-OptionalStringProperty -Object $Summary -Name "execution_status"
@@ -399,10 +419,12 @@ function New-LatestSchemaApprovalBlockingSummary {
 
     return [pscustomobject]@{
         status = "blocked"
-        generated_at = [string]$latestBlockedRun.generated_at
-        gate_status = [string]$latestBlockedRun.schema_patch_approval_gate_status
-        summary_json = [string]$latestBlockedRun.summary_json
-        summary_json_display = [string]$latestBlockedRun.summary_json_display
+            generated_at = [string]$latestBlockedRun.generated_at
+            gate_status = [string]$latestBlockedRun.schema_patch_approval_gate_status
+            project_id = [string]$latestBlockedRun.project_id
+            template_name = [string]$latestBlockedRun.template_name
+            summary_json = [string]$latestBlockedRun.summary_json
+            summary_json_display = [string]$latestBlockedRun.summary_json_display
         blocked_item_count = $blockedItems.Count
         compliance_issue_count = [int]$latestBlockedRun.schema_patch_approval_compliance_issue_count
         invalid_result_count = [int]$latestBlockedRun.schema_patch_approval_invalid_result_count
@@ -414,20 +436,43 @@ function New-LatestSchemaApprovalBlockingSummary {
 function New-SchemaApprovalEntryHistories {
     param([object[]]$Runs)
 
-    $entryNames = @($Runs |
+    $entryKeys = @($Runs |
         ForEach-Object { @($_.approval_items) } |
-        ForEach-Object { [string]$_.name } |
+        ForEach-Object {
+            $projectId = [string]$_.project_id
+            $templateName = [string]$_.template_name
+            $name = [string]$_.name
+            if ([string]::IsNullOrWhiteSpace($templateName)) {
+                $templateName = $name
+            }
+            if ([string]::IsNullOrWhiteSpace($name)) {
+                $name = $templateName
+            }
+            "{0}|{1}|{2}" -f $projectId, $templateName, $name
+        } |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         Sort-Object -Unique)
 
     $histories = New-Object 'System.Collections.Generic.List[object]'
-    foreach ($entryName in $entryNames) {
+    foreach ($entryKey in $entryKeys) {
+        $keyParts = @([string]$entryKey -split '\|', 3)
+        $entryProjectId = if ($keyParts.Count -gt 0) { $keyParts[0] } else { "" }
+        $entryTemplateName = if ($keyParts.Count -gt 1) { $keyParts[1] } else { "" }
+        $entryName = if ($keyParts.Count -gt 2) { $keyParts[2] } else { $entryTemplateName }
         $snapshots = New-Object 'System.Collections.Generic.List[object]'
         foreach ($run in $Runs) {
             foreach ($item in @($run.approval_items)) {
-                if ([string]$item.name -eq $entryName) {
+                $itemTemplateName = [string]$item.template_name
+                if ([string]::IsNullOrWhiteSpace($itemTemplateName)) {
+                    $itemTemplateName = [string]$item.name
+                }
+                if ([string]$item.name -eq $entryName -and
+                    [string]$item.project_id -eq $entryProjectId -and
+                    $itemTemplateName -eq $entryTemplateName) {
                     [void]$snapshots.Add([pscustomobject]@{
                         generated_at = [string]$run.generated_at
+                        project_id = [string]$item.project_id
+                        template_name = $itemTemplateName
                         summary_json = [string]$run.summary_json
                         summary_json_display = [string]$run.summary_json_display
                         status = [string]$item.status
@@ -459,6 +504,9 @@ function New-SchemaApprovalEntryHistories {
 
         [void]$histories.Add([pscustomobject]@{
             name = $entryName
+            project_id = $entryProjectId
+            template_name = $entryTemplateName
+            composite_id = if ([string]::IsNullOrWhiteSpace($entryProjectId)) { $entryName } else { "$entryProjectId/$entryTemplateName/$entryName" }
             run_count = $orderedSnapshots.Count
             blocked_run_count = @($orderedSnapshots | Where-Object { [bool]$_.blocked }).Count
             pending_run_count = @($orderedSnapshots | Where-Object { $_.decision -eq "pending" -or $_.status -eq "pending_review" }).Count
@@ -468,6 +516,8 @@ function New-SchemaApprovalEntryHistories {
             invalid_result_run_count = @($orderedSnapshots | Where-Object { $_.status -eq "invalid_result" }).Count
             issue_keys = $issueKeys
             latest_generated_at = [string]$latestSnapshot.generated_at
+            latest_project_id = [string]$latestSnapshot.project_id
+            latest_template_name = [string]$latestSnapshot.template_name
             latest_status = [string]$latestSnapshot.status
             latest_decision = [string]$latestSnapshot.decision
             latest_action = [string]$latestSnapshot.action
@@ -481,7 +531,7 @@ function New-SchemaApprovalEntryHistories {
         })
     }
 
-    return @($histories.ToArray() | Sort-Object name)
+    return @($histories.ToArray() | Sort-Object project_id, template_name, name)
 }
 
 function Write-HistoryMarkdown {
@@ -522,7 +572,7 @@ function Write-HistoryMarkdown {
             if ([string]::IsNullOrWhiteSpace($issues)) {
                 $issues = "(none)"
             }
-            [void]$lines.Add("- $($item.name): status=$($item.status) decision=$($item.decision) issues=$issues action=$($item.action) approval=$($item.approval_result_display)")
+            [void]$lines.Add("- $($item.project_id) / $($item.template_name) / $($item.name): status=$($item.status) decision=$($item.decision) issues=$issues action=$($item.action) approval=$($item.approval_result_display)")
         }
     } else {
         [void]$lines.Add("- No blocked schema approval run found in the selected summaries.")
@@ -536,7 +586,7 @@ function Write-HistoryMarkdown {
             if ([string]::IsNullOrWhiteSpace($issues)) {
                 $issues = "(none)"
             }
-            [void]$lines.Add("- $($entry.name): latest=$($entry.latest_status)/$($entry.latest_decision) runs=$($entry.run_count) blocked_runs=$($entry.blocked_run_count) pending=$($entry.pending_run_count) approved=$($entry.approved_run_count) rejected=$($entry.rejected_run_count) needs_changes=$($entry.needs_changes_run_count) invalid_results=$($entry.invalid_result_run_count) issues=$issues summary=$($entry.latest_summary_json_display)")
+            [void]$lines.Add("- $($entry.project_id) / $($entry.template_name) / $($entry.name): latest=$($entry.latest_status)/$($entry.latest_decision) runs=$($entry.run_count) blocked_runs=$($entry.blocked_run_count) pending=$($entry.pending_run_count) approved=$($entry.approved_run_count) rejected=$($entry.rejected_run_count) needs_changes=$($entry.needs_changes_run_count) invalid_results=$($entry.invalid_result_run_count) issues=$issues summary=$($entry.latest_summary_json_display)")
         }
     } else {
         [void]$lines.Add("- No schema approval entries found in the selected summaries.")
@@ -559,7 +609,7 @@ function Write-HistoryMarkdown {
                 if ([string]::IsNullOrWhiteSpace($issues)) {
                     $issues = "(none)"
                 }
-                [void]$lines.Add("- $($run.generated_at) / $($item.name): status=$($item.status) decision=$($item.decision) issues=$issues action=$($item.action) approval=$($item.approval_result_display)")
+                [void]$lines.Add("- $($run.generated_at) / $($item.project_id) / $($item.template_name) / $($item.name): status=$($item.status) decision=$($item.decision) issues=$issues action=$($item.action) approval=$($item.approval_result_display)")
             }
         }
     }

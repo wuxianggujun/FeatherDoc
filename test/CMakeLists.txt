@@ -321,6 +321,12 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
         pdf_unicode_font_roundtrip_tests
         PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
     )
+    if(FEATHERDOC_RESOLVED_PDFIO_SOURCE_DIR)
+        target_include_directories(
+            pdf_unicode_font_roundtrip_tests
+            PRIVATE "${FEATHERDOC_RESOLVED_PDFIO_SOURCE_DIR}"
+        )
+    endif()
     featherdoc_set_test_labels(pdf_unicode_font_roundtrip core smoke pdf)
     if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
         set_tests_properties(pdf_unicode_font_roundtrip PROPERTIES

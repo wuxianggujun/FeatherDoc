@@ -85,6 +85,10 @@
 
 如果一个新功能不属于下面三条能力线之一，它默认不应排到前面。
 
+PDF 方向当前进入保守维护线：PDFio / PDFium 路线继续保留，RTL table
+cell normalization 只在出现新的 Unicode class、PDFium raw 形态或用户可见
+导入风险时再扩展；近期主力回到发布治理、模板契约、样式编号和版式交付。
+
 
 一、模板契约与项目模板工作流
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -108,11 +112,13 @@
 - schema patch review JSON、schema approval gate 与审批历史报表
 - project-template onboarding governance 聚合报告；其 blocker 和 action item
   会经 delivery readiness 继续保留
-  ``featherdoc.project_template_onboarding_governance_report.v1``、
-  ``source_json_display`` 与 reviewer ``open_command``，最终进入发布面板和
-  reviewer-facing bundle
-- schema patch confidence calibration 只读校准报告；pending approval、未打分候选和
-  recommendation 现在会作为 release blocker / warning / action item 进入
+  ``featherdoc.project_template_onboarding_governance_report.v1``、``project_id``、
+  ``template_name``、``source_json_display`` 与 reviewer ``open_command``，最终进入
+  发布面板和 reviewer-facing bundle；approval history 会按项目、模板和 approval
+  item name 生成复合历史，避免同名模板跨项目合并
+- schema patch confidence calibration 只读校准报告；pending approval、invalid
+  approval record、未打分候选和 recommendation 现在会作为 release blocker /
+  warning / action item 进入
   ``schema-patch-confidence-calibration/summary.json``，并被默认发布面板消费
 - release blocker rollup 统一发布阻断汇总
 - content-control data-binding governance 只读报告，已把 Custom XML
@@ -123,15 +129,19 @@
 
 接下来更值得补的是：
 
-1. 扩大真实业务模板语料样本，继续校准 rename / update 建议的置信度
-2. 多项目 schema approval、release gate 和审批历史的维护体验
+1. 下一轮优先做“真实业务模板 schema patch 置信度校准与复核分流”：继续扩大真实业务
+   模板语料样本，校准 rename / update / remove 建议的置信度，并让 approval outcome
+   与 release blocker 证据进入同一条发布治理链路
+2. 多项目 schema approval 审计与发布门禁回放已完成首轮回归；后续只在接入真实项目模板
+   语料时继续补项目 / 模板维度
 3. 继续补齐 release blocker rollup 周边的人工复核分流；onboarding governance、
-   confidence calibration 和 content-control data-binding governance 已开始直接透传
+   confidence calibration 和 content-control data-binding governance 已直接透传
    blocker / warning / action item 明细；release governance pipeline 的 ``stages[]``
-   也会按 stage 保留 ``source_schema``、``source_report_display``、
+   会按 stage 保留 ``source_schema``、``source_report_display``、
    ``source_json_display`` 与 action item 的 ``open_command``，release governance
-   handoff 也会把同一组 blocker / warning / action item 明细同步进 release summary、
-   final review、bundle 和 reviewer checklist，方便发布面板先按治理源过滤
+   handoff 也已把同一组明细同步进 release summary、final review、artifact guide、
+   reviewer checklist 和 handoff markdown；release note bundle 入口会拒绝缺少这些
+   reviewer-facing 字段的治理明细，方便发布面板先按治理源过滤
 4. schema migration 的人工复核入口和更明确的修复建议分流
 
 这条线的目标是：
@@ -255,11 +265,12 @@ table style quality、安全 ``tblLook`` 修复、floating table preset plan 和
 
 当前更合理的节奏不是“想到什么补什么”，而是：
 
-1. 先把模板契约链路继续做实
-2. 再把样式 / 编号治理做深
-3. 最后把表格 / 版式交付能力收口
+1. release governance handoff 明细一致性和多项目 schema approval 定位已完成首轮收口
+2. 接下来把模板契约链路继续做实，优先校准真实业务模板的 schema patch 置信度与复核分流
+3. 再把样式 / 编号治理做深
+4. 最后把表格 / 版式交付能力收口
 
-只有当这三条主线已经明显稳定之后，再考虑更重、更宽的能力面。
+只有当这些主线已经明显稳定之后，再考虑更重、更宽的能力面。
 
 
 建议的对外表述

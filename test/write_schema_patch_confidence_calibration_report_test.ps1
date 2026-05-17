@@ -72,8 +72,8 @@ $smokeSummaryPath = Join-Path $fixtureRoot "smoke\summary.json"
 $historyPath = Join-Path $fixtureRoot "history\project_template_schema_approval_history.json"
 
 Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
-    schema_patch_review_count = 2
-    schema_patch_review_changed_count = 2
+    schema_patch_review_count = 4
+    schema_patch_review_changed_count = 4
     schema_patch_reviews = @(
         [ordered]@{
             name = "invoice-template"
@@ -105,6 +105,40 @@ Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
             update_slot_count = 1
             inserted_slots = 0
             replaced_slots = 1
+        },
+        [ordered]@{
+            name = "purchase-order-template"
+            review_json = "purchase-order.review.json"
+            changed = $true
+            baseline_slot_count = 5
+            generated_slot_count = 5
+            upsert_slot_count = 0
+            remove_target_count = 0
+            remove_slot_count = 0
+            rename_slot_count = 0
+            update_slot_count = 2
+            inserted_slots = 0
+            replaced_slots = 2
+            confidence = 74
+            reason_code = "medium_confidence_update"
+            differences = @("two mapped fields changed")
+        },
+        [ordered]@{
+            name = "lease-amendment-template"
+            review_json = "lease-amendment.review.json"
+            changed = $true
+            baseline_slot_count = 4
+            generated_slot_count = 6
+            upsert_slot_count = 2
+            remove_target_count = 0
+            remove_slot_count = 0
+            rename_slot_count = 0
+            update_slot_count = 0
+            inserted_slots = 2
+            replaced_slots = 0
+            confidence = 48
+            reason_code = "invalid_approval_fixture"
+            differences = @("approval result failed compliance validation")
         }
     )
     schema_patch_approval_items = @(
@@ -131,6 +165,32 @@ Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
             schema_update_candidate = "contract.schema.json"
             review_json = "contract.review.json"
             compliance_issue_count = 0
+        },
+        [ordered]@{
+            name = "purchase-order-template"
+            status = "needs_changes"
+            decision = "needs_changes"
+            approved = $false
+            pending = $false
+            confidence = 74
+            reason_code = "medium_confidence_update"
+            approval_result = "purchase-order.approval.json"
+            schema_update_candidate = "purchase-order.schema.json"
+            review_json = "purchase-order.review.json"
+            compliance_issue_count = 0
+        },
+        [ordered]@{
+            name = "lease-amendment-template"
+            status = "invalid_result"
+            decision = "unknown"
+            approved = $false
+            pending = $false
+            confidence = 48
+            reason_code = "invalid_approval_fixture"
+            approval_result = "lease-amendment.approval.json"
+            schema_update_candidate = "lease-amendment.schema.json"
+            review_json = "lease-amendment.review.json"
+            compliance_issue_count = 1
         }
     )
 })
@@ -198,9 +258,9 @@ if (Test-Scenario -Name "aggregate") {
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.schema_patch_confidence_calibration_report.v1" `
         -Message "Summary should expose calibration schema."
-    Assert-Equal -Actual ([string]$summary.status) -Expected "pending_review" `
-        -Message "Pending approval should make the report pending_review."
-    Assert-Equal -Actual ([int]$summary.entry_count) -Expected 3 `
+    Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
+        -Message "Invalid approval records should block the report."
+    Assert-Equal -Actual ([int]$summary.entry_count) -Expected 5 `
         -Message "Summary should aggregate entries from smoke and history."
     Assert-Equal -Actual ([string]$summary.confidence_source) -Expected "mixed" `
         -Message "Summary should detect mixed explicit and unscored confidence."
@@ -213,27 +273,59 @@ if (Test-Scenario -Name "aggregate") {
     Assert-Equal -Actual ([int]$highBucket.approved_count) -Expected 1 `
         -Message "High confidence bucket should count approved candidate."
 
+    $mediumBucket = @($summary.confidence_buckets | Where-Object { $_.name -eq "80-94" })[0]
+    Assert-Equal -Actual ([int]$mediumBucket.candidate_count) -Expected 1 `
+        -Message "80-94 confidence bucket should include the rejected report candidate."
+    Assert-Equal -Actual ([int]$mediumBucket.rejected_count) -Expected 1 `
+        -Message "80-94 confidence bucket should count rejected candidate."
+
+    $lowMidBucket = @($summary.confidence_buckets | Where-Object { $_.name -eq "60-79" })[0]
+    Assert-Equal -Actual ([int]$lowMidBucket.candidate_count) -Expected 1 `
+        -Message "60-79 confidence bucket should include the purchase-order candidate."
+    Assert-Equal -Actual ([int]$lowMidBucket.rejected_count) -Expected 1 `
+        -Message "60-79 confidence bucket should count needs-changes candidate."
+
+    $lowBucket = @($summary.confidence_buckets | Where-Object { $_.name -eq "0-59" })[0]
+    Assert-Equal -Actual ([int]$lowBucket.candidate_count) -Expected 1 `
+        -Message "0-59 confidence bucket should include the invalid lease-amendment candidate."
+    Assert-Equal -Actual ([int]$lowBucket.invalid_result_count) -Expected 1 `
+        -Message "0-59 confidence bucket should count invalid approval candidate."
+
     $unscoredBucket = @($summary.confidence_buckets | Where-Object { $_.name -eq "unscored" })[0]
     Assert-Equal -Actual ([int]$unscoredBucket.pending_count) -Expected 1 `
         -Message "Unscored bucket should count pending candidate."
     Assert-True -Condition (@($summary.recommendations | Where-Object { $_.id -eq "resolve_pending_schema_approvals" }).Count -eq 1) `
         -Message "Recommendations should ask to resolve pending approvals."
+    Assert-True -Condition (@($summary.recommendations | Where-Object { $_.id -eq "fix_invalid_approval_records" }).Count -eq 1) `
+        -Message "Recommendations should ask to fix invalid approval records."
     Assert-True -Condition (@($summary.recommendations | Where-Object { $_.id -eq "add_explicit_confidence_metadata" }).Count -eq 1) `
         -Message "Recommendations should ask for explicit confidence metadata."
     Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $false `
-        -Message "Pending calibration should not be release-ready."
-    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 1 `
-        -Message "Pending approvals should produce a release blocker for rollup."
+        -Message "Blocked calibration should not be release-ready."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 2 `
+        -Message "Pending and invalid approvals should produce release blockers for rollup."
+    $pendingBlockers = @($summary.release_blockers | Where-Object { $_.id -eq "schema_patch_confidence_calibration.pending_schema_approvals" })
+    Assert-Equal -Actual $pendingBlockers.Count -Expected 1 `
+        -Message "Pending approvals should produce a stable release blocker."
+    $invalidBlockers = @($summary.release_blockers | Where-Object { $_.id -eq "schema_patch_confidence_calibration.invalid_approval_records" })
+    Assert-Equal -Actual $invalidBlockers.Count -Expected 1 `
+        -Message "Invalid approvals should produce a stable release blocker."
+    Assert-Equal -Actual ([string]$invalidBlockers[0].action) -Expected "fix_invalid_approval_records" `
+        -Message "Invalid approval blocker should route to the repair action."
     Assert-Equal -Actual ([string]$summary.release_blockers[0].source_schema) -Expected "featherdoc.schema_patch_confidence_calibration_report.v1" `
         -Message "Calibration blockers should expose the source schema."
     Assert-ContainsText -Text ([string]$summary.release_blockers[0].source_json_display) -ExpectedText "aggregate-report\summary.json" `
         -Message "Calibration blockers should expose the report JSON display path."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
-        -Message "Unscored candidates should produce a warning for rollup."
+        -Message "Unscored candidates should produce the only warning for rollup."
+    Assert-Equal -Actual ([string]$summary.warnings[0].id) -Expected "schema_patch_confidence_calibration.unscored_candidates" `
+        -Message "Invalid approvals should be blockers rather than warnings."
     Assert-Equal -Actual ([string]$summary.warnings[0].source_schema) -Expected "featherdoc.schema_patch_confidence_calibration_report.v1" `
         -Message "Calibration warnings should expose the source schema."
-    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 4 `
         -Message "Recommendations should be mirrored as action items."
+    Assert-True -Condition (@($summary.action_items | Where-Object { $_.id -eq "fix_invalid_approval_records" }).Count -eq 1) `
+        -Message "Invalid approval recommendation should be mirrored as an action item."
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Calibration action items should expose the reviewer open command."
@@ -245,6 +337,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include confidence buckets."
     Assert-ContainsText -Text $markdown -ExpectedText "resolve_pending_schema_approvals" `
         -Message "Markdown should include pending approval recommendation."
+    Assert-ContainsText -Text $markdown -ExpectedText "schema_patch_confidence_calibration.invalid_approval_records" `
+        -Message "Markdown should include invalid approval blocker."
+    Assert-ContainsText -Text $markdown -ExpectedText "fix_invalid_approval_records" `
+        -Message "Markdown should include invalid approval action."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
         -Message "Markdown should include source JSON display fields."
     Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
@@ -265,8 +361,8 @@ if (Test-Scenario -Name "fail_on_pending") {
     Assert-True -Condition (Test-Path -LiteralPath $summaryPath) `
         -Message "Failing calibration report should still write summary.json."
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
-    Assert-Equal -Actual ([string]$summary.status) -Expected "pending_review" `
-        -Message "Failing summary should preserve pending_review status."
+    Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
+        -Message "Failing summary should preserve blocked status when invalid approvals exist."
 }
 
 Write-Host "Schema patch confidence calibration report regression passed."

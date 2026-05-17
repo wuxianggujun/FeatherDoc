@@ -250,6 +250,36 @@ pdfium_document_parser_probe ..... Passed
 - `pdf_unicode_font_roundtrip`：Unicode / CJK 字体嵌入和 PDFium 回读回环
 - `pdf_unicode_font_roundtrip_visual`：Unicode / CJK 字体 PDF 渲染为 PNG 后的视觉 smoke
 
+`pdf_unicode_font_roundtrip` 还覆盖 PDFium table candidate cell text 的受控 RTL
+normalization。当前范围只包含 table cell 内的 Hebrew / Arabic core、ASCII digits、
+Arabic-Indic digits、Extended Arabic-Indic / Persian digits，以及
+colon / slash / hyphen / semicolon / comma / period 这组简单 ASCII 中性标点边界；
+raw spans / lines 仍保留 PDFium 原始抽取形态，writer 的非 LTR glyph-id CID guard
+不会因此放开。
+
+定向验证：
+
+```powershell
+cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'
+```
+
+RTL table cell contact sheet 手动检查：
+
+```powershell
+tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-arabic-indic-comma-period-normalized\pages --summary output\pdf-rtl-table-cell-arabic-indic-comma-period-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-arabic-indic-comma-period-normalized\contact-sheet.png --dpi 144
+
+tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-persian-digit-boundary.pdf --output-dir output\pdf-rtl-table-cell-persian-digit-normalized\pages --summary output\pdf-rtl-table-cell-persian-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-persian-digit-normalized\contact-sheet.png --dpi 144
+
+tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-arabic-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-arabic-core-digit-normalized\pages --summary output\pdf-rtl-table-cell-arabic-core-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-arabic-core-digit-normalized\contact-sheet.png --dpi 144
+```
+
+Arabic core boundary 表格同时覆盖 Arabic-Indic digits 与 Extended Arabic-Indic /
+Persian digits，避免 Unicode 十进制数字支持只在 Hebrew core fixture 中闭环。
+
+简单 RTL table cell 边界矩阵已经冻结。后续新增 digit / punctuation 样本前必须先说明
+新的 Unicode class、PDFium raw 形态或用户可见导入风险；否则优先推进复杂 cell 的
+glyph / cluster 语义设计。
+
 读入方向可以单独跑，不必混进导出主线：
 
 ```powershell
@@ -413,14 +443,83 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.p
 - 核心样本的 PNG baseline 渲染，其中包含 `styled-text`、`mixed-style-text`、
   `underline-text`、`document-contract-cjk-style`、`document-eastasia-style-probe`、
   `mixed-cjk-punctuation-text` 和 `latin-ligature-text` 这组样式 / 文字塑形视觉样本
+- RTL table cell normalization 视觉样本，其中包含 Hebrew mixed boundary 表格和
+  Persian digit boundary 表格、Arabic core boundary 表格
 - 聚合 contact sheet 生成
 
 主要产物会落到：
 
 - `output/pdf-visual-release-gate/report/summary.json`
 - `output/pdf-visual-release-gate/report/aggregate-contact-sheet.png`
+- `output/pdf-visual-release-gate/report/unicode-font.log`（完整 Unicode baseline 模式）
+- `output/pdf-visual-release-gate/report/pdf-unicode-roundtrip-test.log`
+  （`-SkipUnicodeBaseline` 模式，用于确认 RTL table cell PDF 已生成）
 - `output/pdf-visual-release-gate/unicode-font/report/summary.json`
 - `output/pdf-visual-release-gate/unicode-font/report/comparison-contact-sheet.png`
+
+RTL table cell 当前只覆盖受控简单边界。复杂 cell normalization 的推进顺序必须是：
+
+1. 先定义 text span、glyph cluster、PDFium char box 与 FeatherDoc logical text 的对应关系
+2. 再补 Hebrew niqqud / Arabic harakat 这类 combining mark fixture
+3. 再补跨 run bidi cell fixture
+4. 最后才评估是否扩大 parser 规则或 release gate 样本
+
+复杂 cell 当前决策表：
+
+- pure single-cluster RTL cell 可以在 table cell 结构化层恢复逻辑顺序
+- 包含 `\n` 或 `\r` 的 split Hebrew pure RTL cell 保持 raw
+- Arabic split pure RTL 只有在 PDFium 合并为单 raw cluster 时才可走现有规则
+- split mixed-bidi、Hebrew niqqud 和 Arabic harakat cell 保持 raw-preservation
+- release gate 用 `rtl-table-cell-normalization` 标记简单归一化 baseline，
+  用 `rtl-table-cell-raw-preservation` 标记复杂 raw-preservation baseline
+
+当前已经先固定单 run table candidate cell 的低层语义：`PdfParsedTableCell::text_spans`
+保留 PDFium 原始 span 顺序、文本、font size 和 char box；`cell.text` 可在结构化层做
+RTL normalization，但 raw `text_spans` 不随之改写。测试会把 raw parse 与 normalized
+parse 的 table bounds、列锚点、row / cell bounds、cell spans 做等价断言，确保
+normalization 只影响结构化 `cell.text`，不影响 table candidate 几何和 raw diagnostics。
+同 cell 多 text show / 多 run 仍需独立 fixture 后再决定是否进入自动恢复范围。
+
+同 cell split mixed-bidi 已有 raw-preservation fixture：`Status `、Hebrew RTL run 和
+`: 123` 分属不同 text run 且落在同一个 table cell 时，当前 parser / import 保持 PDFium
+raw cell 文本，只固定 fragment 级 span geometry，不把它纳入自动 RTL normalization。
+DOCX import 同时检查 header、Owner、Due 以及 Alpha / Beta 静态行保留预期可见文本，
+并要求默认 import 与关闭 normalization 的 raw import 在整张 4x3 表上逐格一致。
+
+完整 cell normalization 的验收矩阵已经固定为五类入口：parser text 回读、table candidate
+几何、DOCX import、PNG contact sheet 和 release gate baseline。新增可自动恢复的 cell
+边界时，必须同时证明 raw parse 保留 PDFium raw `cell.text` / `text_spans`，normalized
+parse 只改写 allowlisted `cell.text`，table bounds / 列锚点 / row-cell bounds / span
+不随 normalization 切换变化，非 allowlisted cell 的结构化文本保持不变，且默认 DOCX
+import 输出 logical text、关闭 normalization 时输出 PDFium raw text。DOCX table import
+还要证明 header / Owner / Due 等非目标 cell 在默认 import 与 raw import 之间保持一致；
+这些 cell 可以含有 PDF / DOCX 方向控制细节，但必须包含预期可见文本，且两条 import
+路径不能互相漂移。
+
+Hebrew niqqud / Arabic harakat 也已有 cell 级 raw-preservation fixture：`שָלוֹם` 在
+PDFium table cell raw 中固定为 `םֹולָש`，`سَلَام` 固定为 `ماَلَس`。当前只保证 raw
+span / char box 可诊断且 table import 保持 raw；测试还会验证 combining mark span 与相邻
+base span 的 char box 存在稳定近邻关系，并检查 DOCX import 的非目标静态 cell
+保留预期可见文本，同时要求默认 import 与 raw import 在整张 4x3 表上逐格一致。
+mark 所属 base glyph 和完整自动恢复仍需后续 glyph cluster 设计。
+
+同 cell split pure-RTL 也按 raw-preservation 处理：当 `שלום` 被拆成 `של` / `ום`
+两个 text show 并落在同一 table cell 时，PDFium table cell raw 固定为 `לש\nםו`。
+当前 parser / import 会保持 raw，不把跨 cluster 文本套用单 run 反转规则。
+Arabic split pure-RTL 的实测形态不同：当 `سلام` 被拆成 `سل` / `ام` 时，PDFium
+table cell raw 会合并为 `مالس `，默认 parser / import 仍可恢复为 `سلام`，raw import
+保留 PDFium raw core。当前测试同时断言除目标格外，默认 import 与 raw import 的
+4x3 表格其它单元格逐格一致。
+
+视觉 release gate 已包含复杂 RTL cell raw-preservation 基线：
+`rtl-table-cell-split-mixed-bidi-raw-spans`、
+`rtl-table-cell-split-pure-rtl-raw-spans`、
+`rtl-table-cell-arabic-split-pure-rtl-normalized`、
+`rtl-table-cell-hebrew-combining-mark-raw-spans` 和
+`rtl-table-cell-arabic-combining-mark-raw-spans`。
+
+在上述语义稳定前，不应放开 production writer 的非 LTR glyph-id CID guard；RTL /
+竖排 shaped run 仍走字符串 fallback。
 
 ## 字体选择
 
@@ -550,13 +649,17 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
   检查 shaped glyph ToUnicode CMap 的 cluster 映射，验证带 offset / y advance 的 glyph
   会逐 glyph 写定位矩阵，验证重复 cluster 只映射一次，并验证倒序 cluster / 非 UTF-8
   边界 cluster / 非 LTR direction 会回退到字符串路径
+- 可以在 PDFium table candidate cell text 上做受控 RTL normalization，当前覆盖
+  Hebrew / Arabic core、ASCII digits、Arabic-Indic digits、Extended Arabic-Indic /
+  Persian digits 和常见简单 ASCII 中性标点边界；该能力只作用于表格单元格归一化结果，
+  原始 spans / lines 继续保留原貌
 - 可以跑 PDFio → PDFium 的端到端 smoke
 - 已有首批 39 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、中英混排标点、Latin ligature 文本、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
 
 还不能算正式可用：
 
 - 还没有 `AST → PDFio` 完整翻译层；复杂分页、图片锚点/裁剪/环绕和发布级合同样式视觉 baseline 还没收口
-- RTL / 竖排文字的方向模型还需要继续专项收口
+- 完整 RTL run-level normalization、跨 run bidi、combining mark 恢复和竖排文字方向模型还需要继续专项收口
 - 还没有 `PDFium → AST` 文档结构重建
 - 还需要继续扩充真实 PDF 样本回归集
 - 发布级 CJK 字体许可证 / 捆绑策略、复杂表格分页和 PNG baseline 门禁还在专项推进中

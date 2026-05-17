@@ -260,6 +260,7 @@ function New-ReadinessTemplate {
     param(
         [string]$RepoRoot,
         [string]$TemplateName,
+        [string]$ProjectId = "",
         [string]$InputDocx,
         [string]$SourceKind,
         [string]$SourceJson,
@@ -298,6 +299,7 @@ function New-ReadinessTemplate {
 
     return [ordered]@{
         template_name = $TemplateName
+        project_id = $ProjectId
         input_docx = $InputDocx
         input_docx_display = if ([string]::IsNullOrWhiteSpace($InputDocx)) { "" } else { Get-DisplayPath -RepoRoot $RepoRoot -Path (Resolve-RepoPath -RepoRoot $RepoRoot -Path $InputDocx -AllowMissing) }
         onboarding_status = $OnboardingStatus
@@ -338,6 +340,7 @@ function Convert-OnboardingGovernanceToTemplates {
             New-ReadinessTemplate `
                 -RepoRoot $RepoRoot `
                 -TemplateName $name `
+                -ProjectId (Get-JsonString -Object $entry -Name "project_id") `
                 -InputDocx (Get-JsonString -Object $entry -Name "input_docx") `
                 -SourceKind "onboarding_governance_report" `
                 -SourceJson $Path `
@@ -361,6 +364,7 @@ function Convert-OnboardingSummaryToTemplates {
         New-ReadinessTemplate `
             -RepoRoot $RepoRoot `
             -TemplateName $name `
+            -ProjectId (Get-JsonString -Object $Json -Name "project_id") `
             -InputDocx (Get-JsonString -Object $Json -Name "input_docx") `
             -SourceKind "onboarding_summary" `
             -SourceJson $Path `
@@ -377,9 +381,11 @@ function Convert-OnboardingPlanToTemplates {
 
     return @(
         foreach ($entry in @(Get-JsonArray -Object $Json -Name "entries")) {
+            $planProjectId = Get-JsonString -Object $Json -Name "project_id"
             New-ReadinessTemplate `
                 -RepoRoot $RepoRoot `
                 -TemplateName (Get-JsonString -Object $entry -Name "name" -DefaultValue "project-template") `
+                -ProjectId (Get-JsonString -Object $entry -Name "project_id" -DefaultValue $planProjectId) `
                 -InputDocx (Get-JsonString -Object $entry -Name "input_docx") `
                 -SourceKind "onboarding_plan" `
                 -SourceJson $Path `
@@ -416,20 +422,41 @@ function Get-HistoryReadinessStatus {
 function Add-HistoryToTemplates {
     param([object[]]$Templates, [object[]]$Histories, $Warnings)
 
+    $historyByProjectTemplate = @{}
     $historyByName = @{}
     foreach ($history in @($Histories)) {
         foreach ($entry in @(Get-JsonArray -Object $history -Name "entry_histories")) {
             $name = Get-JsonString -Object $entry -Name "name"
-            if ([string]::IsNullOrWhiteSpace($name)) { continue }
-            $historyByName[$name.ToLowerInvariant()] = $entry
+            $templateName = Get-JsonString -Object $entry -Name "template_name" -DefaultValue $name
+            $projectId = Get-JsonString -Object $entry -Name "project_id"
+            if (-not [string]::IsNullOrWhiteSpace($projectId) -and -not [string]::IsNullOrWhiteSpace($templateName)) {
+                $historyByProjectTemplate[("{0}|{1}" -f $projectId, $templateName).ToLowerInvariant()] = $entry
+            }
+            if (-not [string]::IsNullOrWhiteSpace($name)) {
+                $historyByName[$name.ToLowerInvariant()] = $entry
+            }
+            if (-not [string]::IsNullOrWhiteSpace($templateName)) {
+                $historyByName[$templateName.ToLowerInvariant()] = $entry
+            }
         }
     }
 
     foreach ($template in @($Templates)) {
-        $key = ([string]$template.template_name).ToLowerInvariant()
-        if (-not $historyByName.ContainsKey($key)) {
+        $projectId = [string]$template.project_id
+        $templateName = [string]$template.template_name
+        $projectTemplateKey = ("{0}|{1}" -f $projectId, $templateName).ToLowerInvariant()
+        $nameKey = $templateName.ToLowerInvariant()
+        $historyEntry = $null
+        if ($historyByProjectTemplate.ContainsKey($projectTemplateKey)) {
+            $historyEntry = $historyByProjectTemplate[$projectTemplateKey]
+        } elseif ($historyByName.ContainsKey($nameKey)) {
+            $historyEntry = $historyByName[$nameKey]
+        }
+
+        if ($null -eq $historyEntry) {
             $Warnings.Add([ordered]@{
                 id = "schema_approval_history_missing_for_template"
+                project_id = $projectId
                 template_name = [string]$template.template_name
                 action = "review_schema_approval_history"
                 source_schema = $deliveryReadinessSchema
@@ -440,11 +467,12 @@ function Add-HistoryToTemplates {
             continue
         }
 
-        $historyEntry = $historyByName[$key]
         $historyStatus = Get-HistoryReadinessStatus -HistoryEntry $historyEntry
         $template["schema_history_available"] = $true
         $template["schema_history"] = [ordered]@{
             status = $historyStatus
+            project_id = Get-JsonString -Object $historyEntry -Name "project_id"
+            template_name = Get-JsonString -Object $historyEntry -Name "template_name"
             latest_status = Get-JsonString -Object $historyEntry -Name "latest_status"
             latest_decision = Get-JsonString -Object $historyEntry -Name "latest_decision"
             latest_action = Get-JsonString -Object $historyEntry -Name "latest_action"
@@ -467,7 +495,9 @@ function Add-HistoryToTemplates {
                 -Source "schema_approval_history" `
                 -Status $historyStatus `
                 -Action (Get-JsonString -Object $historyEntry -Name "latest_action" -DefaultValue "review_schema_approval_history") `
-                -Message "Latest schema approval history entry is not release-ready.")) | Out-Null
+                -Message "Latest schema approval history entry is not release-ready." `
+                -SourceJson (Get-JsonString -Object $historyEntry -Name "latest_summary_json") `
+                -SourceJsonDisplay (Get-JsonString -Object $historyEntry -Name "latest_summary_json_display"))) | Out-Null
             $template["release_blocked"] = $true
             $template["release_ready"] = $false
             $template["release_blockers"] = @($blockers.ToArray())
@@ -516,8 +546,9 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($template in @($Summary.templates)) {
-            $lines.Add(("- ``{0}``: onboarding=``{1}`` schema=``{2}`` history=``{3}`` blockers=``{4}`` source=``{5}``" -f
+            $lines.Add(("- ``{0}``: project=``{1}`` onboarding=``{2}`` schema=``{3}`` history=``{4}`` blockers=``{5}`` source=``{6}``" -f
                 $template.template_name,
+                $template.project_id,
                 $template.onboarding_status,
                 $template.schema_approval_status,
                 $template.schema_history.status,
@@ -532,7 +563,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: project=``$($blocker.project_id)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - message: $($blocker.message)") | Out-Null
             }
@@ -545,7 +576,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.template_name)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($item.template_name)`` / ``$($item.id)``: project=``$($item.project_id)`` action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -558,7 +589,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - message: $($warning.message)") | Out-Null
             }
@@ -709,6 +740,7 @@ $manualReviewRecommendations = New-Object 'System.Collections.Generic.List[objec
 foreach ($blocker in @($globalReleaseBlockers.ToArray())) {
     $releaseBlockers.Add([ordered]@{
         scope = "global"
+        project_id = ""
         template_name = ""
         source_kind = Get-JsonString -Object $blocker -Name "source"
         source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue $deliveryReadinessSchema
@@ -726,6 +758,7 @@ foreach ($template in @($templates.ToArray())) {
     foreach ($blocker in @($template.release_blockers)) {
         $releaseBlockers.Add([ordered]@{
             scope = [string]$template.template_name
+            project_id = [string]$template.project_id
             template_name = [string]$template.template_name
             source_kind = [string]$template.source_kind
             source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue (Get-DefaultSourceSchema -SourceKind ([string]$template.source_kind))
@@ -740,6 +773,7 @@ foreach ($template in @($templates.ToArray())) {
     }
     foreach ($item in @($template.action_items)) {
         $actionItems.Add([ordered]@{
+            project_id = [string]$template.project_id
             template_name = [string]$template.template_name
             source_kind = [string]$template.source_kind
             source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue (Get-DefaultSourceSchema -SourceKind ([string]$template.source_kind))
@@ -754,6 +788,7 @@ foreach ($template in @($templates.ToArray())) {
     }
     foreach ($recommendation in @($template.manual_review_recommendations)) {
         $manualReviewRecommendations.Add([ordered]@{
+            project_id = [string]$template.project_id
             template_name = [string]$template.template_name
             source_kind = [string]$template.source_kind
             id = Get-JsonString -Object $recommendation -Name "id" -DefaultValue "manual_review"
@@ -796,9 +831,11 @@ $summary = [ordered]@{
     schema_history_pending_run_count = $historyPendingRunCount
     schema_history_passed_run_count = $historyPassedRunCount
     template_count = $templates.Count
+    project_count = @($templates.ToArray() | ForEach-Object { [string]$_.project_id } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique).Count
     ready_template_count = $readyTemplateCount
     blocked_template_count = $blockedTemplateCount
     templates = @($templates.ToArray())
+    project_summary = @(Add-SummaryGroup -Items $templates.ToArray() -PropertyName "project_id" -OutputName "project_id")
     template_status_summary = @(Add-SummaryGroup -Items $templates.ToArray() -PropertyName "onboarding_status" -OutputName "status")
     schema_approval_status_summary = @(Add-SummaryGroup -Items $templates.ToArray() -PropertyName "schema_approval_status" -OutputName "status")
     release_blocker_count = $releaseBlockers.Count

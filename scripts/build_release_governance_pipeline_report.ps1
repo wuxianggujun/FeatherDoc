@@ -149,6 +149,20 @@ function Get-StageSourceDisplay {
     return $DefaultDisplay
 }
 
+function Get-StageDefaultOpenCommand {
+    param(
+        [string]$RepoRoot,
+        [string]$ScriptPath
+    )
+
+    $scriptDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $ScriptPath
+    if ([string]::IsNullOrWhiteSpace($scriptDisplay)) {
+        return ""
+    }
+
+    return "pwsh -ExecutionPolicy Bypass -File $scriptDisplay"
+}
+
 function New-StageBlockerItems {
     param(
         [string]$RepoRoot,
@@ -200,6 +214,7 @@ function New-StageActionItems {
         [string]$StageSchema,
         [string]$SummaryJson,
         [string]$SummaryJsonDisplay,
+        [string]$DefaultOpenCommand,
         [object[]]$Items
     )
 
@@ -218,6 +233,11 @@ function New-StageActionItems {
                 -DisplayProperty "source_json_display" `
                 -DefaultDisplay $sourceReportDisplay
             $command = Get-JsonString -Object $item -Name "command"
+            $openCommandDefault = if (-not [string]::IsNullOrWhiteSpace($command)) {
+                $command
+            } else {
+                $DefaultOpenCommand
+            }
             [ordered]@{
                 stage_id = $StageId
                 stage_title = $StageTitle
@@ -225,7 +245,7 @@ function New-StageActionItems {
                 action = Get-JsonString -Object $item -Name "action"
                 title = Get-JsonString -Object $item -Name "title"
                 command = $command
-                open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue $command
+                open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue $openCommandDefault
                 source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue $StageSchema
                 source_report = Get-JsonString -Object $item -Name "source_report" -DefaultValue $SummaryJson
                 source_report_display = $sourceReportDisplay
@@ -344,6 +364,7 @@ function New-StageEntry {
 
     $summaryJsonDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $SummaryJson
     $stageSchema = Get-JsonString -Object $Summary -Name "schema" -DefaultValue "unknown"
+    $defaultOpenCommand = Get-StageDefaultOpenCommand -RepoRoot $RepoRoot -ScriptPath $Script
     $releaseBlockers = @(New-StageBlockerItems `
             -RepoRoot $RepoRoot `
             -StageId $Id `
@@ -359,6 +380,7 @@ function New-StageEntry {
             -StageSchema $stageSchema `
             -SummaryJson $SummaryJson `
             -SummaryJsonDisplay $summaryJsonDisplay `
+            -DefaultOpenCommand $defaultOpenCommand `
             -Items @(Get-JsonArray -Object $Summary -Name "action_items"))
     $warnings = @(New-StageWarningItems `
             -RepoRoot $RepoRoot `

@@ -614,6 +614,22 @@ Assert-BundleRejectsSummary `
     -FileName "summary.release-blocker-missing-action.json" `
     -ExpectedFragments @("release_blockers[0].action must not be empty")
 
+$missingRollupEvidenceSummary = Copy-ReleaseSummaryForNegativeCase
+$missingRollupEvidenceBlocker = @($missingRollupEvidenceSummary.release_blocker_rollup.release_blockers)[0]
+$missingRollupEvidenceBlocker.source_json_display = ""
+Assert-BundleRejectsSummary `
+    -CandidateSummary $missingRollupEvidenceSummary `
+    -FileName "summary.release-rollup-missing-source-json-display.json" `
+    -ExpectedFragments @("release_blocker_rollup.release_blockers[0].source_json_display must not be empty")
+
+$missingHandoffCommandSummary = Copy-ReleaseSummaryForNegativeCase
+$missingHandoffActionItem = @($missingHandoffCommandSummary.release_governance_handoff.action_items)[0]
+$missingHandoffActionItem.open_command = ""
+Assert-BundleRejectsSummary `
+    -CandidateSummary $missingHandoffCommandSummary `
+    -FileName "summary.release-handoff-missing-open-command.json" `
+    -ExpectedFragments @("release_governance_handoff.action_items[0].open_command must not be empty")
+
 $duplicateIdSummary = Copy-ReleaseSummaryForNegativeCase
 $firstBlocker = @($duplicateIdSummary.release_blockers)[0]
 $duplicateBlocker = $firstBlocker | ConvertTo-Json -Depth 10 | ConvertFrom-Json

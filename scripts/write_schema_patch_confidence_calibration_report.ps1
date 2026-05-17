@@ -443,13 +443,10 @@ function New-ReleaseBlockers {
         [string]$SourceJsonDisplay
     )
 
+    $blockers = New-Object 'System.Collections.Generic.List[object]'
     $pendingCount = @($Entries | Where-Object { $_.calibration_outcome -eq "pending" }).Count
-    if ($pendingCount -le 0) {
-        return @()
-    }
-
-    return @(
-        [ordered]@{
+    if ($pendingCount -gt 0) {
+        $blockers.Add([ordered]@{
             id = "schema_patch_confidence_calibration.pending_schema_approvals"
             source = "schema_patch_confidence_calibration"
             severity = "error"
@@ -460,8 +457,26 @@ function New-ReleaseBlockers {
             source_schema = $calibrationSchema
             source_json = $SourceJson
             source_json_display = $SourceJsonDisplay
-        }
-    )
+        }) | Out-Null
+    }
+
+    $invalidCount = @($Entries | Where-Object { $_.calibration_outcome -eq "invalid_result" }).Count
+    if ($invalidCount -gt 0) {
+        $blockers.Add([ordered]@{
+            id = "schema_patch_confidence_calibration.invalid_approval_records"
+            source = "schema_patch_confidence_calibration"
+            severity = "error"
+            status = "blocked"
+            action = "fix_invalid_approval_records"
+            message = "Schema patch confidence calibration contains invalid approval record(s)."
+            invalid_result_count = $invalidCount
+            source_schema = $calibrationSchema
+            source_json = $SourceJson
+            source_json_display = $SourceJsonDisplay
+        }) | Out-Null
+    }
+
+    return @($blockers.ToArray())
 }
 
 function New-Warnings {
@@ -481,19 +496,6 @@ function New-Warnings {
             source_schema = $calibrationSchema
             source_json = Get-JsonString -Object $inputSummary -Name "path"
             source_json_display = Get-JsonString -Object $inputSummary -Name "path_display"
-        }) | Out-Null
-    }
-
-    $invalidCount = @($Entries | Where-Object { $_.calibration_outcome -eq "invalid_result" }).Count
-    if ($invalidCount -gt 0) {
-        $warnings.Add([ordered]@{
-            id = "schema_patch_confidence_calibration.invalid_approval_records"
-            action = "fix_invalid_approval_records"
-            message = "Invalid approval records make calibration rates unreliable."
-            invalid_result_count = $invalidCount
-            source_schema = $calibrationSchema
-            source_json = $SourceJson
-            source_json_display = $SourceJsonDisplay
         }) | Out-Null
     }
 
@@ -665,6 +667,7 @@ foreach ($path in @($inputPaths)) {
 $entryArray = @($entries.ToArray())
 $recommendedMinConfidence = Get-RecommendedMinConfidence -Entries $entryArray
 $pendingCount = @($entryArray | Where-Object { $_.calibration_outcome -eq "pending" }).Count
+$invalidCount = @($entryArray | Where-Object { $_.calibration_outcome -eq "invalid_result" }).Count
 $sourceFailureCount = @($inputSummaries.ToArray() | Where-Object { $_.status -eq "failed" }).Count
 $summaryDisplayPath = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
 $recommendations = @(New-Recommendations -Entries $entryArray -RecommendedMinConfidence $recommendedMinConfidence)
@@ -673,6 +676,8 @@ $warnings = @(New-Warnings -Entries $entryArray -InputSummaries $inputSummaries.
 $actionItems = @(New-ActionItems -Recommendations $recommendations -SourceJson $summaryPath -SourceJsonDisplay $summaryDisplayPath)
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
+} elseif ($invalidCount -gt 0) {
+    "blocked"
 } elseif ($pendingCount -gt 0) {
     "pending_review"
 } else {
@@ -718,4 +723,4 @@ Write-Step "Report Markdown: $markdownPath"
 Write-Step "Status: $status"
 
 if ($sourceFailureCount -gt 0) { exit 1 }
-if ($FailOnPending -and $pendingCount -gt 0) { exit 1 }
+if ($FailOnPending -and (($pendingCount + $invalidCount) -gt 0)) { exit 1 }

@@ -75,6 +75,7 @@ function New-BlockedEvidence {
         entries = @(
             [ordered]@{
                 name = "invoice-template"
+                project_id = "project-alpha"
                 input_docx = "samples/invoice.docx"
                 source_kind = "onboarding_summary"
                 schema_approval_state = [ordered]@{
@@ -114,6 +115,7 @@ function New-BlockedEvidence {
             },
             [ordered]@{
                 name = "statement-template"
+                project_id = "project-beta"
                 input_docx = "samples/statement.docx"
                 source_kind = "onboarding_summary"
                 schema_approval_state = [ordered]@{
@@ -142,6 +144,8 @@ function New-BlockedEvidence {
         entry_histories = @(
             [ordered]@{
                 name = "invoice-template"
+                project_id = "project-alpha"
+                template_name = "invoice-template"
                 run_count = 1
                 blocked_run_count = 0
                 pending_run_count = 1
@@ -151,10 +155,29 @@ function New-BlockedEvidence {
                 latest_decision = "pending"
                 latest_action = "review_schema_update_candidate"
                 latest_summary_json = "output/project-template-smoke/summary.json"
+                latest_summary_json_display = ".\output\project-template-smoke\summary.json"
+                issue_keys = @()
+            },
+            [ordered]@{
+                name = "invoice-template"
+                project_id = "project-beta"
+                template_name = "invoice-template"
+                run_count = 1
+                blocked_run_count = 0
+                pending_run_count = 0
+                approved_run_count = 1
+                latest_generated_at = "2026-05-01T12:30:00"
+                latest_status = "approved"
+                latest_decision = "approved"
+                latest_action = "promote_schema_update_candidate"
+                latest_summary_json = "output/project-template-smoke/project-beta-summary.json"
+                latest_summary_json_display = ".\output\project-template-smoke\project-beta-summary.json"
                 issue_keys = @()
             },
             [ordered]@{
                 name = "statement-template"
+                project_id = "project-beta"
+                template_name = "statement-template"
                 run_count = 1
                 blocked_run_count = 0
                 pending_run_count = 0
@@ -164,6 +187,7 @@ function New-BlockedEvidence {
                 latest_decision = "approved"
                 latest_action = "promote_schema_update_candidate"
                 latest_summary_json = "output/project-template-smoke/summary.json"
+                latest_summary_json_display = ".\output\project-template-smoke\summary.json"
                 issue_keys = @()
             }
         )
@@ -188,6 +212,7 @@ function New-ReadyEvidence {
         entries = @(
             [ordered]@{
                 name = "invoice-template"
+                project_id = "project-alpha"
                 input_docx = "samples/invoice.docx"
                 schema_approval_state = [ordered]@{
                     status = "approved"
@@ -215,6 +240,8 @@ function New-ReadyEvidence {
         entry_histories = @(
             [ordered]@{
                 name = "invoice-template"
+                project_id = "project-alpha"
+                template_name = "invoice-template"
                 run_count = 1
                 blocked_run_count = 0
                 pending_run_count = 0
@@ -224,6 +251,7 @@ function New-ReadyEvidence {
                 latest_decision = "approved"
                 latest_action = "promote_schema_update_candidate"
                 latest_summary_json = "output/project-template-smoke/summary.json"
+                latest_summary_json_display = ".\output\project-template-smoke\summary.json"
                 issue_keys = @()
             }
         )
@@ -269,6 +297,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should not be release-ready with blockers."
     Assert-Equal -Actual ([int]$summary.template_count) -Expected 2 `
         -Message "Summary should aggregate two templates."
+    Assert-Equal -Actual ([int]$summary.project_count) -Expected 2 `
+        -Message "Summary should count two distinct projects."
     Assert-Equal -Actual ([int]$summary.ready_template_count) -Expected 1 `
         -Message "Summary should count ready templates."
     Assert-Equal -Actual ([int]$summary.blocked_template_count) -Expected 1 `
@@ -295,6 +325,9 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.project_template_delivery_readiness_report.v1" `
         -Message "Delivery-generated blockers should expose the delivery readiness source schema."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-alpha" `
+        -Message "Release blockers should preserve template project ids."
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
         -ExpectedText "summary.json" `
         -Message "Release blockers should expose reviewer source JSON display paths."
@@ -304,10 +337,19 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "sync_project_template_schema_approval.ps1" `
         -Message "Action items should expose the reviewer open command."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-alpha" `
+        -Message "Action items should preserve template project ids."
 
-    $invoice = $summary.templates | Where-Object { $_.template_name -eq "invoice-template" } | Select-Object -First 1
+    $invoice = $summary.templates | Where-Object { $_.template_name -eq "invoice-template" -and $_.project_id -eq "project-alpha" } | Select-Object -First 1
+    Assert-Equal -Actual ([string]$invoice.project_id) -Expected "project-alpha" `
+        -Message "Template should preserve its project id."
     Assert-Equal -Actual ([bool]$invoice.schema_history_available) -Expected $true `
         -Message "Template should be linked to matching schema history."
+    Assert-Equal -Actual ([string]$invoice.schema_history.project_id) -Expected "project-alpha" `
+        -Message "Template history should match by project id before falling back to template name."
+    Assert-Equal -Actual ([string]$invoice.schema_history.template_name) -Expected "invoice-template" `
+        -Message "Template history should preserve template identity."
     Assert-Equal -Actual ([string]$invoice.schema_history.status) -Expected "pending_review" `
         -Message "Template history should preserve pending readiness status."
 
@@ -318,6 +360,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include schema approval history."
     Assert-ContainsText -Text $markdown -ExpectedText "invoice-template" `
         -Message "Markdown should include blocked template names."
+    Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-alpha`' `
+        -Message "Markdown should include project ids."
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
         -Message "Markdown should include release blockers."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `

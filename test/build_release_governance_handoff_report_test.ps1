@@ -154,6 +154,8 @@ function Write-GovernanceFixtures {
             release_blockers = @(
                 [ordered]@{
                     id = "project_template_delivery.pending_schema_approval"
+                    project_id = "project-alpha"
+                    template_name = "invoice-template"
                     severity = "error"
                     status = "blocked"
                     action = "approve_project_template_schema"
@@ -164,6 +166,8 @@ function Write-GovernanceFixtures {
             action_items = @(
                 [ordered]@{
                     id = "approve_project_template_schema"
+                    project_id = "project-alpha"
+                    template_name = "invoice-template"
                     action = "approve_project_template_schema"
                     title = "Approve project template schema before release"
                 }
@@ -264,6 +268,42 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
         -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Aggregate handoff should preserve warning source JSON display."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
+        -Message "Aggregate handoff should preserve blocker source schema."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+        -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+        -Message "Aggregate handoff should preserve blocker source report display."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+        -Message "Aggregate handoff should preserve blocker source JSON display."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-alpha" `
+        -Message "Aggregate handoff should preserve project-template blocker project id."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.template_name }) -join "`n") `
+        -ExpectedText "invoice-template" `
+        -Message "Aggregate handoff should preserve project-template blocker template name."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
+        -Message "Aggregate handoff should preserve action item source schema."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-alpha" `
+        -Message "Aggregate handoff should preserve project-template action project id."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.template_name }) -join "`n") `
+        -ExpectedText "invoice-template" `
+        -Message "Aggregate handoff should preserve project-template action template name."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+        -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+        -Message "Aggregate handoff should preserve action item source report display."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+        -Message "Aggregate handoff should preserve action item source JSON display."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+        -Message "Aggregate handoff should preserve action item open command."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "build_numbering_catalog_governance_report.ps1" `
+        -Message "Aggregate handoff should default missing action item open commands to the source report build command."
     Assert-ContainsText -Text (($summary.next_commands | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "ReleaseBlockerRollupAutoDiscover" `
         -Message "Aggregate handoff should hand off to release candidate auto-discovery."
@@ -279,10 +319,22 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include schema patch confidence calibration."
     Assert-ContainsText -Text $markdown -ExpectedText "## Warnings" `
         -Message "Markdown should include handoff warnings."
+    Assert-ContainsText -Text $markdown -ExpectedText "## Release Blockers" `
+        -Message "Markdown should include handoff release blockers."
+    Assert-ContainsText -Text $markdown -ExpectedText "## Action Items" `
+        -Message "Markdown should include handoff action items."
     Assert-ContainsText -Text $markdown -ExpectedText "numbering_catalog_manifest_summary_missing" `
         -Message "Markdown should include warning id."
-    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display" `
-        -Message "Markdown should include warning source JSON display."
+    Assert-ContainsText -Text $markdown -ExpectedText 'schema=`featherdoc.schema_patch_confidence_calibration_report.v1`' `
+        -Message "Markdown should include handoff source schema."
+    Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-alpha` template=`invoice-template`' `
+        -Message "Markdown should include project-template identity."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display:" `
+        -Message "Markdown should include handoff source report display."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_json_display: `.\output\schema-patch-confidence-calibration\summary.json`' `
+        -Message "Markdown should include handoff source JSON display."
+    Assert-ContainsText -Text $markdown -ExpectedText 'open_command: `pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1`' `
+        -Message "Markdown should include handoff action item open command."
 }
 
 if (Test-Scenario -Name "missing") {
@@ -396,6 +448,12 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
         -Message "Nested rollup should preserve calibration source schema."
+    Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-alpha" `
+        -Message "Nested rollup should preserve project-template blocker project id."
+    Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object { [string]$_.template_name }) -join "`n") `
+        -ExpectedText "invoice-template" `
+        -Message "Nested rollup should preserve project-template action template name."
 }
 
 Write-Host "Release governance handoff report regression passed."

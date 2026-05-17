@@ -141,6 +141,141 @@ function Assert-ReleaseBlockerMetadataQuality {
     }
 }
 
+function Assert-ReleaseGovernanceDeclaredCountConsistency {
+    param(
+        [AllowNull()]$Container,
+        [string]$ContainerName,
+        [string]$CountProperty,
+        [string]$ItemsProperty,
+        [string]$Context
+    )
+
+    $countObject = Get-ReleaseBlockerPropertyObject -Object $Container -Name $CountProperty
+    if ($null -eq $countObject -or [string]::IsNullOrWhiteSpace([string]$countObject)) {
+        return
+    }
+
+    try {
+        $declaredCount = [int]([string]$countObject)
+    } catch {
+        throw "$ContainerName.$CountProperty must be an integer when provided in ${Context}; actual value: $countObject"
+    }
+
+    if ($declaredCount -lt 0) {
+        throw "$ContainerName.$CountProperty must not be negative in ${Context}; actual value: $declaredCount"
+    }
+
+    $actualCount = @(Get-ReleaseBlockerArrayProperty -Object $Container -Name $ItemsProperty).Count
+    if ($declaredCount -ne $actualCount) {
+        throw "$ContainerName.$CountProperty mismatch in ${Context}: declared $declaredCount but $ContainerName.$ItemsProperty contains $actualCount item(s)."
+    }
+}
+
+function Assert-ReleaseGovernanceReviewerMetadataItemQuality {
+    param(
+        [AllowNull()]$Item,
+        [string]$ItemPath,
+        [string[]]$RequiredFields,
+        [string]$Context
+    )
+
+    foreach ($fieldName in @($RequiredFields)) {
+        $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        if ([string]::IsNullOrWhiteSpace($fieldValue)) {
+            throw "$ItemPath.$fieldName must not be empty in ${Context}."
+        }
+    }
+}
+
+function Assert-ReleaseGovernanceReviewerMetadataCollectionQuality {
+    param(
+        [AllowNull()]$Container,
+        [string]$ContainerName,
+        [string]$Context
+    )
+
+    if ($null -eq $Container) {
+        return
+    }
+
+    Assert-ReleaseGovernanceDeclaredCountConsistency `
+        -Container $Container `
+        -ContainerName $ContainerName `
+        -CountProperty "release_blocker_count" `
+        -ItemsProperty "release_blockers" `
+        -Context $Context
+    Assert-ReleaseGovernanceDeclaredCountConsistency `
+        -Container $Container `
+        -ContainerName $ContainerName `
+        -CountProperty "warning_count" `
+        -ItemsProperty "warnings" `
+        -Context $Context
+    Assert-ReleaseGovernanceDeclaredCountConsistency `
+        -Container $Container `
+        -ContainerName $ContainerName `
+        -CountProperty "action_item_count" `
+        -ItemsProperty "action_items" `
+        -Context $Context
+
+    $blockerRequiredFields = @("id", "action", "message", "source_schema", "source_report_display", "source_json_display")
+    $warningRequiredFields = @("id", "action", "message", "source_schema", "source_report_display", "source_json_display")
+    $actionItemRequiredFields = @("id", "action", "open_command", "source_schema", "source_report_display", "source_json_display")
+
+    $releaseBlockers = @(Get-ReleaseBlockerArrayProperty -Object $Container -Name "release_blockers")
+    for ($itemIndex = 0; $itemIndex -lt $releaseBlockers.Count; $itemIndex++) {
+        Assert-ReleaseGovernanceReviewerMetadataItemQuality `
+            -Item $releaseBlockers[$itemIndex] `
+            -ItemPath "$ContainerName.release_blockers[$itemIndex]" `
+            -RequiredFields $blockerRequiredFields `
+            -Context $Context
+    }
+
+    $warnings = @(Get-ReleaseBlockerArrayProperty -Object $Container -Name "warnings")
+    for ($itemIndex = 0; $itemIndex -lt $warnings.Count; $itemIndex++) {
+        Assert-ReleaseGovernanceReviewerMetadataItemQuality `
+            -Item $warnings[$itemIndex] `
+            -ItemPath "$ContainerName.warnings[$itemIndex]" `
+            -RequiredFields $warningRequiredFields `
+            -Context $Context
+    }
+
+    $actionItems = @(Get-ReleaseBlockerArrayProperty -Object $Container -Name "action_items")
+    for ($itemIndex = 0; $itemIndex -lt $actionItems.Count; $itemIndex++) {
+        Assert-ReleaseGovernanceReviewerMetadataItemQuality `
+            -Item $actionItems[$itemIndex] `
+            -ItemPath "$ContainerName.action_items[$itemIndex]" `
+            -RequiredFields $actionItemRequiredFields `
+            -Context $Context
+    }
+}
+
+function Assert-ReleaseGovernanceReviewerMetadataQuality {
+    param(
+        [AllowNull()]$Summary,
+        [string]$Context = "release summary"
+    )
+
+    Assert-ReleaseGovernanceReviewerMetadataCollectionQuality `
+        -Container (Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_blocker_rollup") `
+        -ContainerName "release_blocker_rollup" `
+        -Context $Context
+    Assert-ReleaseGovernanceReviewerMetadataCollectionQuality `
+        -Container (Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_governance_handoff") `
+        -ContainerName "release_governance_handoff" `
+        -Context $Context
+
+    $stages = @(Get-ReleaseBlockerArrayProperty -Object $Summary -Name "stages")
+    for ($stageIndex = 0; $stageIndex -lt $stages.Count; $stageIndex++) {
+        $stageId = Get-ReleaseBlockerDisplayValue `
+            -Value (Get-ReleaseBlockerPropertyValue -Object $stages[$stageIndex] -Name "id") `
+            -Fallback $stageIndex
+        Assert-ReleaseGovernanceReviewerMetadataCollectionQuality `
+            -Container $stages[$stageIndex] `
+            -ContainerName "stages[$($stageIndex):$stageId]" `
+            -Context $Context
+    }
+}
+
 function Get-ReleaseBlockerCount {
     param([AllowNull()]$Summary)
 
@@ -401,6 +536,12 @@ function Add-ReleaseGovernanceRollupSourceLines {
             -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json")
     }
 
+    $projectId = Get-ReleaseBlockerPropertyValue -Object $Item -Name "project_id"
+    $templateName = Get-ReleaseBlockerPropertyValue -Object $Item -Name "template_name"
+    if (-not [string]::IsNullOrWhiteSpace($projectId) -or -not [string]::IsNullOrWhiteSpace($templateName)) {
+        [void]$Lines.Add("  - project_template: project_id=$projectId template_name=$templateName")
+    }
+
     [void]$Lines.Add("  - source_report_display: $sourceReportDisplay")
     [void]$Lines.Add("  - source_json_display: $sourceJsonDisplay")
 }
@@ -417,6 +558,10 @@ function Add-ReleaseGovernanceRollupMarkdownSection {
     if ($null -eq $rollup) {
         return
     }
+    Assert-ReleaseGovernanceReviewerMetadataCollectionQuality `
+        -Container $rollup `
+        -ContainerName "release_blocker_rollup" `
+        -Context $Heading
 
     $requested = Get-ReleaseBlockerPropertyValue -Object $rollup -Name "requested"
     $status = Get-ReleaseBlockerPropertyValue -Object $rollup -Name "status"
@@ -495,6 +640,10 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
     if ($null -eq $handoff) {
         return
     }
+    Assert-ReleaseGovernanceReviewerMetadataCollectionQuality `
+        -Container $handoff `
+        -ContainerName "release_governance_handoff" `
+        -Context $Heading
 
     $requested = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "requested"
     $status = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "status"

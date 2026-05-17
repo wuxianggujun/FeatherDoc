@@ -360,6 +360,7 @@ function New-ReleaseBlocker {
 function New-GovernanceEntry {
     param(
         [string]$Name,
+        [string]$ProjectId = "",
         [string]$SourceKind,
         [string]$SourceJson,
         [string]$InputDocx,
@@ -393,6 +394,8 @@ function New-GovernanceEntry {
 
     return [ordered]@{
         name = $Name
+        template_name = $Name
+        project_id = $ProjectId
         source_kind = $SourceKind
         source_json = $SourceJson
         input_docx = $InputDocx
@@ -422,6 +425,7 @@ function Convert-OnboardingSummaryToEntries {
     return @(
         New-GovernanceEntry `
             -Name $name `
+            -ProjectId (Get-JsonString -Object $Json -Name "project_id") `
             -SourceKind "onboarding_summary" `
             -SourceJson $Path `
             -InputDocx (Get-JsonString -Object $Json -Name "input_docx") `
@@ -439,10 +443,12 @@ function Convert-OnboardingPlanToEntries {
         $Json
     )
 
+    $planProjectId = Get-JsonString -Object $Json -Name "project_id"
     return @(
         foreach ($entry in @(Get-JsonArray -Object $Json -Name "entries")) {
             New-GovernanceEntry `
                 -Name (Get-JsonString -Object $entry -Name "name" -DefaultValue "candidate") `
+                -ProjectId (Get-JsonString -Object $entry -Name "project_id" -DefaultValue $planProjectId) `
                 -SourceKind "onboarding_plan" `
                 -SourceJson $Path `
                 -InputDocx (Get-JsonString -Object $entry -Name "input_docx") `
@@ -461,10 +467,12 @@ function Convert-SmokeSummaryToEntries {
     )
 
     $approvalItems = @(Get-JsonArray -Object $Json -Name "schema_patch_approval_items")
+    $smokeProjectId = Get-JsonString -Object $Json -Name "project_id"
     if ($approvalItems.Count -eq 0) {
         return @(
             New-GovernanceEntry `
-                -Name "project-template-smoke" `
+                -Name (Get-JsonString -Object $Json -Name "template_name" -DefaultValue "project-template-smoke") `
+                -ProjectId $smokeProjectId `
                 -SourceKind "project_template_smoke_summary" `
                 -SourceJson $Path `
                 -InputDocx "" `
@@ -475,9 +483,10 @@ function Convert-SmokeSummaryToEntries {
 
     return @(
         foreach ($approval in $approvalItems) {
-            $name = Get-JsonString -Object $approval -Name "name" -DefaultValue "schema_patch_approval_item"
+            $name = Get-JsonString -Object $approval -Name "template_name" -DefaultValue (Get-JsonString -Object $approval -Name "name" -DefaultValue "schema_patch_approval_item")
             New-GovernanceEntry `
                 -Name $name `
+                -ProjectId (Get-JsonString -Object $approval -Name "project_id" -DefaultValue $smokeProjectId) `
                 -SourceKind "project_template_smoke_summary" `
                 -SourceJson $Path `
                 -InputDocx "" `
@@ -524,7 +533,7 @@ function New-ReportMarkdown {
     $lines.Add("## Entries") | Out-Null
     $lines.Add("") | Out-Null
     foreach ($entry in @($Summary.entries)) {
-        $lines.Add("- ``$($entry.name)``: status=``$($entry.schema_approval_status)`` blockers=``$($entry.release_blocker_count)`` source=``$($entry.source_kind)``") | Out-Null
+        $lines.Add("- ``$($entry.name)``: project=``$($entry.project_id)`` status=``$($entry.schema_approval_status)`` blockers=``$($entry.release_blocker_count)`` source=``$($entry.source_kind)``") | Out-Null
     }
     if (@($Summary.entries).Count -eq 0) {
         $lines.Add("- none") | Out-Null
@@ -536,7 +545,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.entry_name)`` / ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($blocker.entry_name)`` / ``$($blocker.id)``: project=``$($blocker.project_id)`` template=``$($blocker.template_name)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - message: $($blocker.message)") | Out-Null
             }
@@ -549,7 +558,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.entry_name)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($item.entry_name)`` / ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -640,6 +649,8 @@ foreach ($entry in @($entries.ToArray())) {
     foreach ($blocker in @($entry.release_blockers)) {
         $releaseBlockers.Add([ordered]@{
             entry_name = [string]$entry.name
+            template_name = [string]$entry.template_name
+            project_id = [string]$entry.project_id
             source_kind = [string]$entry.source_kind
             source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue $onboardingGovernanceSchema
             source_json = Get-JsonString -Object $blocker -Name "source_json" -DefaultValue ([string]$entry.source_json)
@@ -654,6 +665,8 @@ foreach ($entry in @($entries.ToArray())) {
     foreach ($item in @($entry.action_items)) {
         $actionItems.Add([ordered]@{
             entry_name = [string]$entry.name
+            template_name = [string]$entry.template_name
+            project_id = [string]$entry.project_id
             source_kind = [string]$entry.source_kind
             source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue $onboardingGovernanceSchema
             source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue ([string]$entry.source_json)
@@ -668,6 +681,8 @@ foreach ($entry in @($entries.ToArray())) {
     foreach ($recommendation in @($entry.manual_review_recommendations)) {
         $manualReviewRecommendations.Add([ordered]@{
             entry_name = [string]$entry.name
+            template_name = [string]$entry.template_name
+            project_id = [string]$entry.project_id
             source_kind = [string]$entry.source_kind
             id = Get-JsonString -Object $recommendation -Name "id" -DefaultValue "manual_review"
             priority = Get-JsonString -Object $recommendation -Name "priority"

@@ -6,6 +6,7 @@
 #include <cctype>
 #include <cmath>
 #include <filesystem>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -56,12 +57,20 @@ using PdfiumTextPagePtr =
 struct TextCluster {
     std::string text;
     PdfRect bounds;
+    std::vector<PdfParsedTextSpan> text_spans;
 };
 
 struct CandidateLine {
-    std::size_t line_index{0U};
+    std::vector<std::size_t> line_indices;
     std::vector<TextCluster> clusters;
     double center_y{0.0};
+    double height_points{1.0};
+};
+
+struct Utf8CodepointSpan {
+    std::uint32_t codepoint{0U};
+    std::size_t begin{0U};
+    std::size_t end{0U};
 };
 
 struct PdfiumLibrary {
@@ -118,6 +127,553 @@ void append_utf8(std::string &output, std::uint32_t codepoint) {
         output.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
         output.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
     }
+}
+
+[[nodiscard]] bool decode_next_utf8_codepoint(std::string_view text,
+                                              std::size_t &offset,
+                                              std::uint32_t &codepoint) {
+    if (offset >= text.size()) {
+        return false;
+    }
+
+    const auto lead = static_cast<unsigned char>(text[offset]);
+    if (lead <= 0x7F) {
+        codepoint = lead;
+        ++offset;
+        return true;
+    }
+
+    std::size_t length = 0U;
+    std::uint32_t value = 0U;
+    if ((lead & 0xE0U) == 0xC0U) {
+        length = 2U;
+        value = lead & 0x1FU;
+    } else if ((lead & 0xF0U) == 0xE0U) {
+        length = 3U;
+        value = lead & 0x0FU;
+    } else if ((lead & 0xF8U) == 0xF0U) {
+        length = 4U;
+        value = lead & 0x07U;
+    } else {
+        return false;
+    }
+
+    if (offset + length > text.size()) {
+        return false;
+    }
+
+    for (std::size_t index = 1U; index < length; ++index) {
+        const auto continuation =
+            static_cast<unsigned char>(text[offset + index]);
+        if ((continuation & 0xC0U) != 0x80U) {
+            return false;
+        }
+        value = (value << 6U) | (continuation & 0x3FU);
+    }
+
+    codepoint = value;
+    offset += length;
+    return true;
+}
+
+[[nodiscard]] std::optional<std::vector<std::uint32_t>>
+decode_utf8_codepoints(std::string_view text) {
+    std::vector<std::uint32_t> codepoints;
+    codepoints.reserve(text.size());
+
+    std::size_t offset = 0U;
+    while (offset < text.size()) {
+        std::uint32_t codepoint = 0U;
+        if (!decode_next_utf8_codepoint(text, offset, codepoint)) {
+            return std::nullopt;
+        }
+        codepoints.push_back(codepoint);
+    }
+
+    return codepoints;
+}
+
+[[nodiscard]] std::optional<std::vector<Utf8CodepointSpan>>
+decode_utf8_codepoint_spans(std::string_view text) {
+    std::vector<Utf8CodepointSpan> codepoints;
+    codepoints.reserve(text.size());
+
+    std::size_t offset = 0U;
+    while (offset < text.size()) {
+        const auto begin = offset;
+        std::uint32_t codepoint = 0U;
+        if (!decode_next_utf8_codepoint(text, offset, codepoint)) {
+            return std::nullopt;
+        }
+        codepoints.push_back(Utf8CodepointSpan{codepoint, begin, offset});
+    }
+
+    return codepoints;
+}
+
+[[nodiscard]] bool is_rtl_combining_mark_codepoint(
+    std::uint32_t codepoint) noexcept {
+    return (codepoint >= 0x0300U && codepoint <= 0x036FU) ||
+           (codepoint >= 0x0591U && codepoint <= 0x05BDU) ||
+           codepoint == 0x05BFU ||
+           (codepoint >= 0x05C1U && codepoint <= 0x05C2U) ||
+           (codepoint >= 0x05C4U && codepoint <= 0x05C5U) ||
+           codepoint == 0x05C7U ||
+           (codepoint >= 0x0610U && codepoint <= 0x061AU) ||
+           (codepoint >= 0x064BU && codepoint <= 0x065FU) ||
+           codepoint == 0x0670U ||
+           (codepoint >= 0x06D6U && codepoint <= 0x06DCU) ||
+           (codepoint >= 0x06DFU && codepoint <= 0x06E4U) ||
+           (codepoint >= 0x06E7U && codepoint <= 0x06E8U) ||
+           (codepoint >= 0x06EAU && codepoint <= 0x06EDU) ||
+           (codepoint >= 0x08D3U && codepoint <= 0x08FFU);
+}
+
+[[nodiscard]] bool is_strong_rtl_codepoint(std::uint32_t codepoint) noexcept {
+    return !is_rtl_combining_mark_codepoint(codepoint) &&
+           ((codepoint >= 0x0590U && codepoint <= 0x08FFU) ||
+            (codepoint >= 0xFB1DU && codepoint <= 0xFEFCU));
+}
+
+[[nodiscard]] bool is_decimal_digit_codepoint(std::uint32_t codepoint) noexcept {
+    return (codepoint >= 0x0030U && codepoint <= 0x0039U) ||
+           (codepoint >= 0x0660U && codepoint <= 0x0669U) ||
+           (codepoint >= 0x06F0U && codepoint <= 0x06F9U);
+}
+
+[[nodiscard]] bool is_arabic_alef_codepoint(std::uint32_t codepoint) noexcept {
+    return codepoint == 0x0622U || codepoint == 0x0623U ||
+           codepoint == 0x0625U || codepoint == 0x0627U;
+}
+
+[[nodiscard]] std::uint32_t mirror_ascii_bracket_codepoint(
+    std::uint32_t codepoint) noexcept {
+    switch (codepoint) {
+    case '(':
+        return ')';
+    case ')':
+        return '(';
+    case '[':
+        return ']';
+    case ']':
+        return '[';
+    case '{':
+        return '}';
+    case '}':
+        return '{';
+    case '<':
+        return '>';
+    case '>':
+        return '<';
+    default:
+        return codepoint;
+    }
+}
+
+[[nodiscard]] bool is_ascii_closing_bracket_codepoint(
+    std::uint32_t codepoint) noexcept {
+    return codepoint == ')' || codepoint == ']' || codepoint == '}' ||
+           codepoint == '>';
+}
+
+[[nodiscard]] bool is_ascii_opening_bracket_codepoint(
+    std::uint32_t codepoint) noexcept {
+    return codepoint == '(' || codepoint == '[' || codepoint == '{' ||
+           codepoint == '<';
+}
+
+[[nodiscard]] bool is_ascii_neutral_codepoint(std::uint32_t codepoint) noexcept {
+    if (codepoint > 0x7FU) {
+        return false;
+    }
+
+    const auto ch = static_cast<unsigned char>(codepoint);
+    return std::isspace(ch) || std::ispunct(ch);
+}
+
+[[nodiscard]] bool is_ascii_space_byte(char ch) noexcept {
+    return std::isspace(static_cast<unsigned char>(ch)) != 0;
+}
+
+[[nodiscard]] bool is_pure_rtl_text(
+    const std::vector<std::uint32_t> &codepoints) noexcept {
+    bool has_rtl = false;
+    for (std::size_t index = 0U; index < codepoints.size(); ++index) {
+        const auto codepoint = codepoints[index];
+        if (is_decimal_digit_codepoint(codepoint)) {
+            return false;
+        }
+        if (is_strong_rtl_codepoint(codepoint)) {
+            has_rtl = true;
+            continue;
+        }
+        if (is_rtl_combining_mark_codepoint(codepoint)) {
+            return false;
+        }
+        if (is_ascii_neutral_codepoint(codepoint)) {
+            continue;
+        }
+        return false;
+    }
+
+    return has_rtl;
+}
+
+[[nodiscard]] bool cluster_has_strong_rtl(
+    const std::vector<std::uint32_t> &cluster) noexcept {
+    return std::any_of(cluster.begin(),
+                       cluster.end(),
+                       [](std::uint32_t codepoint) {
+                           return is_strong_rtl_codepoint(codepoint);
+                       });
+}
+
+void normalize_reversed_ascii_bracket_pairs(
+    std::vector<std::vector<std::uint32_t>> &clusters) {
+    if (clusters.size() < 3U) {
+        return;
+    }
+
+    for (std::size_t begin = 0U; begin < clusters.size(); ++begin) {
+        if (clusters[begin].size() != 1U ||
+            !is_ascii_closing_bracket_codepoint(clusters[begin].front())) {
+            continue;
+        }
+
+        bool has_rtl_between = false;
+        const auto opening_bracket =
+            mirror_ascii_bracket_codepoint(clusters[begin].front());
+        for (std::size_t end = begin + 1U; end < clusters.size(); ++end) {
+            if (cluster_has_strong_rtl(clusters[end])) {
+                has_rtl_between = true;
+                continue;
+            }
+
+            if (clusters[end].size() != 1U) {
+                continue;
+            }
+
+            const auto codepoint = clusters[end].front();
+            if (codepoint == opening_bracket && has_rtl_between) {
+                clusters[begin].front() = opening_bracket;
+                clusters[end].front() =
+                    mirror_ascii_bracket_codepoint(opening_bracket);
+                begin = end;
+                break;
+            }
+
+            if (is_ascii_opening_bracket_codepoint(codepoint) ||
+                is_ascii_closing_bracket_codepoint(codepoint)) {
+                break;
+            }
+        }
+    }
+}
+
+[[nodiscard]] std::string reverse_utf8_text_clusters(
+    const std::vector<std::uint32_t> &codepoints) {
+    std::vector<std::vector<std::uint32_t>> clusters;
+    clusters.reserve(codepoints.size());
+    for (std::size_t index = 0U; index < codepoints.size(); ++index) {
+        const auto codepoint = codepoints[index];
+        if (codepoint == 0x0644U && index + 1U < codepoints.size() &&
+            is_arabic_alef_codepoint(codepoints[index + 1U])) {
+            clusters.push_back({codepoint, codepoints[index + 1U]});
+            ++index;
+            continue;
+        }
+        if (is_rtl_combining_mark_codepoint(codepoint) && !clusters.empty()) {
+            clusters.back().push_back(codepoint);
+            continue;
+        }
+        clusters.push_back({codepoint});
+    }
+
+    std::reverse(clusters.begin(), clusters.end());
+    normalize_reversed_ascii_bracket_pairs(clusters);
+
+    std::string reversed;
+    reversed.reserve(codepoints.size() * 4U);
+    for (const auto &cluster : clusters) {
+        for (const auto codepoint : cluster) {
+            append_utf8(reversed, codepoint);
+        }
+    }
+    return reversed;
+}
+
+[[nodiscard]] std::optional<std::string>
+normalized_pure_rtl_core(std::string_view core) {
+    const auto codepoints = decode_utf8_codepoints(core);
+    if (!codepoints.has_value() || codepoints->size() <= 1U ||
+        !is_pure_rtl_text(*codepoints)) {
+        return std::nullopt;
+    }
+
+    return reverse_utf8_text_clusters(*codepoints);
+}
+
+bool normalize_pure_rtl_text(std::string &text, bool trim_outer_whitespace) {
+    std::size_t core_begin = 0U;
+    while (core_begin < text.size() && is_ascii_space_byte(text[core_begin])) {
+        ++core_begin;
+    }
+
+    std::size_t core_end = text.size();
+    while (core_end > core_begin && is_ascii_space_byte(text[core_end - 1U])) {
+        --core_end;
+    }
+
+    const auto core = std::string_view{text}.substr(core_begin,
+                                                    core_end - core_begin);
+    auto normalized = normalized_pure_rtl_core(core);
+    if (!normalized.has_value()) {
+        return false;
+    }
+
+    if (trim_outer_whitespace) {
+        text = std::move(*normalized);
+        return true;
+    }
+
+    text = text.substr(0U, core_begin) + *normalized + text.substr(core_end);
+    return true;
+}
+
+bool normalize_rtl_digit_prefix_table_cell_text(std::string &text) {
+    std::size_t core_begin = 0U;
+    while (core_begin < text.size() && is_ascii_space_byte(text[core_begin])) {
+        ++core_begin;
+    }
+
+    std::size_t core_end = text.size();
+    while (core_end > core_begin && is_ascii_space_byte(text[core_end - 1U])) {
+        --core_end;
+    }
+
+    const auto core = std::string_view{text}.substr(core_begin,
+                                                    core_end - core_begin);
+    const auto codepoints = decode_utf8_codepoint_spans(core);
+    if (!codepoints.has_value()) {
+        return false;
+    }
+
+    std::size_t digit_count = 0U;
+    while (digit_count < codepoints->size() &&
+           is_decimal_digit_codepoint((*codepoints)[digit_count].codepoint)) {
+        ++digit_count;
+    }
+    if (digit_count == 0U || digit_count >= codepoints->size()) {
+        return false;
+    }
+
+    const auto digit_end = (*codepoints)[digit_count - 1U].end;
+
+    std::size_t rtl_begin = digit_end;
+    while (rtl_begin < core.size() && is_ascii_space_byte(core[rtl_begin])) {
+        ++rtl_begin;
+    }
+    if (rtl_begin >= core.size()) {
+        return false;
+    }
+
+    if (rtl_begin == digit_end) {
+        std::size_t separator_offset = rtl_begin;
+        std::uint32_t separator_codepoint = 0U;
+        if (!decode_next_utf8_codepoint(core,
+                                        separator_offset,
+                                        separator_codepoint) ||
+            !is_ascii_neutral_codepoint(separator_codepoint)) {
+            return false;
+        }
+    }
+
+    if (rtl_begin >= core.size()) {
+        return false;
+    }
+
+    auto normalized_rtl = normalized_pure_rtl_core(core.substr(rtl_begin));
+    if (!normalized_rtl.has_value()) {
+        return false;
+    }
+
+    text = *normalized_rtl +
+           std::string(core.substr(digit_end, rtl_begin - digit_end)) +
+           std::string(core.substr(0U, digit_end));
+    return true;
+}
+
+bool normalize_rtl_leading_separator_digit_table_cell_text(std::string &text) {
+    std::size_t core_begin = 0U;
+    while (core_begin < text.size() && is_ascii_space_byte(text[core_begin])) {
+        ++core_begin;
+    }
+
+    std::size_t core_end = text.size();
+    while (core_end > core_begin && is_ascii_space_byte(text[core_end - 1U])) {
+        --core_end;
+    }
+
+    const auto core = std::string_view{text}.substr(core_begin,
+                                                    core_end - core_begin);
+    const auto codepoints = decode_utf8_codepoint_spans(core);
+    if (!codepoints.has_value() || codepoints->size() < 3U ||
+        !is_ascii_neutral_codepoint(codepoints->front().codepoint) ||
+        is_ascii_space_byte(static_cast<char>(codepoints->front().codepoint))) {
+        return false;
+    }
+
+    std::size_t digit_index = 1U;
+    while (digit_index < codepoints->size() &&
+           is_decimal_digit_codepoint((*codepoints)[digit_index].codepoint)) {
+        ++digit_index;
+    }
+    if (digit_index == 1U || digit_index >= codepoints->size()) {
+        return false;
+    }
+
+    const auto separator = std::string(core.substr(0U,
+                                                   codepoints->front().end));
+    const auto digits = std::string(
+        core.substr((*codepoints)[1U].begin,
+                    (*codepoints)[digit_index - 1U].end -
+                        (*codepoints)[1U].begin));
+    auto normalized_rtl =
+        normalized_pure_rtl_core(core.substr((*codepoints)[digit_index].begin));
+    if (!normalized_rtl.has_value()) {
+        return false;
+    }
+
+    text = *normalized_rtl + separator + digits;
+    return true;
+}
+
+bool normalize_rtl_trailing_digit_table_cell_text(std::string &text) {
+    std::size_t core_begin = 0U;
+    while (core_begin < text.size() && is_ascii_space_byte(text[core_begin])) {
+        ++core_begin;
+    }
+
+    std::size_t core_end = text.size();
+    while (core_end > core_begin && is_ascii_space_byte(text[core_end - 1U])) {
+        --core_end;
+    }
+
+    const auto core = std::string_view{text}.substr(core_begin,
+                                                    core_end - core_begin);
+    const auto codepoints = decode_utf8_codepoint_spans(core);
+    if (!codepoints.has_value() || codepoints->size() < 3U) {
+        return false;
+    }
+
+    std::size_t digit_begin = codepoints->size();
+    while (digit_begin > 0U &&
+           is_decimal_digit_codepoint((*codepoints)[digit_begin - 1U].codepoint)) {
+        --digit_begin;
+    }
+    if (digit_begin == codepoints->size() || digit_begin == 0U) {
+        return false;
+    }
+
+    std::size_t rtl_end = digit_begin;
+    while (rtl_end > 0U &&
+           (*codepoints)[rtl_end - 1U].codepoint <= 0x7FU &&
+           is_ascii_space_byte(
+               static_cast<char>((*codepoints)[rtl_end - 1U].codepoint))) {
+        --rtl_end;
+    }
+    if (rtl_end == digit_begin || rtl_end == 0U) {
+        return false;
+    }
+
+    const auto rtl_prefix =
+        core.substr(0U, (*codepoints)[rtl_end].begin);
+    const auto rtl_prefix_codepoints = decode_utf8_codepoints(rtl_prefix);
+    if (!rtl_prefix_codepoints.has_value() ||
+        !std::all_of(rtl_prefix_codepoints->begin(),
+                     rtl_prefix_codepoints->end(),
+                     is_strong_rtl_codepoint)) {
+        return false;
+    }
+
+    auto normalized_rtl =
+        normalized_pure_rtl_core(rtl_prefix);
+    if (!normalized_rtl.has_value()) {
+        return false;
+    }
+
+    text = *normalized_rtl + std::string(core.substr((*codepoints)[rtl_end].begin));
+    return true;
+}
+
+bool normalize_rtl_trailing_separator_digit_table_cell_text(std::string &text) {
+    std::size_t core_begin = 0U;
+    while (core_begin < text.size() && is_ascii_space_byte(text[core_begin])) {
+        ++core_begin;
+    }
+
+    std::size_t core_end = text.size();
+    while (core_end > core_begin && is_ascii_space_byte(text[core_end - 1U])) {
+        --core_end;
+    }
+
+    const auto core = std::string_view{text}.substr(core_begin,
+                                                    core_end - core_begin);
+    const auto codepoints = decode_utf8_codepoint_spans(core);
+    if (!codepoints.has_value() || codepoints->size() < 3U) {
+        return false;
+    }
+
+    std::size_t digit_begin = codepoints->size();
+    while (digit_begin > 0U &&
+           is_decimal_digit_codepoint((*codepoints)[digit_begin - 1U].codepoint)) {
+        --digit_begin;
+    }
+    if (digit_begin == codepoints->size() || digit_begin == 0U) {
+        return false;
+    }
+
+    std::size_t separator_index = digit_begin;
+    while (separator_index > 0U &&
+           (*codepoints)[separator_index - 1U].codepoint <= 0x7FU &&
+           is_ascii_space_byte(
+               static_cast<char>((*codepoints)[separator_index - 1U].codepoint))) {
+        --separator_index;
+    }
+    if (separator_index == 0U) {
+        return false;
+    }
+
+    --separator_index;
+    const auto separator_codepoint = (*codepoints)[separator_index].codepoint;
+    if (!is_ascii_neutral_codepoint(separator_codepoint) ||
+        is_ascii_space_byte(static_cast<char>(separator_codepoint))) {
+        return false;
+    }
+
+    auto normalized_rtl =
+        normalized_pure_rtl_core(core.substr(0U,
+                                             (*codepoints)[separator_index].begin));
+    if (!normalized_rtl.has_value()) {
+        return false;
+    }
+
+    text = *normalized_rtl +
+           std::string(core.substr((*codepoints)[separator_index].begin));
+    return true;
+}
+
+bool normalize_rtl_table_cell_text(std::string &text) {
+    if (text.find('\n') != std::string::npos ||
+        text.find('\r') != std::string::npos) {
+        return false;
+    }
+
+    return normalize_pure_rtl_text(text, true) ||
+           normalize_rtl_digit_prefix_table_cell_text(text) ||
+           normalize_rtl_leading_separator_digit_table_cell_text(text) ||
+           normalize_rtl_trailing_digit_table_cell_text(text) ||
+           normalize_rtl_trailing_separator_digit_table_cell_text(text);
 }
 
 [[nodiscard]] PdfParsedTextSpan parse_text_span(FPDF_TEXTPAGE text_page,
@@ -225,6 +781,7 @@ void append_span_to_cluster(TextCluster &cluster,
                             const PdfParsedTextSpan &span) {
     cluster.text += span.text;
     expand_rect(cluster.bounds, span.bounds);
+    cluster.text_spans.push_back(span);
 }
 
 [[nodiscard]] bool should_start_new_line(const PdfParsedTextLine &line,
@@ -333,7 +890,10 @@ split_line_into_cell_clusters(const PdfParsedTextLine &line) {
 
     clusters.erase(std::remove_if(clusters.begin(), clusters.end(),
                                   [](const TextCluster &cluster) {
-                                      return cluster.text.empty();
+                                      return cluster.text.empty() ||
+                                             std::all_of(cluster.text.begin(),
+                                                         cluster.text.end(),
+                                                         is_ascii_space_byte);
                                   }),
                    clusters.end());
     return clusters;
@@ -375,6 +935,29 @@ void sort_lines_by_reading_order(std::vector<PdfParsedTextLine> &lines) {
                      });
 }
 
+void normalize_pure_rtl_line_text(PdfParsedTextLine &line) {
+    normalize_pure_rtl_text(line.text, false);
+}
+
+void normalize_pure_rtl_line_text(std::vector<PdfParsedTextLine> &lines) {
+    for (auto &line : lines) {
+        normalize_pure_rtl_line_text(line);
+    }
+}
+
+void normalize_pure_rtl_table_text(
+    std::vector<PdfParsedTableCandidate> &table_candidates) {
+    for (auto &table : table_candidates) {
+        for (auto &row : table.rows) {
+            for (auto &cell : row.cells) {
+                if (cell.has_text) {
+                    normalize_rtl_table_cell_text(cell.text);
+                }
+            }
+        }
+    }
+}
+
 [[nodiscard]] std::vector<CandidateLine>
 collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
     std::vector<CandidateLine> candidate_lines;
@@ -387,8 +970,50 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
             continue;
         }
 
-        candidate_lines.push_back(
-            CandidateLine{line_index, std::move(clusters), line_center_y(line)});
+        CandidateLine candidate;
+        candidate.line_indices.push_back(line_index);
+        candidate.clusters = std::move(clusters);
+        candidate.center_y = line_center_y(line);
+        candidate.height_points =
+            (std::max)(line.bounds.height_points, 1.0);
+
+        if (!candidate_lines.empty()) {
+            auto &previous = candidate_lines.back();
+            const double same_row_tolerance =
+                (std::max)(2.0,
+                           (std::max)(previous.height_points,
+                                      candidate.height_points) *
+                               0.35);
+            if (std::abs(previous.center_y - candidate.center_y) <=
+                same_row_tolerance) {
+                // Table detection works on physical rows. PDFium can split a
+                // bidi table row into multiple logical lines at the same
+                // baseline, so merge those fragments only for candidate
+                // clustering.
+                previous.line_indices.insert(previous.line_indices.end(),
+                                             candidate.line_indices.begin(),
+                                             candidate.line_indices.end());
+                previous.clusters.insert(previous.clusters.end(),
+                                         std::make_move_iterator(
+                                             candidate.clusters.begin()),
+                                         std::make_move_iterator(
+                                             candidate.clusters.end()));
+                std::stable_sort(previous.clusters.begin(),
+                                 previous.clusters.end(),
+                                 [](const TextCluster &left,
+                                    const TextCluster &right) {
+                                     return left.bounds.x_points <
+                                            right.bounds.x_points;
+                                 });
+                previous.height_points =
+                    (std::max)(previous.height_points, candidate.height_points);
+                previous.center_y =
+                    (previous.center_y + candidate.center_y) / 2.0;
+                continue;
+            }
+        }
+
+        candidate_lines.push_back(std::move(candidate));
     }
 
     return candidate_lines;
@@ -943,11 +1568,15 @@ detect_summary_label_span(const std::vector<double> &anchors,
             if (!cell.has_text) {
                 cell.text = cluster.text;
                 cell.bounds = cluster.bounds;
+                cell.text_spans = cluster.text_spans;
                 cell.has_text = true;
             } else {
                 cell.text.push_back('\n');
                 cell.text += cluster.text;
                 expand_rect(cell.bounds, cluster.bounds);
+                cell.text_spans.insert(cell.text_spans.end(),
+                                       cluster.text_spans.begin(),
+                                       cluster.text_spans.end());
             }
 
             expand_rect(row.bounds, cluster.bounds);
@@ -1011,7 +1640,9 @@ detect_table_candidates(std::vector<PdfParsedTextLine> &lines) {
         if (build_table_candidate(rows, table)) {
             const auto table_index = tables.size();
             for (const auto &row : rows) {
-                lines[row.line_index].table_candidate_index = table_index;
+                for (const auto line_index : row.line_indices) {
+                    lines[line_index].table_candidate_index = table_index;
+                }
             }
             tables.push_back(std::move(table));
             gap_index = run_end;
@@ -1080,15 +1711,27 @@ group_lines_into_paragraphs(const std::vector<PdfParsedTextLine> &lines) {
     return blocks;
 }
 
-void enrich_text_structure(PdfParsedPage &page) {
+void enrich_text_structure(PdfParsedPage &page, const PdfParseOptions &options) {
     page.text_lines = group_text_spans_into_lines(page.text_spans);
     sort_lines_by_reading_order(page.text_lines);
     page.table_candidates = detect_table_candidates(page.text_lines);
+    if (options.normalize_rtl_text) {
+        normalize_pure_rtl_table_text(page.table_candidates);
+        normalize_pure_rtl_line_text(page.text_lines);
+    }
     page.paragraphs = group_lines_into_paragraphs(page.text_lines);
     page.content_blocks = build_content_blocks(page);
 }
 
 }  // namespace
+
+namespace detail {
+
+bool normalize_rtl_table_cell_text_for_testing(std::string &text) {
+    return normalize_rtl_table_cell_text(text);
+}
+
+}  // namespace detail
 
 PdfParseResult PdfiumParser::parse(const std::filesystem::path &input_path,
                                    const PdfParseOptions &options) {
@@ -1142,7 +1785,7 @@ PdfParseResult PdfiumParser::parse(const std::filesystem::path &input_path,
                     parse_text_span(text_page.get(), char_index, options));
             }
             if (options.extract_geometry) {
-                enrich_text_structure(parsed_page);
+                enrich_text_structure(parsed_page, options);
             }
         }
 

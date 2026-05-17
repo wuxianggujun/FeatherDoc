@@ -49,6 +49,9 @@ public:
 struct PdfParseOptions {
     bool extract_text{true};
     bool extract_geometry{true};
+    // Applies only to structured line/paragraph/table cell text. Raw text_spans
+    // keep the PDFium extraction order for diagnostics and low-level tests.
+    bool normalize_rtl_text{true};
 };
 
 struct PdfParsedTextSpan {
@@ -86,6 +89,9 @@ struct PdfParsedContentBlock {
 struct PdfParsedTableCell {
     std::string text;
     PdfRect bounds;
+    // Raw PDFium spans that contributed to this cell. These stay in PDFium
+    // extraction order even when structured cell text is normalized.
+    std::vector<PdfParsedTextSpan> text_spans;
     std::size_t column_index{0U};
     std::size_t column_span{1U};
     std::size_t row_span{1U};

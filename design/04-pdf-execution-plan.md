@@ -2946,6 +2946,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 
 2026-05-15 继续推进（Document RTL writer fallback E2E）：
 
+- 已把 `pdf_unicode_font_roundtrip` 里的非 LTR writer fallback 回归从单一 RTL 样例扩展为
+  `right_to_left` / `top_to_bottom` / `bottom_to_top` / `unknown` 矩阵，确认当前
+  glyph-id CID writer 入口只接受 `left_to_right`。
 - 已在 `pdf_unicode_font_roundtrip` 增加 Document 级端到端回归：真实 `Run::set_rtl()`
   经 document adapter 生成 `right_to_left` shaped glyph metadata 后，PDFio writer 不生成
   `/FeatherDocGlyph` CID 字体资源，继续走字符串 fallback。
@@ -2960,10 +2963,1139 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   通过；
   `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
   通过。
+- 矩阵扩展后再次完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
 - 下一阶段入口：
   当前已覆盖 Document RTL metadata 到 writer fallback 的闭环；真正支持 RTL glyph-id stream
   前，需要先形成独立验收样本，明确 visual order、logical text extraction、glyph advance
   方向和 text matrix 的组合规则。
+
+2026-05-16 继续推进（natural RTL fallback boundary sample）：
+
+- 已在 `pdf_unicode_font_roundtrip` 增加真实 Hebrew RTL 文本样本：自然文本
+  `שלום` 不依赖 `Run::set_rtl()`，由 HarfBuzz 推断为 `right_to_left` / `Hebr` 后进入
+  document adapter 和 PDFio writer。
+- 当前 writer 仍按安全边界回退到字符串路径，不生成 `/FeatherDocGlyph` CID 字体资源；
+  回归解压 PDF content stream，确认 `/ActualText` 里保留逻辑顺序
+  `FEFF05E905DC05D505DD`。
+- 已把当前 PDFium 回读行为固定为已知边界：fallback PDF 的 text span 仍按视觉顺序回读为
+  `םולש`，而不是逻辑顺序 `שלום`。这说明后续 RTL glyph-id stream 不能只放开方向 guard，
+  还必须先定义 glyph order、text matrix 和 logical extraction 规则。
+- 已补充一个 content-order 对照样本：当 fallback content stream 直接写视觉顺序
+  `םולש` 时，PDFium 会回读逻辑顺序 `שלום`。但这个样本的 `/ActualText` 也跟随视觉顺序，
+  因此它只能作为设计输入，不能直接转成 production writer 策略；下一步必须单独验证
+  content order 与 `/ActualText` 组合后的提取语义。
+- 已把三个样本的 content stream 也纳入断言，形成第一版 extraction 矩阵：
+  逻辑顺序 `/ActualText` + 逻辑顺序 `Tj` 时，PDFium 回读视觉顺序；
+  视觉顺序 `/ActualText` + 视觉顺序 `Tj` 时，PDFium 回读逻辑顺序；
+  逻辑顺序 `/ActualText` + 视觉顺序 `Tj` 时，PDFium 仍回读视觉顺序。
+  这说明 `/ActualText` 不是 PDFium 当前提取路径的充分控制点，RTL writer 不能只靠
+  marked content 修正逻辑顺序。
+- 已给 `pdf_unicode_font_roundtrip_tests` 暴露 PDFio 头文件，并增加低层 PDFio fixture，
+  专门构造 `ActualText` 与 `Tj` 顺序不一致的 Hebrew 样本；production writer 暂不放开
+  非 LTR glyph-id CID 输出。
+- 已把三处 Hebrew 边界样本收敛到 `check_hebrew_fallback_extraction_boundary()`：
+  同一处断言不生成 `/FeatherDocGlyph`，保留 `/ToUnicode` / `/Identity-H`，
+  并分别校验 `/ActualText`、`Tj` 顺序和 PDFium logical / visual extraction 计数。
+- 已补充低层 RTL glyph-id CID fixture：测试内手工创建 `CIDFontType2`、
+  `CIDToGIDMap` 和 `/FeatherDocGlyphToUnicode`，把 Hebrew HarfBuzz 输出的视觉顺序
+  glyph id 写成 CID stream，并保留逻辑顺序 `/ActualText`。该样本视觉渲染正常，
+  但 PDFium 仍回读视觉顺序 `םולש`，说明即使具备 glyph-id CID、ToUnicode 和 logical
+  ActualText，也不能直接得到逻辑提取语义。
+- 已继续补齐三个 RTL glyph-id CID 对照变体：
+  ToUnicode 改为逻辑顺序映射、CID stream 外包 `/ReversedChars` marked content、
+  以及按逻辑文本顺序逐 glyph `Tj` 并用 `Tm` 放回视觉位置。三者视觉渲染均正常，
+  但 PDFium 仍回读视觉顺序 `םולש`，没有回读逻辑顺序 `שלום`。
+- 这组结果把当前边界收敛得更明确：PDFium 的 RTL 提取并不会被单独的
+  `/ActualText`、ToUnicode 重排、`/ReversedChars` 或 positioned glyph show 稳定改写。
+  因此 production writer 仍不能直接放开非 LTR glyph-id CID stream。
+- 已放宽 `find_actual_text_content_stream()` 测试 helper，使其能识别 `<...>Tj` 与
+  `<...> Tj` 两种 content stream 写法。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+- 低层 fixture、矩阵 helper 与 RTL glyph-id CID fixture 补齐后再次完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- 已完成可视化验证：
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-document-natural-rtl-glyph-fallback.pdf --output-dir output\pdf-natural-rtl-fallback-boundary\pages --summary output\pdf-natural-rtl-fallback-boundary\summary.json --contact-sheet output\pdf-natural-rtl-fallback-boundary\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-visual-order-fallback.pdf --output-dir output\pdf-hebrew-visual-order-fallback\pages --summary output\pdf-hebrew-visual-order-fallback\summary.json --contact-sheet output\pdf-hebrew-visual-order-fallback\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-logical-actual-visual-show.pdf --output-dir output\pdf-hebrew-logical-actual-visual-show\pages --summary output\pdf-hebrew-logical-actual-visual-show\summary.json --contact-sheet output\pdf-hebrew-logical-actual-visual-show\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-glyph-cid-fixture.pdf --output-dir output\pdf-hebrew-rtl-glyph-cid-fixture\pages --summary output\pdf-hebrew-rtl-glyph-cid-fixture\summary.json --contact-sheet output\pdf-hebrew-rtl-glyph-cid-fixture\contact-sheet.png --dpi 144`
+  通过；四份联系图均非空，页面未见明显裁剪或重叠。
+- RTL glyph-id CID 三个新变体也已完成渲染验证：
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-glyph-cid-logical-tounicode.pdf --output-dir output\pdf-hebrew-rtl-glyph-cid-logical-tounicode\pages --summary output\pdf-hebrew-rtl-glyph-cid-logical-tounicode\summary.json --contact-sheet output\pdf-hebrew-rtl-glyph-cid-logical-tounicode\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-glyph-cid-reversedchars.pdf --output-dir output\pdf-hebrew-rtl-glyph-cid-reversedchars\pages --summary output\pdf-hebrew-rtl-glyph-cid-reversedchars\summary.json --contact-sheet output\pdf-hebrew-rtl-glyph-cid-reversedchars\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-glyph-cid-positioned-logical.pdf --output-dir output\pdf-hebrew-rtl-glyph-cid-positioned-logical\pages --summary output\pdf-hebrew-rtl-glyph-cid-positioned-logical\summary.json --contact-sheet output\pdf-hebrew-rtl-glyph-cid-positioned-logical\contact-sheet.png --dpi 144`
+  通过；三份联系图均非空，页面未见明显裁剪或重叠。
+- 下一阶段入口：
+  当前 content stream 层的 ToUnicode 重排、`/ReversedChars` 和 positioned glyph show
+  均无法让 PDFium 稳定回读逻辑顺序；下一步应转向 PDFium parser / adapter 层的
+  RTL span normalization，或设计 FeatherDoc 自己可验证的 extraction metadata 策略。
+  在该策略稳定前，不应直接允许 production writer 写非 LTR glyph-id CID stream。
+
+2026-05-16 继续推进（parser pure RTL text normalization）：
+
+- 已在 `PdfParseOptions` 增加 `normalize_rtl_text`，默认开启；实现位置收敛在
+  `PdfiumParser` 的 line / paragraph / table cell 结构化层，raw `text_spans`
+  保持 PDFium 原始输出，
+  便于继续观察底层 extraction 边界。
+- 当前 normalization 只处理保守子集：文本必须包含强 RTL 字符，且除 ASCII 空白 /
+  标点外不能混入 LTR 字符、CJK、数字或 RTL combining mark；符合条件时只把
+  结构化 line / paragraph / table cell 文本从视觉顺序反转为逻辑顺序，不改 raw
+  `text_spans`、字符 span 几何，且在表格候选检测之后执行，避免影响列锚点和
+  表格误判边界。
+- 已扩展 Hebrew natural RTL fallback 回归：同一 PDF 在
+  `normalize_rtl_text=false` 时 paragraph 仍是视觉顺序 `םולש`；在
+  `normalize_rtl_text=true` 时 paragraph 归一化为逻辑顺序 `שלום`。raw span 回读仍保留
+  视觉顺序，用于证明这是 FeatherDoc parser 层修正，不是 PDF content stream 行为改变。
+- 已把 pure RTL normalization 贯通到 PDF import 输出层：默认
+  `import_pdf_text_document()` 导入同一 Hebrew fallback PDF 后，`Document` 文本为逻辑顺序
+  `שלום`；保存 DOCX 后重开仍保持同一文本，避免只在 parser 中通过而丢在 importer 边界。
+- 已补强 import option 贯通边界：同一 Hebrew fallback PDF 在
+  `PdfDocumentImportOptions::parse_options.normalize_rtl_text=false` 时导入为 raw
+  视觉顺序；RTL table cell 样本在 opt-in table import 且关闭 normalization 时，
+  导入表格 cell 同样保持 raw 视觉顺序，证明段落和表格路径都消费同一个 parse option。
+- 已补充 RTL + 数字混排边界：`שלום 123` / PDFium 视觉回读 `םולש 123`
+  在 `normalize_rtl_text=true` 时仍保持 raw paragraph，不做整行反转；默认 PDF import
+  也保持同一文本，避免把简单 pure RTL 规则误用到 bidi 混排。
+- 已补充 mixed LTR / RTL 边界：`Status שלום` / PDFium 视觉回读
+  `Status םולש` 在默认 parser 和 import 路径里保持 raw paragraph，不做整行反转，
+  避免把 LTR 标签、英文正文或字段名反向写入 `Document`。
+- 已补充 Arabic pure RTL 正样本：`سلام` / PDFium 视觉回读 `مالس` 会在默认
+  parser 和 import 路径中归一化为逻辑顺序 `سلام`，证明当前保守规则不只覆盖
+  Hebrew，也覆盖 U+0600 到 U+08FF 的纯 RTL 脚本子集。
+- 已补充 split punctuation 正样本：将 `שלום!` 的视觉顺序拆成独立 `!` text show
+  和 Hebrew text show 后，默认 parser 仍能在结构化 line / paragraph / import
+  路径中归一化为逻辑顺序，证明当前规则能跨 PDFium char span 承接简单标点。
+- 已补充 edge / middle / angle bracket pair 正样本：`(שלום)`、`שלום (בדיקה)` 与
+  `<שלום>` 这类 ASCII 成对符号在 PDFium raw 抽取中可能保留 LTR pair order，
+  也可能表现为 visual-mirrored pair order。当前 parser 在 pure RTL cluster 反转后，
+  会扫描 `) ... (` / `] ... [` / `} ... {` / `> ... <` 且中间包含强 RTL 字符的
+  短语，只修正明显反向的 ASCII bracket pair，避免导入成 `)שלום(`、
+  `שלום )בדיקה(` 或 `>שלום<`，同时不破坏已经正确的 mirrored raw 形态。
+- 已补充 quoted RTL 中性符号回归：`"שלום"`、`שלום "בדיקה"`、`'שלום'`
+  与 `שלום 'בדיקה'` 这类 ASCII 引号是对称中性符号，不需要 mirror；
+  默认 parser 仍应只反转 RTL text cluster，保持引号包裹位置正确，并证明
+  bracket pair 扫描不会误伤 quote 场景。
+- 已补充 short neutral run 回归：`שלום - בדיקה`、`שלום/בדיקה`、
+  `שלום: בדיקה`、`שלום; בדיקה`、`שלום, בדיקה` 与 `שלום. בדיקה`
+  这类 pure RTL 文本中间夹 ASCII hyphen / slash / colon / semicolon /
+  comma / period 时，默认 parser 应跨过短中性分隔符恢复逻辑顺序，且不引入
+  bidi 混排策略；数字和 LTR 混排仍由既有负样本保持 raw。
+- 已把 bracket / quoted neutral / short neutral run 的 ActualText fixture 验证抽成
+  `RtlActualTextNormalizationCase` 与
+  `check_hebrew_actual_text_normalization_case()`：样本只描述 logical / visual
+  文本、raw 期望片段和 normalized 禁止片段，继续补充中性符号边界时不再复制
+  parse/import 验证流程。
+- 已把 digit / LTR / combining mark / diacritic 这类 raw-preservation 边界抽成
+  `RtlActualTextRawPreservationCase` 与
+  `check_rtl_actual_text_raw_preservation_case()`：统一验证 raw parse 非空、
+  default normalization 与 raw 完全一致、PDF import 也保持 raw，避免这些保守负样本
+  在后续维护时漏掉 import 层断言。
+- 已把重复出现的 RTL fixture 文本收敛为命名 helper：
+  `hebrew_shalom_logical()` / `hebrew_shalom_visual()`、
+  `hebrew_bedika_logical()` / `hebrew_bedika_visual()`、
+  `arabic_salam_logical()` / `arabic_salam_visual()`。常规 Hebrew / Arabic
+  正反序样本不再散落 Unicode escape，复杂 presentation form 与 diacritic 样本仍保留
+  局部 escape 以突出其特殊性。
+- 已补强 `normalize_rtl_text` 作用范围断言：同一 natural RTL fallback PDF
+  在默认 parser 下 raw `text_spans` 仍保持 PDFium 视觉顺序，`text_lines` 与
+  `paragraphs` 才恢复逻辑顺序；关闭 normalization 时三层结构都保持 raw 视觉顺序。
+- 已把作用范围断言延伸到 table cell：表格行整体含 `QA Team` 和日期时属于混排，
+  默认 parser 仍让 raw `text_spans` 与该 mixed `text_line` 保持视觉顺序，但
+  `PdfParsedTableCell::text` 会在 cell 级别独立恢复逻辑顺序；关闭 normalization 时
+  cell 也保持 raw 视觉顺序。
+- 已补充 Arabic diacritics 保守边界：`سَلَام` 这类带 fatha 的文本在 PDFium
+  抽取中会出现 combining mark 归属不稳定；当前 parser 遇到 RTL combining mark
+  直接保持 raw，不做整行反转，避免把附加符号挂到错误 base 字符上。
+- 已补充 Hebrew niqqud 保守边界：`שָלוֹם` 这类带 qamats / holam 的文本同样会在
+  PDFium 抽取后出现 mark 归属漂移；实测若直接做 pure RTL 反转，会得到
+  `שלָוםֹ` 这类附加符号挂到错误 base 的结果。因此当前 parser 对 Hebrew combining
+  mark 也保持 raw，默认 import 不做整行归一化。
+- 已补充 Arabic presentation-form / lam-alef cluster 恢复矩阵：`ﺳﻼﻡ` 这类文本
+  写入 PDF 后，PDFium 会把 presentation form 解成基础 Arabic 字符；其中
+  lam-alef 连字会以 `LAM + ALEF_VARIANT` 顺序出现在抽取结果中。当前 parser 会把
+  `LAM + ALEF / ALEF WITH MADDA / HAMZA ABOVE / HAMZA BELOW` 当作一个 RTL text
+  cluster 反转，避免简单逐 codepoint 反转生成错误词，默认 parser 和 import
+  路径会得到基础 Arabic 逻辑顺序。
+- 已补充 pure RTL 表格单元格归一化：受控 3x3 表格样本中，raw table candidate
+  单元格仍保留 PDFium 视觉顺序和列间空白；默认 parser 和
+  `import_table_candidates_as_tables=true` 的导入输出都会把该 cell 归一化为逻辑顺序
+  `שלום`。cell normalization 会裁掉单元格边界空白，避免反转时把 PDFium
+  尾随列间空白搬到文本前端。
+- 已把 `שלום 123` 这类 RTL + 数字混排文本转成 table clustering 侧回归：
+  PDFium 可能把同一物理表格行拆成多条同基线 line，导致 mixed RTL + digit cell
+  不稳定落出候选表格。当前 parser 在收集 table candidate line 时会合并同基线片段，
+  并把所有源 line 标记到同一个 table candidate。
+- 已增加 table cell 专用的保守 RTL + 数字后缀归一化：仅当 cell text 呈现为
+  `Unicode 十进制数字 + 空白 + pure RTL raw text` 时，默认 parser / table import
+  会恢复为 `pure RTL logical text + 空白 + 数字`，覆盖 `123 םולש` -> `שלום 123`
+  以及 `١٢٣ םולש` -> `שלום ١٢٣`。普通 paragraph / line 的 RTL + 数字混排仍保持
+  raw，不扩大到通用 bidi normalization。
+- 已补充 RTL + 冒号 + 数字的 table cell 样本：`שלום: 123` 在 PDFium table cell
+  raw 形态下表现为 `123 :םולש`，现有 table-cell 专用规则会把冒号随 pure RTL core
+  一起恢复为 `שלום: 123`；raw import 仍保留原始候选文本，证明作用范围没有扩大。
+- 已补充 RTL + slash + 数字的 table cell 样本：`שלום/123` 在 PDFium table cell
+  raw 形态下表现为 `/123םולש`，即 ASCII slash 会提前到数字前。当前 parser 增加
+  table-cell 专用的 `ASCII 中性标点 + Unicode 十进制数字 + pure RTL raw text`
+  分支，将其恢复为 `שלום/123`；普通 paragraph / line 仍不走该规则。
+- 已补充 RTL + hyphen + 数字的 table cell 样本：`שלום-123` 在 PDFium table cell
+  raw 形态下表现为 `-123םולש`，与 slash 一样属于 ASCII 中性标点提前到数字前的
+  受控场景。默认 parser / table import 会恢复为 `שלום-123`；raw import 仍保留
+  `-123םולש`，证明该规则没有扩大到 raw spans / raw lines。
+- 已补充 RTL + semicolon + 数字的 table cell 样本：`שלום;123` 在 PDFium table cell
+  raw 形态下表现为 `123;םולש`，即数字前缀与 ASCII 中性标点紧贴 pure RTL core。
+  当前 table-cell 专用规则会把 `;םולש` 作为可反转 RTL core 恢复为
+  `שלום;123`；raw import 仍保留原始候选文本。
+- 已补充 RTL + comma + 数字的 table cell 样本：`שלום,123` 在 PDFium table cell
+  raw 形态下表现为 `,123םולש`，即 ASCII comma 会提前到数字前。现有
+  `ASCII 中性标点 + Unicode 十进制数字 + pure RTL raw text` 分支会恢复为
+  `שלום,123`；raw import 仍保留原始候选文本。
+- 已补充 RTL + period + 数字的 table cell 样本：`שלום.123` 在 PDFium table cell
+  raw 形态下表现为 `.123םולש`，与 comma 一样属于 ASCII 中性标点提前到数字前的
+  受控场景。默认 parser / table import 会恢复为 `שלום.123`；raw import 仍保留
+  `.123םולש`。
+- 已把 table cell 归一化扩展到 Arabic 脚本受控样本：`سلام` 在 PDFium table cell
+  raw 形态下表现为 `مالس`，默认 parser / table import 会恢复为 `سلام`。由于该行
+  本身也是 pure RTL，默认 `text_lines` 层也会恢复逻辑顺序；raw `text_spans` 仍保留
+  PDFium 原始视觉顺序。
+- 已补充 Arabic + ASCII digits table cell 样本：`سلام 123` 在 PDFium table cell
+  raw 形态下表现为 `123 مالس`，默认 parser / table import 会恢复为 `سلام 123`。
+  该混排行的 `text_lines` 仍保持 raw 视觉顺序，只在 table cell 边界应用受控归一化。
+- 已补充 RTL + slash + Arabic-Indic digits table cell 样本：`שלום/١٢٣` 在
+  PDFium table cell raw 形态下表现为 `/١٢٣םולש`，证明
+  `ASCII 中性标点 + Unicode 十进制数字 + pure RTL raw text` 分支不只覆盖 ASCII
+  digits，默认 parser / table import 会恢复为 `שלום/١٢٣`。
+- 已补充 RTL + semicolon + Arabic-Indic digits table cell 样本：`שלום;١٢٣` 在
+  PDFium table cell raw 形态下表现为 `١٢٣;םולש`，证明
+  `Unicode 十进制数字 + ASCII 中性标点 + pure RTL raw text` 分支也覆盖非 ASCII
+  十进制数字，默认 parser / table import 会恢复为 `שלום;١٢٣`。
+- 已补充 RTL + colon + Arabic-Indic digits table cell 样本：`שלום: ١٢٣` 在
+  PDFium table cell raw 形态下表现为 `םולש: ١٢٣`，不同于 ASCII digits 的
+  `123 :םולש` 前缀形态。当前 parser 增加 table-cell 专用的
+  `pure RTL raw text + ASCII 中性标点 + 可选空格 + Unicode 十进制数字` 分支，
+  将该受控场景恢复为 `שלום: ١٢٣`。
+- 已补充 RTL + hyphen + Arabic-Indic digits table cell 样本：`שלום-١٢٣` 在
+  PDFium table cell raw 形态下表现为 `-١٢٣םולש`，沿用已覆盖的
+  `ASCII 中性标点 + Unicode 十进制数字 + pure RTL raw text` 分支恢复为
+  `שלום-١٢٣`。
+- 已补充 RTL + comma / period + Arabic-Indic digits table cell 样本：
+  `שלום,١٢٣` 与 `שלום.١٢٣` 在 PDFium table cell raw 形态下分别表现为
+  `םולש,١٢٣` 与 `םולש.١٢٣`，和 colon 一样属于
+  `pure RTL raw text + ASCII 中性标点 + Unicode 十进制数字` trailing 形态。
+  默认 parser / table import 会恢复为 `שלום,١٢٣` 与 `שלום.١٢٣`。
+- 已补充 Extended Arabic-Indic / Persian digits table cell 独立矩阵：
+  `שלום ۱۲۳`、`שלום/۱۲۳`、`שלום;۱۲۳`、`שלום: ۱۲۳`、`שלום-۱۲۳`、
+  `שלום,۱۲۳`、`שלום.۱۲۳` 在 PDFium table cell raw 形态下分别表现为
+  `םולש ۱۲۳ `、`םולש/۱۲۳ `、`םולש;۱۲۳ `、`םולש: ۱۲۳`、
+  `םולש-۱۲۳ `、`םולש,۱۲۳ `、`םולש.۱۲۳ `。这些样本验证
+  `is_decimal_digit_codepoint()` 已声明的 U+06F0..U+06F9 范围会被 table-cell
+  专用 trailing digit / trailing separator 分支覆盖；raw spans / lines 和 raw import
+  仍保留 PDFium 原始形态。
+- 已新增独立 Arabic core table cell 矩阵：`سلام ١٢٣`、`سلام/١٢٣`、
+  `سلام;١٢٣`、`سلام: ١٢٣`、`سلام-١٢٣`、`سلام,١٢٣`、`سلام.١٢٣`
+  在 PDFium raw table cell 中均表现为 Arabic core 视觉顺序前缀
+  `مالس...` 后接对应 ASCII 中性标点 / 空格 / Arabic-Indic digits。当前 parser 增加
+  table-cell 专用的 `pure RTL raw text + ASCII 空格 + Unicode 十进制数字` 分支，并把
+  trailing separator 分支收紧为只处理显式 ASCII 中性标点，避免把冒号吞进 RTL core。
+  默认 parser / table import 会把该矩阵恢复为 Arabic 逻辑顺序。
+- 已把 Arabic core table cell 矩阵继续扩展到 Extended Arabic-Indic / Persian digits：
+  `سلام ۱۲۳`、`سلام/۱۲۳`、`سلام;۱۲۳`、`سلام: ۱۲۳`、`سلام-۱۲۳`、
+  `سلام,۱۲۳`、`سلام.۱۲۳` 在 PDFium table cell raw 形态下分别表现为
+  `مالس ۱۲۳`、`مالس/۱۲۳`、`مالس;۱۲۳`、`مالس: ۱۲۳`、`مالس-۱۲۳`、
+  `مالس,۱۲۳`、`مالس.۱۲۳`。该矩阵和 Hebrew Persian 独立 fixture 一起确认
+  U+06F0..U+06F9 在 Hebrew / Arabic core 下都走同一 table-cell 受控归一化路径。
+- 已在 table candidate 收集阶段忽略纯 ASCII 空白 cluster：Arabic-Indic digit 样本会让
+  PDFium 在同一表格行附近额外产生空白-only line，若把这些 line 纳入候选 run 会截断
+  后续表格行；当前修正只影响 table candidate 输入清理，不改变 raw text spans。
+- 已完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过。
+- 导入输出层回归补齐后再次完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过。
+- RTL digit mix 与 table cell 边界补齐后再次完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成新增样本渲染验证：
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-digit-mix-boundary.pdf --output-dir output\pdf-hebrew-rtl-digit-mix-boundary\pages --summary output\pdf-hebrew-rtl-digit-mix-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-digit-mix-boundary\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-hebrew-rtl-table-cell-boundary\pages --summary output\pdf-hebrew-rtl-table-cell-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-table-cell-boundary\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪、重叠或表格线错位。
+- mixed LTR / RTL 与 Arabic 样本补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-ltr-mix-boundary.pdf --output-dir output\pdf-hebrew-rtl-ltr-mix-boundary\pages --summary output\pdf-hebrew-rtl-ltr-mix-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-ltr-mix-boundary\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-arabic-rtl-normalization-boundary.pdf --output-dir output\pdf-arabic-rtl-normalization-boundary\pages --summary output\pdf-arabic-rtl-normalization-boundary\summary.json --contact-sheet output\pdf-arabic-rtl-normalization-boundary\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- split punctuation 与 Arabic diacritics 边界补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-split-punctuation-boundary.pdf --output-dir output\pdf-hebrew-rtl-split-punctuation-boundary\pages --summary output\pdf-hebrew-rtl-split-punctuation-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-split-punctuation-boundary\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-arabic-rtl-diacritic-normalization-boundary.pdf --output-dir output\pdf-arabic-rtl-diacritic-normalization-boundary\pages --summary output\pdf-arabic-rtl-diacritic-normalization-boundary\summary.json --contact-sheet output\pdf-arabic-rtl-diacritic-normalization-boundary\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- Arabic presentation-form / lam-alef cluster 变体矩阵优化后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过；
+  已渲染并目检 ordinary / madda / hamza-above / hamza-below 四个 PDF 样本：
+  `output\pdf-arabic-presentation-form-plain-boundary\contact-sheet.png`、
+  `output\pdf-arabic-presentation-form-madda-boundary\contact-sheet.png`、
+  `output\pdf-arabic-presentation-form-hamza-above-boundary\contact-sheet.png`、
+  `output\pdf-arabic-presentation-form-hamza-below-boundary\contact-sheet.png`；
+  四份 contact sheet 均非空，未见文本裁剪或重叠。
+- Hebrew niqqud 边界收紧后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-combining-mark-boundary.pdf --output-dir output\pdf-hebrew-rtl-combining-mark-boundary\pages --summary output\pdf-hebrew-rtl-combining-mark-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-combining-mark-boundary\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，未见文本裁剪或重叠。
+- Edge bracket pair 样本补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-bracket-ltr-pair-boundary.pdf --output-dir output\pdf-hebrew-rtl-bracket-ltr-pair-boundary\pages --summary output\pdf-hebrew-rtl-bracket-ltr-pair-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-bracket-ltr-pair-boundary\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-bracket-mirrored-pair-boundary.pdf --output-dir output\pdf-hebrew-rtl-bracket-mirrored-pair-boundary\pages --summary output\pdf-hebrew-rtl-bracket-mirrored-pair-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-bracket-mirrored-pair-boundary\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- Middle bracket pair 样本补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-bracket-middle-ltr-pair-boundary.pdf --output-dir output\pdf-hebrew-rtl-bracket-middle-ltr-pair-boundary\pages --summary output\pdf-hebrew-rtl-bracket-middle-ltr-pair-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-bracket-middle-ltr-pair-boundary\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-bracket-middle-mirrored-pair-boundary.pdf --output-dir output\pdf-hebrew-rtl-bracket-middle-mirrored-pair-boundary\pages --summary output\pdf-hebrew-rtl-bracket-middle-mirrored-pair-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-bracket-middle-mirrored-pair-boundary\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- Angle bracket pair 样本补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-bracket-angle-ltr-pair-boundary.pdf --output-dir output\pdf-hebrew-rtl-bracket-angle-ltr-pair-boundary\pages --summary output\pdf-hebrew-rtl-bracket-angle-ltr-pair-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-bracket-angle-ltr-pair-boundary\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-bracket-angle-mirrored-pair-boundary.pdf --output-dir output\pdf-hebrew-rtl-bracket-angle-mirrored-pair-boundary\pages --summary output\pdf-hebrew-rtl-bracket-angle-mirrored-pair-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-bracket-angle-mirrored-pair-boundary\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- Quoted RTL 样本补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-quote-outer-double-quote-boundary.pdf --output-dir output\pdf-hebrew-rtl-quote-outer-double-quote-boundary\pages --summary output\pdf-hebrew-rtl-quote-outer-double-quote-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-quote-outer-double-quote-boundary\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-quote-middle-double-quote-boundary.pdf --output-dir output\pdf-hebrew-rtl-quote-middle-double-quote-boundary\pages --summary output\pdf-hebrew-rtl-quote-middle-double-quote-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-quote-middle-double-quote-boundary\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- Short neutral run 样本补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-neutral-hyphen-separator-boundary.pdf --output-dir output\pdf-hebrew-rtl-neutral-hyphen-separator-boundary\pages --summary output\pdf-hebrew-rtl-neutral-hyphen-separator-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-neutral-hyphen-separator-boundary\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-neutral-slash-separator-boundary.pdf --output-dir output\pdf-hebrew-rtl-neutral-slash-separator-boundary\pages --summary output\pdf-hebrew-rtl-neutral-slash-separator-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-neutral-slash-separator-boundary\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- Bracket pair / quoted neutral / short neutral run 优化后完成广域回归验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- RTL ActualText normalization helper 抽取后完成定向回归验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+- helper 抽取后重新渲染代表性 neutral-run PDF：
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-neutral-hyphen-separator-boundary.pdf --output-dir output\pdf-hebrew-rtl-helper-neutral-hyphen\pages --summary output\pdf-hebrew-rtl-helper-neutral-hyphen\summary.json --contact-sheet output\pdf-hebrew-rtl-helper-neutral-hyphen\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，未见文本裁剪或重叠。
+- Single quote / colon / semicolon RTL 中性符号样本补齐后完成定向回归验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-quote-outer-single-quote-boundary.pdf --output-dir output\pdf-hebrew-rtl-quote-outer-single-boundary\pages --summary output\pdf-hebrew-rtl-quote-outer-single-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-quote-outer-single-boundary\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-neutral-colon-separator-boundary.pdf --output-dir output\pdf-hebrew-rtl-neutral-colon-separator-boundary\pages --summary output\pdf-hebrew-rtl-neutral-colon-separator-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-neutral-colon-separator-boundary\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- Comma / period RTL 中性符号样本补齐后完成定向回归验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-neutral-comma-separator-boundary.pdf --output-dir output\pdf-hebrew-rtl-neutral-comma-separator-boundary\pages --summary output\pdf-hebrew-rtl-neutral-comma-separator-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-neutral-comma-separator-boundary\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-neutral-period-separator-boundary.pdf --output-dir output\pdf-hebrew-rtl-neutral-period-separator-boundary\pages --summary output\pdf-hebrew-rtl-neutral-period-separator-boundary\summary.json --contact-sheet output\pdf-hebrew-rtl-neutral-period-separator-boundary\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- Raw-preservation helper 抽取后完成定向回归验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-digit-mix-boundary.pdf --output-dir output\pdf-hebrew-rtl-raw-preserve-digit-mix\pages --summary output\pdf-hebrew-rtl-raw-preserve-digit-mix\summary.json --contact-sheet output\pdf-hebrew-rtl-raw-preserve-digit-mix\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-arabic-rtl-diacritic-normalization-boundary.pdf --output-dir output\pdf-arabic-rtl-raw-preserve-diacritic\pages --summary output\pdf-arabic-rtl-raw-preserve-diacritic\summary.json --contact-sheet output\pdf-arabic-rtl-raw-preserve-diacritic\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- Comma / period 与 raw-preservation helper 优化后完成广域回归验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- Import option 关闭 RTL normalization 的段落 / 表格路径补强后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-document-natural-rtl-glyph-fallback.pdf --output-dir output\pdf-rtl-import-option-natural\pages --summary output\pdf-rtl-import-option-natural\summary.json --contact-sheet output\pdf-rtl-import-option-natural\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-import-option-table-cell\pages --summary output\pdf-rtl-import-option-table-cell\summary.json --contact-sheet output\pdf-rtl-import-option-table-cell\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- Import option 覆盖补强后完成广域回归验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- RTL fixture 命名 helper 重构后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-document-natural-rtl-glyph-fallback.pdf --output-dir output\pdf-rtl-named-fixture-natural\pages --summary output\pdf-rtl-named-fixture-natural\summary.json --contact-sheet output\pdf-rtl-named-fixture-natural\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-neutral-comma-separator-boundary.pdf --output-dir output\pdf-rtl-named-fixture-comma\pages --summary output\pdf-rtl-named-fixture-comma\summary.json --contact-sheet output\pdf-rtl-named-fixture-comma\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，未见文本裁剪或重叠。
+- RTL fixture 命名 helper 重构后完成广域回归验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- `normalize_rtl_text` 作用范围断言补强后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-document-natural-rtl-glyph-fallback.pdf --output-dir output\pdf-rtl-normalize-scope-natural\pages --summary output\pdf-rtl-normalize-scope-natural\summary.json --contact-sheet output\pdf-rtl-normalize-scope-natural\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，未见文本裁剪或重叠。
+- `normalize_rtl_text` 作用范围断言补强后完成广域回归验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- Table cell 作用范围断言补强后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  先暴露 mixed table row 不应 line 级归一化的错误测试假设，修正为 span / mixed line
+  保持 raw、cell 独立归一化后通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-scope\pages --summary output\pdf-rtl-table-cell-scope\summary.json --contact-sheet output\pdf-rtl-table-cell-scope\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，未见文本裁剪或重叠。
+- Table cell 作用范围断言补强后完成广域回归验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- Mixed RTL + digit table cell 候选归属修正后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-mixed-digit-scope\pages --summary output\pdf-rtl-table-cell-mixed-digit-scope\summary.json --contact-sheet output\pdf-rtl-table-cell-mixed-digit-scope\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，新增 mixed RTL + digit 行未见裁剪、重叠或网格错位。
+- Mixed RTL + digit table cell 归一化补齐后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+- Arabic-Indic digit table cell 样本补齐后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+- Arabic-Indic digit table cell 样本补齐后完成广域与视觉验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-unicode-digit-normalized\pages --summary output\pdf-rtl-table-cell-unicode-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-unicode-digit-normalized\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，4 行 RTL table cell 样本未见裁剪、重叠或网格错位。
+- RTL + 冒号 + 数字 table cell 样本补齐后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+- RTL + 冒号 + 数字 table cell 样本补齐后完成广域与视觉验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-punct-digit-normalized\pages --summary output\pdf-rtl-table-cell-punct-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-punct-digit-normalized\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，5 行 RTL table cell 样本未见裁剪、重叠或网格错位。
+- RTL + slash + 数字 table cell 样本补齐后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+- RTL + hyphen + 数字 table cell 样本补齐后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+- RTL + semicolon + 数字 table cell 样本补齐后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+- RTL + slash + 数字 table cell 样本补齐后完成广域与视觉验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-slash-digit-normalized\pages --summary output\pdf-rtl-table-cell-slash-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-slash-digit-normalized\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，6 行 RTL table cell 样本未见裁剪、重叠或网格错位。
+- RTL + hyphen + 数字 table cell 样本补齐后完成广域与视觉验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-hyphen-digit-normalized\pages --summary output\pdf-rtl-table-cell-hyphen-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-hyphen-digit-normalized\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，7 行 RTL table cell 样本未见裁剪、重叠或网格错位。
+- RTL + semicolon + 数字 table cell 样本补齐后完成广域与视觉验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-semicolon-digit-normalized\pages --summary output\pdf-rtl-table-cell-semicolon-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-semicolon-digit-normalized\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，8 行 RTL table cell 样本未见裁剪、重叠或网格错位。
+- RTL + comma / period + 数字 table cell 样本补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-comma-period-digit-normalized\pages --summary output\pdf-rtl-table-cell-comma-period-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-comma-period-digit-normalized\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，10 行 RTL table cell 样本未见裁剪、重叠或网格错位。
+- Arabic table cell 脚本样本补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-arabic-script-normalized\pages --summary output\pdf-rtl-table-cell-arabic-script-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-arabic-script-normalized\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，12 行 RTL table cell 样本未见裁剪、重叠或网格错位。
+- Arabic-Indic punctuation + digit table cell 样本补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-arabic-indic-punct-digit-normalized\pages --summary output\pdf-rtl-table-cell-arabic-indic-punct-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-arabic-indic-punct-digit-normalized\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，14 行 RTL table cell 样本未见裁剪、重叠或网格错位。
+- Arabic-Indic colon / hyphen table cell 样本补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-arabic-indic-colon-hyphen-normalized\pages --summary output\pdf-rtl-table-cell-arabic-indic-colon-hyphen-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-arabic-indic-colon-hyphen-normalized\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，16 行 RTL table cell 样本未见裁剪、重叠或网格错位。
+- Arabic-Indic comma / period table cell 样本补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-arabic-indic-comma-period-normalized\pages --summary output\pdf-rtl-table-cell-arabic-indic-comma-period-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-arabic-indic-comma-period-normalized\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，18 行 RTL table cell 样本未见裁剪、重叠或网格错位。
+- Extended Arabic-Indic / Persian digit table cell 独立矩阵补齐后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；新增 `featherdoc-hebrew-rtl-table-cell-persian-digit-boundary.pdf`，
+  覆盖空格、slash、semicolon、colon、hyphen、comma 和 period + `۱۲۳` 七行。
+- Arabic core table cell 矩阵补齐后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-arabic-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-arabic-core-digit-normalized\pages --summary output\pdf-rtl-table-cell-arabic-core-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-arabic-core-digit-normalized\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，9 行 Arabic table cell 样本未见裁剪、重叠或网格错位。
+- Arabic core + Extended Arabic-Indic / Persian digit 矩阵追加后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；同时补充 helper 层 Persian digit 空格、slash、semicolon、colon、hyphen、
+  comma 和 period 七个边界断言，避免 U+06F0..U+06F9 只靠 PDF fixture 覆盖。
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过 6/6；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过 40/40；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过 2/2；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-arabic-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-arabic-core-persian-digit-normalized\pages --summary output\pdf-rtl-table-cell-arabic-core-persian-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-arabic-core-persian-digit-normalized\contact-sheet.png --dpi 144`
+  通过，contact sheet 已人工复看，16 行 Arabic core table cell 样本未见裁剪、重叠或网格错位；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts\run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output\pdf-visual-release-gate-arabic-persian-digit -SkipUnicodeBaseline`
+  通过，聚合 contact sheet 已包含并人工复看更新后的
+  `rtl-table-cell-arabic-core-boundaries` baseline。
+- Hebrew niqqud 边界收紧后完成广域回归验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- 当前 RTL table cell 受控矩阵已经覆盖 Hebrew / Arabic core、ASCII digits、
+  Arabic-Indic digits、Extended Arabic-Indic / Persian digits，以及
+  colon / slash / hyphen / semicolon / comma / period 这组简单 ASCII 中性标点边界。
+  真实 PDFium raw 形态已经记录在对应单测断言中，其中 Hebrew 侧包含
+  `123 :םולש`、`/123םולש`、`-123םולש`、`123;םולש`、`,123םולש`、
+  `.123םולש`、`םולש: ١٢٣`、`-١٢٣םולש`、`םולש,١٢٣`、`םולש.١٢٣`；
+  Persian digit 独立 fixture 包含 `םולש ۱۲۳ `、`םולש/۱۲۳ `、`םולש;۱۲۳ `、
+  `םולש: ۱۲۳`、`םולש-۱۲۳ `、`םולש,۱۲۳ `、`םולש.۱۲۳ `；Arabic core 侧包含
+  `مالس ١٢٣`、`مالس/١٢٣`、`مالس;١٢٣`、`مالس: ١٢٣`、`مالس-١٢٣`、
+  `مالس,١٢٣`、`مالس.١٢٣` 以及对应 Persian digit raw 形态
+  `مالس ۱۲۳`、`مالس/۱۲۳`、`مالس;۱۲۳`、`مالس: ۱۲۳`、`مالس-۱۲۳`、
+  `مالس,۱۲۳`、`مالس.۱۲۳`，由
+  `featherdoc-arabic-rtl-table-cell-boundary.pdf` 独立验证。
+- 下一阶段入口：
+  先进入优化和可维护性收口，而不是继续扩大规则范围。优先把现有矩阵整理成
+  data-driven fixture，降低 `pdf_unicode_font_roundtrip_tests.cpp` 的重复断言；
+  再为 parser 归一化 helper 增加更窄的边界单测，确保 prefix / leading separator /
+  trailing digit / trailing separator 四类规则互不抢占。
+- 下一阶段仍不定义完整 bidi cell normalization。Combining mark 恢复、跨 run
+  重排、任意混合脚本和复杂数字格式需要额外 glyph / cluster 语义支撑，不应靠当前
+  parser 反转规则硬推。Production writer 的非 LTR glyph-id CID guard 继续保持，
+  RTL / 竖排 shaped run 仍走字符串 fallback，直到方向语义和视觉门禁单独收口。
+- RTL table cell 优化收口继续推进：
+  已把 Hebrew / Arabic table cell 测试改为 data-driven helper，统一生成表格、
+  raw table candidate、normalized table candidate、默认 import 和 raw import 断言。
+  新增直接 helper boundary 测试，覆盖 pure RTL、digit-prefix、
+  leading-separator、trailing-digit、trailing-separator，以及 mixed LTR/RTL
+  不应归一化的负例。
+  `PdfiumParser` 内部也新增 `normalize_rtl_table_cell_text()` dispatcher，
+  避免表格遍历处继续嵌套四级 fallback 规则。
+- 本轮重构后完成定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+- RTL table cell 视觉样本已纳入 `scripts/run_pdf_visual_release_gate.ps1`：
+  release gate 现在会渲染 `rtl-table-cell-hebrew-mixed-boundaries`、
+  `rtl-table-cell-persian-digit-boundaries` 和 `rtl-table-cell-arabic-core-boundaries`
+  三个受控 normalization baseline，并在 `-SkipUnicodeBaseline` 模式下额外运行
+  `pdf_unicode_font_roundtrip`，确保对应 PDF 已生成。
+- 已收口 release gate 的 Unicode 日志语义：完整 Unicode baseline 模式会把
+  `run_pdf_unicode_font_roundtrip_visual_regression.ps1` 输出捕获到
+  `report\unicode-font.log`，`-SkipUnicodeBaseline` 模式只记录用于生成 RTL table cell
+  PDF 的 `report\pdf-unicode-roundtrip-test.log`，避免 summary 指向未生成的日志文件。
+- 已完成 release gate 实跑验证：
+  `powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output\pdf-visual-release-gate-rtl-table-cell -SkipUnicodeBaseline`
+  通过；`pdf_cli_export` 通过、`pdf_regression_` 40/40 通过、
+  `pdf_unicode_font_roundtrip` 通过，聚合 contact sheet 已包含两份 RTL table cell
+  baseline。视觉检查确认 Hebrew mixed boundary 和 Arabic core boundary 表格未见裁剪、
+  重叠或网格线错位。
+- release gate 日志收口后完成补充验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过；
+  `powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output\pdf-visual-release-gate-rtl-table-cell -SkipUnicodeBaseline`
+  通过，summary `logs` 只包含 `pdf_cli_export`、`pdf_regression` 和
+  `pdf_unicode_roundtrip`，对应 `pdf-unicode-roundtrip-test.log` 已生成；
+  `powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output\pdf-visual-release-gate-rtl-table-cell-full`
+  通过，summary `logs` 只包含 `pdf_cli_export`、`pdf_regression` 和
+  `unicode_font`，对应 `unicode-font.log` 已生成。完整聚合 contact sheet、Hebrew /
+  Arabic RTL table cell baseline 和 Unicode comparison contact sheet 均已人工检查，
+  未见明显裁剪、重叠或网格错位。
+- 已创建下一阶段复杂 RTL cell 任务包，并同步到 `design/02-current-roadmap.md`：
+  先定义 cell 内 text span、glyph cluster、PDFium char box 与 FeatherDoc logical text
+  的对应关系，再分别推进 Hebrew niqqud / Arabic harakat、跨 run bidi cell 和完整
+  cell normalization 验收矩阵。在这些语义稳定前，当前 parser 规则不继续扩张，
+  production writer 的非 LTR glyph-id CID guard 继续保持。
+- 已给 `pdf_visual_release_gate_text_shaping_baselines_test.ps1` 增加 summary 日志的
+  反向断言，防止 `pdf_unicode_roundtrip` 或 `unicode_font` 日志字段被改回无条件输出；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过。
+- 继续尝试为 table cell combining mark 建立真实 PDF fixture 时，发现 Hebrew niqqud /
+  Arabic harakat 行会先扰动 PDFium table candidate 聚合：小表无法形成候选表格，多行
+  锚点表也只稳定识别前段锚点行，不能把 combining mark 行作为可靠 cell 回归。
+  因此本轮不把该不稳定样本纳入 release gate；已改为 helper 级负例，断言
+  `normalize_rtl_table_cell_text()` 遇到 Hebrew / Arabic combining mark raw 形态必须
+  返回 false 并保持原文。后续复杂 RTL cell 任务包需要先记录 raw span、char box、
+  table candidate 聚合和 mark 所属 base glyph，再决定能否做完整 cell normalization。
+  定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+  补充验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过。
+- 已把 paragraph 级 combining mark raw span / char box 顺序固定为回归基线：
+  `RtlActualTextRawPreservationCase` 现在可选择验证 raw span sequence 及其 geometry；
+  Hebrew niqqud 与 Arabic harakat 用例开启该检查，确认 PDFium raw span 顺序能匹配
+  实际 raw fragment，且每个 span 带有有效 font size 和有限 char box 坐标。真实 raw
+  形态固定为 Hebrew `םֹולָש`、Arabic `ماَلَس`；这也证明写入 visual sequence 后，
+  PDFium 仍可能重新调整 combining mark 与相邻 base glyph 的归属顺序，后续不能把
+  content stream 文本顺序直接当成 mark 归属依据。
+  这一步先固定可稳定观测的低层事实；table candidate 聚合仍按上一条记录保持为
+  后续复杂 RTL cell 任务的前置设计项。
+  定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+  广域与视觉验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-combining-mark-boundary.pdf --output-dir output\pdf-rtl-combining-mark-span-geometry-hebrew\pages --summary output\pdf-rtl-combining-mark-span-geometry-hebrew\summary.json --contact-sheet output\pdf-rtl-combining-mark-span-geometry-hebrew\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-arabic-rtl-diacritic-normalization-boundary.pdf --output-dir output\pdf-rtl-combining-mark-span-geometry-arabic\pages --summary output\pdf-rtl-combining-mark-span-geometry-arabic\summary.json --contact-sheet output\pdf-rtl-combining-mark-span-geometry-arabic\contact-sheet.png --dpi 144`
+  通过；两份 contact sheet 均非空，页面未见明显裁剪或重叠。
+- 已建立 paragraph 级 split mixed bidi raw-preservation 基线：低层 fixture 将
+  `Status `、Hebrew visual run 和 `: 123` 写成三个独立 text show，默认 parser 和
+  PDF import 必须保持 PDFium raw paragraph，不触发当前 RTL normalization；测试同时
+  固定 `Status`、Hebrew visual raw fragment 和 `123` 的 raw span geometry。该样本证明
+  跨 text show 的 mixed bidi 不能假设完整字符串顺序，只能先固定 fragment 级低层事实；
+  cell 级 fixture 需要等同 cell 多 text show 与 table candidate 聚合语义明确后再推进。
+  定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-split-mixed-bidi-boundary.pdf --output-dir output\pdf-rtl-split-mixed-bidi-raw-boundary\pages --summary output\pdf-rtl-split-mixed-bidi-raw-boundary\summary.json --contact-sheet output\pdf-rtl-split-mixed-bidi-raw-boundary\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，页面未见明显裁剪或重叠。
+  补充验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过。
+
+2026-05-16 继续推进（table cell raw span / char box 语义固化）：
+
+- 已把 `PdfParsedTableCell` 扩展为携带 `text_spans`，并在 `PdfiumParser` 的
+  `TextCluster` -> table candidate cell 建表路径中保留 PDFium 原始 span 顺序和几何。
+  这一步明确了当前 cell 层的低层事实：`cell.text` 属于结构化文本，可以在默认 parser
+  下做 RTL normalization；`cell.text_spans` 仍是 raw PDFium 抽取结果，用于诊断、
+  char box 和后续 glyph cluster 语义设计。
+- `pdf_unicode_font_roundtrip` 的 Hebrew / Arabic RTL table cell data-driven 矩阵现在同时
+  断言 raw table candidate 和 normalized table candidate 的首列 cell 均带有非空
+  `text_spans`，并能在 span sequence 中找到 PDFium 实际 raw cell 文本；每个 span 还必须
+  带有有效 font size 和有限 char box 坐标。这样可以防止后续把 `cell.text` 归一化时误改
+  raw span / char box。
+- 当前只完成单 run table candidate cell 的 span 承接。同 cell 多 text show / 多 run、
+  combining mark 所属 base glyph、跨 run mixed bidi 是否可恢复，仍保持为后续复杂 RTL cell
+  任务项；在这些语义稳定前，不扩大 parser 自动恢复范围，也不放开非 LTR glyph-id CID
+  writer guard。
+- 已补充 cell 级 split mixed-bidi raw-preservation fixture：
+  `featherdoc-hebrew-rtl-table-cell-split-mixed-bidi-boundary.pdf` 使用真实 table candidate，
+  将首列目标 cell 写成 `Status `、Hebrew RTL run 和 `: 123` 三个 text run。测试确认
+  raw / normalized table candidate 以及 opt-in DOCX table import 都保持 PDFium raw cell
+  文本，不触发现有 RTL normalization；同时固定 `Status`、Hebrew visual fragment 和 `123`
+  在 cell `text_spans` 中的 geometry。
+- 已补充 cell 级 Hebrew niqqud / Arabic harakat raw-preservation fixture：
+  `featherdoc-hebrew-rtl-table-cell-combining-mark-boundary.pdf` 与
+  `featherdoc-arabic-rtl-table-cell-combining-mark-boundary.pdf` 均使用真实 table candidate。
+  测试确认 `שָלוֹם` 的 PDFium table cell raw 形态稳定为 `םֹולָש`，`سَلَام` 稳定为
+  `ماَلَس`；默认 parser 和 opt-in DOCX table import 都保持 raw，不触发自动恢复。测试同时
+  在 cell `text_spans` 中固定完整 raw sequence 与 Hebrew qamats / holam、Arabic fatha
+  的 span geometry，并新增 combining mark span 与相邻 base span 的 char box 近邻断言。
+  这一步只固定可稳定观测的几何前置事实；mark 所属 base glyph 仍未从 PDFium char box 层
+  完全建模，后续需要结合 glyph cluster 语义继续设计。
+- 定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+- 复跑广域验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过 6/6；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过 40/40；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过 2/2。
+- 视觉复查：
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-boundary.pdf --output-dir output\pdf-rtl-table-cell-raw-span-semantics\pages --summary output\pdf-rtl-table-cell-raw-span-semantics\summary.json --contact-sheet output\pdf-rtl-table-cell-raw-span-semantics\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，18 行 RTL table cell 样本未见裁剪、重叠或网格错位。
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-split-mixed-bidi-boundary.pdf --output-dir output\pdf-rtl-table-cell-split-mixed-bidi-raw-spans\pages --summary output\pdf-rtl-table-cell-split-mixed-bidi-raw-spans\summary.json --contact-sheet output\pdf-rtl-table-cell-split-mixed-bidi-raw-spans\contact-sheet.png --dpi 144`
+  通过；contact sheet 非空，split mixed-bidi cell 未见裁剪、重叠或列错位。
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-combining-mark-boundary.pdf --output-dir output\pdf-rtl-table-cell-combining-mark-raw-spans\pages --summary output\pdf-rtl-table-cell-combining-mark-raw-spans\summary.json --contact-sheet output\pdf-rtl-table-cell-combining-mark-raw-spans\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-arabic-rtl-table-cell-combining-mark-boundary.pdf --output-dir output\pdf-rtl-table-cell-arabic-combining-mark-raw-spans\pages --summary output\pdf-rtl-table-cell-arabic-combining-mark-raw-spans\summary.json --contact-sheet output\pdf-rtl-table-cell-arabic-combining-mark-raw-spans\contact-sheet.png --dpi 144`
+  通过；两份 combining mark cell contact sheet 均非空，未见裁剪、重叠或列错位。
+- 已把复杂 RTL cell raw-preservation 样本纳入 `scripts/run_pdf_visual_release_gate.ps1`：
+  新增 `rtl-table-cell-split-mixed-bidi-raw-spans`、
+  `rtl-table-cell-split-pure-rtl-raw-spans`、
+  `rtl-table-cell-arabic-split-pure-rtl-normalized`、
+  `rtl-table-cell-hebrew-combining-mark-raw-spans` 和
+  `rtl-table-cell-arabic-combining-mark-raw-spans` baseline job，并扩展
+  `pdf_visual_release_gate_text_shaping_baselines` 静态测试，防止这些样本从 release gate
+  中被误删。
+- 已继续收紧 combining mark cell span geometry：测试 helper 现在会先定位 cell 内完整 raw
+  sequence，再断言 Hebrew qamats / holam、Arabic fatha 的 span 与相邻 base span 存在稳定
+  char box 近邻关系。该检查仍不推断最终 mark-to-base glyph 归属，只为后续 glyph cluster
+  设计固定 PDFium 可观察事实。
+- 复跑验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过 6/6；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过 40/40；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过 2/2。
+- release gate skip-unicode 实跑验证：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-visual-release-gate-complex-rtl-cell -SkipUnicodeBaseline`
+  通过；输出 `output\pdf-visual-release-gate-complex-rtl-cell\report\aggregate-contact-sheet.png`
+  和 `output\pdf-visual-release-gate-complex-rtl-cell\report\summary.json`。聚合 contact sheet
+  已人工复看，新增三份复杂 RTL cell baseline 均正常渲染。
+
+2026-05-17 继续推进（table cell raw span normalization 隔离断言）：
+
+- 已把 table cell raw span 语义从“normalized cell 里仍可找到 PDFium raw sequence”
+  收紧为 raw parse 与 normalized parse 的 span 等价断言：新增
+  `check_raw_text_spans_unchanged()`，逐项比较 span 数量、文本、font name、font size
+  和 char box。这样可以明确当前 parser 允许改写的是结构化 `PdfParsedTableCell::text`，
+  不是底层诊断用的 `PdfParsedTableCell::text_spans`。
+- 已进一步把 normalization 隔离范围扩展到 table candidate 几何：新增
+  `check_table_candidate_geometry_unchanged()`，比较 table bounds、列锚点、row bounds、
+  cell bounds、column / row span、`has_text` 和每个 cell 的 raw spans。该断言固定了
+  当前实现顺序：table candidate detection 和 geometry 归并不应被后续 structured
+  text normalization 影响。
+- Hebrew / Arabic data-driven table cell 矩阵、cell 级 split mixed-bidi fixture、Hebrew
+  niqqud fixture 和 Arabic harakat fixture 都接入该断言。受控简单边界在 normalized
+  table candidate 中继续恢复 logical `cell.text`；复杂 mixed-bidi / combining mark
+  cell 仍保持 PDFium raw `cell.text`，两类路径都要求 raw `text_spans` 与关闭
+  normalization 时完全一致。
+- 已把完整 cell normalization 验收矩阵落到 roadmap / runbook：后续新增可自动恢复
+  边界必须同时覆盖 parser text 回读、table candidate 几何、DOCX import、PNG contact
+  sheet 和 release gate baseline。这个矩阵明确了“允许恢复 logical text”的必要条件，
+  也明确 raw diagnostics 与 table geometry 必须在 normalization toggle 下保持稳定。
+- 已继续收紧 normalization scope：新增
+  `check_table_cell_text_unchanged_except_column_rows()`，在 Hebrew / Arabic data-driven
+  矩阵中只豁免首列数据行，header / Owner / Due 等非目标 cell 的结构化文本必须与
+  raw parse 一致；split mixed-bidi、Hebrew niqqud 和 Arabic harakat raw-preservation
+  表格不豁免任何 cell，整张表的 structured `cell.text` 都必须保持 PDFium raw。
+- 已把同样的 scope 约束推进到 DOCX table import：新增
+  `check_imported_table_static_boundary_cells()` 与
+  `check_imported_table_static_boundary_cells_unchanged()`。默认 import / raw import
+  都必须在 header、Owner、Due 等非目标 cell 中保留预期可见文本，并且这些 cell
+  在两条 import 路径之间完全一致；首列目标 cell 仍按默认 logical / raw option 分别断言。
+- 已继续把复杂 raw-preservation fixture 的 DOCX import 断言补齐：新增
+  `check_imported_four_row_table_static_cells()`，覆盖 split mixed-bidi、Hebrew niqqud、
+  Arabic harakat 三张四行表的 header、Owner、Due 以及 Alpha / Beta 静态行，避免复杂
+  cell 只验证首列目标 cell。
+- 已进一步新增 `check_imported_four_row_table_cells_unchanged()`，对上述三张复杂表执行
+  默认 import 与关闭 normalization 的 raw import 逐格比较；因为这些 fixture 不允许
+  normalization 触发，整张 4x3 DOCX table 的文本必须完全一致。
+- 已继续把复杂 cell 的 glyph / cluster 前置事实收紧到 raw span 顺序层：
+  新增 `check_span_sequences_appear_in_order()`，要求 split mixed-bidi cell 中
+  `Status`、Hebrew raw run 和 `123` 三段 raw span 在 raw parse 与 normalized parse
+  中按 PDFium 抽取顺序出现；新增 `check_combining_mark_neighbor_geometry()`，记录
+  Hebrew niqqud / Arabic harakat 的 mark 两侧候选 base，并要求这些 mark 具备相邻
+  char box 几何。当前只固定可观察事实，不推断最终 mark-to-base glyph 归属，也不扩大
+  自动 normalization 范围。
+- 已补 split pure-RTL cell raw-preservation fixture：同一 table cell 内将 `שלום`
+  拆成 `של` / `ום` 两个 text show 时，PDFium table cell raw 形态固定为 `לש\nםו`。
+  parser 现在遇到包含 `\n` / `\r` 的 multi-cluster table cell text 会保持 raw，不再把
+  单 run RTL 反转规则套到跨 cluster 文本；默认 DOCX import 与关闭 normalization 的
+  raw import 在整张 4x3 表上逐格一致。该样本已加入 release gate baseline
+  `rtl-table-cell-split-pure-rtl-raw-spans`。
+- 已补 Arabic split pure-RTL cell 对照 fixture：同一 table cell 内将 `سلام`
+  拆成 `سل` / `ام` 两个 text show 时，PDFium table cell raw 形态合并为 `مالس `，
+  没有形成 Hebrew 那样的 multi-cluster 换行 raw。默认 parser / DOCX import 会恢复为
+  `سلام`，关闭 normalization 的 raw import 保留 PDFium raw core；该样本已加入 release
+  gate baseline `rtl-table-cell-arabic-split-pure-rtl-normalized`。Phase 3 同时断言
+  除目标格外，默认 import 与 raw import 的 4x3 表格其它单元格逐格一致。
+- 定向验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过。
+- 复跑广域验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过 6/6；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过 40/40；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过 2/2。
+- 视觉复查：
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-split-mixed-bidi-boundary.pdf --output-dir output\pdf-rtl-complex-raw-import-parity\split\pages --summary output\pdf-rtl-complex-raw-import-parity\split\summary.json --contact-sheet output\pdf-rtl-complex-raw-import-parity\split\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-combining-mark-boundary.pdf --output-dir output\pdf-rtl-complex-raw-import-parity\hebrew-combining\pages --summary output\pdf-rtl-complex-raw-import-parity\hebrew-combining\summary.json --contact-sheet output\pdf-rtl-complex-raw-import-parity\hebrew-combining\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-arabic-rtl-table-cell-combining-mark-boundary.pdf --output-dir output\pdf-rtl-complex-raw-import-parity\arabic-combining\pages --summary output\pdf-rtl-complex-raw-import-parity\arabic-combining\summary.json --contact-sheet output\pdf-rtl-complex-raw-import-parity\arabic-combining\contact-sheet.png --dpi 144`
+  通过；三份复杂 RTL cell contact sheet 均非空，未见裁剪、重叠或网格错位。
+- span 顺序 / mark-neighbor 断言收紧后补充视觉复查：
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-split-pure-rtl-boundary.pdf --output-dir output\pdf-rtl-table-cell-split-pure-rtl-raw-preservation\pages --summary output\pdf-rtl-table-cell-split-pure-rtl-raw-preservation\summary.json --contact-sheet output\pdf-rtl-table-cell-split-pure-rtl-raw-preservation\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-arabic-rtl-table-cell-split-pure-rtl-boundary.pdf --output-dir output\pdf-rtl-table-cell-arabic-split-pure-rtl-normalized\pages --summary output\pdf-rtl-table-cell-arabic-split-pure-rtl-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-arabic-split-pure-rtl-normalized\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-split-mixed-bidi-boundary.pdf --output-dir output\pdf-rtl-complex-span-order-neighbor-geometry\split\pages --summary output\pdf-rtl-complex-span-order-neighbor-geometry\split\summary.json --contact-sheet output\pdf-rtl-complex-span-order-neighbor-geometry\split\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-combining-mark-boundary.pdf --output-dir output\pdf-rtl-complex-span-order-neighbor-geometry\hebrew-combining\pages --summary output\pdf-rtl-complex-span-order-neighbor-geometry\hebrew-combining\summary.json --contact-sheet output\pdf-rtl-complex-span-order-neighbor-geometry\hebrew-combining\contact-sheet.png --dpi 144`
+  通过；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-arabic-rtl-table-cell-combining-mark-boundary.pdf --output-dir output\pdf-rtl-complex-span-order-neighbor-geometry\arabic-combining\pages --summary output\pdf-rtl-complex-span-order-neighbor-geometry\arabic-combining\summary.json --contact-sheet output\pdf-rtl-complex-span-order-neighbor-geometry\arabic-combining\contact-sheet.png --dpi 144`
+  通过；三份 contact sheet 复查未见裁剪、重叠或网格错位。
+- release gate skip-unicode 实跑验证：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-visual-release-gate-split-pure-rtl-cell -SkipUnicodeBaseline`
+  通过；输出 `output\pdf-visual-release-gate-split-pure-rtl-cell\report\aggregate-contact-sheet.png`
+  和 `output\pdf-visual-release-gate-split-pure-rtl-cell\report\summary.json`。聚合 contact
+  sheet 已人工复看，`rtl-table-cell-split-pure-rtl-raw-spans` baseline 正常渲染。
+- Arabic split pure-RTL baseline 加入后再次完成 release gate skip-unicode 实跑验证：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-visual-release-gate-arabic-split-pure-rtl -SkipUnicodeBaseline`
+  通过；输出 `output\pdf-visual-release-gate-arabic-split-pure-rtl\report\aggregate-contact-sheet.png`
+  和 `output\pdf-visual-release-gate-arabic-split-pure-rtl\report\summary.json`。聚合 contact
+  sheet 已人工复看，`rtl-table-cell-arabic-split-pure-rtl-normalized` baseline 正常渲染。
+- Extended Arabic-Indic / Persian digit boundary 独立 baseline 加入后完成验证：
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60'`
+  通过；
+  `cmd /s /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat" && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip|import_structure|import_failure|import_table_heuristic)$" --output-on-failure --timeout 60`
+  通过 6/6；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过 40/40；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过 2/2；
+  `tmp\render-venv\Scripts\python.exe scripts\render_pdf_pages.py --input .bpdf-roundtrip-msvc\test\featherdoc-hebrew-rtl-table-cell-persian-digit-boundary.pdf --output-dir output\pdf-rtl-table-cell-persian-digit-normalized\pages --summary output\pdf-rtl-table-cell-persian-digit-normalized\summary.json --contact-sheet output\pdf-rtl-table-cell-persian-digit-normalized\contact-sheet.png --dpi 144`
+  通过，contact sheet 已人工复看，7 行 Persian digit table cell 样本未见裁剪、重叠或网格错位；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts\run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output\pdf-visual-release-gate-persian-digit -SkipUnicodeBaseline`
+  通过；聚合 contact sheet 已包含并人工复看
+  `rtl-table-cell-persian-digit-boundaries` baseline。
+- 后续触发式任务包：
+  complex RTL cell normalization 继续保持保守边界，先建立 split mixed-bidi / Hebrew
+  niqqud / Arabic harakat 的 glyph cluster 与 combining mark 归属模型。任何新增自动恢复
+  规则都必须同时保持 parser raw spans、table candidate geometry、默认 / raw DOCX import
+  parity、视觉 release gate baseline 和 contact sheet 复查通过。
+- 已创建 `design/05-pdf-rtl-table-cell-complex-task-plan.md` 作为后续执行源：
+  简单 digit / punctuation 矩阵冻结，后续新增必须先证明新的 Unicode class、
+  PDFium raw 形态或用户可见导入风险。复杂 cell 决策表固定为：pure single-cluster
+  RTL cell 可归一化；包含 `\n` 或 `\r` 的 split Hebrew pure RTL cell 保持 raw；
+  Arabic split pure RTL 只有在 PDFium 合并为单 raw cluster 时才可沿用现有规则；
+  split mixed-bidi 与 combining-mark cell 保持 raw-preservation。
+- 已为 `normalize_rtl_table_cell_text_for_testing()` 补充 carriage-return
+  multi-cluster 负例，和已有 newline guard 一起确保复杂 cell 不会被单 cluster
+  反转规则误处理。
+
+## 已完成任务包：release governance handoff details parity
+
+PDF RTL table cell complex task 已完成本轮收口。下一阶段优先从发布治理链路继续推进，
+目标是让同一批 blocker / warning / action item 明细在 release summary、
+`final_review.md`、`ARTIFACT_GUIDE.md`、`REVIEWER_CHECKLIST.md`、`release_handoff.md`、
+`release_governance_handoff`、`release_blocker_rollup` 和 pipeline `stages[]`
+之间保持一致。
+
+### 实施清单
+
+- [x] 阅读 `scripts/build_release_governance_handoff_report.ps1`、
+      `scripts/build_release_blocker_rollup_report.ps1`、
+      `scripts/build_release_governance_pipeline_report.ps1`、
+      `scripts/write_release_note_bundle.ps1` 和对应测试，确认当前字段来源。
+- [x] 梳理 blocker / warning / action item 的 reviewer-facing 字段矩阵：
+      `id`、`action`、`message`、`source_schema`、`source_report_display`、
+      `source_json_display` 和 action item `open_command`。
+- [x] 补齐测试，确保 `release_governance_handoff`、`release_blocker_rollup`、
+      pipeline `stages[]`、release summary、`final_review.md`、artifact guide、
+      reviewer checklist 和 handoff markdown 展示同一批明细。
+- [x] 更新 `docs/release_metadata_pipeline_zh.rst`、`docs/current_direction_zh.rst`、
+      `docs/feature_gap_analysis_zh.rst` 和 `docs/documentation_maintenance_zh.rst`。
+- [x] 跑对应 PowerShell 测试，所有 `ctest` 命令必须带 `--timeout 60`。
+
+### 本轮实现结果
+
+- `build_release_governance_handoff_report.ps1` 的 handoff Markdown 现在会为
+  release blocker 展示 `source_schema`、`source_report_display` 和
+  `source_json_display`；action item 还会展示 `title`、`open_command`、
+  `source_report_display` 和 `source_json_display`。
+- JSON 归一化字段保持不变：`source_report_display` 表示当前加载到 handoff 的
+  源报告路径。在 release candidate handoff auto-discovery 场景中，它会指向
+  `.\.bpdf-roundtrip-msvc\...\auto-discover-output\...\summary.json` 这类发现后的
+  源报告；`source_json_display` 继续保留治理项声明的原始证据入口，例如
+  `.\output\schema-patch-confidence-calibration\summary.json`。
+- Markdown 真实形态采用单反引号代码样式，关键片段如下：
+
+  ```text
+  schema=`featherdoc.schema_patch_confidence_calibration_report.v1`
+  source_json_display: `.\output\schema-patch-confidence-calibration\summary.json`
+  open_command: `pwsh -ExecutionPolicy Bypass -File ...`
+  ```
+- 测试已补齐 `build_release_governance_handoff_report_aggregate` 和
+  `release_candidate_governance_handoff`：覆盖 handoff summary、
+  nested handoff Markdown、`final_review.md`、`ARTIFACT_GUIDE.md`、
+  `REVIEWER_CHECKLIST.md` 与 `release_handoff.md` 的 reviewer-facing 字段。
+- 已追加 reviewer-facing field admission gate：
+  `write_release_note_bundle.ps1` 会在生成 release material 前校验
+  `release_blocker_rollup`、`release_governance_handoff` 和可选 pipeline
+  `stages[]` 的 `release_blockers`、`warnings`、`action_items` 明细。
+  blocker / warning 缺 `id`、`action`、`message`、`source_schema`、
+  `source_report_display` 或 `source_json_display` 会失败；action item 缺
+  `id`、`action`、`open_command`、`source_schema`、
+  `source_report_display` 或 `source_json_display` 也会失败。
+- handoff、rollup 和 pipeline 归一化现在会为缺省 action item 补可复跑命令：
+  handoff 优先使用源 item 的 `open_command` / `command`，缺省时使用该默认治理报告的
+  build command；rollup 按源 schema 补对应治理报告脚本；pipeline 按 stage 脚本补
+  `pwsh -ExecutionPolicy Bypass -File ...`。
+
+### 本轮验证
+
+- `ctest --test-dir .bpdf-roundtrip-msvc -R "^(build_release_governance_handoff_report_aggregate|release_candidate_governance_handoff|build_release_governance_pipeline_report_aggregate|build_release_blocker_rollup_report_passing)$" --output-on-failure --timeout 60`
+  通过：4/4。
+- `ctest --test-dir .bpdf-roundtrip-msvc -R "^(release_note_bundle_version|release_candidate_governance_handoff|release_candidate_blocker_rollup|build_release_governance_handoff_report_aggregate|build_release_governance_pipeline_report_aggregate|build_release_blocker_rollup_report_passing)$" --output-on-failure --timeout 60`
+  通过：6/6。
+- `ctest --test-dir .bpdf-roundtrip-msvc -R "(release_candidate|release_note_bundle|release_metadata|release_governance|release_blocker|governance_handoff|governance_pipeline)" --output-on-failure --timeout 60`
+  通过：17/17。
+
+### 验收标准
+
+- reviewer 不需要只依赖 handoff 计数，可以从任一发布交接入口打开证据 JSON。
+- action item 必须保留可执行或可复核的 `open_command`。
+- 新治理源进入 pipeline 前，必须先提供上述 reviewer-facing 字段。
+
+## 已完成任务包：schema patch confidence calibration 分流强化
+
+在 handoff details parity 之后，继续沿发布治理链路推进真实业务模板语料校准。
+本轮没有继续扩大 PDF RTL normalizer，而是补齐 schema confidence calibration
+在多业务模板 fixture 下的 blocker / warning / action item 分流。
+
+### 本轮实现结果
+
+- `write_schema_patch_confidence_calibration_report.ps1` 现在会把
+  invalid approval record 写成
+  `schema_patch_confidence_calibration.invalid_approval_records` release blocker，
+  并保留对应的 `fix_invalid_approval_records` action item。
+- invalid approval 不再重复进入 warnings；warnings 只保留未打分 candidate
+  这类不直接破坏校准可信度、但需要补元数据的项。
+- 校准报告状态在存在 invalid approval 时为 `blocked`；`-FailOnPending`
+  也会对 pending 或 invalid calibration blocker 返回失败。
+- `write_schema_patch_confidence_calibration_report_test.ps1` 新增多业务模板语料：
+  `invoice-template`、`contract-template`、`purchase-order-template`、
+  `lease-amendment-template` 与历史 `report-template`，覆盖 `95-100`、
+  `80-94`、`60-79`、`0-59` 和 `unscored` 五个 confidence bucket。
+- 测试同时断言 pending blocker、invalid blocker、unscored warning、
+  `fix_invalid_approval_records` action item、Markdown reviewer-facing 字段和
+  `blocked` 状态。
+
+### 本轮验证
+
+- `ctest --test-dir .bpdf-roundtrip-msvc -R "^write_schema_patch_confidence_calibration_report" --output-on-failure --timeout 60`
+  通过：2/2。
+
+## 已完成任务包：多项目 schema approval 审计与发布门禁回放
+
+### 目标
+
+把当前单项目 / 单模板 fixture 推进到多项目 schema approval 审计链路。下一轮不继续
+扩大 PDF RTL normalizer，也不先做样式编号泛化；优先让真实项目模板治理报告能在发布
+面板里按项目、模板和 approval history 定位阻断来源。
+
+### 实施清单
+
+- [x] 阅读 `write_project_template_schema_approval_history.ps1`、
+      `build_project_template_onboarding_governance_report.ps1`、
+      `build_project_template_delivery_readiness_report.ps1`、
+      `build_release_blocker_rollup_report.ps1` 和
+      `build_release_governance_handoff_report.ps1`，确认项目 / 模板字段当前是否透传。
+- [x] 在对应测试中增加多项目 fixture：至少两个项目、多个模板，覆盖
+      approved、pending、rejected 或 invalid approval outcome。
+- [x] 固定 reviewer-facing 字段：每条 blocker / warning / action item 都必须能追踪
+      `project_id`、`template_name`、`source_schema`、`source_report_display`、
+      `source_json_display` 和 action item `open_command`。
+- [x] 更新 onboarding governance / delivery readiness Markdown，让 reviewer 能按项目
+      和模板展开 evidence，而不是只看总计数。
+- [x] 更新 release blocker rollup / governance handoff 回归，确保项目和模板定位信息
+      进入 release summary、`final_review.md`、`ARTIFACT_GUIDE.md`、
+      `REVIEWER_CHECKLIST.md` 和 `release_handoff.md`。
+- [x] 同步 `docs/current_direction_zh.rst`、`docs/feature_gap_analysis_zh.rst`、
+      `docs/release_metadata_pipeline_zh.rst` 和
+      `docs/documentation_maintenance_zh.rst`。
+
+### 本轮结果
+
+- `write_project_template_schema_approval_history.ps1` 现在按
+  `project_id` / `template_name` / approval item name 生成复合 entry history，
+  避免同名模板在不同项目之间合并历史。
+- onboarding governance、delivery readiness、release blocker rollup 和 governance
+  handoff 的 blocker / warning / action item 现在会保留项目和模板定位字段。
+- release note bundle 的 handoff details 会额外渲染
+  `project_template: project_id=... template_name=...`，reviewer 可以从
+  `final_review.md`、`ARTIFACT_GUIDE.md`、`REVIEWER_CHECKLIST.md` 和
+  `release_handoff.md` 直接定位项目模板证据。
+- rollup 自身生成的 malformed / count mismatch warning 也会补空的项目和模板字段，
+  避免 StrictMode 下坏输入路径触发 Markdown 渲染失败。
+
+### 本轮验证
+
+- `ctest --test-dir .bpdf-roundtrip-msvc -R "^(write_project_template_schema_approval_history|build_project_template_onboarding_governance_report_aggregate|build_project_template_delivery_readiness_report_aggregate|build_release_governance_handoff_report_aggregate|build_release_governance_handoff_report_include_rollup|release_candidate_blocker_rollup|release_candidate_governance_handoff)$" --output-on-failure --timeout 60`
+  通过：7/7。
+- `ctest --test-dir .bpdf-roundtrip-msvc -R "(release_candidate|release_note_bundle|release_metadata|release_governance|release_blocker|governance_handoff|governance_pipeline)" --output-on-failure --timeout 60`
+  通过：17/17。
+
+## 下一轮任务包：真实业务模板 schema patch 置信度校准与复核分流
+
+### 目标
+
+把受控多项目 fixture 继续推进到更接近真实业务模板的 schema patch 校准场景。重点不是
+新增 PDF RTL 边界，而是让 rename / update / remove 类 schema patch 建议带着置信度、
+人工 approval outcome 和 release blocker 证据进入发布治理链路。
+
+### 建议实施清单
+
+- [ ] 选择或构造两到三个真实业务模板语料：发票、合同、制度文档或项目报告优先。
+- [ ] 为每个语料生成 schema patch candidate，覆盖 rename、type update、required
+      change、slot remove / add 等常见变更类型。
+- [ ] 在 `write_schema_patch_confidence_calibration_report.ps1` 回归中加入多项目
+      approval outcome：approved、pending、rejected、invalid approval record。
+- [ ] 确认 confidence calibration 输出的 blocker / warning / action item 继续保留
+      `project_id`、`template_name`、`source_schema`、`source_json_display` 和
+      action item `open_command`。
+- [ ] 让 release blocker rollup、governance handoff 和 release note bundle 继续消费
+      这些真实语料校准结果，避免发布面板只能看到“schema confidence gate failed”。
+- [ ] 同步 `docs/feature_gap_analysis_zh.rst`、`docs/release_metadata_pipeline_zh.rst`
+      和 `docs/documentation_maintenance_zh.rst` 中的下一步状态。
+
+### 建议验证
+
+```powershell
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(write_schema_patch_confidence_calibration_report|build_project_template_onboarding_governance_report_aggregate|build_project_template_delivery_readiness_report_aggregate|release_candidate_blocker_rollup|release_candidate_governance_handoff)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "(release_candidate|release_note_bundle|release_metadata|release_governance|release_blocker|governance_handoff|governance_pipeline)" --output-on-failure --timeout 60
+```
 
 ## 阶段推进规则
 
@@ -2984,12 +4116,15 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 
 每一阶段结束时必须留下：
 
-- [ ] 代码变更。
-- [ ] 测试覆盖。
-- [ ] 本文档 checkbox 和进度说明同步。
-- [ ] 设计文档或构建文档同步。
-- [ ] 已知限制记录。
-- [ ] 下一阶段入口条件。
+- [x] 代码变更。
+- [x] 测试覆盖。
+- [x] 本文档 checkbox 和进度说明同步。
+- [x] 设计文档或构建文档同步。
+- [x] 已知限制记录。
+- [x] 下一阶段入口条件。
+
+本轮 RTL table cell complex task 已按上述收口项完成：代码、测试、执行文档、
+roadmap、构建 runbook、已知限制和下一阶段入口均已同步。
 
 ## 阻塞与放弃条件
 

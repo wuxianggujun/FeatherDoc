@@ -22,6 +22,7 @@
 |---|---|
 | [**02-current-roadmap.md**](02-current-roadmap.md) | **当前 0–6 个月在做什么**（依赖优先：用好 PDFio / PDFium） |
 | [**04-pdf-execution-plan.md**](04-pdf-execution-plan.md) | **下一步具体怎么做、怎么验收**（任务拆分、测试命令、阻塞条件） |
+| [05-pdf-rtl-table-cell-complex-task-plan.md](05-pdf-rtl-table-cell-complex-task-plan.md) | RTL table cell complex task 的执行源与收口记录 |
 | [01-architecture.md](01-architecture.md) | 三件套架构总览（docs + PDFio + PDFium） |
 
 `02-current-roadmap.md` 负责说明主路线和阶段边界；`04-pdf-execution-plan.md` 负责说明后续
@@ -52,6 +53,7 @@ design/
 ├── 02-current-roadmap.md ← 当前主路线（0–6 个月）
 ├── 03-long-term-roadmap.md ← 长期愿景（6 个月后才启动）
 ├── 04-pdf-execution-plan.md ← PDF 后续执行路线与验收清单
+├── 05-pdf-rtl-table-cell-complex-task-plan.md ← RTL table cell complex task 收口记录
 ├── dependencies/         ← 第三方依赖接入细节
 │   ├── pdfio.md
 │   ├── pdfium.md

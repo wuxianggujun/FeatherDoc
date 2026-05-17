@@ -53,21 +53,26 @@ $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\write_project_template_schema_approval_history.ps1"
-$smokeSummaryDir = Join-Path $resolvedWorkingDir "smoke"
-$releaseSummaryDir = Join-Path $resolvedWorkingDir "release"
+$primaryEvidenceRoot = Join-Path $resolvedWorkingDir "primary"
+$smokeSummaryDir = Join-Path $primaryEvidenceRoot "smoke"
+$releaseSummaryDir = Join-Path $primaryEvidenceRoot "release"
 New-Item -ItemType Directory -Path $smokeSummaryDir -Force | Out-Null
 New-Item -ItemType Directory -Path $releaseSummaryDir -Force | Out-Null
 $smokeSummaryPath = Join-Path $smokeSummaryDir "summary.json"
 $releaseSummaryPath = Join-Path $releaseSummaryDir "summary.json"
-$ignoredJsonPath = Join-Path $resolvedWorkingDir "schema_patch_approval_result.json"
+$ignoredJsonPath = Join-Path $primaryEvidenceRoot "schema_patch_approval_result.json"
 $outputJsonPath = Join-Path $resolvedWorkingDir "schema-approval-history.json"
 $outputMarkdownPath = Join-Path $resolvedWorkingDir "schema-approval-history.md"
 $listOutputJsonPath = Join-Path $resolvedWorkingDir "schema-approval-history-list.json"
 $listOutputMarkdownPath = Join-Path $resolvedWorkingDir "schema-approval-history-list.md"
+$multiProjectOutputJsonPath = Join-Path $resolvedWorkingDir "schema-approval-history-multi-project.json"
+$multiProjectOutputMarkdownPath = Join-Path $resolvedWorkingDir "schema-approval-history-multi-project.md"
 $approvalResultPath = Join-Path $resolvedWorkingDir "schema_patch_approval_invalid_result.json"
 
 $smokeSummary = [ordered]@{
     generated_at = "2026-04-28T10:00:00"
+    project_id = "project-alpha"
+    template_name = "invoice-template"
     manifest_path = Join-Path $resolvedWorkingDir "project_template_smoke.manifest.json"
     output_dir = $resolvedWorkingDir
     schema_patch_review_count = 2
@@ -82,6 +87,7 @@ $smokeSummary = [ordered]@{
     schema_patch_approval_items = @(
         [ordered]@{
             name = "schema-review-invalid"
+            template_name = "invoice-template"
             status = "invalid_result"
             decision = "needs_changes"
             action = "fix_schema_patch_approval_result"
@@ -95,6 +101,8 @@ $smokeSummary = [ordered]@{
 
 $releaseSummary = [ordered]@{
     generated_at = "2026-04-29T10:00:00"
+    project_id = "project-alpha"
+    template_name = "invoice-template"
     execution_status = "pass"
     steps = [ordered]@{
         project_template_smoke = [ordered]@{
@@ -103,6 +111,8 @@ $releaseSummary = [ordered]@{
         }
     }
     project_template_smoke = [ordered]@{
+        project_id = "project-alpha"
+        template_name = "invoice-template"
         summary_json = $smokeSummaryPath
         schema_patch_review_count = 1
         schema_patch_review_changed_count = 1
@@ -115,6 +125,7 @@ $releaseSummary = [ordered]@{
         schema_patch_approval_items = @(
             [ordered]@{
                 name = "schema-review-invalid"
+                template_name = "invoice-template"
                 status = "approved"
                 decision = "approved"
                 action = "promote_schema_update_candidate"
@@ -128,7 +139,7 @@ $releaseSummary = [ordered]@{
 ([ordered]@{ decision = "approved"; reviewer = "alice" } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $ignoredJsonPath -Encoding UTF8
 
 $result = Invoke-ScriptAndCapture -ScriptPath $scriptPath -Arguments @(
-    "-SummaryJsonDir", $resolvedWorkingDir,
+    "-SummaryJsonDir", $primaryEvidenceRoot,
     "-Recurse",
     "-OutputJson", $outputJsonPath,
     "-OutputMarkdown", $outputMarkdownPath
@@ -167,6 +178,10 @@ Assert-Equal -Actual ([int]$blockedRun.blocked_items.Count) -Expected 1 `
     -Message "Blocked run should list invalid approval items."
 Assert-Equal -Actual ([string]$blockedRun.blocked_items[0].name) -Expected "schema-review-invalid" `
     -Message "Blocked item should preserve its entry name."
+Assert-Equal -Actual ([string]$blockedRun.blocked_items[0].project_id) -Expected "project-alpha" `
+    -Message "Blocked item should preserve project id."
+Assert-Equal -Actual ([string]$blockedRun.blocked_items[0].template_name) -Expected "invoice-template" `
+    -Message "Blocked item should preserve template name."
 Assert-True -Condition (@($blockedRun.blocked_items[0].compliance_issues) -contains "missing_reviewer") `
     -Message "Blocked item should preserve compliance issues."
 
@@ -180,6 +195,10 @@ Assert-True -Condition (@($history.latest_blocking_summary.issue_keys) -contains
     -Message "Latest blocking summary should aggregate compliance issue keys."
 
 $entryHistory = $history.entry_histories | Where-Object { $_.name -eq "schema-review-invalid" } | Select-Object -First 1
+Assert-Equal -Actual ([string]$entryHistory.project_id) -Expected "project-alpha" `
+    -Message "Entry history should preserve project id."
+Assert-Equal -Actual ([string]$entryHistory.template_name) -Expected "invoice-template" `
+    -Message "Entry history should preserve template name."
 Assert-Equal -Actual ([int]$entryHistory.run_count) -Expected 2 `
     -Message "Entry history should include both blocked and approved runs."
 Assert-Equal -Actual ([int]$entryHistory.blocked_run_count) -Expected 1 `
@@ -220,7 +239,7 @@ Assert-ContainsText -Text $markdown -ExpectedText "Latest blocking summary: 2026
     -Message "Markdown should include the latest blocked run timestamp."
 Assert-ContainsText -Text $markdown -ExpectedText "## Entry History" `
     -Message "Markdown should include entry history section."
-Assert-ContainsText -Text $markdown -ExpectedText "schema-review-invalid: latest=approved/approved runs=2 blocked_runs=1" `
+Assert-ContainsText -Text $markdown -ExpectedText "project-alpha / invoice-template / schema-review-invalid: latest=approved/approved runs=2 blocked_runs=1" `
     -Message "Markdown should summarize entry-level approval history."
 
 $listResult = Invoke-ScriptAndCapture -ScriptPath $scriptPath -Arguments @(
@@ -233,5 +252,68 @@ Assert-Equal -Actual $listResult.ExitCode -Expected 0 `
 $listHistory = Get-Content -Raw -Encoding UTF8 -LiteralPath $listOutputJsonPath | ConvertFrom-Json
 Assert-Equal -Actual ([int]$listHistory.summary_count) -Expected 2 `
     -Message "Comma-separated SummaryJson should include both source summaries."
+
+$multiProjectRoot = Join-Path $resolvedWorkingDir "multi-project"
+$multiProjectAlphaPath = Join-Path $multiProjectRoot "alpha\summary.json"
+$multiProjectBetaPath = Join-Path $multiProjectRoot "beta\summary.json"
+New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($multiProjectAlphaPath)) -Force | Out-Null
+New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($multiProjectBetaPath)) -Force | Out-Null
+([ordered]@{
+    generated_at = "2026-04-30T10:00:00"
+    project_id = "project-alpha"
+    template_name = "shared-template"
+    schema_patch_approval_pending_count = 1
+    schema_patch_approval_approved_count = 0
+    schema_patch_approval_rejected_count = 0
+    schema_patch_approval_gate_status = "pending"
+    schema_patch_approval_items = @(
+        [ordered]@{
+            name = "shared-schema"
+            template_name = "shared-template"
+            status = "pending_review"
+            decision = "pending"
+            action = "review_schema_update_candidate"
+        }
+    )
+} | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $multiProjectAlphaPath -Encoding UTF8
+([ordered]@{
+    generated_at = "2026-04-30T11:00:00"
+    project_id = "project-beta"
+    template_name = "shared-template"
+    schema_patch_approval_pending_count = 0
+    schema_patch_approval_approved_count = 1
+    schema_patch_approval_rejected_count = 0
+    schema_patch_approval_gate_status = "passed"
+    schema_patch_approval_items = @(
+        [ordered]@{
+            name = "shared-schema"
+            template_name = "shared-template"
+            status = "approved"
+            decision = "approved"
+            action = "promote_schema_update_candidate"
+        }
+    )
+} | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $multiProjectBetaPath -Encoding UTF8
+
+$multiProjectResult = Invoke-ScriptAndCapture -ScriptPath $scriptPath -Arguments @(
+    "-SummaryJson", "$multiProjectAlphaPath,$multiProjectBetaPath",
+    "-OutputJson", $multiProjectOutputJsonPath,
+    "-OutputMarkdown", $multiProjectOutputMarkdownPath
+)
+Assert-Equal -Actual $multiProjectResult.ExitCode -Expected 0 `
+    -Message "Schema approval history writer should keep same-template projects separate. Output: $($multiProjectResult.Text)"
+$multiProjectHistory = Get-Content -Raw -Encoding UTF8 -LiteralPath $multiProjectOutputJsonPath | ConvertFrom-Json
+Assert-Equal -Actual ([int]$multiProjectHistory.entry_histories.Count) -Expected 2 `
+    -Message "Same template names in different projects should create separate entry histories."
+$alphaHistory = $multiProjectHistory.entry_histories | Where-Object { $_.project_id -eq "project-alpha" } | Select-Object -First 1
+$betaHistory = $multiProjectHistory.entry_histories | Where-Object { $_.project_id -eq "project-beta" } | Select-Object -First 1
+Assert-Equal -Actual ([int]$alphaHistory.run_count) -Expected 1 `
+    -Message "Project alpha history should not absorb project beta runs."
+Assert-Equal -Actual ([int]$betaHistory.run_count) -Expected 1 `
+    -Message "Project beta history should not absorb project alpha runs."
+Assert-Equal -Actual ([string]$alphaHistory.template_name) -Expected "shared-template" `
+    -Message "Project alpha history should preserve template name."
+Assert-Equal -Actual ([string]$betaHistory.template_name) -Expected "shared-template" `
+    -Message "Project beta history should preserve template name."
 
 Write-Host "Project template schema approval history regression passed."

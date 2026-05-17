@@ -77,6 +77,7 @@ $onboardingPlanPath = Join-Path $evidenceRoot "plan\plan.json"
 $smokeSummaryPath = Join-Path $evidenceRoot "smoke\summary.json"
 
 Write-JsonFile -Path $onboardingSummaryPath -Value ([ordered]@{
+    project_id = "project-alpha"
     template_name = "invoice-template"
     input_docx = "samples/invoice.docx"
     schema_approval_state = [ordered]@{
@@ -119,6 +120,7 @@ Write-JsonFile -Path $onboardingSummaryPath -Value ([ordered]@{
 })
 
 Write-JsonFile -Path $onboardingPlanPath -Value ([ordered]@{
+    project_id = "project-beta"
     onboarding_entry_count = 1
     entries = @(
         [ordered]@{
@@ -161,6 +163,8 @@ Write-JsonFile -Path $onboardingPlanPath -Value ([ordered]@{
 })
 
 Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
+    project_id = "project-alpha"
+    template_name = "smoke-template"
     schema_patch_review_count = 1
     schema_patch_review_changed_count = 1
     schema_patch_approval_pending_count = 1
@@ -171,7 +175,8 @@ Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
     schema_patch_approval_gate_status = "pending"
     schema_patch_approval_items = @(
         [ordered]@{
-            name = "smoke-template"
+            name = "smoke-schema-approval"
+            template_name = "smoke-template"
             required = $true
             pending = $true
             approved = $false
@@ -223,6 +228,30 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should aggregate onboarding action items."
     Assert-Equal -Actual ([int]$summary.manual_review_recommendation_count) -Expected 2 `
         -Message "Summary should aggregate manual review recommendations."
+    Assert-ContainsText -Text (($summary.entries | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-alpha" `
+        -Message "Entries should preserve onboarding and smoke project ids."
+    Assert-ContainsText -Text (($summary.entries | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-beta" `
+        -Message "Entries should preserve onboarding plan project ids."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-alpha" `
+        -Message "Release blockers should preserve the source project id."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-beta" `
+        -Message "Release blockers should preserve onboarding plan project ids."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-alpha" `
+        -Message "Action items should preserve onboarding project ids."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-beta" `
+        -Message "Action items should preserve onboarding plan project ids."
+    Assert-ContainsText -Text (($summary.manual_review_recommendations | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-alpha" `
+        -Message "Manual review recommendations should preserve onboarding project ids."
+    Assert-ContainsText -Text (($summary.manual_review_recommendations | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-beta" `
+        -Message "Manual review recommendations should preserve onboarding plan project ids."
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
         -Message "Release blockers should expose the onboarding governance source schema."
@@ -248,6 +277,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include onboarding plan entries."
     Assert-ContainsText -Text $markdown -ExpectedText "smoke-template" `
         -Message "Markdown should include smoke approval items."
+    Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-alpha` template=`invoice-template`' `
+        -Message "Markdown should include onboarding summary project/template identity."
+    Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-beta` template=`contract-template`' `
+        -Message "Markdown should include onboarding plan project/template identity."
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
         -Message "Markdown should include release blockers."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `

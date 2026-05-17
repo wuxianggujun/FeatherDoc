@@ -22,9 +22,9 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    project_score_assessment_zh
    release_policy_zh
    v1_7_roadmap_zh
+   documentation_maintenance_zh
    licensing_zh
    automation/word_visual_workflow_zh
-   libreoffice_pdf/index_zh
 
 Visual Validation Preview
 -------------------------
@@ -155,10 +155,10 @@ through ``RELEASE_ARTIFACT_TEMPLATE*.md``,
 ``visual-validation/*.png``.
 
 
-LibreOffice PDF Study Notes
----------------------------
-The LibreOffice PDF research log now lives under
-:doc:`libreoffice_pdf/index_zh`.
+Documentation Maintenance
+-------------------------
+Current documentation ownership, cleanup candidates, and next implementation
+entry points are tracked in :doc:`documentation_maintenance_zh`.
 
 
 How to install
@@ -448,7 +448,8 @@ handoff, with ``-FailOnBlocker`` for release gates. For threshold tuning,
 smoke or approval-history evidence and writes
 ``featherdoc.schema_patch_confidence_calibration_report.v1`` with confidence
 buckets, approval outcomes, and conservative recommendations such as
-``recommended_min_confidence``. For skeleton governance,
+``recommended_min_confidence``. Pending and invalid approval records are emitted
+as release blockers, while unscored candidates remain warnings. For skeleton governance,
 ``scripts/build_document_skeleton_governance_rollup_report.ps1`` rolls multiple
 single-document summaries into
 ``featherdoc.document_skeleton_governance_rollup_report.v1`` with exemplar

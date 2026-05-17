@@ -188,6 +188,34 @@ function Get-ReportKind {
     return "unknown"
 }
 
+function Get-DefaultOpenCommandForReportKind {
+    param([string]$Kind)
+
+    switch ($Kind) {
+        "featherdoc.document_skeleton_governance_rollup_report.v1" {
+            return "pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1"
+        }
+        "featherdoc.numbering_catalog_governance_report.v1" {
+            return "pwsh -ExecutionPolicy Bypass -File .\scripts\build_numbering_catalog_governance_report.ps1"
+        }
+        "featherdoc.table_layout_delivery_governance_report.v1" {
+            return "pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1"
+        }
+        "featherdoc.content_control_data_binding_governance_report.v1" {
+            return "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
+        }
+        "featherdoc.project_template_delivery_readiness_report.v1" {
+            return "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
+        }
+        "featherdoc.schema_patch_confidence_calibration_report.v1" {
+            return "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+        }
+        default {
+            return ""
+        }
+    }
+}
+
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
@@ -231,7 +259,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.composite_id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)``") | Out-Null
+            $lines.Add("- ``$($blocker.composite_id)``: project=``$($blocker.project_id)`` template=``$($blocker.template_name)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
             }
@@ -247,7 +275,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.composite_id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
+            $lines.Add("- ``$($item.composite_id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -263,7 +291,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)``") | Out-Null
+            $lines.Add("- ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null
             }
@@ -314,6 +342,8 @@ foreach ($path in @($inputPaths)) {
         if ($null -ne $declaredBlockerCount -and [int]$declaredBlockerCount -ne $sourceBlockers.Count) {
             $warnings.Add([ordered]@{
                 id = "release_blocker_count_mismatch"
+                project_id = ""
+                template_name = ""
                 action = "review_release_blocker_rollup_metadata"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
@@ -341,6 +371,8 @@ foreach ($path in @($inputPaths)) {
             $blockers.Add([ordered]@{
                 composite_id = ("source{0}.blocker{1}.{2}" -f $sourceIndex, $blockerIndex, $id)
                 id = $id
+                project_id = Get-JsonString -Object $blocker -Name "project_id"
+                template_name = Get-JsonString -Object $blocker -Name "template_name"
                 source = Get-JsonString -Object $blocker -Name "source" -DefaultValue $kind
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
@@ -383,6 +415,8 @@ foreach ($path in @($inputPaths)) {
             $actionItems.Add([ordered]@{
                 composite_id = ("source{0}.action{1}.{2}" -f $sourceIndex, $actionIndex, $id)
                 id = $id
+                project_id = Get-JsonString -Object $item -Name "project_id"
+                template_name = Get-JsonString -Object $item -Name "template_name"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 origin_source_report = $originSourceReport
@@ -409,7 +443,10 @@ foreach ($path in @($inputPaths)) {
                 action = Get-JsonString -Object $item -Name "action"
                 title = Get-JsonString -Object $item -Name "title"
                 command = Get-JsonString -Object $item -Name "command"
-                open_command = Get-FirstJsonString -Object $item -Names @("open_command", "command")
+                open_command = Get-FirstJsonString `
+                    -Object $item `
+                    -Names @("open_command", "command") `
+                    -DefaultValue (Get-DefaultOpenCommandForReportKind -Kind $kind)
             }) | Out-Null
         }
 
@@ -424,6 +461,8 @@ foreach ($path in @($inputPaths)) {
             $warnings.Add([ordered]@{
                 composite_id = ("source{0}.warning{1}.{2}" -f $sourceIndex, $warningIndex, $id)
                 id = $id
+                project_id = Get-JsonString -Object $warning -Name "project_id"
+                template_name = Get-JsonString -Object $warning -Name "template_name"
                 action = Get-JsonString -Object $warning -Name "action" -DefaultValue "review_release_governance_warning"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
@@ -456,6 +495,8 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_report_read_failed"
+            project_id = ""
+            template_name = ""
             action = "review_release_blocker_rollup_metadata"
             source_report = $path
             source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path

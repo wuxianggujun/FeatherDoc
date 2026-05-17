@@ -247,6 +247,8 @@ function Add-NormalizedBlockers {
             report_id = [string]$Report.id
             report_title = [string]$Report.title
             id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
+            project_id = Get-JsonString -Object $blocker -Name "project_id"
+            template_name = Get-JsonString -Object $blocker -Name "template_name"
             severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
             status = Get-JsonString -Object $blocker -Name "status"
             action = Get-JsonString -Object $blocker -Name "action"
@@ -265,14 +267,22 @@ function Add-NormalizedActions {
     )
 
     foreach ($item in @($Report.action_items)) {
+        $command = Get-JsonString -Object $item -Name "command"
+        $openCommandDefault = if (-not [string]::IsNullOrWhiteSpace($command)) {
+            $command
+        } else {
+            [string]$Report.build_command
+        }
         $Collection.Add([ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
             id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
+            project_id = Get-JsonString -Object $item -Name "project_id"
+            template_name = Get-JsonString -Object $item -Name "template_name"
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
-            command = Get-JsonString -Object $item -Name "command"
-            open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command")
+            command = $command
+            open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue $openCommandDefault
             source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue ([string]$Report.schema)
             source_report_display = Get-JsonString -Object $item -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
             source_json_display = Get-JsonString -Object $item -Name "source_json_display" -DefaultValue ([string]$Report.expected_summary_display)
@@ -291,6 +301,8 @@ function Add-NormalizedWarnings {
             report_id = [string]$Report.id
             report_title = [string]$Report.title
             id = Get-JsonString -Object $warning -Name "id" -DefaultValue "warning"
+            project_id = Get-JsonString -Object $warning -Name "project_id"
+            template_name = Get-JsonString -Object $warning -Name "template_name"
             action = Get-JsonString -Object $warning -Name "action" -DefaultValue "review_release_governance_warning"
             message = Get-JsonString -Object $warning -Name "message"
             source_schema = Get-JsonString -Object $warning -Name "source_schema" -DefaultValue ([string]$Report.schema)
@@ -332,10 +344,12 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.report_id)`` / ``$($blocker.id)``: action=``$($blocker.action)``") | Out-Null
+            $lines.Add("- ``$($blocker.report_id)`` / ``$($blocker.id)``: project=``$($blocker.project_id)`` template=``$($blocker.template_name)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - $($blocker.message)") | Out-Null
             }
+            $lines.Add("  - source_report_display: ``$($blocker.source_report_display)``") | Out-Null
+            $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -346,7 +360,15 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.report_id)`` / ``$($item.id)``: action=``$($item.action)``") | Out-Null
+            $lines.Add("- ``$($item.report_id)`` / ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` action=``$($item.action)`` schema=``$($item.source_schema)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.title)) {
+                $lines.Add("  - $($item.title)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
+            $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
+            $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -357,7 +379,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.report_id)`` / ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)``") | Out-Null
+            $lines.Add("- ``$($warning.report_id)`` / ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` action=``$($warning.action)`` schema=``$($warning.source_schema)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - $($warning.message)") | Out-Null
             }
