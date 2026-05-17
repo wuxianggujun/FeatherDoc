@@ -249,6 +249,7 @@ function Add-NormalizedBlockers {
             id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
             project_id = Get-JsonString -Object $blocker -Name "project_id"
             template_name = Get-JsonString -Object $blocker -Name "template_name"
+            candidate_type = Get-JsonString -Object $blocker -Name "candidate_type"
             severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
             status = Get-JsonString -Object $blocker -Name "status"
             action = Get-JsonString -Object $blocker -Name "action"
@@ -279,6 +280,7 @@ function Add-NormalizedActions {
             id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
             project_id = Get-JsonString -Object $item -Name "project_id"
             template_name = Get-JsonString -Object $item -Name "template_name"
+            candidate_type = Get-JsonString -Object $item -Name "candidate_type"
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
             command = $command
@@ -303,6 +305,7 @@ function Add-NormalizedWarnings {
             id = Get-JsonString -Object $warning -Name "id" -DefaultValue "warning"
             project_id = Get-JsonString -Object $warning -Name "project_id"
             template_name = Get-JsonString -Object $warning -Name "template_name"
+            candidate_type = Get-JsonString -Object $warning -Name "candidate_type"
             action = Get-JsonString -Object $warning -Name "action" -DefaultValue "review_release_governance_warning"
             message = Get-JsonString -Object $warning -Name "message"
             source_schema = Get-JsonString -Object $warning -Name "source_schema" -DefaultValue ([string]$Report.schema)
@@ -344,7 +347,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.report_id)`` / ``$($blocker.id)``: project=``$($blocker.project_id)`` template=``$($blocker.template_name)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)``") | Out-Null
+            $lines.Add("- ``$($blocker.report_id)`` / ``$($blocker.id)``: project=``$($blocker.project_id)`` template=``$($blocker.template_name)`` candidate=``$($blocker.candidate_type)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - $($blocker.message)") | Out-Null
             }
@@ -360,7 +363,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.report_id)`` / ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` action=``$($item.action)`` schema=``$($item.source_schema)``") | Out-Null
+            $lines.Add("- ``$($item.report_id)`` / ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` schema=``$($item.source_schema)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.title)) {
                 $lines.Add("  - $($item.title)") | Out-Null
             }
@@ -379,7 +382,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.report_id)`` / ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` action=``$($warning.action)`` schema=``$($warning.source_schema)``") | Out-Null
+            $lines.Add("- ``$($warning.report_id)`` / ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` candidate=``$($warning.candidate_type)`` action=``$($warning.action)`` schema=``$($warning.source_schema)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - $($warning.message)") | Out-Null
             }

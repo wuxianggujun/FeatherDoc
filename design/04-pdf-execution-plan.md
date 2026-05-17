@@ -4067,7 +4067,7 @@ PDF RTL table cell complex task 已完成本轮收口。下一阶段优先从发
 - `ctest --test-dir .bpdf-roundtrip-msvc -R "(release_candidate|release_note_bundle|release_metadata|release_governance|release_blocker|governance_handoff|governance_pipeline)" --output-on-failure --timeout 60`
   通过：17/17。
 
-## 下一轮任务包：真实业务模板 schema patch 置信度校准与复核分流
+## 已完成任务包：真实业务模板 schema patch 置信度校准与复核分流
 
 ### 目标
 
@@ -4075,25 +4075,61 @@ PDF RTL table cell complex task 已完成本轮收口。下一阶段优先从发
 新增 PDF RTL 边界，而是让 rename / update / remove 类 schema patch 建议带着置信度、
 人工 approval outcome 和 release blocker 证据进入发布治理链路。
 
+### 实施结果
+
+- [x] 构造真实业务模板语料：发票、合同、制度文档、项目报告和交付状态报告。
+- [x] 为每个语料生成 schema patch candidate，覆盖 rename、type update、required
+      change、slot remove / add 等常见变更类型。
+- [x] 在 `write_schema_patch_confidence_calibration_report.ps1` 回归中加入多项目
+      approval outcome：approved、pending、rejected、invalid approval record。
+- [x] confidence calibration 输出的 entry、blocker、warning 和 action item 现在会保留
+      `project_id`、`template_name`、`candidate_type`、`source_schema`、
+      `source_json_display` 和 action item `open_command`。
+- [x] release blocker rollup、governance pipeline、governance handoff 和 release note
+      bundle 会继续消费
+      这些真实语料校准结果，避免发布面板只能看到“schema confidence gate failed”。
+- [x] 同步 `docs/feature_gap_analysis_zh.rst`、`docs/release_metadata_pipeline_zh.rst`
+      和 `docs/documentation_maintenance_zh.rst` 中的下一步状态。
+
+### 本轮验证
+
+```powershell
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(write_schema_patch_confidence_calibration_report|build_release_governance_pipeline_report)" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(build_release_governance_handoff_report_aggregate|build_release_governance_handoff_report_include_rollup|release_candidate_blocker_rollup|release_candidate_governance_handoff)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "(release_candidate|release_note_bundle|release_metadata|release_governance|release_blocker|governance_handoff|governance_pipeline)" --output-on-failure --timeout 60
+git diff --check
+```
+
+结果：
+
+- calibration + pipeline 定向回归通过：3/3。
+- handoff / rollup / release candidate 定向回归通过：6/6。
+- release metadata 广域回归通过：17/17。
+- `git diff --check` 通过；仅有 Windows 换行提示。
+
+## 下一轮任务包：schema patch 校准阈值建议稳定化
+
+### 目标
+
+在真实业务模板 candidate 已进入发布治理链路之后，下一步应继续做阈值建议稳定化：
+用更多 approval outcome 样本校准 `recommended_min_confidence`，避免只凭单个 approved
+floor 作为自动化阈值建议。
+
 ### 建议实施清单
 
-- [ ] 选择或构造两到三个真实业务模板语料：发票、合同、制度文档或项目报告优先。
-- [ ] 为每个语料生成 schema patch candidate，覆盖 rename、type update、required
-      change、slot remove / add 等常见变更类型。
-- [ ] 在 `write_schema_patch_confidence_calibration_report.ps1` 回归中加入多项目
-      approval outcome：approved、pending、rejected、invalid approval record。
-- [ ] 确认 confidence calibration 输出的 blocker / warning / action item 继续保留
-      `project_id`、`template_name`、`source_schema`、`source_json_display` 和
-      action item `open_command`。
-- [ ] 让 release blocker rollup、governance handoff 和 release note bundle 继续消费
-      这些真实语料校准结果，避免发布面板只能看到“schema confidence gate failed”。
-- [ ] 同步 `docs/feature_gap_analysis_zh.rst`、`docs/release_metadata_pipeline_zh.rst`
-      和 `docs/documentation_maintenance_zh.rst` 中的下一步状态。
+- [ ] 扩展 calibration fixture，加入同一 candidate type 下的多个 approved / rejected
+      样本，覆盖 `rename`、`type_update`、`remove` 和 `required_change`。
+- [ ] 增加按 `candidate_type` 输出的阈值建议摘要，例如每类 candidate 的 approved floor、
+      rejected ceiling 和 pending / invalid 分布。
+- [ ] 让 action item 能说明“先补样本”还是“可以提高自动化阈值”，而不是只给全局
+      `recommended_min_confidence`。
+- [ ] 回归 release blocker rollup、governance pipeline、governance handoff 和 bundle
+      对 candidate-type 阈值建议的展示。
 
 ### 建议验证
 
 ```powershell
-ctest --test-dir .bpdf-roundtrip-msvc -R "^(write_schema_patch_confidence_calibration_report|build_project_template_onboarding_governance_report_aggregate|build_project_template_delivery_readiness_report_aggregate|release_candidate_blocker_rollup|release_candidate_governance_handoff)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(write_schema_patch_confidence_calibration_report|build_release_governance_pipeline_report|release_candidate_blocker_rollup|release_candidate_governance_handoff)$" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "(release_candidate|release_note_bundle|release_metadata|release_governance|release_blocker|governance_handoff|governance_pipeline)" --output-on-failure --timeout 60
 ```
 

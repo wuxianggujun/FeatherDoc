@@ -112,7 +112,7 @@ reviewer-facing bundle 直接看出：哪个项目、哪个模板、哪次 appro
    ctest --test-dir .bpdf-roundtrip-msvc -R "(release_candidate|release_note_bundle|release_metadata|release_governance|release_blocker|governance_handoff|governance_pipeline)" --output-on-failure --timeout 60
 
 
-下一轮执行任务包
+已完成执行任务包
 ----------------
 
 任务名：真实业务模板 schema patch 置信度校准与复核分流。
@@ -121,34 +121,60 @@ reviewer-facing bundle 直接看出：哪个项目、哪个模板、哪次 appro
 rename / update / remove 类 schema patch 建议带着置信度、人工 approval outcome 和
 release blocker 证据进入发布治理链路。
 
-建议按下面顺序实施：
+本轮已经完成：
 
-1. 选择或构造两到三个真实业务模板语料：发票、合同、制度文档或项目报告优先。
+1. 构造真实业务模板语料：发票、合同、制度文档、项目报告和交付状态报告。
 2. 为每个语料生成 schema patch candidate，覆盖 rename、type update、
    required change、slot remove / add 等常见变更类型。
 3. 扩展 ``write_schema_patch_confidence_calibration_report.ps1`` 回归，覆盖
    approved、pending、rejected 和 invalid approval record。
-4. 确认 confidence calibration 的 blocker / warning / action item 继续保留
-   ``project_id``、``template_name``、``source_schema``、``source_json_display`` 和
+4. confidence calibration 的 entry、blocker、warning 和 action item 会继续保留
+   ``project_id``、``template_name``、``candidate_type``、``source_schema``、
+   ``source_json_display`` 和
    action item ``open_command``。
-5. 让 release blocker rollup、governance handoff 和 release note bundle 继续消费这些
-   真实语料校准结果，避免发布面板只能看到“schema confidence gate failed”。
+5. release blocker rollup、governance pipeline、governance handoff 和 release note
+   bundle 会继续消费这些真实语料校准结果，避免发布面板只能看到
+   “schema confidence gate failed”。
 6. 同步 ``docs/feature_gap_analysis_zh.rst``、``docs/release_metadata_pipeline_zh.rst``、
    ``design/04-pdf-execution-plan.md`` 和本页。
+
+已执行验证命令：
+
+.. code-block:: powershell
+
+   ctest --test-dir .bpdf-roundtrip-msvc -R "^(write_schema_patch_confidence_calibration_report|build_release_governance_pipeline_report)" --output-on-failure --timeout 60
+   ctest --test-dir .bpdf-roundtrip-msvc -R "^(build_release_governance_handoff_report_aggregate|build_release_governance_handoff_report_include_rollup|release_candidate_blocker_rollup|release_candidate_governance_handoff)$" --output-on-failure --timeout 60
+   ctest --test-dir .bpdf-roundtrip-msvc -R "(release_candidate|release_note_bundle|release_metadata|release_governance|release_blocker|governance_handoff|governance_pipeline)" --output-on-failure --timeout 60
+   git diff --check
+
+验证结果：calibration + pipeline 定向回归 3/3 通过，handoff / rollup / release
+candidate 定向回归 6/6 通过，release metadata 广域回归 17/17 通过；``git diff --check``
+通过，仅有 Windows 换行提示。
+
+完成标准：
+
+- 真实业务模板语料已经进入 schema patch calibration 回归。
+- calibration blocker / warning / action item 已能按项目、模板、candidate 类型定位。
+- reviewer-facing 字段在 rollup、pipeline、handoff、release summary 和 bundle 中保持一致。
+- ``git diff --check`` 已通过，仅有 Windows 换行提示。
+
+
+下一轮执行任务包
+----------------
+
+任务名：schema patch 校准阈值建议稳定化。
+
+下一步不再只扩大 candidate 种类，而是围绕每类 candidate 的 approval outcome 做阈值
+建议稳定化。目标是让 ``recommended_min_confidence`` 不只来自单个 approved floor，
+而能按 ``candidate_type`` 展示 approved floor、rejected ceiling、pending 分布和
+invalid record 风险。
 
 建议验证命令：
 
 .. code-block:: powershell
 
-   ctest --test-dir .bpdf-roundtrip-msvc -R "^(write_schema_patch_confidence_calibration_report|build_project_template_onboarding_governance_report_aggregate|build_project_template_delivery_readiness_report_aggregate|release_candidate_blocker_rollup|release_candidate_governance_handoff)$" --output-on-failure --timeout 60
+   ctest --test-dir .bpdf-roundtrip-msvc -R "^(write_schema_patch_confidence_calibration_report|build_release_governance_pipeline_report|release_candidate_blocker_rollup|release_candidate_governance_handoff)$" --output-on-failure --timeout 60
    ctest --test-dir .bpdf-roundtrip-msvc -R "(release_candidate|release_note_bundle|release_metadata|release_governance|release_blocker|governance_handoff|governance_pipeline)" --output-on-failure --timeout 60
-
-完成标准：
-
-- 真实业务模板语料进入 schema patch calibration 回归。
-- calibration blocker / warning / action item 能按项目、模板、candidate 类型定位。
-- reviewer-facing 字段在 rollup、handoff、release summary 和 bundle 中保持一致。
-- ``git diff --check`` 通过。
 
 
 已删除的过时文档

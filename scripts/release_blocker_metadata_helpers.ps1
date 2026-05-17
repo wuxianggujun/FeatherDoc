@@ -541,6 +541,10 @@ function Add-ReleaseGovernanceRollupSourceLines {
     if (-not [string]::IsNullOrWhiteSpace($projectId) -or -not [string]::IsNullOrWhiteSpace($templateName)) {
         [void]$Lines.Add("  - project_template: project_id=$projectId template_name=$templateName")
     }
+    $candidateType = Get-ReleaseBlockerPropertyValue -Object $Item -Name "candidate_type"
+    if (-not [string]::IsNullOrWhiteSpace($candidateType)) {
+        [void]$Lines.Add("  - candidate_type: $candidateType")
+    }
 
     [void]$Lines.Add("  - source_report_display: $sourceReportDisplay")
     [void]$Lines.Add("  - source_json_display: $sourceJsonDisplay")

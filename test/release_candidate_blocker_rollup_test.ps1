@@ -274,6 +274,9 @@ Write-JsonFile -Path $autoDiscoverCalibrationSummaryPath -Value ([ordered]@{
     release_blockers = @(
         [ordered]@{
             id = "schema_patch_confidence_calibration.pending_schema_approvals"
+            project_id = "project-finance"
+            template_name = "invoice-template"
+            candidate_type = "rename"
             severity = "error"
             status = "pending_review"
             message = "Autodiscovered schema patch confidence calibration has pending approvals."
@@ -287,6 +290,9 @@ Write-JsonFile -Path $autoDiscoverCalibrationSummaryPath -Value ([ordered]@{
     action_items = @(
         [ordered]@{
             id = "resolve_pending_schema_approvals"
+            project_id = "project-finance"
+            template_name = "invoice-template"
+            candidate_type = "rename"
             action = "resolve_pending_schema_approvals"
             title = "Resolve pending schema approvals before tightening confidence thresholds"
             open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
@@ -299,6 +305,9 @@ Write-JsonFile -Path $autoDiscoverCalibrationSummaryPath -Value ([ordered]@{
     warnings = @(
         [ordered]@{
             id = "schema_patch_confidence_calibration.unscored_candidates"
+            project_id = "project-finance"
+            template_name = "invoice-template"
+            candidate_type = "rename"
             action = "add_explicit_confidence_metadata"
             message = "Some schema patch candidates do not carry explicit confidence metadata."
             source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
@@ -410,6 +419,8 @@ if ($Scenario -eq "handoff") {
         -Message "Final review should include handoff source schema."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "project_template: project_id=project-alpha template_name=invoice-template" `
         -Message "Final review should include project-template handoff identity."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "candidate_type: rename" `
+        -Message "Final review should include schema patch candidate type."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Final review should include handoff action item open command."
 
@@ -423,6 +434,8 @@ if ($Scenario -eq "handoff") {
         -Message "Release handoff bundle should include handoff source JSON display."
     Assert-ContainsText -Text $handoffReleaseHandoff -ExpectedText "project_template: project_id=project-alpha template_name=invoice-template" `
         -Message "Release handoff bundle should include project-template identity."
+    Assert-ContainsText -Text $handoffReleaseHandoff -ExpectedText "candidate_type: rename" `
+        -Message "Release handoff bundle should include schema patch candidate type."
     Assert-ContainsText -Text $handoffArtifactGuide -ExpectedText "Release Governance Handoff Details" `
         -Message "Artifact guide should include governance handoff details."
     Assert-ContainsText -Text $handoffArtifactGuide -ExpectedText "source_report_display:" `
@@ -437,8 +450,12 @@ if ($Scenario -eq "handoff") {
         -Message "Reviewer checklist should include handoff open command."
     Assert-ContainsText -Text $handoffChecklist -ExpectedText "project_template: project_id=project-alpha template_name=invoice-template" `
         -Message "Reviewer checklist should include project-template identity."
+    Assert-ContainsText -Text $handoffChecklist -ExpectedText "candidate_type: rename" `
+        -Message "Reviewer checklist should include schema patch candidate type."
     Assert-ContainsText -Text $handoffMarkdown -ExpectedText 'project=`project-alpha` template=`invoice-template`' `
         -Message "Nested handoff Markdown should include project-template identity."
+    Assert-ContainsText -Text $handoffMarkdown -ExpectedText 'candidate=`rename`' `
+        -Message "Nested handoff Markdown should include schema patch candidate type."
     Assert-ContainsText -Text $handoffMarkdown -ExpectedText 'schema=`featherdoc.schema_patch_confidence_calibration_report.v1`' `
         -Message "Nested handoff Markdown should include source schema."
     Assert-ContainsText -Text $handoffMarkdown -ExpectedText 'source_json_display: `.\output\schema-patch-confidence-calibration\summary.json`' `
@@ -631,9 +648,15 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.project_id }) -join "`n") `
     -ExpectedText "project-alpha" `
     -Message "Auto-discovered rollup should carry project-template blocker project id."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.candidate_type }) -join "`n") `
+    -ExpectedText "rename" `
+    -Message "Auto-discovered rollup should carry schema calibration candidate type."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.template_name }) -join "`n") `
     -ExpectedText "invoice-template" `
     -Message "Auto-discovered rollup should carry project-template action template name."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.candidate_type }) -join "`n") `
+    -ExpectedText "rename" `
+    -Message "Auto-discovered rollup should carry schema calibration action candidate type."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "schema-patch-confidence-calibration\summary.json" `
     -Message "Auto-discovered rollup should carry calibration source JSON display."

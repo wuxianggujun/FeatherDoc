@@ -185,6 +185,9 @@ function Write-GovernanceFixtures {
             release_blockers = @(
                 [ordered]@{
                     id = "schema_patch_confidence_calibration.pending_schema_approvals"
+                    project_id = "project-legal"
+                    template_name = "contract-template"
+                    candidate_type = "remove"
                     severity = "error"
                     status = "pending_review"
                     action = "resolve_pending_schema_approvals"
@@ -197,6 +200,9 @@ function Write-GovernanceFixtures {
             action_items = @(
                 [ordered]@{
                     id = "resolve_pending_schema_approvals"
+                    project_id = "project-legal"
+                    template_name = "contract-template"
+                    candidate_type = "remove"
                     action = "resolve_pending_schema_approvals"
                     title = "Resolve pending schema approvals"
                     open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
@@ -207,6 +213,9 @@ function Write-GovernanceFixtures {
             warnings = @(
                 [ordered]@{
                     id = "schema_patch_confidence_calibration.unscored_candidates"
+                    project_id = "project-legal"
+                    template_name = "contract-template"
+                    candidate_type = "remove"
                     action = "add_explicit_confidence_metadata"
                     message = "Some schema patch candidates do not carry explicit confidence metadata."
                     source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
@@ -265,6 +274,9 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
         -Message "Aggregate handoff should preserve warning source schema."
+    Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.candidate_type }) -join "`n") `
+        -ExpectedText "remove" `
+        -Message "Aggregate handoff should preserve warning candidate type."
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
         -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Aggregate handoff should preserve warning source JSON display."
@@ -283,6 +295,9 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.template_name }) -join "`n") `
         -ExpectedText "invoice-template" `
         -Message "Aggregate handoff should preserve project-template blocker template name."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.candidate_type }) -join "`n") `
+        -ExpectedText "remove" `
+        -Message "Aggregate handoff should preserve schema patch candidate type."
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
         -Message "Aggregate handoff should preserve action item source schema."
@@ -292,6 +307,9 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.template_name }) -join "`n") `
         -ExpectedText "invoice-template" `
         -Message "Aggregate handoff should preserve project-template action template name."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.candidate_type }) -join "`n") `
+        -ExpectedText "remove" `
+        -Message "Aggregate handoff should preserve action item candidate type."
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
         -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Aggregate handoff should preserve action item source report display."
@@ -329,6 +347,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include handoff source schema."
     Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-alpha` template=`invoice-template`' `
         -Message "Markdown should include project-template identity."
+    Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-legal` template=`contract-template` candidate=`remove`' `
+        -Message "Markdown should include schema patch candidate routing."
     Assert-ContainsText -Text $markdown -ExpectedText "source_report_display:" `
         -Message "Markdown should include handoff source report display."
     Assert-ContainsText -Text $markdown -ExpectedText 'source_json_display: `.\output\schema-patch-confidence-calibration\summary.json`' `

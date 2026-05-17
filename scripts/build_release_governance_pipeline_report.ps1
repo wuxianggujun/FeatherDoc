@@ -192,6 +192,9 @@ function New-StageBlockerItems {
                 stage_id = $StageId
                 stage_title = $StageTitle
                 id = Get-JsonString -Object $item -Name "id" -DefaultValue "release_blocker"
+                project_id = Get-JsonString -Object $item -Name "project_id"
+                template_name = Get-JsonString -Object $item -Name "template_name"
+                candidate_type = Get-JsonString -Object $item -Name "candidate_type"
                 severity = Get-JsonString -Object $item -Name "severity" -DefaultValue "error"
                 status = Get-JsonString -Object $item -Name "status"
                 action = Get-JsonString -Object $item -Name "action"
@@ -242,6 +245,9 @@ function New-StageActionItems {
                 stage_id = $StageId
                 stage_title = $StageTitle
                 id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
+                project_id = Get-JsonString -Object $item -Name "project_id"
+                template_name = Get-JsonString -Object $item -Name "template_name"
+                candidate_type = Get-JsonString -Object $item -Name "candidate_type"
                 action = Get-JsonString -Object $item -Name "action"
                 title = Get-JsonString -Object $item -Name "title"
                 command = $command
@@ -285,6 +291,9 @@ function New-StageWarningItems {
                 stage_id = $StageId
                 stage_title = $StageTitle
                 id = Get-JsonString -Object $item -Name "id" -DefaultValue "warning"
+                project_id = Get-JsonString -Object $item -Name "project_id"
+                template_name = Get-JsonString -Object $item -Name "template_name"
+                candidate_type = Get-JsonString -Object $item -Name "candidate_type"
                 action = Get-JsonString -Object $item -Name "action" -DefaultValue "review_release_governance_warning"
                 message = Get-JsonString -Object $item -Name "message"
                 source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue $StageSchema
@@ -480,7 +489,7 @@ function Add-StageGovernanceMarkdown {
     )
 
     foreach ($item in @($Items)) {
-        $Lines.Add("  - $Label ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+        $Lines.Add("  - $Label ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string](Get-JsonProperty -Object $item -Name "message"))) {
             $Lines.Add("    - message: ``$($item.message)``") | Out-Null
         }

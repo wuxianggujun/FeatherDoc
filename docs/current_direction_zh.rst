@@ -119,7 +119,8 @@ cell normalization 只在出现新的 Unicode class、PDFium raw 形态或用户
 - schema patch confidence calibration 只读校准报告；pending approval、invalid
   approval record、未打分候选和 recommendation 现在会作为 release blocker /
   warning / action item 进入
-  ``schema-patch-confidence-calibration/summary.json``，并被默认发布面板消费
+  ``schema-patch-confidence-calibration/summary.json``，并被默认发布面板消费；真实业务
+  模板 candidate 还会保留 ``project_id``、``template_name`` 和 ``candidate_type``
 - release blocker rollup 统一发布阻断汇总
 - content-control data-binding governance 只读报告，已把 Custom XML
   同步 issue、绑定占位符和重复绑定复核接入发布治理 pipeline；这些治理项现在会携带
@@ -129,9 +130,9 @@ cell normalization 只在出现新的 Unicode class、PDFium raw 形态或用户
 
 接下来更值得补的是：
 
-1. 下一轮优先做“真实业务模板 schema patch 置信度校准与复核分流”：继续扩大真实业务
-   模板语料样本，校准 rename / update / remove 建议的置信度，并让 approval outcome
-   与 release blocker 证据进入同一条发布治理链路
+1. “真实业务模板 schema patch 置信度校准与复核分流”已完成首轮：发票、合同、制度文档、
+   项目报告和交付状态报告 fixture 已进入 calibration 回归，rename / type update /
+   remove / required change / add candidate 能随 approval outcome 进入发布治理链路
 2. 多项目 schema approval 审计与发布门禁回放已完成首轮回归；后续只在接入真实项目模板
    语料时继续补项目 / 模板维度
 3. 继续补齐 release blocker rollup 周边的人工复核分流；onboarding governance、
@@ -142,7 +143,9 @@ cell normalization 只在出现新的 Unicode class、PDFium raw 形态或用户
    handoff 也已把同一组明细同步进 release summary、final review、artifact guide、
    reviewer checklist 和 handoff markdown；release note bundle 入口会拒绝缺少这些
    reviewer-facing 字段的治理明细，方便发布面板先按治理源过滤
-4. schema migration 的人工复核入口和更明确的修复建议分流
+4. 下一轮优先做 schema patch 校准阈值建议稳定化：按 ``candidate_type`` 累积更多
+   approved / rejected / pending / invalid outcome，给出更可靠的阈值建议和复核分流
+5. schema migration 的人工复核入口和更明确的修复建议分流
 
 这条线的目标是：
 

@@ -126,12 +126,15 @@ release governance handoff 现在也会把归一化后的 blocker、warning 与 
 
 后续建议继续补齐的是“工程化治理层”，而不是基础 patch API：
 
-- 下一轮优先做真实业务模板 schema patch 置信度校准与复核分流：扩大业务模板语料样本，
-  继续校准 rename / update / remove 建议的置信度阈值
+- 真实业务模板 schema patch 置信度校准与复核分流已完成首轮：发票、合同、制度文档、
+  项目报告和交付状态报告 fixture 已覆盖 rename / type update / remove /
+  required change / add candidate，并把项目、模板和 candidate 类型透传到发布治理链路
 - 多项目 schema approval 审计与发布门禁回放已完成首轮回归；后续在接入真实项目模板
   语料时继续沉淀项目 / 模板级审计字段
 - 继续让 confidence calibration、release blocker rollup 和 handoff 直接消费真实语料
   产生的 approval outcome
+- 下一轮优先做 schema patch 校准阈值建议稳定化：按 candidate 类型积累更多
+  approved / rejected / pending / invalid 样本，让阈值建议不只依赖单个 approved floor
 
 价值：
 
@@ -592,9 +595,10 @@ P2：可以后置的能力
 
 优先做：
 
-- 真实业务模板 schema patch 置信度校准与复核分流：至少覆盖发票、合同或制度文档等
-  语料中的 rename / update / remove candidate，并验证 reviewer-facing 字段能从
-  confidence calibration 一路传到 release bundle。
+- 真实业务模板 schema patch 置信度校准与复核分流已完成首轮：发票、合同、制度文档、
+  项目报告和交付状态报告语料已覆盖 rename / type update / remove /
+  required change / add candidate，reviewer-facing 字段能从 confidence calibration
+  一路传到 release bundle。
 - 多项目 schema approval 审计与发布门禁回放已完成首轮；后续接入真实项目模板时继续
   扩展 ``project_id`` / ``template_name`` 审计字段。
 - content control 复杂表单保护、重复节和模板数据模型双向同步策略
@@ -602,6 +606,8 @@ P2：可以后置的能力
 - onboarding governance、schema confidence calibration、release blocker rollup 与
   release governance handoff 继续接入发布 gate / 发布面板
 - 真实项目模板 smoke manifest 的样例、审批历史和回归证据补强
+- schema patch 校准阈值建议稳定化：按 ``candidate_type`` 输出更可靠的阈值建议和复核
+  分流说明
 
 阶段目标：让一份真实业务模板可以更快接入、校验、生成和回归。
 

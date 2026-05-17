@@ -210,6 +210,9 @@ pending approval outcome 或 invalid approval record 时，报告会分别把
 默认 auto-discovery、release governance pipeline 和 handoff 都会读取
 ``schema-patch-confidence-calibration/summary.json``，因此 reviewer 可以在发布面板
 中直接看到校准 blocker / warning / action item 的 ``source_schema`` 与证据 JSON。
+真实业务模板校准项现在还会保留 ``project_id``、``template_name`` 与
+``candidate_type``；rollup、pipeline、handoff 和 bundle 渲染层会继续展示这些字段，
+让 reviewer 能判断阻断来自哪个项目模板、哪类 schema patch candidate。
 
 此外，``featherdoc.release_governance_pipeline_report.v1`` 的 ``stages[]`` 现在也会
 保留每个治理 stage 的 ``release_blockers``、``warnings`` 与 ``action_items`` 明细。
@@ -222,12 +225,12 @@ summary、bundle 和 reviewer checklist 继续展示。reviewer 若在 pipeline 
 阻断项，应优先打开 ``source_json_display`` 对应证据，再按 ``open_command`` 重建或复核
 该治理报告，最后重新运行 release blocker rollup / bundle 生成链路。
 
-“多项目 schema approval 审计与发布门禁回放”已完成首轮落地。当前 release metadata
-不会只告诉 reviewer “项目模板 gate 被阻断”，还会继续说明阻断来自哪个项目、哪个模板、
-哪条 approval history 证据，以及应该执行哪条 ``open_command`` 复核。下一轮推荐任务是
-“真实业务模板 schema patch 置信度校准与复核分流”：把 rename / update / remove 类
-schema patch candidate、人工 approval outcome 和 confidence calibration 结果接入同一条
-release blocker rollup / handoff / bundle 链路。
+“多项目 schema approval 审计与发布门禁回放”和“真实业务模板 schema patch 置信度校准与
+复核分流”已完成首轮落地。当前 release metadata 不会只告诉 reviewer “项目模板 gate
+被阻断”或“schema confidence gate failed”，还会继续说明阻断来自哪个项目、哪个模板、
+哪类 candidate、哪条证据 JSON，以及应该执行哪条 ``open_command`` 复核。下一轮推荐任务是
+schema patch 校准阈值建议稳定化：按 ``candidate_type`` 累积更多 approved / rejected /
+pending / invalid outcome，让阈值建议不只依赖单个 approved floor。
 
 当 ``summary.json`` 中存在 ``release_governance_handoff`` 节点时，release summary、
 ``final_review.md`` 和 reviewer-facing bundle 也会展示 handoff 归一化后的三类明细：
