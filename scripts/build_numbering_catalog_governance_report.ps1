@@ -385,6 +385,9 @@ function New-ActionItem {
         action = $Action
         title = $Title
         command = $Command
+        open_command = $Command
+        audit_command = ""
+        review_command = ""
     }
 }
 
@@ -542,6 +545,12 @@ function New-ReportMarkdown {
     } else {
         foreach ($item in @($Summary.action_items)) {
             $lines.Add("- ``$($item.scope)`` / ``$($item.id)``: action=``$($item.action)`` title=$($item.title)") | Out-Null
+            foreach ($commandName in @("open_command", "audit_command", "review_command")) {
+                $commandValue = Get-JsonString -Object $item -Name $commandName
+                if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
+                    $lines.Add("  - ${commandName}: ``$commandValue``") | Out-Null
+                }
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -674,6 +683,9 @@ foreach ($path in @($inputPaths)) {
                         action = Get-JsonString -Object $item -Name "action"
                         title = Get-JsonString -Object $item -Name "title"
                         command = Get-JsonString -Object $item -Name "command"
+                        open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command")
+                        audit_command = Get-JsonString -Object $item -Name "audit_command"
+                        review_command = Get-JsonString -Object $item -Name "review_command"
                     }) | Out-Null
                 }
             }

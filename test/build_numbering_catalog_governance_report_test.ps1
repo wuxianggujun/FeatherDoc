@@ -146,6 +146,8 @@ function New-SkeletonRollup {
                 action = "review_style_numbering_audit"
                 title = "Review contract style numbering audit"
                 command = "featherdoc_cli audit-style-numbering samples/contract.docx --fail-on-issue --json"
+                audit_command = "featherdoc_cli audit-style-numbering samples/contract.docx --json"
+                review_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1"
             }
         )
     }
@@ -346,6 +348,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should include skeleton and manifest release blockers."
     Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 2 `
         -Message "Summary should include skeleton and manifest action items."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.audit_command }) -join "`n") `
+        -ExpectedText "audit-style-numbering" `
+        -Message "Summary should preserve upstream action audit commands."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.review_command }) -join "`n") `
+        -ExpectedText "build_document_skeleton_governance_rollup_report.ps1" `
+        -Message "Summary should preserve upstream action review commands."
 
     $issueSummaryText = ($summary.style_issue_summary | ForEach-Object { "$($_.issue):$($_.count)" }) -join "`n"
     Assert-ContainsText -Text $issueSummaryText -ExpectedText "missing_numbering_definition:2" `
@@ -369,6 +377,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include real corpus confidence penalty details."
     Assert-ContainsText -Text $markdown -ExpectedText "missing_numbering_definition" `
         -Message "Markdown should include issue summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "audit_command:" `
+        -Message "Markdown should include action audit commands."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_command:" `
+        -Message "Markdown should include action review commands."
 }
 
 if (Test-Scenario -Name "clean") {

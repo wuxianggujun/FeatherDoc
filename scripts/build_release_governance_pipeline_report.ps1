@@ -226,6 +226,8 @@ function New-StageActionItems {
                 title = Get-JsonString -Object $item -Name "title"
                 command = $command
                 open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue $command
+                audit_command = Get-JsonString -Object $item -Name "audit_command"
+                review_command = Get-JsonString -Object $item -Name "review_command"
                 source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue $StageSchema
                 source_report = Get-JsonString -Object $item -Name "source_report" -DefaultValue $SummaryJson
                 source_report_display = $sourceReportDisplay
@@ -462,8 +464,13 @@ function Add-StageGovernanceMarkdown {
         if (-not [string]::IsNullOrWhiteSpace([string](Get-JsonProperty -Object $item -Name "message"))) {
             $Lines.Add("    - message: ``$($item.message)``") | Out-Null
         }
-        if ($Label -eq "action" -and -not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
-            $Lines.Add("    - open_command: ``$($item.open_command)``") | Out-Null
+        if ($Label -eq "action") {
+            foreach ($commandName in @("open_command", "audit_command", "review_command")) {
+                $commandValue = Get-JsonString -Object $item -Name $commandName
+                if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
+                    $Lines.Add("    - ${commandName}: ``$commandValue``") | Out-Null
+                }
+            }
         }
     }
 }

@@ -81,6 +81,8 @@ function New-SkeletonRollup {
                 document_name = "contract.docx"
                 action = "review_style_numbering_audit"
                 title = "Review contract style numbering audit"
+                audit_command = "featherdoc_cli audit-style-numbering samples/contract.docx --json"
+                review_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1"
             }
         )
     }
@@ -463,6 +465,12 @@ Assert-ContainsText -Text (($numberingStage.release_blockers | ForEach-Object { 
 Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "document-skeleton-governance-rollup\summary.json" `
     -Message "Pipeline numbering stage should expose document skeleton action source JSON display."
+Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [string]$_.audit_command }) -join "`n") `
+    -ExpectedText "audit-style-numbering" `
+    -Message "Pipeline numbering stage should preserve action audit commands."
+Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [string]$_.review_command }) -join "`n") `
+    -ExpectedText "build_document_skeleton_governance_rollup_report.ps1" `
+    -Message "Pipeline numbering stage should preserve action review commands."
 
 $contentControlStage = Get-StageById -Summary $summary -Id "content_control_data_binding_governance"
 Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
@@ -514,5 +522,9 @@ Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
     -Message "Pipeline Markdown should include stage source JSON displays."
 Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
     -Message "Pipeline Markdown should include stage reviewer open commands."
+Assert-ContainsText -Text $markdown -ExpectedText "audit_command:" `
+    -Message "Pipeline Markdown should include stage audit commands."
+Assert-ContainsText -Text $markdown -ExpectedText "review_command:" `
+    -Message "Pipeline Markdown should include stage review commands."
 
 Write-Host "Release governance pipeline report regression passed."
