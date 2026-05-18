@@ -114,15 +114,19 @@ ctest --test-dir .bpdf-interfaces -R pdf_document_generator_probe --output-on-fa
 
 PDFium 用于 PDF → Word 读入方向。
 
-当前支持 3 种 provider：
+当前支持 4 种 provider：
 
-- `source`：默认值。从 PDFium 源码和 GN/Ninja 构建。需要 `depot_tools` 和
-  PDFium checkout。
+- `auto`：默认值。优先尝试 `find_package(PDFium)`，其次尝试 prebuilt 输入；
+  只有提供 `FEATHERDOC_PDFIUM_SOURCE_DIR` 时才退回 source。
+- `source`：从 PDFium 源码和 GN/Ninja 构建。需要 `depot_tools` 和 PDFium checkout。
 - `package`：走 `find_package(PDFium)`，要求外部包已经导出 CMake target。
 - `prebuilt`：直接导入现成的 PDFium 二进制。至少需要
   `FEATHERDOC_PDFIUM_LIBRARY` 和 `FEATHERDOC_PDFIUM_INCLUDE_DIR`；Windows 下如果
   `pdfium.dll` 不和 `pdfium.lib` 放在同一目录，额外传
   `FEATHERDOC_PDFIUM_RUNTIME_DLL` 或 `FEATHERDOC_PDFIUM_RUNTIME_DIR`。
+
+如果当前环境无法访问 Chromium 的 CIPD 后端，优先保留默认 `auto` 并提供 prebuilt
+输入，或者显式切到 `prebuilt`，都可以直接绕开 `depot_tools` bootstrap。
 
 先准备 Chromium `depot_tools`。推荐放在 `tmp/`，不要提交：
 
@@ -185,6 +189,7 @@ cmake -S . -B .bpdf-pdfium-source-msvc `
   -DBUILD_CLI=OFF `
   -DBUILD_SAMPLES=ON `
   -DFEATHERDOC_BUILD_PDF_IMPORT=ON `
+  -DFEATHERDOC_PDFIUM_PROVIDER=source `
   -DFEATHERDOC_PDFIUM_SOURCE_DIR="$PWD/tmp/pdfium-workspace/pdfium" `
   -DFEATHERDOC_DEPOT_TOOLS_DIR="$PWD/tmp/depot_tools" `
   -DFEATHERDOC_PDFIUM_VS_YEAR=2026 `

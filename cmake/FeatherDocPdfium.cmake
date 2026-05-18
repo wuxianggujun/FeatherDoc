@@ -4,9 +4,9 @@ include(ExternalProject)
 
 set(FEATHERDOC_PDFIUM_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
-set(FEATHERDOC_PDFIUM_PROVIDER "source" CACHE STRING
-    "PDFium provider for the experimental PDF import module: source, package, or prebuilt")
-set_property(CACHE FEATHERDOC_PDFIUM_PROVIDER PROPERTY STRINGS source package prebuilt)
+set(FEATHERDOC_PDFIUM_PROVIDER "auto" CACHE STRING
+    "PDFium provider for the experimental PDF import module: auto, source, package, or prebuilt")
+set_property(CACHE FEATHERDOC_PDFIUM_PROVIDER PROPERTY STRINGS auto source package prebuilt)
 
 set(FEATHERDOC_PDFIUM_SOURCE_DIR "" CACHE PATH
     "Existing PDFium source checkout root. It must contain public/fpdfview.h.")
@@ -49,6 +49,33 @@ function(featherdoc_find_pdfium_package out_target)
         message(FATAL_ERROR
             "PDFium package was found, but no supported CMake target exists. "
             "Expected pdfium, PDFium::PDFium, or PDFium::pdfium.")
+    endif()
+endfunction()
+
+function(featherdoc_try_find_pdfium_package out_target)
+    find_package(PDFium QUIET)
+
+    if(TARGET pdfium)
+        set(${out_target} pdfium PARENT_SCOPE)
+    elseif(TARGET PDFium::PDFium)
+        set(${out_target} PDFium::PDFium PARENT_SCOPE)
+    elseif(TARGET PDFium::pdfium)
+        set(${out_target} PDFium::pdfium PARENT_SCOPE)
+    elseif(PDFium_FOUND)
+        message(FATAL_ERROR
+            "PDFium package was found, but no supported CMake target exists. "
+            "Expected pdfium, PDFium::PDFium, or PDFium::pdfium.")
+    else()
+        set(${out_target} "" PARENT_SCOPE)
+    endif()
+endfunction()
+
+function(featherdoc_has_pdfium_prebuilt_inputs out_var)
+    if(NOT FEATHERDOC_PDFIUM_LIBRARY STREQUAL "" AND
+       NOT FEATHERDOC_PDFIUM_INCLUDE_DIR STREQUAL "")
+        set(${out_var} ON PARENT_SCOPE)
+    else()
+        set(${out_var} OFF PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -146,11 +173,11 @@ endfunction()
 function(featherdoc_add_pdfium_source_target target_name)
     if(FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
         message(FATAL_ERROR
-            "FEATHERDOC_BUILD_PDF_IMPORT uses PDFium source by default. "
-            "Set FEATHERDOC_PDFIUM_SOURCE_DIR to a PDFium checkout created with:\n"
+            "FEATHERDOC_PDFIUM_PROVIDER=source requires FEATHERDOC_PDFIUM_SOURCE_DIR. "
+            "Point it to a PDFium checkout created with:\n"
             "  gclient config --unmanaged https://pdfium.googlesource.com/pdfium.git\n"
             "  gclient sync\n"
-            "Or set FEATHERDOC_PDFIUM_PROVIDER=package/prebuilt and provide "
+            "Or set FEATHERDOC_PDFIUM_PROVIDER to package/prebuilt and provide "
             "the matching PDFium inputs.")
     endif()
 
