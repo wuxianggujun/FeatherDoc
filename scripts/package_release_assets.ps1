@@ -314,6 +314,193 @@ function Get-VisualGateStatus {
     return Get-OptionalPropertyValue -Object $visualGate -Name "status"
 }
 
+function Get-GovernanceMetrics {
+    param($Summary)
+
+    $metrics = Get-OptionalPropertyObject -Object $Summary -Name "governance_metrics"
+    if ($null -eq $metrics) {
+        return @()
+    }
+
+    return @($metrics)
+}
+
+function Get-GovernanceMetricByContract {
+    param(
+        $GovernanceMetrics,
+        [string]$Metric,
+        [string]$Id,
+        [string]$ReportId,
+        [string]$SourceSchema
+    )
+
+    return @($GovernanceMetrics | Where-Object {
+        (Get-OptionalPropertyValue -Object $_ -Name "metric") -eq $Metric -and
+        (Get-OptionalPropertyValue -Object $_ -Name "id") -eq $Id -and
+        (Get-OptionalPropertyValue -Object $_ -Name "report_id") -eq $ReportId -and
+        (Get-OptionalPropertyValue -Object $_ -Name "source_schema") -eq $SourceSchema
+    }) | Select-Object -First 1
+}
+
+function Get-TableLayoutDeliveryQuality {
+    param($GovernanceMetrics)
+
+    $deliveryMetric = Get-GovernanceMetricByContract `
+        -GovernanceMetrics $GovernanceMetrics `
+        -Metric "delivery_quality" `
+        -Id "table_layout_delivery_governance.delivery_quality" `
+        -ReportId "table_layout_delivery_governance" `
+        -SourceSchema "featherdoc.table_layout_delivery_governance_report.v1"
+
+    if ($null -eq $deliveryMetric) {
+        return [ordered]@{}
+    }
+
+    return [ordered]@{
+        id = Get-OptionalPropertyValue -Object $deliveryMetric -Name "id"
+        metric = Get-OptionalPropertyValue -Object $deliveryMetric -Name "metric"
+        report_id = Get-OptionalPropertyValue -Object $deliveryMetric -Name "report_id"
+        source_schema = Get-OptionalPropertyValue -Object $deliveryMetric -Name "source_schema"
+        score = Get-OptionalPropertyObject -Object $deliveryMetric -Name "score"
+        level = Get-OptionalPropertyValue -Object $deliveryMetric -Name "level"
+        details = Get-OptionalPropertyObject -Object $deliveryMetric -Name "details"
+    }
+}
+
+function Get-NumberingCatalogRealCorpusConfidence {
+    param($GovernanceMetrics)
+
+    $confidenceMetric = Get-GovernanceMetricByContract `
+        -GovernanceMetrics $GovernanceMetrics `
+        -Metric "real_corpus_confidence" `
+        -Id "numbering_catalog_governance.real_corpus_confidence" `
+        -ReportId "numbering_catalog_governance" `
+        -SourceSchema "featherdoc.numbering_catalog_governance_report.v1"
+
+    if ($null -eq $confidenceMetric) {
+        return [ordered]@{}
+    }
+
+    return [ordered]@{
+        id = Get-OptionalPropertyValue -Object $confidenceMetric -Name "id"
+        metric = Get-OptionalPropertyValue -Object $confidenceMetric -Name "metric"
+        report_id = Get-OptionalPropertyValue -Object $confidenceMetric -Name "report_id"
+        source_schema = Get-OptionalPropertyValue -Object $confidenceMetric -Name "source_schema"
+        score = Get-OptionalPropertyObject -Object $confidenceMetric -Name "score"
+        level = Get-OptionalPropertyValue -Object $confidenceMetric -Name "level"
+        details = Get-OptionalPropertyObject -Object $confidenceMetric -Name "details"
+    }
+}
+
+function Get-ContentControlRepairContracts {
+    param(
+        [string]$RepoRoot,
+        $Summary
+    )
+
+    $contentControlSummaryPath = Get-OptionalPropertyValue -Object $Summary -Name "content_control_data_binding_governance"
+    if ([string]::IsNullOrWhiteSpace($contentControlSummaryPath)) {
+        return @()
+    }
+
+    $resolvedContentControlSummaryPath = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $contentControlSummaryPath
+    Assert-PathExists -Path $resolvedContentControlSummaryPath -Label "content-control data-binding governance summary"
+
+    $contentControlSummary = Get-Content -Raw -LiteralPath $resolvedContentControlSummaryPath | ConvertFrom-Json
+    $schema = Get-OptionalPropertyValue -Object $contentControlSummary -Name "schema"
+    $releaseBlockers = Get-OptionalPropertyObject -Object $contentControlSummary -Name "release_blockers"
+    if ($null -eq $releaseBlockers) {
+        return @()
+    }
+
+    $contracts = [System.Collections.Generic.List[object]]::new()
+    foreach ($blocker in @($releaseBlockers)) {
+        $blockerId = Get-OptionalPropertyValue -Object $blocker -Name "id"
+        if ($blockerId -ne "content_control_data_binding.bound_placeholder") {
+            continue
+        }
+
+        [void]$contracts.Add([ordered]@{
+            id = $blockerId
+            source_schema = $schema
+            source_json_display = Convert-RepoPathToRelative -Value $resolvedContentControlSummaryPath -RepoRoot $RepoRoot
+            repair_strategy = Get-OptionalPropertyValue -Object $blocker -Name "repair_strategy"
+            repair_hint = Get-OptionalPropertyValue -Object $blocker -Name "repair_hint"
+            command_template = Get-OptionalPropertyValue -Object $blocker -Name "command_template"
+        })
+    }
+
+    return @($contracts.ToArray())
+}
+
+function Get-ProjectTemplateDeliveryReadinessContract {
+    param(
+        [string]$RepoRoot,
+        $Summary
+    )
+
+    $readinessSummaryPath = Get-OptionalPropertyValue -Object $Summary -Name "project_template_delivery_readiness"
+    if ([string]::IsNullOrWhiteSpace($readinessSummaryPath)) {
+        return [ordered]@{}
+    }
+
+    $resolvedReadinessSummaryPath = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $readinessSummaryPath
+    Assert-PathExists -Path $resolvedReadinessSummaryPath -Label "project template delivery readiness summary"
+
+    $readinessSummary = Get-Content -Raw -LiteralPath $resolvedReadinessSummaryPath | ConvertFrom-Json
+    return [ordered]@{
+        schema = Get-OptionalPropertyValue -Object $readinessSummary -Name "schema"
+        status = Get-OptionalPropertyValue -Object $readinessSummary -Name "status"
+        release_ready = Get-OptionalPropertyObject -Object $readinessSummary -Name "release_ready"
+        latest_schema_approval_gate_status = Get-OptionalPropertyValue -Object $readinessSummary -Name "latest_schema_approval_gate_status"
+        schema_history_blocked_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_blocked_run_count"
+        schema_history_pending_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_pending_run_count"
+        schema_history_passed_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_passed_run_count"
+        template_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "template_count"
+        ready_template_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "ready_template_count"
+        blocked_template_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "blocked_template_count"
+        release_blocker_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "release_blocker_count"
+        action_item_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "action_item_count"
+        warning_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "warning_count"
+        source_json_display = Convert-RepoPathToRelative -Value $resolvedReadinessSummaryPath -RepoRoot $RepoRoot
+    }
+}
+
+function Get-ProjectTemplateOnboardingGovernanceContract {
+    param(
+        [string]$RepoRoot,
+        $Summary
+    )
+
+    $onboardingSummaryPath = Get-OptionalPropertyValue -Object $Summary -Name "project_template_onboarding_governance"
+    if ([string]::IsNullOrWhiteSpace($onboardingSummaryPath)) {
+        return [ordered]@{}
+    }
+
+    $resolvedOnboardingSummaryPath = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $onboardingSummaryPath
+    Assert-PathExists -Path $resolvedOnboardingSummaryPath -Label "project template onboarding governance summary"
+
+    $onboardingSummary = Get-Content -Raw -LiteralPath $resolvedOnboardingSummaryPath | ConvertFrom-Json
+    return [ordered]@{
+        schema = Get-OptionalPropertyValue -Object $onboardingSummary -Name "schema"
+        status = Get-OptionalPropertyValue -Object $onboardingSummary -Name "status"
+        release_ready = Get-OptionalPropertyObject -Object $onboardingSummary -Name "release_ready"
+        source_file_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "source_file_count"
+        source_failure_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "source_failure_count"
+        entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "entry_count"
+        schema_approval_status_summary = Get-OptionalPropertyObject -Object $onboardingSummary -Name "schema_approval_status_summary"
+        blocked_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "blocked_entry_count"
+        pending_review_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "pending_review_entry_count"
+        not_evaluated_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "not_evaluated_entry_count"
+        approved_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "approved_entry_count"
+        not_required_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "not_required_entry_count"
+        release_blocker_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "release_blocker_count"
+        action_item_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "action_item_count"
+        manual_review_recommendation_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "manual_review_recommendation_count"
+        source_json_display = Convert-RepoPathToRelative -Value $resolvedOnboardingSummaryPath -RepoRoot $RepoRoot
+    }
+}
+
 function Get-AssetDescriptor {
     param(
         [string]$Path,
@@ -374,11 +561,18 @@ function Convert-RepoPathToRelative {
 
     $normalizedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
     $normalizedValue = $Value -replace '/', '\'
-    if (-not [System.IO.Path]::IsPathRooted($normalizedValue)) {
+    try {
+        if (-not [System.IO.Path]::IsPathRooted($normalizedValue)) {
+            return $Value
+        }
+
+        $resolvedValue = [System.IO.Path]::GetFullPath($normalizedValue)
+    } catch [System.ArgumentException] {
+        return $Value
+    } catch [System.NotSupportedException] {
         return $Value
     }
 
-    $resolvedValue = [System.IO.Path]::GetFullPath($normalizedValue)
     if (-not $resolvedValue.StartsWith($normalizedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
         return $Value
     }
@@ -516,6 +710,18 @@ if ([string]::IsNullOrWhiteSpace($releaseVersion)) {
 $executionStatus = Get-OptionalPropertyValue -Object $summary -Name "execution_status"
 $visualVerdict = Get-VisualVerdict -RepoRoot $repoRoot -Summary $summary
 $visualGateStatus = Get-VisualGateStatus -Summary $summary
+$governanceMetrics = @(Get-GovernanceMetrics -Summary $summary)
+$numberingCatalogRealCorpusConfidence = Get-NumberingCatalogRealCorpusConfidence -GovernanceMetrics $governanceMetrics
+$tableLayoutDeliveryQuality = Get-TableLayoutDeliveryQuality -GovernanceMetrics $governanceMetrics
+$contentControlRepairContracts = @(Get-ContentControlRepairContracts -RepoRoot $repoRoot -Summary $summary)
+$projectTemplateDeliveryReadinessContract = Get-ProjectTemplateDeliveryReadinessContract -RepoRoot $repoRoot -Summary $summary
+$projectTemplateOnboardingGovernanceContract = Get-ProjectTemplateOnboardingGovernanceContract -RepoRoot $repoRoot -Summary $summary
+$summaryGovernanceMetricCount = Get-OptionalPropertyValue -Object $summary -Name "governance_metric_count"
+$governanceMetricCount = if (-not [string]::IsNullOrWhiteSpace($summaryGovernanceMetricCount)) {
+    [int]$summaryGovernanceMetricCount
+} else {
+    $governanceMetrics.Count
+}
 
 if (-not $AllowIncomplete) {
     if ($executionStatus -ne "pass") {
@@ -751,6 +957,14 @@ $manifest = [ordered]@{
     output_dir = $versionOutputDir
     visual_gate_status = $visualGateStatus
     visual_gate_evidence_included = $hasVisualGateEvidence
+    governance_metric_count = $governanceMetricCount
+    governance_metrics = $governanceMetrics
+    numbering_catalog_real_corpus_confidence = $numberingCatalogRealCorpusConfidence
+    table_layout_delivery_quality = $tableLayoutDeliveryQuality
+    content_control_repair_contract_count = $contentControlRepairContracts.Count
+    content_control_repair_contracts = $contentControlRepairContracts
+    project_template_delivery_readiness_contract = $projectTemplateDeliveryReadinessContract
+    project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
     assets = @(
         (Get-AssetDescriptor -Path $installZipPath -Label "msvc_install")
         (Get-AssetDescriptor -Path $galleryZipPath -Label "visual_validation_gallery")

@@ -260,6 +260,32 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should count ready documents."
     Assert-Equal -Actual ([int]$summary.needs_review_document_count) -Expected 1 `
         -Message "Summary should count needs-review documents."
+    Assert-Equal -Actual ([int]$summary.delivery_quality_score) -Expected 0 `
+        -Message "Unresolved table layout delivery work should reduce quality score."
+    Assert-Equal -Actual ([string]$summary.delivery_quality_level) -Expected "blocked" `
+        -Message "Unresolved table layout delivery work should produce blocked quality."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.ready_document_percent) -Expected 50 `
+        -Message "Summary should expose ready document percentage."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.table_style_issue_count) -Expected 3 `
+        -Message "Summary should expose table style issue count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.automatic_tblLook_fix_count) -Expected 2 `
+        -Message "Summary should expose safe tblLook fix count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.manual_table_style_fix_count) -Expected 1 `
+        -Message "Summary should expose manual table style fix count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.table_position_automatic_count) -Expected 2 `
+        -Message "Summary should expose automatic floating table plan count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.table_position_review_count) -Expected 1 `
+        -Message "Summary should expose floating table review count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.command_failure_count) -Expected 0 `
+        -Message "Summary should expose command failure count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.unresolved_item_count) -Expected 10 `
+        -Message "Summary should expose unresolved table layout delivery work count."
+    Assert-ContainsText -Text (($summary.delivery_quality.penalty_summary | ForEach-Object { "$($_.factor):$($_.penalty)" }) -join "`n") `
+        -ExpectedText "safe_tblLook_fixes_pending:8" `
+        -Message "Summary should expose safe tblLook delivery quality penalties."
+    Assert-ContainsText -Text (($summary.delivery_quality.penalty_summary | ForEach-Object { "$($_.factor):$($_.penalty)" }) -join "`n") `
+        -ExpectedText "floating_table_plans_pending:14" `
+        -Message "Summary should expose floating table delivery quality penalties."
     Assert-Equal -Actual ([int]$summary.total_table_style_issue_count) -Expected 3 `
         -Message "Summary should preserve table style issue count."
     Assert-Equal -Actual ([int]$summary.total_automatic_tblLook_fix_count) -Expected 2 `
@@ -304,6 +330,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include floating table plans."
     Assert-ContainsText -Text $markdown -ExpectedText "Delivery Actions" `
         -Message "Markdown should include delivery actions."
+    Assert-ContainsText -Text $markdown -ExpectedText "Delivery Quality" `
+        -Message "Markdown should include delivery quality section."
+    Assert-ContainsText -Text $markdown -ExpectedText "safe_tblLook_fixes_pending" `
+        -Message "Markdown should include delivery quality penalty details."
 }
 
 if (Test-Scenario -Name "ready") {
@@ -323,6 +353,10 @@ if (Test-Scenario -Name "ready") {
         -Message "Ready evidence should produce ready status."
     Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $true `
         -Message "Ready evidence should be release-ready."
+    Assert-Equal -Actual ([int]$summary.delivery_quality_score) -Expected 100 `
+        -Message "Ready table layout delivery evidence should produce full quality score."
+    Assert-Equal -Actual ([string]$summary.delivery_quality_level) -Expected "release_ready" `
+        -Message "Ready table layout delivery evidence should produce release-ready quality."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 0 `
         -Message "Ready evidence should not expose blockers."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `

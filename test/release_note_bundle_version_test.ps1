@@ -33,6 +33,65 @@ function Assert-NotContains {
     }
 }
 
+function New-NumberingGovernanceMetricFixture {
+    return [ordered]@{
+        id = "numbering_catalog_governance.real_corpus_confidence"
+        metric = "real_corpus_confidence"
+        report_id = "numbering_catalog_governance"
+        source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+        source_report_display = ".\output\numbering-catalog-governance\summary.json"
+        source_json_display = ".\output\numbering-catalog-governance\summary.json"
+        score = 56
+        level = "low"
+        details = [ordered]@{
+            score = 56
+            level = "low"
+            matched_document_count = 4
+            unmatched_catalog_document_count = 0
+            unmatched_baseline_document_count = 0
+            alignment_gap_count = 0
+            catalog_coverage_percent = 100
+            baseline_coverage_percent = 100
+            coverage_score = 100
+            penalty_summary = @(
+                [ordered]@{ factor = "style_numbering_issues"; count = 4; penalty = 20 }
+            )
+        }
+    }
+}
+
+function New-TableLayoutDeliveryMetricFixture {
+    return [ordered]@{
+        id = "table_layout_delivery_governance.delivery_quality"
+        metric = "delivery_quality"
+        report_id = "table_layout_delivery_governance"
+        source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
+        source_report_display = ".\output\table-layout-delivery-governance\summary.json"
+        source_json_display = ".\output\table-layout-delivery-governance\summary.json"
+        score = 100
+        level = "release_ready"
+        details = [ordered]@{
+            score = 100
+            level = "release_ready"
+            document_count = 3
+            ready_document_count = 3
+            ready_document_percent = 100
+            needs_review_document_count = 0
+            failed_document_count = 0
+            table_style_issue_count = 0
+            automatic_tblLook_fix_count = 0
+            manual_table_style_fix_count = 0
+            table_position_automatic_count = 0
+            table_position_review_count = 0
+            command_failure_count = 0
+            unresolved_item_count = 0
+            penalty_summary = @(
+                [ordered]@{ factor = "floating_table_plans_pending"; count = 0; penalty = 0 }
+            )
+        }
+    }
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $reportDir = Join-Path $resolvedWorkingDir "report"
@@ -49,6 +108,7 @@ $curatedBundleTaskDir = Join-Path $resolvedWorkingDir "tasks\$curatedBundleId"
 $supersededReviewTasksReportPath = Join-Path $taskOutputRoot "superseded_review_tasks.json"
 $expectedSupersededReviewTasksReportDisplayPath = ".\" + `
     ($supersededReviewTasksReportPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/') -replace '/', '\')
+$contentControlCommandTemplateMarker = "command_template: featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
 
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $installDir -Force | Out-Null
@@ -167,6 +227,198 @@ $summary = [ordered]@{
             )
         }
     )
+    release_blocker_rollup = [ordered]@{
+        requested = $true
+        status = "blocked"
+        source_report_count = 4
+        release_blocker_count = 4
+        release_blockers = @(
+            [ordered]@{
+                id = "document_skeleton.style_numbering_issues"
+                source = "document_skeleton_governance_rollup"
+                severity = "error"
+                status = "needs_review"
+                action = "review_style_numbering_audit"
+                message = "Document skeleton rollup found style numbering issues."
+                source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                source_json_display = ".\output\document-skeleton-governance\contract\style-numbering-audit.json"
+            },
+            [ordered]@{
+                id = "content_control_data_binding.bound_placeholder"
+                source = "content_control_data_binding_governance"
+                severity = "error"
+                status = "placeholder_visible"
+                action = "sync_or_fill_bound_content_control"
+                message = "Bound content control still shows placeholder text."
+                source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+                source_report_display = ".\output\content-control-data-binding-governance\summary.json"
+                source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+                repair_strategy = "sync_bound_content_control"
+                repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
+                command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+            },
+            [ordered]@{
+                id = "project_template_onboarding.schema_approval"
+                source = "project_template_delivery_readiness"
+                severity = "error"
+                status = "pending_review"
+                action = "review_schema_update_candidate"
+                message = "Project template onboarding schema approval is pending."
+                source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+                source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+            },
+            [ordered]@{
+                id = "schema_patch_confidence_calibration.pending_schema_approvals"
+                source = "schema_patch_confidence_calibration"
+                severity = "error"
+                status = "pending_review"
+                action = "resolve_pending_schema_approvals"
+                message = "Schema patch confidence calibration still contains pending approval outcome(s)."
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            }
+        )
+        action_item_count = 4
+        action_items = @(
+            [ordered]@{
+                id = "open_document_skeleton_rollup"
+                action = "open_document_skeleton_rollup"
+                source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance"
+            },
+            [ordered]@{
+                id = "review_duplicate_content_control_binding"
+                action = "review_duplicate_content_control_binding"
+                source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+                source_report_display = ".\output\content-control-data-binding-governance\summary.json"
+                source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
+            },
+            [ordered]@{
+                id = "review_invoice_schema"
+                action = "review_schema_update_candidate"
+                source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+                source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
+            },
+            [ordered]@{
+                id = "resolve_pending_schema_approvals"
+                action = "resolve_pending_schema_approvals"
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+            }
+        )
+        warning_count = 3
+        warnings = @(
+            [ordered]@{
+                id = "document_skeleton.exemplar_catalog_missing"
+                action = "open_document_skeleton_rollup"
+                message = "One exemplar catalog path is missing."
+                source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
+            },
+            [ordered]@{
+                id = "custom_xml_sync_evidence_missing"
+                action = "run_content_control_custom_xml_sync"
+                message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
+                source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+                source_report_display = ".\output\content-control-data-binding-governance\summary.json"
+                source_json_display = ".\output\content-control-data-binding-governance\summary.json"
+            },
+            [ordered]@{
+                id = "schema_patch_confidence_calibration.unscored_candidates"
+                action = "add_explicit_confidence_metadata"
+                message = "Some schema patch candidates do not carry explicit confidence metadata."
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            }
+        )
+        governance_metric_count = 2
+        governance_metrics = @(
+            (New-NumberingGovernanceMetricFixture),
+            (New-TableLayoutDeliveryMetricFixture)
+        )
+    }
+    release_governance_handoff = [ordered]@{
+        requested = $true
+        status = "blocked"
+        expected_report_count = 5
+        loaded_report_count = 5
+        missing_report_count = 0
+        release_blocker_count = 2
+        release_blockers = @(
+            [ordered]@{
+                report_id = "project_template_delivery_readiness"
+                id = "project_template_onboarding.schema_approval"
+                severity = "error"
+                status = "pending_review"
+                action = "review_schema_update_candidate"
+                message = "Project template onboarding schema approval is pending."
+                source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+                source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+            },
+            [ordered]@{
+                report_id = "schema_patch_confidence_calibration"
+                id = "schema_patch_confidence_calibration.pending_schema_approvals"
+                severity = "error"
+                status = "pending_review"
+                action = "resolve_pending_schema_approvals"
+                message = "Schema patch confidence calibration still contains pending approval outcome(s)."
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            }
+        )
+        action_item_count = 2
+        action_items = @(
+            [ordered]@{
+                report_id = "project_template_delivery_readiness"
+                id = "review_invoice_schema"
+                action = "review_schema_update_candidate"
+                source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+                source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
+            },
+            [ordered]@{
+                report_id = "schema_patch_confidence_calibration"
+                id = "resolve_pending_schema_approvals"
+                action = "resolve_pending_schema_approvals"
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+            }
+        )
+        warning_count = 1
+        warnings = @(
+            [ordered]@{
+                report_id = "schema_patch_confidence_calibration"
+                id = "schema_patch_confidence_calibration.unscored_candidates"
+                action = "add_explicit_confidence_metadata"
+                message = "Some schema patch candidates do not carry explicit confidence metadata."
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            }
+        )
+        governance_metric_count = 2
+        governance_metrics = @(
+            (New-NumberingGovernanceMetricFixture),
+            (New-TableLayoutDeliveryMetricFixture)
+        )
+    }
     task_output_root = $taskOutputRoot
     superseded_review_tasks_report = $supersededReviewTasksReportPath
     install_dir = $installDir
@@ -235,6 +487,60 @@ Assert-Contains -Path $handoffPath -ExpectedText 'Superseded review tasks: 0' -L
 Assert-Contains -Path $handoffPath -ExpectedText 'Release blockers: 1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'project_template_smoke.schema_approval' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'missing_reviewer' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Release Governance Rollup Details' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'project_template_onboarding.schema_approval' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'schema_patch_confidence_calibration.pending_schema_approvals' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'table_layout_delivery_governance.delivery_quality' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_schema=featherdoc.table_layout_delivery_governance_report.v1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_report_display: .\output\table-layout-delivery-governance\summary.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'numbering_catalog_governance.real_corpus_confidence' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\numbering-catalog-governance\summary.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'matched_document_count=4' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'catalog_coverage_percent=100' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText "style_numbering_issues(count=4, penalty=20)" -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\table-layout-delivery-governance\summary.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'ready_document_percent=100' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'table_style_issue_count=0' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'automatic_tblLook_fix_count=0' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'manual_table_style_fix_count=0' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'table_position_automatic_count=0' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'table_position_review_count=0' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'command_failure_count=0' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'unresolved_item_count=0' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText "floating_table_plans_pending(count=0, penalty=0)" -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'action=review_style_numbering_audit' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'action=sync_or_fill_bound_content_control' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'repair_strategy: sync_bound_content_control' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'repair_hint: Rerun Custom XML sync or explicitly fill the bound content control before release.' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText $contentControlCommandTemplateMarker -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'action=review_schema_update_candidate' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'action=resolve_pending_schema_approvals' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_schema=featherdoc.document_skeleton_governance_rollup_report.v1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_schema=featherdoc.content_control_data_binding_governance_report.v1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_schema=featherdoc.project_template_onboarding_governance_report.v1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_schema=featherdoc.schema_patch_confidence_calibration_report.v1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_report_display: .\output\document-skeleton-governance-rollup\summary.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_report_display: .\output\project-template-delivery-readiness\summary.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_report_display: .\output\schema-patch-confidence-calibration\summary.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\document-skeleton-governance\contract\style-numbering-audit.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\content-control-data-binding\inspect-content-controls.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\project-template-onboarding-governance\summary.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\schema-patch-confidence-calibration\summary.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'document_skeleton.exemplar_catalog_missing' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'custom_xml_sync_evidence_missing' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'schema_patch_confidence_calibration.unscored_candidates' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'open_document_skeleton_rollup' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Release Governance Handoff Details' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Handoff Warnings' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'schema_patch_confidence_calibration.unscored_candidates' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_report_display: .\output\project-template-delivery-readiness\summary.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\project-template-onboarding-governance\summary.json' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText $expectedSupersededReviewTasksReportDisplayPath -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'open_latest_page_number_fields_review_task.ps1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'find_superseded_review_tasks.ps1' -Label 'release_handoff.md'
@@ -243,14 +549,18 @@ Assert-Contains -Path $shortPath -ExpectedText '# FeatherDoc v1.6.0' -Label 'rel
 Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\VISUAL_VALIDATION_QUICKSTART.zh-CN.md' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\RELEASE_ARTIFACT_TEMPLATE.zh-CN.md' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\visual-validation' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Release blockers：1' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'Release blockers: 1' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'project_template_smoke.schema_approval' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Smoke verdict：pass' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Fixed-grid verdict：undetermined' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Section page setup verdict：pass' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Page number fields verdict：pending_manual_review' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Template table CLI selector verdict：pass' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $shortPath -ExpectedText 'Word visual gate 细分结论：smoke=`pass`，fixed-grid=`undetermined`，section page setup=`pass`，page number fields=`pending_manual_review`，Template table CLI selector=`pass`。' -Label 'release_summary.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'Smoke verdict' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'Fixed-grid verdict' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'Section page setup verdict' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'Page number fields verdict' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'Template table CLI selector verdict' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $shortPath -ExpectedText 'smoke=`pass`' -Label 'release_summary.zh-CN.md'
+Assert-Contains -Path $shortPath -ExpectedText 'fixed-grid=`undetermined`' -Label 'release_summary.zh-CN.md'
+Assert-Contains -Path $shortPath -ExpectedText 'section page setup=`pass`' -Label 'release_summary.zh-CN.md'
+Assert-Contains -Path $shortPath -ExpectedText 'page number fields=`pending_manual_review`' -Label 'release_summary.zh-CN.md'
+Assert-Contains -Path $shortPath -ExpectedText 'Template table CLI selector=`pass`' -Label 'release_summary.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText $installDir -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText $resolvedWorkingDir -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText 'draft' -Label 'release_body.zh-CN.md'
@@ -289,13 +599,71 @@ Assert-Contains -Path $guidePath -ExpectedText 'Template table CLI selector revi
 Assert-Contains -Path $guidePath -ExpectedText 'Project template schema approval history JSON' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'project_template_schema_approval_history.md' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Release blockers: 1' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'source_schema=featherdoc.document_skeleton_governance_rollup_report.v1' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'source_schema=featherdoc.content_control_data_binding_governance_report.v1' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'repair_strategy: sync_bound_content_control' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'repair_hint: Rerun Custom XML sync or explicitly fill the bound content control before release.' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText $contentControlCommandTemplateMarker -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'project_template_onboarding.schema_approval' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'source_schema=featherdoc.project_template_onboarding_governance_report.v1' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'source_json_display: .\output\project-template-onboarding-governance\summary.json' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'table_layout_delivery_governance.delivery_quality' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'source_schema=featherdoc.table_layout_delivery_governance_report.v1' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'source_json_display: .\output\table-layout-delivery-governance\summary.json' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'numbering_catalog_governance.real_corpus_confidence' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'source_json_display: .\output\numbering-catalog-governance\summary.json' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'matched_document_count=4' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'catalog_coverage_percent=100' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText "style_numbering_issues(count=4, penalty=20)" -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'ready_document_percent=100' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'table_position_automatic_count=0' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'table_position_review_count=0' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'unresolved_item_count=0' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText "floating_table_plans_pending(count=0, penalty=0)" -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'schema_patch_confidence_calibration.pending_schema_approvals' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'source_schema=featherdoc.schema_patch_confidence_calibration_report.v1' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'source_json_display: .\output\schema-patch-confidence-calibration\summary.json' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Item schema-review-invalid' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Open the project template schema approval history trend report' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Release blockers: 1' -Label 'REVIEWER_CHECKLIST.md'
-Assert-Contains -Path $checklistPath -ExpectedText 'Stop here until `release_blockers` is empty' -Label 'REVIEWER_CHECKLIST.md'
-Assert-Contains -Path $checklistPath -ExpectedText 'Use action `fix_schema_patch_approval_result`: update blocked `schema_patch_approval_result.json` record(s)' -Label 'REVIEWER_CHECKLIST.md'
-Assert-Contains -Path $checklistPath -ExpectedText 'Run `sync_project_template_schema_approval.ps1` after updating approval records' -Label 'REVIEWER_CHECKLIST.md'
-Assert-Contains -Path $checklistPath -ExpectedText 'Do not approve for public release when `release_blocker_count` is non-zero' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'document_skeleton.exemplar_catalog_missing' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'repair_strategy: sync_bound_content_control' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'repair_hint: Rerun Custom XML sync or explicitly fill the bound content control before release.' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText $contentControlCommandTemplateMarker -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'custom_xml_sync_evidence_missing' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'project_template_onboarding.schema_approval' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'source_schema=featherdoc.project_template_onboarding_governance_report.v1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'table_layout_delivery_governance.delivery_quality' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'source_schema=featherdoc.table_layout_delivery_governance_report.v1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'numbering_catalog_governance.real_corpus_confidence' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\output\numbering-catalog-governance\summary.json' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'matched_document_count=4' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'catalog_coverage_percent=100' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText "style_numbering_issues(count=4, penalty=20)" -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\output\table-layout-delivery-governance\summary.json' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'ready_document_percent=100' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'table_position_automatic_count=0' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'table_position_review_count=0' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'unresolved_item_count=0' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText "floating_table_plans_pending(count=0, penalty=0)" -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'schema_patch_confidence_calibration.pending_schema_approvals' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'schema_patch_confidence_calibration.unscored_candidates' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'source_schema=featherdoc.schema_patch_confidence_calibration_report.v1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Release Governance Handoff Details' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Handoff Action Items' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\output\schema-patch-confidence-calibration\summary.json' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Stop here until' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'fix_schema_patch_approval_result' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'sync_project_template_schema_approval.ps1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Do not approve for public release when' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'project_template_schema_approval_history.md' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Superseded review tasks: 0' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Confirm `superseded_review_tasks.json` reports zero stale task directories' -Label 'REVIEWER_CHECKLIST.md'
@@ -309,6 +677,29 @@ Assert-Contains -Path $checklistPath -ExpectedText 'Open the Template table CLI 
 Assert-Contains -Path $checklistPath -ExpectedText 'Open the page number fields review task if the release touches page numbers' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Release blockers: 1' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'project_template_smoke.schema_approval' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'repair_strategy: sync_bound_content_control' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'repair_hint: Rerun Custom XML sync or explicitly fill the bound content control before release.' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText $contentControlCommandTemplateMarker -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'project_template_onboarding.schema_approval' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'schema_patch_confidence_calibration.pending_schema_approvals' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'table_layout_delivery_governance.delivery_quality' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'numbering_catalog_governance.real_corpus_confidence' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'source_json_display: .\output\numbering-catalog-governance\summary.json' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'matched_document_count=4' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'catalog_coverage_percent=100' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText "style_numbering_issues(count=4, penalty=20)" -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'source_json_display: .\output\table-layout-delivery-governance\summary.json' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'ready_document_percent=100' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'table_position_automatic_count=0' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'table_position_review_count=0' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'unresolved_item_count=0' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText "floating_table_plans_pending(count=0, penalty=0)" -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'source_json_display: .\output\document-skeleton-governance\contract\style-numbering-audit.json' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'source_json_display: .\output\content-control-data-binding\inspect-content-controls.json' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'source_json_display: .\output\project-template-onboarding-governance\summary.json' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'source_json_display: .\output\schema-patch-confidence-calibration\summary.json' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Visual verdict: pending_manual_review' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Smoke verdict: pass' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Fixed-grid verdict: undetermined' -Label 'START_HERE.md'

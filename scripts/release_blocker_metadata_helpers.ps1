@@ -367,3 +367,318 @@ function Add-ReleaseBlockerMarkdownSection {
         }
     }
 }
+
+function Get-ReleaseGovernanceRollup {
+    param([AllowNull()]$Summary)
+
+    return Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_blocker_rollup"
+}
+
+function Get-ReleaseGovernanceHandoff {
+    param([AllowNull()]$Summary)
+
+    return Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_governance_handoff"
+}
+
+function Add-ReleaseGovernanceRollupSourceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item,
+        [string]$RepoRoot
+    )
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerDisplayPath `
+            -RepoRoot $RepoRoot `
+            -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report")
+    }
+
+    $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath `
+            -RepoRoot $RepoRoot `
+            -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json")
+    }
+
+    [void]$Lines.Add("  - source_report_display: $sourceReportDisplay")
+    [void]$Lines.Add("  - source_json_display: $sourceJsonDisplay")
+}
+
+function Add-ReleaseGovernanceRepairLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item
+    )
+
+    foreach ($fieldName in @("repair_strategy", "repair_hint", "command_template")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            [void]$Lines.Add("  - ${fieldName}: $value")
+        }
+    }
+}
+
+function Add-ReleaseGovernanceMetricsMarkdownSection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary,
+        [string]$Heading = "### Governance Metrics"
+    )
+
+    $metrics = @(Get-ReleaseBlockerArrayProperty -Object $Summary -Name "governance_metrics")
+    if ($metrics.Count -eq 0) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add($Heading)
+    [void]$Lines.Add("")
+    foreach ($metric in $metrics) {
+        $reportId = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "report_id")
+        $metricName = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "metric")
+        $metricId = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "id")
+        $level = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "level")
+        $score = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "score")
+        $sourceSchema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "source_schema")
+        $sourceReportDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "source_report_display")
+        $sourceJsonDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "source_json_display")
+
+        [void]$Lines.Add("- ${metricId}: report=$reportId metric=$metricName level=$level score=$score source_schema=$sourceSchema")
+        [void]$Lines.Add("  - source_report_display: $sourceReportDisplay")
+        [void]$Lines.Add("  - source_json_display: $sourceJsonDisplay")
+        Add-ReleaseGovernanceMetricDetailLines -Lines $Lines -Metric $metric
+    }
+}
+
+function Add-ReleaseGovernanceMetricDetailLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Metric
+    )
+
+    $details = Get-ReleaseBlockerPropertyObject -Object $Metric -Name "details"
+    if ($null -eq $details) {
+        return
+    }
+
+    $detailFields = @(
+        "document_count",
+        "catalog_exemplar_count",
+        "baseline_entry_count",
+        "matched_document_count",
+        "unmatched_catalog_document_count",
+        "unmatched_baseline_document_count",
+        "alignment_gap_count",
+        "catalog_coverage_percent",
+        "baseline_coverage_percent",
+        "coverage_score",
+        "ready_document_count",
+        "ready_document_percent",
+        "needs_review_document_count",
+        "failed_document_count",
+        "table_style_issue_count",
+        "automatic_tblLook_fix_count",
+        "manual_table_style_fix_count",
+        "table_position_automatic_count",
+        "table_position_review_count",
+        "command_failure_count",
+        "unresolved_item_count"
+    )
+    $detailParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($fieldName in $detailFields) {
+        $value = Get-ReleaseBlockerPropertyObject -Object $details -Name $fieldName
+        if ($null -ne $value -and -not [string]::IsNullOrWhiteSpace([string]$value)) {
+            [void]$detailParts.Add("$fieldName=$value")
+        }
+    }
+    if ($detailParts.Count -gt 0) {
+        [void]$Lines.Add("  - details: $($detailParts -join ', ')")
+    }
+
+    $penaltyParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($penalty in @(Get-ReleaseBlockerArrayProperty -Object $details -Name "penalty_summary")) {
+        $factor = Get-ReleaseBlockerPropertyValue -Object $penalty -Name "factor"
+        if ([string]::IsNullOrWhiteSpace($factor)) {
+            continue
+        }
+
+        $count = Get-ReleaseBlockerPropertyObject -Object $penalty -Name "count"
+        $penaltyValue = Get-ReleaseBlockerPropertyObject -Object $penalty -Name "penalty"
+        [void]$penaltyParts.Add("$factor(count=$count, penalty=$penaltyValue)")
+    }
+    if ($penaltyParts.Count -gt 0) {
+        [void]$Lines.Add("  - penalty_summary: $($penaltyParts -join '; ')")
+    }
+}
+
+function Add-ReleaseGovernanceRollupMarkdownSection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary,
+        [string]$RepoRoot,
+        [string]$Heading = "## Release Governance Rollup Details"
+    )
+
+    $rollup = Get-ReleaseGovernanceRollup -Summary $Summary
+    if ($null -eq $rollup) {
+        return
+    }
+
+    $requested = Get-ReleaseBlockerPropertyValue -Object $rollup -Name "requested"
+    $status = Get-ReleaseBlockerPropertyValue -Object $rollup -Name "status"
+    $releaseBlockers = @(Get-ReleaseBlockerArrayProperty -Object $rollup -Name "release_blockers")
+    $warnings = @(Get-ReleaseBlockerArrayProperty -Object $rollup -Name "warnings")
+    $actionItems = @(Get-ReleaseBlockerArrayProperty -Object $rollup -Name "action_items")
+    if ($requested -eq "False" -and
+        $status -eq "not_requested" -and
+        $releaseBlockers.Count -eq 0 -and
+        $warnings.Count -eq 0 -and
+        $actionItems.Count -eq 0) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add($Heading)
+    [void]$Lines.Add("")
+    [void]$Lines.Add("- Status: $(Get-ReleaseBlockerDisplayValue -Value $status)")
+    [void]$Lines.Add("- Source reports: $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $rollup -Name "source_report_count") -Fallback "0")")
+    [void]$Lines.Add("- Blockers: $($releaseBlockers.Count)")
+    [void]$Lines.Add("- Warnings: $($warnings.Count)")
+    [void]$Lines.Add("- Action items: $($actionItems.Count)")
+
+    Add-ReleaseGovernanceMetricsMarkdownSection -Lines $Lines -Summary $rollup
+
+    if ($releaseBlockers.Count -gt 0) {
+        [void]$Lines.Add("")
+        [void]$Lines.Add("### Rollup Blockers")
+        [void]$Lines.Add("")
+        foreach ($blocker in $releaseBlockers) {
+            [void]$Lines.Add("- $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "id") -Fallback "(unknown blocker)"): action=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "action")) source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_schema"))")
+            $message = Get-ReleaseBlockerPropertyValue -Object $blocker -Name "message"
+            if (-not [string]::IsNullOrWhiteSpace($message)) {
+                [void]$Lines.Add("  - message: $message")
+            }
+            Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $blocker -RepoRoot $RepoRoot
+            Add-ReleaseGovernanceRepairLines -Lines $Lines -Item $blocker
+        }
+    }
+
+    if ($warnings.Count -gt 0) {
+        [void]$Lines.Add("")
+        [void]$Lines.Add("### Rollup Warnings")
+        [void]$Lines.Add("")
+        foreach ($warning in $warnings) {
+            [void]$Lines.Add("- $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "id") -Fallback "(unknown warning)"): action=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "action")) source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_schema"))")
+            $message = Get-ReleaseBlockerPropertyValue -Object $warning -Name "message"
+            if (-not [string]::IsNullOrWhiteSpace($message)) {
+                [void]$Lines.Add("  - message: $message")
+            }
+            Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $warning -RepoRoot $RepoRoot
+        }
+    }
+
+    if ($actionItems.Count -gt 0) {
+        [void]$Lines.Add("")
+        [void]$Lines.Add("### Rollup Action Items")
+        [void]$Lines.Add("")
+        foreach ($item in $actionItems) {
+            [void]$Lines.Add("- $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $item -Name "id") -Fallback "(unknown action item)"): action=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $item -Name "action")) source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $item -Name "source_schema"))")
+            $openCommand = Get-ReleaseBlockerPropertyValue -Object $item -Name "open_command"
+            if (-not [string]::IsNullOrWhiteSpace($openCommand)) {
+                [void]$Lines.Add("  - open_command: $openCommand")
+            }
+            Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $item -RepoRoot $RepoRoot
+            Add-ReleaseGovernanceRepairLines -Lines $Lines -Item $item
+        }
+    }
+}
+
+function Add-ReleaseGovernanceHandoffMarkdownSection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary,
+        [string]$RepoRoot,
+        [string]$Heading = "## Release Governance Handoff Details"
+    )
+
+    $handoff = Get-ReleaseGovernanceHandoff -Summary $Summary
+    if ($null -eq $handoff) {
+        return
+    }
+
+    $requested = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "requested"
+    $status = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "status"
+    $releaseBlockers = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "release_blockers")
+    $warnings = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "warnings")
+    $actionItems = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "action_items")
+    if ($requested -eq "False" -and
+        $status -eq "not_requested" -and
+        $releaseBlockers.Count -eq 0 -and
+        $warnings.Count -eq 0 -and
+        $actionItems.Count -eq 0) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add($Heading)
+    [void]$Lines.Add("")
+    [void]$Lines.Add("- Status: $(Get-ReleaseBlockerDisplayValue -Value $status)")
+    [void]$Lines.Add("- Reports loaded: $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $handoff -Name "loaded_report_count") -Fallback "0") / $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $handoff -Name "expected_report_count") -Fallback "0")")
+    [void]$Lines.Add("- Missing reports: $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $handoff -Name "missing_report_count") -Fallback "0")")
+    [void]$Lines.Add("- Blockers: $($releaseBlockers.Count)")
+    [void]$Lines.Add("- Warnings: $($warnings.Count)")
+    [void]$Lines.Add("- Action items: $($actionItems.Count)")
+
+    Add-ReleaseGovernanceMetricsMarkdownSection -Lines $Lines -Summary $handoff
+
+    if ($releaseBlockers.Count -gt 0) {
+        [void]$Lines.Add("")
+        [void]$Lines.Add("### Handoff Blockers")
+        [void]$Lines.Add("")
+        foreach ($blocker in $releaseBlockers) {
+            $reportId = Get-ReleaseBlockerPropertyValue -Object $blocker -Name "report_id"
+            $id = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "id") -Fallback "(unknown blocker)"
+            [void]$Lines.Add("- $(Get-ReleaseBlockerDisplayValue -Value $reportId -Fallback "(unknown report)") / ${id}: action=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "action")) source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_schema"))")
+            $message = Get-ReleaseBlockerPropertyValue -Object $blocker -Name "message"
+            if (-not [string]::IsNullOrWhiteSpace($message)) {
+                [void]$Lines.Add("  - message: $message")
+            }
+            Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $blocker -RepoRoot $RepoRoot
+            Add-ReleaseGovernanceRepairLines -Lines $Lines -Item $blocker
+        }
+    }
+
+    if ($warnings.Count -gt 0) {
+        [void]$Lines.Add("")
+        [void]$Lines.Add("### Handoff Warnings")
+        [void]$Lines.Add("")
+        foreach ($warning in $warnings) {
+            $reportId = Get-ReleaseBlockerPropertyValue -Object $warning -Name "report_id"
+            $id = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "id") -Fallback "(unknown warning)"
+            [void]$Lines.Add("- $(Get-ReleaseBlockerDisplayValue -Value $reportId -Fallback "(unknown report)") / ${id}: action=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "action")) source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_schema"))")
+            $message = Get-ReleaseBlockerPropertyValue -Object $warning -Name "message"
+            if (-not [string]::IsNullOrWhiteSpace($message)) {
+                [void]$Lines.Add("  - message: $message")
+            }
+            Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $warning -RepoRoot $RepoRoot
+        }
+    }
+
+    if ($actionItems.Count -gt 0) {
+        [void]$Lines.Add("")
+        [void]$Lines.Add("### Handoff Action Items")
+        [void]$Lines.Add("")
+        foreach ($item in $actionItems) {
+            $reportId = Get-ReleaseBlockerPropertyValue -Object $item -Name "report_id"
+            $id = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $item -Name "id") -Fallback "(unknown action item)"
+            [void]$Lines.Add("- $(Get-ReleaseBlockerDisplayValue -Value $reportId -Fallback "(unknown report)") / ${id}: action=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $item -Name "action")) source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $item -Name "source_schema"))")
+            $openCommand = Get-ReleaseBlockerPropertyValue -Object $item -Name "open_command"
+            if (-not [string]::IsNullOrWhiteSpace($openCommand)) {
+                [void]$Lines.Add("  - open_command: $openCommand")
+            }
+            Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $item -RepoRoot $RepoRoot
+            Add-ReleaseGovernanceRepairLines -Lines $Lines -Item $item
+        }
+    }
+}

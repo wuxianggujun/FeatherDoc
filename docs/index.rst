@@ -19,6 +19,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    feature_gap_analysis_zh
    template_schema_mutation_zh
    table_style_definition_zh
+   document_governance_acceptance_zh
    project_score_assessment_zh
    release_policy_zh
    v1_7_roadmap_zh
@@ -312,6 +313,9 @@ setup, bookmarks, images, and template parts.
     featherdoc_cli inspect-omml input.docx --json
     featherdoc_cli append-hyperlink input.docx --text "OpenAI" --target https://openai.com --output link.docx --json
     featherdoc_cli accept-all-revisions input.docx --output accepted.docx --json
+    featherdoc_cli apply-review-mutation-plan input.docx --plan-file review-plan.json --output reviewed.docx --json
+    featherdoc_cli plan-table-position-presets input.docx --preset paragraph-callout --output-plan table-position-plan.json --json
+    featherdoc_cli apply-table-position-plan table-position-plan.json --output positioned.docx --json
     featherdoc_cli inspect-images input.docx
     featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
     featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
@@ -339,11 +343,15 @@ setup, bookmarks, images, and template parts.
     featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt --json
     featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
     featherdoc_cli append-total-pages-field input.docx --part section-footer --section 1 --kind first --output total-pages.docx --json
+    featherdoc_cli append-field input.docx " AUTHOR " --part body --result-text "Ada Lovelace" --output author-field.docx --json
+    featherdoc_cli append-reference-field input.docx target_heading --part body --result-text "Referenced heading" --output ref.docx --json
     featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --result-text "Page reference" --output page-ref.docx --json
     featherdoc_cli append-style-reference-field input.docx "Heading 1" --part body --paragraph-number --result-text "Section heading" --output style-ref.docx --json
     featherdoc_cli append-document-property-field input.docx Title --part body --result-text "Document title" --output doc-property.docx --json
     featherdoc_cli append-date-field input.docx --part body --format "yyyy-MM-dd" --result-text "2026-05-01" --dirty --output date-field.docx --json
     featherdoc_cli append-hyperlink-field input.docx https://example.com/report --part body --anchor target_heading --tooltip "Open target heading" --result-text "Open report" --locked --output hyperlink-field.docx --json
+    featherdoc_cli append-sequence-field input.docx Figure --part body --number-format ROMAN --restart 4 --result-text "IV" --output sequence.docx --json
+    featherdoc_cli replace-field input.docx 0 " SEQ Table \* ARABIC \r 1 " --part body --result-text "1" --output replaced-field.docx --json
     featherdoc_cli append-caption input.docx Figure --part body --text "Architecture overview" --number-result "1" --output caption.docx --json
     featherdoc_cli append-complex-field input.docx --part body --instruction-before " IF " --nested-instruction " MERGEFIELD CustomerName " --nested-result-text "Ada" --instruction-after " = \"Ada\" \"Matched\" \"Other\" " --result-text "Matched" --output complex-field.docx --json
     featherdoc_cli inspect-update-fields-on-open input.docx --json
@@ -725,12 +733,15 @@ it is missing. ``show-section-header`` / ``show-section-footer`` also accept
 ``append-page-number-field`` / ``append-total-pages-field`` append Word
 ``PAGE`` and ``NUMPAGES`` simple fields through
 ``TemplatePart::append_page_number_field()`` and
-``TemplatePart::append_total_pages_field()``. ``append-page-reference-field``,
+``TemplatePart::append_total_pages_field()``. ``append-field``,
+``append-reference-field``, ``append-page-reference-field``,
 ``append-style-reference-field``, ``append-document-property-field``,
 ``append-date-field``, ``append-hyperlink-field``, ``append-caption``,
-``append-index-entry-field``, and ``append-index-field`` add typed ``PAGEREF``,
-``STYLEREF``, ``DOCPROPERTY``, ``DATE``, ``HYPERLINK``, ``SEQ`` caption,
-``XE``, ``INDEX``, and complex nested fields with common switches such as ``--relative-position``,
+``append-sequence-field``, ``append-index-entry-field``, ``append-index-field``,
+``append-complex-field``, and ``replace-field`` add or replace custom,
+``REF``, ``PAGEREF``, ``STYLEREF``, ``DOCPROPERTY``, ``DATE``,
+``HYPERLINK``, ``SEQ`` / caption ``SEQ``, ``XE``, ``INDEX``, and complex
+nested fields with common switches such as ``--relative-position``,
 ``--paragraph-number``, ``--format``, ``--anchor``, ``--tooltip``,
 ``--columns``, ``--dirty``, ``--locked``, ``--no-hyperlink``,
 ``--no-preserve-formatting``, and ``--result-text``. They use the same target
@@ -944,7 +955,8 @@ If you want the API-first version of the same categories, jump back to
   ``inspect-tables``, ``inspect-table-rows``, ``inspect-table-cells``,
   ``set-table-cell-text``, ``append-table-row``, ``insert-table-row-before``,
   ``insert-table-row-after``, ``remove-table-row``, ``merge-table-cells``,
-  ``unmerge-table-cells``, and the ``set-template-table-cell-text`` /
+  ``unmerge-table-cells``, ``plan-table-position-presets``,
+  ``apply-table-position-plan``, and the ``set-template-table-cell-text`` /
   ``append-template-table-row`` family for template parts. See
   :ref:`Tables <featherdoc-tables>`.
 - Images and drawing replacement:
@@ -969,10 +981,13 @@ If you want the API-first version of the same categories, jump back to
   ``featherdoc_sample_page_number_fields``. The matching CLI entry points are
   ``inspect-bookmarks``, ``validate-template``,
   ``append-page-number-field``, ``append-total-pages-field``,
+  ``append-field``, ``append-reference-field``,
   ``append-page-reference-field``, ``append-style-reference-field``,
   ``append-document-property-field``, ``append-date-field``,
-  ``append-hyperlink-field``, ``append-caption``,
-  ``append-index-entry-field``, and ``append-index-field``. See
+  ``append-hyperlink-field``, ``append-sequence-field``,
+  ``append-caption``, ``append-index-entry-field``,
+  ``append-index-field``, ``append-complex-field``, and
+  ``replace-field``. See
   :ref:`Bookmarks And Templates <featherdoc-bookmarks-templates>` and
   :ref:`Headers, Footers, Sections, And Page Setup <featherdoc-sections-page-setup>`.
 - Sections, page setup, and header/footer layout:
@@ -1578,6 +1593,10 @@ catalogs through stable JSON files:
     featherdoc_cli lint-numbering-catalog numbering-catalog.patched.json --json
     featherdoc_cli diff-numbering-catalog numbering-catalog.json numbering-catalog.patched.json --fail-on-diff --json
     featherdoc_cli import-numbering-catalog target.docx --catalog-file numbering-catalog.patched.json --output target-numbering.docx --json
+
+Edit plans can call the same import path with
+``import_numbering_catalog`` and a ``catalog_file`` /
+``numbering_catalog_file`` value.
 
 Catalog patch files accept ``upsert_levels`` entries shaped as a
 ``definition_name`` plus a ``level`` object using the exported

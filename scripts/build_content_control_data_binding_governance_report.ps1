@@ -21,6 +21,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+$contentControlGovernanceSchema = "featherdoc.content_control_data_binding_governance_report.v1"
+$contentControlGovernanceOpenCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[content-control-data-binding-governance] $Message"
@@ -201,6 +204,55 @@ function New-BindingKey {
     return ($StoreItemId.Trim().ToLowerInvariant() + "|" + $XPath.Trim())
 }
 
+function ConvertTo-CommandTemplateArgument {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return '""'
+    }
+    if ($Value -match '^[A-Za-z0-9_./:{}-]+$') {
+        return $Value
+    }
+    return '"' + ($Value -replace '"', '\"') + '"'
+}
+
+function New-ContentControlSelectorTemplate {
+    param([string]$Tag, [string]$Alias)
+
+    if (-not [string]::IsNullOrWhiteSpace($Tag)) {
+        return "--tag " + (ConvertTo-CommandTemplateArgument -Value $Tag)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Alias)) {
+        return "--alias " + (ConvertTo-CommandTemplateArgument -Value $Alias)
+    }
+    return "<content-control-selector>"
+}
+
+function New-SyncContentControlCommandTemplate {
+    return "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+}
+
+function New-ClearLockCommandTemplate {
+    param([string]$Tag, [string]$Alias)
+
+    $selector = New-ContentControlSelectorTemplate -Tag $Tag -Alias $Alias
+    return "featherdoc_cli set-content-control-form-state <input.docx> $selector --clear-lock --output <reviewed.docx> --json"
+}
+
+function New-BindContentControlCommandTemplate {
+    param([string]$Tag, [string]$Alias)
+
+    $selector = New-ContentControlSelectorTemplate -Tag $Tag -Alias $Alias
+    return "featherdoc_cli set-content-control-form-state <input.docx> $selector --data-binding-store-item-id <store-item-id> --data-binding-xpath <xpath> --output <bound.docx> --json"
+}
+
+function New-InspectContentControlCommandTemplate {
+    param([string]$Tag, [string]$Alias)
+
+    $selector = New-ContentControlSelectorTemplate -Tag $Tag -Alias $Alias
+    return "featherdoc_cli inspect-content-controls <input.docx> $selector --json"
+}
+
 function New-ReleaseBlocker {
     param(
         [string]$Id,
@@ -213,7 +265,11 @@ function New-ReleaseBlocker {
         [string]$XPath,
         [string]$Status,
         [string]$Action,
-        [string]$Message
+        [string]$Message,
+        [string]$RepairStrategy = "",
+        [string]$RepairHint = "",
+        [string]$CommandTemplate = "",
+        [string]$SourceJsonDisplay = ""
     )
 
     return [ordered]@{
@@ -222,7 +278,12 @@ function New-ReleaseBlocker {
         status = $Status
         action = $Action
         message = $Message
+        repair_strategy = $RepairStrategy
+        repair_hint = $RepairHint
+        command_template = $CommandTemplate
+        source_schema = $contentControlGovernanceSchema
         source_json = $SourceJson
+        source_json_display = $SourceJsonDisplay
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
@@ -243,20 +304,86 @@ function New-ActionItem {
         [string]$Tag,
         [string]$Alias,
         [string]$StoreItemId,
-        [string]$XPath
+        [string]$XPath,
+        [string]$RepairStrategy = "",
+        [string]$RepairHint = "",
+        [string]$CommandTemplate = "",
+        [string]$SourceJsonDisplay = "",
+        [string]$OpenCommand = $contentControlGovernanceOpenCommand
     )
 
     return [ordered]@{
         id = $Id
         action = $Action
         title = $Title
+        open_command = $OpenCommand
+        repair_strategy = $RepairStrategy
+        repair_hint = $RepairHint
+        command_template = $CommandTemplate
+        source_schema = $contentControlGovernanceSchema
         source_json = $SourceJson
+        source_json_display = $SourceJsonDisplay
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
         alias = $Alias
         store_item_id = $StoreItemId
         xpath = $XPath
+    }
+}
+
+function New-RepairPlanItem {
+    param([string]$SourceKind, $Item)
+
+    $repairStrategy = Get-JsonString -Object $Item -Name "repair_strategy"
+    if ([string]::IsNullOrWhiteSpace($repairStrategy)) {
+        return $null
+    }
+
+    $planStatus = switch ($repairStrategy) {
+        "fix_custom_xml_source" { "source_fix_required" }
+        "sync_bound_content_control" { "review_then_apply" }
+        "review_lock_state" { "review_then_apply" }
+        "bind_or_exempt_form_control" { "requires_user_values" }
+        "deduplicate_or_confirm_shared_binding" { "review_only" }
+        default { "review_only" }
+    }
+    $applySupported = $repairStrategy -in @(
+        "sync_bound_content_control",
+        "review_lock_state",
+        "bind_or_exempt_form_control"
+    )
+    $requiresVisualVerification = $repairStrategy -in @(
+        "fix_custom_xml_source",
+        "sync_bound_content_control",
+        "review_lock_state",
+        "bind_or_exempt_form_control"
+    )
+    $requiredUserValues = if ($repairStrategy -eq "bind_or_exempt_form_control") {
+        @("data_binding_store_item_id", "data_binding_xpath")
+    } else {
+        @()
+    }
+
+    return [ordered]@{
+        source_kind = $SourceKind
+        source_id = Get-JsonString -Object $Item -Name "id"
+        source_schema = Get-JsonString -Object $Item -Name "source_schema"
+        source_json = Get-JsonString -Object $Item -Name "source_json"
+        source_json_display = Get-JsonString -Object $Item -Name "source_json_display"
+        part_entry_name = Get-JsonString -Object $Item -Name "part_entry_name"
+        content_control_index = Get-JsonProperty -Object $Item -Name "content_control_index"
+        tag = Get-JsonString -Object $Item -Name "tag"
+        alias = Get-JsonString -Object $Item -Name "alias"
+        action = Get-JsonString -Object $Item -Name "action"
+        repair_strategy = $repairStrategy
+        repair_hint = Get-JsonString -Object $Item -Name "repair_hint"
+        command_template = Get-JsonString -Object $Item -Name "command_template"
+        plan_status = $planStatus
+        apply_supported = $applySupported
+        native_dry_run_supported = $false
+        required_user_values = @($requiredUserValues)
+        requires_visual_verification = $requiresVisualVerification
     }
 }
 
@@ -378,7 +505,19 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` message=$($blocker.message)") | Out-Null
+            $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
+                $lines.Add("  - message: $($blocker.message)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.repair_strategy)) {
+                $lines.Add("  - repair_strategy: ``$($blocker.repair_strategy)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.repair_hint)) {
+                $lines.Add("  - repair_hint: $($blocker.repair_hint)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
+                $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -388,7 +527,43 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.id)``: action=``$($item.action)`` title=$($item.title)") | Out-Null
+            $lines.Add("- ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.title)) {
+                $lines.Add("  - title: $($item.title)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
+                $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_hint)) {
+                $lines.Add("  - repair_hint: $($item.repair_hint)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
+                $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
+            }
+        }
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Repair Plan Feasibility") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.repair_plan_items).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.repair_plan_items)) {
+            $lines.Add("- ``$($item.source_id)``: source=``$($item.source_kind)`` strategy=``$($item.repair_strategy)`` status=``$($item.plan_status)`` apply_supported=``$($item.apply_supported)`` native_dry_run_supported=``$($item.native_dry_run_supported)`` requires_visual_verification=``$($item.requires_visual_verification)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.tag) -or
+                -not [string]::IsNullOrWhiteSpace([string]$item.alias)) {
+                $lines.Add("  - selector: tag=``$($item.tag)`` alias=``$($item.alias)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
+                $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
+            }
+            $requiredUserValues = @(Get-JsonArray -Object $item -Name "required_user_values")
+            if ($requiredUserValues.Count -gt 0) {
+                $lines.Add("  - required_user_values: ``$($requiredUserValues -join ', ')``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -398,7 +573,10 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
+            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
+                $lines.Add("  - message: $($warning.message)") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -449,6 +627,8 @@ foreach ($path in @($inputPaths)) {
         $status = "missing"
         $warnings.Add([ordered]@{
             id = "input_json_missing"
+            action = "collect_content_control_data_binding_evidence"
+            source_schema = $contentControlGovernanceSchema
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = "Input JSON was not found."
@@ -489,6 +669,8 @@ foreach ($path in @($inputPaths)) {
                     $status = "skipped"
                     $warnings.Add([ordered]@{
                         id = "source_json_schema_skipped"
+                        action = "review_content_control_data_binding_evidence"
+                        source_schema = $contentControlGovernanceSchema
                         source_json = $path
                         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         message = "Input JSON kind '$kind' is not content-control data-binding evidence."
@@ -500,6 +682,8 @@ foreach ($path in @($inputPaths)) {
             $errorMessage = $_.Exception.Message
             $warnings.Add([ordered]@{
                 id = "source_json_read_failed"
+                action = "review_content_control_data_binding_evidence"
+                source_schema = $contentControlGovernanceSchema
                 source_json = $path
                 source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 message = $errorMessage
@@ -531,7 +715,11 @@ foreach ($issue in @($syncIssues.ToArray())) {
                 -XPath ([string]$issue.xpath) `
                 -Status ([string]$issue.reason) `
                 -Action "fix_custom_xml_data_binding_source" `
-                -Message "Custom XML sync failed for a bound content control.")) | Out-Null
+                -Message "Custom XML sync failed for a bound content control." `
+                -RepairStrategy "fix_custom_xml_source" `
+                -RepairHint "Fix the Custom XML source value or mapping, then rerun sync-content-controls-from-custom-xml." `
+                -CommandTemplate (New-SyncContentControlCommandTemplate) `
+                -SourceJsonDisplay ([string]$issue.source_json_display))) | Out-Null
 }
 
 foreach ($control in @($contentControls.ToArray())) {
@@ -548,7 +736,11 @@ foreach ($control in @($contentControls.ToArray())) {
                     -XPath ([string]$control.xpath) `
                     -Status "placeholder_visible" `
                     -Action "sync_or_fill_bound_content_control" `
-                    -Message "A data-bound content control is still showing placeholder text.")) | Out-Null
+                    -Message "A data-bound content control is still showing placeholder text." `
+                    -RepairStrategy "sync_bound_content_control" `
+                    -RepairHint "Rerun Custom XML sync or explicitly fill the bound content control before release." `
+                    -CommandTemplate (New-SyncContentControlCommandTemplate) `
+                    -SourceJsonDisplay ([string]$control.source_json_display))) | Out-Null
     }
 
     if ($hasBinding -and -not [string]::IsNullOrWhiteSpace([string]$control.lock)) {
@@ -562,7 +754,11 @@ foreach ($control in @($contentControls.ToArray())) {
                     -Tag ([string]$control.tag) `
                     -Alias ([string]$control.alias) `
                     -StoreItemId ([string]$control.store_item_id) `
-                    -XPath ([string]$control.xpath))) | Out-Null
+                    -XPath ([string]$control.xpath) `
+                    -RepairStrategy "review_lock_state" `
+                    -RepairHint "Confirm whether the lock is intentional; clear it only if template data should overwrite this control." `
+                    -CommandTemplate (New-ClearLockCommandTemplate -Tag ([string]$control.tag) -Alias ([string]$control.alias)) `
+                    -SourceJsonDisplay ([string]$control.source_json_display))) | Out-Null
     }
 
     if (-not $hasBinding -and [string]$control.form_kind -notin @("", "rich_text", "plain_text")) {
@@ -576,7 +772,11 @@ foreach ($control in @($contentControls.ToArray())) {
                     -Tag ([string]$control.tag) `
                     -Alias ([string]$control.alias) `
                     -StoreItemId "" `
-                    -XPath "")) | Out-Null
+                    -XPath "" `
+                    -RepairStrategy "bind_or_exempt_form_control" `
+                    -RepairHint "Bind the form control to a Custom XML path, or document why it is intentionally unbound." `
+                    -CommandTemplate (New-BindContentControlCommandTemplate -Tag ([string]$control.tag) -Alias ([string]$control.alias)) `
+                    -SourceJsonDisplay ([string]$control.source_json_display))) | Out-Null
     }
 }
 
@@ -595,7 +795,21 @@ foreach ($group in @($bindingGroups)) {
                 -Tag ([string]$first.tag) `
                 -Alias ([string]$first.alias) `
                 -StoreItemId ([string]$first.store_item_id) `
-                -XPath ([string]$first.xpath))) | Out-Null
+                -XPath ([string]$first.xpath) `
+                -RepairStrategy "deduplicate_or_confirm_shared_binding" `
+                -RepairHint "Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths." `
+                -CommandTemplate (New-InspectContentControlCommandTemplate -Tag ([string]$first.tag) -Alias ([string]$first.alias)) `
+                -SourceJsonDisplay ([string]$first.source_json_display))) | Out-Null
+}
+
+$repairPlanItems = New-Object 'System.Collections.Generic.List[object]'
+foreach ($blocker in @($releaseBlockers.ToArray())) {
+    $repairItem = New-RepairPlanItem -SourceKind "release_blocker" -Item $blocker
+    if ($null -ne $repairItem) { $repairPlanItems.Add($repairItem) | Out-Null }
+}
+foreach ($item in @($actionItems.ToArray())) {
+    $repairItem = New-RepairPlanItem -SourceKind "action_item" -Item $item
+    if ($null -ne $repairItem) { $repairPlanItems.Add($repairItem) | Out-Null }
 }
 
 $boundControls = @($contentControls.ToArray() | Where-Object {
@@ -604,12 +818,20 @@ $boundControls = @($contentControls.ToArray() | Where-Object {
 if ($contentControls.Count -eq 0 -and $syncItems.Count -eq 0 -and $syncIssues.Count -eq 0) {
     $warnings.Add([ordered]@{
         id = "content_control_binding_evidence_missing"
+        action = "collect_content_control_data_binding_evidence"
+        source_schema = $contentControlGovernanceSchema
+        source_json = $summaryPath
+        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "No content-control inspection or Custom XML sync evidence was loaded."
     }) | Out-Null
 }
 if ($boundControls.Count -gt 0 -and $syncItems.Count -eq 0 -and $syncIssues.Count -eq 0) {
     $warnings.Add([ordered]@{
         id = "custom_xml_sync_evidence_missing"
+        action = "run_content_control_custom_xml_sync"
+        source_schema = $contentControlGovernanceSchema
+        source_json = $summaryPath
+        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
     }) | Out-Null
 }
@@ -627,7 +849,7 @@ $status = if ($sourceFailureCount -gt 0) {
 }
 
 $summary = [ordered]@{
-    schema = "featherdoc.content_control_data_binding_governance_report.v1"
+    schema = $contentControlGovernanceSchema
     generated_at = (Get-Date).ToString("s")
     status = $status
     release_ready = ($status -eq "ready")
@@ -656,6 +878,14 @@ $summary = [ordered]@{
     binding_status_summary = @(Add-SummaryGroup -Items $contentControls.ToArray() -PropertyName "binding_key" -OutputName "status")
     form_kind_summary = @(Add-SummaryGroup -Items $contentControls.ToArray() -PropertyName "form_kind" -OutputName "form_kind")
     sync_issue_reason_summary = @(Add-SummaryGroup -Items $syncIssues.ToArray() -PropertyName "reason" -OutputName "reason")
+    repair_plan_schema = "featherdoc.content_control_data_binding_repair_plan.v1"
+    repair_plan_item_count = $repairPlanItems.Count
+    repair_plan_apply_supported_count = @($repairPlanItems.ToArray() | Where-Object { [bool]$_.apply_supported }).Count
+    repair_plan_native_dry_run_supported_count = @($repairPlanItems.ToArray() | Where-Object { [bool]$_.native_dry_run_supported }).Count
+    repair_plan_requires_user_values_count = @($repairPlanItems.ToArray() | Where-Object { @(Get-JsonArray -Object $_ -Name "required_user_values").Count -gt 0 }).Count
+    repair_plan_requires_visual_verification_count = @($repairPlanItems.ToArray() | Where-Object { [bool]$_.requires_visual_verification }).Count
+    repair_plan_status_summary = @(Add-SummaryGroup -Items $repairPlanItems.ToArray() -PropertyName "plan_status" -OutputName "plan_status")
+    repair_plan_items = @($repairPlanItems.ToArray())
     release_blocker_count = $releaseBlockers.Count
     release_blockers = @($releaseBlockers.ToArray())
     blocker_id_summary = @(Add-SummaryGroup -Items $releaseBlockers.ToArray() -PropertyName "id" -OutputName "id")

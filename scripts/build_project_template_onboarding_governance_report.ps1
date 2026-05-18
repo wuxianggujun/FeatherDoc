@@ -20,6 +20,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+$onboardingGovernanceSchema = "featherdoc.project_template_onboarding_governance_report.v1"
+$onboardingGovernanceOpenCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1"
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[project-template-onboarding-governance] $Message"
@@ -346,6 +349,7 @@ function New-ReleaseBlocker {
     return [ordered]@{
         id = $Id
         source = $Source
+        source_schema = $onboardingGovernanceSchema
         severity = "error"
         status = $Status
         message = $Message
@@ -532,7 +536,10 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.entry_name)`` / ``$($blocker.id)``: action=``$($blocker.action)`` message=$($blocker.message)") | Out-Null
+            $lines.Add("- ``$($blocker.entry_name)`` / ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
+                $lines.Add("  - message: $($blocker.message)") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -542,7 +549,10 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.entry_name)`` / ``$($item.id)``: action=``$($item.action)``") | Out-Null
+            $lines.Add("- ``$($item.entry_name)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -631,7 +641,9 @@ foreach ($entry in @($entries.ToArray())) {
         $releaseBlockers.Add([ordered]@{
             entry_name = [string]$entry.name
             source_kind = [string]$entry.source_kind
-            source_json = [string]$entry.source_json
+            source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue $onboardingGovernanceSchema
+            source_json = Get-JsonString -Object $blocker -Name "source_json" -DefaultValue ([string]$entry.source_json)
+            source_json_display = Get-JsonString -Object $blocker -Name "source_json_display" -DefaultValue (Get-DisplayPath -RepoRoot $repoRoot -Path ([string]$entry.source_json))
             id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
             severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
             status = Get-JsonString -Object $blocker -Name "status" -DefaultValue ([string]$entry.schema_approval_status)
@@ -643,10 +655,14 @@ foreach ($entry in @($entries.ToArray())) {
         $actionItems.Add([ordered]@{
             entry_name = [string]$entry.name
             source_kind = [string]$entry.source_kind
+            source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue $onboardingGovernanceSchema
+            source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue ([string]$entry.source_json)
+            source_json_display = Get-JsonString -Object $item -Name "source_json_display" -DefaultValue (Get-DisplayPath -RepoRoot $repoRoot -Path ([string]$entry.source_json))
             id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
             command = Get-JsonString -Object $item -Name "command"
+            open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command" -DefaultValue $onboardingGovernanceOpenCommand)
         }) | Out-Null
     }
     foreach ($recommendation in @($entry.manual_review_recommendations)) {
@@ -673,7 +689,7 @@ $status = if ($sourceFailureCount -gt 0) {
 }
 
 $summary = [ordered]@{
-    schema = "featherdoc.project_template_onboarding_governance_report.v1"
+    schema = $onboardingGovernanceSchema
     generated_at = (Get-Date).ToString("s")
     status = $status
     release_ready = ($status -eq "ready")

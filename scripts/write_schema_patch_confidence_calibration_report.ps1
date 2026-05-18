@@ -20,6 +20,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+$calibrationSchema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+$calibrationOpenCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[schema-patch-confidence-calibration] $Message"
@@ -433,6 +436,105 @@ function New-Recommendations {
     return @($recommendations.ToArray())
 }
 
+function New-ReleaseBlockers {
+    param(
+        [object[]]$Entries,
+        [string]$SourceJson,
+        [string]$SourceJsonDisplay
+    )
+
+    $pendingCount = @($Entries | Where-Object { $_.calibration_outcome -eq "pending" }).Count
+    if ($pendingCount -le 0) {
+        return @()
+    }
+
+    return @(
+        [ordered]@{
+            id = "schema_patch_confidence_calibration.pending_schema_approvals"
+            source = "schema_patch_confidence_calibration"
+            severity = "error"
+            status = "pending_review"
+            action = "resolve_pending_schema_approvals"
+            message = "Schema patch confidence calibration still contains pending approval outcome(s)."
+            pending_count = $pendingCount
+            source_schema = $calibrationSchema
+            source_json = $SourceJson
+            source_json_display = $SourceJsonDisplay
+        }
+    )
+}
+
+function New-Warnings {
+    param(
+        [object[]]$Entries,
+        [object[]]$InputSummaries,
+        [string]$SourceJson,
+        [string]$SourceJsonDisplay
+    )
+
+    $warnings = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($inputSummary in @($InputSummaries | Where-Object { $_.status -eq "failed" })) {
+        $warnings.Add([ordered]@{
+            id = "schema_patch_confidence_calibration.source_json_read_failed"
+            action = "review_schema_patch_confidence_calibration_evidence"
+            message = Get-JsonString -Object $inputSummary -Name "error" -DefaultValue "Input JSON could not be read."
+            source_schema = $calibrationSchema
+            source_json = Get-JsonString -Object $inputSummary -Name "path"
+            source_json_display = Get-JsonString -Object $inputSummary -Name "path_display"
+        }) | Out-Null
+    }
+
+    $invalidCount = @($Entries | Where-Object { $_.calibration_outcome -eq "invalid_result" }).Count
+    if ($invalidCount -gt 0) {
+        $warnings.Add([ordered]@{
+            id = "schema_patch_confidence_calibration.invalid_approval_records"
+            action = "fix_invalid_approval_records"
+            message = "Invalid approval records make calibration rates unreliable."
+            invalid_result_count = $invalidCount
+            source_schema = $calibrationSchema
+            source_json = $SourceJson
+            source_json_display = $SourceJsonDisplay
+        }) | Out-Null
+    }
+
+    $unscoredCount = @($Entries | Where-Object { $_.calibration_bucket -eq "unscored" }).Count
+    if ($unscoredCount -gt 0) {
+        $warnings.Add([ordered]@{
+            id = "schema_patch_confidence_calibration.unscored_candidates"
+            action = "add_explicit_confidence_metadata"
+            message = "Some schema patch candidates do not carry explicit confidence metadata."
+            unscored_count = $unscoredCount
+            source_schema = $calibrationSchema
+            source_json = $SourceJson
+            source_json_display = $SourceJsonDisplay
+        }) | Out-Null
+    }
+
+    return @($warnings.ToArray())
+}
+
+function New-ActionItems {
+    param(
+        [object[]]$Recommendations,
+        [string]$SourceJson,
+        [string]$SourceJsonDisplay
+    )
+
+    return @(
+        foreach ($recommendation in @($Recommendations)) {
+            [ordered]@{
+                id = Get-JsonString -Object $recommendation -Name "id" -DefaultValue "schema_patch_confidence_calibration_action"
+                action = Get-JsonString -Object $recommendation -Name "id" -DefaultValue "review_schema_patch_confidence_calibration"
+                title = Get-JsonString -Object $recommendation -Name "recommendation"
+                open_command = $calibrationOpenCommand
+                source_schema = $calibrationSchema
+                source_json = $SourceJson
+                source_json_display = $SourceJsonDisplay
+            }
+        }
+    )
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -458,6 +560,45 @@ function New-ReportMarkdown {
     }
     if (@($Summary.approval_outcome_summary).Count -eq 0) {
         $lines.Add("- none") | Out-Null
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Release Blockers") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.release_blockers).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($blocker in @($Summary.release_blockers)) {
+            $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
+                $lines.Add("  - message: $($blocker.message)") | Out-Null
+            }
+        }
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Warnings") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.warnings).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($warning in @($Summary.warnings)) {
+            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
+                $lines.Add("  - message: $($warning.message)") | Out-Null
+            }
+        }
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Action Items") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.action_items).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.action_items)) {
+            $lines.Add("- ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
+        }
     }
     $lines.Add("") | Out-Null
     $lines.Add("## Recommendations") | Out-Null
@@ -525,6 +666,11 @@ $entryArray = @($entries.ToArray())
 $recommendedMinConfidence = Get-RecommendedMinConfidence -Entries $entryArray
 $pendingCount = @($entryArray | Where-Object { $_.calibration_outcome -eq "pending" }).Count
 $sourceFailureCount = @($inputSummaries.ToArray() | Where-Object { $_.status -eq "failed" }).Count
+$summaryDisplayPath = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+$recommendations = @(New-Recommendations -Entries $entryArray -RecommendedMinConfidence $recommendedMinConfidence)
+$releaseBlockers = @(New-ReleaseBlockers -Entries $entryArray -SourceJson $summaryPath -SourceJsonDisplay $summaryDisplayPath)
+$warnings = @(New-Warnings -Entries $entryArray -InputSummaries $inputSummaries.ToArray() -SourceJson $summaryPath -SourceJsonDisplay $summaryDisplayPath)
+$actionItems = @(New-ActionItems -Recommendations $recommendations -SourceJson $summaryPath -SourceJsonDisplay $summaryDisplayPath)
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($pendingCount -gt 0) {
@@ -534,11 +680,18 @@ $status = if ($sourceFailureCount -gt 0) {
 }
 
 $summaryObject = [ordered]@{
-    schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+    schema = $calibrationSchema
     generated_at = (Get-Date).ToString("s")
     status = $status
+    release_ready = ($status -eq "ready")
+    output_dir = $resolvedOutputDir
+    summary_json = $summaryPath
+    summary_json_display = $summaryDisplayPath
+    report_markdown = $markdownPath
+    report_markdown_display = Get-DisplayPath -RepoRoot $repoRoot -Path $markdownPath
     input_summaries = @($inputSummaries.ToArray())
     input_summary_count = $inputSummaries.Count
+    source_failure_count = $sourceFailureCount
     run_count = $inputSummaries.Count
     entry_count = $entryArray.Count
     confidence_source = Get-ConfidenceSource -Entries $entryArray
@@ -548,7 +701,13 @@ $summaryObject = [ordered]@{
     confidence_buckets = @(New-BucketSummary -Entries $entryArray)
     reason_code_summary = @(New-GroupSummary -Entries $entryArray -PropertyName "reason_code" -OutputName "reason_code")
     entries = $entryArray
-    recommendations = @(New-Recommendations -Entries $entryArray -RecommendedMinConfidence $recommendedMinConfidence)
+    release_blocker_count = $releaseBlockers.Count
+    release_blockers = @($releaseBlockers)
+    warning_count = $warnings.Count
+    warnings = @($warnings)
+    action_item_count = $actionItems.Count
+    action_items = @($actionItems)
+    recommendations = @($recommendations)
 }
 
 ($summaryObject | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
