@@ -201,6 +201,33 @@ function Get-ConfidenceSource {
     return "schema_patch_review"
 }
 
+function ConvertTo-StableIdSegment {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return "unknown" }
+    $normalized = ([string]$Value).Trim().ToLowerInvariant() -replace "[^a-z0-9]+", "_"
+    $normalized = $normalized.Trim("_")
+    if ([string]::IsNullOrWhiteSpace($normalized)) { return "unknown" }
+    return $normalized
+}
+
+function Get-EntryScopeId {
+    param($Entry)
+
+    $projectId = Get-JsonString -Object $Entry -Name "project_id" -DefaultValue "project"
+    $templateName = Get-JsonString -Object $Entry -Name "template_name" -DefaultValue (Get-JsonString -Object $Entry -Name "name" -DefaultValue "template")
+    $candidateType = Get-JsonString -Object $Entry -Name "candidate_type" -DefaultValue "candidate"
+    $segments = @($projectId, $templateName, $candidateType) | ForEach-Object { ConvertTo-StableIdSegment -Value $_ }
+    return ($segments -join ".")
+}
+
+function Get-ScopedGovernanceId {
+    param([string]$BaseId, $Entry, [int]$AffectedCount)
+
+    if ($AffectedCount -le 1) { return $BaseId }
+    return "$BaseId.$(Get-EntryScopeId -Entry $Entry)"
+}
+
 function Get-TemplateScope {
     param([string]$ProjectId, [string]$TemplateName)
 
@@ -259,32 +286,6 @@ function New-SchemaPatchOperationSummary {
         inserted_slot_count = $InsertedSlots
         replaced_slot_count = $ReplacedSlots
     }
-}
-
-function Add-EntryScope {
-    param(
-        [System.Collections.IDictionary]$Item,
-        $Entry
-    )
-
-    $Item["project_id"] = Get-JsonString -Object $Entry -Name "project_id"
-    $Item["template_name"] = Get-JsonString -Object $Entry -Name "template_name"
-    $Item["template_scope"] = Get-JsonString -Object $Entry -Name "template_scope"
-    $Item["candidate_type"] = Get-JsonString -Object $Entry -Name "candidate_type"
-    $Item["candidate_name"] = Get-JsonString -Object $Entry -Name "name"
-    $Item["schema_update_candidate"] = Get-JsonString -Object $Entry -Name "schema_update_candidate"
-    return $Item
-}
-
-function Get-FirstEntryByFilter {
-    param([object[]]$Entries, [string]$PropertyName, [string]$ExpectedValue)
-
-    foreach ($entry in @($Entries)) {
-        if ((Get-JsonString -Object $entry -Name $PropertyName) -eq $ExpectedValue) {
-            return $entry
-        }
-    }
-    return $null
 }
 
 function New-EntryFromReviewAndApproval {
@@ -382,13 +383,15 @@ function Add-EntriesFromSmokeSummary {
     param(
         [string]$Path,
         $Summary,
-        [System.Collections.Generic.List[object]]$Entries
+        [System.Collections.Generic.List[object]]$Entries,
+        [string]$ProjectId = "",
+        [string]$TemplateName = ""
     )
 
     $reviews = @(Get-JsonArray -Object $Summary -Name "schema_patch_reviews")
     $approvals = @(Get-JsonArray -Object $Summary -Name "schema_patch_approval_items")
-    $summaryProjectId = Get-JsonString -Object $Summary -Name "project_id"
-    $summaryTemplateName = Get-JsonString -Object $Summary -Name "template_name"
+    $summaryProjectId = Get-JsonString -Object $Summary -Name "project_id" -DefaultValue $ProjectId
+    $summaryTemplateName = Get-JsonString -Object $Summary -Name "template_name" -DefaultValue $TemplateName
 
     if ($reviews.Count -eq 0 -and $approvals.Count -eq 0) {
         return
@@ -428,16 +431,15 @@ function Add-EntriesFromHistory {
     )
 
     foreach ($entryHistory in @(Get-JsonArray -Object $Summary -Name "entry_histories")) {
-        $historyProjectId = Get-JsonString -Object $entryHistory -Name "project_id" -DefaultValue (Get-JsonString -Object $Summary -Name "project_id")
+        $historyProjectId = Get-JsonString -Object $entryHistory -Name "project_id"
         $historyTemplateName = Get-JsonString -Object $entryHistory -Name "template_name" -DefaultValue (Get-JsonString -Object $entryHistory -Name "name")
         foreach ($run in @(Get-JsonArray -Object $entryHistory -Name "runs")) {
-            if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $run -Name "project_id"))) {
-                $run | Add-Member -NotePropertyName "project_id" -NotePropertyValue $historyProjectId -Force
-            }
-            if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $run -Name "template_name"))) {
-                $run | Add-Member -NotePropertyName "template_name" -NotePropertyValue $historyTemplateName -Force
-            }
-            Add-EntriesFromSmokeSummary -Path $Path -Summary $run -Entries $Entries
+            Add-EntriesFromSmokeSummary `
+                -Path $Path `
+                -Summary $run `
+                -Entries $Entries `
+                -ProjectId (Get-JsonString -Object $run -Name "project_id" -DefaultValue $historyProjectId) `
+                -TemplateName (Get-JsonString -Object $run -Name "template_name" -DefaultValue $historyTemplateName)
         }
     }
 }
@@ -481,20 +483,20 @@ function New-BucketSummary {
 function New-GroupSummary {
     param([object[]]$Entries, [string]$PropertyName, [string]$OutputName)
 
-    $groups = New-Object 'System.Collections.Generic.Dictionary[string,int]'
+    $counts = @{}
     foreach ($entry in @($Entries)) {
-        $key = Get-JsonString -Object $entry -Name $PropertyName
-        if (-not $groups.ContainsKey($key)) {
-            $groups[$key] = 0
+        $value = Get-JsonString -Object $entry -Name $PropertyName
+        if (-not $counts.ContainsKey($value)) {
+            $counts[$value] = 0
         }
-        $groups[$key] += 1
+        $counts[$value] = [int]$counts[$value] + 1
     }
 
     return @(
-        foreach ($group in @($groups.GetEnumerator() |
-            Sort-Object -Property @{ Expression = "Value"; Descending = $true }, @{ Expression = "Key"; Ascending = $true })) {
+        foreach ($group in @($counts.GetEnumerator() |
+            Sort-Object -Property @{ Expression = "Value"; Descending = $true }, @{ Expression = "Name"; Ascending = $true })) {
             $summary = [ordered]@{}
-            $summary[$OutputName] = [string]$group.Key
+            $summary[$OutputName] = [string]$group.Name
             $summary["count"] = [int]$group.Value
             $summary
         }
@@ -524,16 +526,41 @@ function Get-RecommendedMinConfidence {
     return [int]$minimum
 }
 
+function Add-ScopedRecommendations {
+    param(
+        [System.Collections.Generic.List[object]]$Recommendations,
+        [object[]]$Entries,
+        [string]$BaseId,
+        [string]$Priority,
+        [string]$Recommendation,
+        [string]$CountName
+    )
+
+    $affectedEntries = @($Entries)
+    foreach ($entry in $affectedEntries) {
+        $item = [ordered]@{
+            id = Get-ScopedGovernanceId -BaseId $BaseId -Entry $entry -AffectedCount $affectedEntries.Count
+            priority = $Priority
+            recommendation = $Recommendation
+            project_id = Get-JsonString -Object $entry -Name "project_id"
+            template_name = Get-JsonString -Object $entry -Name "template_name"
+            template_scope = Get-JsonString -Object $entry -Name "template_scope"
+            candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
+            candidate_name = Get-JsonString -Object $entry -Name "name"
+            schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
+        }
+        $item[$CountName] = 1
+        $Recommendations.Add($item) | Out-Null
+    }
+}
+
 function New-Recommendations {
     param([object[]]$Entries, $RecommendedMinConfidence)
 
     $recommendations = New-Object 'System.Collections.Generic.List[object]'
-    $pendingCount = @($Entries | Where-Object { $_.calibration_outcome -eq "pending" }).Count
-    $invalidCount = @($Entries | Where-Object { $_.calibration_outcome -eq "invalid_result" }).Count
-    $unscoredCount = @($Entries | Where-Object { $_.calibration_bucket -eq "unscored" }).Count
-    $pendingEntry = Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_outcome" -ExpectedValue "pending"
-    $invalidEntry = Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_outcome" -ExpectedValue "invalid_result"
-    $unscoredEntry = Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_bucket" -ExpectedValue "unscored"
+    $pendingEntries = @($Entries | Where-Object { $_.calibration_outcome -eq "pending" })
+    $invalidEntries = @($Entries | Where-Object { $_.calibration_outcome -eq "invalid_result" })
+    $unscoredEntries = @($Entries | Where-Object { $_.calibration_bucket -eq "unscored" })
 
     if ($null -ne $RecommendedMinConfidence) {
         $recommendations.Add([ordered]@{
@@ -543,33 +570,27 @@ function New-Recommendations {
             recommended_min_confidence = $RecommendedMinConfidence
         }) | Out-Null
     }
-    if ($pendingCount -gt 0) {
-        $recommendation = [ordered]@{
-            id = "resolve_pending_schema_approvals"
-            priority = "high"
-            recommendation = "Resolve pending schema approvals before using this data to tighten automation thresholds."
-            pending_count = $pendingCount
-        }
-        $recommendations.Add((Add-EntryScope -Item $recommendation -Entry $pendingEntry)) | Out-Null
-    }
-    if ($invalidCount -gt 0) {
-        $recommendation = [ordered]@{
-            id = "fix_invalid_approval_records"
-            priority = "high"
-            recommendation = "Fix invalid approval records before treating approval rates as reliable."
-            invalid_result_count = $invalidCount
-        }
-        $recommendations.Add((Add-EntryScope -Item $recommendation -Entry $invalidEntry)) | Out-Null
-    }
-    if ($unscoredCount -gt 0) {
-        $recommendation = [ordered]@{
-            id = "add_explicit_confidence_metadata"
-            priority = "medium"
-            recommendation = "Add explicit confidence metadata to future schema patch review or approval records."
-            unscored_count = $unscoredCount
-        }
-        $recommendations.Add((Add-EntryScope -Item $recommendation -Entry $unscoredEntry)) | Out-Null
-    }
+    Add-ScopedRecommendations `
+        -Recommendations $recommendations `
+        -Entries $pendingEntries `
+        -BaseId "resolve_pending_schema_approvals" `
+        -Priority "high" `
+        -Recommendation "Resolve pending schema approvals before using this data to tighten automation thresholds." `
+        -CountName "pending_count"
+    Add-ScopedRecommendations `
+        -Recommendations $recommendations `
+        -Entries $invalidEntries `
+        -BaseId "fix_invalid_approval_records" `
+        -Priority "high" `
+        -Recommendation "Fix invalid approval records before treating approval rates as reliable." `
+        -CountName "invalid_result_count"
+    Add-ScopedRecommendations `
+        -Recommendations $recommendations `
+        -Entries $unscoredEntries `
+        -BaseId "add_explicit_confidence_metadata" `
+        -Priority "medium" `
+        -Recommendation "Add explicit confidence metadata to future schema patch review or approval records." `
+        -CountName "unscored_count"
 
     return @($recommendations.ToArray())
 }
@@ -581,28 +602,52 @@ function New-ReleaseBlockers {
         [string]$SourceJsonDisplay
     )
 
-    $pendingCount = @($Entries | Where-Object { $_.calibration_outcome -eq "pending" }).Count
-    if ($pendingCount -le 0) {
-        return @()
+    $blockers = New-Object 'System.Collections.Generic.List[object]'
+    $pendingEntries = @($Entries | Where-Object { $_.calibration_outcome -eq "pending" })
+    foreach ($entry in $pendingEntries) {
+        $blockers.Add([ordered]@{
+            id = Get-ScopedGovernanceId -BaseId "schema_patch_confidence_calibration.pending_schema_approvals" -Entry $entry -AffectedCount $pendingEntries.Count
+            source = "schema_patch_confidence_calibration"
+            severity = "error"
+            status = "pending_review"
+            action = "resolve_pending_schema_approvals"
+            message = "Schema patch confidence calibration still contains pending approval outcome(s)."
+            pending_count = 1
+            project_id = Get-JsonString -Object $entry -Name "project_id"
+            template_name = Get-JsonString -Object $entry -Name "template_name"
+            template_scope = Get-JsonString -Object $entry -Name "template_scope"
+            candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
+            candidate_name = Get-JsonString -Object $entry -Name "name"
+            schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
+            source_schema = $calibrationSchema
+            source_json = $SourceJson
+            source_json_display = $SourceJsonDisplay
+        }) | Out-Null
     }
 
-    $pendingEntry = Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_outcome" -ExpectedValue "pending"
-    $blocker = [ordered]@{
-        id = "schema_patch_confidence_calibration.pending_schema_approvals"
-        source = "schema_patch_confidence_calibration"
-        severity = "error"
-        status = "pending_review"
-        action = "resolve_pending_schema_approvals"
-        message = "Schema patch confidence calibration still contains pending approval outcome(s)."
-        pending_count = $pendingCount
-        source_schema = $calibrationSchema
-        source_json = $SourceJson
-        source_json_display = $SourceJsonDisplay
+    $invalidEntries = @($Entries | Where-Object { $_.calibration_outcome -eq "invalid_result" })
+    foreach ($entry in $invalidEntries) {
+        $blockers.Add([ordered]@{
+            id = Get-ScopedGovernanceId -BaseId "schema_patch_confidence_calibration.invalid_approval_records" -Entry $entry -AffectedCount $invalidEntries.Count
+            source = "schema_patch_confidence_calibration"
+            severity = "error"
+            status = "blocked"
+            action = "fix_invalid_approval_records"
+            message = "Schema patch confidence calibration contains invalid approval record(s)."
+            invalid_result_count = 1
+            project_id = Get-JsonString -Object $entry -Name "project_id"
+            template_name = Get-JsonString -Object $entry -Name "template_name"
+            template_scope = Get-JsonString -Object $entry -Name "template_scope"
+            candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
+            candidate_name = Get-JsonString -Object $entry -Name "name"
+            schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
+            source_schema = $calibrationSchema
+            source_json = $SourceJson
+            source_json_display = $SourceJsonDisplay
+        }) | Out-Null
     }
-    Add-EntryScope -Item $blocker -Entry $pendingEntry | Out-Null
-    return @(
-        $blocker
-    )
+
+    return @($blockers.ToArray())
 }
 
 function New-Warnings {
@@ -631,34 +676,23 @@ function New-Warnings {
         }) | Out-Null
     }
 
-    $invalidCount = @($Entries | Where-Object { $_.calibration_outcome -eq "invalid_result" }).Count
-    if ($invalidCount -gt 0) {
-        $warning = [ordered]@{
-            id = "schema_patch_confidence_calibration.invalid_approval_records"
-            action = "fix_invalid_approval_records"
-            message = "Invalid approval records make calibration rates unreliable."
-            invalid_result_count = $invalidCount
-            source_schema = $calibrationSchema
-            source_json = $SourceJson
-            source_json_display = $SourceJsonDisplay
-        }
-        Add-EntryScope -Item $warning -Entry (Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_outcome" -ExpectedValue "invalid_result") | Out-Null
-        $warnings.Add($warning) | Out-Null
-    }
-
-    $unscoredCount = @($Entries | Where-Object { $_.calibration_bucket -eq "unscored" }).Count
-    if ($unscoredCount -gt 0) {
-        $warning = [ordered]@{
-            id = "schema_patch_confidence_calibration.unscored_candidates"
+    $unscoredEntries = @($Entries | Where-Object { $_.calibration_bucket -eq "unscored" })
+    foreach ($entry in $unscoredEntries) {
+        $warnings.Add([ordered]@{
+            id = Get-ScopedGovernanceId -BaseId "schema_patch_confidence_calibration.unscored_candidates" -Entry $entry -AffectedCount $unscoredEntries.Count
             action = "add_explicit_confidence_metadata"
             message = "Some schema patch candidates do not carry explicit confidence metadata."
-            unscored_count = $unscoredCount
+            unscored_count = 1
+            project_id = Get-JsonString -Object $entry -Name "project_id"
+            template_name = Get-JsonString -Object $entry -Name "template_name"
+            template_scope = Get-JsonString -Object $entry -Name "template_scope"
+            candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
+            candidate_name = Get-JsonString -Object $entry -Name "name"
+            schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
             source_schema = $calibrationSchema
             source_json = $SourceJson
             source_json_display = $SourceJsonDisplay
-        }
-        Add-EntryScope -Item $warning -Entry (Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_bucket" -ExpectedValue "unscored") | Out-Null
-        $warnings.Add($warning) | Out-Null
+        }) | Out-Null
     }
 
     return @($warnings.ToArray())
@@ -842,6 +876,7 @@ foreach ($path in @($inputPaths)) {
 $entryArray = @($entries.ToArray())
 $recommendedMinConfidence = Get-RecommendedMinConfidence -Entries $entryArray
 $pendingCount = @($entryArray | Where-Object { $_.calibration_outcome -eq "pending" }).Count
+$invalidCount = @($entryArray | Where-Object { $_.calibration_outcome -eq "invalid_result" }).Count
 $sourceFailureCount = @($inputSummaries.ToArray() | Where-Object { $_.status -eq "failed" }).Count
 $summaryDisplayPath = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
 $recommendations = @(New-Recommendations -Entries $entryArray -RecommendedMinConfidence $recommendedMinConfidence)
@@ -850,6 +885,8 @@ $warnings = @(New-Warnings -Entries $entryArray -InputSummaries $inputSummaries.
 $actionItems = @(New-ActionItems -Recommendations $recommendations -SourceJson $summaryPath -SourceJsonDisplay $summaryDisplayPath)
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
+} elseif ($invalidCount -gt 0) {
+    "blocked"
 } elseif ($pendingCount -gt 0) {
     "pending_review"
 } else {
@@ -900,4 +937,4 @@ Write-Step "Report Markdown: $markdownPath"
 Write-Step "Status: $status"
 
 if ($sourceFailureCount -gt 0) { exit 1 }
-if ($FailOnPending -and $pendingCount -gt 0) { exit 1 }
+if ($FailOnPending -and (($pendingCount + $invalidCount) -gt 0)) { exit 1 }
