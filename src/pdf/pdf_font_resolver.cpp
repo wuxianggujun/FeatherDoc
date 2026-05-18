@@ -4,11 +4,18 @@
 #include <cctype>
 #include <cstdlib>
 #include <filesystem>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
 namespace featherdoc::pdf {
 namespace {
@@ -22,6 +29,45 @@ struct ResolvedFontPath {
     std::filesystem::path path;
     bool synthetic_bold{false};
     bool synthetic_italic{false};
+};
+
+struct FreeTypeLibrary {
+    FT_Library library{nullptr};
+
+    FreeTypeLibrary() {
+        if (FT_Init_FreeType(&library) != 0) {
+            library = nullptr;
+        }
+    }
+
+    ~FreeTypeLibrary() {
+        if (library != nullptr) {
+            FT_Done_FreeType(library);
+        }
+    }
+
+    FreeTypeLibrary(const FreeTypeLibrary &) = delete;
+    FreeTypeLibrary &operator=(const FreeTypeLibrary &) = delete;
+
+    [[nodiscard]] bool valid() const noexcept { return library != nullptr; }
+};
+
+using FreeTypeLibraryPtr = std::shared_ptr<FreeTypeLibrary>;
+
+struct FreeTypeFaceDeleter {
+    void operator()(FT_Face face) const noexcept {
+        if (face != nullptr) {
+            FT_Done_Face(face);
+        }
+    }
+};
+
+using FreeTypeFacePtr =
+    std::unique_ptr<std::remove_pointer_t<FT_Face>, FreeTypeFaceDeleter>;
+
+struct FreeTypeFaceHandle {
+    FreeTypeLibraryPtr library;
+    FreeTypeFacePtr face;
 };
 
 [[nodiscard]] std::size_t utf8_codepoint_size(unsigned char lead) noexcept {
@@ -153,6 +199,67 @@ find_mapped_font_path(const std::vector<PdfFontMapping> &mappings,
     }
 
     return std::nullopt;
+}
+
+[[nodiscard]] FreeTypeLibraryPtr acquire_freetype_library() {
+    static std::mutex mutex;
+    static std::weak_ptr<FreeTypeLibrary> weak_library;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    if (auto library = weak_library.lock()) {
+        return library;
+    }
+
+    auto library = std::make_shared<FreeTypeLibrary>();
+    if (!library->valid()) {
+        return {};
+    }
+
+    weak_library = library;
+    return library;
+}
+
+[[nodiscard]] std::optional<FreeTypeFaceHandle>
+load_freetype_face(const std::filesystem::path &font_file_path) {
+    if (font_file_path.empty() || !path_exists(font_file_path)) {
+        return std::nullopt;
+    }
+
+    const auto library = acquire_freetype_library();
+    if (!library) {
+        return std::nullopt;
+    }
+
+    FT_Face face = nullptr;
+    const auto font_path = font_file_path.string();
+    if (FT_New_Face(library->library, font_path.c_str(), 0, &face) != 0 ||
+        face == nullptr) {
+        return std::nullopt;
+    }
+
+    return FreeTypeFaceHandle{library, FreeTypeFacePtr(face)};
+}
+
+[[nodiscard]] const FreeTypeFaceHandle *
+find_cached_freetype_face(const std::filesystem::path &font_file_path) {
+    if (font_file_path.empty()) {
+        return nullptr;
+    }
+
+    static std::mutex mutex;
+    static std::map<std::filesystem::path, std::optional<FreeTypeFaceHandle>>
+        cache;
+
+    const auto normalized_path =
+        std::filesystem::absolute(font_file_path).lexically_normal();
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto [entry, inserted] = cache.try_emplace(normalized_path);
+    if (inserted) {
+        entry->second = load_freetype_face(normalized_path);
+    }
+
+    return entry->second ? &*entry->second : nullptr;
 }
 
 [[nodiscard]] std::vector<std::filesystem::path>
@@ -370,6 +477,19 @@ system_font_candidates_for_family(std::string_view font_family, bool bold,
            (codepoint >= 0x20000U && codepoint <= 0x2FA1FU);
 }
 
+[[nodiscard]] bool is_ignorable_font_codepoint(char32_t codepoint) noexcept {
+    return codepoint == U'\n' || codepoint == U'\r' || codepoint == U'\t' ||
+           codepoint == 0x00ADU ||
+           (codepoint >= 0x0300U && codepoint <= 0x036FU) ||
+           (codepoint >= 0x1AB0U && codepoint <= 0x1AFFU) ||
+           (codepoint >= 0x1DC0U && codepoint <= 0x1DFFU) ||
+           (codepoint >= 0x20D0U && codepoint <= 0x20FFU) ||
+           (codepoint >= 0xFE00U && codepoint <= 0xFE0FU) ||
+           (codepoint >= 0xFE20U && codepoint <= 0xFE2FU) ||
+           codepoint == 0x200BU || codepoint == 0x200CU ||
+           codepoint == 0x200DU || codepoint == 0x2060U;
+}
+
 [[nodiscard]] std::optional<ResolvedFontPath>
 find_system_font_path(std::string_view font_family, bool bold, bool italic) {
     const auto candidates =
@@ -388,6 +508,63 @@ find_system_font_path(std::string_view font_family, bool bold, bool italic) {
                   *resolved) != regular_candidates.end();
     return ResolvedFontPath{*resolved, regular_fallback && bold,
                             regular_fallback && italic};
+}
+
+[[nodiscard]] std::optional<bool>
+font_path_supports_text(const std::filesystem::path &font_file_path,
+                        std::string_view text) {
+    const auto *handle = find_cached_freetype_face(font_file_path);
+    if (handle == nullptr || handle->face == nullptr) {
+        return std::nullopt;
+    }
+
+    auto *face = handle->face.get();
+    for (std::size_t index = 0U; index < text.size();) {
+        const auto decoded = decode_utf8_codepoint(text, index);
+        index += decoded.size;
+
+        if (is_ignorable_font_codepoint(decoded.value)) {
+            continue;
+        }
+
+        if (FT_Get_Char_Index(face, static_cast<FT_ULong>(decoded.value)) ==
+            0U) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+[[nodiscard]] std::optional<ResolvedFontPath>
+resolve_unicode_fallback_path(const PdfFontResolverOptions &options,
+                              std::string_view east_asia_font_family,
+                              bool bold, bool italic) {
+    if (!east_asia_font_family.empty()) {
+        auto resolved_path = find_mapped_font_path(
+            options.font_mappings, east_asia_font_family, bold, italic);
+        if (!resolved_path && options.use_system_font_fallbacks) {
+            resolved_path =
+                find_system_font_path(east_asia_font_family, bold, italic);
+        }
+        if (resolved_path) {
+            return resolved_path;
+        }
+    }
+
+    if (path_exists(options.default_cjk_font_file_path)) {
+        return ResolvedFontPath{options.default_cjk_font_file_path, bold,
+                                italic};
+    }
+
+    if (options.use_system_font_fallbacks) {
+        const auto fallback = first_existing_path(cjk_fallback_candidates());
+        if (fallback) {
+            return ResolvedFontPath{*fallback, bold, italic};
+        }
+    }
+
+    return std::nullopt;
 }
 
 } // namespace
@@ -504,6 +681,27 @@ PdfResolvedFont PdfFontResolver::resolve(std::string_view font_family,
         const auto fallback = first_existing_path(latin_fallback_candidates());
         if (fallback) {
             resolved_path = ResolvedFontPath{*fallback, bold, italic};
+        }
+    }
+
+    if (unicode_text && resolved_path) {
+        const auto current_supports_text =
+            font_path_supports_text(resolved_path->path, text);
+        if (current_supports_text.has_value() && !*current_supports_text) {
+            const auto unicode_fallback = resolve_unicode_fallback_path(
+                this->options_, east_asia_font_family, bold, italic);
+            if (unicode_fallback &&
+                unicode_fallback->path != resolved_path->path) {
+                const auto fallback_supports_text =
+                    font_path_supports_text(unicode_fallback->path, text);
+                if (fallback_supports_text.has_value() &&
+                    *fallback_supports_text) {
+                    resolved_path = unicode_fallback;
+                    if (!east_asia_font_family.empty()) {
+                        resolved_family = std::string{east_asia_font_family};
+                    }
+                }
+            }
         }
     }
 

@@ -494,6 +494,10 @@ CJK 字体选择的默认顺序是：
 CJK 检测会把中文、日文假名、韩文、注音、CJK 兼容符号和全角形式都视为
 East Asia 字体路径候选，避免这些脚本误走 Latin fallback。
 
+如果 run 已经先命中 Latin 字体，但 FreeType 检查发现该字体缺少当前 Unicode 文本中的
+非忽略字形，resolver 会再尝试 East Asia 显式映射、`cjk_font_file_path` 或系统 CJK
+fallback。这个兜底用于 CJK 符号、列表前缀和混排标点，避免文本被绑定到缺字形字体。
+
 许可证义务按字体来源处理：FeatherDoc 当前只引用用户显式提供的字体或本机系统字体，
 不把这些字体重新分发进仓库。若未来要随发行包捆绑 CJK 字体，必须先记录字体许可证、
 分发条件和 NOTICE 要求，再把该字体加入默认 fallback。
