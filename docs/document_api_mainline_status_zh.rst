@@ -143,3 +143,37 @@
 
 如果机器仍然卡顿，下一轮只做轻量验证清单准备，不启动 Word、LibreOffice、浏览器、
 PDF 渲染或完整构建。
+
+
+最终轻量测试清单
+----------------
+
+最终重新测试前，先执行一轮不依赖 Office、PDF 渲染器或完整构建的轻量清单。该清单用于
+确认文档接口主线和 release governance 材料没有明显脚本回退，也用于判断是否可以进入
+后续可视化验证。
+
+第一阶段固定入口：
+
+1. ``git diff --check``。
+2. PowerShell parser 检查关键脚本，确认语法层面没有破坏。
+3. ``test/check_release_metadata_docs_test.ps1``。
+4. ``test/release_governance_warning_helper_contract_test.ps1``。
+5. ``test/build_release_blocker_rollup_report_test.ps1 -Scenario passing``。
+6. ``test/build_release_governance_handoff_report_test.ps1 -Scenario aggregate``。
+7. ``test/build_release_governance_pipeline_report_test.ps1 -Scenario aggregate``。
+8. ``test/write_schema_patch_confidence_calibration_report_test.ps1 -Scenario aggregate``。
+
+第二阶段可选补充入口：
+
+1. ``test/build_content_control_data_binding_governance_report_test.ps1``。
+2. ``test/build_project_template_delivery_readiness_report_test.ps1``。
+3. ``test/build_table_layout_delivery_governance_report_test.ps1``。
+
+执行规则：
+
+1. 每个 PowerShell 测试必须单独设置 60 秒超时。
+2. 不并发启动大批测试；资源紧张时按上述顺序串行执行。
+3. 如果机器仍然卡顿，只维护清单和记录，不启动 Word、LibreOffice、浏览器、PDF 渲染、
+   CMake、CTest、Ninja 或 MSBuild。
+4. 只有轻量清单通过、源码已提交推送、工作区干净且资源允许时，才进入截图级 Word
+   visual validation 或 PDF 可视化验证。
