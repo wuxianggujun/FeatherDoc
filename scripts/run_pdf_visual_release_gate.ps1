@@ -251,6 +251,10 @@ $cjkSamples = @($regressionManifest.samples | Where-Object { $_.expect_cjk -eq $
 if ($cjkSamples.Count -eq 0) {
     throw "No CJK samples were found in $pdfRegressionManifestPath."
 }
+$visualManifestSamples = @($regressionManifest.samples | Where-Object { $_.expect_visual_baseline -eq $true })
+if ($visualManifestSamples.Count -eq 0) {
+    throw "No visual baseline samples were found in $pdfRegressionManifestPath."
+}
 
 Write-Step "Checking CJK copy/search text layers"
 $cjkCopySearchResults = New-Object System.Collections.Generic.List[object]
@@ -293,71 +297,19 @@ foreach ($sample in $cjkSamples) {
 }
 
 $samples = @(
-    [ordered]@{
-        name = "styled-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-styled-text.pdf"
-        output = Join-Path $baselineDir "styled-text"
-        expected_pages = 1
-        style_focus = @("font-size", "color", "bold-italic", "underline")
-    },
-    [ordered]@{
-        name = "mixed-style-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-mixed-style-text.pdf"
-        output = Join-Path $baselineDir "mixed-style-text"
-        expected_pages = 1
-        style_focus = @("plain", "bold", "italic", "bold-italic-underline")
-    },
-    [ordered]@{
-        name = "underline-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-underline-text.pdf"
-        output = Join-Path $baselineDir "underline-text"
-        expected_pages = 1
-        style_focus = @("underline", "bold-underline", "italic-underline")
-    },
-    [ordered]@{
-        name = "document-contract-cjk-style"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-contract-cjk-style.pdf"
-        output = Join-Path $baselineDir "document-contract-cjk-style"
-        expected_pages = 1
-        style_focus = @("document-style-inheritance", "cjk-font-mapping", "bold", "color", "underline-signature")
-    },
-    [ordered]@{
-        name = "document-eastasia-style-probe"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-eastasia-style-probe.pdf"
-        output = Join-Path $baselineDir "document-eastasia-style-probe"
-        expected_pages = 1
-        style_focus = @("east-asia-font-mapping", "cjk-color", "bold-italic", "underline")
-    },
-    [ordered]@{
-        name = "mixed-cjk-punctuation-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-mixed-cjk-punctuation-text.pdf"
-        output = Join-Path $baselineDir "mixed-cjk-punctuation-text"
-        expected_pages = 1
-    },
-    [ordered]@{
-        name = "latin-ligature-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-latin-ligature-text.pdf"
-        output = Join-Path $baselineDir "latin-ligature-text"
-        expected_pages = 1
-    },
-    [ordered]@{
-        name = "document-invoice-table-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-invoice-table-text.pdf"
-        output = Join-Path $baselineDir "document-invoice-table-text"
-        expected_pages = 1
-    },
-    [ordered]@{
-        name = "document-long-flow-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-long-flow-text.pdf"
-        output = Join-Path $baselineDir "document-long-flow-text"
-        expected_pages = 5
-    },
-    [ordered]@{
-        name = "document-image-semantics-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-image-semantics-text.pdf"
-        output = Join-Path $baselineDir "document-image-semantics-text"
-        expected_pages = 0
-    },
+    $visualManifestSamples | ForEach-Object {
+        [ordered]@{
+            name = $_.id
+            pdf = Join-Path $resolvedBuildDir "test\$($_.output_file)"
+            output = Join-Path $baselineDir $_.id
+            expected_pages = if ($null -ne $_.visual_expected_pages) {
+                [int]$_.visual_expected_pages
+            } else {
+                [int]$_.expected_pages
+            }
+            style_focus = @($_.visual_style_focus)
+        }
+    }
     [ordered]@{
         name = "cli-font-map-source"
         pdf = Join-Path $resolvedBuildDir "test\pdf_cli_export\font-map-source.pdf"

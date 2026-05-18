@@ -387,7 +387,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.p
 - `pdf_unicode_font_roundtrip_visual`
 - CJK 样本的文本层 copy/search 检查，基于 regression manifest 中
   `expect_cjk=true` 的样本提取 PDF 文本层并核对 `expected_text`
-- 核心样本的 PNG baseline 渲染，其中包含 `styled-text`、`mixed-style-text`、
+- 核心样本的 PNG baseline 渲染，样本由 regression manifest 中
+  `expect_visual_baseline=true` 的条目驱动，其中包含 `styled-text`、`mixed-style-text`、
   `underline-text`、`document-contract-cjk-style`、`document-eastasia-style-probe`、
   `mixed-cjk-punctuation-text` 和 `latin-ligature-text` 这组样式 / 文字塑形视觉样本
 - 聚合 contact sheet 生成

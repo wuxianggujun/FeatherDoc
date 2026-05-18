@@ -44,7 +44,14 @@
         "Bold italic text",
         "Underlined text"
       ],
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "font-size",
+        "color",
+        "bold-italic",
+        "underline"
+      ]
     },
     {
       "id": "font-size-text",
@@ -79,6 +86,13 @@
         "Bold text",
         "Italic text",
         "Bold italic underline"
+      ],
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "plain",
+        "bold",
+        "italic",
+        "bold-italic-underline"
       ]
     },
     {
@@ -120,7 +134,15 @@
       ],
       "expect_cjk": true,
       "expect_unicode": true,
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "document-style-inheritance",
+        "cjk-font-mapping",
+        "bold",
+        "color",
+        "underline-signature"
+      ]
     },
     {
       "id": "three-page-text",
@@ -193,6 +215,12 @@
         "Underlined line 2",
         "Bold underlined line",
         "Italic underlined line"
+      ],
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "underline",
+        "bold-underline",
+        "italic-underline"
       ]
     },
     {
@@ -413,7 +441,14 @@
       ],
       "expect_cjk": true,
       "expect_unicode": true,
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "east-asia-font-mapping",
+        "cjk-color",
+        "bold-italic",
+        "underline"
+      ]
     },
     {
       "id": "document-image-semantics-text",
@@ -427,7 +462,9 @@
         "Square wrap text",
         "Behind text image anchor"
       ],
-      "expected_image_count": 3
+      "expected_image_count": 3,
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 0
     },
     {
       "id": "document-table-semantics-text",
@@ -454,7 +491,8 @@
         "Long flow paragraph 120 keeps pagination",
         "Page 1 of 5",
         "Page 5 of 5"
-      ]
+      ],
+      "expect_visual_baseline": true
     },
     {
       "id": "document-invoice-table-text",
@@ -470,7 +508,8 @@
         "Visual validation",
         "Grand total",
         "USD 135"
-      ]
+      ],
+      "expect_visual_baseline": true
     },
     {
       "id": "mixed-cjk-punctuation-text",
@@ -483,7 +522,8 @@
         "括号（中文）与引号“mixed”。"
       ],
       "expect_cjk": true,
-      "expect_unicode": true
+      "expect_unicode": true,
+      "expect_visual_baseline": true
     },
     {
       "id": "latin-ligature-text",
@@ -494,7 +534,8 @@
         "office affinity flow",
         "file fixture flings",
         "efficient workflow"
-      ]
+      ],
+      "expect_visual_baseline": true
     }
   ]
 }

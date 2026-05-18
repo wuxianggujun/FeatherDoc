@@ -24,6 +24,8 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_pdf_visual_release_gate.ps1"
 $scriptText = Get-Content -Raw -LiteralPath $scriptPath
+$manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
+$manifestText = Get-Content -Raw -LiteralPath $manifestPath
 
 $parseTokens = $null
 $parseErrors = $null
@@ -42,12 +44,10 @@ $requiredSamples = @(
 )
 
 foreach ($sample in $requiredSamples) {
-    Assert-ContainsText -Text $scriptText -ExpectedText ('name = "{0}"' -f $sample) `
-        -Message "PDF visual release gate should render text shaping baseline sample '$sample'."
-    Assert-ContainsText -Text $scriptText -ExpectedText ('featherdoc-pdf-regression-{0}.pdf' -f $sample) `
-        -Message "PDF visual release gate should point at the regression PDF for '$sample'."
-    Assert-ContainsText -Text $scriptText -ExpectedText ('output = Join-Path $baselineDir "{0}"' -f $sample) `
-        -Message "PDF visual release gate should write a baseline folder for '$sample'."
+    Assert-ContainsText -Text $manifestText -ExpectedText ('"id": "{0}"' -f $sample) `
+        -Message "PDF regression manifest should define text shaping baseline sample '$sample'."
+    Assert-ContainsText -Text $manifestText -ExpectedText ('featherdoc-pdf-regression-{0}.pdf' -f $sample) `
+        -Message "PDF regression manifest should point at the regression PDF for '$sample'."
 }
 
 Assert-ContainsText -Text $scriptText -ExpectedText "scripts\check_pdf_text_layer.py" `
@@ -60,5 +60,9 @@ Assert-ContainsText -Text $scriptText -ExpectedText "matched_text" `
     -Message "PDF visual release gate should report matched text-layer snippets."
 Assert-ContainsText -Text $scriptText -ExpectedText "missing_text" `
     -Message "PDF visual release gate should report missing text-layer snippets."
+Assert-ContainsText -Text $scriptText -ExpectedText "expect_visual_baseline -eq `$true" `
+    -Message "PDF visual release gate should select visual baselines from the manifest."
+Assert-ContainsText -Text $manifestText -ExpectedText '"expect_visual_baseline": true' `
+    -Message "PDF regression manifest should mark text shaping visual baselines."
 
 Write-Host "PDF visual release gate text shaping baseline regression passed."
