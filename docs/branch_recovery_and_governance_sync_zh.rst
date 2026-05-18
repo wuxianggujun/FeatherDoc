@@ -121,3 +121,15 @@ release metadata 文档继续覆盖 governance warning contract。已通过：
    schema calibration 或 release rollup 片段。
 5. 每次摘录后运行文档治理和发布治理相关轻量测试。
 6. 推送 ``dev``，``master`` 只在发布确认后从 ``dev`` 合入。
+
+当前剩余分支复核结论
+--------------------
+
+截至本轮复核，``codex/release-governance-warning-entrypoints`` 中
+还能低风险、低资源摘入的内容只剩 ``48d65e7 Run pipeline final-rollup failure
+regression in CTest`` 这一类 CTest 注册项。按照当前约束，``CTest`` 不执行，且这类
+提交只会增加维护面，不再作为本轮合并目标。
+
+``codex/release-governance-rollup-details`` 也不再继续摘入。它和当前 ``dev`` 的
+治理契约重叠太深，继续处理只会放大冲突，不符合“复用已有结果、关闭不用进程、
+低资源推进”的要求。
