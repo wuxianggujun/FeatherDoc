@@ -366,6 +366,59 @@ TEST_CASE("cli export-pdf honors font subset toggles for CJK fonts") {
                             "section 2 body", "中文字体子集回归"});
 }
 
+TEST_CASE("cli export-pdf accepts explicit CJK font without system fallback") {
+    const auto cjk_font = find_cjk_font();
+    if (cjk_font.empty()) {
+        MESSAGE("skipping CLI PDF cjk-font-file test: no CJK font found");
+        return;
+    }
+
+    const fs::path work_dir = test_binary_directory() / "pdf_cli_export";
+    std::error_code error;
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const fs::path source = work_dir / "cjk-font-source.docx";
+    const fs::path output = work_dir / "cjk-font-source.pdf";
+    const fs::path json_output = work_dir / "cjk-font-source-export.json";
+    remove_if_exists(output);
+    remove_if_exists(json_output);
+
+    const auto cjk_text =
+        utf8_from_u8(u8"\u4E2D\u6587\u5BFC\u51FA\u8DEF\u5F84");
+    create_cli_fixture(source);
+    {
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.open());
+        auto paragraph = document.paragraphs();
+        REQUIRE(paragraph.has_next());
+        REQUIRE(paragraph.add_run(cjk_text).has_next());
+        REQUIRE_FALSE(document.save());
+    }
+
+    CHECK_EQ(run_cli({"export-pdf",
+                      source.string(),
+                      "--output",
+                      output.string(),
+                      "--cjk-font-file",
+                      cjk_font.string(),
+                      "--no-system-font-fallbacks",
+                      "--json"},
+                     json_output),
+             0);
+
+    REQUIRE(fs::exists(output));
+    CHECK_GT(fs::file_size(output), static_cast<std::uintmax_t>(500U));
+    CHECK_EQ(read_pdf_magic(output), "%PDF-");
+    assert_pdfium_can_read(output, 3U,
+                           {"section 0 body", "section 1 body",
+                            "section 2 body", std::string_view{cjk_text}});
+
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
+    CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
+}
+
 TEST_CASE("cli export-pdf rejects invalid font family mappings") {
     const fs::path work_dir = test_binary_directory() / "pdf_cli_export";
     std::error_code error;
