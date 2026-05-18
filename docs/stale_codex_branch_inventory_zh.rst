@@ -15,13 +15,13 @@
 * ``master`` 只在发布确认后从 ``dev`` 合入。
 * 旧 ``codex/*`` 分支只作为参考库存，不再整分支 merge。
 * 删除远端分支前，必须先确认该分支功能已经合入、归档，或明确废弃。
-* PDF 深水区分支继续冻结；当前文档治理阶段不把 PDF 扩展作为主线。
+* PDF 深水区分支继续冻结；当前只摘入低风险基础设施补丁，不整分支扩展 PDF 主线。
 
 
 已确认摘入 ``dev`` 的内容
 -------------------------
 
-已从旧分支安全摘入的内容只有小范围治理片段：
+已从旧分支安全摘入的内容只有小范围治理片段和 PDFium 基础设施补丁：
 
 .. code-block:: text
 
@@ -29,6 +29,11 @@
    f9cc0e0 Guard release warning docs contract
    3bd950d Add schema calibration candidate routing
    fcb5f9c Fix release blocker rollup test composite id assertion
+   1c5cd2b Add PDFium prebuilt provider option
+   df2e4f6 Ignore temporary PDFium probe directories
+   6760162 Fail fast when PDFium depot_tools bootstrap is unavailable
+   bf945ae Document PDFium source bootstrap guard
+   779b351 Add PDFium auto provider selection
 
 其中 ``8a3084e`` 已形成当前 ``dev`` 上的：
 
@@ -53,6 +58,20 @@
 .. code-block:: text
 
    36fb375 Stabilize release blocker rollup id assertion
+
+PDFium provider / bootstrap 相关小补丁已在当前 ``dev`` 形成连续提交：
+
+.. code-block:: text
+
+   1c5cd2b Add PDFium prebuilt provider option
+   df2e4f6 Ignore temporary PDFium probe directories
+   6760162 Fail fast when PDFium depot_tools bootstrap is unavailable
+   bf945ae Document PDFium source bootstrap guard
+   779b351 Add PDFium auto provider selection
+
+这组提交只覆盖 provider 选择、prebuilt/package/source/auto 配置、临时目录忽略和
+source bootstrap 快速失败文档，不代表 ``codex/pdf-cjk-copy-search-gate`` 或
+``codex/pdf-cjk-bullet-fallback`` 的 PDF CJK 功能已经完整合入。
 
 除此之外的文档治理提交，例如 ``0d0b7bc``、``b5a806d``、``c1a9e9a`` 和
 ``a5bf1b7``，是在当前 ``dev`` 上直接开发或按当前契约重做，不是整分支 merge。
@@ -122,6 +141,8 @@
 * 属于 PDF 深水区分支。
 * 相对当前 ``dev`` 包含大量 PDF CJK copy/search、font matrix、table flow 和视觉 gate
   相关提交。
+* 已安全摘入的只是 PDFium provider / bootstrap 基础设施小补丁，剩余 PDF CJK
+  功能仍未按当前 ``dev`` 重新实现。
 
 代表性未合并内容包括：
 
@@ -133,8 +154,8 @@
 处理建议：
 
 * 暂不删除，作为 PDF 参考库存保留。
-* 当前文档治理阶段不合并。
-* 只有当 PDF 被重新明确为主线时，再单独开低风险计划处理。
+* 不整分支合并。
+* 只有当 PDF 被重新明确为主线时，再从当前 ``dev`` 出发单独开低风险计划处理。
 
 
 ``codex/pdf-cjk-bullet-fallback``
@@ -145,6 +166,8 @@
 * 未合并。
 * 基于 ``codex/pdf-cjk-copy-search-gate`` 继续扩展。
 * 属于 PDF 深水区分支。
+* 已安全摘入的只是 PDFium provider / bootstrap 基础设施小补丁，bullet fallback、
+  CJK table gate 和 CLI PDF export 相关能力仍需另行小步复核。
 
 代表性未合并内容包括：
 
@@ -156,7 +179,7 @@
 处理建议：
 
 * 暂不删除，作为 PDF 参考库存保留。
-* 当前不合并。
+* 当前不整分支合并。
 * 后续如果恢复 PDF 主线，应优先从该分支和
   ``codex/pdf-cjk-copy-search-gate`` 的关系开始梳理，避免重复处理相同 PDF 样例。
 
@@ -243,3 +266,7 @@
   ``command_template`` 均已通过脚本与测试保留，不再从旧分支重复摘入。
 * release governance rollup details、schema calibration handoff / pipeline / release
   bundle 透传已在当前 ``dev`` 中存在更完整实现；旧分支版本不再作为正确版本使用。
+* PDF 分支中已低风险摘入 PDFium prebuilt provider、临时 probe 目录忽略、
+  depot_tools bootstrap guard 文档和默认 ``auto`` provider 选择。剩余 CJK
+  copy/search、bullet fallback、字体矩阵、表格流和视觉 gate 差异仍很大，不再
+  直接合并；后续只从当前 ``dev`` 手工重做独立小块。
