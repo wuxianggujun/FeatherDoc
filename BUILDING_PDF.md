@@ -320,8 +320,8 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "^cli_usage$" --output-on-failure --tim
 
 ## PDF regression samples
 
-同时开启 PDFio 写出和 PDFium 读入后，可以直接跑首批 39 个 regression manifest 样本。
-`pdf_regression_*` 当前覆盖 40 个 CTest，其中包含 manifest 校验测试。
+同时开启 PDFio 写出和 PDFium 读入后，可以直接跑首批 43 个 regression manifest 样本。
+`pdf_regression_*` 当前覆盖 44 个 CTest，其中包含 manifest 校验测试。
 
 ```powershell
 cmake --build .bpdf-roundtrip-msvc --target featherdoc_pdf_regression_sample pdf_regression_manifest_tests
@@ -369,6 +369,10 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - `document-table-semantics-text`
 - `document-long-flow-text`
 - `document-invoice-table-text`
+- `document-table-header-footer-variants-text`
+- `document-table-wrap-flow-text`
+- `document-table-cant-split-text`
+- `document-table-merged-cells-text`
 
 其中 `cjk-text` 在找不到可用 CJK 字体时会跳过，不会把整个套件判失败。
 
@@ -534,7 +538,7 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
   会逐 glyph 写定位矩阵，验证重复 cluster 只映射一次，并验证倒序 cluster / 非 UTF-8
   边界 cluster / 非 LTR direction 会回退到字符串路径
 - 可以跑 PDFio → PDFium 的端到端 smoke
-- 已有首批 39 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、中英混排标点、Latin ligature 文本、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
+- 已有首批 43 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、中英混排标点、Latin ligature 文本、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow、document invoice table、document table header/footer variants、document table wrap flow、document table cant split 和 document table merged cells 这几个更接近真实文档流的生成型样本
 
 还不能算正式可用：
 
