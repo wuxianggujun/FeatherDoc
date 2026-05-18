@@ -163,7 +163,7 @@ gclient sync --no-history --jobs 8 --force --reset
 Pop-Location
 ```
 
-## Windows 构建 PDFium import
+## Windows 构建 PDFium import（source provider）
 
 进入 VS x64 开发环境：
 
@@ -200,6 +200,9 @@ cmake --build .bpdf-pdfium-source-msvc --target featherdoc_pdfium_probe
 - Windows 下会自动补 `winmm.lib`
 - CMake 会优先使用 PDFium checkout 内的 `buildtools/win/gn.exe`
 - CMake 会优先使用 PDFium checkout 内的 `third_party/ninja/ninja.exe`
+- 如果 `depot_tools` 目录存在但还没有初始化，helper 会先检查
+  `chrome-infra-packages.appspot.com:443` 连通性；不可达时会快速失败并提示先初始化
+  `depot_tools` 或恢复网络，避免卡在 CIPD bootstrap 上。
 
 ## Windows 构建 PDFium import（prebuilt provider）
 
