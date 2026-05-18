@@ -106,32 +106,19 @@
 - ``scan_template_schema(...)`` / ``build_template_schema_patch_from_scan(...)``
 - ``check-template-schema``
 - schema patch review JSON、schema approval gate 与审批历史报表
-- project-template onboarding governance 聚合报告；其 blocker 和 action item
-  会经 delivery readiness 继续保留
-  ``featherdoc.project_template_onboarding_governance_report.v1``、
-  ``source_json_display`` 与 reviewer ``open_command``，最终进入发布面板和
-  reviewer-facing bundle
-- schema patch confidence calibration 只读校准报告；pending approval、未打分候选和
-  recommendation 现在会作为 release blocker / warning / action item 进入
-  ``schema-patch-confidence-calibration/summary.json``，并被默认发布面板消费
+- project-template onboarding governance 聚合报告
+- schema patch confidence calibration 只读校准报告
 - release blocker rollup 统一发布阻断汇总
 - content-control data-binding governance 只读报告，已把 Custom XML
-  同步 issue、绑定占位符和重复绑定复核接入发布治理 pipeline；这些治理项现在会携带
-  ``source_schema``、``source_json_display`` 与 action item ``open_command``，
-  供发布面板直接展开证据与复核命令
+  同步 issue、绑定占位符和重复绑定复核接入发布治理 pipeline
 - ``run_project_template_smoke.ps1``
 
 接下来更值得补的是：
 
 1. 扩大真实业务模板语料样本，继续校准 rename / update 建议的置信度
 2. 多项目 schema approval、release gate 和审批历史的维护体验
-3. 继续补齐 release blocker rollup 周边的人工复核分流；onboarding governance、
-   confidence calibration 和 content-control data-binding governance 已开始直接透传
-   blocker / warning / action item 明细；release governance pipeline 的 ``stages[]``
-   也会按 stage 保留 ``source_schema``、``source_report_display``、
-   ``source_json_display`` 与 action item 的 ``open_command``，release governance
-   handoff 也会把同一组 blocker / warning / action item 明细同步进 release summary、
-   final review、bundle 和 reviewer checklist，方便发布面板先按治理源过滤
+3. 将 onboarding governance、confidence calibration、content-control
+   data-binding governance 与 release blocker rollup 接入更固定的发布面板
 4. schema migration 的人工复核入口和更明确的修复建议分流
 
 这条线的目标是：
@@ -171,16 +158,6 @@
 - 多份 document skeleton governance summary 的 rollup 汇总入口，可把
   exemplar catalog、样式编号 issue、release blocker 和 action item 先聚合成
   ``featherdoc.document_skeleton_governance_rollup_report.v1``，再进入统一发布阻断视图
-
-  这一层现在不应只看聚合计数。发布面板会从 final release blocker rollup 中继续展示
-  ``release_blocker_rollup.release_blockers``、``warnings`` 与 ``action_items`` 的明细，
-  包括 ``id``、``action``、``message``、``open_command``、``source_schema``、
-  ``source_report_display`` 和 ``source_json_display``。reviewer 可以直接从
-  ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 与
-  ``release_handoff.md`` 定位骨架治理证据和下一步命令。pipeline summary 的
-  ``numbering_catalog_governance`` stage 也会保留同一组明细字段，避免骨架治理项只停留在
-  stage 计数里；release governance handoff 会把这些明细继续同步到 handoff summary、
-  final review 和 reviewer checklist，避免发布面板只能看到 handoff 计数。
 
 接下来最值得补的是：
 

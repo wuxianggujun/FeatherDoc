@@ -25,15 +25,6 @@ function Assert-ContainsText {
     }
 }
 
-function Get-StageById {
-    param($Summary, [string]$Id)
-
-    $matches = @($Summary.stages | Where-Object { [string]$_.id -eq $Id })
-    Assert-Equal -Actual $matches.Count -Expected 1 `
-        -Message "Pipeline should include exactly one stage $Id."
-    return $matches[0]
-}
-
 function Write-JsonFile {
     param([string]$Path, $Value)
 
@@ -242,37 +233,6 @@ function New-SchemaApprovalHistory {
                 latest_action = "review_schema_update_candidate"
                 latest_summary_json = "output/project-template-smoke/summary.json"
                 issue_keys = @()
-                runs = @(
-                    [ordered]@{
-                        schema_patch_review_count = 1
-                        schema_patch_review_changed_count = 1
-                        schema_patch_reviews = @(
-                            [ordered]@{
-                                name = "contract-template"
-                                changed = $true
-                                baseline_slot_count = 2
-                                generated_slot_count = 3
-                                upsert_slot_count = 1
-                                remove_target_count = 0
-                                remove_slot_count = 0
-                                rename_slot_count = 0
-                                update_slot_count = 0
-                                inserted_slots = 1
-                                replaced_slots = 0
-                            }
-                        )
-                        schema_patch_approval_items = @(
-                            [ordered]@{
-                                name = "contract-template"
-                                status = "pending_review"
-                                decision = "pending"
-                                approved = $false
-                                pending = $true
-                                compliance_issue_count = 0
-                            }
-                        )
-                    }
-                )
             }
         )
     }
@@ -428,13 +388,13 @@ Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.release_gov
     -Message "Pipeline summary should expose schema."
 Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
     -Message "Pipeline should be blocked by fixture governance reports."
-Assert-Equal -Actual ([int]$summary.stage_count) -Expected 7 `
-    -Message "Pipeline should run seven read-only stages."
-Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 7 `
+Assert-Equal -Actual ([int]$summary.stage_count) -Expected 6 `
+    -Message "Pipeline should run six read-only stages."
+Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 6 `
     -Message "Pipeline should complete every stage."
 Assert-Equal -Actual ([int]$summary.failed_stage_count) -Expected 0 `
     -Message "Pipeline should not record stage failures."
-Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 11 `
+Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 10 `
     -Message "Pipeline should mirror final rollup blocker count."
 Assert-True -Condition ([int]$summary.action_item_count -ge 4) `
     -Message "Pipeline should mirror final rollup action count."
@@ -445,57 +405,12 @@ foreach ($expectedStage in @(
         "table_layout_delivery_governance",
         "content_control_data_binding_governance",
         "project_template_delivery_readiness",
-        "schema_patch_confidence_calibration",
         "release_governance_handoff",
         "release_blocker_rollup"
     )) {
     Assert-ContainsText -Text ($stageIds -join "`n") -ExpectedText $expectedStage `
         -Message "Pipeline should include stage $expectedStage."
 }
-
-$numberingStage = Get-StageById -Summary $summary -Id "numbering_catalog_governance"
-Assert-ContainsText -Text (($numberingStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
-    -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1" `
-    -Message "Pipeline numbering stage should expose document skeleton blocker source schema."
-Assert-ContainsText -Text (($numberingStage.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
-    -ExpectedText "document-skeleton-governance-rollup\summary.json" `
-    -Message "Pipeline numbering stage should expose document skeleton source report display."
-Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
-    -ExpectedText "document-skeleton-governance-rollup\summary.json" `
-    -Message "Pipeline numbering stage should expose document skeleton action source JSON display."
-
-$contentControlStage = Get-StageById -Summary $summary -Id "content_control_data_binding_governance"
-Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
-    -ExpectedText "featherdoc.content_control_data_binding_governance_report.v1" `
-    -Message "Pipeline content-control stage should expose governance blocker source schema."
-Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
-    -ExpectedText "sync-content-controls-from-custom-xml.json" `
-    -Message "Pipeline content-control stage should expose sync evidence JSON display."
-Assert-ContainsText -Text (($contentControlStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
-    -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
-    -Message "Pipeline content-control stage should expose reviewer open command."
-
-$projectStage = Get-StageById -Summary $summary -Id "project_template_delivery_readiness"
-Assert-ContainsText -Text (($projectStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
-    -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
-    -Message "Pipeline project stage should expose onboarding blocker source schema."
-Assert-ContainsText -Text (($projectStage.action_items | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
-    -ExpectedText "project-template-onboarding-governance\summary.json" `
-    -Message "Pipeline project stage should expose onboarding action source JSON display."
-Assert-ContainsText -Text (($projectStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
-    -ExpectedText "build_project_template_delivery_readiness_report.ps1" `
-    -Message "Pipeline project stage should expose reviewer open command."
-
-$calibrationStage = Get-StageById -Summary $summary -Id "schema_patch_confidence_calibration"
-Assert-ContainsText -Text (($calibrationStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
-    -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
-    -Message "Pipeline calibration stage should expose blocker source schema."
-Assert-ContainsText -Text (($calibrationStage.warnings | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
-    -ExpectedText "schema-patch-confidence-calibration\summary.json" `
-    -Message "Pipeline calibration stage should expose warning source JSON display."
-Assert-ContainsText -Text (($calibrationStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
-    -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
-    -Message "Pipeline calibration stage should expose reviewer open command."
 
 $handoffSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$handoffSummary.schema) -Expected "featherdoc.release_governance_handoff_report.v1" `
@@ -508,11 +423,5 @@ Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline
     -Message "Pipeline Markdown should include title."
 Assert-ContainsText -Text $markdown -ExpectedText "release_blocker_rollup" `
     -Message "Pipeline Markdown should include final rollup stage."
-Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
-    -Message "Pipeline Markdown should include stage source report displays."
-Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
-    -Message "Pipeline Markdown should include stage source JSON displays."
-Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
-    -Message "Pipeline Markdown should include stage reviewer open commands."
 
 Write-Host "Release governance pipeline report regression passed."

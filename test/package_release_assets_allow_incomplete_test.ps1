@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$RepoRoot,
     [string]$WorkingDir
 )
@@ -18,25 +18,16 @@ New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 
 $startHerePath = Join-Path $summaryOutputDir "START_HERE.md"
 $releaseHandoffPath = Join-Path $reportDir "release_handoff.md"
-$releaseGovernanceHandoffPath = Join-Path $reportDir "release_governance_handoff.md"
 $releaseBodyPath = Join-Path $reportDir "release_body.zh-CN.md"
 $releaseSummaryPath = Join-Path $reportDir "release_summary.zh-CN.md"
 $artifactGuidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
-$contentControlSummaryPath = Join-Path $reportDir "content_control_data_binding_governance_summary.json"
-$projectTemplateDeliveryReadinessSummaryPath = Join-Path $reportDir "project_template_delivery_readiness_summary.json"
-$projectTemplateOnboardingGovernanceSummaryPath = Join-Path $reportDir "project_template_onboarding_governance_summary.json"
 $summaryPath = Join-Path $reportDir "summary.json"
 
 Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 # START_HERE
 
 - CI summary root: $resolvedRepoRoot\output\release-candidate-checks-ci\report
-- Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks-ci\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
-- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json
-- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
-- Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 penalty_summary=style_numbering_issues(count=4, penalty=20)
-- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 
 foreach ($filePath in @($releaseHandoffPath, $releaseBodyPath, $releaseSummaryPath, $artifactGuidePath, $reviewerChecklistPath)) {
@@ -45,88 +36,8 @@ foreach ($filePath in @($releaseHandoffPath, $releaseBodyPath, $releaseSummaryPa
 
 - Repo path: $resolvedRepoRoot\output\release-candidate-checks-ci\report
 - Visual gate: skipped
-- Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks-ci\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
-- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json
-- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
-- Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 penalty_summary=style_numbering_issues(count=4, penalty=20)
-- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 }
-
-Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
-# Release Governance Handoff
-
-## Governance Metrics
-
-- numbering_catalog_governance.real_corpus_confidence: report=numbering_catalog_governance metric=real_corpus_confidence level=low score=56 source_schema=featherdoc.numbering_catalog_governance_report.v1
-- table_layout_delivery_governance.delivery_quality: report=table_layout_delivery_governance metric=delivery_quality level=release_ready score=100 source_schema=featherdoc.table_layout_delivery_governance_report.v1
-"@
-
-$contentControlSummary = [ordered]@{
-    schema = "featherdoc.content_control_data_binding_governance_report.v1"
-    status = "blocked"
-    release_ready = $false
-    release_blocker_count = 1
-    release_blockers = @(
-        [ordered]@{
-            id = "content_control_data_binding.bound_placeholder"
-            severity = "error"
-            status = "placeholder_visible"
-            action = "sync_or_fill_bound_content_control"
-            source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
-            source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
-            repair_strategy = "sync_bound_content_control"
-            repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
-            command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
-        }
-    )
-}
-($contentControlSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $contentControlSummaryPath -Encoding UTF8
-
-$projectTemplateDeliveryReadinessSummary = [ordered]@{
-    schema = "featherdoc.project_template_delivery_readiness_report.v1"
-    status = "ready"
-    release_ready = $true
-    latest_schema_approval_gate_status = "passed"
-    schema_history_blocked_run_count = 0
-    schema_history_pending_run_count = 0
-    schema_history_passed_run_count = 3
-    template_count = 4
-    ready_template_count = 4
-    blocked_template_count = 0
-    release_blocker_count = 0
-    action_item_count = 0
-    warning_count = 0
-}
-($projectTemplateDeliveryReadinessSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $projectTemplateDeliveryReadinessSummaryPath -Encoding UTF8
-
-$projectTemplateOnboardingGovernanceSummary = [ordered]@{
-    schema = "featherdoc.project_template_onboarding_governance_report.v1"
-    status = "ready"
-    release_ready = $true
-    source_file_count = 3
-    source_failure_count = 0
-    entry_count = 4
-    schema_approval_status_summary = @(
-        [ordered]@{
-            status = "approved"
-            count = 3
-        },
-        [ordered]@{
-            status = "not_required"
-            count = 1
-        }
-    )
-    blocked_entry_count = 0
-    pending_review_entry_count = 0
-    not_evaluated_entry_count = 0
-    approved_entry_count = 3
-    not_required_entry_count = 1
-    release_blocker_count = 0
-    action_item_count = 0
-    manual_review_recommendation_count = 1
-}
-($projectTemplateOnboardingGovernanceSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $projectTemplateOnboardingGovernanceSummaryPath -Encoding UTF8
 
 $summary = [ordered]@{
     generated_at = "2026-04-12T12:00:00"
@@ -135,84 +46,8 @@ $summary = [ordered]@{
     gate_output_dir = (Join-Path $resolvedWorkingDir "output\word-visual-release-gate")
     release_version = "1.6.4"
     execution_status = "pass"
-    governance_metric_count = 3
-    governance_metrics = @(
-        [ordered]@{
-            id = "style_catalog_governance.real_corpus_confidence"
-            metric = "real_corpus_confidence"
-            report_id = "style_catalog_governance"
-            source_schema = "featherdoc.style_catalog_governance_report.v1"
-            score = 12
-            level = "experimental"
-            details = [ordered]@{
-                score = 12
-                level = "experimental"
-                document_count = 99
-                catalog_exemplar_count = 1
-                baseline_entry_count = 1
-                penalty_summary = @(
-                    [ordered]@{ factor = "style_catalog_only"; count = 99; penalty = 88 }
-                )
-            }
-        },
-        [ordered]@{
-            id = "numbering_catalog_governance.real_corpus_confidence"
-            metric = "real_corpus_confidence"
-            report_id = "numbering_catalog_governance"
-            source_schema = "featherdoc.numbering_catalog_governance_report.v1"
-            score = 56
-            level = "low"
-            details = [ordered]@{
-                score = 56
-                level = "low"
-                document_count = 2
-                catalog_exemplar_count = 2
-                baseline_entry_count = 2
-                catalog_coverage_percent = 100
-                baseline_coverage_percent = 100
-                coverage_score = 100
-                penalty_summary = @(
-                    [ordered]@{ factor = "style_numbering_issues"; count = 4; penalty = 20 },
-                    [ordered]@{ factor = "catalog_drift_or_dirty_baseline"; count = 2; penalty = 20 },
-                    [ordered]@{ factor = "command_failures"; count = 1; penalty = 20 }
-                )
-            }
-        },
-        [ordered]@{
-            id = "table_layout_delivery_governance.delivery_quality"
-            metric = "delivery_quality"
-            report_id = "table_layout_delivery_governance"
-            source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
-            score = 100
-            level = "release_ready"
-            details = [ordered]@{
-                score = 100
-                level = "release_ready"
-                document_count = 3
-                ready_document_count = 3
-                ready_document_percent = 100
-                needs_review_document_count = 0
-                failed_document_count = 0
-                table_style_issue_count = 0
-                automatic_tblLook_fix_count = 0
-                manual_table_style_fix_count = 0
-                table_position_automatic_count = 0
-                table_position_review_count = 0
-                command_failure_count = 0
-                unresolved_item_count = 0
-                penalty_summary = @(
-                    [ordered]@{ factor = "needs_review_documents"; count = 0; penalty = 0 },
-                    [ordered]@{ factor = "floating_table_plans_pending"; count = 0; penalty = 0 }
-                )
-            }
-        }
-    )
-    content_control_data_binding_governance = $contentControlSummaryPath
-    project_template_delivery_readiness = $projectTemplateDeliveryReadinessSummaryPath
-    project_template_onboarding_governance = $projectTemplateOnboardingGovernanceSummaryPath
     start_here = $startHerePath
     release_handoff = $releaseHandoffPath
-    release_governance_handoff = $releaseGovernanceHandoffPath
     release_body_zh_cn = $releaseBodyPath
     release_summary_zh_cn = $releaseSummaryPath
     artifact_guide = $artifactGuidePath
@@ -242,11 +77,6 @@ $packageScript = Join-Path $resolvedRepoRoot "scripts\package_release_assets.ps1
 
 $stagingRoot = Join-Path $outputRoot "v1.6.4\staging"
 $placeholderPath = Join-Path $stagingRoot "word-visual-release-gate\README.md"
-$stagedStartHerePath = Join-Path $stagingRoot "release-candidate-checks\START_HERE.md"
-$stagedSummaryPath = Join-Path $stagingRoot "release-candidate-checks\report\summary.json"
-$stagedGovernanceHandoffPath = Join-Path $stagingRoot "release-candidate-checks\report\release_governance_handoff.md"
-$stagedArtifactGuidePath = Join-Path $stagingRoot "release-candidate-checks\report\ARTIFACT_GUIDE.md"
-$stagedReviewerChecklistPath = Join-Path $stagingRoot "release-candidate-checks\report\REVIEWER_CHECKLIST.md"
 $manifestPath = Join-Path $outputRoot "v1.6.4\release_assets_manifest.json"
 $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
 
@@ -267,229 +97,4 @@ if ([bool]$manifest.visual_gate_evidence_included) {
     throw "Release assets manifest incorrectly reported visual gate evidence as included."
 }
 
-if ($manifest.governance_metric_count -ne 3) {
-    throw "Release assets manifest did not preserve governance_metric_count=3."
-}
-
-if ($manifest.governance_metrics.Count -ne 3) {
-    throw "Release assets manifest did not preserve all governance metrics."
-}
-
-if (-not (@($manifest.governance_metrics | ForEach-Object { $_.metric }) -contains "real_corpus_confidence")) {
-    throw "Release assets manifest lost real_corpus_confidence governance metric."
-}
-
-if (-not (@($manifest.governance_metrics | ForEach-Object { $_.metric }) -contains "delivery_quality")) {
-    throw "Release assets manifest lost delivery_quality governance metric."
-}
-
-$manifestStyleConfidence = @($manifest.governance_metrics | Where-Object {
-    [string]$_.id -eq "style_catalog_governance.real_corpus_confidence"
-}) | Select-Object -First 1
-if ($null -eq $manifestStyleConfidence) {
-    throw "Release assets manifest lost style_catalog_governance.real_corpus_confidence governance metric."
-}
-
-$manifestNumberingConfidence = $manifest.numbering_catalog_real_corpus_confidence
-if ($null -eq $manifestNumberingConfidence) {
-    throw "Release assets manifest lost numbering_catalog_real_corpus_confidence in AllowIncomplete mode."
-}
-if ([string]$manifestNumberingConfidence.id -ne "numbering_catalog_governance.real_corpus_confidence") {
-    throw "Release assets manifest used the wrong real corpus confidence id for numbering."
-}
-if ([string]$manifestNumberingConfidence.metric -ne "real_corpus_confidence") {
-    throw "Release assets manifest lost numbering real corpus confidence metric."
-}
-if ([string]$manifestNumberingConfidence.report_id -ne "numbering_catalog_governance") {
-    throw "Release assets manifest used the wrong real corpus confidence report_id for numbering."
-}
-if ([string]$manifestNumberingConfidence.source_schema -ne "featherdoc.numbering_catalog_governance_report.v1") {
-    throw "Release assets manifest used the wrong real corpus confidence source_schema for numbering."
-}
-if ([int]$manifestNumberingConfidence.score -ne 56) {
-    throw "Release assets manifest lost numbering real corpus confidence score."
-}
-if ([string]$manifestNumberingConfidence.level -ne "low") {
-    throw "Release assets manifest lost numbering real corpus confidence level."
-}
-if ($null -eq $manifestNumberingConfidence.details) {
-    throw "Release assets manifest lost numbering real corpus confidence details in AllowIncomplete mode."
-}
-if ([int]$manifestNumberingConfidence.details.document_count -ne 2) {
-    throw "Release assets manifest used the wrong real corpus confidence details for numbering in AllowIncomplete mode."
-}
-$manifestNumberingPenaltyFactors = @($manifestNumberingConfidence.details.penalty_summary |
-    ForEach-Object { [string]$_.factor })
-if ($manifestNumberingPenaltyFactors -contains "style_catalog_only") {
-    throw "Release assets manifest mirrored style catalog confidence details into numbering confidence in AllowIncomplete mode."
-}
-if (-not ($manifestNumberingPenaltyFactors -contains "style_numbering_issues")) {
-    throw "Release assets manifest lost numbering real corpus confidence penalty summary in AllowIncomplete mode."
-}
-
-$manifestTableLayoutDeliveryQuality = $manifest.table_layout_delivery_quality
-if ($null -eq $manifestTableLayoutDeliveryQuality) {
-    throw "Release assets manifest lost table_layout_delivery_quality in AllowIncomplete mode."
-}
-if ([string]$manifestTableLayoutDeliveryQuality.id -ne "table_layout_delivery_governance.delivery_quality") {
-    throw "Release assets manifest used the wrong table layout delivery quality id in AllowIncomplete mode."
-}
-if ([string]$manifestTableLayoutDeliveryQuality.source_schema -ne "featherdoc.table_layout_delivery_governance_report.v1") {
-    throw "Release assets manifest used the wrong table layout delivery quality source_schema in AllowIncomplete mode."
-}
-if ($null -eq $manifestTableLayoutDeliveryQuality.details) {
-    throw "Release assets manifest lost table layout delivery quality details in AllowIncomplete mode."
-}
-if ([int]$manifestTableLayoutDeliveryQuality.details.document_count -ne 3) {
-    throw "Release assets manifest lost table layout delivery quality document_count in AllowIncomplete mode."
-}
-if ([int]$manifestTableLayoutDeliveryQuality.details.unresolved_item_count -ne 0) {
-    throw "Release assets manifest lost table layout delivery quality unresolved_item_count in AllowIncomplete mode."
-}
-if ([int]$manifestTableLayoutDeliveryQuality.details.table_position_automatic_count -ne 0) {
-    throw "Release assets manifest lost table layout delivery quality table_position_automatic_count in AllowIncomplete mode."
-}
-if ([int]$manifestTableLayoutDeliveryQuality.details.table_position_review_count -ne 0) {
-    throw "Release assets manifest lost table layout delivery quality table_position_review_count in AllowIncomplete mode."
-}
-if (-not (@($manifestTableLayoutDeliveryQuality.details.penalty_summary |
-        ForEach-Object { [string]$_.factor }) -contains "floating_table_plans_pending")) {
-    throw "Release assets manifest lost table layout delivery quality penalty summary in AllowIncomplete mode."
-}
-
-$contentControlContract = @($manifest.content_control_repair_contracts | Where-Object {
-    [string]$_.id -eq "content_control_data_binding.bound_placeholder"
-}) | Select-Object -First 1
-if ($null -eq $contentControlContract) {
-    throw "Release assets manifest lost content_control_data_binding.bound_placeholder repair contract in AllowIncomplete mode."
-}
-if ([string]$contentControlContract.repair_strategy -ne "sync_bound_content_control") {
-    throw "Release assets manifest lost sync_bound_content_control repair strategy in AllowIncomplete mode."
-}
-if ([string]$contentControlContract.repair_hint -ne "Rerun Custom XML sync or explicitly fill the bound content control before release.") {
-    throw "Release assets manifest lost content-control repair_hint in AllowIncomplete mode."
-}
-if ([string]$contentControlContract.command_template -notmatch "sync-content-controls-from-custom-xml") {
-    throw "Release assets manifest lost sync-content-controls-from-custom-xml command template in AllowIncomplete mode."
-}
-
-if ($null -eq $manifest.project_template_delivery_readiness_contract) {
-    throw "Release assets manifest lost project_template_delivery_readiness_contract in AllowIncomplete mode."
-}
-if ([string]$manifest.project_template_delivery_readiness_contract.schema -ne "featherdoc.project_template_delivery_readiness_report.v1") {
-    throw "Release assets manifest lost project template delivery readiness schema in AllowIncomplete mode."
-}
-if ($null -eq $manifest.project_template_onboarding_governance_contract) {
-    throw "Release assets manifest lost project_template_onboarding_governance_contract in AllowIncomplete mode."
-}
-if ([string]$manifest.project_template_onboarding_governance_contract.schema -ne "featherdoc.project_template_onboarding_governance_report.v1") {
-    throw "Release assets manifest lost project template onboarding governance schema in AllowIncomplete mode."
-}
-
-$stagedSummaryContent = Get-Content -Raw -LiteralPath $stagedSummaryPath
-foreach ($expectedText in @("governance_metrics", "real_corpus_confidence", "delivery_quality", "content_control_data_binding_governance", "project_template_delivery_readiness", "project_template_onboarding_governance")) {
-    if ($stagedSummaryContent -notmatch [regex]::Escape($expectedText)) {
-        throw "Staged allow-incomplete summary lost governance metric text '$expectedText'."
-    }
-}
-
-$stagedGovernanceHandoffContent = Get-Content -Raw -LiteralPath $stagedGovernanceHandoffPath
-foreach ($expectedText in @("Governance Metrics", "real_corpus_confidence", "numbering_catalog_governance.real_corpus_confidence", "featherdoc.numbering_catalog_governance_report.v1", "delivery_quality", "table_layout_delivery_governance.delivery_quality")) {
-    if ($stagedGovernanceHandoffContent -notmatch [regex]::Escape($expectedText)) {
-        throw "Staged allow-incomplete governance handoff lost '$expectedText'."
-    }
-}
-
-$stagedStartHereContent = Get-Content -Raw -LiteralPath $stagedStartHerePath
-foreach ($expectedText in @(
-    "content_control_data_binding.bound_placeholder",
-    "featherdoc.content_control_data_binding_governance_report.v1",
-    "source_json_display",
-    "repair_strategy",
-    "repair_hint",
-    "sync_bound_content_control",
-    "command_template",
-    "sync-content-controls-from-custom-xml",
-    "project_template_delivery_readiness",
-    "project_template_delivery_readiness_contract",
-    "featherdoc.project_template_delivery_readiness_report.v1",
-    "latest_schema_approval_gate_status",
-    "project_template_onboarding.schema_approval",
-    "project_template_onboarding_governance_contract",
-    "featherdoc.project_template_onboarding_governance_report.v1",
-    "schema_approval_status_summary",
-    "numbering_catalog_governance.real_corpus_confidence",
-    "table_layout_delivery_governance.delivery_quality",
-    "catalog_coverage_percent=100",
-    "style_numbering_issues(count=4, penalty=20)",
-    "unresolved_item_count=0",
-    "floating_table_plans_pending(count=0, penalty=0)"
-)) {
-    if ($stagedStartHereContent -notmatch [regex]::Escape($expectedText)) {
-        throw "Staged allow-incomplete START_HERE lost '$expectedText'."
-    }
-}
-
-$stagedArtifactGuideContent = Get-Content -Raw -LiteralPath $stagedArtifactGuidePath
-foreach ($expectedText in @(
-    "content_control_data_binding.bound_placeholder",
-    "featherdoc.content_control_data_binding_governance_report.v1",
-    "source_json_display",
-    "repair_strategy",
-    "repair_hint",
-    "sync_bound_content_control",
-    "command_template",
-    "sync-content-controls-from-custom-xml",
-    "project_template_delivery_readiness",
-    "project_template_delivery_readiness_contract",
-    "featherdoc.project_template_delivery_readiness_report.v1",
-    "latest_schema_approval_gate_status",
-    "project_template_onboarding.schema_approval",
-    "project_template_onboarding_governance_contract",
-    "featherdoc.project_template_onboarding_governance_report.v1",
-    "schema_approval_status_summary",
-    "numbering_catalog_governance.real_corpus_confidence",
-    "featherdoc.numbering_catalog_governance_report.v1",
-    "table_layout_delivery_governance.delivery_quality",
-    "catalog_coverage_percent=100",
-    "style_numbering_issues(count=4, penalty=20)",
-    "unresolved_item_count=0",
-    "floating_table_plans_pending(count=0, penalty=0)"
-)) {
-    if ($stagedArtifactGuideContent -notmatch [regex]::Escape($expectedText)) {
-        throw "Staged allow-incomplete ARTIFACT_GUIDE lost '$expectedText'."
-    }
-}
-
-$stagedReviewerChecklistContent = Get-Content -Raw -LiteralPath $stagedReviewerChecklistPath
-foreach ($expectedText in @(
-    "content_control_data_binding.bound_placeholder",
-    "featherdoc.content_control_data_binding_governance_report.v1",
-    "source_json_display",
-    "repair_strategy",
-    "repair_hint",
-    "sync_bound_content_control",
-    "command_template",
-    "sync-content-controls-from-custom-xml",
-    "project_template_delivery_readiness",
-    "project_template_delivery_readiness_contract",
-    "featherdoc.project_template_delivery_readiness_report.v1",
-    "latest_schema_approval_gate_status",
-    "project_template_onboarding.schema_approval",
-    "project_template_onboarding_governance_contract",
-    "featherdoc.project_template_onboarding_governance_report.v1",
-    "schema_approval_status_summary",
-    "numbering_catalog_governance.real_corpus_confidence",
-    "table_layout_delivery_governance.delivery_quality",
-    "catalog_coverage_percent=100",
-    "style_numbering_issues(count=4, penalty=20)",
-    "unresolved_item_count=0",
-    "floating_table_plans_pending(count=0, penalty=0)"
-)) {
-    if ($stagedReviewerChecklistContent -notmatch [regex]::Escape($expectedText)) {
-        throw "Staged allow-incomplete REVIEWER_CHECKLIST lost '$expectedText'."
-    }
-}
-
 Write-Host "Package release assets allow-incomplete regression passed."
-

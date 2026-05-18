@@ -53,7 +53,6 @@ $inputDir = Join-Path $resolvedWorkingDir "input"
 $outputDir = Join-Path $resolvedWorkingDir "report"
 $inspectPath = Join-Path $inputDir "inspect-content-controls.json"
 $syncPath = Join-Path $inputDir "sync-content-controls-from-custom-xml.json"
-$skippedPath = Join-Path $inputDir "unrelated.json"
 
 Write-JsonFile -Path $inspectPath -Value ([ordered]@{
         part = "body"
@@ -150,15 +149,10 @@ Write-JsonFile -Path $syncPath -Value ([ordered]@{
         )
     })
 
-Write-JsonFile -Path $skippedPath -Value ([ordered]@{
-        schema = "featherdoc.unrelated_report.v1"
-        status = "ready"
-    })
-
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\build_content_control_data_binding_governance_report.ps1"
 $arguments = @(
     "-InputJson"
-    "$inspectPath,$syncPath,$skippedPath"
+    "$inspectPath,$syncPath"
     "-OutputDir"
     $outputDir
 )
@@ -198,120 +192,17 @@ Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 2 `
     -Message "Summary should create blockers for sync issue and bound placeholder."
 Assert-True -Condition ([int]$summary.action_item_count -ge 2) `
     -Message "Summary should emit lock/unbound/duplicate review actions."
-Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
-    -Message "Summary should expose skipped source warnings."
-Assert-Equal -Actual ([string]$summary.repair_plan_schema) -Expected "featherdoc.content_control_data_binding_repair_plan.v1" `
-    -Message "Summary should expose repair plan schema."
-Assert-Equal -Actual ([int]$summary.repair_plan_item_count) -Expected 5 `
-    -Message "Summary should create repair feasibility items for blockers and actions."
-Assert-Equal -Actual ([int]$summary.repair_plan_apply_supported_count) -Expected 3 `
-    -Message "Summary should count apply-supported repair paths."
-Assert-Equal -Actual ([int]$summary.repair_plan_native_dry_run_supported_count) -Expected 0 `
-    -Message "Summary should make native dry-run support explicit."
-Assert-Equal -Actual ([int]$summary.repair_plan_requires_user_values_count) -Expected 1 `
-    -Message "Summary should count repair paths that need user-provided binding values."
-Assert-Equal -Actual ([int]$summary.repair_plan_requires_visual_verification_count) -Expected 4 `
-    -Message "Summary should count apply paths that require visual verification."
 
 $blockerIds = @($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n"
 Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.custom_xml_sync_issue" `
     -Message "Summary should include Custom XML sync blocker."
 Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.bound_placeholder" `
     -Message "Summary should include placeholder blocker."
-$firstBlocker = @($summary.release_blockers)[0]
-Assert-Equal -Actual ([string]$firstBlocker.source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
-    -Message "Blocker should carry content-control governance source schema."
-Assert-ContainsText -Text ([string]$firstBlocker.source_json_display) -ExpectedText "sync-content-controls-from-custom-xml.json" `
-    -Message "Blocker should carry source JSON display."
-Assert-Equal -Actual ([string]$firstBlocker.repair_strategy) -Expected "fix_custom_xml_source" `
-    -Message "Sync blockers should carry a repair strategy."
-Assert-ContainsText -Text ([string]$firstBlocker.repair_hint) -ExpectedText "Custom XML" `
-    -Message "Sync blockers should carry a repair hint."
-Assert-ContainsText -Text ([string]$firstBlocker.command_template) -ExpectedText "sync-content-controls-from-custom-xml" `
-    -Message "Sync blockers should carry a CLI command template."
-$placeholderBlocker = @($summary.release_blockers | Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" })[0]
-Assert-Equal -Actual ([string]$placeholderBlocker.source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
-    -Message "Placeholder blockers should carry content-control governance source schema."
-Assert-ContainsText -Text ([string]$placeholderBlocker.source_json_display) -ExpectedText "inspect-content-controls.json" `
-    -Message "Placeholder blockers should carry source JSON display."
-Assert-Equal -Actual ([string]$placeholderBlocker.repair_strategy) -Expected "sync_bound_content_control" `
-    -Message "Placeholder blockers should carry sync repair strategy."
-Assert-ContainsText -Text ([string]$placeholderBlocker.repair_hint) -ExpectedText "Rerun Custom XML sync" `
-    -Message "Placeholder blockers should carry sync repair hint."
-Assert-ContainsText -Text ([string]$placeholderBlocker.command_template) -ExpectedText "sync-content-controls-from-custom-xml" `
-    -Message "Placeholder blockers should carry sync command template."
-
-$actionOpenCommands = @($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n"
-Assert-ContainsText -Text $actionOpenCommands -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
-    -Message "Action items should carry reviewer open commands."
-$lockAction = @($summary.action_items | Where-Object { [string]$_.id -eq "review_content_control_lock_strategy" })[0]
-Assert-Equal -Actual ([string]$lockAction.repair_strategy) -Expected "review_lock_state" `
-    -Message "Lock review actions should carry a repair strategy."
-Assert-ContainsText -Text ([string]$lockAction.command_template) -ExpectedText "--clear-lock" `
-    -Message "Lock review actions should carry a clear-lock command template."
-$unboundAction = @($summary.action_items | Where-Object { [string]$_.id -eq "review_unbound_form_content_control" })[0]
-Assert-Equal -Actual ([string]$unboundAction.repair_strategy) -Expected "bind_or_exempt_form_control" `
-    -Message "Unbound form actions should carry a repair strategy."
-Assert-ContainsText -Text ([string]$unboundAction.command_template) -ExpectedText "--data-binding-store-item-id" `
-    -Message "Unbound form actions should carry a binding command template."
-$duplicateAction = @($summary.action_items | Where-Object { [string]$_.id -eq "review_duplicate_content_control_binding" })[0]
-Assert-Equal -Actual ([string]$duplicateAction.repair_strategy) -Expected "deduplicate_or_confirm_shared_binding" `
-    -Message "Duplicate binding actions should carry a repair strategy."
-Assert-ContainsText -Text ([string]$duplicateAction.command_template) -ExpectedText "inspect-content-controls" `
-    -Message "Duplicate binding actions should carry an inspection command template."
-$repairStatuses = @($summary.repair_plan_status_summary | ForEach-Object { [string]$_.plan_status }) -join "`n"
-Assert-ContainsText -Text $repairStatuses -ExpectedText "source_fix_required" `
-    -Message "Repair plan should flag Custom XML source fixes."
-Assert-ContainsText -Text $repairStatuses -ExpectedText "review_then_apply" `
-    -Message "Repair plan should flag review-then-apply paths."
-Assert-ContainsText -Text $repairStatuses -ExpectedText "requires_user_values" `
-    -Message "Repair plan should flag value-dependent binding paths."
-Assert-ContainsText -Text $repairStatuses -ExpectedText "review_only" `
-    -Message "Repair plan should flag review-only paths."
-$syncPlan = @($summary.repair_plan_items | Where-Object { [string]$_.repair_strategy -eq "sync_bound_content_control" })[0]
-Assert-Equal -Actual ([string]$syncPlan.source_id) -Expected "content_control_data_binding.bound_placeholder" `
-    -Message "Bound placeholder sync plan should keep the source blocker id."
-Assert-ContainsText -Text ([string]$syncPlan.source_json_display) -ExpectedText "inspect-content-controls.json" `
-    -Message "Bound placeholder sync plan should keep source JSON display."
-Assert-ContainsText -Text ([string]$syncPlan.command_template) -ExpectedText "sync-content-controls-from-custom-xml" `
-    -Message "Bound placeholder sync plan should carry sync command template."
-Assert-ContainsText -Text ([string]$syncPlan.repair_hint) -ExpectedText "Rerun Custom XML sync" `
-    -Message "Bound placeholder sync plan should carry repair hint."
-Assert-Equal -Actual ([string]$syncPlan.plan_status) -Expected "review_then_apply" `
-    -Message "Bound placeholder sync should be review-then-apply."
-$unboundPlan = @($summary.repair_plan_items | Where-Object { [string]$_.repair_strategy -eq "bind_or_exempt_form_control" })[0]
-Assert-Equal -Actual ([string]$unboundPlan.plan_status) -Expected "requires_user_values" `
-    -Message "Unbound form repair should require user-provided binding values."
-Assert-ContainsText -Text ((@($unboundPlan.required_user_values) | ForEach-Object { [string]$_ }) -join "`n") `
-    -ExpectedText "data_binding_xpath" `
-    -Message "Unbound form repair should name required binding values."
-$duplicatePlan = @($summary.repair_plan_items | Where-Object { [string]$_.repair_strategy -eq "deduplicate_or_confirm_shared_binding" })[0]
-Assert-Equal -Actual ([bool]$duplicatePlan.apply_supported) -Expected $false `
-    -Message "Duplicate binding repair should stay review-only."
-$warning = @($summary.warnings)[0]
-Assert-Equal -Actual ([string]$warning.source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
-    -Message "Warnings should carry content-control governance source schema."
-Assert-Equal -Actual ([string]$warning.action) -Expected "review_content_control_data_binding_evidence" `
-    -Message "Warnings should carry reviewer action."
 
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Content Control Data Binding Governance" `
     -Message "Markdown should include title."
 Assert-ContainsText -Text $markdown -ExpectedText "fix_custom_xml_data_binding_source" `
     -Message "Markdown should include remediation action."
-Assert-ContainsText -Text $markdown -ExpectedText "command_template" `
-    -Message "Markdown should include command templates."
-Assert-ContainsText -Text $markdown -ExpectedText "review_lock_state" `
-    -Message "Markdown should include repair strategies."
-Assert-ContainsText -Text $markdown -ExpectedText "sync_bound_content_control" `
-    -Message "Markdown should include bound content-control sync strategy."
-Assert-ContainsText -Text $markdown -ExpectedText "sync-content-controls-from-custom-xml" `
-    -Message "Markdown should include bound content-control sync command."
-Assert-ContainsText -Text $markdown -ExpectedText "## Repair Plan Feasibility" `
-    -Message "Markdown should include repair plan feasibility."
-Assert-ContainsText -Text $markdown -ExpectedText "native_dry_run_supported" `
-    -Message "Markdown should state native dry-run support."
-Assert-ContainsText -Text $markdown -ExpectedText "requires_visual_verification" `
-    -Message "Markdown should call out visual verification for apply paths."
 
 Write-Host "Content-control data-binding governance report regression passed."

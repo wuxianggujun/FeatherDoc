@@ -89,18 +89,6 @@ function Get-JsonString {
     return [string]$value
 }
 
-function Get-FirstJsonString {
-    param($Object, [string[]]$Names, [string]$DefaultValue = "")
-
-    foreach ($name in @($Names)) {
-        $value = Get-JsonString -Object $Object -Name $name
-        if (-not [string]::IsNullOrWhiteSpace($value)) {
-            return $value
-        }
-    }
-    return $DefaultValue
-}
-
 function Get-JsonInt {
     param($Object, [string]$Name, [int]$DefaultValue = 0)
 
@@ -110,19 +98,6 @@ function Get-JsonInt {
     }
     $parsed = 0
     if ([int]::TryParse([string]$value, [ref]$parsed)) { return $parsed }
-    return $DefaultValue
-}
-
-function Get-JsonBool {
-    param($Object, [string]$Name, [bool]$DefaultValue = $false)
-
-    $value = Get-JsonProperty -Object $Object -Name $Name
-    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
-        return $DefaultValue
-    }
-    if ($value -is [bool]) { return [bool]$value }
-    $parsed = $false
-    if ([bool]::TryParse([string]$value, [ref]$parsed)) { return $parsed }
     return $DefaultValue
 }
 
@@ -136,137 +111,6 @@ function Get-JsonArray {
         return @($value | Where-Object { $null -ne $_ })
     }
     return @($value)
-}
-
-function Get-ReportIdFromSchema {
-    param([string]$SourceSchema)
-
-    switch ($SourceSchema) {
-        "featherdoc.numbering_catalog_governance_report.v1" { return "numbering_catalog_governance" }
-        "featherdoc.table_layout_delivery_governance_report.v1" { return "table_layout_delivery_governance" }
-        default { return "" }
-    }
-}
-
-function Get-GovernanceMetricByContract {
-    param(
-        $Metrics,
-        [string]$Metric,
-        [string]$Id,
-        [string]$ReportId,
-        [string]$SourceSchema
-    )
-
-    return @($Metrics | Where-Object {
-        [string]$_.metric -eq $Metric -and
-        [string]$_.id -eq $Id -and
-        [string]$_.report_id -eq $ReportId -and
-        [string]$_.source_schema -eq $SourceSchema
-    }) | Select-Object -First 1
-}
-
-function Add-GovernanceMetricDetailLines {
-    param(
-        [System.Collections.Generic.List[string]]$Lines,
-        $Metric
-    )
-
-    $details = Get-JsonProperty -Object $Metric -Name "details"
-    if ($null -eq $details) { return }
-
-    $detailFields = @(
-        "document_count",
-        "catalog_exemplar_count",
-        "baseline_entry_count",
-        "matched_document_count",
-        "unmatched_catalog_document_count",
-        "unmatched_baseline_document_count",
-        "alignment_gap_count",
-        "catalog_coverage_percent",
-        "baseline_coverage_percent",
-        "coverage_score",
-        "ready_document_count",
-        "ready_document_percent",
-        "needs_review_document_count",
-        "failed_document_count",
-        "table_style_issue_count",
-        "automatic_tblLook_fix_count",
-        "manual_table_style_fix_count",
-        "table_position_automatic_count",
-        "table_position_review_count",
-        "command_failure_count",
-        "unresolved_item_count"
-    )
-    $detailParts = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($fieldName in $detailFields) {
-        $value = Get-JsonProperty -Object $details -Name $fieldName
-        if ($null -ne $value -and -not [string]::IsNullOrWhiteSpace([string]$value)) {
-            $detailParts.Add("$fieldName=$value") | Out-Null
-        }
-    }
-    if ($detailParts.Count -gt 0) {
-        $Lines.Add("  - details: ``$($detailParts -join ', ')``") | Out-Null
-    }
-
-    $penaltyParts = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($penalty in @(Get-JsonArray -Object $details -Name "penalty_summary")) {
-        $factor = Get-JsonString -Object $penalty -Name "factor"
-        if ([string]::IsNullOrWhiteSpace($factor)) { continue }
-        $count = Get-JsonProperty -Object $penalty -Name "count"
-        $penaltyValue = Get-JsonProperty -Object $penalty -Name "penalty"
-        $penaltyParts.Add("$factor(count=$count, penalty=$penaltyValue)") | Out-Null
-    }
-    if ($penaltyParts.Count -gt 0) {
-        $Lines.Add("  - penalty_summary: ``$($penaltyParts -join '; ')``") | Out-Null
-    }
-}
-
-function New-GovernanceMetrics {
-    param(
-        $Summary,
-        [string]$SourceSchema,
-        [string]$SourceReport,
-        [string]$SourceReportDisplay
-    )
-
-    $metrics = New-Object 'System.Collections.Generic.List[object]'
-    $reportId = Get-ReportIdFromSchema -SourceSchema $SourceSchema
-
-    if ($SourceSchema -eq "featherdoc.numbering_catalog_governance_report.v1" -and
-        ($null -ne (Get-JsonProperty -Object $Summary -Name "real_corpus_confidence_score") -or
-        -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $Summary -Name "real_corpus_confidence_level")))) {
-        $metrics.Add([ordered]@{
-            id = "numbering_catalog_governance.real_corpus_confidence"
-            metric = "real_corpus_confidence"
-            report_id = $reportId
-            source_schema = $SourceSchema
-            source_report = $SourceReport
-            source_report_display = $SourceReportDisplay
-            source_json_display = $SourceReportDisplay
-            score = Get-JsonInt -Object $Summary -Name "real_corpus_confidence_score"
-            level = Get-JsonString -Object $Summary -Name "real_corpus_confidence_level"
-            details = Get-JsonProperty -Object $Summary -Name "real_corpus_confidence"
-        }) | Out-Null
-    }
-
-    if ($SourceSchema -eq "featherdoc.table_layout_delivery_governance_report.v1" -and
-        ($null -ne (Get-JsonProperty -Object $Summary -Name "delivery_quality_score") -or
-        -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $Summary -Name "delivery_quality_level")))) {
-        $metrics.Add([ordered]@{
-            id = "table_layout_delivery_governance.delivery_quality"
-            metric = "delivery_quality"
-            report_id = $reportId
-            source_schema = $SourceSchema
-            source_report = $SourceReport
-            source_report_display = $SourceReportDisplay
-            source_json_display = $SourceReportDisplay
-            score = Get-JsonInt -Object $Summary -Name "delivery_quality_score"
-            level = Get-JsonString -Object $Summary -Name "delivery_quality_level"
-            details = Get-JsonProperty -Object $Summary -Name "delivery_quality"
-        }) | Out-Null
-    }
-
-    return @($metrics.ToArray())
 }
 
 function Expand-InputPathList {
@@ -359,76 +203,6 @@ function New-ReportMarkdown {
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
     $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null
     $lines.Add("") | Out-Null
-
-    $lines.Add("## Governance Metric Review Focus") | Out-Null
-    $lines.Add("") | Out-Null
-    $focusMetrics = @(
-        [ordered]@{
-            metric = "real_corpus_confidence"
-            id = "numbering_catalog_governance.real_corpus_confidence"
-            report_id = "numbering_catalog_governance"
-            source_schema = "featherdoc.numbering_catalog_governance_report.v1"
-            label = "Numbering real-corpus confidence"
-        },
-        [ordered]@{
-            metric = "delivery_quality"
-            id = "table_layout_delivery_governance.delivery_quality"
-            report_id = "table_layout_delivery_governance"
-            source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
-            label = "Table/layout delivery quality"
-        }
-    )
-    foreach ($focusMetric in $focusMetrics) {
-        $metric = Get-GovernanceMetricByContract `
-            -Metrics $Summary.governance_metrics `
-            -Metric ([string]$focusMetric.metric) `
-            -Id ([string]$focusMetric.id) `
-            -ReportId ([string]$focusMetric.report_id) `
-            -SourceSchema ([string]$focusMetric.source_schema)
-
-        if ($null -eq $metric) {
-            $lines.Add("- **$($focusMetric.label)** (``$($focusMetric.metric)``): missing") | Out-Null
-            continue
-        }
-
-        $lines.Add("- **$($focusMetric.label)** ``$($metric.id)``: metric=``$($metric.metric)`` level=``$($metric.level)`` score=``$($metric.score)`` report=``$($metric.report_id)`` source_schema=``$($metric.source_schema)``") | Out-Null
-        $lines.Add("  - source_report_display: ``$($metric.source_report_display)``") | Out-Null
-        $lines.Add("  - source_json_display: ``$($metric.source_json_display)``") | Out-Null
-        Add-GovernanceMetricDetailLines -Lines $lines -Metric $metric
-    }
-    $lines.Add("") | Out-Null
-
-    $lines.Add("## Governance Metrics") | Out-Null
-    $lines.Add("") | Out-Null
-    if (@($Summary.governance_metrics).Count -eq 0) {
-        $lines.Add("- none") | Out-Null
-    } else {
-        foreach ($metric in @($Summary.governance_metrics)) {
-            $lines.Add("- ``$($metric.id)``: report=``$($metric.report_id)`` metric=``$($metric.metric)`` level=``$($metric.level)`` score=``$($metric.score)`` schema=``$($metric.source_schema)`` source_report_display=``$($metric.source_report_display)``") | Out-Null
-            $lines.Add("  - source_json_display: ``$($metric.source_json_display)``") | Out-Null
-            Add-GovernanceMetricDetailLines -Lines $lines -Metric $metric
-        }
-    }
-    $lines.Add("") | Out-Null
-
-    $lines.Add("## Source Report Contracts") | Out-Null
-    $lines.Add("") | Out-Null
-    if (@($Summary.source_reports).Count -eq 0) {
-        $lines.Add("- none") | Out-Null
-    } else {
-        foreach ($report in @($Summary.source_reports)) {
-            $lines.Add("- ``$($report.schema)``: status=``$($report.status)`` ready=``$($report.release_ready)`` path=``$($report.path_display)``") | Out-Null
-            if (-not [string]::IsNullOrWhiteSpace([string]$report.latest_schema_approval_gate_status)) {
-                $lines.Add("  - latest_schema_approval_gate_status: ``$($report.latest_schema_approval_gate_status)``") | Out-Null
-            }
-            if (@($report.schema_approval_status_summary).Count -gt 0) {
-                $statusParts = @($report.schema_approval_status_summary | ForEach-Object { "$($_.status)=$($_.count)" })
-                $lines.Add("  - schema_approval_status_summary: ``$($statusParts -join ', ')``") | Out-Null
-            }
-        }
-    }
-    $lines.Add("") | Out-Null
-
     $lines.Add("## Blocker Summary") | Out-Null
     $lines.Add("") | Out-Null
     if (@($Summary.blocker_id_summary).Count -eq 0) {
@@ -445,21 +219,9 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.composite_id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)``") | Out-Null
-            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.source_json_display)) {
-                $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
-            }
+            $lines.Add("- ``$($blocker.composite_id)``: action=``$($blocker.action)`` source=``$($blocker.source_report_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - $($blocker.message)") | Out-Null
-            }
-            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.repair_strategy)) {
-                $lines.Add("  - repair_strategy: ``$($blocker.repair_strategy)``") | Out-Null
-            }
-            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.repair_hint)) {
-                $lines.Add("  - repair_hint: $($blocker.repair_hint)") | Out-Null
-            }
-            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
-                $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
             }
         }
     }
@@ -470,22 +232,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.composite_id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
-            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
-                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
-            }
-            if (-not [string]::IsNullOrWhiteSpace([string]$item.source_json_display)) {
-                $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
-            }
-            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
-                $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
-            }
-            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_hint)) {
-                $lines.Add("  - repair_hint: $($item.repair_hint)") | Out-Null
-            }
-            if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
-                $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
-            }
+            $lines.Add("- ``$($item.composite_id)``: action=``$($item.action)`` source=``$($item.source_report_display)``") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -495,13 +242,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)``") | Out-Null
-            if (-not [string]::IsNullOrWhiteSpace([string]$warning.source_json_display)) {
-                $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null
-            }
-            if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
-                $lines.Add("  - $($warning.message)") | Out-Null
-            }
+            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
         }
     }
     return @($lines)
@@ -527,11 +268,10 @@ Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($markdownPath))
 $inputPaths = @(Get-InputJsonPaths -RepoRoot $repoRoot -ExplicitPaths $InputJson -Roots $InputRoot)
 Write-Step "Reading $($inputPaths.Count) report summary file(s)"
 
-    $sourceReports = New-Object 'System.Collections.Generic.List[object]'
+$sourceReports = New-Object 'System.Collections.Generic.List[object]'
 $blockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
-$governanceMetrics = New-Object 'System.Collections.Generic.List[object]'
 $sourceIndex = 0
 
 foreach ($path in @($inputPaths)) {
@@ -539,35 +279,16 @@ foreach ($path in @($inputPaths)) {
     $kind = "unknown"
     $status = "loaded"
     $errorMessage = ""
-    $sourceMetrics = @()
-    $releaseReady = $false
-    $latestSchemaApprovalGateStatus = ""
-    $schemaApprovalStatusSummary = @()
     try {
         $summaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
         $kind = Get-ReportKind -Summary $summaryObject
-        $releaseReady = Get-JsonBool -Object $summaryObject -Name "release_ready"
-        $latestSchemaApprovalGateStatus = Get-JsonString -Object $summaryObject -Name "latest_schema_approval_gate_status"
-        $schemaApprovalStatusSummary = @(Get-JsonArray -Object $summaryObject -Name "schema_approval_status_summary")
-        $sourceMetrics = @(New-GovernanceMetrics `
-            -Summary $summaryObject `
-            -SourceSchema $kind `
-            -SourceReport $path `
-            -SourceReportDisplay (Get-DisplayPath -RepoRoot $repoRoot -Path $path))
-        foreach ($metric in @($sourceMetrics)) {
-            $governanceMetrics.Add($metric) | Out-Null
-        }
         $sourceBlockers = @(Get-JsonArray -Object $summaryObject -Name "release_blockers")
         $declaredBlockerCount = Get-JsonProperty -Object $summaryObject -Name "release_blocker_count"
         if ($null -ne $declaredBlockerCount -and [int]$declaredBlockerCount -ne $sourceBlockers.Count) {
             $warnings.Add([ordered]@{
                 id = "release_blocker_count_mismatch"
-                action = "review_release_blocker_rollup_metadata"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                source_json = $path
-                source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                source_schema = $kind
                 message = "release_blocker_count is $declaredBlockerCount but release_blockers contains $($sourceBlockers.Count) item(s)."
             }) | Out-Null
         }
@@ -576,50 +297,21 @@ foreach ($path in @($inputPaths)) {
         if ($sourceActions.Count -eq 0) {
             $sourceActions = @(Get-JsonArray -Object $summaryObject -Name "next_steps")
         }
-        $sourceWarnings = @(Get-JsonArray -Object $summaryObject -Name "warnings")
 
         $blockerIndex = 0
         foreach ($blocker in $sourceBlockers) {
             $blockerIndex++
             $id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
-            $sourceJson = Get-JsonString -Object $blocker -Name "source_json"
-            $sourceJsonDisplay = Get-JsonString -Object $blocker -Name "source_json_display"
-            $originSourceReport = Get-JsonString -Object $blocker -Name "source_report"
-            $originSourceReportDisplay = Get-JsonString -Object $blocker -Name "source_report_display"
             $blockers.Add([ordered]@{
                 composite_id = ("source{0}.blocker{1}.{2}" -f $sourceIndex, $blockerIndex, $id)
                 id = $id
-                source = Get-JsonString -Object $blocker -Name "source" -DefaultValue $kind
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                origin_source_report = $originSourceReport
-                origin_source_report_display = $originSourceReportDisplay
-                source_json = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
-                    $sourceJson
-                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
-                    $originSourceReport
-                } else {
-                    $path
-                }
-                source_json_display = if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
-                    $sourceJsonDisplay
-                } elseif (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
-                    Get-DisplayPath -RepoRoot $repoRoot -Path $sourceJson
-                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReportDisplay)) {
-                    $originSourceReportDisplay
-                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
-                    Get-DisplayPath -RepoRoot $repoRoot -Path $originSourceReport
-                } else {
-                    Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                }
-                source_schema = Get-FirstJsonString -Object $blocker -Names @("source_schema") -DefaultValue $kind
+                source_schema = $kind
                 severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
                 status = Get-JsonString -Object $blocker -Name "status"
                 action = Get-JsonString -Object $blocker -Name "action"
                 message = Get-JsonString -Object $blocker -Name "message"
-                repair_strategy = Get-JsonString -Object $blocker -Name "repair_strategy"
-                repair_hint = Get-JsonString -Object $blocker -Name "repair_hint"
-                command_template = Get-JsonString -Object $blocker -Name "command_template"
             }) | Out-Null
         }
 
@@ -627,82 +319,15 @@ foreach ($path in @($inputPaths)) {
         foreach ($item in $sourceActions) {
             $actionIndex++
             $id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
-            $sourceJson = Get-JsonString -Object $item -Name "source_json"
-            $sourceJsonDisplay = Get-JsonString -Object $item -Name "source_json_display"
-            $originSourceReport = Get-JsonString -Object $item -Name "source_report"
-            $originSourceReportDisplay = Get-JsonString -Object $item -Name "source_report_display"
             $actionItems.Add([ordered]@{
                 composite_id = ("source{0}.action{1}.{2}" -f $sourceIndex, $actionIndex, $id)
                 id = $id
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                origin_source_report = $originSourceReport
-                origin_source_report_display = $originSourceReportDisplay
-                source_json = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
-                    $sourceJson
-                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
-                    $originSourceReport
-                } else {
-                    $path
-                }
-                source_json_display = if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
-                    $sourceJsonDisplay
-                } elseif (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
-                    Get-DisplayPath -RepoRoot $repoRoot -Path $sourceJson
-                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReportDisplay)) {
-                    $originSourceReportDisplay
-                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
-                    Get-DisplayPath -RepoRoot $repoRoot -Path $originSourceReport
-                } else {
-                    Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                }
-                source_schema = Get-FirstJsonString -Object $item -Names @("source_schema") -DefaultValue $kind
+                source_schema = $kind
                 action = Get-JsonString -Object $item -Name "action"
                 title = Get-JsonString -Object $item -Name "title"
                 command = Get-JsonString -Object $item -Name "command"
-                open_command = Get-FirstJsonString -Object $item -Names @("open_command", "command")
-                repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
-                repair_hint = Get-JsonString -Object $item -Name "repair_hint"
-                command_template = Get-JsonString -Object $item -Name "command_template"
-            }) | Out-Null
-        }
-
-        $warningIndex = 0
-        foreach ($warning in $sourceWarnings) {
-            $warningIndex++
-            $id = Get-JsonString -Object $warning -Name "id" -DefaultValue "warning"
-            $sourceJson = Get-JsonString -Object $warning -Name "source_json"
-            $sourceJsonDisplay = Get-JsonString -Object $warning -Name "source_json_display"
-            $originSourceReport = Get-JsonString -Object $warning -Name "source_report"
-            $originSourceReportDisplay = Get-JsonString -Object $warning -Name "source_report_display"
-            $warnings.Add([ordered]@{
-                composite_id = ("source{0}.warning{1}.{2}" -f $sourceIndex, $warningIndex, $id)
-                id = $id
-                action = Get-JsonString -Object $warning -Name "action" -DefaultValue "review_release_governance_warning"
-                source_report = $path
-                source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                origin_source_report = $originSourceReport
-                origin_source_report_display = $originSourceReportDisplay
-                source_json = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
-                    $sourceJson
-                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
-                    $originSourceReport
-                } else {
-                    $path
-                }
-                source_json_display = if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
-                    $sourceJsonDisplay
-                } elseif (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
-                    Get-DisplayPath -RepoRoot $repoRoot -Path $sourceJson
-                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReportDisplay)) {
-                    $originSourceReportDisplay
-                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
-                    Get-DisplayPath -RepoRoot $repoRoot -Path $originSourceReport
-                } else {
-                    Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                }
-                source_schema = Get-FirstJsonString -Object $warning -Names @("source_schema") -DefaultValue $kind
-                message = Get-JsonString -Object $warning -Name "message"
             }) | Out-Null
         }
     } catch {
@@ -710,12 +335,8 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_report_read_failed"
-            action = "review_release_blocker_rollup_metadata"
             source_report = $path
             source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-            source_json = $path
-            source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-            source_schema = $kind
             message = $errorMessage
         }) | Out-Null
     }
@@ -725,12 +346,7 @@ foreach ($path in @($inputPaths)) {
         path_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
         schema = $kind
         status = $status
-        release_ready = $releaseReady
         error = $errorMessage
-        latest_schema_approval_gate_status = $latestSchemaApprovalGateStatus
-        schema_approval_status_summary = @($schemaApprovalStatusSummary)
-        governance_metric_count = @($sourceMetrics).Count
-        governance_metrics = @($sourceMetrics)
     }) | Out-Null
 }
 
@@ -756,8 +372,6 @@ $summary = [ordered]@{
     source_report_count = $sourceReports.Count
     source_failure_count = $sourceFailureCount
     source_reports = @($sourceReports.ToArray())
-    governance_metric_count = $governanceMetrics.Count
-    governance_metrics = @($governanceMetrics.ToArray())
     release_blocker_count = $blockers.Count
     release_blockers = @($blockers.ToArray())
     blocker_id_summary = @(Add-SummaryGroup -Items $blockers.ToArray() -PropertyName "id" -OutputName "id")

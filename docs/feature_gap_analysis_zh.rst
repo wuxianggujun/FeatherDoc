@@ -90,29 +90,13 @@ schema drift 数量、变更摘要、审批 decision 与下一步动作；单模
 ``build_project_template_onboarding_governance_report.ps1`` 现在可以进一步把
 onboarding summary、onboarding plan 和 project-template smoke summary 汇总成
 ``featherdoc.project_template_onboarding_governance_report.v1``，用于跨模板查看
-schema approval 状态、release blocker、action item 和人工复核建议。该报告的
-blocker / action item 现在会携带 ``source_schema``、``source_json_display`` 与
-reviewer ``open_command``，并经
-``featherdoc.project_template_delivery_readiness_report.v1`` 进入默认 release blocker
-rollup，让发布面板和 reviewer checklist 能直接定位 onboarding 证据与复核命令。
+schema approval 状态、release blocker、action item 和人工复核建议。
 ``write_schema_patch_confidence_calibration_report.ps1`` 也已能从 smoke summary
 或审批历史中只读提取 schema patch review 规模、approval outcome 和可选
 confidence 元数据，生成 ``featherdoc.schema_patch_confidence_calibration_report.v1``
-置信度区间报告。该报告现在会把 pending approval outcome 写成 release blocker，
-把未打分候选或无效审批记录写成 warning，并把 recommendation 同步为带
-``open_command`` 的 action item；默认 release blocker auto-discovery、governance
-pipeline 和 handoff 都会读取 ``schema-patch-confidence-calibration/summary.json``。
+置信度区间报告。
 ``build_release_blocker_rollup_report.ps1`` 则把模板、骨架、版式等报告里的
 ``release_blockers`` / ``action_items`` 聚合成统一发布阻断视图。
-``build_release_governance_pipeline_report.ps1`` 的
-``featherdoc.release_governance_pipeline_report.v1`` 也会在 ``stages[]`` 中保留每个治理
-stage 的 blocker / warning / action item 明细，并补齐 ``source_schema``、
-``source_report_display``、``source_json_display`` 与 action item ``open_command``，
-让发布面板可以先按治理源定位证据，再交给 final rollup 和 reviewer checklist 展示。
-release governance handoff 现在也会把归一化后的 blocker、warning 与 action item
-数组写回 release summary、final review、release handoff 和 reviewer checklist；reviewer
-可以直接读取 ``source_schema``、``source_report_display``、``source_json_display`` 和
-``open_command``，而不必只依赖 handoff 计数。
 
 后续建议继续补齐的是“工程化治理层”，而不是基础 patch API：
 
@@ -168,15 +152,6 @@ audit 与 catalog baseline gate 汇入统一骨架治理报告。
 ``build_document_skeleton_governance_rollup_report.ps1`` 进一步把多份单文档
 骨架治理 summary 聚合成跨模板 exemplar catalog、issue summary、release blocker
 和 action item 视图，便于先完成文档骨架治理汇总，再接入发布阻断面板。
-发布 metadata 现在会把 final release blocker rollup 的明细数组同步到 release
-candidate ``summary.json`` 与 ``final_review.md``，并在 reviewer-facing bundle 中展示
-blocker / warning / action item 的 ``id``、``action``、``message``、``open_command``、
-``source_schema``、``source_report_display`` 和 ``source_json_display``，让
-``featherdoc.document_skeleton_governance_rollup_report.v1`` 不再只通过计数进入发布面板。
-同时，release governance pipeline 的 ``numbering_catalog_governance`` stage 会直接保留
-document skeleton rollup 的 blocker / action item 明细，便于发布面板在 final rollup 之前
-按 stage 展开骨架治理证据；release governance handoff 也会把同一批骨架治理明细继续
-透传到 handoff summary、final review、release bundle 和 reviewer checklist。
 后续对既有文档里的复杂 numbering catalog，仍可继续强化冲突审计和 catalog
 patch 衔接。
 
@@ -429,7 +404,6 @@ patch 与 diff 工作流。
 
 当前还新增了轻量表单状态 inspection / mutation：``content_control_summary`` 会返回 ``form_kind``、``lock``、``w:dataBinding`` 的 store item / XPath / prefix mappings、复选框 ``checked``、日期格式 / locale、下拉 / 组合框列表项与当前选中项，``inspect-content-controls`` 的 JSON / 文本输出也会暴露这些字段；``set_content_control_form_state_by_tag(...)`` / ``set_content_control_form_state_by_alias(...)`` 与 CLI ``set-content-control-form-state`` 已支持 checkbox checked、下拉 / 组合框选中项、日期文本 / 格式 / locale、lock 设置 / 清除，以及 dataBinding 设置 / 清除。``sync_content_controls_from_custom_xml()`` 与 ``sync-content-controls-from-custom-xml`` 也已支持读取匹配 ``customXml/item*.xml``，按 ``w:dataBinding`` XPath 单向刷新内容控件显示文本，并通过 Word PDF / PNG 可视化回归固化。
 ``build_content_control_data_binding_governance_report.ps1`` 则在不重跑 DOCX / CLI 的前提下读取 ``inspect-content-controls`` 与 ``sync-content-controls-from-custom-xml`` 的 JSON 证据，输出 ``featherdoc.content_control_data_binding_governance_report.v1``。它会把 Custom XML 同步 issue、已绑定但仍显示 placeholder 的控件升级为 ``release_blockers``，并把绑定控件锁定策略、未绑定表单控件和重复绑定关系沉淀为 ``action_items``，目前也已经接入 release governance pipeline。
-这些 content-control 治理项现在会在源报告中固定写出 ``source_schema``、``source_json_display`` 与 action item 的 ``open_command``，并通过 release blocker rollup 进入 release candidate ``summary.json``、``final_review.md`` 和 reviewer-facing bundle，避免 reviewer 只能看到计数而缺少证据入口。
 
 下一步继续补齐：
 
@@ -563,8 +537,8 @@ P2：可以后置的能力
 
 - content control 复杂表单保护、重复节和模板数据模型双向同步策略
   （Custom XML 单向刷新和只读数据绑定治理 gate 已完成）
-- onboarding governance、schema confidence calibration、release blocker rollup 与
-  release governance handoff 继续接入发布 gate / 发布面板
+- onboarding governance、schema confidence calibration 与 release blocker rollup
+  继续接入发布 gate / 发布面板
 - 真实项目模板 smoke manifest 的样例、审批历史和回归证据补强
 
 阶段目标：让一份真实业务模板可以更快接入、校验、生成和回归。
@@ -576,9 +550,8 @@ P2：可以后置的能力
 优先做：
 
 - exemplar 文档到 numbering catalog JSON 的冲突审计和 catalog patch 衔接
-- 多份骨架治理 summary 的 rollup 报告已经落地，发布面板已可从 final rollup、
-  pipeline stage 和 release governance handoff 直接消费
-  ``featherdoc.document_skeleton_governance_rollup_report.v1`` 明细
+- 多份骨架治理 summary 的 rollup 报告已经落地，下一步应让发布面板直接消费
+  ``featherdoc.document_skeleton_governance_rollup_report.v1``
 - ``repair-style-numbering`` 建议到 catalog patch 的衔接
 - style usage report 驱动的 batch audit 与自动建议
 - style refactor plan 的真实语料置信度校准与 merge restore 批量选择增强
