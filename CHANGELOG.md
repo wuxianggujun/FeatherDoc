@@ -13,6 +13,9 @@ performance.
 - Added release metadata docs checks that keep the document-governance
   acceptance page wired to template readiness, content-control repair,
   numbering real-corpus alignment, and table-layout delivery quality evidence.
+- Added content-control governance repair-plan `open_command` passthrough so
+  reviewer-facing repair feasibility rows can link back to the report rebuild
+  command when they originate from action items.
 - Added conservative PDF repeated-header abbreviation and same-token word-order
   matching for common cross-page table headers such as `Qty`/`Quantity`,
   `Amt`/`Amount`, `Project Status`/`Status Project`, and parenthesized unit

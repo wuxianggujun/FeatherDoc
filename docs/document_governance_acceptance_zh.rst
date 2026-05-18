@@ -42,6 +42,8 @@ Content-control 修复工作流：
   ``command_template``、``source_json_display``。
 - 治理报告 schema 固定为
   ``featherdoc.content_control_data_binding_governance_report.v1``。
+- ``repair_plan_items`` 会保留 action-derived ``open_command``，
+  让 reviewer 可以从修复计划直接回到治理报告重建入口。
 - 占位符阻塞项锁定为
   ``content_control_data_binding.bound_placeholder``。
 - 同步修复路径锁定为 ``sync_bound_content_control`` 和

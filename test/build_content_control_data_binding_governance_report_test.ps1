@@ -273,6 +273,8 @@ Assert-Equal -Actual ([string]$syncPlan.source_id) -Expected "content_control_da
     -Message "Bound placeholder sync plan should keep the source blocker id."
 Assert-ContainsText -Text ([string]$syncPlan.source_json_display) -ExpectedText "inspect-content-controls.json" `
     -Message "Bound placeholder sync plan should keep source JSON display."
+Assert-Equal -Actual ([string]$syncPlan.open_command) -Expected "" `
+    -Message "Release-blocker repair plans should not invent an open command."
 Assert-ContainsText -Text ([string]$syncPlan.command_template) -ExpectedText "sync-content-controls-from-custom-xml" `
     -Message "Bound placeholder sync plan should carry sync command template."
 Assert-ContainsText -Text ([string]$syncPlan.repair_hint) -ExpectedText "Rerun Custom XML sync" `
@@ -282,6 +284,9 @@ Assert-Equal -Actual ([string]$syncPlan.plan_status) -Expected "review_then_appl
 $unboundPlan = @($summary.repair_plan_items | Where-Object { [string]$_.repair_strategy -eq "bind_or_exempt_form_control" })[0]
 Assert-Equal -Actual ([string]$unboundPlan.plan_status) -Expected "requires_user_values" `
     -Message "Unbound form repair should require user-provided binding values."
+Assert-ContainsText -Text ([string]$unboundPlan.open_command) `
+    -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
+    -Message "Action-derived repair plans should keep reviewer open commands."
 Assert-ContainsText -Text ((@($unboundPlan.required_user_values) | ForEach-Object { [string]$_ }) -join "`n") `
     -ExpectedText "data_binding_xpath" `
     -Message "Unbound form repair should name required binding values."
@@ -313,5 +318,7 @@ Assert-ContainsText -Text $markdown -ExpectedText "native_dry_run_supported" `
     -Message "Markdown should state native dry-run support."
 Assert-ContainsText -Text $markdown -ExpectedText "requires_visual_verification" `
     -Message "Markdown should call out visual verification for apply paths."
+Assert-ContainsText -Text $markdown -ExpectedText "open_command" `
+    -Message "Markdown repair plans should include reviewer open commands when available."
 
 Write-Host "Content-control data-binding governance report regression passed."

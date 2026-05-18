@@ -376,6 +376,7 @@ function New-RepairPlanItem {
         tag = Get-JsonString -Object $Item -Name "tag"
         alias = Get-JsonString -Object $Item -Name "alias"
         action = Get-JsonString -Object $Item -Name "action"
+        open_command = Get-JsonString -Object $Item -Name "open_command"
         repair_strategy = $repairStrategy
         repair_hint = Get-JsonString -Object $Item -Name "repair_hint"
         command_template = Get-JsonString -Object $Item -Name "command_template"
@@ -559,6 +560,9 @@ function New-ReportMarkdown {
             }
             if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
             $requiredUserValues = @(Get-JsonArray -Object $item -Name "required_user_values")
             if ($requiredUserValues.Count -gt 0) {
