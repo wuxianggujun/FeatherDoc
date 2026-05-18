@@ -223,6 +223,8 @@ Assert-Equal -Actual ([string]$firstBlocker.source_schema) -Expected "featherdoc
     -Message "Blocker should carry content-control governance source schema."
 Assert-ContainsText -Text ([string]$firstBlocker.source_json_display) -ExpectedText "sync-content-controls-from-custom-xml.json" `
     -Message "Blocker should carry source JSON display."
+Assert-ContainsText -Text ([string]$firstBlocker.source_report_display) -ExpectedText "sync-content-controls-from-custom-xml.json" `
+    -Message "Blocker should carry source report display."
 Assert-Equal -Actual ([string]$firstBlocker.repair_strategy) -Expected "fix_custom_xml_source" `
     -Message "Sync blockers should carry a repair strategy."
 Assert-ContainsText -Text ([string]$firstBlocker.repair_hint) -ExpectedText "Custom XML" `
@@ -234,6 +236,8 @@ Assert-Equal -Actual ([string]$placeholderBlocker.source_schema) -Expected "feat
     -Message "Placeholder blockers should carry content-control governance source schema."
 Assert-ContainsText -Text ([string]$placeholderBlocker.source_json_display) -ExpectedText "inspect-content-controls.json" `
     -Message "Placeholder blockers should carry source JSON display."
+Assert-ContainsText -Text ([string]$placeholderBlocker.source_report_display) -ExpectedText "inspect-content-controls.json" `
+    -Message "Placeholder blockers should carry source report display."
 Assert-Equal -Actual ([string]$placeholderBlocker.repair_strategy) -Expected "sync_bound_content_control" `
     -Message "Placeholder blockers should carry sync repair strategy."
 Assert-ContainsText -Text ([string]$placeholderBlocker.repair_hint) -ExpectedText "Rerun Custom XML sync" `
@@ -259,6 +263,8 @@ Assert-Equal -Actual ([string]$duplicateAction.repair_strategy) -Expected "dedup
     -Message "Duplicate binding actions should carry a repair strategy."
 Assert-ContainsText -Text ([string]$duplicateAction.command_template) -ExpectedText "inspect-content-controls" `
     -Message "Duplicate binding actions should carry an inspection command template."
+Assert-ContainsText -Text ([string]$duplicateAction.source_report_display) -ExpectedText "inspect-content-controls.json" `
+    -Message "Duplicate binding actions should carry source report display."
 $repairStatuses = @($summary.repair_plan_status_summary | ForEach-Object { [string]$_.plan_status }) -join "`n"
 Assert-ContainsText -Text $repairStatuses -ExpectedText "source_fix_required" `
     -Message "Repair plan should flag Custom XML source fixes."
@@ -273,6 +279,8 @@ Assert-Equal -Actual ([string]$syncPlan.source_id) -Expected "content_control_da
     -Message "Bound placeholder sync plan should keep the source blocker id."
 Assert-ContainsText -Text ([string]$syncPlan.source_json_display) -ExpectedText "inspect-content-controls.json" `
     -Message "Bound placeholder sync plan should keep source JSON display."
+Assert-ContainsText -Text ([string]$syncPlan.source_report_display) -ExpectedText "inspect-content-controls.json" `
+    -Message "Bound placeholder sync plan should keep source report display."
 Assert-Equal -Actual ([string]$syncPlan.open_command) -Expected "" `
     -Message "Release-blocker repair plans should not invent an open command."
 Assert-ContainsText -Text ([string]$syncPlan.command_template) -ExpectedText "sync-content-controls-from-custom-xml" `
@@ -298,6 +306,8 @@ Assert-Equal -Actual ([string]$warning.source_schema) -Expected "featherdoc.cont
     -Message "Warnings should carry content-control governance source schema."
 Assert-Equal -Actual ([string]$warning.action) -Expected "review_content_control_data_binding_evidence" `
     -Message "Warnings should carry reviewer action."
+Assert-ContainsText -Text ([string]$warning.source_report_display) -ExpectedText "unrelated.json" `
+    -Message "Warnings should carry source report display."
 
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Content Control Data Binding Governance" `
@@ -320,5 +330,7 @@ Assert-ContainsText -Text $markdown -ExpectedText "requires_visual_verification"
     -Message "Markdown should call out visual verification for apply paths."
 Assert-ContainsText -Text $markdown -ExpectedText "open_command" `
     -Message "Markdown repair plans should include reviewer open commands when available."
+Assert-ContainsText -Text $markdown -ExpectedText "source_report_display" `
+    -Message "Markdown should expose source report display fields."
 
 Write-Host "Content-control data-binding governance report regression passed."

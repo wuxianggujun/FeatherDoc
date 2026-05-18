@@ -284,6 +284,7 @@ function New-ReleaseBlocker {
         source_schema = $contentControlGovernanceSchema
         source_json = $SourceJson
         source_json_display = $SourceJsonDisplay
+        source_report_display = $SourceJsonDisplay
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
@@ -323,6 +324,7 @@ function New-ActionItem {
         source_schema = $contentControlGovernanceSchema
         source_json = $SourceJson
         source_json_display = $SourceJsonDisplay
+        source_report_display = $SourceJsonDisplay
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
@@ -371,6 +373,7 @@ function New-RepairPlanItem {
         source_schema = Get-JsonString -Object $Item -Name "source_schema"
         source_json = Get-JsonString -Object $Item -Name "source_json"
         source_json_display = Get-JsonString -Object $Item -Name "source_json_display"
+        source_report_display = Get-JsonString -Object $Item -Name "source_report_display" -DefaultValue (Get-JsonString -Object $Item -Name "source_json_display")
         part_entry_name = Get-JsonString -Object $Item -Name "part_entry_name"
         content_control_index = Get-JsonProperty -Object $Item -Name "content_control_index"
         tag = Get-JsonString -Object $Item -Name "tag"
@@ -506,7 +509,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - message: $($blocker.message)") | Out-Null
             }
@@ -528,7 +531,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -553,7 +556,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.repair_plan_items)) {
-            $lines.Add("- ``$($item.source_id)``: source=``$($item.source_kind)`` strategy=``$($item.repair_strategy)`` status=``$($item.plan_status)`` apply_supported=``$($item.apply_supported)`` native_dry_run_supported=``$($item.native_dry_run_supported)`` requires_visual_verification=``$($item.requires_visual_verification)``") | Out-Null
+            $lines.Add("- ``$($item.source_id)``: source=``$($item.source_kind)`` strategy=``$($item.repair_strategy)`` status=``$($item.plan_status)`` apply_supported=``$($item.apply_supported)`` native_dry_run_supported=``$($item.native_dry_run_supported)`` requires_visual_verification=``$($item.requires_visual_verification)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.tag) -or
                 -not [string]::IsNullOrWhiteSpace([string]$item.alias)) {
                 $lines.Add("  - selector: tag=``$($item.tag)`` alias=``$($item.alias)``") | Out-Null
@@ -577,7 +580,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - message: $($warning.message)") | Out-Null
             }
@@ -635,6 +638,7 @@ foreach ($path in @($inputPaths)) {
             source_schema = $contentControlGovernanceSchema
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = "Input JSON was not found."
         }) | Out-Null
     } else {
@@ -677,6 +681,7 @@ foreach ($path in @($inputPaths)) {
                         source_schema = $contentControlGovernanceSchema
                         source_json = $path
                         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         message = "Input JSON kind '$kind' is not content-control data-binding evidence."
                     }) | Out-Null
                 }
@@ -690,6 +695,7 @@ foreach ($path in @($inputPaths)) {
                 source_schema = $contentControlGovernanceSchema
                 source_json = $path
                 source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 message = $errorMessage
             }) | Out-Null
         }
@@ -826,6 +832,7 @@ if ($contentControls.Count -eq 0 -and $syncItems.Count -eq 0 -and $syncIssues.Co
         source_schema = $contentControlGovernanceSchema
         source_json = $summaryPath
         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "No content-control inspection or Custom XML sync evidence was loaded."
     }) | Out-Null
 }
@@ -836,6 +843,7 @@ if ($boundControls.Count -gt 0 -and $syncItems.Count -eq 0 -and $syncIssues.Coun
         source_schema = $contentControlGovernanceSchema
         source_json = $summaryPath
         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
     }) | Out-Null
 }
