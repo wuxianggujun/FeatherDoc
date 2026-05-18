@@ -385,6 +385,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.p
 - `pdf_cli_export`
 - `pdf_regression_`
 - `pdf_unicode_font_roundtrip_visual`
+- CJK 样本的文本层 copy/search 检查，基于 regression manifest 中
+  `expect_cjk=true` 的样本提取 PDF 文本层并核对 `expected_text`
 - 核心样本的 PNG baseline 渲染，其中包含 `styled-text`、`mixed-style-text`、
   `underline-text`、`document-contract-cjk-style`、`document-eastasia-style-probe`、
   `mixed-cjk-punctuation-text` 和 `latin-ligature-text` 这组样式 / 文字塑形视觉样本
@@ -394,6 +396,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.p
 
 - `output/pdf-visual-release-gate/report/summary.json`
 - `output/pdf-visual-release-gate/report/aggregate-contact-sheet.png`
+- `output/pdf-visual-release-gate/report/cjk-copy-search/*-summary.json`
+- `output/pdf-visual-release-gate/report/cjk-copy-search/*-text.txt`
 - `output/pdf-visual-release-gate/unicode-font/report/summary.json`
 - `output/pdf-visual-release-gate/unicode-font/report/comparison-contact-sheet.png`
 

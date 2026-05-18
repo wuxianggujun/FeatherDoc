@@ -50,4 +50,15 @@ foreach ($sample in $requiredSamples) {
         -Message "PDF visual release gate should write a baseline folder for '$sample'."
 }
 
+Assert-ContainsText -Text $scriptText -ExpectedText "scripts\check_pdf_text_layer.py" `
+    -Message "PDF visual release gate should use the text-layer copy/search checker."
+Assert-ContainsText -Text $scriptText -ExpectedText "cjk-copy-search" `
+    -Message "PDF visual release gate should write CJK copy/search evidence."
+Assert-ContainsText -Text $scriptText -ExpectedText "expect_cjk -eq `$true" `
+    -Message "PDF visual release gate should select CJK manifest samples."
+Assert-ContainsText -Text $scriptText -ExpectedText "matched_text" `
+    -Message "PDF visual release gate should report matched text-layer snippets."
+Assert-ContainsText -Text $scriptText -ExpectedText "missing_text" `
+    -Message "PDF visual release gate should report missing text-layer snippets."
+
 Write-Host "PDF visual release gate text shaping baseline regression passed."
