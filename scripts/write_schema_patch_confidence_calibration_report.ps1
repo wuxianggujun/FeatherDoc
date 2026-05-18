@@ -201,12 +201,100 @@ function Get-ConfidenceSource {
     return "schema_patch_review"
 }
 
+function Get-TemplateScope {
+    param([string]$ProjectId, [string]$TemplateName)
+
+    if (-not [string]::IsNullOrWhiteSpace($ProjectId) -and
+        -not [string]::IsNullOrWhiteSpace($TemplateName)) {
+        return "$ProjectId/$TemplateName"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($TemplateName)) { return $TemplateName }
+    if (-not [string]::IsNullOrWhiteSpace($ProjectId)) { return $ProjectId }
+    return ""
+}
+
+function Get-SchemaPatchCandidateType {
+    param(
+        $Review,
+        $Approval,
+        [int]$UpsertSlotCount,
+        [int]$RemoveTargetCount,
+        [int]$RemoveSlotCount,
+        [int]$RenameSlotCount,
+        [int]$UpdateSlotCount,
+        [int]$InsertedSlots,
+        [int]$ReplacedSlots
+    )
+
+    $explicit = Get-JsonString -Object $Approval -Name "candidate_type" -DefaultValue (Get-JsonString -Object $Review -Name "candidate_type")
+    if (-not [string]::IsNullOrWhiteSpace($explicit)) { return $explicit }
+
+    $kinds = New-Object 'System.Collections.Generic.List[string]'
+    if ($RenameSlotCount -gt 0) { $kinds.Add("rename") | Out-Null }
+    if ($UpdateSlotCount -gt 0 -or $ReplacedSlots -gt 0) { $kinds.Add("update") | Out-Null }
+    if (($RemoveTargetCount + $RemoveSlotCount) -gt 0) { $kinds.Add("remove") | Out-Null }
+    if ($UpsertSlotCount -gt 0 -or $InsertedSlots -gt 0) { $kinds.Add("add") | Out-Null }
+
+    if ($kinds.Count -eq 0) { return "unknown" }
+    if ($kinds.Count -eq 1) { return [string]$kinds[0] }
+    return (@($kinds.ToArray()) -join "+")
+}
+
+function New-SchemaPatchOperationSummary {
+    param(
+        [int]$UpsertSlotCount,
+        [int]$RemoveTargetCount,
+        [int]$RemoveSlotCount,
+        [int]$RenameSlotCount,
+        [int]$UpdateSlotCount,
+        [int]$InsertedSlots,
+        [int]$ReplacedSlots
+    )
+
+    return [ordered]@{
+        add_count = $UpsertSlotCount
+        remove_count = ($RemoveTargetCount + $RemoveSlotCount)
+        rename_count = $RenameSlotCount
+        update_count = $UpdateSlotCount
+        inserted_slot_count = $InsertedSlots
+        replaced_slot_count = $ReplacedSlots
+    }
+}
+
+function Add-EntryScope {
+    param(
+        [System.Collections.IDictionary]$Item,
+        $Entry
+    )
+
+    $Item["project_id"] = Get-JsonString -Object $Entry -Name "project_id"
+    $Item["template_name"] = Get-JsonString -Object $Entry -Name "template_name"
+    $Item["template_scope"] = Get-JsonString -Object $Entry -Name "template_scope"
+    $Item["candidate_type"] = Get-JsonString -Object $Entry -Name "candidate_type"
+    $Item["candidate_name"] = Get-JsonString -Object $Entry -Name "name"
+    $Item["schema_update_candidate"] = Get-JsonString -Object $Entry -Name "schema_update_candidate"
+    return $Item
+}
+
+function Get-FirstEntryByFilter {
+    param([object[]]$Entries, [string]$PropertyName, [string]$ExpectedValue)
+
+    foreach ($entry in @($Entries)) {
+        if ((Get-JsonString -Object $entry -Name $PropertyName) -eq $ExpectedValue) {
+            return $entry
+        }
+    }
+    return $null
+}
+
 function New-EntryFromReviewAndApproval {
     param(
         [string]$SummaryJson,
         [string]$Name,
         $Review,
-        $Approval
+        $Approval,
+        [string]$ProjectId = "",
+        [string]$TemplateName = ""
     )
 
     $confidence = Get-NullableJsonInt -Object $Approval -Name "confidence"
@@ -233,9 +321,26 @@ function New-EntryFromReviewAndApproval {
     $renameSlotCount = Get-JsonInt -Object $Review -Name "rename_slot_count"
     $updateSlotCount = Get-JsonInt -Object $Review -Name "update_slot_count"
     $upsertSlotCount = Get-JsonInt -Object $Review -Name "upsert_slot_count"
+    $resolvedProjectId = Get-JsonString -Object $Approval -Name "project_id" -DefaultValue (Get-JsonString -Object $Review -Name "project_id" -DefaultValue $ProjectId)
+    $resolvedTemplateName = Get-JsonString -Object $Approval -Name "template_name" -DefaultValue (Get-JsonString -Object $Review -Name "template_name" -DefaultValue $TemplateName)
+    if ([string]::IsNullOrWhiteSpace($resolvedTemplateName)) { $resolvedTemplateName = $Name }
+    $candidateType = Get-SchemaPatchCandidateType `
+        -Review $Review `
+        -Approval $Approval `
+        -UpsertSlotCount $upsertSlotCount `
+        -RemoveTargetCount $removeTargetCount `
+        -RemoveSlotCount $removeSlotCount `
+        -RenameSlotCount $renameSlotCount `
+        -UpdateSlotCount $updateSlotCount `
+        -InsertedSlots $insertedSlots `
+        -ReplacedSlots $replacedSlots
 
     return [ordered]@{
         name = $Name
+        project_id = $resolvedProjectId
+        template_name = $resolvedTemplateName
+        template_scope = Get-TemplateScope -ProjectId $resolvedProjectId -TemplateName $resolvedTemplateName
+        candidate_type = $candidateType
         summary_json = $SummaryJson
         schema_update_candidate = Get-JsonString -Object $Approval -Name "schema_update_candidate"
         review_json = Get-JsonString -Object $Approval -Name "review_json" -DefaultValue (Get-JsonString -Object $Review -Name "review_json")
@@ -259,6 +364,14 @@ function New-EntryFromReviewAndApproval {
         update_slot_count = $updateSlotCount
         inserted_slots = $insertedSlots
         replaced_slots = $replacedSlots
+        operation_summary = New-SchemaPatchOperationSummary `
+            -UpsertSlotCount $upsertSlotCount `
+            -RemoveTargetCount $removeTargetCount `
+            -RemoveSlotCount $removeSlotCount `
+            -RenameSlotCount $renameSlotCount `
+            -UpdateSlotCount $updateSlotCount `
+            -InsertedSlots $insertedSlots `
+            -ReplacedSlots $replacedSlots
         compliance_issue_count = $complianceIssueCount
         calibration_bucket = Get-CalibrationBucketName -Confidence $confidence
         calibration_outcome = $outcome
@@ -274,6 +387,8 @@ function Add-EntriesFromSmokeSummary {
 
     $reviews = @(Get-JsonArray -Object $Summary -Name "schema_patch_reviews")
     $approvals = @(Get-JsonArray -Object $Summary -Name "schema_patch_approval_items")
+    $summaryProjectId = Get-JsonString -Object $Summary -Name "project_id"
+    $summaryTemplateName = Get-JsonString -Object $Summary -Name "template_name"
 
     if ($reviews.Count -eq 0 -and $approvals.Count -eq 0) {
         return
@@ -281,7 +396,7 @@ function Add-EntriesFromSmokeSummary {
 
     if ($approvals.Count -eq 0) {
         foreach ($review in $reviews) {
-            $Entries.Add((New-EntryFromReviewAndApproval -SummaryJson $Path -Name (Get-JsonString -Object $review -Name "name" -DefaultValue "schema_patch_review") -Review $review -Approval ([ordered]@{ status = "unknown"; decision = "unknown" }))) | Out-Null
+            $Entries.Add((New-EntryFromReviewAndApproval -SummaryJson $Path -Name (Get-JsonString -Object $review -Name "name" -DefaultValue "schema_patch_review") -Review $review -Approval ([ordered]@{ status = "unknown"; decision = "unknown" }) -ProjectId $summaryProjectId -TemplateName $summaryTemplateName)) | Out-Null
         }
         return
     }
@@ -301,7 +416,7 @@ function Add-EntriesFromSmokeSummary {
         if ($null -eq $matchingReview) {
             $matchingReview = [ordered]@{ changed = $true }
         }
-        $Entries.Add((New-EntryFromReviewAndApproval -SummaryJson $Path -Name $name -Review $matchingReview -Approval $approval)) | Out-Null
+        $Entries.Add((New-EntryFromReviewAndApproval -SummaryJson $Path -Name $name -Review $matchingReview -Approval $approval -ProjectId $summaryProjectId -TemplateName $summaryTemplateName)) | Out-Null
     }
 }
 
@@ -313,7 +428,15 @@ function Add-EntriesFromHistory {
     )
 
     foreach ($entryHistory in @(Get-JsonArray -Object $Summary -Name "entry_histories")) {
+        $historyProjectId = Get-JsonString -Object $entryHistory -Name "project_id" -DefaultValue (Get-JsonString -Object $Summary -Name "project_id")
+        $historyTemplateName = Get-JsonString -Object $entryHistory -Name "template_name" -DefaultValue (Get-JsonString -Object $entryHistory -Name "name")
         foreach ($run in @(Get-JsonArray -Object $entryHistory -Name "runs")) {
+            if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $run -Name "project_id"))) {
+                $run | Add-Member -NotePropertyName "project_id" -NotePropertyValue $historyProjectId -Force
+            }
+            if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $run -Name "template_name"))) {
+                $run | Add-Member -NotePropertyName "template_name" -NotePropertyValue $historyTemplateName -Force
+            }
             Add-EntriesFromSmokeSummary -Path $Path -Summary $run -Entries $Entries
         }
     }
@@ -358,12 +481,21 @@ function New-BucketSummary {
 function New-GroupSummary {
     param([object[]]$Entries, [string]$PropertyName, [string]$OutputName)
 
+    $groups = New-Object 'System.Collections.Generic.Dictionary[string,int]'
+    foreach ($entry in @($Entries)) {
+        $key = Get-JsonString -Object $entry -Name $PropertyName
+        if (-not $groups.ContainsKey($key)) {
+            $groups[$key] = 0
+        }
+        $groups[$key] += 1
+    }
+
     return @(
-        foreach ($group in @($Entries | Group-Object $PropertyName |
-            Sort-Object -Property @{ Expression = "Count"; Descending = $true }, @{ Expression = "Name"; Ascending = $true })) {
+        foreach ($group in @($groups.GetEnumerator() |
+            Sort-Object -Property @{ Expression = "Value"; Descending = $true }, @{ Expression = "Key"; Ascending = $true })) {
             $summary = [ordered]@{}
-            $summary[$OutputName] = [string]$group.Name
-            $summary["count"] = [int]$group.Count
+            $summary[$OutputName] = [string]$group.Key
+            $summary["count"] = [int]$group.Value
             $summary
         }
     )
@@ -399,6 +531,9 @@ function New-Recommendations {
     $pendingCount = @($Entries | Where-Object { $_.calibration_outcome -eq "pending" }).Count
     $invalidCount = @($Entries | Where-Object { $_.calibration_outcome -eq "invalid_result" }).Count
     $unscoredCount = @($Entries | Where-Object { $_.calibration_bucket -eq "unscored" }).Count
+    $pendingEntry = Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_outcome" -ExpectedValue "pending"
+    $invalidEntry = Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_outcome" -ExpectedValue "invalid_result"
+    $unscoredEntry = Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_bucket" -ExpectedValue "unscored"
 
     if ($null -ne $RecommendedMinConfidence) {
         $recommendations.Add([ordered]@{
@@ -409,28 +544,31 @@ function New-Recommendations {
         }) | Out-Null
     }
     if ($pendingCount -gt 0) {
-        $recommendations.Add([ordered]@{
+        $recommendation = [ordered]@{
             id = "resolve_pending_schema_approvals"
             priority = "high"
             recommendation = "Resolve pending schema approvals before using this data to tighten automation thresholds."
             pending_count = $pendingCount
-        }) | Out-Null
+        }
+        $recommendations.Add((Add-EntryScope -Item $recommendation -Entry $pendingEntry)) | Out-Null
     }
     if ($invalidCount -gt 0) {
-        $recommendations.Add([ordered]@{
+        $recommendation = [ordered]@{
             id = "fix_invalid_approval_records"
             priority = "high"
             recommendation = "Fix invalid approval records before treating approval rates as reliable."
             invalid_result_count = $invalidCount
-        }) | Out-Null
+        }
+        $recommendations.Add((Add-EntryScope -Item $recommendation -Entry $invalidEntry)) | Out-Null
     }
     if ($unscoredCount -gt 0) {
-        $recommendations.Add([ordered]@{
+        $recommendation = [ordered]@{
             id = "add_explicit_confidence_metadata"
             priority = "medium"
             recommendation = "Add explicit confidence metadata to future schema patch review or approval records."
             unscored_count = $unscoredCount
-        }) | Out-Null
+        }
+        $recommendations.Add((Add-EntryScope -Item $recommendation -Entry $unscoredEntry)) | Out-Null
     }
 
     return @($recommendations.ToArray())
@@ -448,19 +586,22 @@ function New-ReleaseBlockers {
         return @()
     }
 
+    $pendingEntry = Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_outcome" -ExpectedValue "pending"
+    $blocker = [ordered]@{
+        id = "schema_patch_confidence_calibration.pending_schema_approvals"
+        source = "schema_patch_confidence_calibration"
+        severity = "error"
+        status = "pending_review"
+        action = "resolve_pending_schema_approvals"
+        message = "Schema patch confidence calibration still contains pending approval outcome(s)."
+        pending_count = $pendingCount
+        source_schema = $calibrationSchema
+        source_json = $SourceJson
+        source_json_display = $SourceJsonDisplay
+    }
+    Add-EntryScope -Item $blocker -Entry $pendingEntry | Out-Null
     return @(
-        [ordered]@{
-            id = "schema_patch_confidence_calibration.pending_schema_approvals"
-            source = "schema_patch_confidence_calibration"
-            severity = "error"
-            status = "pending_review"
-            action = "resolve_pending_schema_approvals"
-            message = "Schema patch confidence calibration still contains pending approval outcome(s)."
-            pending_count = $pendingCount
-            source_schema = $calibrationSchema
-            source_json = $SourceJson
-            source_json_display = $SourceJsonDisplay
-        }
+        $blocker
     )
 }
 
@@ -478,6 +619,12 @@ function New-Warnings {
             id = "schema_patch_confidence_calibration.source_json_read_failed"
             action = "review_schema_patch_confidence_calibration_evidence"
             message = Get-JsonString -Object $inputSummary -Name "error" -DefaultValue "Input JSON could not be read."
+            project_id = ""
+            template_name = ""
+            template_scope = ""
+            candidate_type = ""
+            candidate_name = ""
+            schema_update_candidate = ""
             source_schema = $calibrationSchema
             source_json = Get-JsonString -Object $inputSummary -Name "path"
             source_json_display = Get-JsonString -Object $inputSummary -Name "path_display"
@@ -486,7 +633,7 @@ function New-Warnings {
 
     $invalidCount = @($Entries | Where-Object { $_.calibration_outcome -eq "invalid_result" }).Count
     if ($invalidCount -gt 0) {
-        $warnings.Add([ordered]@{
+        $warning = [ordered]@{
             id = "schema_patch_confidence_calibration.invalid_approval_records"
             action = "fix_invalid_approval_records"
             message = "Invalid approval records make calibration rates unreliable."
@@ -494,12 +641,14 @@ function New-Warnings {
             source_schema = $calibrationSchema
             source_json = $SourceJson
             source_json_display = $SourceJsonDisplay
-        }) | Out-Null
+        }
+        Add-EntryScope -Item $warning -Entry (Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_outcome" -ExpectedValue "invalid_result") | Out-Null
+        $warnings.Add($warning) | Out-Null
     }
 
     $unscoredCount = @($Entries | Where-Object { $_.calibration_bucket -eq "unscored" }).Count
     if ($unscoredCount -gt 0) {
-        $warnings.Add([ordered]@{
+        $warning = [ordered]@{
             id = "schema_patch_confidence_calibration.unscored_candidates"
             action = "add_explicit_confidence_metadata"
             message = "Some schema patch candidates do not carry explicit confidence metadata."
@@ -507,7 +656,9 @@ function New-Warnings {
             source_schema = $calibrationSchema
             source_json = $SourceJson
             source_json_display = $SourceJsonDisplay
-        }) | Out-Null
+        }
+        Add-EntryScope -Item $warning -Entry (Get-FirstEntryByFilter -Entries $Entries -PropertyName "calibration_bucket" -ExpectedValue "unscored") | Out-Null
+        $warnings.Add($warning) | Out-Null
     }
 
     return @($warnings.ToArray())
@@ -526,6 +677,12 @@ function New-ActionItems {
                 id = Get-JsonString -Object $recommendation -Name "id" -DefaultValue "schema_patch_confidence_calibration_action"
                 action = Get-JsonString -Object $recommendation -Name "id" -DefaultValue "review_schema_patch_confidence_calibration"
                 title = Get-JsonString -Object $recommendation -Name "recommendation"
+                project_id = Get-JsonString -Object $recommendation -Name "project_id"
+                template_name = Get-JsonString -Object $recommendation -Name "template_name"
+                template_scope = Get-JsonString -Object $recommendation -Name "template_scope"
+                candidate_type = Get-JsonString -Object $recommendation -Name "candidate_type"
+                candidate_name = Get-JsonString -Object $recommendation -Name "candidate_name"
+                schema_update_candidate = Get-JsonString -Object $recommendation -Name "schema_update_candidate"
                 open_command = $calibrationOpenCommand
                 source_schema = $calibrationSchema
                 source_json = $SourceJson
@@ -562,13 +719,33 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     }
     $lines.Add("") | Out-Null
+    $lines.Add("## Project Templates") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.template_scope_summary).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.template_scope_summary)) {
+            $lines.Add("- ``$($item.template_scope)``: $($item.count)") | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Candidate Types") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.candidate_type_summary).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.candidate_type_summary)) {
+            $lines.Add("- ``$($item.candidate_type)``: $($item.count)") | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
     $lines.Add("## Release Blockers") | Out-Null
     $lines.Add("") | Out-Null
     if (@($Summary.release_blockers).Count -eq 0) {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($blocker.id)``: project=``$($blocker.project_id)`` template=``$($blocker.template_name)`` candidate=``$($blocker.candidate_type)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - message: $($blocker.message)") | Out-Null
             }
@@ -581,7 +758,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` candidate=``$($warning.candidate_type)`` action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - message: $($warning.message)") | Out-Null
             }
@@ -594,7 +771,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -700,6 +877,11 @@ $summaryObject = [ordered]@{
     approval_outcome_summary = @(New-GroupSummary -Entries $entryArray -PropertyName "calibration_outcome" -OutputName "outcome")
     confidence_buckets = @(New-BucketSummary -Entries $entryArray)
     reason_code_summary = @(New-GroupSummary -Entries $entryArray -PropertyName "reason_code" -OutputName "reason_code")
+    project_count = @($entryArray | ForEach-Object { Get-JsonString -Object $_ -Name "project_id" } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique).Count
+    template_count = @($entryArray | ForEach-Object { Get-JsonString -Object $_ -Name "template_scope" } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique).Count
+    project_summary = @(New-GroupSummary -Entries $entryArray -PropertyName "project_id" -OutputName "project_id")
+    template_scope_summary = @(New-GroupSummary -Entries $entryArray -PropertyName "template_scope" -OutputName "template_scope")
+    candidate_type_summary = @(New-GroupSummary -Entries $entryArray -PropertyName "candidate_type" -OutputName "candidate_type")
     entries = $entryArray
     release_blocker_count = $releaseBlockers.Count
     release_blockers = @($releaseBlockers)

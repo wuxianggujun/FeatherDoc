@@ -77,6 +77,9 @@ Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
     schema_patch_reviews = @(
         [ordered]@{
             name = "invoice-template"
+            project_id = "project-finance"
+            template_name = "invoice-template"
+            candidate_type = "rename"
             review_json = "invoice.review.json"
             changed = $true
             baseline_slot_count = 3
@@ -94,6 +97,9 @@ Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
         },
         [ordered]@{
             name = "contract-template"
+            project_id = "project-legal"
+            template_name = "contract-template"
+            candidate_type = "remove"
             review_json = "contract.review.json"
             changed = $true
             baseline_slot_count = 6
@@ -110,6 +116,9 @@ Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
     schema_patch_approval_items = @(
         [ordered]@{
             name = "invoice-template"
+            project_id = "project-finance"
+            template_name = "invoice-template"
+            candidate_type = "rename"
             status = "approved"
             decision = "approved"
             approved = $true
@@ -123,6 +132,9 @@ Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
         },
         [ordered]@{
             name = "contract-template"
+            project_id = "project-legal"
+            template_name = "contract-template"
+            candidate_type = "remove"
             status = "pending_review"
             decision = "pending"
             approved = $false
@@ -140,6 +152,8 @@ Write-JsonFile -Path $historyPath -Value ([ordered]@{
     entry_histories = @(
         [ordered]@{
             name = "report-template"
+            project_id = "project-reporting"
+            template_name = "report-template"
             runs = @(
                 [ordered]@{
                     schema_patch_review_count = 1
@@ -147,6 +161,7 @@ Write-JsonFile -Path $historyPath -Value ([ordered]@{
                     schema_patch_reviews = @(
                         [ordered]@{
                             name = "report-template"
+                            candidate_type = "add"
                             changed = $true
                             baseline_slot_count = 2
                             generated_slot_count = 3
@@ -164,6 +179,7 @@ Write-JsonFile -Path $historyPath -Value ([ordered]@{
                     schema_patch_approval_items = @(
                         [ordered]@{
                             name = "report-template"
+                            candidate_type = "add"
                             status = "needs_changes"
                             decision = "needs_changes"
                             approved = $false
@@ -206,6 +222,27 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should detect mixed explicit and unscored confidence."
     Assert-Equal -Actual ([int]$summary.recommended_min_confidence) -Expected 96 `
         -Message "Approved floor should become recommended min confidence."
+    Assert-Equal -Actual ([int]$summary.project_count) -Expected 3 `
+        -Message "Summary should count unique projects for candidate routing."
+    Assert-Equal -Actual ([int]$summary.template_count) -Expected 3 `
+        -Message "Summary should count unique project/template scopes."
+
+    $invoiceEntry = @($summary.entries | Where-Object { $_.name -eq "invoice-template" })[0]
+    Assert-Equal -Actual ([string]$invoiceEntry.project_id) -Expected "project-finance" `
+        -Message "Entries should preserve project id from business-template fixtures."
+    Assert-Equal -Actual ([string]$invoiceEntry.template_name) -Expected "invoice-template" `
+        -Message "Entries should preserve template name from business-template fixtures."
+    Assert-Equal -Actual ([string]$invoiceEntry.candidate_type) -Expected "rename" `
+        -Message "Entries should preserve explicit candidate type."
+    Assert-Equal -Actual ([int]$invoiceEntry.operation_summary.rename_count) -Expected 1 `
+        -Message "Entries should expose operation summaries for reviewer triage."
+
+    Assert-True -Condition (@($summary.candidate_type_summary | Where-Object { $_.candidate_type -eq "rename" }).Count -eq 1) `
+        -Message "Candidate type summary should include rename candidates."
+    Assert-True -Condition (@($summary.candidate_type_summary | Where-Object { $_.candidate_type -eq "remove" }).Count -eq 1) `
+        -Message "Candidate type summary should include remove candidates."
+    Assert-True -Condition (@($summary.candidate_type_summary | Where-Object { $_.candidate_type -eq "add" }).Count -eq 1) `
+        -Message "Candidate type summary should include add candidates."
 
     $highBucket = @($summary.confidence_buckets | Where-Object { $_.name -eq "95-100" })[0]
     Assert-Equal -Actual ([int]$highBucket.candidate_count) -Expected 1 `
@@ -228,12 +265,31 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Calibration blockers should expose the source schema."
     Assert-ContainsText -Text ([string]$summary.release_blockers[0].source_json_display) -ExpectedText "aggregate-report\summary.json" `
         -Message "Calibration blockers should expose the report JSON display path."
+    Assert-Equal -Actual ([string]$summary.release_blockers[0].project_id) -Expected "project-legal" `
+        -Message "Pending blockers should preserve project id."
+    Assert-Equal -Actual ([string]$summary.release_blockers[0].template_name) -Expected "contract-template" `
+        -Message "Pending blockers should preserve template name."
+    Assert-Equal -Actual ([string]$summary.release_blockers[0].candidate_type) -Expected "remove" `
+        -Message "Pending blockers should preserve candidate type."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
         -Message "Unscored candidates should produce a warning for rollup."
     Assert-Equal -Actual ([string]$summary.warnings[0].source_schema) -Expected "featherdoc.schema_patch_confidence_calibration_report.v1" `
         -Message "Calibration warnings should expose the source schema."
+    Assert-Equal -Actual ([string]$summary.warnings[0].project_id) -Expected "project-legal" `
+        -Message "Unscored warnings should preserve project id."
+    Assert-Equal -Actual ([string]$summary.warnings[0].template_name) -Expected "contract-template" `
+        -Message "Unscored warnings should preserve template name."
+    Assert-Equal -Actual ([string]$summary.warnings[0].candidate_type) -Expected "remove" `
+        -Message "Unscored warnings should preserve candidate type."
     Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 3 `
         -Message "Recommendations should be mirrored as action items."
+    $pendingAction = @($summary.action_items | Where-Object { $_.id -eq "resolve_pending_schema_approvals" })[0]
+    Assert-Equal -Actual ([string]$pendingAction.project_id) -Expected "project-legal" `
+        -Message "Pending action item should preserve project id."
+    Assert-Equal -Actual ([string]$pendingAction.template_name) -Expected "contract-template" `
+        -Message "Pending action item should preserve template name."
+    Assert-Equal -Actual ([string]$pendingAction.candidate_type) -Expected "remove" `
+        -Message "Pending action item should preserve candidate type."
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Calibration action items should expose the reviewer open command."
@@ -243,8 +299,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include title."
     Assert-ContainsText -Text $markdown -ExpectedText "Confidence Buckets" `
         -Message "Markdown should include confidence buckets."
+    Assert-ContainsText -Text $markdown -ExpectedText "Candidate Types" `
+        -Message "Markdown should include candidate type summaries."
     Assert-ContainsText -Text $markdown -ExpectedText "resolve_pending_schema_approvals" `
         -Message "Markdown should include pending approval recommendation."
+    Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-legal` template=`contract-template` candidate=`remove`' `
+        -Message "Markdown should include project/template/candidate routing details."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
         -Message "Markdown should include source JSON display fields."
     Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
