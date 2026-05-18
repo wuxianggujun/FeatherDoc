@@ -95,6 +95,11 @@ TEST_CASE("font resolver detects Unicode and CJK text") {
 
     CHECK_FALSE(featherdoc::pdf::pdf_text_contains_cjk("ABC 123"));
     CHECK(featherdoc::pdf::pdf_text_contains_cjk(utf8_from_u8(u8"中文")));
+    CHECK(featherdoc::pdf::pdf_text_contains_cjk(utf8_from_u8(u8"かな")));
+    CHECK(featherdoc::pdf::pdf_text_contains_cjk(utf8_from_u8(u8"カナ")));
+    CHECK(featherdoc::pdf::pdf_text_contains_cjk(utf8_from_u8(u8"한글")));
+    CHECK(featherdoc::pdf::pdf_text_contains_cjk(utf8_from_u8(u8"㊟")));
+    CHECK(featherdoc::pdf::pdf_text_contains_cjk(utf8_from_u8(u8"㊣")));
 }
 
 TEST_CASE("font resolver prefers explicit mappings for CJK text") {

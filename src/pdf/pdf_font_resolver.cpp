@@ -348,10 +348,21 @@ system_font_candidates_for_family(std::string_view font_family, bool bold,
 }
 
 [[nodiscard]] bool is_cjk_codepoint(char32_t codepoint) noexcept {
-    return (codepoint >= 0x2E80U && codepoint <= 0x2EFFU) ||
+    return (codepoint >= 0x1100U && codepoint <= 0x11FFU) ||
+           (codepoint >= 0x2E80U && codepoint <= 0x2EFFU) ||
            (codepoint >= 0x3000U && codepoint <= 0x303FU) ||
+           (codepoint >= 0x3040U && codepoint <= 0x309FU) ||
+           (codepoint >= 0x30A0U && codepoint <= 0x30FFU) ||
+           (codepoint >= 0x3100U && codepoint <= 0x312FU) ||
+           (codepoint >= 0x3130U && codepoint <= 0x318FU) ||
+           (codepoint >= 0x31A0U && codepoint <= 0x31BFU) ||
+           (codepoint >= 0x31F0U && codepoint <= 0x31FFU) ||
+           (codepoint >= 0x3200U && codepoint <= 0x33FFU) ||
            (codepoint >= 0x3400U && codepoint <= 0x4DBFU) ||
            (codepoint >= 0x4E00U && codepoint <= 0x9FFFU) ||
+           (codepoint >= 0xA960U && codepoint <= 0xA97FU) ||
+           (codepoint >= 0xAC00U && codepoint <= 0xD7A3U) ||
+           (codepoint >= 0xD7B0U && codepoint <= 0xD7FFU) ||
            (codepoint >= 0xF900U && codepoint <= 0xFAFFU) ||
            (codepoint >= 0xFE10U && codepoint <= 0xFE1FU) ||
            (codepoint >= 0xFE30U && codepoint <= 0xFE4FU) ||

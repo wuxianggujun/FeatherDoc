@@ -435,6 +435,9 @@ CJK 字体选择的默认顺序是：
 4. Windows 系统字体候选：Deng、Microsoft YaHei、SimHei、SimSun 等
 5. Linux 系统字体候选：NotoSansCJK、AR PL UMing 等
 
+CJK 检测会把中文、日文假名、韩文、注音、CJK 兼容符号和全角形式都视为
+East Asia 字体路径候选，避免这些脚本误走 Latin fallback。
+
 许可证义务按字体来源处理：FeatherDoc 当前只引用用户显式提供的字体或本机系统字体，
 不把这些字体重新分发进仓库。若未来要随发行包捆绑 CJK 字体，必须先记录字体许可证、
 分发条件和 NOTICE 要求，再把该字体加入默认 fallback。
