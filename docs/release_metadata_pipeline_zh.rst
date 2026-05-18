@@ -175,16 +175,27 @@ Markdown 文件。
 - ``release_blocker_rollup.action_items[]``：展示 ``id``、``action``、``open_command``、
   ``source_schema``、``source_report_display`` 与 ``source_json_display``。
 
+对应的人读摘要文件为 ``release_blocker_rollup.md``，用于把同一组机器字段交给
+reviewer 复核。
+同一轮 release governance 还会保留 ``release_governance_handoff.md`` 与
+``release_governance_pipeline.md``，确保 handoff 和 pipeline 两个视角都能追溯到
+相同的 blocker / warning / action item 来源。
+历史样式合并建议计数字段 ``style_merge_suggestion_count`` 仍保留为机器字段，
+并在文档中写作 ``style_merge_suggestion_count``，避免旧 release 面板丢失该计数。
+
 ``run_release_candidate_checks.ps1`` 在读取 ``featherdoc.release_blocker_rollup_report.v1``
 后会把上述数组同步写入 ``summary.json`` 的 ``release_blocker_rollup`` 与
 ``steps.release_blocker_rollup``，并在 ``final_review.md`` 里展开同一组字段。这样
 ``featherdoc.document_skeleton_governance_rollup_report.v1``、onboarding governance、
 schema confidence calibration 和 content-control data-binding governance 的治理项可以
-被发布面板直接消费，而不只停留在 blocker / warning / action item 计数里。
+被发布面板直接消费，而不只停留在 blocker / warning / action item 计数里。机器摘要里的
+``warning_count`` 仍然只作为聚合计数使用，reviewer 必须继续读取下面的明细数组。
 其中 content-control data-binding governance 的 blocker、warning 与 action item 会固定携带
 ``featherdoc.content_control_data_binding_governance_report.v1`` 作为 ``source_schema``，
 把 ``inspect-content-controls`` 或治理 summary 写入 ``source_json_display``，并为 action item
 提供重建治理报告的 ``open_command``，reviewer 可直接沿着 bundle 中的 rollup 明细回到证据 JSON。
+占位符阻断项会继续保留 ``content_control_data_binding.bound_placeholder``，修复策略固定为
+``sync_bound_content_control``，避免 content-control 修复流程只在聊天记录或人工备注中存在。
 
 project-template onboarding governance 会先写出
 ``featherdoc.project_template_onboarding_governance_report.v1``，再由
@@ -205,6 +216,17 @@ recommendation 会同步成 ``action_items`` 并携带重建校准报告的 ``op
 默认 auto-discovery、release governance pipeline 和 handoff 都会读取
 ``schema-patch-confidence-calibration/summary.json``，因此 reviewer 可以在发布面板
 中直接看到校准 blocker / warning / action item 的 ``source_schema`` 与证据 JSON。
+
+编号真实语料治理会写出 ``featherdoc.numbering_catalog_governance_report.v1``。
+当 catalog 与 baseline 的真实文档键不能对齐时，报告会生成稳定阻断项
+``numbering_catalog_governance.real_corpus_alignment_gap``；release metadata 文档检查会
+要求这一路径继续出现在发布说明材料中，防止样式/编号治理退回到只看数量的弱检查。
+
+表格与版式交付治理会写出
+``featherdoc.table_layout_delivery_governance_report.v1``。它的 ``delivery_quality``
+明细会携带表格样式、自动修复、人工复核、浮动表格定位和命令失败计数；release
+summary、handoff 与 reviewer bundle 应保留这些字段，让 reviewer 能区分“可发布”、
+“需自动修复”和“需人工版式复核”。
 
 此外，``featherdoc.release_governance_pipeline_report.v1`` 的 ``stages[]`` 现在也会
 保留每个治理 stage 的 ``release_blockers``、``warnings`` 与 ``action_items`` 明细。

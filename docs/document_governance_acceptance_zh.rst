@@ -32,12 +32,16 @@
 模板契约与交付就绪：
 
 - 模板交付就绪报告已覆盖项目模板的契约检查。
+- 报告 schema 固定为
+  ``featherdoc.project_template_delivery_readiness_report.v1``。
 - 验证入口包括 ``build_project_template_delivery_readiness_report_test.ps1``。
 
 Content-control 修复工作流：
 
 - 治理报告已输出 ``repair_strategy``、``repair_hint``、
   ``command_template``、``source_json_display``。
+- 治理报告 schema 固定为
+  ``featherdoc.content_control_data_binding_governance_report.v1``。
 - 占位符阻塞项锁定为
   ``content_control_data_binding.bound_placeholder``。
 - 同步修复路径锁定为 ``sync_bound_content_control`` 和
@@ -45,6 +49,8 @@ Content-control 修复工作流：
 
 样式与编号真实语料置信度：
 
+- 编号治理报告 schema 固定为
+  ``featherdoc.numbering_catalog_governance_report.v1``。
 - 真实语料置信度已按文档键对齐，不再只依赖数量对比。
 - 报告字段覆盖 ``matched_document_count``、
   ``unmatched_catalog_document_count``、
@@ -56,6 +62,8 @@ Content-control 修复工作流：
 
 表格与版式交付质量：
 
+- 表格版式治理报告 schema 固定为
+  ``featherdoc.table_layout_delivery_governance_report.v1``。
 - ``delivery_quality`` 已暴露表格样式、自动修复、人工复核、
   浮动表格定位和命令失败等明细计数。
 - ``floating_table_plans_pending`` 保留兼容。

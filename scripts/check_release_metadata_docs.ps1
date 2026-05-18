@@ -163,6 +163,7 @@ function Write-SummaryJson {
         [object[]]$CheckedDocuments,
         [string[]]$PipelineMarkers,
         [string[]]$ChecklistMarkers,
+        [string[]]$DocumentGovernanceMarkers,
         [string[]]$PolicyMarkers,
         [string]$ErrorMessage = ""
     )
@@ -201,13 +202,16 @@ function Write-SummaryJson {
         summary_json_relative_path = Get-RepoRelativePath -BaseRoot $RepoRoot -Path $Path
         repo_root = $RepoRoot
         checked_document_count = $CheckedDocuments.Count
-        required_marker_count = $PipelineMarkers.Count + $ChecklistMarkers.Count + $PolicyMarkers.Count
+        required_marker_count = $PipelineMarkers.Count + $ChecklistMarkers.Count + `
+            $DocumentGovernanceMarkers.Count + $PolicyMarkers.Count
         required_pipeline_marker_count = $PipelineMarkers.Count
         required_checklist_marker_count = $ChecklistMarkers.Count
+        required_document_governance_marker_count = $DocumentGovernanceMarkers.Count
         required_policy_marker_count = $PolicyMarkers.Count
         checked_documents = $CheckedDocuments
         required_pipeline_markers = $PipelineMarkers
         required_checklist_markers = $ChecklistMarkers
+        required_document_governance_markers = $DocumentGovernanceMarkers
         required_policy_markers = $PolicyMarkers
     }
 
@@ -313,10 +317,18 @@ $pipelineExpectedMarkers = @(
     '``action``',
     '``message``',
     '``source_schema``',
-    '``style_merge_suggestion_count``'
+    '``style_merge_suggestion_count``',
+    '``featherdoc.project_template_delivery_readiness_report.v1``',
+    '``featherdoc.content_control_data_binding_governance_report.v1``',
+    '``featherdoc.numbering_catalog_governance_report.v1``',
+    '``featherdoc.table_layout_delivery_governance_report.v1``',
+    '``sync_bound_content_control``',
+    '``numbering_catalog_governance.real_corpus_alignment_gap``',
+    '``delivery_quality``'
 )
 $checklistExpectedMarkers = @(
     ':doc:`release_metadata_pipeline_zh`',
+    ':doc:`document_governance_acceptance_zh`',
     "word_visual_release_gate_smoke_verdict",
     "release_candidate_visual_verdict",
     "sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle)",
@@ -329,7 +341,23 @@ $checklistExpectedMarkers = @(
     "release_governance_handoff",
     "release_governance_pipeline",
     "source_schema",
-    "style_merge_suggestion_count"
+    "style_merge_suggestion_count",
+    "build_project_template_delivery_readiness_report_test.ps1",
+    "build_content_control_data_binding_governance_report_test.ps1",
+    "build_numbering_catalog_governance_report_test.ps1",
+    "build_table_layout_delivery_governance_report_test.ps1"
+)
+$documentGovernanceExpectedMarkers = @(
+    "document_governance_acceptance.v1",
+    "document_governance_primary_track",
+    "featherdoc.project_template_delivery_readiness_report.v1",
+    "featherdoc.content_control_data_binding_governance_report.v1",
+    "content_control_data_binding.bound_placeholder",
+    "sync_bound_content_control",
+    "featherdoc.numbering_catalog_governance_report.v1",
+    "numbering_catalog_governance.real_corpus_alignment_gap",
+    "featherdoc.table_layout_delivery_governance_report.v1",
+    "delivery_quality"
 )
 $policyExpectedMarkers = @(':doc:`release_metadata_pipeline_zh`')
 $resolvedRepoRoot = ""
@@ -351,6 +379,11 @@ try {
             path = Join-Path $resolvedRepoRoot "docs\release_metadata_maintenance_checklist_zh.rst"
         },
         [pscustomobject]@{
+            label = "document governance acceptance doc"
+            relative_path = "docs\document_governance_acceptance_zh.rst"
+            path = Join-Path $resolvedRepoRoot "docs\document_governance_acceptance_zh.rst"
+        },
+        [pscustomobject]@{
             label = "release policy doc"
             relative_path = "docs\release_policy_zh.rst"
             path = Join-Path $resolvedRepoRoot "docs\release_policy_zh.rst"
@@ -358,19 +391,23 @@ try {
     )
     $pipelinePath = $checkedDocuments[0].path
     $checklistPath = $checkedDocuments[1].path
-    $policyPath = $checkedDocuments[2].path
+    $documentGovernancePath = $checkedDocuments[2].path
+    $policyPath = $checkedDocuments[3].path
 
     Assert-FileExists -Path $pipelinePath -Label "release metadata pipeline doc"
     Assert-FileExists -Path $checklistPath -Label "release metadata maintenance checklist doc"
+    Assert-FileExists -Path $documentGovernancePath -Label "document governance acceptance doc"
     Assert-FileExists -Path $policyPath -Label "release policy doc"
 
     $pipelineText = Read-Utf8Text -Path $pipelinePath
     $checklistText = Read-Utf8Text -Path $checklistPath
+    $documentGovernanceText = Read-Utf8Text -Path $documentGovernancePath
     $policyText = Read-Utf8Text -Path $policyPath
 
     foreach ($doc in @(
             @{ Path = $pipelinePath; Text = $pipelineText },
             @{ Path = $checklistPath; Text = $checklistText },
+            @{ Path = $documentGovernancePath; Text = $documentGovernanceText },
             @{ Path = $policyPath; Text = $policyText }
         )) {
         Assert-NoTrailingWhitespace -Text $doc.Text -Path $doc.Path
@@ -393,6 +430,14 @@ try {
             -Path $checklistPath
     }
 
+    foreach ($expected in $documentGovernanceExpectedMarkers) {
+        Assert-ContainsText `
+            -Text $documentGovernanceText `
+            -ExpectedText $expected `
+            -Label "document governance acceptance doc" `
+            -Path $documentGovernancePath
+    }
+
     foreach ($expected in $policyExpectedMarkers) {
         Assert-ContainsText `
             -Text $policyText `
@@ -408,6 +453,7 @@ try {
         -CheckedDocuments $checkedDocuments `
         -PipelineMarkers $pipelineExpectedMarkers `
         -ChecklistMarkers $checklistExpectedMarkers `
+        -DocumentGovernanceMarkers $documentGovernanceExpectedMarkers `
         -PolicyMarkers $policyExpectedMarkers
 
     if (-not $Quiet) {
@@ -429,6 +475,7 @@ try {
                 -CheckedDocuments $checkedDocuments `
                 -PipelineMarkers $pipelineExpectedMarkers `
                 -ChecklistMarkers $checklistExpectedMarkers `
+                -DocumentGovernanceMarkers $documentGovernanceExpectedMarkers `
                 -PolicyMarkers $policyExpectedMarkers `
                 -ErrorMessage $errorMessage
         } catch {

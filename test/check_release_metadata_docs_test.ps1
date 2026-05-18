@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 31) {
-        throw "Expected JSON summary to count 31 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 53) {
+        throw "Expected JSON summary to count 53 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -190,6 +190,7 @@ function New-DocsCase {
         [string]$Name,
         [string]$PipelineText = $defaultPipelineText,
         [string]$ChecklistText = $defaultChecklistText,
+        [string]$DocumentGovernanceText = $defaultDocumentGovernanceText,
         [string]$PolicyText = $defaultPolicyText
     )
 
@@ -198,6 +199,7 @@ function New-DocsCase {
 
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_metadata_pipeline_zh.rst") -Text $PipelineText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_metadata_maintenance_checklist_zh.rst") -Text $ChecklistText
+    Write-Utf8NoBomFile -Path (Join-Path $docsDir "document_governance_acceptance_zh.rst") -Text $DocumentGovernanceText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_policy_zh.rst") -Text $PolicyText
 
     return $caseRoot
@@ -284,6 +286,13 @@ $defaultPipelineText = @(
     '- ``message``',
     '- ``source_schema``',
     '- ``style_merge_suggestion_count``',
+    '- ``featherdoc.project_template_delivery_readiness_report.v1``',
+    '- ``featherdoc.content_control_data_binding_governance_report.v1``',
+    '- ``featherdoc.numbering_catalog_governance_report.v1``',
+    '- ``featherdoc.table_layout_delivery_governance_report.v1``',
+    '- ``sync_bound_content_control``',
+    '- ``numbering_catalog_governance.real_corpus_alignment_gap``',
+    '- ``delivery_quality``',
     ''
 ) -join "`n"
 
@@ -305,6 +314,28 @@ $defaultChecklistText = @(
     '- release_governance_pipeline',
     '- source_schema',
     '- style_merge_suggestion_count',
+    '- :doc:`document_governance_acceptance_zh`',
+    '- build_project_template_delivery_readiness_report_test.ps1',
+    '- build_content_control_data_binding_governance_report_test.ps1',
+    '- build_numbering_catalog_governance_report_test.ps1',
+    '- build_table_layout_delivery_governance_report_test.ps1',
+    ''
+) -join "`n"
+
+$defaultDocumentGovernanceText = @(
+    'Document governance acceptance',
+    '==============================',
+    '',
+    '- document_governance_acceptance.v1',
+    '- document_governance_primary_track',
+    '- featherdoc.project_template_delivery_readiness_report.v1',
+    '- featherdoc.content_control_data_binding_governance_report.v1',
+    '- content_control_data_binding.bound_placeholder',
+    '- sync_bound_content_control',
+    '- featherdoc.numbering_catalog_governance_report.v1',
+    '- numbering_catalog_governance.real_corpus_alignment_gap',
+    '- featherdoc.table_layout_delivery_governance_report.v1',
+    '- delivery_quality',
     ''
 ) -join "`n"
 
@@ -339,32 +370,43 @@ if ($summary.summary_schema_version -ne 1) {
     throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
 }
 Assert-SummaryAuditFields -Summary $summary
-if ($summary.checked_document_count -ne 3) {
-    throw "Expected JSON summary checked document count 3, got: $($summary.checked_document_count)"
+if ($summary.checked_document_count -ne 4) {
+    throw "Expected JSON summary checked document count 4, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 16) {
-    throw "Expected JSON summary pipeline marker count 16, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 23) {
+    throw "Expected JSON summary pipeline marker count 23, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 14) {
-    throw "Expected JSON summary checklist marker count 14, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 19) {
+    throw "Expected JSON summary checklist marker count 19, got: $($summary.required_checklist_marker_count)"
+}
+if ($summary.required_document_governance_marker_count -ne 10) {
+    throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
 }
 if ($summary.required_policy_marker_count -ne 1) {
     throw "Expected JSON summary policy marker count 1, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 31) {
-    throw "Expected JSON summary total marker count 31, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 53) {
+    throw "Expected JSON summary total marker count 53, got: $($summary.required_marker_count)"
 }
-if ($summary.checked_documents.Count -ne 3) {
-    throw "Expected JSON summary to list 3 checked documents, got: $($summary.checked_documents.Count)"
+if ($summary.checked_documents.Count -ne 4) {
+    throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
 }
 Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
     -ExpectedValue 'docs\release_metadata_pipeline_zh.rst' `
     -Message "JSON summary should list the release metadata pipeline doc."
 Assert-ArrayContains `
+    -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue 'docs\document_governance_acceptance_zh.rst' `
+    -Message "JSON summary should list the document governance acceptance doc."
+Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "release_note_bundle_visual_verdict_metadata" `
     -Message "JSON summary should list required checklist markers."
+Assert-ArrayContains `
+    -Values @($summary.required_document_governance_markers) `
+    -ExpectedValue "sync_bound_content_control" `
+    -Message "JSON summary should list required document governance markers."
 
 
 $quietCaseRoot = New-DocsCase -Name "quiet-passing"
@@ -383,6 +425,9 @@ Write-Utf8NoBomFile `
 Write-Utf8NoBomFile `
     -Path (Join-Path $missingPolicyDocsDir "release_metadata_maintenance_checklist_zh.rst") `
     -Text $defaultChecklistText
+Write-Utf8NoBomFile `
+    -Path (Join-Path $missingPolicyDocsDir "document_governance_acceptance_zh.rst") `
+    -Text $defaultDocumentGovernanceText
 $missingPolicySummaryJsonPath = Join-Path $missingPolicyCaseRoot "docs-check-summary.json"
 Invoke-DocsCheck `
     -CaseRoot $missingPolicyCaseRoot `
@@ -454,6 +499,26 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
     -ExpectedFailureExpectedText "release_note_bundle_visual_verdict_metadata"
+
+$missingDocumentGovernanceEntry = $defaultDocumentGovernanceText.Replace(
+    "- sync_bound_content_control",
+    "- sync_removed_content_control"
+)
+$missingDocumentGovernanceCaseRoot = New-DocsCase `
+    -Name "missing-document-governance-entry" `
+    -DocumentGovernanceText $missingDocumentGovernanceEntry
+$missingDocumentGovernanceSummaryJsonPath = Join-Path $missingDocumentGovernanceCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingDocumentGovernanceCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "document governance acceptance doc is missing expected text: sync_bound_content_control" `
+    -SummaryJson $missingDocumentGovernanceSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingDocumentGovernanceSummaryJsonPath `
+    -ExpectedMessage "document governance acceptance doc is missing expected text: sync_bound_content_control" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs\document_governance_acceptance_zh.rst' `
+    -ExpectedFailureExpectedText "sync_bound_content_control"
 
 $bomCaseRoot = New-DocsCase -Name "bom-pipeline"
 Write-Utf8BomFile `

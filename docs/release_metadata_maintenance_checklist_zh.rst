@@ -4,6 +4,8 @@ Release 元数据维护检查清单（中文）
 这份清单用于给维护者提供一个可执行的 release metadata 修改流程。它不是
 release 流水线的详细设计文档；详细字段流向请先阅读
 :doc:`release_metadata_pipeline_zh`。
+文档功能治理阶段的范围和低资源边界请同步参见
+:doc:`document_governance_acceptance_zh`。
 
 适用场景：
 
@@ -162,12 +164,24 @@ CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制
 
 检查通过时 JSON 的 ``status`` 为 ``passed``，并包含 ``summary_schema_version``、
 ``checker_name``、``checked_at_utc``、PowerShell 运行环境、``summary_json_path``、
-``summary_json_relative_path``、文档数量和 marker 数量字段；检查失败时也会
+``summary_json_relative_path``、文档数量和 marker 数量字段；其中
+``required_document_governance_marker_count`` 会单独记录文档治理验收页的 marker
+数量，确保模板契约、content-control 修复、编号真实语料治理和表格版式交付质量
+仍然被发布材料引用。检查失败时也会
 尽量写出 ``status=failed``、``error_message`` 和 ``failure_kind`` 等结构化
 失败诊断字段，但脚本仍保持失败退出码。
 
 该回归覆盖通过路径、缺 marker、缺文件、UTF-8 BOM、tab 和行尾空白等失败诊断，
 并断言 ``failure_rule_id``、可定位问题的行号/列号与 ``failure_excerpt`` 片段字段。
+文档治理 marker 会继续要求下面四个轻量入口保留在维护材料里：
+``build_project_template_delivery_readiness_report_test.ps1``、
+``build_content_control_data_binding_governance_report_test.ps1``、
+``build_numbering_catalog_governance_report_test.ps1`` 和
+``build_table_layout_delivery_governance_report_test.ps1``。
+为了保持发布面板兼容，维护文档还要继续提到 ``release governance warning``、
+``warning_count``、``release_blocker_rollup``、
+``release_governance_handoff``、``release_governance_pipeline``、
+``source_schema`` 和 ``style_merge_suggestion_count``。
 
 如果改动检查脚本本身，额外运行独立回归测试：
 
