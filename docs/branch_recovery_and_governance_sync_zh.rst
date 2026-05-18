@@ -18,7 +18,7 @@
 
 .. code-block:: text
 
-   dev -> 779b351 Add PDFium auto provider selection
+   dev -> 91162e5 Add PDF font glyph fallback guard
 
 此前同名空目录只包含 ``doc`` 等残留内容，不能作为源码工作区。后续开发、提交和
 推送均以当前 ``FeatherDoc`` 仓库为准。
@@ -32,16 +32,17 @@
    6760162 Fail fast when PDFium depot_tools bootstrap is unavailable
    bf945ae Document PDFium source bootstrap guard
    779b351 Add PDFium auto provider selection
+   91162e5 Add PDF font glyph fallback guard
 
 分支现状
 --------
 
-``dev`` 是当前开发主线，已经包含本轮文档治理、发布治理同步和 PDFium provider
-基础治理提交：
+``dev`` 是当前开发主线，已经包含本轮文档治理、发布治理同步、PDFium provider
+基础治理和 PDF 字体缺字形回退提交：
 
 .. code-block:: text
 
-   779b351 Add PDFium auto provider selection
+   91162e5 Add PDF font glyph fallback guard
 
 ``master`` 暂不承载本轮治理变更。此前误先进入 ``master`` 的治理同步提交已经通过普通
 ``revert`` 撤回，未强推、未改写历史：
@@ -67,7 +68,7 @@
 其中 PDF 分支不能整分支合入。它们包含大量早期 PDF CJK copy/search、bullet
 fallback、表格流、字体矩阵和视觉 gate 变更，直接合并会与当前 ``dev`` 中已经
 更完整的 PDF text shaping、manifest、visual gate 和文档状态互相覆盖。已经从
-这些分支安全摘入的只是 PDFium provider 与 bootstrap 相关的小补丁：
+这些分支安全摘入的只是 PDFium provider / bootstrap 与字体缺字形回退相关的小补丁：
 
 .. code-block:: text
 
@@ -76,6 +77,7 @@ fallback、表格流、字体矩阵和视觉 gate 变更，直接合并会与当
    6760162 Fail fast when PDFium depot_tools bootstrap is unavailable
    bf945ae Document PDFium source bootstrap guard
    779b351 Add PDFium auto provider selection
+   91162e5 Add PDF font glyph fallback guard
 
 后续如果继续推进 PDF，应从当前 ``dev`` 重新实现小块能力，而不是回放旧分支的大提交。
 
@@ -154,6 +156,7 @@ regression in CTest`` 这一类 CTest 注册项。按照当前约束，``CTest``
 
 PDF 分支的当前结论相同：``codex/pdf-cjk-copy-search-gate`` 和
 ``codex/pdf-cjk-bullet-fallback`` 仍有参考价值，但剩余差异太大，且会与当前
-``dev`` 已有 PDF 样例、manifest、文字层检查和 provider 选择逻辑重叠。下一步最小
-风险动作是只读复核其中是否还有独立文档契约或小型配置补丁；若有，再按当前 ``dev``
-重做并单独提交。
+``dev`` 已有 PDF 样例、manifest、文字层检查、provider 选择逻辑和字体回退逻辑重叠。
+其中 East Asia 字体缺字形 fallback 已按当前 ``dev`` 的 synthetic bold / italic 与
+text shaping 结构重做为 ``91162e5``。下一步最小风险动作是只读复核其中是否还有独立
+文档契约或小型配置补丁；若有，再按当前 ``dev`` 重做并单独提交。
