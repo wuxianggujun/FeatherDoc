@@ -20,6 +20,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    template_schema_mutation_zh
    table_style_definition_zh
    document_governance_acceptance_zh
+   branch_recovery_and_governance_sync_zh
    project_score_assessment_zh
    release_policy_zh
    v1_7_roadmap_zh
