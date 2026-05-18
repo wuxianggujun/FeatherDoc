@@ -151,3 +151,57 @@
    再删除远端分支。
 4. 每次从旧分支借鉴功能，都应在当前 ``dev`` 上重新实现、重新测试，并在提交说明中
    写明来源和取舍。
+
+
+直接合并预检记录
+----------------
+
+2026-05-18 已在本地安全锚点
+``codex/dev-before-branch-merge-20260518-194700`` 之后，对四个远端分支执行
+``git merge --no-ff --no-commit`` 预检。每次预检后均已执行 ``git merge --abort``，
+当前 ``dev`` 未保留半合并状态。
+
+``codex/release-governance-warning-entrypoints`` 直接合并失败，冲突集中在：
+
+* ``docs/current_direction_zh.rst``
+* ``docs/feature_gap_analysis_zh.rst``
+* ``docs/index.rst``
+* ``scripts/build_content_control_data_binding_governance_report.ps1``
+* ``scripts/build_numbering_catalog_governance_report.ps1``
+* ``scripts/build_project_template_delivery_readiness_report.ps1``
+* ``scripts/build_release_blocker_rollup_report.ps1``
+* ``scripts/build_release_governance_handoff_report.ps1``
+* ``scripts/build_release_governance_pipeline_report.ps1``
+* ``scripts/check_release_metadata_docs.ps1``
+* ``scripts/run_release_candidate_checks.ps1``
+* release bundle writer 脚本和多组 governance 测试
+
+``codex/release-governance-rollup-details`` 直接合并失败，冲突集中在：
+
+* ``design/04-pdf-execution-plan.md``
+* ``docs/current_direction_zh.rst``
+* ``docs/feature_gap_analysis_zh.rst``
+* ``docs/release_metadata_pipeline_zh.rst``
+* release governance rollup / handoff / pipeline 脚本
+* project template onboarding / schema calibration 脚本和测试
+* ``test/release_note_bundle_version_test.ps1``
+
+``codex/pdf-cjk-copy-search-gate`` 直接合并失败，冲突集中在：
+
+* ``BUILDING_PDF.md``
+* ``design/04-pdf-execution-plan.md``
+* ``include/featherdoc/pdf/pdf_layout.hpp``
+* ``scripts/run_pdf_visual_release_gate.ps1``
+* PDF adapter / writer C++ 实现
+* PDF regression manifest 和 PDF 字体 / unicode 测试
+
+``codex/pdf-cjk-bullet-fallback`` 直接合并失败，冲突范围与
+``codex/pdf-cjk-copy-search-gate`` 相近，并额外覆盖：
+
+* ``src/pdf/pdf_font_resolver.cpp``
+* ``test/pdf_cli_export_tests.cpp``
+* ``test/pdf_font_resolver_tests.cpp``
+
+因此当前结论是：四个旧分支都不适合整分支直接合入 ``dev``。后续只能按功能主题
+拆分，例如先做 release governance action item 明细、再做 schema calibration，再另开
+PDF CJK 专项；每个主题都应在当前 ``dev`` 上小步重做并跑对应轻量测试。
