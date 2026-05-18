@@ -181,7 +181,9 @@ CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制
 为了保持发布面板兼容，维护文档还要继续提到 ``release governance warning``、
 ``warning_count``、``release_blocker_rollup``、
 ``release_governance_handoff``、``release_governance_pipeline``、
-``source_schema`` 和 ``style_merge_suggestion_count``。
+``source_schema``、``source_report_display``、``source_json_display`` 和
+``style_merge_suggestion_count``。其中 ``source_report_display`` 用于让 reviewer
+先打开治理源报告，``source_json_display`` 用于继续追溯到原始证据 JSON。
 
 如果改动检查脚本本身，额外运行独立回归测试：
 
