@@ -27,6 +27,8 @@
 
    8a3084e Ignore local test work directories
    f9cc0e0 Guard release warning docs contract
+   3bd950d Add schema calibration candidate routing
+   fcb5f9c Fix release blocker rollup test composite id assertion
 
 其中 ``8a3084e`` 已形成当前 ``dev`` 上的：
 
@@ -40,8 +42,20 @@
 
    436902e Guard release warning docs contract
 
-之后的文档治理提交，例如 ``0d0b7bc`` 和 ``b5a806d``，是在当前 ``dev`` 上直接
-开发，不是从旧分支 merge 或 cherry-pick。
+``3bd950d`` 已按当前 ``dev`` 的脚本契约手工重做为：
+
+.. code-block:: text
+
+   88e9187 Carry scoped schema calibration routing
+
+``fcb5f9c`` 已按当前 ``dev`` 的 rollup 测试结构手工重做为：
+
+.. code-block:: text
+
+   36fb375 Stabilize release blocker rollup id assertion
+
+除此之外的文档治理提交，例如 ``0d0b7bc``、``b5a806d``、``c1a9e9a`` 和
+``a5bf1b7``，是在当前 ``dev`` 上直接开发或按当前契约重做，不是整分支 merge。
 
 
 分支清单
@@ -54,7 +68,9 @@
 
 * 未完整合并。
 * 相对当前 ``dev`` 仍有大量独有治理提交。
-* 其中一部分 release warning docs contract 已经被手工摘入。
+* 其中 release warning docs contract 和 rollup composite id 测试修复已经被手工摘入。
+* 当前 ``dev`` 已有更完整的 warning metadata、style merge governance、
+  release rollup / handoff / pipeline 明细实现，旧分支整体已经不能作为正确版本。
 
 代表性未合并内容包括：
 
@@ -79,11 +95,14 @@
 * 未完整合并。
 * 之前已预检，直接 merge 和逐提交 cherry-pick 都会产生多处冲突。
 * 与当前 ``dev`` 的文档治理和 release metadata 契约重叠较深。
+* 其中 schema calibration candidate routing 已经按当前 ``dev`` 手工摘入。
+* 当前 ``dev`` 已包含 schema calibration 进入 handoff / pipeline / release rollup 的
+  更完整实现，不再继续从该旧分支回放 release rollup 提交。
 
 代表性未合并内容包括：
 
 * release governance rollup details。
-* schema confidence calibration 进入 release rollup。
+* 部分早期 schema confidence calibration release rollup 实现。
 * onboarding governance / content-control governance / handoff detail 透传。
 * 部分 PDF unicode / RTL 相关覆盖。
 
@@ -203,5 +222,24 @@
 * ``test/pdf_font_resolver_tests.cpp``
 
 因此当前结论是：四个旧分支都不适合整分支直接合入 ``dev``。后续只能按功能主题
-拆分，例如先做 release governance action item 明细、再做 schema calibration，再另开
-PDF CJK 专项；每个主题都应在当前 ``dev`` 上小步重做并跑对应轻量测试。
+拆分，例如继续完善 release governance action item 明细、校准 schema calibration
+真实语料置信度，再另开 PDF CJK 专项；每个主题都应在当前 ``dev`` 上小步重做并跑
+对应轻量测试。
+
+
+2026-05-18 后续摘入复核
+------------------------
+
+本轮继续按“谁的实现更正确就用谁”的原则复核。结论如下：
+
+* ``codex/release-governance-rollup-details`` 的 ``3bd950d`` 只摘入候选级
+  schema calibration routing；整分支仍会回退当前 ``dev`` 的 style merge 工具链、
+  release warning 契约和 PDF import 文档维护，因此不合并。
+* ``codex/release-governance-warning-entrypoints`` 的 ``fcb5f9c`` 只摘入 rollup
+  composite id 测试鲁棒性修复；该分支其余内容已被当前 ``dev`` 的更完整实现覆盖，
+  或仅涉及 CTest 注册，当前低资源阶段不继续处理。
+* content-control governance source metadata 已在当前 ``dev`` 中更完整地覆盖：
+  ``source_json_display``、``source_report_display``、``repair_strategy`` 和
+  ``command_template`` 均已通过脚本与测试保留，不再从旧分支重复摘入。
+* release governance rollup details、schema calibration handoff / pipeline / release
+  bundle 透传已在当前 ``dev`` 中存在更完整实现；旧分支版本不再作为正确版本使用。
