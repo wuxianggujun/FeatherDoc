@@ -26,6 +26,7 @@
 - `tmp/pdfio-src/`
 - `.bpdf-*/`
 - `.codex-build-*/`
+- `.tmp-pdfium-*/`
 - `build-pdf*/`
 - `out/`
 - probe 生成的 `*.pdf`
@@ -414,6 +415,9 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - `document-table-merged-cant-split-text`
 
 其中 `cjk-text` 在找不到可用 CJK 字体时会跳过，不会把整个套件判失败。
+
+PDFium 本地探测或依赖排查阶段可能会留下 `.tmp-pdfium-*` 目录。这些目录只用于
+本机临时检查，不应提交；需要清理时直接手工删除即可。
 
 ## 视觉发布门禁
 
