@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <iterator>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -65,14 +64,28 @@ void replace_all(std::string &text, std::string_view needle,
     return line;
 }
 
-[[nodiscard]] std::vector<LineState> wrap_header_footer_paragraphs(
+[[nodiscard]] double paragraph_alignment_offset_points(
+    featherdoc::paragraph_alignment alignment, double line_width_points,
+    double max_width_points) noexcept {
+    const auto extra_width = std::max(0.0, max_width_points - line_width_points);
+    if (alignment == featherdoc::paragraph_alignment::center) {
+        return extra_width / 2.0;
+    }
+    if (alignment == featherdoc::paragraph_alignment::right) {
+        return extra_width;
+    }
+    return 0.0;
+}
+
+[[nodiscard]] std::vector<HeaderFooterLineLayout>
+wrap_header_footer_paragraphs(
     featherdoc::Paragraph paragraph, const PdfDocumentAdapterOptions &options,
     double max_width_points, const HeaderFooterRenderContext &context) {
     if (!paragraph.has_next() || !context.wrap_paragraph) {
         return {};
     }
 
-    std::vector<LineState> lines;
+    std::vector<HeaderFooterLineLayout> lines;
     const auto paragraph_options = header_footer_options(options);
     for (; paragraph.has_next(); paragraph.next()) {
         auto paragraph_lines =
@@ -81,9 +94,19 @@ void replace_all(std::string &text, std::string_view needle,
         if (paragraph_lines.empty()) {
             paragraph_lines.push_back(LineState{});
         }
-        lines.insert(lines.end(),
-                     std::make_move_iterator(paragraph_lines.begin()),
-                     std::make_move_iterator(paragraph_lines.end()));
+
+        const auto alignment =
+            paragraph.alignment().value_or(featherdoc::paragraph_alignment::left);
+        for (auto &line : paragraph_lines) {
+            const auto line_width_points = line.width_points;
+            lines.push_back(HeaderFooterLineLayout{
+                std::move(line),
+                options.margin_left_points +
+                    paragraph_alignment_offset_points(alignment,
+                                                      line_width_points,
+                                                      max_width_points),
+            });
+        }
     }
     return lines;
 }
@@ -115,23 +138,24 @@ void replace_all(std::string &text, std::string_view needle,
 }
 
 void emit_header_footer_lines(PdfPageLayout &page,
-                              const std::vector<LineState> &lines,
+                              const std::vector<HeaderFooterLineLayout> &lines,
                               double start_baseline_y, double step_points,
                               const PdfDocumentAdapterOptions &options,
                               std::size_t document_page_index,
                               std::size_t document_page_count,
                               std::size_t section_page_count) {
     auto baseline_y = start_baseline_y;
-    for (const auto &line : lines) {
-        if (!line.empty()) {
+    for (const auto &line_layout : lines) {
+        if (!line_layout.line.empty()) {
             if (options.expand_header_footer_page_placeholders) {
                 emit_line_at(page,
                              expand_line_page_placeholders(
-                                 line, document_page_index, document_page_count,
+                                 line_layout.line, document_page_index,
+                                 document_page_count,
                                  page.section_page_index, section_page_count),
-                             options.margin_left_points, baseline_y);
+                             line_layout.start_x_points, baseline_y);
             } else {
-                emit_line_at(page, line, options.margin_left_points,
+                emit_line_at(page, line_layout.line, line_layout.start_x_points,
                              baseline_y);
             }
         }

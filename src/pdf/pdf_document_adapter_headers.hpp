@@ -12,9 +12,14 @@
 
 namespace featherdoc::pdf::detail {
 
+struct HeaderFooterLineLayout {
+    LineState line;
+    double start_x_points{0.0};
+};
+
 struct HeaderFooterPageLayout {
-    std::vector<LineState> header_lines;
-    std::vector<LineState> footer_lines;
+    std::vector<HeaderFooterLineLayout> header_lines;
+    std::vector<HeaderFooterLineLayout> footer_lines;
 };
 
 struct HeaderFooterLayout {

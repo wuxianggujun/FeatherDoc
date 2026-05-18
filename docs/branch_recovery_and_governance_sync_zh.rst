@@ -182,3 +182,7 @@ manifest 和视觉 gate 清单，不再作为低资源阶段的摘入目标。
 ``collect_paragraph_text`` 将字体、粗斜体、颜色、RTL、语言和 East Asia 字体元数据
 压平成纯文本。旧提交中的更大排版状态、manifest、样例和视觉 gate 差异继续只读保留，
 不整分支合并。
+
+同一旧提交中的页眉页脚段落对齐修复也已按当前 ``dev`` 结构小步重做：内部布局记录
+每条页眉页脚线的 ``start_x_points``，并根据段落左/中/右对齐计算绘制位置。旧分支
+里的大规模 RTL 测试、regression manifest、样例和视觉 gate 仍不整批合入。

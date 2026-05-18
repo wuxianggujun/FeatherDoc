@@ -302,3 +302,7 @@ resolver 再尝试 East Asia 显式映射、``cjk_font_file_path`` 或系统 CJK
   结构重做为 ``wrap_cursor_paragraph_runs``，让页眉页脚直接包装段落游标中的 run，
   复用现有字体回退、run 样式和 shaping 元数据链路。旧提交中的 bidi、上下标、
   删除线、regression manifest、样例和视觉 gate 大范围变化继续只读保留。
+* ``e05a969`` 中页眉页脚段落对齐也可以独立重做：当前只补充内部
+  ``HeaderFooterLineLayout``，让每条页眉页脚线携带按段落左/中/右对齐计算后的
+  ``start_x_points``。该补丁不引入旧分支的 RTL 大测试、PDF regression 样例、
+  manifest 或视觉 gate。
