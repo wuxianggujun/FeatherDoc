@@ -507,7 +507,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(samples[32].id, "document-eastasia-style-probe");
     CHECK_EQ(samples[32].kind, "document_eastasia_style_probe");
     CHECK_EQ(samples[32].expected_pages, 1U);
-    CHECK_GE(samples[32].expected_text.size(), 7U);
+    CHECK_GE(samples[32].expected_text.size(), 9U);
     CHECK_EQ(samples[33].id, "document-image-semantics-text");
     CHECK_EQ(samples[33].kind, "document_image_semantics_text");
     CHECK_EQ(samples[33].expected_image_count, 3U);
