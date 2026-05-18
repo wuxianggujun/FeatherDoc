@@ -306,3 +306,44 @@ resolver 再尝试 East Asia 显式映射、``cjk_font_file_path`` 或系统 CJK
   ``HeaderFooterLineLayout``，让每条页眉页脚线携带按段落左/中/右对齐计算后的
   ``start_x_points``。该补丁不引入旧分支的 RTL 大测试、PDF regression 样例、
   manifest 或视觉 gate。
+
+
+2026-05-19 PDF CJK 分支只读复核
+--------------------------------
+
+本轮继续只读复核 ``codex/pdf-cjk-copy-search-gate`` 和
+``codex/pdf-cjk-bullet-fallback``。结论是：当前 ``dev`` 已有部分关键 PDF CJK
+基础能力，但两个旧分支仍不能整分支合并，也不能被视为已经完全合入。
+
+当前 ``dev`` 已确认包含：
+
+* ``scripts/check_pdf_text_layer.py``。
+* ``scripts/run_pdf_visual_release_gate.ps1`` 中的 CJK copy/search text-layer gate。
+* ``scripts/run_pdf_visual_release_gate.ps1`` 中的 ``cli-cjk-font-source`` gate 条目。
+* ``test/pdf_cli_export_tests.cpp`` 中显式 CJK 字体导出的覆盖。
+* ``test/pdf_font_resolver_tests.cpp`` 中 East Asia / CJK 字体 fallback 契约。
+* ``document-eastasia-style-probe`` 相关样本契约，用于固定 East Asia 符号探针。
+
+仍保留在旧 PDF 分支、当前低资源阶段不搬入的内容主要是大批 regression 样例、
+manifest 和视觉 gate 清单，包括但不限于：
+
+* ``document-cjk-complex-layout-text``。
+* ``document-cjk-copy-search-matrix-text``。
+* ``document-cjk-font-embed-matrix-text``。
+* ``document-cjk-font-embed-wrap-mix-text``。
+* ``document-cjk-image-wrap-stress-text``。
+* ``document-cjk-extreme-page-breaks-text``。
+* ``document-cjk-table-wrap-page-flow-text``。
+* ``document-cjk-multi-anchor-table-flow-text``。
+* ``document-cjk-anchor-font-matrix-boundary-text``。
+* ``document-cjk-font-search-density-flow-text``。
+* ``document-cjk-repeated-key-boundary-flow-text``。
+* ``document-cjk-style-overlay-page-flow-text``。
+* ``document-cjk-numbered-list-page-flow-text``。
+* ``document-cjk-bullet-page-flow-text``。
+* ``document-cjk-bullet-overlay-page-flow-text``。
+
+处理建议保持不变：两个 PDF CJK 分支继续作为只读参考库存保留。后续如果正式恢复
+PDF 主线，应从当前 ``dev`` 出发，按单个能力小步重做源码、脚本契约和最小验证；
+不要搬入整批样例、manifest 或视觉 baseline，也不要在未完成源码提交推送前运行
+重型 PDF 渲染验证。
