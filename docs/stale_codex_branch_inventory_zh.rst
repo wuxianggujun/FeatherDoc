@@ -347,3 +347,28 @@ manifest 和视觉 gate 清单，包括但不限于：
 PDF 主线，应从当前 ``dev`` 出发，按单个能力小步重做源码、脚本契约和最小验证；
 不要搬入整批样例、manifest 或视觉 baseline，也不要在未完成源码提交推送前运行
 重型 PDF 渲染验证。
+
+
+2026-05-19 release governance warning-entrypoints 只读复核
+----------------------------------------------------------
+
+本轮只读复核 ``codex/release-governance-warning-entrypoints`` 中的 reviewer checklist
+入口相关提交。该分支相对当前 ``dev`` 仍有大量差异，并且会删除当前 ``dev`` 的恢复、
+整合和 PDF CJK 复核文档，因此仍不能整分支合并。
+
+当前 ``dev`` 已确认覆盖旧分支中的关键入口能力：
+
+* ``Get-ReleaseGovernanceBlockerChecklistItems``。
+* ``Get-ReleaseGovernanceActionItemChecklistItems``。
+* ``Get-ReleaseGovernanceWarningChecklistItems``。
+* reviewer checklist 会分别渲染 blocker、action item 和 warning 的 checkbox。
+* checklist guidance 会透传 ``command``、``open_command``、``audit_command`` 和
+  ``review_command``。
+* 当前实现额外保留 ``project_id``、``template_name``、``candidate_type``、
+  ``source_json_display``、``repair_strategy`` 和 ``command_template`` 等后续治理字段。
+
+已用 60 秒限时的 ``release_governance_warning_helper_contract_test.ps1`` 确认当前
+``dev`` 的 helper 契约仍通过。结论是：旧分支中的 checklist 入口提交不再需要重复
+摘入；后续如果继续处理该分支，只应寻找当前 ``dev`` 尚未覆盖、且不会回退现有治理契约
+的小补丁。CTest 注册、旧 metrics 测试和大范围 release bundle 文案调整继续保留为只读
+参考，不在低资源阶段处理。
