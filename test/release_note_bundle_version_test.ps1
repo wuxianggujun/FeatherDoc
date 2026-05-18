@@ -15,7 +15,7 @@ function Assert-Contains {
 
     $content = Get-Content -Raw -LiteralPath $Path
     if ($content -notmatch [regex]::Escape($ExpectedText)) {
-        throw "$Label does not contain expected text '$ExpectedText': $Path"
+        throw ("{0} does not contain expected text '{1}': {2}" -f $Label, $ExpectedText, $Path)
     }
 }
 
@@ -29,7 +29,7 @@ function Assert-NotContains {
     $content = Get-Content -Raw -LiteralPath $Path
     if (-not [string]::IsNullOrWhiteSpace($UnexpectedText) -and
         $content -match [regex]::Escape($UnexpectedText)) {
-        throw "$Label unexpectedly contains '$UnexpectedText': $Path"
+        throw ("{0} unexpectedly contains '{1}': {2}" -f $Label, $UnexpectedText, $Path)
     }
 }
 
@@ -663,6 +663,26 @@ Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\outpu
 Assert-Contains -Path $checklistPath -ExpectedText 'Stop here until' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'fix_schema_patch_approval_result' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'sync_project_template_schema_approval.ps1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Resolve release governance blocker' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Release blocker rollup blockers' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Open source report' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'while handling release governance blocker' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Open source JSON' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Review ' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'repair_hint' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Rerun Custom XML sync or explicitly fill the bound content control before release.' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Release governance handoff blockers' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Review release governance action item' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Release blocker rollup action items' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Run ' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'for release governance action item' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Release governance handoff action items' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'write_schema_patch_confidence_calibration_report.ps1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Review release governance warning' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Release blocker rollup warnings' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Release governance handoff warnings' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Do not approve for public release when release governance blocker counts are non-zero in the final rollup, governance handoff, or nested handoff rollup.' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Do not approve for public release when' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'project_template_schema_approval_history.md' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Superseded review tasks: 0' -Label 'REVIEWER_CHECKLIST.md'

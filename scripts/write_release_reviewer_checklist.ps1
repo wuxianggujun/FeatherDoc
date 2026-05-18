@@ -538,6 +538,33 @@ if ((Get-ReleaseBlockerCount -Summary $summary) -gt 0) {
         }
     }
 }
+foreach ($blockerItem in @(Get-ReleaseGovernanceBlockerChecklistItems -Summary $summary)) {
+    Add-CheckboxLine -Lines $lines -Text (Get-ReleaseGovernanceBlockerChecklistText -BlockerItem $blockerItem)
+    foreach ($guidanceLine in @(Get-ReleaseGovernanceBlockerActionGuidanceLines `
+                -Blocker $blockerItem.item `
+                -RepoRoot $repoRoot `
+                -ReleaseSummaryJson $resolvedSummaryPath)) {
+        Add-CheckboxLine -Lines $lines -Text $guidanceLine
+    }
+}
+foreach ($actionItem in @(Get-ReleaseGovernanceActionItemChecklistItems -Summary $summary)) {
+    Add-CheckboxLine -Lines $lines -Text (Get-ReleaseGovernanceActionItemChecklistText -ActionItem $actionItem)
+    foreach ($guidanceLine in @(Get-ReleaseGovernanceActionItemActionGuidanceLines `
+                -ActionItem $actionItem.item `
+                -RepoRoot $repoRoot `
+                -ReleaseSummaryJson $resolvedSummaryPath)) {
+        Add-CheckboxLine -Lines $lines -Text $guidanceLine
+    }
+}
+foreach ($warningItem in @(Get-ReleaseGovernanceWarningChecklistItems -Summary $summary)) {
+    Add-CheckboxLine -Lines $lines -Text (Get-ReleaseGovernanceWarningChecklistText -WarningItem $warningItem)
+    foreach ($guidanceLine in @(Get-ReleaseGovernanceWarningActionGuidanceLines `
+                -Warning $warningItem.item `
+                -RepoRoot $repoRoot `
+                -ReleaseSummaryJson $resolvedSummaryPath)) {
+        Add-CheckboxLine -Lines $lines -Text $guidanceLine
+    }
+}
 Add-CheckboxLine -Lines $lines -Text ('Confirm `final_review.md` still matches the current release status: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $finalReviewPath))
 if (-not [string]::IsNullOrWhiteSpace($supersededReviewTasksCount)) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm `superseded_review_tasks.json` reports zero stale task directories or intentionally explains any preserved older tasks (current count: {0}): {1}' -f `
@@ -689,6 +716,7 @@ if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
 [void]$lines.Add("")
 [void]$lines.Add('- Do not approve for public release when `execution_status` is not `pass`.')
 [void]$lines.Add('- Do not approve for public release when `release_blocker_count` is non-zero or `release_blockers` is not empty.')
+[void]$lines.Add('- Do not approve for public release when release governance blocker counts are non-zero in the final rollup, governance handoff, or nested handoff rollup.')
 [void]$lines.Add('- Do not approve for public release when a requested template schema gate does not report `matches = true`.')
 [void]$lines.Add('- Do not approve for public release when a requested template schema manifest gate does not report `passed = true`.')
 [void]$lines.Add('- Do not approve for public release when a requested project template smoke gate does not report `passed = true`.')
