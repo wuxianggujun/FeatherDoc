@@ -2949,6 +2949,9 @@ if(TARGET featherdoc_cli)
         cli
         cli_tests.cpp
     )
+    if(FEATHERDOC_BUILD_PDF AND TARGET FeatherDocPdf)
+        target_compile_definitions(cli_tests PRIVATE FEATHERDOC_CLI_ENABLE_PDF=1)
+    endif()
     featherdoc_set_test_labels(cli cli heavy)
 
     featherdoc_add_cli_cpp_test(
