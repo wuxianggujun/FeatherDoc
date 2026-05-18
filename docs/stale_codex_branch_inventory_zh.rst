@@ -292,3 +292,9 @@ resolver 再尝试 East Asia 显式映射、``cjk_font_file_path`` 或系统 CJK
   ``spanned_row_bottom`` 计算纵向合并或跨行单元格的实际输出高度，避免页底分页判断
   只看当前行高度而低估跨行表格。旧分支里的样例、manifest、视觉 gate 和字体矩阵差异
   继续保留为只读参考。
+* ``b52bf60``、``96bac82`` 和 ``11dc255`` 的关键源码能力已被当前 ``dev`` 覆盖：
+  ``pdf_font_resolver.cpp`` 已具备 FreeType 字形检查、Unicode prefix 到 East Asia /
+  CJK 字体链路的 fallback、日文假名、韩文音节和东亚兼容符号识别；对应契约已由
+  ``pdf_font_resolver_tests.cpp``、``pdf_document_adapter_font_tests.cpp`` 和
+  ``document-eastasia-style-probe`` 样本固定。旧提交剩余内容主要是大批 regression
+  样例、manifest 和视觉 gate 清单，当前低资源阶段不再重复摘入。
