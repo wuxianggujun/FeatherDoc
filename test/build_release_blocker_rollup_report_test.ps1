@@ -72,6 +72,7 @@ $numberingGovernancePath = Join-Path $fixtureRoot "numbering-governance\summary.
 $tableLayoutPath = Join-Path $fixtureRoot "table-layout\summary.json"
 $contentControlPath = Join-Path $fixtureRoot "content-control\summary.json"
 $projectTemplateReadinessPath = Join-Path $fixtureRoot "project-template-readiness\summary.json"
+$schemaCalibrationPath = Join-Path $fixtureRoot "schema-patch-confidence-calibration\summary.json"
 $releaseCandidatePath = Join-Path $fixtureRoot "release-candidate\summary.json"
 $styleGovernancePath = Join-Path $fixtureRoot "style-governance\summary.json"
 $emptyPath = Join-Path $fixtureRoot "empty\summary.json"
@@ -269,6 +270,54 @@ Write-JsonFile -Path $projectTemplateReadinessPath -Value ([ordered]@{
     )
 })
 
+Write-JsonFile -Path $schemaCalibrationPath -Value ([ordered]@{
+    schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+    status = "pending_review"
+    release_ready = $false
+    release_blocker_count = 1
+    release_blockers = @(
+        [ordered]@{
+            id = "schema_patch_confidence_calibration.pending_schema_approvals"
+            severity = "error"
+            status = "pending_review"
+            action = "resolve_pending_schema_approvals"
+            message = "Schema patch confidence calibration has pending approvals."
+            project_id = "project-finance"
+            template_name = "invoice-template"
+            candidate_type = "rename"
+            source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+        }
+    )
+    action_item_count = 1
+    action_items = @(
+        [ordered]@{
+            id = "resolve_pending_schema_approvals"
+            action = "resolve_pending_schema_approvals"
+            title = "Resolve pending schema approvals"
+            open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+            project_id = "project-finance"
+            template_name = "invoice-template"
+            candidate_type = "rename"
+            source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+        }
+    )
+    warning_count = 1
+    warnings = @(
+        [ordered]@{
+            id = "schema_patch_confidence_calibration.unscored_candidates"
+            action = "add_explicit_confidence_metadata"
+            message = "Some schema patch candidates do not carry explicit confidence metadata."
+            project_id = "project-finance"
+            template_name = "invoice-template"
+            candidate_type = "rename"
+            source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+        }
+    )
+})
+
 Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
     release_blocker_count = 1
     release_blockers = @(
@@ -340,6 +389,8 @@ if (Test-Scenario -Name "passing") {
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlPath | ConvertFrom-Json)
     Write-JsonFile -Path (Join-Path $passingInputRoot "project-template-readiness\summary.json") `
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $projectTemplateReadinessPath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $passingInputRoot "schema-patch-confidence-calibration\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $schemaCalibrationPath | ConvertFrom-Json)
     Write-JsonFile -Path (Join-Path $passingInputRoot "release-candidate\summary.json") `
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseCandidatePath | ConvertFrom-Json)
     $result = Invoke-RollupScript -Arguments @(
@@ -361,11 +412,13 @@ if (Test-Scenario -Name "passing") {
         -Message "Summary should expose rollup schema."
     Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
         -Message "Rollup should be blocked when blockers exist."
-    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 6 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 7 `
         -Message "Rollup should aggregate all blockers."
-    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 5 `
         -Message "Rollup should aggregate action items."
-    Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 7 `
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
+        -Message "Rollup should aggregate warning items."
+    Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 8 `
         -Message "Rollup should keep source report count."
     Assert-Equal -Actual ([int]$summary.governance_metric_count) -Expected 2 `
         -Message "Rollup should aggregate report-level governance metrics."
@@ -457,6 +510,33 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve warning action."
     Assert-ContainsText -Text ([string]$skeletonWarning.message) -ExpectedText "exemplar catalog" `
         -Message "Rollup should preserve warning message."
+    $calibrationBlocker = ($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.pending_schema_approvals" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationBlocker.project_id) -Expected "project-finance" `
+        -Message "Rollup should preserve calibration blocker project id."
+    Assert-Equal -Actual ([string]$calibrationBlocker.template_name) -Expected "invoice-template" `
+        -Message "Rollup should preserve calibration blocker template name."
+    Assert-Equal -Actual ([string]$calibrationBlocker.candidate_type) -Expected "rename" `
+        -Message "Rollup should preserve calibration blocker candidate type."
+    $calibrationAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "resolve_pending_schema_approvals" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationAction.project_id) -Expected "project-finance" `
+        -Message "Rollup should preserve calibration action project id."
+    Assert-Equal -Actual ([string]$calibrationAction.template_name) -Expected "invoice-template" `
+        -Message "Rollup should preserve calibration action template name."
+    Assert-Equal -Actual ([string]$calibrationAction.candidate_type) -Expected "rename" `
+        -Message "Rollup should preserve calibration action candidate type."
+    $calibrationWarning = ($summary.warnings |
+        Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.unscored_candidates" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationWarning.project_id) -Expected "project-finance" `
+        -Message "Rollup should preserve calibration warning project id."
+    Assert-Equal -Actual ([string]$calibrationWarning.template_name) -Expected "invoice-template" `
+        -Message "Rollup should preserve calibration warning template name."
+    Assert-Equal -Actual ([string]$calibrationWarning.candidate_type) -Expected "rename" `
+        -Message "Rollup should preserve calibration warning candidate type."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blocker Rollup Report" `
@@ -513,6 +593,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include repair strategy details."
     Assert-ContainsText -Text $markdown -ExpectedText "command_template" `
         -Message "Markdown should include command template details."
+    Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-finance` template=`invoice-template` candidate=`rename`' `
+        -Message "Markdown should include calibration project/template/candidate routing fields."
 }
 
 if (Test-Scenario -Name "empty") {

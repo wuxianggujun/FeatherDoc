@@ -241,6 +241,9 @@ function Write-GovernanceFixtures {
                     status = "pending_review"
                     action = "resolve_pending_schema_approvals"
                     message = "Schema patch confidence calibration has pending approvals."
+                    project_id = "project-finance"
+                    template_name = "invoice-template"
+                    candidate_type = "rename"
                     source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                     source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 }
@@ -252,6 +255,9 @@ function Write-GovernanceFixtures {
                     action = "resolve_pending_schema_approvals"
                     title = "Resolve pending schema approvals"
                     open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+                    project_id = "project-finance"
+                    template_name = "invoice-template"
+                    candidate_type = "rename"
                     source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                     source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 }
@@ -261,6 +267,9 @@ function Write-GovernanceFixtures {
                     id = "schema_patch_confidence_calibration.unscored_candidates"
                     action = "add_explicit_confidence_metadata"
                     message = "Some schema patch candidates do not carry explicit confidence metadata."
+                    project_id = "project-finance"
+                    template_name = "invoice-template"
+                    candidate_type = "rename"
                     source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                     source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 }
@@ -353,6 +362,33 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
         -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Aggregate handoff should preserve warning source JSON display."
+    $calibrationBlocker = ($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.pending_schema_approvals" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationBlocker.project_id) -Expected "project-finance" `
+        -Message "Aggregate handoff should preserve calibration blocker project id."
+    Assert-Equal -Actual ([string]$calibrationBlocker.template_name) -Expected "invoice-template" `
+        -Message "Aggregate handoff should preserve calibration blocker template name."
+    Assert-Equal -Actual ([string]$calibrationBlocker.candidate_type) -Expected "rename" `
+        -Message "Aggregate handoff should preserve calibration blocker candidate type."
+    $calibrationAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "resolve_pending_schema_approvals" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationAction.project_id) -Expected "project-finance" `
+        -Message "Aggregate handoff should preserve calibration action project id."
+    Assert-Equal -Actual ([string]$calibrationAction.template_name) -Expected "invoice-template" `
+        -Message "Aggregate handoff should preserve calibration action template name."
+    Assert-Equal -Actual ([string]$calibrationAction.candidate_type) -Expected "rename" `
+        -Message "Aggregate handoff should preserve calibration action candidate type."
+    $calibrationWarning = ($summary.warnings |
+        Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.unscored_candidates" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationWarning.project_id) -Expected "project-finance" `
+        -Message "Aggregate handoff should preserve calibration warning project id."
+    Assert-Equal -Actual ([string]$calibrationWarning.template_name) -Expected "invoice-template" `
+        -Message "Aggregate handoff should preserve calibration warning template name."
+    Assert-Equal -Actual ([string]$calibrationWarning.candidate_type) -Expected "rename" `
+        -Message "Aggregate handoff should preserve calibration warning candidate type."
     Assert-ContainsText -Text (($summary.next_commands | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "ReleaseBlockerRollupAutoDiscover" `
         -Message "Aggregate handoff should hand off to release candidate auto-discovery."
@@ -386,6 +422,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include content-control data-binding governance."
     Assert-ContainsText -Text $markdown -ExpectedText "schema_patch_confidence_calibration" `
         -Message "Markdown should include schema patch confidence calibration."
+    Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-finance` template=`invoice-template` candidate=`rename`' `
+        -Message "Markdown should include calibration project/template/candidate routing fields."
     Assert-ContainsText -Text $markdown -ExpectedText "## Warnings" `
         -Message "Markdown should include handoff warnings."
     Assert-ContainsText -Text $markdown -ExpectedText "numbering_catalog_manifest_summary_missing" `
@@ -572,6 +610,15 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
         -Message "Nested rollup should preserve calibration source schema."
+    Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.project_id }) -join "`n") `
+        -ExpectedText "project-finance" `
+        -Message "Nested rollup should preserve calibration project id."
+    Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object { [string]$_.template_name }) -join "`n") `
+        -ExpectedText "invoice-template" `
+        -Message "Nested rollup should preserve calibration template name."
+    Assert-ContainsText -Text (($rollupSummary.warnings | ForEach-Object { [string]$_.candidate_type }) -join "`n") `
+        -ExpectedText "rename" `
+        -Message "Nested rollup should preserve calibration candidate type."
 }
 
 Write-Host "Release governance handoff report regression passed."

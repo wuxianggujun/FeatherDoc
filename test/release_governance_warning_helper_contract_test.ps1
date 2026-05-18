@@ -64,6 +64,9 @@ $warningWithStyleMergeCount = [pscustomobject]@{
     id = "document_skeleton.style_merge_suggestions_pending"
     action = "review_style_merge_suggestions"
     message = "Document skeleton governance reports 2 duplicate style merge suggestion(s) awaiting review."
+    project_id = "project-finance"
+    template_name = "invoice-template"
+    candidate_type = "rename"
     source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
     style_merge_suggestion_count = 2
     style_merge_suggestion_pending_count = 2
@@ -81,6 +84,9 @@ $restoreAuditActionItem = [pscustomobject]@{
     id = "review_style_merge_restore_audit"
     action = "review_style_merge_restore_audit"
     title = "Review style merge restore audit and Word render"
+    project_id = "project-finance"
+    template_name = "invoice-template"
+    candidate_type = "rename"
     source_schema = "featherdoc.style_merge_restore_audit.v1"
     source_report_display = ".\output\document-skeleton-governance\style-merge.restore-audit.summary.json"
     command = "pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx -DocumentSourceKind style-merge-restore-audit -Mode review-only"
@@ -92,6 +98,9 @@ $styleNumberingBlocker = [pscustomobject]@{
     composite_id = "source0.blocker0.numbering_catalog_governance.style_numbering_issues"
     id = "numbering_catalog_governance.style_numbering_issues"
     action = "review_style_numbering_audit"
+    project_id = "project-finance"
+    template_name = "invoice-template"
+    candidate_type = "rename"
     status = "blocked"
     severity = "error"
     source_schema = "featherdoc.numbering_catalog_governance_report.v1"
@@ -116,6 +125,12 @@ Assert-Equal -Actual ([string]$normalizedBlockers[0].composite_id) -Expected "so
     -Message "Normalized governance blocker should preserve composite id."
 Assert-Equal -Actual ([string]$normalizedBlockers[0].action) -Expected "review_style_numbering_audit" `
     -Message "Normalized governance blocker should preserve action."
+Assert-Equal -Actual ([string]$normalizedBlockers[0].project_id) -Expected "project-finance" `
+    -Message "Normalized governance blocker should preserve project id."
+Assert-Equal -Actual ([string]$normalizedBlockers[0].template_name) -Expected "invoice-template" `
+    -Message "Normalized governance blocker should preserve template name."
+Assert-Equal -Actual ([string]$normalizedBlockers[0].candidate_type) -Expected "rename" `
+    -Message "Normalized governance blocker should preserve candidate type."
 Assert-Equal -Actual ([string]$normalizedBlockers[0].source_report_display) -Expected ".\output\numbering-catalog-governance\summary.json" `
     -Message "Normalized governance blocker should preserve source report display."
 Assert-Equal -Actual (Get-ReleaseGovernanceBlockerCount -SummaryObject ([pscustomobject]@{ release_blocker_count = 5; release_blockers = @($styleNumberingBlocker) })) -Expected 5 `
@@ -130,6 +145,12 @@ Assert-Equal -Actual ([string]$normalizedWarnings[0].action) -Expected "review_s
     -Message "Normalized warning should preserve action."
 Assert-Equal -Actual ([string]$normalizedWarnings[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
     -Message "Normalized warning should preserve source schema."
+Assert-Equal -Actual ([string]$normalizedWarnings[0].project_id) -Expected "project-finance" `
+    -Message "Normalized warning should preserve project id."
+Assert-Equal -Actual ([string]$normalizedWarnings[0].template_name) -Expected "invoice-template" `
+    -Message "Normalized warning should preserve template name."
+Assert-Equal -Actual ([string]$normalizedWarnings[0].candidate_type) -Expected "rename" `
+    -Message "Normalized warning should preserve candidate type."
 Assert-Equal -Actual ([string]$normalizedWarnings[1].source_report_display) -Expected ".\output\numbering-catalog-governance\summary.json" `
     -Message "Normalized warning should preserve source report display."
 Assert-True -Condition ($normalizedWarnings[0].PSObject.Properties.Name -contains "style_merge_suggestion_count") `
@@ -148,6 +169,12 @@ Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'composite_id: `sour
     -Message "Governance blocker summary should include the rollup composite id when present."
 Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'action: `review_style_numbering_audit`' `
     -Message "Governance blocker summary should include the action."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'project_id: `project-finance`' `
+    -Message "Governance blocker summary should include project id."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'template_name: `invoice-template`' `
+    -Message "Governance blocker summary should include template name."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'candidate_type: `rename`' `
+    -Message "Governance blocker summary should include candidate type."
 Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'status: `blocked`' `
     -Message "Governance blocker summary should include status."
 Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'severity: `error`' `
@@ -178,6 +205,12 @@ Assert-Equal -Actual ([string]$normalizedActionItems[0].id) -Expected "review_st
     -Message "Normalized action item should preserve id."
 Assert-ContainsText -Text ([string]$normalizedActionItems[0].open_command) -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
     -Message "Normalized action item should preserve open-latest commands."
+Assert-Equal -Actual ([string]$normalizedActionItems[0].project_id) -Expected "project-finance" `
+    -Message "Normalized action item should preserve project id."
+Assert-Equal -Actual ([string]$normalizedActionItems[0].template_name) -Expected "invoice-template" `
+    -Message "Normalized action item should preserve template name."
+Assert-Equal -Actual ([string]$normalizedActionItems[0].candidate_type) -Expected "rename" `
+    -Message "Normalized action item should preserve candidate type."
 Assert-ContainsText -Text ([string]$normalizedActionItems[0].audit_command) -ExpectedText "restore-style-merge" `
     -Message "Normalized action item should preserve audit commands."
 Assert-Equal -Actual (Get-ReleaseGovernanceActionItemCount -SummaryObject ([pscustomobject]@{ action_item_count = 7; action_items = @($restoreAuditActionItem) })) -Expected 7 `
@@ -192,6 +225,12 @@ Assert-ContainsText -Text $richSummaryText -ExpectedText 'message: Document skel
     -Message "Summary text should include the warning message."
 Assert-ContainsText -Text $richSummaryText -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' `
     -Message "Summary text should include the warning source schema."
+Assert-ContainsText -Text $richSummaryText -ExpectedText 'project_id: `project-finance`' `
+    -Message "Summary text should include warning project id."
+Assert-ContainsText -Text $richSummaryText -ExpectedText 'template_name: `invoice-template`' `
+    -Message "Summary text should include warning template name."
+Assert-ContainsText -Text $richSummaryText -ExpectedText 'candidate_type: `rename`' `
+    -Message "Summary text should include warning candidate type."
 Assert-ContainsText -Text $richSummaryText -ExpectedText 'style_merge_suggestion_count: `2`' `
     -Message "Summary text should include the optional style merge count when present."
 Assert-ContainsText -Text $richSummaryText -ExpectedText 'style_merge_suggestion_pending_count: `2`' `
@@ -212,6 +251,12 @@ Assert-ContainsText -Text $actionSummaryText -ExpectedText 'action: `review_styl
     -Message "Action item summary should include the action."
 Assert-ContainsText -Text $actionSummaryText -ExpectedText 'source_schema: `featherdoc.style_merge_restore_audit.v1`' `
     -Message "Action item summary should include source schema."
+Assert-ContainsText -Text $actionSummaryText -ExpectedText 'project_id: `project-finance`' `
+    -Message "Action item summary should include project id."
+Assert-ContainsText -Text $actionSummaryText -ExpectedText 'template_name: `invoice-template`' `
+    -Message "Action item summary should include template name."
+Assert-ContainsText -Text $actionSummaryText -ExpectedText 'candidate_type: `rename`' `
+    -Message "Action item summary should include candidate type."
 
 $actionSubsectionLines = New-Object 'System.Collections.Generic.List[string]'
 $actionSubsectionRendered = Add-ReleaseGovernanceActionItemMarkdownSubsection `
@@ -230,6 +275,12 @@ Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText '- action_item
     -Message "Action item Markdown subsection should include action count."
 Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit' `
     -Message "Action item Markdown subsection should include open-latest commands."
+Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'project_id: `project-finance`' `
+    -Message "Action item Markdown subsection should include project id."
+Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'template_name: `invoice-template`' `
+    -Message "Action item Markdown subsection should include template name."
+Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'candidate_type: `rename`' `
+    -Message "Action item Markdown subsection should include candidate type."
 Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.apply.rollback.json --dry-run --json' `
     -Message "Action item Markdown subsection should include audit commands."
 
@@ -254,6 +305,12 @@ Assert-ContainsText -Text $blockerSubsectionMarkdown -ExpectedText 'composite_id
     -Message "Blocker Markdown subsection should include rollup composite blocker ids."
 Assert-ContainsText -Text $blockerSubsectionMarkdown -ExpectedText 'action: `review_style_merge_restore_audit`' `
     -Message "Blocker Markdown subsection should include fallback blocker action."
+Assert-ContainsText -Text $blockerSubsectionMarkdown -ExpectedText 'project_id: `project-finance`' `
+    -Message "Blocker Markdown subsection should include project id."
+Assert-ContainsText -Text $blockerSubsectionMarkdown -ExpectedText 'template_name: `invoice-template`' `
+    -Message "Blocker Markdown subsection should include template name."
+Assert-ContainsText -Text $blockerSubsectionMarkdown -ExpectedText 'candidate_type: `rename`' `
+    -Message "Blocker Markdown subsection should include candidate type."
 
 $subsectionLines = New-Object 'System.Collections.Generic.List[string]'
 $subsectionRendered = Add-ReleaseGovernanceWarningMarkdownSubsection `
@@ -274,6 +331,12 @@ Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'style_merge_suggest
     -Message "Markdown subsection should include the optional style merge count."
 Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'style_merge_suggestion_pending_count: `2`' `
     -Message "Markdown subsection should include the optional pending style merge count."
+Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'project_id: `project-finance`' `
+    -Message "Warning Markdown subsection should include project id."
+Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'template_name: `invoice-template`' `
+    -Message "Warning Markdown subsection should include template name."
+Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'candidate_type: `rename`' `
+    -Message "Warning Markdown subsection should include candidate type."
 
 $emptyLines = New-Object 'System.Collections.Generic.List[string]'
 $emptyRendered = Add-ReleaseGovernanceWarningMarkdownSubsection `
@@ -380,6 +443,12 @@ Assert-ContainsText -Text $blockerChecklistText -ExpectedText 'source_schema `fe
     -Message "Blocker checklist text should include source schema."
 Assert-ContainsText -Text $blockerChecklistText -ExpectedText 'composite_id `source0.blocker0.numbering_catalog_governance.style_numbering_issues`' `
     -Message "Blocker checklist text should include rollup composite id."
+Assert-ContainsText -Text $blockerChecklistText -ExpectedText 'project_id `project-finance`' `
+    -Message "Blocker checklist text should include project id."
+Assert-ContainsText -Text $blockerChecklistText -ExpectedText 'template_name `invoice-template`' `
+    -Message "Blocker checklist text should include template name."
+Assert-ContainsText -Text $blockerChecklistText -ExpectedText 'candidate_type `rename`' `
+    -Message "Blocker checklist text should include candidate type."
 Assert-ContainsText -Text $blockerChecklistText -ExpectedText 'source_report `.\output\numbering-catalog-governance\summary.json`' `
     -Message "Blocker checklist text should include source report display."
 
@@ -444,6 +513,12 @@ Assert-ContainsText -Text $actionChecklistText -ExpectedText 'action `review_sty
     -Message "Action item checklist text should include action."
 Assert-ContainsText -Text $actionChecklistText -ExpectedText 'source_schema `featherdoc.style_merge_restore_audit.v1`' `
     -Message "Action item checklist text should include source schema."
+Assert-ContainsText -Text $actionChecklistText -ExpectedText 'project_id `project-finance`' `
+    -Message "Action item checklist text should include project id."
+Assert-ContainsText -Text $actionChecklistText -ExpectedText 'template_name `invoice-template`' `
+    -Message "Action item checklist text should include template name."
+Assert-ContainsText -Text $actionChecklistText -ExpectedText 'candidate_type `rename`' `
+    -Message "Action item checklist text should include candidate type."
 Assert-ContainsText -Text $actionChecklistText -ExpectedText 'source_report `.\output\document-skeleton-governance\style-merge.restore-audit.summary.json`' `
     -Message "Action item checklist text should include source report display."
 
@@ -485,6 +560,12 @@ Assert-ContainsText -Text $checklistText -ExpectedText 'action `review_style_mer
     -Message "Checklist text should include warning action."
 Assert-ContainsText -Text $checklistText -ExpectedText 'source_schema `featherdoc.document_skeleton_governance_rollup_report.v1`' `
     -Message "Checklist text should include warning source schema."
+Assert-ContainsText -Text $checklistText -ExpectedText 'project_id `project-finance`' `
+    -Message "Warning checklist text should include project id."
+Assert-ContainsText -Text $checklistText -ExpectedText 'template_name `invoice-template`' `
+    -Message "Warning checklist text should include template name."
+Assert-ContainsText -Text $checklistText -ExpectedText 'candidate_type `rename`' `
+    -Message "Warning checklist text should include candidate type."
 
 $styleMergeGuidance = (Get-ReleaseGovernanceWarningActionGuidanceLines `
         -Warning $warningWithStyleMergeCount `

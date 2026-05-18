@@ -234,6 +234,8 @@ function New-SchemaApprovalHistory {
         entry_histories = @(
             [ordered]@{
                 name = "contract-template"
+                project_id = "project-finance"
+                template_name = "invoice-template"
                 run_count = 1
                 blocked_run_count = 0
                 pending_run_count = 1
@@ -246,11 +248,16 @@ function New-SchemaApprovalHistory {
                 issue_keys = @()
                 runs = @(
                     [ordered]@{
+                        project_id = "project-finance"
+                        template_name = "invoice-template"
                         schema_patch_review_count = 1
                         schema_patch_review_changed_count = 1
                         schema_patch_reviews = @(
                             [ordered]@{
                                 name = "contract-template"
+                                project_id = "project-finance"
+                                template_name = "invoice-template"
+                                candidate_type = "rename"
                                 changed = $true
                                 baseline_slot_count = 2
                                 generated_slot_count = 3
@@ -266,6 +273,9 @@ function New-SchemaApprovalHistory {
                         schema_patch_approval_items = @(
                             [ordered]@{
                                 name = "contract-template"
+                                project_id = "project-finance"
+                                template_name = "invoice-template"
+                                candidate_type = "rename"
                                 status = "pending_review"
                                 decision = "pending"
                                 approved = $false
@@ -504,6 +514,15 @@ Assert-ContainsText -Text (($calibrationStage.warnings | ForEach-Object { [strin
 Assert-ContainsText -Text (($calibrationStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
     -Message "Pipeline calibration stage should expose reviewer open command."
+Assert-ContainsText -Text (($calibrationStage.release_blockers | ForEach-Object { [string]$_.project_id }) -join "`n") `
+    -ExpectedText "project-finance" `
+    -Message "Pipeline calibration stage should preserve blocker project id."
+Assert-ContainsText -Text (($calibrationStage.action_items | ForEach-Object { [string]$_.template_name }) -join "`n") `
+    -ExpectedText "invoice-template" `
+    -Message "Pipeline calibration stage should preserve action template name."
+Assert-ContainsText -Text (($calibrationStage.warnings | ForEach-Object { [string]$_.candidate_type }) -join "`n") `
+    -ExpectedText "rename" `
+    -Message "Pipeline calibration stage should preserve warning candidate type."
 
 $handoffSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$handoffSummary.schema) -Expected "featherdoc.release_governance_handoff_report.v1" `
@@ -526,5 +545,7 @@ Assert-ContainsText -Text $markdown -ExpectedText "audit_command:" `
     -Message "Pipeline Markdown should include stage audit commands."
 Assert-ContainsText -Text $markdown -ExpectedText "review_command:" `
     -Message "Pipeline Markdown should include stage review commands."
+Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-finance` template=`invoice-template` candidate=`rename`' `
+    -Message "Pipeline Markdown should include calibration project/template/candidate routing fields."
 
 Write-Host "Release governance pipeline report regression passed."
