@@ -21,6 +21,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    table_style_definition_zh
    document_governance_acceptance_zh
    branch_recovery_and_governance_sync_zh
+   stale_codex_branch_inventory_zh
    project_score_assessment_zh
    release_policy_zh
    v1_7_roadmap_zh
