@@ -287,3 +287,8 @@ resolver 再尝试 East Asia 显式映射、``cjk_font_file_path`` 或系统 CJK
 * ``91162e5`` 已按当前 ``dev`` 重做 East Asia 字体缺字形 fallback：Latin 字体缺少
   Unicode 符号或混排标点字形时，resolver 会尝试切到 East Asia / CJK 字体。该补丁
   来源于 PDF 分支思路，但不是整分支 cherry-pick。
+* ``3be71b2`` 中的 CJK table header fitting / gate coverage 不能整体摘入；本轮仅按
+  当前 ``dev`` 结构重做其中的表格分页小修复：PDF 表格分页和重复表头适配使用
+  ``spanned_row_bottom`` 计算纵向合并或跨行单元格的实际输出高度，避免页底分页判断
+  只看当前行高度而低估跨行表格。旧分支里的样例、manifest、视觉 gate 和字体矩阵差异
+  继续保留为只读参考。

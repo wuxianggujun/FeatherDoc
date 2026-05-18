@@ -160,3 +160,11 @@ PDF 分支的当前结论相同：``codex/pdf-cjk-copy-search-gate`` 和
 其中 East Asia 字体缺字形 fallback 已按当前 ``dev`` 的 synthetic bold / italic 与
 text shaping 结构重做为 ``91162e5``。下一步最小风险动作是只读复核其中是否还有独立
 文档契约或小型配置补丁；若有，再按当前 ``dev`` 重做并单独提交。
+
+本轮继续复核 ``codex/pdf-cjk-bullet-fallback`` 中的
+``3be71b2 Fix CJK table header fitting and gate coverage``。该提交的大部分内容
+仍涉及样例、manifest、视觉 gate 和字体矩阵，不能整体摘入；但其中 PDF 表格分页判断
+可以按当前 ``dev`` 结构低风险重做：分页和重复表头适配时，不再只用当前行高度估算，
+而是通过 ``spanned_row_bottom`` 计算纵向合并或跨行单元格的实际输出高度，避免跨行
+表格在页底被低估。该修复只更新 ``pdf_document_adapter_tables.cpp``，没有引入旧分支
+的大量 gate 或 manifest 差异。
