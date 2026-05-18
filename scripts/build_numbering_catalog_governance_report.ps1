@@ -253,6 +253,99 @@ function Add-IssueSummary {
             @{ Expression = { $_.issue }; Ascending = $true })
 }
 
+function Get-Percent {
+    param([int]$Numerator, [int]$Denominator)
+
+    if ($Denominator -le 0) { return 0 }
+    $ratio = [Math]::Min(1.0, [double]$Numerator / [double]$Denominator)
+    return [int][Math]::Round($ratio * 100, 0)
+}
+
+function Get-CanonicalDocumentKey {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return "" }
+    $leaf = [System.IO.Path]::GetFileName([string]$Value)
+    if ([string]::IsNullOrWhiteSpace($leaf)) {
+        $leaf = [string]$Value
+    }
+    $stem = [System.IO.Path]::GetFileNameWithoutExtension($leaf)
+    if ([string]::IsNullOrWhiteSpace($stem)) {
+        $stem = $leaf
+    }
+    return $stem.Trim().ToLowerInvariant()
+}
+
+function Get-RealCorpusConfidenceLevel {
+    param(
+        [int]$Score,
+        [int]$DocumentCount,
+        [int]$CatalogExemplarCount,
+        [int]$BaselineEntryCount
+    )
+
+    if ($DocumentCount -le 0 -or $CatalogExemplarCount -le 0 -or $BaselineEntryCount -le 0) {
+        return "insufficient_evidence"
+    }
+    if ($Score -ge 90) { return "high" }
+    if ($Score -ge 70) { return "medium" }
+    if ($Score -ge 40) { return "low" }
+    return "insufficient_evidence"
+}
+
+function New-RealCorpusConfidence {
+    param(
+        [int]$DocumentCount,
+        [int]$CatalogExemplarCount,
+        [int]$BaselineEntryCount,
+        [int]$MatchedDocumentCount,
+        [int]$TotalStyleNumberingIssueCount,
+        [int]$TotalStyleNumberingSuggestionCount,
+        [int]$DriftCount,
+        [int]$DirtyBaselineCount,
+        [int]$IssueEntryCount,
+        [int]$TotalCommandFailureCount
+    )
+
+    $catalogCoveragePercent = Get-Percent -Numerator $MatchedDocumentCount -Denominator $DocumentCount
+    $baselineCoveragePercent = Get-Percent -Numerator $MatchedDocumentCount -Denominator $BaselineEntryCount
+    $coverageScore = [Math]::Min($catalogCoveragePercent, $baselineCoveragePercent)
+    $unmatchedCatalogDocumentCount = [Math]::Max(0, $CatalogExemplarCount - $MatchedDocumentCount)
+    $unmatchedBaselineDocumentCount = [Math]::Max(0, $BaselineEntryCount - $MatchedDocumentCount)
+
+    $styleIssuePenalty = [Math]::Min(25, $TotalStyleNumberingIssueCount * 5)
+    $suggestionPenalty = [Math]::Min(10, $TotalStyleNumberingSuggestionCount * 2)
+    $catalogQualityPenalty = [Math]::Min(25, ($DriftCount + $DirtyBaselineCount + $IssueEntryCount) * 10)
+    $commandFailurePenalty = [Math]::Min(40, $TotalCommandFailureCount * 20)
+    $score = [int][Math]::Max(0, $coverageScore - $styleIssuePenalty - $suggestionPenalty - $catalogQualityPenalty - $commandFailurePenalty)
+    $level = Get-RealCorpusConfidenceLevel `
+        -Score $score `
+        -DocumentCount $DocumentCount `
+        -CatalogExemplarCount $CatalogExemplarCount `
+        -BaselineEntryCount $BaselineEntryCount
+
+    return [ordered]@{
+        score = $score
+        level = $level
+        document_count = $DocumentCount
+        catalog_exemplar_count = $CatalogExemplarCount
+        baseline_entry_count = $BaselineEntryCount
+        matched_document_count = $MatchedDocumentCount
+        unmatched_catalog_document_count = $unmatchedCatalogDocumentCount
+        unmatched_baseline_document_count = $unmatchedBaselineDocumentCount
+        alignment_gap_count = ($unmatchedCatalogDocumentCount + $unmatchedBaselineDocumentCount)
+        catalog_coverage_percent = $catalogCoveragePercent
+        baseline_coverage_percent = $baselineCoveragePercent
+        coverage_score = $coverageScore
+        penalty_summary = @(
+            [ordered]@{ factor = "style_numbering_issues"; count = $TotalStyleNumberingIssueCount; penalty = $styleIssuePenalty }
+            [ordered]@{ factor = "style_numbering_suggestions"; count = $TotalStyleNumberingSuggestionCount; penalty = $suggestionPenalty }
+            [ordered]@{ factor = "catalog_drift_or_dirty_baseline"; count = ($DriftCount + $DirtyBaselineCount + $IssueEntryCount); penalty = $catalogQualityPenalty }
+            [ordered]@{ factor = "command_failures"; count = $TotalCommandFailureCount; penalty = $commandFailurePenalty }
+        )
+    }
+}
+
 function New-ReleaseBlocker {
     param(
         [string]$Id,
@@ -359,9 +452,32 @@ function New-ReportMarkdown {
     $lines.Add("- Baseline entries: ``$($Summary.baseline_entry_count)``") | Out-Null
     $lines.Add("- Catalog exemplars: ``$($Summary.catalog_exemplar_count)``") | Out-Null
     $lines.Add("- Style-numbering issues: ``$($Summary.total_style_numbering_issue_count)``") | Out-Null
+    $lines.Add("- Real corpus confidence: ``$($Summary.real_corpus_confidence_level)`` (score=``$($Summary.real_corpus_confidence_score)``)") | Out-Null
     $lines.Add("- Catalog drift: ``$($Summary.drift_count)``") | Out-Null
     $lines.Add("- Dirty baselines: ``$($Summary.dirty_baseline_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Real Corpus Confidence") | Out-Null
+    $lines.Add("") | Out-Null
+    $confidence = $Summary.real_corpus_confidence
+    $lines.Add("- Level: ``$($confidence.level)``") | Out-Null
+    $lines.Add("- Score: ``$($confidence.score)``") | Out-Null
+    $lines.Add("- Matched documents: ``$($confidence.matched_document_count)`` / ``$($confidence.document_count)``") | Out-Null
+    $lines.Add("- Unmatched catalog documents: ``$($confidence.unmatched_catalog_document_count)``") | Out-Null
+    $lines.Add("- Unmatched baseline entries: ``$($confidence.unmatched_baseline_document_count)``") | Out-Null
+    $lines.Add("- Catalog coverage: ``$($confidence.catalog_coverage_percent)%``") | Out-Null
+    $lines.Add("- Baseline coverage: ``$($confidence.baseline_coverage_percent)%``") | Out-Null
+    if (@($confidence.penalty_summary).Count -eq 0) {
+        $lines.Add("- Penalties: none") | Out-Null
+    } else {
+        foreach ($penalty in @($confidence.penalty_summary)) {
+            $lines.Add(("- Penalty ``{0}``: count=``{1}`` penalty=``{2}``" -f
+                $penalty.factor,
+                $penalty.count,
+                $penalty.penalty)) | Out-Null
+        }
+    }
     $lines.Add("") | Out-Null
 
     $lines.Add("## Catalog Exemplars") | Out-Null
@@ -487,7 +603,6 @@ $manifestSummaryCount = 0
 $documentCount = 0
 $totalStyleNumberingIssueCount = 0
 $totalStyleNumberingSuggestionCount = 0
-$totalStyleMergeSuggestionCount = 0
 $totalNumberingDefinitionCount = 0
 $totalNumberingInstanceCount = 0
 $totalStyleUsageCount = 0
@@ -510,8 +625,6 @@ foreach ($path in @($inputPaths)) {
                 $documentCount += Get-JsonInt -Object $json -Name "document_count"
                 $totalStyleNumberingIssueCount += Get-JsonInt -Object $json -Name "total_style_numbering_issue_count"
                 $totalStyleNumberingSuggestionCount += Get-JsonInt -Object $json -Name "total_style_numbering_suggestion_count"
-                $styleMergeSuggestionCount = Get-JsonInt -Object $json -Name "total_style_merge_suggestion_count"
-                $totalStyleMergeSuggestionCount += $styleMergeSuggestionCount
                 $totalNumberingDefinitionCount += Get-JsonInt -Object $json -Name "total_numbering_definition_count"
                 $totalNumberingInstanceCount += Get-JsonInt -Object $json -Name "total_numbering_instance_count"
                 $totalStyleUsageCount += Get-JsonInt -Object $json -Name "total_style_usage_count"
@@ -536,22 +649,12 @@ foreach ($path in @($inputPaths)) {
                         count = Get-JsonInt -Object $issue -Name "count" -DefaultValue 1
                     }) | Out-Null
                 }
-                if ($styleMergeSuggestionCount -gt 0) {
-                    $warnings.Add([ordered]@{
-                        id = "document_skeleton.style_merge_suggestions_pending"
-                        source_json = $path
-                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                        source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
-                        action = "review_style_merge_suggestions"
-                        style_merge_suggestion_count = $styleMergeSuggestionCount
-                        message = "Document skeleton governance reports $styleMergeSuggestionCount duplicate style merge suggestion(s) awaiting review."
-                    }) | Out-Null
-                }
                 foreach ($blocker in @(Get-JsonArray -Object $json -Name "release_blockers")) {
                     $releaseBlockers.Add([ordered]@{
                         id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
                         scope = Get-FirstJsonString -Object $blocker -Names @("document_name", "scope") -DefaultValue "document_skeleton"
                         source_kind = "document_skeleton_governance_rollup"
+                        source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
@@ -565,6 +668,7 @@ foreach ($path in @($inputPaths)) {
                         id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
                         scope = Get-FirstJsonString -Object $item -Names @("document_name", "scope") -DefaultValue "document_skeleton"
                         source_kind = "document_skeleton_governance_rollup"
+                        source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         action = Get-JsonString -Object $item -Name "action"
@@ -660,6 +764,57 @@ if ($manifestSummaryCount -eq 0) {
 }
 
 $sourceFailureCount = @($sourceFiles.ToArray() | Where-Object { $_.status -eq "failed" }).Count
+
+$catalogDocumentKeys = @(
+    $catalogExemplars.ToArray() |
+        ForEach-Object { Get-CanonicalDocumentKey -Value (Get-FirstJsonString -Object $_ -Names @("input_docx", "document_name")) } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique
+)
+$baselineDocumentKeys = @(
+    $baselineEntries.ToArray() |
+        ForEach-Object { Get-CanonicalDocumentKey -Value (Get-FirstJsonString -Object $_ -Names @("input_docx", "name")) } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique
+)
+$matchedDocumentKeys = @($catalogDocumentKeys | Where-Object { $baselineDocumentKeys -contains $_ })
+$matchedDocumentCount = $matchedDocumentKeys.Count
+
+$realCorpusConfidence = New-RealCorpusConfidence `
+    -DocumentCount $documentCount `
+    -CatalogExemplarCount $catalogExemplars.Count `
+    -BaselineEntryCount $baselineEntries.Count `
+    -MatchedDocumentCount $matchedDocumentCount `
+    -TotalStyleNumberingIssueCount $totalStyleNumberingIssueCount `
+    -TotalStyleNumberingSuggestionCount $totalStyleNumberingSuggestionCount `
+    -DriftCount $driftCount `
+    -DirtyBaselineCount $dirtyBaselineCount `
+    -IssueEntryCount $issueEntryCount `
+    -TotalCommandFailureCount $totalCommandFailureCount
+$realCorpusConfidence["catalog_document_keys"] = @($catalogDocumentKeys)
+$realCorpusConfidence["baseline_document_keys"] = @($baselineDocumentKeys)
+$realCorpusConfidence["matched_document_keys"] = @($matchedDocumentKeys)
+
+if ($realCorpusConfidence.alignment_gap_count -gt 0) {
+    $alignmentBlocker = New-ReleaseBlocker `
+        -Id "numbering_catalog_governance.real_corpus_alignment_gap" `
+        -Scope "numbering_catalog_governance" `
+        -SourceKind "numbering_catalog_governance_report" `
+        -Status "real_corpus_alignment_gap" `
+        -Action "review_numbering_catalog_real_corpus_alignment" `
+        -Message "Numbering catalog exemplars and baseline entries do not align on document identity."
+    $alignmentBlocker["source_schema"] = "featherdoc.numbering_catalog_governance_report.v1"
+    $alignmentBlocker["source_report"] = $summaryPath
+    $alignmentBlocker["source_report_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+    $alignmentBlocker["matched_document_count"] = $realCorpusConfidence.matched_document_count
+    $alignmentBlocker["unmatched_catalog_document_count"] = $realCorpusConfidence.unmatched_catalog_document_count
+    $alignmentBlocker["unmatched_baseline_document_count"] = $realCorpusConfidence.unmatched_baseline_document_count
+    $alignmentBlocker["catalog_coverage_percent"] = $realCorpusConfidence.catalog_coverage_percent
+    $alignmentBlocker["baseline_coverage_percent"] = $realCorpusConfidence.baseline_coverage_percent
+    $alignmentBlocker["coverage_score"] = $realCorpusConfidence.coverage_score
+    $releaseBlockers.Add($alignmentBlocker) | Out-Null
+}
+
 $status = if ($sourceFailureCount -gt 0 -or $totalCommandFailureCount -gt 0) {
     "failed"
 } elseif ($releaseBlockers.Count -gt 0 -or $warnings.Count -gt 0 -or
@@ -693,12 +848,14 @@ $summary = [ordered]@{
     baseline_status_summary = @(Add-SummaryGroup -Items $baselineEntries.ToArray() -PropertyName "matches" -OutputName "matches")
     catalog_exemplar_count = $catalogExemplars.Count
     catalog_exemplars = @($catalogExemplars.ToArray())
+    real_corpus_confidence_score = $realCorpusConfidence.score
+    real_corpus_confidence_level = $realCorpusConfidence.level
+    real_corpus_confidence = $realCorpusConfidence
     total_numbering_definition_count = $totalNumberingDefinitionCount
     total_numbering_instance_count = $totalNumberingInstanceCount
     total_style_usage_count = $totalStyleUsageCount
     total_style_numbering_issue_count = $totalStyleNumberingIssueCount
     total_style_numbering_suggestion_count = $totalStyleNumberingSuggestionCount
-    total_style_merge_suggestion_count = $totalStyleMergeSuggestionCount
     total_command_failure_count = $totalCommandFailureCount
     style_issue_summary = @(Add-IssueSummary -Items $styleIssueRows.ToArray())
     drift_count = $driftCount

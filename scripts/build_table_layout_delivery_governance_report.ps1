@@ -140,6 +140,84 @@ function Get-JsonArray {
     return @($value)
 }
 
+function Get-Percent {
+    param([int]$Numerator, [int]$Denominator)
+
+    if ($Denominator -le 0) { return 0 }
+    $ratio = [Math]::Min(1.0, [double]$Numerator / [double]$Denominator)
+    return [int][Math]::Round($ratio * 100, 0)
+}
+
+function Get-DeliveryQualityLevel {
+    param(
+        [int]$Score,
+        [int]$DocumentCount,
+        [int]$UnresolvedItemCount
+    )
+
+    if ($DocumentCount -le 0) { return "insufficient_evidence" }
+    if ($Score -ge 95 -and $UnresolvedItemCount -eq 0) { return "release_ready" }
+    if ($Score -ge 70) { return "medium" }
+    if ($Score -ge 40) { return "low" }
+    return "blocked"
+}
+
+function New-DeliveryQuality {
+    param(
+        [int]$DocumentCount,
+        [int]$ReadyDocumentCount,
+        [int]$NeedsReviewDocumentCount,
+        [int]$FailedDocumentCount,
+        [int]$TotalTableStyleIssueCount,
+        [int]$TotalAutomaticTblLookFixCount,
+        [int]$TotalManualTableStyleFixCount,
+        [int]$TotalTablePositionAutomaticCount,
+        [int]$TotalTablePositionReviewCount,
+        [int]$TotalCommandFailureCount
+    )
+
+    $readyDocumentPercent = Get-Percent -Numerator $ReadyDocumentCount -Denominator $DocumentCount
+    $needsReviewPenalty = [Math]::Min(30, $NeedsReviewDocumentCount * 15)
+    $failedDocumentPenalty = [Math]::Min(40, $FailedDocumentCount * 25)
+    $styleIssuePenalty = [Math]::Min(20, $TotalTableStyleIssueCount * 5)
+    $safeFixPenalty = [Math]::Min(15, $TotalAutomaticTblLookFixCount * 4)
+    $manualFixPenalty = [Math]::Min(20, $TotalManualTableStyleFixCount * 10)
+    $floatingPlanPenalty = [Math]::Min(20, ($TotalTablePositionAutomaticCount * 3) + ($TotalTablePositionReviewCount * 8))
+    $commandFailurePenalty = [Math]::Min(40, $TotalCommandFailureCount * 20)
+    $unresolvedItemCount = $NeedsReviewDocumentCount + $FailedDocumentCount + $TotalTableStyleIssueCount +
+        $TotalAutomaticTblLookFixCount + $TotalManualTableStyleFixCount +
+        $TotalTablePositionAutomaticCount + $TotalTablePositionReviewCount + $TotalCommandFailureCount
+    $score = [int][Math]::Max(0, $readyDocumentPercent - $needsReviewPenalty - $failedDocumentPenalty -
+        $styleIssuePenalty - $safeFixPenalty - $manualFixPenalty - $floatingPlanPenalty - $commandFailurePenalty)
+    $level = Get-DeliveryQualityLevel -Score $score -DocumentCount $DocumentCount -UnresolvedItemCount $unresolvedItemCount
+
+    return [ordered]@{
+        score = $score
+        level = $level
+        document_count = $DocumentCount
+        ready_document_count = $ReadyDocumentCount
+        ready_document_percent = $readyDocumentPercent
+        needs_review_document_count = $NeedsReviewDocumentCount
+        failed_document_count = $FailedDocumentCount
+        table_style_issue_count = $TotalTableStyleIssueCount
+        automatic_tblLook_fix_count = $TotalAutomaticTblLookFixCount
+        manual_table_style_fix_count = $TotalManualTableStyleFixCount
+        table_position_automatic_count = $TotalTablePositionAutomaticCount
+        table_position_review_count = $TotalTablePositionReviewCount
+        command_failure_count = $TotalCommandFailureCount
+        unresolved_item_count = $unresolvedItemCount
+        penalty_summary = @(
+            [ordered]@{ factor = "needs_review_documents"; count = $NeedsReviewDocumentCount; penalty = $needsReviewPenalty }
+            [ordered]@{ factor = "failed_documents"; count = $FailedDocumentCount; penalty = $failedDocumentPenalty }
+            [ordered]@{ factor = "table_style_issues"; count = $TotalTableStyleIssueCount; penalty = $styleIssuePenalty }
+            [ordered]@{ factor = "safe_tblLook_fixes_pending"; count = $TotalAutomaticTblLookFixCount; penalty = $safeFixPenalty }
+            [ordered]@{ factor = "manual_table_style_fixes"; count = $TotalManualTableStyleFixCount; penalty = $manualFixPenalty }
+            [ordered]@{ factor = "floating_table_plans_pending"; count = ($TotalTablePositionAutomaticCount + $TotalTablePositionReviewCount); penalty = $floatingPlanPenalty }
+            [ordered]@{ factor = "command_failures"; count = $TotalCommandFailureCount; penalty = $commandFailurePenalty }
+        )
+    }
+}
+
 function Expand-ArgumentList {
     param([string[]]$Values)
 
@@ -290,7 +368,29 @@ function New-ReportMarkdown {
     $lines.Add("- Manual table style fixes: ``$($Summary.total_manual_table_style_fix_count)``") | Out-Null
     $lines.Add("- Floating table automatic plans: ``$($Summary.total_table_position_automatic_count)``") | Out-Null
     $lines.Add("- Floating table review plans: ``$($Summary.total_table_position_review_count)``") | Out-Null
+    $lines.Add("- Delivery quality: ``$($Summary.delivery_quality_level)`` (score=``$($Summary.delivery_quality_score)``)") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Delivery Quality") | Out-Null
+    $lines.Add("") | Out-Null
+    $quality = $Summary.delivery_quality
+    $lines.Add("- Level: ``$($quality.level)``") | Out-Null
+    $lines.Add("- Score: ``$($quality.score)``") | Out-Null
+    $lines.Add("- Ready documents: ``$($quality.ready_document_percent)%``") | Out-Null
+    $lines.Add("- Table style issues: ``$($quality.table_style_issue_count)``") | Out-Null
+    $lines.Add("- Automatic tblLook fixes: ``$($quality.automatic_tblLook_fix_count)``") | Out-Null
+    $lines.Add("- Manual table style fixes: ``$($quality.manual_table_style_fix_count)``") | Out-Null
+    $lines.Add("- Floating table automatic plans: ``$($quality.table_position_automatic_count)``") | Out-Null
+    $lines.Add("- Floating table review plans: ``$($quality.table_position_review_count)``") | Out-Null
+    $lines.Add("- Command failures: ``$($quality.command_failure_count)``") | Out-Null
+    $lines.Add("- Unresolved items: ``$($quality.unresolved_item_count)``") | Out-Null
+    foreach ($penalty in @($quality.penalty_summary)) {
+        $lines.Add(("- Penalty ``{0}``: count=``{1}`` penalty=``{2}``" -f
+            $penalty.factor,
+            $penalty.count,
+            $penalty.penalty)) | Out-Null
+    }
     $lines.Add("") | Out-Null
 
     $lines.Add("## Documents") | Out-Null
@@ -589,6 +689,17 @@ $sourceFailureCount = @($sourceFiles.ToArray() | Where-Object { $_.status -eq "f
 $readyDocumentCount = @($documents.ToArray() | Where-Object { [bool]$_.ready }).Count
 $needsReviewDocumentCount = @($documents.ToArray() | Where-Object { $_.status -eq "needs_review" }).Count
 $failedDocumentCount = @($documents.ToArray() | Where-Object { $_.status -eq "failed" }).Count
+$deliveryQuality = New-DeliveryQuality `
+    -DocumentCount $documents.Count `
+    -ReadyDocumentCount $readyDocumentCount `
+    -NeedsReviewDocumentCount $needsReviewDocumentCount `
+    -FailedDocumentCount $failedDocumentCount `
+    -TotalTableStyleIssueCount $totalIssueCount `
+    -TotalAutomaticTblLookFixCount $totalAutomaticFixCount `
+    -TotalManualTableStyleFixCount $totalManualFixCount `
+    -TotalTablePositionAutomaticCount $totalPositionAutomaticCount `
+    -TotalTablePositionReviewCount $totalPositionReviewCount `
+    -TotalCommandFailureCount $totalCommandFailureCount
 $status = if ($sourceFailureCount -gt 0 -or $failedDocumentCount -gt 0 -or $totalCommandFailureCount -gt 0) {
     "failed"
 } elseif ($releaseBlockers.Count -gt 0 -or $warnings.Count -gt 0 -or $needsReviewDocumentCount -gt 0 -or
@@ -619,6 +730,9 @@ $summary = [ordered]@{
     needs_review_document_count = $needsReviewDocumentCount
     failed_document_count = $failedDocumentCount
     documents = @($documents.ToArray())
+    delivery_quality_score = $deliveryQuality.score
+    delivery_quality_level = $deliveryQuality.level
+    delivery_quality = $deliveryQuality
     preset_summary = @(Add-SummaryGroup -Items $documents.ToArray() -PropertyName "preset" -OutputName "preset")
     status_summary = @(Add-SummaryGroup -Items $documents.ToArray() -PropertyName "status" -OutputName "status")
     table_position_plan_count = $positionPlans.Count
