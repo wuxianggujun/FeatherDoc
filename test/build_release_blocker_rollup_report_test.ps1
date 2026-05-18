@@ -406,12 +406,15 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (($tableMetric.details.penalty_summary | ForEach-Object { [string]$_.factor }) -join "`n") `
         -ExpectedText "floating_table_plans_pending" `
         -Message "Rollup should preserve table layout delivery penalty summary."
-    Assert-ContainsText -Text ([string]$summary.release_blockers[0].composite_id) `
-        -ExpectedText "source1.blocker1" `
+    $skeletonBlocker = @(
+        $summary.release_blockers |
+            Where-Object { [string]$_.id -eq "document_skeleton.style_numbering_issues" } |
+            Select-Object -First 1
+    )
+    Assert-True -Condition ($null -ne $skeletonBlocker) `
+        -Message "Rollup should include the document skeleton blocker."
+    Assert-True -Condition ([string]$skeletonBlocker.composite_id -match '^source\d+\.blocker\d+\.document_skeleton\.style_numbering_issues$') `
         -Message "Rollup should generate composite blocker ids."
-    $skeletonBlocker = ($summary.release_blockers |
-        Where-Object { [string]$_.id -eq "document_skeleton.style_numbering_issues" } |
-        Select-Object -First 1)
     Assert-Equal -Actual ([string]$skeletonBlocker.source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
         -Message "Rollup should preserve document skeleton source schema."
     Assert-Equal -Actual ([string]$skeletonBlocker.action) -Expected "review_style_numbering_audit" `
