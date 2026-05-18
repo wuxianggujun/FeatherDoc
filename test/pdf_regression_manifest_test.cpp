@@ -420,9 +420,13 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_NE(json.find("\"document-invoice-table-text\""), std::string::npos);
     CHECK_NE(json.find("\"mixed-cjk-punctuation-text\""), std::string::npos);
     CHECK_NE(json.find("\"latin-ligature-text\""), std::string::npos);
+    CHECK_NE(json.find("\"document-table-header-footer-variants-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-table-wrap-flow-text\""),
+             std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 39U);
+    REQUIRE_EQ(samples.size(), 41U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);
@@ -518,6 +522,14 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(samples[38].kind, "latin_ligature_text");
     CHECK_EQ(samples[38].expected_pages, 1U);
     CHECK_GE(samples[38].expected_text.size(), 3U);
+    CHECK_EQ(samples[39].id, "document-table-header-footer-variants-text");
+    CHECK_EQ(samples[39].kind, "document_table_header_footer_variants_text");
+    CHECK_EQ(samples[39].expected_pages, 3U);
+    CHECK_GE(samples[39].expected_text.size(), 14U);
+    CHECK_EQ(samples[40].id, "document-table-wrap-flow-text");
+    CHECK_EQ(samples[40].kind, "document_table_wrap_flow_text");
+    CHECK_EQ(samples[40].expected_pages, 3U);
+    CHECK_GE(samples[40].expected_text.size(), 12U);
 }
 
 TEST_CASE("PDF regression manifest parser preserves escaped strings") {
