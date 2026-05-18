@@ -454,6 +454,13 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
   和 `output/pdf-visual-release-gate/unicode-font/report/comparison-contact-sheet.png`。
 - 下一步入口：E6 已收口，后续只在需要推进 PDFium -> AST 读入时进入 E7。
 
+2026-05-18：
+
+- 已静态接入 `document-table-merged-cant-split-text` regression sample，
+  覆盖 merged cells、`cant_split`、重复表头与分页后的整块下移行为。
+- 本轮低资源整合仅完成 sample、manifest、manifest parser 断言和文档说明同步；
+  真实导出、PDFium 回读和 PNG 视觉门禁仍需在允许构建/渲染时补跑确认。
+
 ## E7：PDFium -> AST 读入方向
 
 ### 目标
