@@ -290,6 +290,46 @@ TEST_CASE("font resolver falls back to regular CJK mapping when style variant "
     CHECK(resolved.synthetic_italic);
 }
 
+TEST_CASE(
+    "font resolver falls back unicode prefixes to east Asia font mappings") {
+    const auto east_asia_font =
+        make_temp_font_file("featherdoc-resolver-eastasia-prefix.ttf");
+
+    featherdoc::pdf::PdfFontResolver resolver({
+        {featherdoc::pdf::PdfFontMapping{"Unit CJK", east_asia_font}},
+        {},
+        {},
+        false,
+    });
+
+    const auto resolved =
+        resolver.resolve("Unit Latin", "Unit CJK", utf8_from_u8(u8"\u2022\t"));
+
+    CHECK_EQ(resolved.font_family, "Unit CJK");
+    CHECK_EQ(resolved.font_file_path, east_asia_font);
+    CHECK(resolved.unicode);
+}
+
+TEST_CASE(
+    "font resolver falls back unicode prefixes to default CJK font path") {
+    const auto default_cjk_font =
+        make_temp_font_file("featherdoc-resolver-default-cjk-prefix.ttf");
+
+    featherdoc::pdf::PdfFontResolver resolver({
+        {},
+        {},
+        default_cjk_font,
+        false,
+    });
+
+    const auto resolved =
+        resolver.resolve("Unit Latin", "Missing CJK", utf8_from_u8(u8"\u2022\t"));
+
+    CHECK_EQ(resolved.font_family, "Missing CJK");
+    CHECK_EQ(resolved.font_file_path, default_cjk_font);
+    CHECK(resolved.unicode);
+}
+
 TEST_CASE("font resolver falls back to configured default font file path") {
     const auto default_font =
         make_temp_font_file("featherdoc-resolver-default-font.ttf");
