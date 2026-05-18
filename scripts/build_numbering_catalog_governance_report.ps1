@@ -724,8 +724,11 @@ foreach ($path in @($inputPaths)) {
             default {
                 $warnings.Add([ordered]@{
                     id = "source_json_schema_skipped"
+                    action = "review_numbering_catalog_governance_sources"
+                    source_schema = "featherdoc.numbering_catalog_governance_report.v1"
                     source_json = $path
                     source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                    source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "Input JSON kind '$kind' is not numbering catalog governance evidence."
                 }) | Out-Null
             }
@@ -735,8 +738,11 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_json_read_failed"
+            action = "review_numbering_catalog_governance_sources"
+            source_schema = "featherdoc.numbering_catalog_governance_report.v1"
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage
         }) | Out-Null
     }
@@ -753,12 +759,16 @@ foreach ($path in @($inputPaths)) {
 if ($skeletonRollupCount -eq 0) {
     $warnings.Add([ordered]@{
         id = "document_skeleton_governance_rollup_missing"
+        action = "rebuild_document_skeleton_governance_rollup"
+        source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
         message = "No document skeleton governance rollup summary was loaded."
     }) | Out-Null
 }
 if ($manifestSummaryCount -eq 0) {
     $warnings.Add([ordered]@{
         id = "numbering_catalog_manifest_summary_missing"
+        action = "rebuild_numbering_catalog_manifest_summary"
+        source_schema = "featherdoc.numbering_catalog_manifest_summary.v1"
         message = "No numbering catalog manifest check summary was loaded."
     }) | Out-Null
 }

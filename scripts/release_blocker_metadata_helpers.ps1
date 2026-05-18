@@ -439,6 +439,390 @@ function Get-ReleaseGovernanceChecklistSections {
     )
 }
 
+function Get-NormalizedReleaseGovernanceBlockers {
+    param([AllowNull()]$Blockers)
+
+    $normalizedBlockers = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($blocker in @(Get-ReleaseBlockerArrayProperty -Object ([ordered]@{ release_blockers = $Blockers }) -Name "release_blockers")) {
+        if ($null -eq $blocker) {
+            continue
+        }
+
+        [void]$normalizedBlockers.Add([pscustomobject][ordered]@{
+                composite_id = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "composite_id")
+                id = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "id")
+                action = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "action")
+                status = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "status")
+                severity = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "severity")
+                source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_schema")
+                source_report_display = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_report_display")
+                message = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "message")
+            })
+    }
+
+    return @($normalizedBlockers.ToArray())
+}
+
+function Get-ReleaseGovernanceBlockerCount {
+    param([AllowNull()]$SummaryObject)
+
+    $declaredCount = Get-ReleaseBlockerPropertyObject -Object $SummaryObject -Name "release_blocker_count"
+    if ($null -ne $declaredCount -and -not [string]::IsNullOrWhiteSpace([string]$declaredCount)) {
+        try {
+            return [int][string]$declaredCount
+        } catch {
+            # Fall back to the materialized array when older fixtures used
+            # non-integer placeholders.
+        }
+    }
+
+    return @(Get-NormalizedReleaseGovernanceBlockers -Blockers (Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "release_blockers")).Count
+}
+
+function Get-NormalizedReleaseGovernanceWarnings {
+    param([AllowNull()]$Warnings)
+
+    $normalizedWarnings = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($warning in @(Get-ReleaseBlockerArrayProperty -Object ([ordered]@{ warnings = $Warnings }) -Name "warnings")) {
+        if ($null -eq $warning) {
+            continue
+        }
+
+        $entry = [ordered]@{
+            id = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "id")
+            action = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "action")
+            message = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "message")
+            source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_schema")
+            source_report_display = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_report_display")
+            source_json_display = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_json_display")
+        }
+
+        $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $warning -Name "style_merge_suggestion_count"
+        if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
+            $entry.style_merge_suggestion_count = [int]$styleMergeSuggestionCount
+        }
+        $styleMergeSuggestionPendingCount = Get-ReleaseBlockerPropertyObject -Object $warning -Name "style_merge_suggestion_pending_count"
+        if ($null -ne $styleMergeSuggestionPendingCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionPendingCount)) {
+            $entry.style_merge_suggestion_pending_count = [int]$styleMergeSuggestionPendingCount
+        }
+
+        [void]$normalizedWarnings.Add([pscustomobject]$entry)
+    }
+
+    return @($normalizedWarnings.ToArray())
+}
+
+function Get-ReleaseGovernanceWarningCount {
+    param([AllowNull()]$SummaryObject)
+
+    $declaredCount = Get-ReleaseBlockerPropertyObject -Object $SummaryObject -Name "warning_count"
+    if ($null -ne $declaredCount -and -not [string]::IsNullOrWhiteSpace([string]$declaredCount)) {
+        try {
+            return [int][string]$declaredCount
+        } catch {
+            # Fall back to the materialized warnings array for legacy fixtures.
+        }
+    }
+
+    return @(Get-NormalizedReleaseGovernanceWarnings -Warnings (Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "warnings")).Count
+}
+
+function Get-NormalizedReleaseGovernanceActionItems {
+    param([AllowNull()]$ActionItems)
+
+    $normalizedActions = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($item in @(Get-ReleaseBlockerArrayProperty -Object ([ordered]@{ action_items = $ActionItems }) -Name "action_items")) {
+        if ($null -eq $item) {
+            continue
+        }
+
+        $entry = [ordered]@{
+            id = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "id")
+            action = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "action")
+            title = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "title")
+            source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_schema")
+            source_report_display = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_report_display")
+            command = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "command")
+        }
+
+        foreach ($optionalCommandName in @("open_command", "audit_command", "review_command")) {
+            $optionalCommand = Get-ReleaseBlockerPropertyValue -Object $item -Name $optionalCommandName
+            if (-not [string]::IsNullOrWhiteSpace($optionalCommand)) {
+                $entry[$optionalCommandName] = [string]$optionalCommand
+            }
+        }
+
+        [void]$normalizedActions.Add([pscustomobject]$entry)
+    }
+
+    return @($normalizedActions.ToArray())
+}
+
+function Get-ReleaseGovernanceActionItemCount {
+    param([AllowNull()]$SummaryObject)
+
+    $declaredCount = Get-ReleaseBlockerPropertyObject -Object $SummaryObject -Name "action_item_count"
+    if ($null -ne $declaredCount -and -not [string]::IsNullOrWhiteSpace([string]$declaredCount)) {
+        try {
+            return [int][string]$declaredCount
+        } catch {
+            # Fall back to the materialized action_items array for legacy fixtures.
+        }
+    }
+
+    return @(Get-NormalizedReleaseGovernanceActionItems -ActionItems (Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "action_items")).Count
+}
+
+function Get-ReleaseGovernanceActionItemSummaryText {
+    param([AllowNull()]$ActionItem)
+
+    $id = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $ActionItem -Name "id") -Fallback "(unknown)"
+    $action = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $ActionItem -Name "action")
+    $title = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $ActionItem -Name "title")
+    $sourceSchema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $ActionItem -Name "source_schema")
+    $summaryText = ('id: `{0}`; action: `{1}`; title: {2}; source_schema: `{3}`' -f `
+            $id, $action, $title, $sourceSchema)
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $ActionItem -Name "source_report_display"
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $summaryText += ('; source_report: `{0}`' -f $sourceReportDisplay)
+    }
+
+    return $summaryText
+}
+
+function Get-ReleaseGovernanceWarningSummaryText {
+    param([AllowNull()]$Warning)
+
+    $id = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "id") -Fallback "(unknown)"
+    $action = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "action")
+    $message = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "message")
+    $sourceSchema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "source_schema")
+    $summaryText = ('id: `{0}`; action: `{1}`; message: {2}; source_schema: `{3}`' -f `
+            $id, $action, $message, $sourceSchema)
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Warning -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Warning -Name "source_json_display"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $summaryText += ('; source_report: `{0}`' -f $sourceReportDisplay)
+    }
+
+    $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_count"
+    if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
+        $summaryText += ('; style_merge_suggestion_count: `{0}`' -f [string]$styleMergeSuggestionCount)
+    }
+    $styleMergeSuggestionPendingCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_pending_count"
+    if ($null -ne $styleMergeSuggestionPendingCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionPendingCount)) {
+        $summaryText += ('; style_merge_suggestion_pending_count: `{0}`' -f [string]$styleMergeSuggestionPendingCount)
+    }
+
+    return $summaryText
+}
+
+function Get-ReleaseGovernanceBlockerSummaryText {
+    param([AllowNull()]$Blocker)
+
+    $id = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "id") -Fallback "(unknown)"
+    $summaryText = ('id: `{0}`; action: `{1}`' -f `
+            $id,
+            (Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "action")))
+
+    $compositeId = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "composite_id"
+    if (-not [string]::IsNullOrWhiteSpace($compositeId)) {
+        $summaryText += ('; composite_id: `{0}`' -f $compositeId)
+    }
+
+    foreach ($field in @("status", "severity", "source_schema", "source_report_display")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name $field
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $summaryText += ('; {0}: `{1}`' -f $field, $value)
+        }
+    }
+
+    $message = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "message"
+    if (-not [string]::IsNullOrWhiteSpace($message)) {
+        $summaryText += ('; message: {0}' -f $message)
+    }
+
+    return $summaryText
+}
+
+function Add-ReleaseGovernanceBlockerMarkdownSubsection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [string]$Heading,
+        [AllowNull()]$SummaryObject,
+        [switch]$IncludeWhenEmpty
+    )
+
+    $releaseBlockers = @(Get-NormalizedReleaseGovernanceBlockers -Blockers (Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "release_blockers"))
+    $releaseBlockerCount = Get-ReleaseGovernanceBlockerCount -SummaryObject $SummaryObject
+    if ($releaseBlockerCount -le 0 -and $releaseBlockers.Count -le 0 -and -not $IncludeWhenEmpty.IsPresent) {
+        return $false
+    }
+
+    [void]$Lines.Add("### $Heading")
+    [void]$Lines.Add("")
+    [void]$Lines.Add(('- release_blocker_count: `{0}`' -f $releaseBlockerCount))
+    foreach ($releaseBlocker in $releaseBlockers) {
+        [void]$Lines.Add("- $(Get-ReleaseGovernanceBlockerSummaryText -Blocker $releaseBlocker)")
+    }
+    [void]$Lines.Add("")
+
+    return $true
+}
+
+function Add-ReleaseGovernanceBlockersMarkdownSection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary,
+        [switch]$IncludeWhenEmpty
+    )
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    $hadSection = $false
+    foreach ($sectionInfo in @(Get-ReleaseGovernanceChecklistSections -Summary $Summary)) {
+        if (Add-ReleaseGovernanceBlockerMarkdownSubsection `
+                -Lines $sectionLines `
+                -Heading "$($sectionInfo.Context) blockers" `
+                -SummaryObject $sectionInfo.SummaryObject `
+                -IncludeWhenEmpty:$IncludeWhenEmpty.IsPresent) {
+            $hadSection = $true
+        }
+    }
+
+    if (-not $hadSection) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add("## Release Governance Blockers")
+    [void]$Lines.Add("")
+    foreach ($line in $sectionLines) {
+        [void]$Lines.Add($line)
+    }
+}
+
+function Add-ReleaseGovernanceActionItemMarkdownSubsection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [string]$Heading,
+        [AllowNull()]$SummaryObject,
+        [switch]$IncludeWhenEmpty
+    )
+
+    $actionItems = @(Get-NormalizedReleaseGovernanceActionItems -ActionItems (Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "action_items"))
+    $actionItemCount = Get-ReleaseGovernanceActionItemCount -SummaryObject $SummaryObject
+    if ($actionItemCount -le 0 -and $actionItems.Count -le 0 -and -not $IncludeWhenEmpty.IsPresent) {
+        return $false
+    }
+
+    [void]$Lines.Add("### $Heading")
+    [void]$Lines.Add("")
+    [void]$Lines.Add(('- action_item_count: `{0}`' -f $actionItemCount))
+    foreach ($item in $actionItems) {
+        [void]$Lines.Add("- $(Get-ReleaseGovernanceActionItemSummaryText -ActionItem $item)")
+        foreach ($commandName in @("command", "open_command", "audit_command", "review_command")) {
+            $commandValue = Get-ReleaseBlockerPropertyValue -Object $item -Name $commandName
+            if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
+                [void]$Lines.Add("  - ${commandName}: ``$commandValue``")
+            }
+        }
+    }
+    [void]$Lines.Add("")
+
+    return $true
+}
+
+function Add-ReleaseGovernanceActionItemsMarkdownSection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary,
+        [switch]$IncludeWhenEmpty
+    )
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    $hadSection = $false
+    foreach ($sectionInfo in @(Get-ReleaseGovernanceChecklistSections -Summary $Summary)) {
+        if (Add-ReleaseGovernanceActionItemMarkdownSubsection `
+                -Lines $sectionLines `
+                -Heading "$($sectionInfo.Context) action items" `
+                -SummaryObject $sectionInfo.SummaryObject `
+                -IncludeWhenEmpty:$IncludeWhenEmpty.IsPresent) {
+            $hadSection = $true
+        }
+    }
+
+    if (-not $hadSection) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add("## Release Governance Action Items")
+    [void]$Lines.Add("")
+    foreach ($line in $sectionLines) {
+        [void]$Lines.Add($line)
+    }
+}
+
+function Add-ReleaseGovernanceWarningMarkdownSubsection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [string]$Heading,
+        [AllowNull()]$SummaryObject,
+        [switch]$IncludeWhenEmpty
+    )
+
+    $warnings = @(Get-NormalizedReleaseGovernanceWarnings -Warnings (Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "warnings"))
+    $warningCount = Get-ReleaseGovernanceWarningCount -SummaryObject $SummaryObject
+    if ($warningCount -le 0 -and $warnings.Count -le 0 -and -not $IncludeWhenEmpty.IsPresent) {
+        return $false
+    }
+
+    [void]$Lines.Add("### $Heading")
+    [void]$Lines.Add("")
+    [void]$Lines.Add(('- warning_count: `{0}`' -f $warningCount))
+    foreach ($warning in $warnings) {
+        [void]$Lines.Add("- $(Get-ReleaseGovernanceWarningSummaryText -Warning $warning)")
+    }
+    [void]$Lines.Add("")
+
+    return $true
+}
+
+function Add-ReleaseGovernanceWarningsMarkdownSection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary,
+        [switch]$IncludeWhenEmpty
+    )
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    $hadSection = $false
+    foreach ($sectionInfo in @(Get-ReleaseGovernanceChecklistSections -Summary $Summary)) {
+        if (Add-ReleaseGovernanceWarningMarkdownSubsection `
+                -Lines $sectionLines `
+                -Heading "$($sectionInfo.Context) warnings" `
+                -SummaryObject $sectionInfo.SummaryObject `
+                -IncludeWhenEmpty:$IncludeWhenEmpty.IsPresent) {
+            $hadSection = $true
+        }
+    }
+
+    if (-not $hadSection) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add("## Release Governance Warnings")
+    [void]$Lines.Add("")
+    foreach ($line in $sectionLines) {
+        [void]$Lines.Add($line)
+    }
+}
+
 function Get-ReleaseGovernanceChecklistItems {
     param(
         [AllowNull()]$Summary,
@@ -528,6 +912,11 @@ function Get-ReleaseGovernanceBlockerChecklistText {
     $reportId = Get-ReleaseBlockerPropertyValue -Object $blocker -Name "report_id"
     if (-not [string]::IsNullOrWhiteSpace($reportId)) {
         $text += ('; report_id `{0}`' -f $reportId)
+    }
+
+    $compositeId = Get-ReleaseBlockerPropertyValue -Object $blocker -Name "composite_id"
+    if (-not [string]::IsNullOrWhiteSpace($compositeId)) {
+        $text += ('; composite_id `{0}`' -f $compositeId)
     }
 
     $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_report_display"
@@ -644,9 +1033,29 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
                 -Lines $guidanceLines `
                 -Text ('Action is missing for release governance {0} `{1}` from source_schema `{2}`; update the owning governance report, rerun release governance checks, and regenerate the release note bundle from `{3}` before publishing.' -f $ItemKind, $id, $sourceSchema, $releaseSummaryDisplay)
         } else {
+            if ([string]::Equals($ItemKind, "warning", [System.StringComparison]::OrdinalIgnoreCase) -and
+                [string]::Equals($action, "review_style_merge_suggestions", [System.StringComparison]::OrdinalIgnoreCase)) {
+                Add-ReleaseBlockerActionGuidanceLine `
+                    -Lines $guidanceLines `
+                    -Text ('Use action `{0}` for release governance warning `{1}` before publishing.' -f $action, $id)
+                $pendingCount = Get-ReleaseBlockerPropertyObject -Object $Item -Name "style_merge_suggestion_pending_count"
+                if ($null -ne $pendingCount -and -not [string]::IsNullOrWhiteSpace([string]$pendingCount)) {
+                    Add-ReleaseBlockerActionGuidanceLine `
+                        -Lines $guidanceLines `
+                        -Text ('Current pending style merge suggestion count is `{0}`.' -f [string]$pendingCount)
+                }
+            }
+
+            $actionLabel = if ([string]::Equals($ItemKind, "warning", [System.StringComparison]::OrdinalIgnoreCase)) {
+                "warning action"
+            } elseif ([string]::Equals($ItemKind, "blocker", [System.StringComparison]::OrdinalIgnoreCase)) {
+                "blocker action"
+            } else {
+                "action"
+            }
             Add-ReleaseBlockerActionGuidanceLine `
                 -Lines $guidanceLines `
-                -Text ('Follow action `{0}` for release governance {1} `{2}` from source_schema `{3}`: update the owning governance evidence, rerun release governance checks, and regenerate the release note bundle from `{4}` before publishing.' -f $action, $ItemKind, $id, $sourceSchema, $releaseSummaryDisplay)
+                -Text ('Follow {0} `{1}` for release governance {2} `{3}` from source_schema `{4}`: update the owning governance evidence, rerun release governance checks, and regenerate the release note bundle from `{5}` before publishing.' -f $actionLabel, $action, $ItemKind, $id, $sourceSchema, $releaseSummaryDisplay)
         }
     }
 

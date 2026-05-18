@@ -412,6 +412,8 @@ foreach ($path in @($inputPaths)) {
             $sourceStatus = "skipped"
             $warnings.Add([ordered]@{
                 id = "source_report_schema_skipped"
+                action = "review_table_layout_delivery_sources"
+                source_schema = "featherdoc.table_layout_delivery_report.v1"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 message = "Report schema '$kind' is not a table layout delivery summary."
@@ -437,6 +439,8 @@ foreach ($path in @($inputPaths)) {
             if ($null -ne $declaredBlockerCount -and [int]$declaredBlockerCount -ne $releaseBlockerCount) {
                 $warnings.Add([ordered]@{
                     id = "release_blocker_count_mismatch"
+                    action = "review_table_layout_delivery_sources"
+                    source_schema = "featherdoc.table_layout_delivery_report.v1"
                     source_report = $path
                     source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "release_blocker_count is $declaredBlockerCount but release_blockers contains $releaseBlockerCount item(s)."
@@ -553,6 +557,8 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_report_read_failed"
+            action = "review_table_layout_delivery_sources"
+            source_schema = "featherdoc.table_layout_delivery_report.v1"
             source_report = $path
             source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage
