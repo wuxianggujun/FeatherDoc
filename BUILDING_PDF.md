@@ -113,6 +113,16 @@ ctest --test-dir .bpdf-interfaces -R pdf_document_generator_probe --output-on-fa
 
 PDFium 用于 PDF → Word 读入方向。
 
+当前支持 3 种 provider：
+
+- `source`：默认值。从 PDFium 源码和 GN/Ninja 构建。需要 `depot_tools` 和
+  PDFium checkout。
+- `package`：走 `find_package(PDFium)`，要求外部包已经导出 CMake target。
+- `prebuilt`：直接导入现成的 PDFium 二进制。至少需要
+  `FEATHERDOC_PDFIUM_LIBRARY` 和 `FEATHERDOC_PDFIUM_INCLUDE_DIR`；Windows 下如果
+  `pdfium.dll` 不和 `pdfium.lib` 放在同一目录，额外传
+  `FEATHERDOC_PDFIUM_RUNTIME_DLL` 或 `FEATHERDOC_PDFIUM_RUNTIME_DIR`。
+
 先准备 Chromium `depot_tools`。推荐放在 `tmp/`，不要提交：
 
 ```powershell
@@ -189,6 +199,32 @@ cmake --build .bpdf-pdfium-source-msvc --target featherdoc_pdfium_probe
 - Windows 下会自动补 `winmm.lib`
 - CMake 会优先使用 PDFium checkout 内的 `buildtools/win/gn.exe`
 - CMake 会优先使用 PDFium checkout 内的 `third_party/ninja/ninja.exe`
+
+## Windows 构建 PDFium import（prebuilt provider）
+
+如果手里已经有 `pdfium.lib` / `pdfium.dll` 和 `public/fpdfview.h`，可以直接走
+`prebuilt`，不需要 `depot_tools`、GN 或 Ninja。
+
+```powershell
+cmake -S . -B .bpdf-pdfium-prebuilt-msvc `
+  -G Ninja `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+  -DBUILD_TESTING=OFF `
+  -DBUILD_CLI=OFF `
+  -DBUILD_SAMPLES=ON `
+  -DFEATHERDOC_BUILD_PDF_IMPORT=ON `
+  -DFEATHERDOC_PDFIUM_PROVIDER=prebuilt `
+  -DFEATHERDOC_PDFIUM_LIBRARY="D:/deps/pdfium/lib/pdfium.lib" `
+  -DFEATHERDOC_PDFIUM_INCLUDE_DIR="D:/deps/pdfium/public" `
+  -DFEATHERDOC_PDFIUM_RUNTIME_DLL="D:/deps/pdfium/bin/pdfium.dll"
+
+cmake --build .bpdf-pdfium-prebuilt-msvc --target featherdoc_pdfium_probe
+```
+
+如果 `pdfium.dll` 和 `pdfium.lib` 在同一个目录，可以省略
+`FEATHERDOC_PDFIUM_RUNTIME_DLL`。如果运行时目录里有额外依赖，但 DLL 文件名不固定，
+改传 `FEATHERDOC_PDFIUM_RUNTIME_DIR`。
 
 ## 端到端 smoke
 

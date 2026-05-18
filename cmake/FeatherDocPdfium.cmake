@@ -5,13 +5,21 @@ include(ExternalProject)
 set(FEATHERDOC_PDFIUM_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
 set(FEATHERDOC_PDFIUM_PROVIDER "source" CACHE STRING
-    "PDFium provider for the experimental PDF import module: source or package")
-set_property(CACHE FEATHERDOC_PDFIUM_PROVIDER PROPERTY STRINGS source package)
+    "PDFium provider for the experimental PDF import module: source, package, or prebuilt")
+set_property(CACHE FEATHERDOC_PDFIUM_PROVIDER PROPERTY STRINGS source package prebuilt)
 
 set(FEATHERDOC_PDFIUM_SOURCE_DIR "" CACHE PATH
     "Existing PDFium source checkout root. It must contain public/fpdfview.h.")
 set(FEATHERDOC_PDFIUM_OUT_DIR "" CACHE PATH
     "PDFium GN output directory. Defaults to <PDFium source>/out/FeatherDoc.")
+set(FEATHERDOC_PDFIUM_LIBRARY "" CACHE FILEPATH
+    "Prebuilt PDFium library or import library path used by the prebuilt provider")
+set(FEATHERDOC_PDFIUM_INCLUDE_DIR "" CACHE PATH
+    "Directory containing fpdfview.h used by the prebuilt provider")
+set(FEATHERDOC_PDFIUM_RUNTIME_DLL "" CACHE FILEPATH
+    "Optional PDFium runtime DLL used by the prebuilt provider on Windows")
+set(FEATHERDOC_PDFIUM_RUNTIME_DIR "" CACHE PATH
+    "Optional directory containing PDFium runtime binaries used by the prebuilt provider")
 set(FEATHERDOC_PDFIUM_GN_ARGS
     "is_debug=false is_component_build=false pdf_is_complete_lib=true pdf_is_standalone=true pdf_enable_v8=false pdf_enable_xfa=false pdf_use_skia=false pdf_enable_fontations=false pdf_use_system_freetype=true clang_use_chrome_plugins=false use_custom_libcxx=false"
     CACHE STRING
@@ -44,6 +52,97 @@ function(featherdoc_find_pdfium_package out_target)
     endif()
 endfunction()
 
+function(featherdoc_add_pdfium_prebuilt_target target_name)
+    if(FEATHERDOC_PDFIUM_LIBRARY STREQUAL "")
+        message(FATAL_ERROR
+            "FEATHERDOC_PDFIUM_PROVIDER=prebuilt requires FEATHERDOC_PDFIUM_LIBRARY "
+            "to point to pdfium.lib, libpdfium.a, or another linkable PDFium library.")
+    endif()
+
+    if(FEATHERDOC_PDFIUM_INCLUDE_DIR STREQUAL "")
+        message(FATAL_ERROR
+            "FEATHERDOC_PDFIUM_PROVIDER=prebuilt requires FEATHERDOC_PDFIUM_INCLUDE_DIR "
+            "to point to the directory containing fpdfview.h.")
+    endif()
+
+    if(NOT WIN32 AND NOT FEATHERDOC_PDFIUM_RUNTIME_DLL STREQUAL "")
+        message(FATAL_ERROR
+            "FEATHERDOC_PDFIUM_RUNTIME_DLL is only supported on Windows. "
+            "Use FEATHERDOC_PDFIUM_LIBRARY and optionally FEATHERDOC_PDFIUM_RUNTIME_DIR.")
+    endif()
+
+    get_filename_component(pdfium_library
+        "${FEATHERDOC_PDFIUM_LIBRARY}" ABSOLUTE)
+    if(NOT EXISTS "${pdfium_library}")
+        message(FATAL_ERROR
+            "FEATHERDOC_PDFIUM_LIBRARY does not exist: ${pdfium_library}")
+    endif()
+
+    get_filename_component(pdfium_include_dir
+        "${FEATHERDOC_PDFIUM_INCLUDE_DIR}" ABSOLUTE)
+    if(NOT EXISTS "${pdfium_include_dir}/fpdfview.h")
+        message(FATAL_ERROR
+            "FEATHERDOC_PDFIUM_INCLUDE_DIR must contain fpdfview.h: "
+            "${pdfium_include_dir}")
+    endif()
+
+    set(pdfium_runtime_dll "")
+    set(pdfium_runtime_dir "")
+    if(NOT FEATHERDOC_PDFIUM_RUNTIME_DLL STREQUAL "")
+        get_filename_component(pdfium_runtime_dll
+            "${FEATHERDOC_PDFIUM_RUNTIME_DLL}" ABSOLUTE)
+        if(NOT EXISTS "${pdfium_runtime_dll}")
+            message(FATAL_ERROR
+                "FEATHERDOC_PDFIUM_RUNTIME_DLL does not exist: "
+                "${pdfium_runtime_dll}")
+        endif()
+        get_filename_component(pdfium_runtime_dir
+            "${pdfium_runtime_dll}" DIRECTORY)
+    elseif(NOT FEATHERDOC_PDFIUM_RUNTIME_DIR STREQUAL "")
+        get_filename_component(pdfium_runtime_dir
+            "${FEATHERDOC_PDFIUM_RUNTIME_DIR}" ABSOLUTE)
+        if(NOT IS_DIRECTORY "${pdfium_runtime_dir}")
+            message(FATAL_ERROR
+                "FEATHERDOC_PDFIUM_RUNTIME_DIR must be an existing directory: "
+                "${pdfium_runtime_dir}")
+        endif()
+    endif()
+
+    get_filename_component(pdfium_library_dir "${pdfium_library}" DIRECTORY)
+    if(pdfium_runtime_dir STREQUAL "")
+        set(pdfium_runtime_dir "${pdfium_library_dir}")
+    endif()
+
+    if(WIN32 AND NOT pdfium_runtime_dll STREQUAL "")
+        add_library(${target_name} SHARED IMPORTED GLOBAL)
+        set_target_properties(${target_name} PROPERTIES
+            IMPORTED_IMPLIB "${pdfium_library}"
+            IMPORTED_LOCATION "${pdfium_runtime_dll}"
+            INTERFACE_INCLUDE_DIRECTORIES "${pdfium_include_dir}"
+        )
+    else()
+        add_library(${target_name} UNKNOWN IMPORTED GLOBAL)
+        set_target_properties(${target_name} PROPERTIES
+            IMPORTED_LOCATION "${pdfium_library}"
+            INTERFACE_INCLUDE_DIRECTORIES "${pdfium_include_dir}"
+        )
+    endif()
+
+    set(pdfium_link_libraries)
+    if(WIN32)
+        list(APPEND pdfium_link_libraries winmm)
+    endif()
+    if(FEATHERDOC_PDFIUM_EXTRA_LIBS)
+        list(APPEND pdfium_link_libraries ${FEATHERDOC_PDFIUM_EXTRA_LIBS})
+    endif()
+    if(pdfium_link_libraries)
+        set_property(TARGET ${target_name} PROPERTY
+            INTERFACE_LINK_LIBRARIES "${pdfium_link_libraries}")
+    endif()
+
+    set(FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR "${pdfium_runtime_dir}" PARENT_SCOPE)
+endfunction()
+
 function(featherdoc_add_pdfium_source_target target_name)
     if(FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
         message(FATAL_ERROR
@@ -51,7 +150,8 @@ function(featherdoc_add_pdfium_source_target target_name)
             "Set FEATHERDOC_PDFIUM_SOURCE_DIR to a PDFium checkout created with:\n"
             "  gclient config --unmanaged https://pdfium.googlesource.com/pdfium.git\n"
             "  gclient sync\n"
-            "Or set FEATHERDOC_PDFIUM_PROVIDER=package and provide PDFium_DIR.")
+            "Or set FEATHERDOC_PDFIUM_PROVIDER=package/prebuilt and provide "
+            "the matching PDFium inputs.")
     endif()
 
     get_filename_component(pdfium_source_dir

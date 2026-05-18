@@ -441,10 +441,13 @@ if(FEATHERDOC_BUILD_PDF_IMPORT)
         set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_source)
     elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "package")
         featherdoc_find_pdfium_package(FEATHERDOC_PDFIUM_TARGET)
+    elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "prebuilt")
+        featherdoc_add_pdfium_prebuilt_target(featherdoc_pdfium_prebuilt)
+        set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_prebuilt)
     else()
         message(FATAL_ERROR
             "Unsupported FEATHERDOC_PDFIUM_PROVIDER: "
-            "${FEATHERDOC_PDFIUM_PROVIDER}. Use source or package.")
+            "${FEATHERDOC_PDFIUM_PROVIDER}. Use source, package, or prebuilt.")
     endif()
 
     add_library(FeatherDocPdfImport
