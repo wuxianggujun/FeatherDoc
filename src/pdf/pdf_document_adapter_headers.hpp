@@ -8,7 +8,6 @@
 
 #include <cstddef>
 #include <functional>
-#include <string_view>
 #include <vector>
 
 namespace featherdoc::pdf::detail {
@@ -28,8 +27,8 @@ struct HeaderFooterLayout {
 
 struct HeaderFooterRenderContext {
     std::function<std::vector<LineState>(
-        std::string_view, const PdfDocumentAdapterOptions &, double)>
-        wrap_text;
+        featherdoc::Paragraph, const PdfDocumentAdapterOptions &, double)>
+        wrap_paragraph;
 };
 
 [[nodiscard]] double

@@ -4,27 +4,14 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <iterator>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace featherdoc::pdf::detail {
 namespace {
-
-[[nodiscard]] std::string
-collect_paragraph_text(featherdoc::Paragraph paragraph) {
-    std::string text;
-    for (; paragraph.has_next(); paragraph.next()) {
-        for (auto run = paragraph.runs(); run.has_next(); run.next()) {
-            text += run.get_text();
-        }
-        text += '\n';
-    }
-    if (!text.empty() && text.back() == '\n') {
-        text.pop_back();
-    }
-    return text;
-}
 
 [[nodiscard]] PdfDocumentAdapterOptions
 header_footer_options(const PdfDocumentAdapterOptions &options) {
@@ -78,14 +65,27 @@ void replace_all(std::string &text, std::string_view needle,
     return line;
 }
 
-[[nodiscard]] std::vector<LineState> wrap_header_footer_text(
-    std::string_view text, const PdfDocumentAdapterOptions &options,
+[[nodiscard]] std::vector<LineState> wrap_header_footer_paragraphs(
+    featherdoc::Paragraph paragraph, const PdfDocumentAdapterOptions &options,
     double max_width_points, const HeaderFooterRenderContext &context) {
-    if (text.empty() || !context.wrap_text) {
+    if (!paragraph.has_next() || !context.wrap_paragraph) {
         return {};
     }
-    return context.wrap_text(text, header_footer_options(options),
-                             max_width_points);
+
+    std::vector<LineState> lines;
+    const auto paragraph_options = header_footer_options(options);
+    for (; paragraph.has_next(); paragraph.next()) {
+        auto paragraph_lines =
+            context.wrap_paragraph(paragraph, paragraph_options,
+                                   max_width_points);
+        if (paragraph_lines.empty()) {
+            paragraph_lines.push_back(LineState{});
+        }
+        lines.insert(lines.end(),
+                     std::make_move_iterator(paragraph_lines.begin()),
+                     std::make_move_iterator(paragraph_lines.end()));
+    }
+    return lines;
 }
 
 [[nodiscard]] HeaderFooterPageLayout build_header_footer_page_layout(
@@ -100,15 +100,15 @@ void replace_all(std::string &text, std::string_view needle,
     if (header_section_index.has_value()) {
         auto header = document.section_header_paragraphs(*header_section_index,
                                                          reference_kind);
-        layout.header_lines = wrap_header_footer_text(
-            collect_paragraph_text(header), options, max_width_points, context);
+        layout.header_lines = wrap_header_footer_paragraphs(
+            header, options, max_width_points, context);
     }
 
     if (footer_section_index.has_value()) {
         auto footer = document.section_footer_paragraphs(*footer_section_index,
                                                          reference_kind);
-        layout.footer_lines = wrap_header_footer_text(
-            collect_paragraph_text(footer), options, max_width_points, context);
+        layout.footer_lines = wrap_header_footer_paragraphs(
+            footer, options, max_width_points, context);
     }
 
     return layout;

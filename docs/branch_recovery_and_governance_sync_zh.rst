@@ -176,3 +176,9 @@ Unicode prefix 到 East Asia / CJK 字体链路的 fallback、日文假名、韩
 ``test/pdf_document_adapter_font_tests.cpp`` 也已经固定 bullet prefix 和 East Asia
 symbol probe 的契约。因此这些旧提交剩余差异主要是大批 PDF regression 样例、
 manifest 和视觉 gate 清单，不再作为低资源阶段的摘入目标。
+
+继续只读复核 ``e05a969 Advance PDF regression coverage and font handling`` 后，当前只
+重做其中一块独立源码修复：PDF 页眉页脚布局改为直接包装段落游标中的 run，避免
+``collect_paragraph_text`` 将字体、粗斜体、颜色、RTL、语言和 East Asia 字体元数据
+压平成纯文本。旧提交中的更大排版状态、manifest、样例和视觉 gate 差异继续只读保留，
+不整分支合并。

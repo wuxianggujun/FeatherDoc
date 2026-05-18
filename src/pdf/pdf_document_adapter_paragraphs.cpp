@@ -2,6 +2,7 @@
 
 #include "pdf_document_adapter_render.hpp"
 
+#include <iterator>
 #include <optional>
 #include <string>
 #include <utility>
@@ -174,6 +175,26 @@ void prepend_text_tokens(std::vector<TextToken> &tokens,
     tokens = std::move(prefix_tokens);
 }
 
+[[nodiscard]] featherdoc::run_inspection_summary
+summarize_run_handle(const featherdoc::Run &run_handle, std::size_t run_index) {
+    auto summary = featherdoc::run_inspection_summary{};
+    summary.index = run_index;
+    summary.text = run_handle.get_text();
+    summary.style_id = run_handle.style_id();
+    summary.font_family = run_handle.font_family();
+    summary.east_asia_font_family = run_handle.east_asia_font_family();
+    summary.text_color = run_handle.text_color();
+    summary.bold = run_handle.bold();
+    summary.italic = run_handle.italic();
+    summary.underline = run_handle.underline();
+    summary.font_size_points = run_handle.font_size_points();
+    summary.language = run_handle.language();
+    summary.east_asia_language = run_handle.east_asia_language();
+    summary.bidi_language = run_handle.bidi_language();
+    summary.rtl = run_handle.rtl();
+    return summary;
+}
+
 } // namespace
 
 [[nodiscard]] ResolvedRunStyle
@@ -280,6 +301,34 @@ wrap_plain_text(featherdoc::Document &document, std::string_view text,
     const auto style =
         resolve_plain_text_style(document, text, options, resolver);
     const auto tokens = tokenize_run_text(text, style);
+    if (tokens.empty()) {
+        return {LineState{}};
+    }
+    return wrap_run_tokens(tokens, max_width_points);
+}
+
+[[nodiscard]] std::vector<LineState>
+wrap_cursor_paragraph_runs(featherdoc::Document &document,
+                           featherdoc::Paragraph paragraph,
+                           const PdfDocumentAdapterOptions &options,
+                           const PdfFontResolver &resolver,
+                           double max_width_points) {
+    std::vector<TextToken> tokens;
+    auto run = paragraph.runs();
+    for (std::size_t run_index = 0U; run.has_next();
+         ++run_index, run.next()) {
+        auto summary = summarize_run_handle(run, run_index);
+        if (summary.text.empty()) {
+            continue;
+        }
+
+        const auto style = resolve_run_style(document, summary, options,
+                                             resolver);
+        auto run_tokens = tokenize_run_text(summary.text, style);
+        tokens.insert(tokens.end(), std::make_move_iterator(run_tokens.begin()),
+                      std::make_move_iterator(run_tokens.end()));
+    }
+
     if (tokens.empty()) {
         return {LineState{}};
     }

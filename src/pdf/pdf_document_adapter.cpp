@@ -352,11 +352,11 @@ layout_document_paragraphs(featherdoc::Document &document,
         options_for_section(section_options, current_section_index));
     const auto resolver = make_font_resolver(section_options.front());
     const detail::HeaderFooterRenderContext header_footer_context{
-        [&](std::string_view text,
+        [&](featherdoc::Paragraph paragraph,
             const PdfDocumentAdapterOptions &header_options,
             double width_points) {
-            return detail::wrap_plain_text(document, text, header_options,
-                                           resolver, width_points);
+            return detail::wrap_cursor_paragraph_runs(
+                document, paragraph, header_options, resolver, width_points);
         },
     };
 

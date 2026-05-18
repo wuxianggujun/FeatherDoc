@@ -298,3 +298,7 @@ resolver 再尝试 East Asia 显式映射、``cjk_font_file_path`` 或系统 CJK
   ``pdf_font_resolver_tests.cpp``、``pdf_document_adapter_font_tests.cpp`` 和
   ``document-eastasia-style-probe`` 样本固定。旧提交剩余内容主要是大批 regression
   样例、manifest 和视觉 gate 清单，当前低资源阶段不再重复摘入。
+* ``e05a969`` 中的 PDF 页眉页脚 run 保留修复可以低风险摘入；本轮按当前 ``dev``
+  结构重做为 ``wrap_cursor_paragraph_runs``，让页眉页脚直接包装段落游标中的 run，
+  复用现有字体回退、run 样式和 shaping 元数据链路。旧提交中的 bidi、上下标、
+  删除线、regression manifest、样例和视觉 gate 大范围变化继续只读保留。
