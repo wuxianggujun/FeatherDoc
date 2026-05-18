@@ -317,6 +317,7 @@ $pipelineExpectedMarkers = @(
     '``action``',
     '``message``',
     '``source_schema``',
+    '``source_report_display``',
     '``style_merge_suggestion_count``',
     '``featherdoc.project_template_delivery_readiness_report.v1``',
     '``featherdoc.content_control_data_binding_governance_report.v1``',

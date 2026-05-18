@@ -192,8 +192,9 @@ schema confidence calibration 和 content-control data-binding governance 的治
 ``warning_count`` 仍然只作为聚合计数使用，reviewer 必须继续读取下面的明细数组。
 其中 content-control data-binding governance 的 blocker、warning 与 action item 会固定携带
 ``featherdoc.content_control_data_binding_governance_report.v1`` 作为 ``source_schema``，
-把 ``inspect-content-controls`` 或治理 summary 写入 ``source_json_display``，并为 action item
-提供重建治理报告的 ``open_command``，reviewer 可直接沿着 bundle 中的 rollup 明细回到证据 JSON。
+把 ``inspect-content-controls`` 或治理 summary 同步写入 ``source_report_display`` 与
+``source_json_display``，并为 action item 提供重建治理报告的 ``open_command``。
+reviewer 可先沿着 ``source_report_display`` 打开源报告，再用 ``source_json_display`` 回到证据 JSON。
 占位符阻断项会继续保留 ``content_control_data_binding.bound_placeholder``，修复策略固定为
 ``sync_bound_content_control``，避免 content-control 修复流程只在聊天记录或人工备注中存在。
 
