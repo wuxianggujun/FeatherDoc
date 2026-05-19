@@ -268,3 +268,39 @@ release gate 或 PDF visual gate。
 渲染依赖。后续若要继续可视化验证，最小风险路径是先提供或复用一个现成 DOCX，并准备
 已带 ``PIL`` 与 ``fitz`` 的 Python，再只跑 ``run_word_visual_smoke.ps1 -InputDocx ...``
 这一条最小链路。
+
+
+2026-05-19 最小 Word smoke 结果
+-------------------------------
+
+本轮按最小风险路径完成了一次 Word 可视化 smoke 预检。
+
+执行内容：
+
+1. 创建并复用本地忽略目录 ``.venv-word-visual-smoke``，安装 ``Pillow`` 和 ``PyMuPDF``。
+2. 用 OpenXML ZIP 方式生成临时输入 ``output/word-visual-input/minimal-word-visual-input.docx``，
+   避免再次用 Word COM 生成 DOCX。
+3. 运行 ``scripts/run_word_visual_smoke.ps1 -InputDocx ...``，输出到
+   ``output/word-visual-smoke-minimal-20260519``。
+
+结果：
+
+1. Word 成功将 DOCX 导出为 PDF。
+2. PyMuPDF 成功渲染 PDF 为 PNG。
+3. ``summary.json`` 报告 ``page_count = 1``。
+4. 生成了 ``evidence/contact_sheet.png`` 和 ``evidence/pages/page-01.png``。
+5. 生成了 ``report/summary.json``、``review_checklist.md``、``review_result.json`` 和
+   ``final_review.md``。
+
+资源清理：
+
+1. 前一次用 Word COM 直接保存 DOCX 的尝试卡住，已关闭本轮启动的 ``WINWORD`` 和对应
+   PowerShell 进程。
+2. 最小 smoke 完成后，未发现本轮遗留的 ``WINWORD`` 或 ``python`` 进程。
+3. 可视化证据和渲染虚拟环境位于 ``.gitignore`` 覆盖目录，不纳入提交。
+
+剩余边界：
+
+1. 这只是最小 Word smoke，不是完整 ``run_word_visual_release_gate.ps1``。
+2. 完整 release gate 仍应等资源稳定后再按 ``-SkipBuild`` 和分阶段策略执行。
+3. PDF visual gate 仍未执行。
