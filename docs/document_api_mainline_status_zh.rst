@@ -681,6 +681,33 @@ copy/search matrix 或 CJK table wrap 的轻量契约，但仍应先做静态小
 真实多页重复键边界、图片环绕、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且
 工作区干净后再通过受控 PDF 可视化验证确认。
 
+2026-05-20 PDF CJK style overlay page flow 正式 ID 契约搬入
+-----------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-style-overlay-page-flow-text`` 6 页样例中提取低风险主题，按当前
+``dev`` 的 1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的图片压力语料，也不
+声明旧分支的 6 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-style-overlay-page-flow-text``，覆盖 CJK style overlay、
+   superscript、subscript、strikethrough、first/even/default 页眉页脚占位符、
+   重复表头、合并单元格、cant-split 行、styled table cell 段落和稳定检索键
+   ``SO-101`` / ``SO-202`` / ``SO-303`` / ``SO-888`` / ``SO-A-03`` /
+   ``FE-SO-901`` / ``FE-SO-921`` / ``FE-SO-961`` / ``FE-SO-981`` /
+   ``FE-SO-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   85；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_style_overlay_page_flow_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_style_overlay_page_flow_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK style overlay page flow 的低资源正式 ID 契约入口已进入 ``dev``。
+真实多页样式叠加、图片环绕、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且
+工作区干净后再通过受控 PDF 可视化验证确认。
+
 2026-05-19 PDF CJK font embed 轻量契约搬入
 ------------------------------------------
 

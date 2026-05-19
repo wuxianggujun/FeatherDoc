@@ -6154,6 +6154,231 @@ build_document_cjk_anchor_font_matrix_boundary_text_sample(
     return sample;
 }
 
+[[nodiscard]] ScenarioResult
+build_document_cjk_style_overlay_page_flow_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    const auto overlay_key = utf8_from_u8(u8"SO-888 \u6837\u5f0f\u68c0\u7d22\u952e");
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed Lite") ||
+        !define_document_cjk_style_overlay_lite_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK style overlay page flow sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Style overlay flow: ").has_next() ||
+        !add_styled_contract_run(
+            document, intro, utf8_from_u8(u8"\u6df7\u6392\u53e0\u52a0"),
+            "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !intro.add_run(" / FE-SO-901 / ").has_next() ||
+        !add_styled_contract_run(
+            document, intro,
+            utf8_from_u8(u8"\u4e0a\u4e0b\u6807\u590d\u5236"),
+            "DocumentPdfCjkFontEmbedLiteNote") ||
+        !intro.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"\u4e0a\u6807SO1"),
+                                 "DocumentPdfCjkOverlayLiteSuperscript") ||
+        !intro.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"\u4e0b\u6807SO2"),
+                                 "DocumentPdfCjkOverlayLiteSubscript")) {
+        return sample;
+    }
+
+    auto &default_header = document.ensure_section_header_paragraphs(0U);
+    auto &default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto &first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto &first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto &even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto &even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text(utf8_from_u8(
+            u8"Overlay header SO-303 \u6837\u5f0f\u68c0\u7d22\u952e page {{page}}")) ||
+        !default_footer.has_next() ||
+        !default_footer.set_text(utf8_from_u8(
+            u8"Overlay footer SO-888 \u6837\u5f0f\u68c0\u7d22\u952e {{page}} / {{total_pages}}")) ||
+        !first_header.has_next() ||
+        !first_header.set_text(utf8_from_u8(
+            u8"Overlay first header SO-101 \u6837\u5f0f\u68c0\u7d22\u952e page {{page}}")) ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(utf8_from_u8(
+            u8"Overlay first footer SO-888 \u6837\u5f0f\u68c0\u7d22\u952e {{page}} / {{total_pages}}")) ||
+        !even_header.has_next() ||
+        !even_header.set_text(utf8_from_u8(
+            u8"Overlay even header SO-202 \u6837\u5f0f\u68c0\u7d22\u952e page {{page}}")) ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(utf8_from_u8(
+            u8"Overlay even footer SO-888 \u6837\u5f0f\u68c0\u7d22\u952e {{page}} / {{total_pages}}"))) {
+        return sample;
+    }
+
+    auto matrix = append_document_paragraph(document, "");
+    if (!matrix.has_next() ||
+        !matrix.add_run("Overlay matrix: ").has_next() ||
+        !add_styled_contract_run(document, matrix, overlay_key,
+                                 "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !matrix.add_run(" / FE-SO-921 / ").has_next() ||
+        !add_styled_contract_run(document, matrix, utf8_from_u8(u8"\u4e0a\u6807A1"),
+                                 "DocumentPdfCjkOverlayLiteSuperscript") ||
+        !matrix.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, matrix, utf8_from_u8(u8"\u4e0b\u6807B2"),
+                                 "DocumentPdfCjkOverlayLiteSubscript") ||
+        !matrix.add_run(" / ").has_next() ||
+        !add_styled_contract_run(
+            document, matrix, utf8_from_u8(u8"\u5220\u9664\u7ebf\u4ecd\u53ef\u641c"),
+            "DocumentPdfCjkOverlayLiteStrike")) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"\u7b2c 1 \u7ec4\u6837\u5f0f\u53e0\u52a0\u5206\u9875\u9a8c\u8bc1\uff1aSO-A-03 / token FE-SO-921 / \u540c\u4e00\u884c\u5185\u7a33\u5b9a\u5904\u7406 CJK\u3001Latin\u3001\u6570\u5b57\u3001\u4e0a\u4e0b\u6807\u548c\u5220\u9664\u7ebf\u3002")) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"\u6b63\u6587\u7ee7\u7eed\u4fdd\u7559 SO-888 \u6837\u5f0f\u68c0\u7d22\u952e \u548c ABC 123\uff0c\u786e\u8ba4\u9875\u7709\u9875\u811a\u4e0e\u6b63\u6587\u5171\u4eab\u6587\u672c\u5c42\u5951\u7ea6\u3002"))) {
+        return sample;
+    }
+
+    auto header_contract = append_document_paragraph(document, "");
+    if (!header_contract.has_next() ||
+        !header_contract.add_run("Overlay header contract: ").has_next() ||
+        !add_styled_contract_run(
+            document, header_contract,
+            utf8_from_u8(u8"SO-202 \u5076\u6570\u9875\u6837\u5f0f\u952e"),
+            "DocumentPdfCjkFontEmbedLiteNote") ||
+        !header_contract.add_run(" / ").has_next() ||
+        !add_styled_contract_run(
+            document, header_contract,
+            utf8_from_u8(u8"SO-303 \u9ed8\u8ba4\u9875\u6837\u5f0f\u952e"),
+            "DocumentPdfCjkFontEmbedLiteAccent")) {
+        return sample;
+    }
+
+    auto table = document.append_table(6U, 3U);
+    if (!table.has_next() || !table.set_width_twips(7200U) ||
+        !table.set_column_width_twips(0U, 1500U) ||
+        !table.set_column_width_twips(1U, 2100U) ||
+        !table.set_column_width_twips(2U, 3600U) ||
+        !table.set_cell_text(0U, 0U, utf8_from_u8(u8"\u53e0\u52a0\u533a")) ||
+        !table.set_cell_text(0U, 1U, utf8_from_u8(u8"\u68c0\u7d22\u952e")) ||
+        !table.set_cell_text(0U, 2U, utf8_from_u8(u8"\u8bf4\u660e")) ||
+        !table.set_cell_text(1U, 0U, "SO-A-03") ||
+        !table.set_cell_text(1U, 1U, overlay_key) ||
+        !table.set_cell_text(
+            1U, 2U,
+            utf8_from_u8(
+                u8"FE-SO-961 \u8868\u683c\u6837\u5f0f\u6536\u53e3\uff0c\u4fdd\u7559\u53ef\u590d\u5236 CJK \u952e")) ||
+        !table.set_cell_text(2U, 0U, "FE-SO-961") ||
+        !table.set_cell_text(2U, 1U, overlay_key) ||
+        !table.set_cell_text(
+            2U, 2U,
+            utf8_from_u8(
+                u8"\u7eb5\u5411\u5408\u5e76\u5757\u7b2c\u4e00\u884c\uff0c\u548c\u91cd\u590d\u8868\u5934\u5171\u5b58")) ||
+        !table.set_cell_text(3U, 0U, "FE-SO-981") ||
+        !table.set_cell_text(
+            3U, 2U,
+            utf8_from_u8(
+                u8"\u7eb5\u5411\u5408\u5e76\u5757\u7b2c\u4e8c\u884c\uff0c\u4e0d\u7834\u574f\u6837\u5f0f\u53e0\u52a0")) ||
+        !table.set_cell_text(4U, 0U, "SO-CANT") ||
+        !table.set_cell_text(4U, 1U,
+                             utf8_from_u8(u8"\u7981\u6b62\u62c6\u5206\u884c")) ||
+        !table.set_cell_text(
+            4U, 2U,
+            utf8_from_u8(
+                u8"FE-SO-981 \u56de\u6d41\u884c\u9700\u8981\u4fdd\u6301\u6574\u884c\u5b8c\u6574")) ||
+        !table.set_cell_text(5U, 0U, "FE-SO-999") ||
+        !table.set_cell_text(5U, 1U, overlay_key)) {
+        return sample;
+    }
+
+    auto merged_key = table.find_cell(2U, 1U);
+    auto styled_cell = table.find_cell(5U, 2U);
+    if (!merged_key.has_value() || !styled_cell.has_value() ||
+        !merged_key->merge_down(1U) || !merged_key->set_fill_color("FCE4D6") ||
+        !merged_key->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center)) {
+        return sample;
+    }
+
+    auto styled_paragraph = styled_cell->paragraphs();
+    if (!styled_paragraph.has_next() ||
+        !styled_paragraph.add_run("Overlay close: ").has_next() ||
+        !add_styled_contract_run(document, styled_paragraph, overlay_key,
+                                 "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !styled_paragraph.add_run(" / FE-SO-999 / ").has_next() ||
+        !add_styled_contract_run(document, styled_paragraph,
+                                 utf8_from_u8(u8"\u7ec8\u9875\u590d\u68c0"),
+                                 "DocumentPdfCjkFontEmbedLiteLarge")) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < 6U; ++row_index) {
+        if (!row.has_next() ||
+            !row.set_height_twips(row_index == 0U ? 440U : 660U,
+                                  featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        if (row_index == 0U && !row.set_repeats_header()) {
+            return sample;
+        }
+        if (row_index == 4U && !row.set_cant_split()) {
+            return sample;
+        }
+        row.next();
+    }
+
+    auto closing = append_document_paragraph(document, "");
+    if (!closing.has_next() ||
+        !closing.add_run("Overlay settle: ").has_next() ||
+        !add_styled_contract_run(document, closing, overlay_key,
+                                 "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !closing.add_run(" / FE-SO-981 / FE-SO-999").has_next()) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK style overlay page flow "
+        "text";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed Lite",
+                                        font_path},
+    };
+    options.cjk_font_file_path = font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 8.0;
+    options.line_height_points = 16.0;
+    options.paragraph_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult build_document_cjk_anchor_matrix_lite_text_sample(
     const std::filesystem::path &font_path) {
     ScenarioResult sample;
@@ -8562,6 +8787,21 @@ int run_program(const std::vector<std::string> &args) {
         }
         sample =
             build_document_cjk_repeated_key_boundary_flow_text_sample(cjk_font);
+    } else if (config.scenario == "document_cjk_style_overlay_page_flow_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing CJK font for scenario "
+                   "document_cjk_style_overlay_page_flow_text\n";
+            return 1;
+        }
+        sample =
+            build_document_cjk_style_overlay_page_flow_text_sample(cjk_font);
     } else if (config.scenario == "document_cjk_vertical_merge_lite_text") {
         if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
             if (require_cjk_font) {
