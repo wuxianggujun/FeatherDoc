@@ -1157,6 +1157,43 @@
       "expect_styled_text": true
     },
     {
+      "id": "document-cjk-font-embed-matrix-text",
+      "kind": "document_cjk_font_embed_matrix_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-font-embed-matrix-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK font embed matrix sample",
+        "Font embed matrix:",
+        "FM-101 \u5d4c\u5b57\u77e9\u9635\u7532",
+        "FE-FM-901",
+        "FM-202 \u590d\u5236\u641c\u7d22\u8def\u5f84",
+        "Embed first header FM-101 page 1",
+        "Metrics marker:",
+        "FE-FM-921",
+        "FE-FM-922",
+        "Run scale:",
+        "FE-FM-931",
+        "FE-FM-932",
+        "FE-FM-933 \u7ec8\u9875\u5d4c\u5b57 ABC 123",
+        "FE-FM-941",
+        "FM-303",
+        "FE-FM-951",
+        "FE-FM-961",
+        "FE-FM-971",
+        "Embed close:",
+        "FE-FM-999 \u5b57\u5bbd\u56de\u8bfb"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-font-embed-matrix",
+        "cjk-header-footer-font",
+        "cjk-table-font-keys"
+      ]
+    },
+    {
       "id": "document-cjk-style-overlay-lite-text",
       "kind": "document_cjk_style_overlay_lite_text",
       "output_file": "featherdoc-pdf-regression-document-cjk-style-overlay-lite-text.pdf",
