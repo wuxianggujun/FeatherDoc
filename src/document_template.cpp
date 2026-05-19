@@ -1,5 +1,6 @@
 #include "featherdoc.hpp"
 #include "image_helpers.hpp"
+#include "path_helpers.hpp"
 #include "xml_helpers.hpp"
 
 #include <algorithm>
@@ -99,6 +100,10 @@ auto set_last_error(featherdoc::document_error_info &error_info,
                     std::string entry_name = {},
                     std::optional<std::ptrdiff_t> xml_offset = std::nullopt)
     -> std::error_code;
+
+auto path_string(const std::filesystem::path &path) -> std::string {
+    return featherdoc::detail::path_to_utf8_string(path);
+}
 
 struct hyperlink_relationship_resolution {
     std::optional<std::string> target;
@@ -1892,11 +1897,12 @@ auto read_docx_entry_text(const std::filesystem::path &document_path,
                           featherdoc::document_error_info &last_error_info)
     -> bool {
     int zip_error = 0;
-    zip_t *zip = zip_openwitherror(document_path.string().c_str(), 0, 'r', &zip_error);
+    const auto archive_path = path_string(document_path);
+    zip_t *zip = zip_openwitherror(archive_path.c_str(), 0, 'r', &zip_error);
     if (zip == nullptr) {
         set_last_error(last_error_info, std::make_error_code(std::errc::io_error),
                        "failed to open source DOCX archive",
-                       document_path.string());
+                       archive_path);
         return false;
     }
 
@@ -4649,7 +4655,8 @@ auto load_custom_xml_package_parts(
     }
 
     int zip_error = 0;
-    zip_t *archive = zip_openwitherror(document_path.string().c_str(),
+    const auto archive_path = path_string(document_path);
+    zip_t *archive = zip_openwitherror(archive_path.c_str(),
                                        ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                        &zip_error);
     if (archive == nullptr) {
