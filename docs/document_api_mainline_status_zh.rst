@@ -209,3 +209,37 @@ LibreOffice、浏览器或 PDF 渲染。
 2. PDF CJK 两个旧分支仍保留为参考库存，不在本轮低资源验证中扩展。
 3. 进入可视化验证前仍需重新确认 ``dev`` 与 ``origin/dev`` 对齐、工作区干净和本机资源
    状态。
+
+
+2026-05-19 可视化验证前置检查
+------------------------------
+
+本轮只读复核了当前仓库已有的可视化验证入口，未启动 Word、LibreOffice、浏览器或 PDF
+渲染。
+
+当前主要入口：
+
+1. Word release gate：``scripts/run_word_visual_release_gate.ps1``。
+2. Word review verdict 同步：``scripts/sync_latest_visual_review_verdict.ps1`` 和
+   ``scripts/sync_visual_review_verdict.ps1``。
+3. PDF visual gate：``scripts/run_pdf_visual_release_gate.ps1``。
+4. 任务流程说明：``docs/automation/word_visual_workflow_zh.rst``。
+
+执行前置条件：
+
+1. ``dev`` 与 ``origin/dev`` 对齐，且工作区干净。
+2. 本机没有明显高负载的外部 Office、浏览器、PDF 或构建进程；外部进程不由当前任务
+   擅自关闭。
+3. Word 可视化验证优先使用 ``-SkipBuild`` 复用已有 build 目录，不在验证阶段触发
+   CMake、Ninja、MSBuild 或完整 CTest。
+4. PDF 可视化验证只在资源充足时执行；该入口可能创建本地 Python 渲染环境或安装
+   Pillow / PyMuPDF，因此不适合在机器卡顿时运行。
+
+建议执行顺序：
+
+1. 先只做 Word gate 的最小范围 smoke / release gate 预检，输出到新的 ``output``
+   子目录，避免覆盖已有证据。
+2. Word 证据生成并人工或自动记录 verdict 后，再运行 latest verdict sync。
+3. PDF CJK 只验证当前 ``dev`` 已有能力；不搬入旧分支的大批 regression 样例、manifest
+   或视觉 baseline。
+4. 任一可视化阶段失败时，先提交失败记录和复现命令，不继续叠加重型验证。
