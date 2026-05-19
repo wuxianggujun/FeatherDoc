@@ -1099,3 +1099,29 @@ PDF CJK table wrap page-flow 契约入口
 该补丁只表示 CJK table wrap page-flow 的低资源契约入口已进入 ``dev``。真实 PDF 中
 多页表格换行、图片环绕、锚点恢复全宽和页眉页脚视觉质量，仍需等源码提交推送且工作区
 干净后再通过受控 PDF 可视化验证确认。
+
+PDF CJK multi anchor table-flow 契约入口
+------------------------------------------------
+
+本轮继续从旧 PDF 分支的 ``document-cjk-multi-anchor-table-flow-text`` 5 页样例中提取
+低风险主题，按当前 ``dev`` 的 1 页轻量样例结构重做。该批次不整分支合并，不搬入旧
+分支的图片压力语料，也不声明旧分支的 5 页 visual baseline 已经进入当前主线。
+
+已补齐内容：
+
+1. 新增 ``document-cjk-multi-anchor-table-flow-text``，覆盖 CJK 多锚点文本流、
+   first/even/default 页眉页脚占位符、合并看板表头、纵向合并锚点块、重复表头、
+   cant-split 行、styled CJK run 和稳定检索键
+   ``MA-101`` / ``MA-202`` / ``MA-303`` / ``FE-MA-901`` /
+   ``FE-MA-951`` / ``FE-MA-971`` / ``FE-MA-981`` / ``FE-MA-999`` /
+   ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   78；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_multi_anchor_table_flow_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_multi_anchor_table_flow_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK multi-anchor table-flow 的低资源契约入口已进入 ``dev``。真实 PDF 中
+多锚点跨页表格流、图片环绕、header/footer 变体和 copy/search 视觉质量，仍需等源码
+提交推送且工作区干净后再通过受控 PDF 可视化验证确认。
