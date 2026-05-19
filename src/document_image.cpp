@@ -1,6 +1,5 @@
 #include "featherdoc.hpp"
 #include "image_helpers.hpp"
-#include "path_helpers.hpp"
 #include "xml_helpers.hpp"
 
 #include <algorithm>
@@ -47,10 +46,6 @@ auto initialize_xml_document(pugi::xml_document &xml_document, std::string_view 
 
 auto initialize_empty_relationships_document(pugi::xml_document &xml_document) -> bool {
     return initialize_xml_document(xml_document, empty_relationships_xml);
-}
-
-auto path_string(const std::filesystem::path &path) -> std::string {
-    return featherdoc::detail::path_to_utf8_string(path);
 }
 
 auto set_last_error(featherdoc::document_error_info &error_info,
@@ -885,15 +880,14 @@ bool Document::extract_drawing_image_from_part(
         }
 
         int zip_error = 0;
-        const auto archive_path = path_string(this->document_path);
-        zip_t *archive = zip_openwitherror(archive_path.c_str(),
+        zip_t *archive = zip_openwitherror(this->document_path.string().c_str(),
                                            ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                            &zip_error);
         if (archive == nullptr) {
             set_last_error(this->last_error_info, document_errc::source_archive_open_failed,
                            "failed to reopen source archive '" +
-                               archive_path + "' for drawing image extraction",
-                           archive_path);
+                               this->document_path.string() + "' for drawing image extraction",
+                           this->document_path.string());
             return false;
         }
 

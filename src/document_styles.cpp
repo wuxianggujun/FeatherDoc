@@ -1,5 +1,4 @@
 #include "featherdoc.hpp"
-#include "path_helpers.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -127,10 +126,6 @@ auto initialize_xml_document(pugi::xml_document &xml_document,
 auto initialize_empty_relationships_document(pugi::xml_document &xml_document)
     -> bool {
     return initialize_xml_document(xml_document, empty_relationships_xml);
-}
-
-auto path_string(const std::filesystem::path &path) -> std::string {
-    return featherdoc::detail::path_to_utf8_string(path);
 }
 
 auto set_last_error(featherdoc::document_error_info &error_info,
@@ -4032,17 +4027,15 @@ std::error_code Document::ensure_styles_loaded() {
     }
 
     int source_zip_error = 0;
-    const auto source_archive_path = path_string(this->document_path);
-    zip_t *source_zip = zip_openwitherror(source_archive_path.c_str(),
+    zip_t *source_zip = zip_openwitherror(this->document_path.string().c_str(),
                                           ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                           &source_zip_error);
     if (!source_zip) {
-        return set_last_error(this->last_error_info,
-                              document_errc::source_archive_open_failed,
-                              "failed to reopen source archive '" +
-                                  source_archive_path +
-                                  "' while loading word/styles.xml: " +
-                                  zip_error_text(source_zip_error));
+        return set_last_error(
+            this->last_error_info, document_errc::source_archive_open_failed,
+            "failed to reopen source archive '" + this->document_path.string() +
+                "' while loading word/styles.xml: " +
+                zip_error_text(source_zip_error));
     }
 
     const auto styles_entry_name = normalize_word_part_entry(target);

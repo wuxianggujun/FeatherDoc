@@ -1,5 +1,4 @@
 #include "featherdoc.hpp"
-#include "path_helpers.hpp"
 
 #include <algorithm>
 #include <array>
@@ -678,10 +677,6 @@ auto validate_numbering_definition(const featherdoc::numbering_definition &defin
     return true;
 }
 
-auto path_string(const std::filesystem::path &path) -> std::string {
-    return featherdoc::detail::path_to_utf8_string(path);
-}
-
 auto validate_numbering_catalog_definition(
     const featherdoc::numbering_catalog_definition &catalog_definition,
     std::string &detail) -> bool {
@@ -1175,15 +1170,14 @@ std::error_code Document::ensure_numbering_loaded() {
     }
 
     int source_zip_error = 0;
-    const auto source_archive_path = path_string(this->document_path);
-    zip_t *source_zip = zip_openwitherror(source_archive_path.c_str(),
+    zip_t *source_zip = zip_openwitherror(this->document_path.string().c_str(),
                                           ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                           &source_zip_error);
     if (!source_zip) {
         return set_last_error(this->last_error_info,
                               document_errc::source_archive_open_failed,
                               "failed to reopen source archive '" +
-                                  source_archive_path +
+                                  this->document_path.string() +
                                   "' while loading word/numbering.xml: " +
                                   zip_error_text(source_zip_error));
     }

@@ -1,5 +1,4 @@
 #include "featherdoc.hpp"
-#include "path_helpers.hpp"
 #include "xml_helpers.hpp"
 
 #include <algorithm>
@@ -165,10 +164,6 @@ auto zip_error_text(int error_number) -> std::string {
     }
 
     return "unknown zip error";
-}
-
-auto path_string(const std::filesystem::path &path) -> std::string {
-    return featherdoc::detail::path_to_utf8_string(path);
 }
 
 auto split_plain_text_paragraphs(std::string_view text) -> std::vector<std::string> {
@@ -1617,11 +1612,11 @@ std::error_code Document::open() {
                                   std::make_error_code(
                                       std::errc::no_such_file_or_directory),
                                   "document file does not exist: " +
-                                      path_string(this->document_path));
+                                      this->document_path.string());
         }
         return set_last_error(this->last_error_info, filesystem_error,
                               "failed to inspect document path: " +
-                                  path_string(this->document_path));
+                                  this->document_path.string());
     }
 
     if (!std::filesystem::exists(file_status)) {
@@ -1629,7 +1624,7 @@ std::error_code Document::open() {
                               std::make_error_code(
                                   std::errc::no_such_file_or_directory),
                               "document file does not exist: " +
-                                  path_string(this->document_path));
+                                  this->document_path.string());
     }
 
     if (!std::filesystem::is_regular_file(file_status)) {
@@ -1637,15 +1632,15 @@ std::error_code Document::open() {
             return set_last_error(this->last_error_info,
                                   std::make_error_code(std::errc::is_a_directory),
                                   "document path points to a directory: " +
-                                      path_string(this->document_path));
+                                      this->document_path.string());
         }
         return set_last_error(this->last_error_info,
                               std::make_error_code(std::errc::invalid_argument),
                               "document path is not a regular file: " +
-                                  path_string(this->document_path));
+                                  this->document_path.string());
     }
 
-    const auto archive_path = path_string(this->document_path);
+    const auto archive_path = this->document_path.string();
     void *buf = nullptr;
     size_t bufsize = 0;
     int zip_error = 0;
@@ -1828,15 +1823,14 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     filesystem_error.clear();
 
     int output_zip_error = 0;
-    const auto temp_archive_path = path_string(temp_file);
-    zip_t *new_zip = zip_openwitherror(temp_archive_path.c_str(),
+    zip_t *new_zip = zip_openwitherror(temp_file.string().c_str(),
                                        docx_output_compression_level, 'w',
                                        &output_zip_error);
     if (!new_zip) {
         return set_last_error(this->last_error_info,
                               document_errc::output_archive_open_failed,
                               "failed to create output archive '" +
-                                  temp_archive_path + "': " +
+                                  temp_file.string() + "': " +
                                   zip_error_text(output_zip_error));
     }
 
@@ -2105,7 +2099,7 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
         record_first_document_error(
             document_errc::output_document_xml_open_failed,
             "failed to create 'word/document.xml' in output archive '" +
-                path_string(temp_file) + "'",
+                temp_file.string() + "'",
             std::string{document_xml_entry});
     } else {
         xml_zip_writer writer{new_zip};
@@ -2115,7 +2109,7 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
             record_first_document_error(
                 document_errc::output_document_xml_write_failed,
                 "failed while streaming 'word/document.xml' into output archive '" +
-                    path_string(temp_file) + "'",
+                    temp_file.string() + "'",
                 std::string{document_xml_entry});
         }
     }
@@ -2213,14 +2207,13 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
 
     if (!result && this->has_source_archive) {
         int source_zip_error = 0;
-        const auto source_archive_path = path_string(source_file);
-        zip_t *orig_zip = zip_openwitherror(source_archive_path.c_str(),
+        zip_t *orig_zip = zip_openwitherror(source_file.string().c_str(),
                                             ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                             &source_zip_error);
         if (!orig_zip) {
             record_first_document_error(
                 document_errc::source_archive_open_failed,
-                "failed to reopen source archive '" + source_archive_path +
+                "failed to reopen source archive '" + source_file.string() +
                     "': " + zip_error_text(source_zip_error));
         }
 
@@ -2230,7 +2223,7 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
                 record_first_document_error(
                     document_errc::source_archive_entries_failed,
                     "failed to enumerate entries in source archive '" +
-                        source_archive_path + "'");
+                        source_file.string() + "'");
             }
             for (ssize_t i = 0; !result && i < orig_zip_entry_count; ++i) {
                 if (zip_entry_openbyindex(orig_zip, static_cast<size_t>(i)) != 0) {
@@ -2312,9 +2305,9 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     if (std::filesystem::exists(output_file, filesystem_error)) {
         if (filesystem_error) {
             std::filesystem::remove(temp_file, filesystem_error);
-        return set_last_error(this->last_error_info, filesystem_error,
-                              "failed to inspect output target '" +
-                                      path_string(output_file) + "'");
+            return set_last_error(this->last_error_info, filesystem_error,
+                                  "failed to inspect output target '" +
+                                      output_file.string() + "'");
         }
 
         std::filesystem::rename(output_file, backup_file, filesystem_error);
@@ -2322,8 +2315,8 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
             std::filesystem::remove(temp_file, filesystem_error);
             return set_last_error(this->last_error_info, filesystem_error,
                                   "failed to move output file '" +
-                                      path_string(output_file) + "' to backup '" +
-                                      path_string(backup_file) + "'");
+                                      output_file.string() + "' to backup '" +
+                                      backup_file.string() + "'");
         }
     }
 
@@ -2338,19 +2331,19 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
             return set_last_error(
                 this->last_error_info, restore_error,
                 "failed to restore original file after rename failure; backup was '" +
-                    path_string(backup_file) + "'");
+                    backup_file.string() + "'");
         }
         return set_last_error(this->last_error_info, filesystem_error,
                               "failed to replace output file '" +
-                                  path_string(output_file) + "' with temporary file '" +
-                                  path_string(temp_file) + "'");
+                                  output_file.string() + "' with temporary file '" +
+                                  temp_file.string() + "'");
     }
 
     std::filesystem::remove(backup_file, filesystem_error);
     if (filesystem_error) {
         return set_last_error(this->last_error_info, filesystem_error,
                               "saved document but failed to remove backup file '" +
-                                  path_string(backup_file) + "'");
+                                  backup_file.string() + "'");
     }
 
     this->last_error_info.clear();
@@ -3061,15 +3054,14 @@ std::error_code Document::ensure_content_types_loaded() {
     }
 
     int source_zip_error = 0;
-    const auto source_archive_path = path_string(this->document_path);
-    zip_t *source_zip = zip_openwitherror(source_archive_path.c_str(),
+    zip_t *source_zip = zip_openwitherror(this->document_path.string().c_str(),
                                           ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                           &source_zip_error);
     if (!source_zip) {
         return set_last_error(this->last_error_info,
                               document_errc::source_archive_open_failed,
                               "failed to reopen source archive '" +
-                                  source_archive_path +
+                                  this->document_path.string() +
                                   "' while loading [Content_Types].xml: " +
                                   zip_error_text(source_zip_error));
     }
@@ -3158,15 +3150,14 @@ std::error_code Document::ensure_settings_loaded() {
     }
 
     int source_zip_error = 0;
-    const auto source_archive_path = path_string(this->document_path);
-    zip_t *source_zip = zip_openwitherror(source_archive_path.c_str(),
+    zip_t *source_zip = zip_openwitherror(this->document_path.string().c_str(),
                                           ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                           &source_zip_error);
     if (!source_zip) {
         return set_last_error(this->last_error_info,
                               document_errc::source_archive_open_failed,
                               "failed to reopen source archive '" +
-                                  source_archive_path +
+                                  this->document_path.string() +
                                   "' while loading word/settings.xml: " +
                                   zip_error_text(source_zip_error));
     }
