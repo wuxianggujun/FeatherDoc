@@ -329,3 +329,20 @@ release gate 或 PDF visual gate。
 1. 这次复核确认的是最小 smoke 证据质量，不等同于完整 Word release gate 通过。
 2. ``scripts/run_word_visual_release_gate.ps1`` 仍未执行。
 3. ``scripts/run_pdf_visual_release_gate.ps1`` 仍未执行；PDF CJK 分支继续作为参考库存冻结。
+
+
+2026-05-19 Word smoke 复跑与目检
+---------------------------
+
+本轮在 ``dev`` 与 ``origin/dev`` 继续对齐、工作区干净、重型进程空闲后，复跑了一次
+最小 Word 可视化 smoke。输入复用现成的
+``output/word-visual-input/minimal-word-visual-input.docx``，执行时使用本地
+``.venv-word-visual-smoke``，没有触发构建。
+
+已确认：
+
+1. ``summary.json`` 报告 ``page_count = 1``。
+2. ``contact_sheet.png`` 和 ``page-01.png`` 可读，文本与表格都正常显示。
+3. ``review_result.json`` 仍为 ``pending_manual_review``，但肉眼目检未见空白页、乱码或
+   明显布局异常。
+4. 本轮结束后未发现 ``WINWORD`` 或 ``python`` 残留进程。
