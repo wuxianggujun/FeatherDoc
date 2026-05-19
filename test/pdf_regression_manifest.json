@@ -1294,6 +1294,48 @@
       ]
     },
     {
+      "id": "document-cjk-complex-layout-text",
+      "kind": "document_cjk_complex_layout_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-complex-layout-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK complex layout sample",
+        "Complex layout overview:",
+        "\u9875\u7709\u9875\u811a\u5206\u9875\u53d8\u4f53",
+        "\u591a\u951a\u70b9\u56fe\u6587\u6df7\u6392",
+        "FE-CL-901",
+        "Complex first header CL-101 page 1",
+        "Complex footer",
+        "Wrap matrix:",
+        "\u56fe\u6587\u951a\u70b9",
+        "\u88c1\u526a\u73af\u7ed5",
+        "FE-CL-902",
+        "Top-bottom \u6d6e\u52a8\u56fe\u4e4b\u540e\u7684\u6b63\u6587",
+        "\u4e2d\u6587\u68c0\u7d22\u56fe\u5c42",
+        "FE-CL-903",
+        "\u7b2c 1 \u6bb5\u7ee7\u7eed\u9a8c\u8bc1\u590d\u6742\u7248\u5f0f\u7a33\u5b9a\u6027",
+        "FE-CL-921",
+        "\u7b2c 18 \u6bb5\u7ee7\u7eed\u9a8c\u8bc1\u590d\u6742\u7248\u5f0f\u7a33\u5b9a\u6027",
+        "Complex header contract:",
+        "CL-202",
+        "CL-303",
+        "FE-CL-941",
+        "FE-CL-951",
+        "FE-CL-999",
+        "ABC 123",
+        "Complex close:"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-complex-layout-flow",
+        "cjk-complex-header-footer",
+        "cjk-complex-table-keys"
+      ]
+    },
+    {
       "id": "document-cjk-anchor-matrix-lite-text",
       "kind": "document_cjk_anchor_matrix_lite_text",
       "output_file": "featherdoc-pdf-regression-document-cjk-anchor-matrix-lite-text.pdf",

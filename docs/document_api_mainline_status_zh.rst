@@ -708,6 +708,33 @@ copy/search matrix 或 CJK table wrap 的轻量契约，但仍应先做静态小
 真实多页样式叠加、图片环绕、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且
 工作区干净后再通过受控 PDF 可视化验证确认。
 
+2026-05-20 PDF CJK complex layout 正式 ID 契约搬入
+--------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-complex-layout-text`` 3 页样例中提取低风险主题，按当前 ``dev`` 的
+1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的浮动图片、裁剪环绕压力语料，
+也不声明旧分支的 3 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-complex-layout-text``，覆盖 CJK 复杂版式概览、styled run、
+   first/even/default 页眉页脚占位符、重复表头、合并单元格、cant-split 行和稳定
+   检索键 ``CL-101`` / ``CL-202`` / ``CL-303`` / ``FE-CL-901`` /
+   ``FE-CL-902`` / ``FE-CL-903`` / ``FE-CL-921`` / ``FE-CL-941`` /
+   ``FE-CL-951`` / ``FE-CL-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   86；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_complex_layout_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_complex_layout_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake 分类保持一致，并确认该低资源
+   契约本身不调用图片或 floating image。
+
+该补丁只表示 CJK complex layout 的低资源正式 ID 契约入口已进入 ``dev``。真实多页
+复杂版式、浮动图片环绕、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且
+工作区干净后再通过受控 PDF 可视化验证确认。
+
 2026-05-19 PDF CJK font embed 轻量契约搬入
 ------------------------------------------
 

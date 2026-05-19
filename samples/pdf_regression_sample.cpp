@@ -6154,6 +6154,204 @@ build_document_cjk_anchor_font_matrix_boundary_text_sample(
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_cjk_complex_layout_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed Lite") ||
+        !define_document_cjk_font_embed_lite_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK complex layout sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Complex layout overview: ").has_next() ||
+        !add_styled_contract_run(
+            document, intro,
+            utf8_from_u8(u8"\u9875\u7709\u9875\u811a\u5206\u9875\u53d8\u4f53"),
+            "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !intro.add_run(" / FE-CL-901 / ").has_next() ||
+        !add_styled_contract_run(
+            document, intro,
+            utf8_from_u8(u8"\u591a\u951a\u70b9\u56fe\u6587\u6df7\u6392"),
+            "DocumentPdfCjkFontEmbedLiteNote")) {
+        return sample;
+    }
+
+    auto &default_header = document.ensure_section_header_paragraphs(0U);
+    auto &default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto &first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto &first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto &even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto &even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text("Complex header CL-303 page {{page}}") ||
+        !default_footer.has_next() ||
+        !default_footer.set_text(
+            "Complex footer {{page}} / {{total_pages}}") ||
+        !first_header.has_next() ||
+        !first_header.set_text(
+            "Complex first header CL-101 page {{page}}") ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(
+            "Complex first footer {{page}} / {{total_pages}}") ||
+        !even_header.has_next() ||
+        !even_header.set_text("Complex even header CL-202 page {{page}}") ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(
+            "Complex even footer {{page}} / {{total_pages}}")) {
+        return sample;
+    }
+
+    auto style_matrix = append_document_paragraph(document, "");
+    if (!style_matrix.has_next() ||
+        !style_matrix.add_run("Wrap matrix: ").has_next() ||
+        !add_styled_contract_run(document, style_matrix,
+                                 utf8_from_u8(u8"\u56fe\u6587\u951a\u70b9"),
+                                 "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !style_matrix.add_run(" + FE-CL-902 + ").has_next() ||
+        !add_styled_contract_run(document, style_matrix,
+                                 utf8_from_u8(u8"\u88c1\u526a\u73af\u7ed5"),
+                                 "DocumentPdfCjkFontEmbedLiteNote")) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(
+                u8"Top-bottom \u6d6e\u52a8\u56fe\u4e4b\u540e\u7684\u6b63\u6587\u9700\u8981\u6574\u4f53\u56de\u5230\u5168\u5bbd\u5217\uff0c\u4fdd\u7559 FE-CL-903 \u4e0e\u4e2d\u6587\u68c0\u7d22\u56fe\u5c42\u3002")) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(
+                u8"\u7b2c 1 \u6bb5\u7ee7\u7eed\u9a8c\u8bc1\u590d\u6742\u7248\u5f0f\u7a33\u5b9a\u6027\uff0c\u6df7\u6392 English token FE-CL-921 \u548c ABC 123\u3002")) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(
+                u8"\u7b2c 18 \u6bb5\u7ee7\u7eed\u9a8c\u8bc1\u590d\u6742\u7248\u5f0f\u7a33\u5b9a\u6027\uff0c\u9875\u7709\u9875\u811a\u5360\u4f4d\u7b26\u4fdd\u6301\u53ef\u8ffd\u8e2a\u3002"))) {
+        return sample;
+    }
+
+    auto header_contract = append_document_paragraph(document, "");
+    if (!header_contract.has_next() ||
+        !header_contract.add_run("Complex header contract: ").has_next() ||
+        !add_styled_contract_run(document, header_contract, "CL-202",
+                                 "DocumentPdfCjkFontEmbedLiteNote") ||
+        !header_contract.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, header_contract, "CL-303",
+                                 "DocumentPdfCjkFontEmbedLiteAccent")) {
+        return sample;
+    }
+
+    auto table = document.append_table(5U, 3U);
+    if (!table.has_next() || !table.set_width_twips(7200U) ||
+        !table.set_column_width_twips(0U, 1500U) ||
+        !table.set_column_width_twips(1U, 2200U) ||
+        !table.set_column_width_twips(2U, 3500U) ||
+        !table.set_cell_text(0U, 0U, utf8_from_u8(u8"\u533a\u57df")) ||
+        !table.set_cell_text(0U, 1U, utf8_from_u8(u8"\u951a\u70b9")) ||
+        !table.set_cell_text(0U, 2U, utf8_from_u8(u8"\u8bf4\u660e")) ||
+        !table.set_cell_text(1U, 0U, "CL-A-01") ||
+        !table.set_cell_text(1U, 1U,
+                             utf8_from_u8(u8"\u56fe\u6587\u951a\u70b9")) ||
+        !table.set_cell_text(
+            1U, 2U,
+            utf8_from_u8(
+                u8"FE-CL-941 \u8868\u683c\u4e2d\u4fdd\u7559\u590d\u6742\u7248\u5f0f\u68c0\u7d22\u952e")) ||
+        !table.set_cell_text(2U, 0U, "CL-A-02") ||
+        !table.set_cell_text(2U, 1U,
+                             utf8_from_u8(u8"\u88c1\u526a\u73af\u7ed5")) ||
+        !table.set_cell_text(
+            2U, 2U,
+            utf8_from_u8(
+                u8"FE-CL-951 \u7eb5\u5411\u5408\u5e76\u5757\u4fdd\u7559\u6574\u5757\u8bed\u4e49")) ||
+        !table.set_cell_text(3U, 0U, "CL-A-03") ||
+        !table.set_cell_text(
+            3U, 2U,
+            utf8_from_u8(
+                u8"\u5408\u5e76\u5757\u7b2c\u4e8c\u884c\u7ee7\u7eed\u68c0\u67e5\u56de\u6d41\u3002")) ||
+        !table.set_cell_text(4U, 0U, "FE-CL-999") ||
+        !table.set_cell_text(4U, 1U,
+                             utf8_from_u8(u8"\u7ec8\u9875\u6536\u53e3")) ||
+        !table.set_cell_text(
+            4U, 2U,
+            utf8_from_u8(
+                u8"\u590d\u6742\u7248\u5f0f\u6536\u53e3\u884c\u4fdd\u7559 ABC 123 \u5e76\u7981\u6b62\u62c6\u5206\u3002"))) {
+        return sample;
+    }
+
+    auto merged_anchor = table.find_cell(2U, 1U);
+    if (!merged_anchor.has_value() || !merged_anchor->merge_down(1U) ||
+        !merged_anchor->set_fill_color("E8F3E8") ||
+        !merged_anchor->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center)) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < 5U; ++row_index) {
+        if (!row.has_next() ||
+            !row.set_height_twips(row_index == 0U ? 440U : 660U,
+                                  featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        if (row_index == 0U && !row.set_repeats_header()) {
+            return sample;
+        }
+        if (row_index == 4U && !row.set_cant_split()) {
+            return sample;
+        }
+        row.next();
+    }
+
+    auto closing = append_document_paragraph(document, "");
+    if (!closing.has_next() ||
+        !closing.add_run("Complex close: ").has_next() ||
+        !add_styled_contract_run(document, closing,
+                                 utf8_from_u8(u8"FE-CL-999 \u7ec8\u9875\u6536\u53e3"),
+                                 "DocumentPdfCjkFontEmbedLiteLarge")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK complex layout text";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed Lite",
+                                        font_path},
+    };
+    options.cjk_font_file_path = font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 8.0;
+    options.line_height_points = 16.0;
+    options.paragraph_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult
 build_document_cjk_style_overlay_page_flow_text_sample(
     const std::filesystem::path &font_path) {
@@ -8787,6 +8985,20 @@ int run_program(const std::vector<std::string> &args) {
         }
         sample =
             build_document_cjk_repeated_key_boundary_flow_text_sample(cjk_font);
+    } else if (config.scenario == "document_cjk_complex_layout_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing CJK font for scenario "
+                   "document_cjk_complex_layout_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_complex_layout_text_sample(cjk_font);
     } else if (config.scenario == "document_cjk_style_overlay_page_flow_text") {
         if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
             if (require_cjk_font) {
