@@ -1006,3 +1006,27 @@ Word、LibreOffice、浏览器或 PDF 渲染。
 该补丁只表示表格字体矩阵的低资源契约入口已进入 ``dev``。真实表格字体映射、RTL 混排、
 重复表头与页眉页脚视觉质量，仍需等源码提交推送且工作区干净后再通过受控 PDF 可视化验证
 确认。
+
+2026-05-19 PDF table CJK wrap flow 轻量契约搬入
+-------------------------------------------------
+
+本轮继续从旧 PDF 分支的 CJK 表格换行流程样例中提取低风险主题，按当前 ``dev`` 结构重做为
+1 页轻量契约入口。没有整分支合并，也没有搬入旧分支的 2 页 visual baseline 或执行 PDF
+渲染。
+
+已补齐内容：
+
+1. 新增 ``document-table-cjk-wrap-flow-text``，覆盖 Document API 表格单元格里的 CJK
+   长文本换行、页眉页脚占位符、重复表头、cant-split 行和稳定检索键
+   ``CW-101`` / ``CW-201`` / ``CW-202`` / ``CW-303`` / ``FE-CW-303`` /
+   ``CW-999``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并保持
+   ``expected_pages`` 为 1，避免低资源阶段引入旧分支多页视觉假设。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_document_table_cjk_wrap_flow_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_document_table_cjk_wrap_flow_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK 表格换行流程的低资源契约入口已进入 ``dev``。真实 CJK 字体度量、表格
+换行、重复表头与页眉页脚视觉质量，仍需等源码提交推送且工作区干净后再通过受控 PDF
+可视化验证确认。
