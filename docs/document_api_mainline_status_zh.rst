@@ -769,3 +769,25 @@ bullet 切换、styled run、East Asia 字体映射和稳定复制检索键。
 本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 该样例只作为低资源阶段的契约入口；真实多页 numbered list flow、图片环绕、页眉页脚和可视化版式仍需等资源允许后
 通过受控 PDF 可视化验证确认。
+
+2026-05-19 CLI PDF CJK 导出静态契约补齐
+---------------------------------------
+
+本轮继续只读复核 ``origin/codex/pdf-cjk-bullet-fallback`` 中的 CLI PDF export 覆盖。
+当前 ``dev`` 已经包含 ``--cjk-font-file``、``--no-font-subset``、
+``--no-system-font-fallbacks``、CJK 字体发现、PDFium readback 和 PDF 未启用诊断路径。
+因此本轮没有搬入旧分支的大块 C++ 改动，只新增一个低资源静态契约，防止这些入口在后续
+整理中退化。
+
+已补齐内容：
+
+1. 新增 ``test/pdf_cli_cjk_export_static_contract_test.ps1``，用纯文本检查
+   ``test/pdf_cli_export_tests.cpp`` 中的 CJK 字体导出、字体子集开关和显式无系统
+   fallback 覆盖。
+2. 同一脚本检查 ``test/cli_tests.cpp`` 保留 PDF 未启用时的 CLI 诊断。
+3. 同一脚本检查 ``test/CMakeLists.txt`` 保留 ``pdf_cli_export_tests`` 注册、对
+   ``featherdoc_cli`` 的依赖、``cli/smoke/pdf`` 标签和 PDF-enabled CLI 编译覆盖。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+旧分支中剩余的源码差异继续作为 PDF 专项参考；如果要继续搬入，应优先挑选可以用静态契约
+描述的小主题，等资源允许后再做受控 PDF 可视化验证。
