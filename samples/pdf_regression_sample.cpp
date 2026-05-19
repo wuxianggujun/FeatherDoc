@@ -338,6 +338,212 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     };
 }
 
+[[nodiscard]] bool ensure_document_contract_style(
+    featherdoc::Document &document,
+    std::string_view style_id,
+    featherdoc::character_style_definition definition);
+
+[[nodiscard]] ScenarioResult build_document_strikethrough_text_sample() {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica")) {
+        return sample;
+    }
+
+    auto style_definition = featherdoc::character_style_definition{};
+    style_definition.name = "PDF Style Strikethrough";
+    style_definition.run_strikethrough = true;
+    if (!ensure_document_contract_style(document, "PdfStyleStrikethrough",
+                                        std::move(style_definition))) {
+        return sample;
+    }
+
+    auto paragraph = document.paragraphs();
+    if (!paragraph.has_next() ||
+        !paragraph.set_text("Strikethrough sample") ||
+        !paragraph.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() || !paragraph.add_run("Direct ").has_next()) {
+        return sample;
+    }
+    auto direct_strike = paragraph.add_run(
+        "strikethrough", featherdoc::formatting_flag::strikethrough);
+    if (!direct_strike.has_next() ||
+        !paragraph.add_run(" demonstrates run formatting.").has_next()) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() || !paragraph.add_run("Style ").has_next()) {
+        return sample;
+    }
+    auto styled_strike = paragraph.add_run("strikethrough");
+    if (!styled_strike.has_next() ||
+        !document.set_run_style(styled_strike, "PdfStyleStrikethrough") ||
+        !paragraph
+             .add_run(" demonstrates inherited style formatting.")
+             .has_next()) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.metadata.title = "FeatherDoc regression sample: strikethrough";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 40.0;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 10.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_document_superscript_subscript_text_sample() {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica")) {
+        return sample;
+    }
+
+    auto paragraph = document.paragraphs();
+    if (!paragraph.has_next() ||
+        !paragraph.set_text("Superscript and subscript sample") ||
+        !paragraph.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() || !paragraph.add_run("E = mc").has_next()) {
+        return sample;
+    }
+    auto superscript_run =
+        paragraph.add_run("2", featherdoc::formatting_flag::superscript);
+    if (!superscript_run.has_next() ||
+        !paragraph.add_run(" demonstrates superscript support.").has_next()) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() || !paragraph.add_run("H").has_next()) {
+        return sample;
+    }
+    auto subscript_run =
+        paragraph.add_run("2", featherdoc::formatting_flag::subscript);
+    if (!subscript_run.has_next() ||
+        !paragraph.add_run("O demonstrates subscript support.").has_next()) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.metadata.title =
+        "FeatherDoc regression sample: superscript subscript";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 40.0;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 10.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult
+build_document_style_superscript_subscript_text_sample() {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica")) {
+        return sample;
+    }
+
+    auto superscript_style = featherdoc::character_style_definition{};
+    superscript_style.name = "PDF Style Superscript";
+    superscript_style.run_superscript = true;
+    if (!ensure_document_contract_style(document, "PdfStyleSuperscript",
+                                        std::move(superscript_style))) {
+        return sample;
+    }
+
+    auto subscript_style = featherdoc::character_style_definition{};
+    subscript_style.name = "PDF Style Subscript";
+    subscript_style.run_subscript = true;
+    if (!ensure_document_contract_style(document, "PdfStyleSubscript",
+                                        std::move(subscript_style))) {
+        return sample;
+    }
+
+    auto paragraph = document.paragraphs();
+    if (!paragraph.has_next() ||
+        !paragraph.set_text("Style superscript and subscript sample") ||
+        !paragraph.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !paragraph.add_run("Style E = mc").has_next()) {
+        return sample;
+    }
+    auto superscript_run = paragraph.add_run("2");
+    if (!superscript_run.has_next() ||
+        !document.set_run_style(superscript_run, "PdfStyleSuperscript") ||
+        !paragraph.add_run(" inherits superscript style.").has_next()) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() || !paragraph.add_run("Style H").has_next()) {
+        return sample;
+    }
+    auto subscript_run = paragraph.add_run("2");
+    if (!subscript_run.has_next() ||
+        !document.set_run_style(subscript_run, "PdfStyleSubscript") ||
+        !paragraph.add_run("O inherits subscript style.").has_next()) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.metadata.title =
+        "FeatherDoc regression sample: style superscript subscript";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 40.0;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 10.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult build_single_text_sample() {
     ScenarioResult sample;
     sample.layout.metadata.title = "FeatherDoc regression sample: single text";
@@ -4821,6 +5027,12 @@ int run_program(const std::vector<std::string> &args) {
         sample = build_four_page_text_sample();
     } else if (config.scenario == "underline_text") {
         sample = build_underline_text_sample();
+    } else if (config.scenario == "strikethrough_text") {
+        sample = build_document_strikethrough_text_sample();
+    } else if (config.scenario == "superscript_subscript_text") {
+        sample = build_document_superscript_subscript_text_sample();
+    } else if (config.scenario == "style_superscript_subscript_text") {
+        sample = build_document_style_superscript_subscript_text_sample();
     } else if (config.scenario == "punctuation_text") {
         sample = build_punctuation_text_sample();
     } else if (config.scenario == "latin_ligature_text") {

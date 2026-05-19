@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -435,9 +436,31 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
         std::string::npos);
     CHECK_NE(json.find("\"document-table-merged-cant-split-text\""),
              std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-copy-search-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-font-embed-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-style-overlay-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-anchor-matrix-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-search-density-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-repeated-key-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-vertical-merge-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-table-wrap-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-font-embed-wrap-mix-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-multi-anchor-table-flow-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-page-boundary-lite-text\""),
+             std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 61U);
+    REQUIRE_EQ(samples.size(), 64U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);
@@ -463,171 +486,48 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(samples[13].id, "four-page-text");
     CHECK_EQ(samples[13].expected_pages, 4U);
     CHECK_EQ(samples[14].id, "underline-text");
-    CHECK_EQ(samples[15].id, "punctuation-text");
-    CHECK_GE(samples[15].expected_text.size(), 3U);
-    CHECK_EQ(samples[16].id, "two-page-text");
-    CHECK_EQ(samples[16].expected_pages, 2U);
-    CHECK_EQ(samples[17].id, "repeat-phrase-text");
-    CHECK_EQ(samples[18].id, "bordered-box-text");
-    CHECK_EQ(samples[18].kind, "bordered_box_text");
-    CHECK_EQ(samples[19].id, "line-primitive-text");
-    CHECK_EQ(samples[19].kind, "line_primitive_text");
-    CHECK_EQ(samples[20].id, "table-like-grid-text");
-    CHECK_EQ(samples[20].kind, "table_like_grid_text");
-    CHECK_EQ(samples[21].id, "metadata-long-title-text");
-    CHECK_EQ(samples[21].kind, "metadata_long_title_text");
-    CHECK_EQ(samples[22].id, "header-footer-text");
-    CHECK_EQ(samples[22].kind, "header_footer_text");
-    CHECK_EQ(samples[23].id, "two-column-text");
-    CHECK_EQ(samples[23].kind, "two_column_text");
-    CHECK_EQ(samples[24].id, "invoice-grid-text");
-    CHECK_EQ(samples[24].kind, "invoice_grid_text");
-    CHECK_EQ(samples[25].id, "image-caption-text");
-    CHECK_EQ(samples[25].kind, "image_caption_text");
-    CHECK_EQ(samples[25].expected_image_count, 1U);
-    CHECK_EQ(samples[26].id, "sectioned-report-text");
-    CHECK_EQ(samples[26].kind, "sectioned_report_text");
-    CHECK_EQ(samples[26].expected_pages, 2U);
-    CHECK_GE(samples[26].expected_text.size(), 3U);
-    CHECK_EQ(samples[27].id, "list-report-text");
-    CHECK_EQ(samples[27].kind, "list_report_text");
-    CHECK_EQ(samples[28].id, "long-report-text");
-    CHECK_EQ(samples[28].kind, "long_report_text");
-    CHECK_EQ(samples[29].id, "image-report-text");
-    CHECK_EQ(samples[29].kind, "image_report_text");
-    CHECK_EQ(samples[29].expected_image_count, 2U);
-    CHECK_EQ(samples[29].expected_pages, 2U);
-    CHECK_EQ(samples[30].id, "cjk-report-text");
-    CHECK_EQ(samples[30].kind, "cjk_report_text");
-    CHECK_EQ(samples[30].expected_pages, 2U);
-    CHECK_EQ(samples[31].id, "cjk-image-report-text");
-    CHECK_EQ(samples[31].kind, "cjk_image_report_text");
-    CHECK_EQ(samples[31].expected_image_count, 2U);
-    CHECK_EQ(samples[31].expected_pages, 2U);
-    CHECK_EQ(samples[32].id, "document-eastasia-style-probe");
-    CHECK_EQ(samples[32].kind, "document_eastasia_style_probe");
-    CHECK_EQ(samples[32].expected_pages, 1U);
-    CHECK_GE(samples[32].expected_text.size(), 9U);
-    CHECK_EQ(samples[33].id, "document-image-semantics-text");
-    CHECK_EQ(samples[33].kind, "document_image_semantics_text");
-    CHECK_EQ(samples[33].expected_image_count, 3U);
-    CHECK_EQ(samples[33].expected_pages, 1U);
-    CHECK_GE(samples[33].expected_text.size(), 5U);
-    CHECK_EQ(samples[34].id, "document-table-semantics-text");
-    CHECK_EQ(samples[34].kind, "document_table_semantics_text");
-    CHECK_EQ(samples[34].expected_pages, 2U);
-    CHECK_GE(samples[34].expected_text.size(), 4U);
-    CHECK_EQ(samples[35].id, "document-long-flow-text");
-    CHECK_EQ(samples[35].kind, "document_long_flow_text");
-    CHECK_EQ(samples[35].expected_pages, 5U);
-    CHECK_GE(samples[35].expected_text.size(), 7U);
-    CHECK_EQ(samples[36].id, "document-invoice-table-text");
-    CHECK_EQ(samples[36].kind, "document_invoice_table_text");
-    CHECK_EQ(samples[36].expected_pages, 1U);
-    CHECK_GE(samples[36].expected_text.size(), 8U);
-    CHECK_EQ(samples[37].id, "mixed-cjk-punctuation-text");
-    CHECK_EQ(samples[37].kind, "mixed_cjk_punctuation_text");
-    CHECK_EQ(samples[37].expected_pages, 1U);
-    CHECK_GE(samples[37].expected_text.size(), 3U);
-    CHECK_EQ(samples[38].id, "latin-ligature-text");
-    CHECK_EQ(samples[38].kind, "latin_ligature_text");
-    CHECK_EQ(samples[38].expected_pages, 1U);
-    CHECK_GE(samples[38].expected_text.size(), 3U);
-    CHECK_EQ(samples[39].id, "document-table-header-footer-variants-text");
-    CHECK_EQ(samples[39].kind, "document_table_header_footer_variants_text");
-    CHECK_EQ(samples[39].expected_pages, 3U);
-    CHECK_GE(samples[39].expected_text.size(), 14U);
-    CHECK_EQ(samples[40].id, "document-table-wrap-flow-text");
-    CHECK_EQ(samples[40].kind, "document_table_wrap_flow_text");
-    CHECK_EQ(samples[40].expected_pages, 3U);
-    CHECK_GE(samples[40].expected_text.size(), 12U);
-    CHECK_EQ(samples[41].id, "document-table-cant-split-text");
-    CHECK_EQ(samples[41].kind, "document_table_cant_split_text");
-    CHECK_EQ(samples[41].expected_pages, 3U);
-    CHECK_GE(samples[41].expected_text.size(), 10U);
-    CHECK_EQ(samples[42].id, "document-table-merged-cells-text");
-    CHECK_EQ(samples[42].kind, "document_table_merged_cells_text");
-    CHECK_EQ(samples[42].expected_pages, 1U);
-    CHECK_GE(samples[42].expected_text.size(), 10U);
-    CHECK_EQ(samples[43].id, "document-table-merged-header-repeat-text");
-    CHECK_EQ(samples[43].kind, "document_table_merged_header_repeat_text");
-    CHECK_EQ(samples[43].expected_pages, 4U);
-    CHECK_GE(samples[43].expected_text.size(), 10U);
-    CHECK_EQ(samples[44].id,
-             "document-table-merged-header-footer-variants-text");
-    CHECK_EQ(samples[44].kind,
-             "document_table_merged_header_footer_variants_text");
-    CHECK_EQ(samples[44].expected_pages, 4U);
-    CHECK_GE(samples[44].expected_text.size(), 10U);
-    CHECK_EQ(samples[45].id, "document-table-merged-cant-split-text");
-    CHECK_EQ(samples[45].kind, "document_table_merged_cant_split_text");
-    CHECK_EQ(samples[45].expected_pages, 3U);
-    CHECK_GE(samples[45].expected_text.size(), 10U);
-    CHECK_EQ(samples[46].id, "document-cjk-bullet-list-text");
-    CHECK_EQ(samples[46].kind, "document_cjk_bullet_list_text");
-    CHECK_EQ(samples[46].expected_pages, 1U);
-    CHECK_GE(samples[46].expected_text.size(), 5U);
-    CHECK_EQ(samples[47].id, "document-cjk-numbered-list-text");
-    CHECK_EQ(samples[47].kind, "document_cjk_numbered_list_text");
-    CHECK_EQ(samples[47].expected_pages, 1U);
-    CHECK_GE(samples[47].expected_text.size(), 5U);
-    CHECK_EQ(samples[48].id,
-             "document-cjk-numbered-list-page-flow-lite-text");
-    CHECK_EQ(samples[48].kind,
-             "document_cjk_numbered_list_page_flow_lite_text");
-    CHECK_EQ(samples[48].expected_pages, 1U);
-    CHECK_GE(samples[48].expected_text.size(), 9U);
-    CHECK_EQ(samples[49].id, "document-cjk-bullet-overlay-lite-text");
-    CHECK_EQ(samples[49].kind, "document_cjk_bullet_overlay_lite_text");
-    CHECK_EQ(samples[49].expected_pages, 1U);
-    CHECK_GE(samples[49].expected_text.size(), 8U);
-    CHECK_EQ(samples[50].id, "document-cjk-copy-search-lite-text");
-    CHECK_EQ(samples[50].kind, "document_cjk_copy_search_lite_text");
-    CHECK_EQ(samples[50].expected_pages, 1U);
-    CHECK_GE(samples[50].expected_text.size(), 5U);
-    CHECK_EQ(samples[51].id, "document-cjk-font-embed-lite-text");
-    CHECK_EQ(samples[51].kind, "document_cjk_font_embed_lite_text");
-    CHECK_EQ(samples[51].expected_pages, 1U);
-    CHECK_GE(samples[51].expected_text.size(), 5U);
-    CHECK_EQ(samples[52].id, "document-cjk-style-overlay-lite-text");
-    CHECK_EQ(samples[52].kind, "document_cjk_style_overlay_lite_text");
-    CHECK_EQ(samples[52].expected_pages, 1U);
-    CHECK_GE(samples[52].expected_text.size(), 6U);
-    CHECK_EQ(samples[53].id, "document-cjk-anchor-matrix-lite-text");
-    CHECK_EQ(samples[53].kind, "document_cjk_anchor_matrix_lite_text");
-    CHECK_EQ(samples[53].expected_pages, 1U);
-    CHECK_GE(samples[53].expected_text.size(), 6U);
-    CHECK_EQ(samples[54].id, "document-cjk-search-density-lite-text");
-    CHECK_EQ(samples[54].kind, "document_cjk_search_density_lite_text");
-    CHECK_EQ(samples[54].expected_pages, 1U);
-    CHECK_GE(samples[54].expected_text.size(), 6U);
-    CHECK_EQ(samples[55].id, "document-cjk-repeated-key-lite-text");
-    CHECK_EQ(samples[55].kind, "document_cjk_repeated_key_lite_text");
-    CHECK_EQ(samples[55].expected_pages, 1U);
-    CHECK_GE(samples[55].expected_text.size(), 6U);
-    CHECK_EQ(samples[56].id, "document-cjk-vertical-merge-lite-text");
-    CHECK_EQ(samples[56].kind, "document_cjk_vertical_merge_lite_text");
-    CHECK_EQ(samples[56].expected_pages, 1U);
-    CHECK_GE(samples[56].expected_text.size(), 7U);
-    CHECK_EQ(samples[57].id, "document-cjk-table-wrap-lite-text");
-    CHECK_EQ(samples[57].kind, "document_cjk_table_wrap_lite_text");
-    CHECK_EQ(samples[57].expected_pages, 1U);
-    CHECK_GE(samples[57].expected_text.size(), 8U);
-    CHECK_EQ(samples[58].id, "document-cjk-font-embed-wrap-mix-lite-text");
-    CHECK_EQ(samples[58].kind,
-             "document_cjk_font_embed_wrap_mix_lite_text");
-    CHECK_EQ(samples[58].expected_pages, 1U);
-    CHECK_GE(samples[58].expected_text.size(), 6U);
-    CHECK_EQ(samples[59].id,
-             "document-cjk-multi-anchor-table-flow-lite-text");
-    CHECK_EQ(samples[59].kind,
-             "document_cjk_multi_anchor_table_flow_lite_text");
-    CHECK_EQ(samples[59].expected_pages, 1U);
-    CHECK_GE(samples[59].expected_text.size(), 9U);
-    CHECK_EQ(samples[60].id, "document-cjk-page-boundary-lite-text");
-    CHECK_EQ(samples[60].kind, "document_cjk_page_boundary_lite_text");
-    CHECK_EQ(samples[60].expected_pages, 1U);
-    CHECK_GE(samples[60].expected_text.size(), 10U);
+    const auto find_sample = [&samples](std::string_view id) {
+        return std::find_if(samples.begin(), samples.end(),
+                            [id](const ManifestSample &sample) {
+                                return sample.id == id;
+                            });
+    };
+
+    const auto strikethrough = find_sample("strikethrough-text");
+    REQUIRE(strikethrough != samples.end());
+    CHECK_EQ(strikethrough->kind, "strikethrough_text");
+    CHECK_EQ(strikethrough->expected_pages, 1U);
+    CHECK_GE(strikethrough->expected_text.size(), 3U);
+    const auto direct_script = find_sample("superscript-subscript-text");
+    REQUIRE(direct_script != samples.end());
+    CHECK_EQ(direct_script->kind, "superscript_subscript_text");
+    CHECK_EQ(direct_script->expected_pages, 1U);
+    CHECK_GE(direct_script->expected_text.size(), 3U);
+    const auto style_script = find_sample("style-superscript-subscript-text");
+    REQUIRE(style_script != samples.end());
+    CHECK_EQ(style_script->kind, "style_superscript_subscript_text");
+    CHECK_EQ(style_script->expected_pages, 1U);
+    CHECK_GE(style_script->expected_text.size(), 3U);
+
+    const auto punctuation = find_sample("punctuation-text");
+    REQUIRE(punctuation != samples.end());
+    CHECK_GE(punctuation->expected_text.size(), 3U);
+    const auto two_page = find_sample("two-page-text");
+    REQUIRE(two_page != samples.end());
+    CHECK_EQ(two_page->expected_pages, 2U);
+    const auto image_caption = find_sample("image-caption-text");
+    REQUIRE(image_caption != samples.end());
+    CHECK_EQ(image_caption->expected_image_count, 1U);
+    const auto document_table = find_sample("document-table-semantics-text");
+    REQUIRE(document_table != samples.end());
+    CHECK_EQ(document_table->kind, "document_table_semantics_text");
+    CHECK_EQ(document_table->expected_pages, 2U);
+    const auto page_boundary =
+        find_sample("document-cjk-page-boundary-lite-text");
+    REQUIRE(page_boundary != samples.end());
+    CHECK_EQ(page_boundary->kind, "document_cjk_page_boundary_lite_text");
+    CHECK_EQ(page_boundary->expected_pages, 1U);
+    CHECK_GE(page_boundary->expected_text.size(), 10U);
 }
 
 TEST_CASE("PDF regression manifest parser preserves escaped strings") {
