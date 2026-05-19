@@ -958,3 +958,28 @@ Word、LibreOffice、浏览器或 PDF 渲染。
 
 该补丁只补轻量入口，不代表旧分支的 full extreme page-break visual 样例已经完整合入。
 真实分页边界、图片环绕和页眉页脚视觉质量仍需等资源允许后通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK list page flow 正式 ID 轻量契约搬入
+--------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-bullet-fallback`` 的 CJK list page-flow
+样例中提取低风险主题，按当前 ``dev`` 结构重做为 1 页轻量契约入口。没有整分支合并，
+没有搬入旧分支的 5 页 visual baseline，也没有运行 CMake、CTest、Ninja、MSBuild、
+Word、LibreOffice、浏览器或 PDF 渲染。
+
+已补齐内容：
+
+1. 新增 ``document-cjk-numbered-list-page-flow-text``、
+   ``document-cjk-bullet-page-flow-text`` 和
+   ``document-cjk-bullet-overlay-page-flow-text``，覆盖 CJK decimal/bullet list、
+   list level、编号重启、页眉页脚、表格插入和 overlay 样式回读。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，样例总数更新为 72；
+   ``test/pdf_regression_manifest_test.cpp`` 同步断言新样例和既有 lite 样例入口。
+3. ``test/CMakeLists.txt`` 将三个正式 ID 纳入 CJK PDF regression 分类，并注册
+   ``pdf_cjk_list_page_flow_contract``，保持 ``TIMEOUT 60`` 和 ``pdf;layout;smoke``。
+4. 新增 ``test/pdf_cjk_list_page_flow_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+该补丁只补低资源契约入口，不表示旧分支中完整多页列表分页视觉样例已经全部合入。
+真实列表分页、页眉页脚、表格断页和 overlay 视觉质量仍需等资源允许后通过受控 PDF
+可视化验证确认。

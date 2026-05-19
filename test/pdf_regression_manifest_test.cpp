@@ -458,6 +458,16 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              std::string::npos);
     CHECK_NE(json.find("\"document-cjk-page-boundary-lite-text\""),
              std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-numbered-list-page-flow-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-bullet-overlay-lite-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-numbered-list-page-flow-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-bullet-page-flow-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-bullet-overlay-page-flow-text\""),
+             std::string::npos);
     CHECK_NE(json.find("\"document-rtl-bidi-text\""), std::string::npos);
     CHECK_NE(json.find("\"header-footer-rtl-text\""), std::string::npos);
     CHECK_NE(json.find("\"header-footer-rtl-variants-text\""),
@@ -466,7 +476,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_NE(json.find("\"document-font-matrix-text\""), std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 69U);
+    REQUIRE_EQ(samples.size(), 72U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);
@@ -561,6 +571,40 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(page_boundary->kind, "document_cjk_page_boundary_lite_text");
     CHECK_EQ(page_boundary->expected_pages, 1U);
     CHECK_GE(page_boundary->expected_text.size(), 10U);
+    const auto numbered_list_page_flow_lite =
+        find_sample("document-cjk-numbered-list-page-flow-lite-text");
+    REQUIRE(numbered_list_page_flow_lite != samples.end());
+    CHECK_EQ(numbered_list_page_flow_lite->kind,
+             "document_cjk_numbered_list_page_flow_lite_text");
+    CHECK_EQ(numbered_list_page_flow_lite->expected_pages, 1U);
+    CHECK_GE(numbered_list_page_flow_lite->expected_text.size(), 9U);
+    const auto bullet_overlay_lite =
+        find_sample("document-cjk-bullet-overlay-lite-text");
+    REQUIRE(bullet_overlay_lite != samples.end());
+    CHECK_EQ(bullet_overlay_lite->kind,
+             "document_cjk_bullet_overlay_lite_text");
+    CHECK_EQ(bullet_overlay_lite->expected_pages, 1U);
+    CHECK_GE(bullet_overlay_lite->expected_text.size(), 8U);
+    const auto numbered_list_page_flow =
+        find_sample("document-cjk-numbered-list-page-flow-text");
+    REQUIRE(numbered_list_page_flow != samples.end());
+    CHECK_EQ(numbered_list_page_flow->kind,
+             "document_cjk_numbered_list_page_flow_text");
+    CHECK_EQ(numbered_list_page_flow->expected_pages, 1U);
+    CHECK_GE(numbered_list_page_flow->expected_text.size(), 10U);
+    const auto bullet_page_flow =
+        find_sample("document-cjk-bullet-page-flow-text");
+    REQUIRE(bullet_page_flow != samples.end());
+    CHECK_EQ(bullet_page_flow->kind, "document_cjk_bullet_page_flow_text");
+    CHECK_EQ(bullet_page_flow->expected_pages, 1U);
+    CHECK_GE(bullet_page_flow->expected_text.size(), 10U);
+    const auto bullet_overlay_page_flow =
+        find_sample("document-cjk-bullet-overlay-page-flow-text");
+    REQUIRE(bullet_overlay_page_flow != samples.end());
+    CHECK_EQ(bullet_overlay_page_flow->kind,
+             "document_cjk_bullet_overlay_page_flow_text");
+    CHECK_EQ(bullet_overlay_page_flow->expected_pages, 1U);
+    CHECK_GE(bullet_overlay_page_flow->expected_text.size(), 10U);
 }
 
 TEST_CASE("PDF regression manifest parser preserves escaped strings") {

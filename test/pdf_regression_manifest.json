@@ -1176,6 +1176,69 @@
       "expect_cjk": true,
       "expect_unicode": true,
       "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-numbered-list-page-flow-text",
+      "kind": "document_cjk_numbered_list_page_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-numbered-list-page-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK numbered list page flow sample",
+        "Numbered list flow:",
+        "NL-101 \u7f16\u53f7\u91cd\u542f",
+        "FE-NL-202 \u5d4c\u5957\u5217\u8868",
+        "List header NL-303",
+        "List footer NL-888",
+        "NL-888 \u7f16\u53f7\u68c0\u7d22\u952e",
+        "FE-NL-921 \u7b2c 1 \u9879 CJK \u7f16\u53f7\u6d41",
+        "NL-A-03",
+        "FE-NL-999 \u7ec8\u9875\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-bullet-page-flow-text",
+      "kind": "document_cjk_bullet_page_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-bullet-page-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK bullet page flow sample",
+        "Bullet flow:",
+        "BL-101 \u9879\u76ee\u7b26\u53f7\u68c0\u7d22\u952e",
+        "FE-BL-202",
+        "Bullet header BL-303",
+        "Bullet footer BL-777",
+        "BL-777 \u9879\u76ee\u7b26\u53f7\u68c0\u7d22\u952e",
+        "FE-BL-921 \u7b2c 1 \u7ec4 CJK \u9879\u76ee\u7b26\u53f7\u6d41",
+        "BL-A-03",
+        "FE-BL-999 \u9879\u76ee\u7b26\u53f7\u6536\u53e3"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-bullet-overlay-page-flow-text",
+      "kind": "document_cjk_bullet_overlay_page_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-bullet-overlay-page-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK bullet overlay page flow sample",
+        "Bullet overlay flow:",
+        "BO-101 \u9879\u76ee\u7b26\u53f7\u4e0a\u6807",
+        "BO-202 \u9879\u76ee\u7b26\u53f7\u4e0b\u6807",
+        "Bullet overlay header BO-303",
+        "Bullet overlay footer BO-777",
+        "BO-777 \u53e0\u52a0\u9879\u76ee\u7b26\u53f7\u68c0\u7d22\u952e",
+        "FE-BO-921 \u7b2c 1 \u7ec4 CJK \u9879\u76ee\u7b26\u53f7\u6d41",
+        "BO-A-03",
+        "FE-BO-999 \u8986\u76d6\u6536\u53e3"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }
