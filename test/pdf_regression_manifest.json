@@ -1336,6 +1336,47 @@
       ]
     },
     {
+      "id": "document-cjk-image-wrap-stress-text",
+      "kind": "document_cjk_image_wrap_stress_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-image-wrap-stress-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK image wrap stress sample",
+        "Image wrap stress:",
+        "\u591a\u951a\u70b9\u56fe\u50cf\u6d41",
+        "\u88c1\u526a\u73af\u7ed5\u77e9\u9635",
+        "FE-IW-901",
+        "Image first header IW-101 page 1",
+        "Image even header IW-202 page 2",
+        "Image header IW-303 page 3",
+        "Image first footer 1 / 4",
+        "Image even footer 2 / 4",
+        "Image footer 4 / 4",
+        "Search stripe:",
+        "\u56de\u8bfb\u70ed\u533a",
+        "\u7ec8\u9875\u951a\u70b9",
+        "\u7b2c 1 \u7ec4\u56fe\u50cf\u73af\u7ed5\u9a8c\u8bc1",
+        "FE-IW-921",
+        "\u7b2c 18 \u7ec4\u56fe\u50cf\u73af\u7ed5\u9a8c\u8bc1",
+        "FE-IW-938",
+        "\u7b2c 36 \u7ec4\u56fe\u50cf\u73af\u7ed5\u9a8c\u8bc1",
+        "FE-IW-956",
+        "Closing matrix:",
+        "FE-IW-999",
+        "\u88c1\u526a\u56de\u6d41",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-image-wrap-stress-flow",
+        "cjk-image-wrap-header-footer",
+        "cjk-image-wrap-table-keys"
+      ]
+    },
+    {
       "id": "document-cjk-anchor-matrix-lite-text",
       "kind": "document_cjk_anchor_matrix_lite_text",
       "output_file": "featherdoc-pdf-regression-document-cjk-anchor-matrix-lite-text.pdf",
