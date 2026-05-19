@@ -916,6 +916,26 @@
       "expect_cjk": true,
       "expect_unicode": true,
       "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-multi-anchor-table-flow-lite-text",
+      "kind": "document_cjk_multi_anchor_table_flow_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-multi-anchor-table-flow-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK multi anchor table flow lite sample",
+        "Multi anchor flow lite:",
+        "MA-101 \u8fde\u7eed\u6587\u6863\u6d41",
+        "FE-MA-202 \u951a\u70b9\u5207\u6362\u77e9\u9635",
+        "MA-303 \u6837\u5f0f\u53e0\u52a0\u56de\u8bfb",
+        "MA-A-04",
+        "FE-MA-404",
+        "MA-B-04",
+        "FE-MA-999 \u56de\u8bfb\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }
