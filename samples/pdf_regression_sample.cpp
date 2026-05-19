@@ -229,6 +229,37 @@ candidate_cjk_fonts() {
     return candidates;
 }
 
+[[nodiscard]] std::vector<std::filesystem::path> candidate_arabic_fonts() {
+    std::vector<std::filesystem::path> candidates;
+
+    if (const auto configured = environment_value("FEATHERDOC_TEST_ARABIC_FONT");
+        !configured.empty()) {
+        candidates.emplace_back(configured);
+    }
+
+#if defined(_WIN32)
+    candidates.emplace_back("C:/Windows/Fonts/NotoSansArabic-Regular.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/NotoNaskhArabic-Regular.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/NotoKufiArabic-Regular.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/Candarab.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/GARABD.TTF");
+#elif defined(__APPLE__)
+    candidates.emplace_back(
+        "/System/Library/Fonts/Supplemental/Geeza Pro.ttc");
+    candidates.emplace_back("/System/Library/Fonts/Geeza Pro.ttc");
+    candidates.emplace_back(
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf");
+#else
+    candidates.emplace_back(
+        "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf");
+    candidates.emplace_back(
+        "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf");
+    candidates.emplace_back("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
+#endif
+
+    return candidates;
+}
+
 [[nodiscard]] std::filesystem::path
 first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     for (const auto &candidate : candidates) {
@@ -241,6 +272,10 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
 
 [[nodiscard]] std::filesystem::path resolve_cjk_font() {
     return first_existing_path(candidate_cjk_fonts());
+}
+
+[[nodiscard]] std::filesystem::path resolve_arabic_font() {
+    return first_existing_path(candidate_arabic_fonts());
 }
 
 [[nodiscard]] std::filesystem::path write_tiny_rgb_png(
@@ -1033,6 +1068,38 @@ build_document_style_superscript_subscript_text_sample() {
                                           std::move(east_asia_note));
 }
 
+[[nodiscard]] bool define_document_rtl_bidi_styles(
+    featherdoc::Document &document) {
+    auto paragraph_style = featherdoc::paragraph_style_definition{};
+    paragraph_style.name = "Document PDF RTL Bidi Paragraph";
+    paragraph_style.paragraph_bidi = true;
+    if (!document.ensure_paragraph_style("DocumentPdfRtlParagraph",
+                                         paragraph_style)) {
+        return false;
+    }
+
+    auto arabic = featherdoc::character_style_definition{};
+    arabic.name = "Document PDF RTL Arabic";
+    arabic.run_font_family = std::string{"Document RTL Arabic"};
+    arabic.run_bidi_language = std::string{"ar-SA"};
+    arabic.run_rtl = true;
+    arabic.run_font_size_points = 15.0;
+    arabic.run_text_color = std::string{"1F3A5F"};
+    if (!ensure_document_contract_style(document, "DocumentPdfRtlArabic",
+                                        std::move(arabic))) {
+        return false;
+    }
+
+    auto emphasis = featherdoc::character_style_definition{};
+    emphasis.name = "Document PDF RTL Arabic Emphasis";
+    emphasis.based_on = std::string{"DocumentPdfRtlArabic"};
+    emphasis.run_underline = true;
+    emphasis.run_text_color = std::string{"8A2D3B"};
+    return ensure_document_contract_style(document,
+                                          "DocumentPdfRtlArabicEmphasis",
+                                          std::move(emphasis));
+}
+
 [[nodiscard]] bool define_document_cjk_copy_search_lite_styles(
     featherdoc::Document &document) {
     auto accent = featherdoc::character_style_definition{};
@@ -1231,6 +1298,79 @@ build_document_style_superscript_subscript_text_sample() {
     options.use_system_font_fallbacks = false;
     options.line_height_points = 24.0;
     options.paragraph_spacing_after_points = 6.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_document_rtl_bidi_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !define_document_rtl_bidi_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document RTL bidi sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto paragraph = title.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !document.set_paragraph_style(paragraph, "DocumentPdfRtlParagraph") ||
+        !paragraph.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !paragraph.add_run("Arabic paragraph: ").has_next()) {
+        return sample;
+    }
+    auto arabic_run = paragraph.add_run(
+        utf8_from_u8(u8"\u0645\u0631\u062d\u0628\u0627 \u0628\u0643\u0645 \u0641\u064a FeatherDoc 2026"));
+    if (!arabic_run.has_next() ||
+        !document.set_run_style(arabic_run, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !document.set_paragraph_style(paragraph, "DocumentPdfRtlParagraph") ||
+        !paragraph.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !paragraph.add_run("Mixed order: ").has_next()) {
+        return sample;
+    }
+    auto mixed_prefix =
+        paragraph.add_run(utf8_from_u8(u8"\u0627\u0644\u0646\u0633\u062e\u0629"));
+    if (!mixed_prefix.has_next() ||
+        !document.set_run_style(mixed_prefix,
+                                "DocumentPdfRtlArabicEmphasis") ||
+        !paragraph.add_run(" FE-2048 ").has_next()) {
+        return sample;
+    }
+    auto mixed_suffix = paragraph.add_run(
+        utf8_from_u8(u8"\u062c\u0627\u0647\u0632\u0629 \u0644\u0644\u0645\u0631\u0627\u062c\u0639\u0629"));
+    if (!mixed_suffix.has_next() ||
+        !document.set_run_style(mixed_suffix, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{520.0, 680.0};
+    options.metadata.title = "FeatherDoc regression sample: document RTL bidi";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document RTL Arabic", font_path},
+    };
+    options.use_system_font_fallbacks = false;
+    options.line_height_points = 22.0;
+    options.paragraph_spacing_after_points = 8.0;
 
     sample.layout =
         featherdoc::pdf::layout_document_paragraphs(document, options);
@@ -1739,6 +1879,96 @@ build_document_style_superscript_subscript_text_sample() {
         false));
 
     sample.layout.pages.push_back(std::move(page));
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_header_footer_rtl_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !define_document_rtl_bidi_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Header footer RTL bidi sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto body = title.insert_paragraph_after("");
+    if (!body.has_next() ||
+        !body.set_text(
+            "Body anchor paragraph keeps header and footer rendering active.")) {
+        return sample;
+    }
+
+    auto header = document.ensure_section_header_paragraphs(0U);
+    if (!header.has_next() ||
+        !document.set_paragraph_style(header, "DocumentPdfRtlParagraph") ||
+        !header.set_bidi(true) ||
+        !header.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !header.add_run("Header mixed: ").has_next()) {
+        return sample;
+    }
+    auto header_prefix =
+        header.add_run(utf8_from_u8(u8"\u0627\u0644\u0646\u0633\u062e\u0629"));
+    if (!header_prefix.has_next() ||
+        !document.set_run_style(header_prefix,
+                                "DocumentPdfRtlArabicEmphasis") ||
+        !header.add_run(" HF-2048 ").has_next()) {
+        return sample;
+    }
+    auto header_suffix = header.add_run(
+        utf8_from_u8(u8"\u062c\u0627\u0647\u0632\u0629 \u0644\u0644\u0645\u0631\u0627\u062c\u0639\u0629"));
+    if (!header_suffix.has_next() ||
+        !document.set_run_style(header_suffix, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    auto footer = document.ensure_section_footer_paragraphs(0U);
+    if (!footer.has_next() ||
+        !document.set_paragraph_style(footer, "DocumentPdfRtlParagraph") ||
+        !footer.set_bidi(true) ||
+        !footer.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !footer.add_run("Footer page ").has_next() ||
+        !footer.add_run("{{page}}").has_next() ||
+        !footer.add_run(" / ").has_next() ||
+        !footer.add_run("{{total_pages}}").has_next() ||
+        !footer.add_run(" ").has_next()) {
+        return sample;
+    }
+    auto footer_suffix = footer.add_run(
+        utf8_from_u8(u8"\u0645\u0631\u0627\u062c\u0639\u0629 \u0646\u0647\u0627\u0626\u064a\u0629"));
+    if (!footer_suffix.has_next() ||
+        !document.set_run_style(footer_suffix, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{520.0, 360.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: header footer RTL bidi";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document RTL Arabic", font_path},
+    };
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 9.0;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 6.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
     return sample;
 }
 
@@ -3195,6 +3425,150 @@ build_document_table_merged_header_footer_variants_text_sample() {
         return document.restart_paragraph_list(paragraph, kind);
     }
     return document.set_paragraph_list(paragraph, kind);
+}
+
+[[nodiscard]] ScenarioResult build_header_footer_rtl_variants_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !define_document_rtl_bidi_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Header footer RTL variants sample")) {
+        return sample;
+    }
+
+    for (std::size_t index = 1U; index <= 17U; ++index) {
+        const auto paragraph_text =
+            "Variant body line " + std::to_string(index);
+        if (!append_document_text_paragraph(document, paragraph_text)) {
+            return sample;
+        }
+    }
+
+    auto configure_variant_header =
+        [&](auto &paragraph, std::string_view label, std::string_view code,
+            std::u8string_view suffix) {
+            if (!paragraph.has_next() ||
+                !document.set_paragraph_style(paragraph,
+                                              "DocumentPdfRtlParagraph") ||
+                !paragraph.set_bidi(true) ||
+                !paragraph.set_alignment(
+                    featherdoc::paragraph_alignment::right) ||
+                !paragraph.add_run(std::string{label}).has_next()) {
+                return false;
+            }
+
+            auto prefix = paragraph.add_run(
+                utf8_from_u8(u8"\u0627\u0644\u0646\u0633\u062e\u0629"));
+            if (!prefix.has_next() ||
+                !document.set_run_style(prefix,
+                                        "DocumentPdfRtlArabicEmphasis") ||
+                !paragraph.add_run(std::string{code}).has_next()) {
+                return false;
+            }
+
+            auto suffix_run = paragraph.add_run(utf8_from_u8(suffix));
+            return suffix_run.has_next() &&
+                   document.set_run_style(suffix_run, "DocumentPdfRtlArabic");
+        };
+
+    auto configure_variant_footer =
+        [&](auto &paragraph, std::string_view label,
+            std::u8string_view suffix) {
+            if (!paragraph.has_next() ||
+                !document.set_paragraph_style(paragraph,
+                                              "DocumentPdfRtlParagraph") ||
+                !paragraph.set_bidi(true) ||
+                !paragraph.set_alignment(
+                    featherdoc::paragraph_alignment::right) ||
+                !paragraph.add_run(std::string{label}).has_next() ||
+                !paragraph.add_run("{{page}}").has_next() ||
+                !paragraph.add_run(" / ").has_next() ||
+                !paragraph.add_run("{{total_pages}}").has_next() ||
+                !paragraph.add_run(" | section ").has_next() ||
+                !paragraph.add_run("{{section_page}}").has_next() ||
+                !paragraph.add_run(" / ").has_next() ||
+                !paragraph.add_run("{{section_total_pages}}").has_next() ||
+                !paragraph.add_run(" - ").has_next()) {
+                return false;
+            }
+
+            auto suffix_run = paragraph.add_run(utf8_from_u8(suffix));
+            return suffix_run.has_next() &&
+                   document.set_run_style(suffix_run, "DocumentPdfRtlArabic");
+        };
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!configure_variant_header(
+            default_header, "Default header ", " HF-303 ",
+            u8"\u062c\u0627\u0647\u0632\u0629") ||
+        !configure_variant_footer(
+            default_footer, "Default footer page ",
+            u8"\u0646\u0647\u0627\u0626\u064a\u0629") ||
+        !configure_variant_header(
+            first_header, "First header ", " HF-101 ",
+            u8"\u0627\u0644\u0627\u0641\u062a\u062a\u0627\u062d\u064a\u0629") ||
+        !configure_variant_footer(
+            first_footer, "First footer page ",
+            u8"\u0627\u0644\u0623\u0648\u0644\u0649") ||
+        !configure_variant_header(
+            even_header, "Even header ", " HF-202 ",
+            u8"\u0627\u0644\u0632\u0648\u062c\u064a\u0629") ||
+        !configure_variant_footer(
+            even_footer, "Even footer page ",
+            u8"\u0627\u0644\u0645\u0632\u062f\u0648\u062c\u0629")) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.width_twips = 12240U;
+    setup.height_twips = 4320U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 720U;
+    setup.margins.left_twips = 1440U;
+    setup.margins.right_twips = 1440U;
+    setup.margins.header_twips = 240U;
+    setup.margins.footer_twips = 240U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.metadata.title =
+        "FeatherDoc regression sample: header footer RTL variants";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document RTL Arabic", font_path},
+    };
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.font_size_points = 12.0;
+    options.line_height_points = 16.0;
+    options.header_footer_font_size_points = 8.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
 }
 
 [[nodiscard]] ScenarioResult build_sectioned_report_text_sample() {
@@ -4939,6 +5313,7 @@ int run_program(const std::vector<std::string> &args) {
     }
 
     const auto cjk_font = resolve_cjk_font();
+    const auto arabic_font = resolve_arabic_font();
     ScenarioResult sample;
     if (config.scenario == "single_text") {
         sample = build_single_text_sample();
@@ -5015,6 +5390,19 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_eastasia_style_probe_sample(cjk_font);
+    } else if (config.scenario == "document_rtl_bidi_text") {
+        if (arabic_font.empty() || !std::filesystem::exists(arabic_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping RTL regression sample: no usable Arabic "
+                             "font found; set FEATHERDOC_TEST_ARABIC_FONT or "
+                             "install a common Arabic font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing Arabic font for scenario document_rtl_bidi_text\n";
+            return 1;
+        }
+        sample = build_document_rtl_bidi_text_sample(arabic_font);
     } else if (config.scenario == "three_page_text") {
         sample = build_three_page_text_sample();
     } else if (config.scenario == "landscape_text") {
@@ -5051,6 +5439,32 @@ int run_program(const std::vector<std::string> &args) {
         sample = build_metadata_long_title_text_sample();
     } else if (config.scenario == "header_footer_text") {
         sample = build_header_footer_text_sample();
+    } else if (config.scenario == "header_footer_rtl_text") {
+        if (arabic_font.empty() || !std::filesystem::exists(arabic_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping RTL regression sample: no usable Arabic "
+                             "font found; set FEATHERDOC_TEST_ARABIC_FONT or "
+                             "install a common Arabic font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing Arabic font for scenario header_footer_rtl_text\n";
+            return 1;
+        }
+        sample = build_header_footer_rtl_text_sample(arabic_font);
+    } else if (config.scenario == "header_footer_rtl_variants_text") {
+        if (arabic_font.empty() || !std::filesystem::exists(arabic_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping RTL regression sample: no usable Arabic "
+                             "font found; set FEATHERDOC_TEST_ARABIC_FONT or "
+                             "install a common Arabic font\n";
+                return 77;
+            }
+            std::cerr << "missing Arabic font for scenario "
+                         "header_footer_rtl_variants_text\n";
+            return 1;
+        }
+        sample = build_header_footer_rtl_variants_text_sample(arabic_font);
     } else if (config.scenario == "two_column_text") {
         sample = build_two_column_text_sample();
     } else if (config.scenario == "invoice_grid_text") {

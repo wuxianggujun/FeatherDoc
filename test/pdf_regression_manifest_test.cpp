@@ -458,9 +458,13 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              std::string::npos);
     CHECK_NE(json.find("\"document-cjk-page-boundary-lite-text\""),
              std::string::npos);
+    CHECK_NE(json.find("\"document-rtl-bidi-text\""), std::string::npos);
+    CHECK_NE(json.find("\"header-footer-rtl-text\""), std::string::npos);
+    CHECK_NE(json.find("\"header-footer-rtl-variants-text\""),
+             std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 64U);
+    REQUIRE_EQ(samples.size(), 67U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);
@@ -508,6 +512,11 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(style_script->kind, "style_superscript_subscript_text");
     CHECK_EQ(style_script->expected_pages, 1U);
     CHECK_GE(style_script->expected_text.size(), 3U);
+    const auto document_rtl = find_sample("document-rtl-bidi-text");
+    REQUIRE(document_rtl != samples.end());
+    CHECK_EQ(document_rtl->kind, "document_rtl_bidi_text");
+    CHECK_EQ(document_rtl->expected_pages, 1U);
+    CHECK_GE(document_rtl->expected_text.size(), 7U);
 
     const auto punctuation = find_sample("punctuation-text");
     REQUIRE(punctuation != samples.end());
@@ -518,6 +527,18 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     const auto image_caption = find_sample("image-caption-text");
     REQUIRE(image_caption != samples.end());
     CHECK_EQ(image_caption->expected_image_count, 1U);
+    const auto header_footer_rtl = find_sample("header-footer-rtl-text");
+    REQUIRE(header_footer_rtl != samples.end());
+    CHECK_EQ(header_footer_rtl->kind, "header_footer_rtl_text");
+    CHECK_EQ(header_footer_rtl->expected_pages, 1U);
+    CHECK_GE(header_footer_rtl->expected_text.size(), 8U);
+    const auto header_footer_rtl_variants =
+        find_sample("header-footer-rtl-variants-text");
+    REQUIRE(header_footer_rtl_variants != samples.end());
+    CHECK_EQ(header_footer_rtl_variants->kind,
+             "header_footer_rtl_variants_text");
+    CHECK_EQ(header_footer_rtl_variants->expected_pages, 3U);
+    CHECK_GE(header_footer_rtl_variants->expected_text.size(), 13U);
     const auto document_table = find_sample("document-table-semantics-text");
     REQUIRE(document_table != samples.end());
     CHECK_EQ(document_table->kind, "document_table_semantics_text");
