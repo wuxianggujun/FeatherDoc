@@ -855,6 +855,49 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
         document, "DocumentPdfCjkCopySearchLiteNote", std::move(note));
 }
 
+[[nodiscard]] bool define_document_cjk_font_embed_lite_styles(
+    featherdoc::Document &document) {
+    auto accent = featherdoc::character_style_definition{};
+    accent.name = "Document PDF CJK Font Embed Lite Accent";
+    accent.run_font_family = std::string{"Helvetica"};
+    accent.run_east_asia_font_family =
+        std::string{"Document CJK Font Embed Lite"};
+    accent.run_text_color = std::string{"1F4E79"};
+    accent.run_bold = true;
+    accent.run_underline = true;
+    accent.run_font_size_points = 14.0;
+    if (!ensure_document_contract_style(
+            document, "DocumentPdfCjkFontEmbedLiteAccent",
+            std::move(accent))) {
+        return false;
+    }
+
+    auto large = featherdoc::character_style_definition{};
+    large.name = "Document PDF CJK Font Embed Lite Large";
+    large.run_font_family = std::string{"Helvetica"};
+    large.run_east_asia_font_family =
+        std::string{"Document CJK Font Embed Lite"};
+    large.run_text_color = std::string{"7A1414"};
+    large.run_bold = true;
+    large.run_font_size_points = 18.0;
+    if (!ensure_document_contract_style(
+            document, "DocumentPdfCjkFontEmbedLiteLarge",
+            std::move(large))) {
+        return false;
+    }
+
+    auto note = featherdoc::character_style_definition{};
+    note.name = "Document PDF CJK Font Embed Lite Note";
+    note.run_font_family = std::string{"Helvetica"};
+    note.run_east_asia_font_family =
+        std::string{"Document CJK Font Embed Lite"};
+    note.run_text_color = std::string{"19572E"};
+    note.run_italic = true;
+    note.run_font_size_points = 10.5;
+    return ensure_document_contract_style(
+        document, "DocumentPdfCjkFontEmbedLiteNote", std::move(note));
+}
+
 [[nodiscard]] ScenarioResult build_document_eastasia_style_probe_sample(
     const std::filesystem::path &font_path) {
     ScenarioResult sample;
@@ -3297,6 +3340,78 @@ build_document_table_merged_header_footer_variants_text_sample() {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_cjk_font_embed_lite_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed Lite") ||
+        !define_document_cjk_font_embed_lite_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK font embed lite sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Font embed lite: ").has_next() ||
+        !add_styled_contract_run(
+            document, intro,
+            utf8_from_u8(u8"FE-101 \u5d4c\u5b57\u77e9\u9635\u7532"),
+            "DocumentPdfCjkFontEmbedLiteAccent")) {
+        return sample;
+    }
+
+    auto metrics = intro.insert_paragraph_after("");
+    if (!metrics.has_next() ||
+        !metrics.add_run("Metrics marker: ").has_next() ||
+        !add_styled_contract_run(
+            document, metrics,
+            utf8_from_u8(u8"FE-202 \u5b57\u5bbd\u6821\u9a8c copy search"),
+            "DocumentPdfCjkFontEmbedLiteNote")) {
+        return sample;
+    }
+
+    auto scale = metrics.insert_paragraph_after("");
+    if (!scale.has_next() ||
+        !scale.add_run("Run scale: ").has_next() ||
+        !add_styled_contract_run(
+            document, scale,
+            utf8_from_u8(u8"FE-999 \u7ec8\u9875\u5d4c\u5b57"),
+            "DocumentPdfCjkFontEmbedLiteLarge")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK font embed lite text";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed Lite",
+                                        font_path},
+    };
+    options.cjk_font_file_path = font_path;
+    options.use_system_font_fallbacks = false;
+    options.line_height_points = 22.0;
+    options.paragraph_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult build_long_report_text_sample() {
     ScenarioResult sample;
 
@@ -3674,6 +3789,20 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_cjk_copy_search_lite_text_sample(cjk_font);
+    } else if (config.scenario == "document_cjk_font_embed_lite_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing CJK font for scenario "
+                   "document_cjk_font_embed_lite_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_font_embed_lite_text_sample(cjk_font);
     } else if (config.scenario == "long_report_text") {
         sample = build_long_report_text_sample();
     } else if (config.scenario == "document_long_flow_text") {

@@ -523,3 +523,25 @@ copy/search matrix 或 CJK table wrap 的轻量契约，但仍应先做静态小
 本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 该样例只作为低资源阶段的契约入口；真实 copy/search 可视化验证仍需等资源允许后通过
 ``scripts/run_pdf_visual_release_gate.ps1`` 受控执行。
+
+2026-05-19 PDF CJK font embed 轻量契约搬入
+------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK font embed matrix
+方向提取低风险主题，但没有搬入旧分支的 3 页 matrix、visual baseline 或重型 gate。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK 字体嵌入、字号切换、
+styled run 和文本层检索锚点。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-font-embed-lite-text``，覆盖 Document API 到 PDF adapter 的
+   East Asia font family 映射、CJK 字体文件绑定和稳定检索键 ``FE-101``、
+   ``FE-202``、``FE-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_font_embed_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实字体嵌入和复制搜索效果仍需等资源允许后通过
+受控 PDF 可视化验证确认。

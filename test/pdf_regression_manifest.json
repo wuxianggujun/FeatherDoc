@@ -778,6 +778,22 @@
       "expect_cjk": true,
       "expect_unicode": true,
       "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-font-embed-lite-text",
+      "kind": "document_cjk_font_embed_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-font-embed-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK font embed lite sample",
+        "Font embed lite:",
+        "FE-101 \u5d4c\u5b57\u77e9\u9635\u7532",
+        "FE-202 \u5b57\u5bbd\u6821\u9a8c copy search",
+        "FE-999 \u7ec8\u9875\u5d4c\u5b57"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }
