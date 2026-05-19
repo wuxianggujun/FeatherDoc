@@ -762,6 +762,22 @@
       ],
       "expect_cjk": true,
       "expect_unicode": true
+    },
+    {
+      "id": "document-cjk-copy-search-lite-text",
+      "kind": "document_cjk_copy_search_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-copy-search-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK copy search lite sample",
+        "Copy search lite:",
+        "CS-101 \u590d\u5236\u68c0\u7d22\u952e",
+        "CS-202 \u4e2d\u82f1\u6df7\u6392 copy search ABC 123",
+        "CS-999 \u6587\u672c\u5c42\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }

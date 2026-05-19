@@ -502,3 +502,24 @@ CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 本轮仍未执行 PDF 渲染或可视化验证。下一步最小风险动作是继续从旧 PDF 分支中筛选
 copy/search matrix 或 CJK table wrap 的轻量契约，但仍应先做静态小样例，再等待资源
 允许后统一进入受控可视化验证。
+
+2026-05-19 PDF CJK copy/search 轻量契约搬入
+------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的重型 matrix 样例中提取低风险
+主题，但没有搬入旧分支的 3 页 visual baseline、图片资产或大矩阵。当前 ``dev`` 只新增
+一个 1 页轻量样例，用来锁住 CJK 文本层 copy/search 锚点和 East Asia 字体映射。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-copy-search-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK styled run、East Asia font family 映射和稳定检索键 ``CS-101``、``CS-202``、
+   ``CS-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_copy_search_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实 copy/search 可视化验证仍需等资源允许后通过
+``scripts/run_pdf_visual_release_gate.ps1`` 受控执行。

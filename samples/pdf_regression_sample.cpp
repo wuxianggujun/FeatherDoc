@@ -827,6 +827,34 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
                                           std::move(east_asia_note));
 }
 
+[[nodiscard]] bool define_document_cjk_copy_search_lite_styles(
+    featherdoc::Document &document) {
+    auto accent = featherdoc::character_style_definition{};
+    accent.name = "Document PDF CJK Copy Search Lite Accent";
+    accent.run_font_family = std::string{"Helvetica"};
+    accent.run_east_asia_font_family =
+        std::string{"Document CJK Copy Search Lite"};
+    accent.run_text_color = std::string{"1F4E79"};
+    accent.run_bold = true;
+    accent.run_font_size_points = 14.0;
+    if (!ensure_document_contract_style(
+            document, "DocumentPdfCjkCopySearchLiteAccent",
+            std::move(accent))) {
+        return false;
+    }
+
+    auto note = featherdoc::character_style_definition{};
+    note.name = "Document PDF CJK Copy Search Lite Note";
+    note.run_font_family = std::string{"Helvetica"};
+    note.run_east_asia_font_family =
+        std::string{"Document CJK Copy Search Lite"};
+    note.run_text_color = std::string{"19572E"};
+    note.run_italic = true;
+    note.run_font_size_points = 12.0;
+    return ensure_document_contract_style(
+        document, "DocumentPdfCjkCopySearchLiteNote", std::move(note));
+}
+
 [[nodiscard]] ScenarioResult build_document_eastasia_style_probe_sample(
     const std::filesystem::path &font_path) {
     ScenarioResult sample;
@@ -3196,6 +3224,79 @@ build_document_table_merged_header_footer_variants_text_sample() {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_cjk_copy_search_lite_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Copy Search Lite") ||
+        !define_document_cjk_copy_search_lite_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK copy search lite sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Copy search lite: ").has_next() ||
+        !add_styled_contract_run(
+            document, intro,
+            utf8_from_u8(u8"CS-101 \u590d\u5236\u68c0\u7d22\u952e"),
+            "DocumentPdfCjkCopySearchLiteAccent") ||
+        !intro.add_run(" / FE-CS-LITE-101").has_next()) {
+        return sample;
+    }
+
+    auto body = intro.insert_paragraph_after("");
+    if (!body.has_next() ||
+        !body.add_run("Search anchor: ").has_next() ||
+        !add_styled_contract_run(
+            document, body,
+            utf8_from_u8(u8"CS-202 \u4e2d\u82f1\u6df7\u6392 copy search ABC 123"),
+            "DocumentPdfCjkCopySearchLiteNote")) {
+        return sample;
+    }
+
+    auto closing = body.insert_paragraph_after("");
+    if (!closing.has_next() ||
+        !closing.add_run("Copy search close: ").has_next() ||
+        !add_styled_contract_run(
+            document, closing,
+            utf8_from_u8(u8"CS-999 \u6587\u672c\u5c42\u7ed3\u675f"),
+            "DocumentPdfCjkCopySearchLiteAccent")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK copy search lite text";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Copy Search Lite",
+                                        font_path},
+    };
+    options.cjk_font_file_path = font_path;
+    options.use_system_font_fallbacks = false;
+    options.line_height_points = 22.0;
+    options.paragraph_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult build_long_report_text_sample() {
     ScenarioResult sample;
 
@@ -3559,6 +3660,20 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_cjk_numbered_list_text_sample(cjk_font);
+    } else if (config.scenario == "document_cjk_copy_search_lite_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing CJK font for scenario "
+                   "document_cjk_copy_search_lite_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_copy_search_lite_text_sample(cjk_font);
     } else if (config.scenario == "long_report_text") {
         sample = build_long_report_text_sample();
     } else if (config.scenario == "document_long_flow_text") {
