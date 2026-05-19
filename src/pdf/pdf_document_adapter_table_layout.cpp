@@ -72,11 +72,13 @@ wrap_table_cell_runs(featherdoc::Table *table_handle,
     std::vector<TextToken> tokens;
     auto paragraph = cell_handle->paragraphs();
     auto saw_paragraph = false;
+    auto cell_bidi = false;
     for (; paragraph.has_next(); paragraph.next()) {
         if (saw_paragraph) {
             append_hard_break_token(tokens);
         }
         saw_paragraph = true;
+        cell_bidi = cell_bidi || paragraph.bidi().value_or(false);
 
         auto run = paragraph.runs();
         for (std::size_t run_index = 0U; run.has_next();
@@ -98,7 +100,11 @@ wrap_table_cell_runs(featherdoc::Table *table_handle,
         return std::vector<LineState>{LineState{}};
     }
 
-    return wrap_run_tokens(tokens, max_width_points);
+    auto lines = wrap_run_tokens(tokens, max_width_points);
+    for (auto &line : lines) {
+        line.bidi = cell_bidi || line.bidi || line_contains_rtl_fragments(line);
+    }
+    return lines;
 }
 
 [[nodiscard]] std::size_t table_row_count(

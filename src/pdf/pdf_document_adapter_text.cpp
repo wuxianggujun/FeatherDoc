@@ -44,6 +44,7 @@ namespace {
                               const PdfRgbColor &fill_color, bool bold,
                               bool italic, bool strikethrough,
                               bool underline, double vertical_shift_points,
+                              bool rtl,
                               PdfGlyphDirection shaping_direction,
                               std::string_view shaping_script_tag,
                               std::string_view shaping_language_tag) {
@@ -56,6 +57,7 @@ namespace {
            fragment.strikethrough == strikethrough &&
            fragment.underline == underline &&
            fragment.vertical_shift_points == vertical_shift_points &&
+           fragment.rtl == rtl &&
            fragment.shaping_direction == shaping_direction &&
            fragment.shaping_script_tag == shaping_script_tag &&
            fragment.shaping_language_tag == shaping_language_tag;
@@ -66,6 +68,7 @@ void append_fragment(LineState &line, std::string_view text,
                      const PdfRgbColor &fill_color, bool bold, bool italic,
                      bool strikethrough, bool underline,
                      double vertical_shift_points,
+                     bool rtl,
                      PdfGlyphDirection shaping_direction,
                      std::string_view shaping_script_tag,
                      std::string_view shaping_language_tag) {
@@ -76,7 +79,7 @@ void append_fragment(LineState &line, std::string_view text,
     if (!line.fragments.empty() &&
         same_style(line.fragments.back(), font, font_size_points, fill_color,
                    bold, italic, strikethrough, underline,
-                   vertical_shift_points, shaping_direction,
+                   vertical_shift_points, rtl, shaping_direction,
                    shaping_script_tag, shaping_language_tag)) {
         line.fragments.back().text.append(text);
     } else {
@@ -90,11 +93,13 @@ void append_fragment(LineState &line, std::string_view text,
             strikethrough,
             underline,
             vertical_shift_points,
+            rtl,
             shaping_direction,
             std::string{shaping_script_tag},
             std::string{shaping_language_tag},
         });
     }
+    line.bidi = line.bidi || rtl;
     line.width_points += measure_text(text, font_size_points, font,
                                       shaping_direction, shaping_script_tag,
                                       shaping_language_tag);
@@ -118,7 +123,7 @@ void append_broken_word(
     const std::function<double(std::size_t)> &max_width_for_line,
     double font_size_points, const PdfRgbColor &fill_color, bool bold,
     bool italic, bool strikethrough, bool underline,
-    double vertical_shift_points,
+    double vertical_shift_points, bool rtl,
     PdfGlyphDirection shaping_direction,
     std::string_view shaping_script_tag,
     std::string_view shaping_language_tag) {
@@ -140,7 +145,7 @@ void append_broken_word(
         }
         append_fragment(current, codepoint, font, font_size_points, fill_color,
                         bold, italic, strikethrough, underline,
-                        vertical_shift_points, shaping_direction,
+                        vertical_shift_points, rtl, shaping_direction,
                         shaping_script_tag, shaping_language_tag);
         index += codepoint_size;
     }
@@ -212,6 +217,15 @@ double content_height_points_for(const std::vector<LineState> &lines,
     return height;
 }
 
+bool line_contains_rtl_fragments(const LineState &line) noexcept {
+    return std::any_of(line.fragments.begin(), line.fragments.end(),
+                       [](const TextFragment &fragment) {
+                           return fragment.rtl ||
+                                  fragment.shaping_direction ==
+                                      PdfGlyphDirection::right_to_left;
+                       });
+}
+
 std::vector<TextToken> tokenize_run_text(std::string_view text,
                                          const ResolvedRunStyle &style) {
     std::vector<TextToken> tokens;
@@ -230,6 +244,7 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
                 style.strikethrough,
                 style.underline,
                 style.vertical_shift_points,
+                style.rtl,
                 style.shaping_direction,
                 style.shaping_script_tag,
                 style.shaping_language_tag,
@@ -263,6 +278,7 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
                 style.strikethrough,
                 style.underline,
                 style.vertical_shift_points,
+                style.rtl,
                 style.shaping_direction,
                 style.shaping_script_tag,
                 style.shaping_language_tag,
@@ -290,6 +306,7 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
             style.strikethrough,
             style.underline,
             style.vertical_shift_points,
+            style.rtl,
             style.shaping_direction,
             style.shaping_script_tag,
             style.shaping_language_tag,
@@ -359,6 +376,7 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
                                token.fill_color, token.bold, token.italic,
                                token.strikethrough,
                                token.underline, token.vertical_shift_points,
+                               token.rtl,
                                token.shaping_direction,
                                token.shaping_script_tag,
                                token.shaping_language_tag);
@@ -373,6 +391,7 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
                                 space.bold, space.italic,
                                 space.strikethrough, space.underline,
                                 space.vertical_shift_points,
+                                space.rtl,
                                 space.shaping_direction,
                                 space.shaping_script_tag,
                                 space.shaping_language_tag);
@@ -383,6 +402,7 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
                         token.fill_color, token.bold, token.italic,
                         token.strikethrough,
                         token.underline, token.vertical_shift_points,
+                        token.rtl,
                         token.shaping_direction,
                         token.shaping_script_tag,
                         token.shaping_language_tag);

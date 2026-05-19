@@ -24,6 +24,10 @@ resolve_run_style(featherdoc::Document &document,
                   const PdfDocumentAdapterOptions &options,
                   const PdfFontResolver &resolver);
 
+[[nodiscard]] bool
+resolve_paragraph_bidi(featherdoc::Document &document,
+                       const featherdoc::paragraph_inspection_summary &paragraph);
+
 [[nodiscard]] bool lines_contain_text(const std::vector<LineState> &lines);
 
 [[nodiscard]] std::vector<LineState>

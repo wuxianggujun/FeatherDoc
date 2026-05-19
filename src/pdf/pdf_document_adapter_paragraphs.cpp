@@ -36,6 +36,16 @@ resolve_run_style_properties(featherdoc::Document &document,
     return document.resolve_style_properties(*run.style_id);
 }
 
+[[nodiscard]] std::optional<featherdoc::resolved_style_properties_summary>
+resolve_paragraph_style_properties(
+    featherdoc::Document &document,
+    const featherdoc::paragraph_inspection_summary &paragraph) {
+    if (!paragraph.style_id || paragraph.style_id->empty()) {
+        return std::nullopt;
+    }
+    return document.resolve_style_properties(*paragraph.style_id);
+}
+
 [[nodiscard]] PdfGlyphDirection
 shaping_direction_from_rtl(bool rtl) noexcept {
     return rtl ? PdfGlyphDirection::right_to_left
@@ -79,6 +89,7 @@ resolve_plain_text_style(featherdoc::Document &document, std::string_view text,
         false,
         false,
         0.0,
+        rtl,
         shaping_direction_from_rtl(rtl),
         {},
         shaping_language_tag,
@@ -305,10 +316,23 @@ resolve_run_style(featherdoc::Document &document,
         strikethrough,
         underline,
         vertical_shift_points,
+        rtl,
         shaping_direction_from_rtl(rtl),
         {},
         shaping_language_tag,
     };
+}
+
+[[nodiscard]] bool
+resolve_paragraph_bidi(featherdoc::Document &document,
+                       const featherdoc::paragraph_inspection_summary &paragraph) {
+    const auto style_properties =
+        resolve_paragraph_style_properties(document, paragraph);
+    return paragraph.bidi.value_or(style_properties &&
+                                           style_properties->paragraph_bidi.value
+                                       ? *style_properties->paragraph_bidi.value
+                                       : document.default_paragraph_bidi()
+                                             .value_or(false));
 }
 
 [[nodiscard]] bool lines_contain_text(const std::vector<LineState> &lines) {
@@ -364,7 +388,14 @@ wrap_cursor_paragraph_runs(featherdoc::Document &document,
     if (tokens.empty()) {
         return {LineState{}};
     }
-    return wrap_run_tokens(tokens, max_width_points);
+    auto lines = wrap_run_tokens(tokens, max_width_points);
+    const auto paragraph_bidi = paragraph.bidi().value_or(
+        document.default_paragraph_bidi().value_or(false));
+    for (auto &line : lines) {
+        line.bidi = paragraph_bidi || line.bidi ||
+                    line_contains_rtl_fragments(line);
+    }
+    return lines;
 }
 
 [[nodiscard]] std::vector<TextToken>
@@ -418,7 +449,13 @@ wrap_paragraph_runs(featherdoc::Document &document,
         return {LineState{}};
     }
 
-    return wrap_run_tokens(tokens, max_width_points);
+    auto lines = wrap_run_tokens(tokens, max_width_points);
+    const auto paragraph_bidi = resolve_paragraph_bidi(document, paragraph);
+    for (auto &line : lines) {
+        line.bidi = paragraph_bidi || line.bidi ||
+                    line_contains_rtl_fragments(line);
+    }
+    return lines;
 }
 
 } // namespace featherdoc::pdf::detail
