@@ -1194,6 +1194,45 @@
       ]
     },
     {
+      "id": "document-cjk-anchor-font-matrix-boundary-text",
+      "kind": "document_cjk_anchor_font_matrix_boundary_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-anchor-font-matrix-boundary-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK anchor font matrix boundary sample",
+        "Anchor font matrix:",
+        "AM-101 \u8de8\u754c\u951a\u70b9",
+        "FE-AM-901",
+        "AM-202 \u5b57\u4f53\u5bc6\u5ea6\u77e9\u9635",
+        "Anchor matrix first header AM-101 page 1",
+        "Anchor matrix stripe:",
+        "AM-303 \u5b57\u53f7\u8054\u6d4b",
+        "FE-AM-921 \u68c0\u7d22\u5bc6\u6392 ABC 123",
+        "Run ladder:",
+        "\u6ce8\u8bb0\u56de\u8bfb",
+        "\u5408\u540c\u77e9\u9635",
+        "\u5927\u5b57\u5d4c\u5b57",
+        "\u951a\u70b9\u77e9\u9635\u8868",
+        "AM-A-04",
+        "Boundary checkpoint A:",
+        "\u8de8\u8868\u5207\u6362",
+        "AM-B-04",
+        "Boundary checkpoint B:",
+        "\u53f3\u4fa7\u6536\u53e3",
+        "Boundary close:",
+        "FE-AM-999 \u6062\u590d\u6574\u680f \u56fe\u7247\u4e0b\u65b9\u5168\u5bbd"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-anchor-font-matrix-boundary",
+        "cjk-header-footer-anchor",
+        "cjk-boundary-table-keys"
+      ]
+    },
+    {
       "id": "document-cjk-style-overlay-lite-text",
       "kind": "document_cjk_style_overlay_lite_text",
       "output_file": "featherdoc-pdf-regression-document-cjk-style-overlay-lite-text.pdf",
