@@ -975,6 +975,28 @@
       "expect_cjk": true,
       "expect_unicode": true,
       "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-page-boundary-lite-text",
+      "kind": "document_cjk_page_boundary_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-page-boundary-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK page boundary lite sample",
+        "Page boundary lite:",
+        "PB-101 \u4e34\u754c\u5206\u9875\u8fb9\u754c",
+        "FE-PB-202 \u9875\u7709\u9875\u811a\u56de\u6d41",
+        "PB-404 \u5185\u8054\u56fe\u7247\u524d\u7684 CJK \u6b63\u6587\u4fdd\u7559 copy search",
+        "FE-PB-505 \u5185\u8054\u56fe\u7247\u540e\u6bb5\u843d\u7acb\u5373\u6062\u590d\u6574\u680f\u5bbd\u5ea6",
+        "PB-601 \u56fe\u50cf\u73af\u7ed5\u5206\u9875 lite \u6bb5\u843d ABC 123 \u4fdd\u7559\u68c0\u7d22\u952e",
+        "PB-604 \u56fe\u50cf\u73af\u7ed5\u5206\u9875 lite \u6bb5\u843d ABC 123 \u4fdd\u7559\u68c0\u7d22\u952e",
+        "Boundary close lite:",
+        "FE-PB-999 \u672b\u9875\u6536\u53e3"
+      ],
+      "expected_image_count": 2,
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }

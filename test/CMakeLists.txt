@@ -488,6 +488,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_cjk_multi_anchor_table_flow_lite_text" OR
            sample_kind STREQUAL "document_cjk_numbered_list_text" OR
            sample_kind STREQUAL "document_cjk_numbered_list_page_flow_lite_text" OR
+           sample_kind STREQUAL "document_cjk_page_boundary_lite_text" OR
            sample_kind STREQUAL "document_cjk_repeated_key_lite_text" OR
            sample_kind STREQUAL "document_cjk_search_density_lite_text" OR
            sample_kind STREQUAL "document_cjk_style_overlay_lite_text" OR
@@ -524,6 +525,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_cjk_multi_anchor_table_flow_lite_text" OR
            sample_kind STREQUAL "document_cjk_numbered_list_text" OR
            sample_kind STREQUAL "document_cjk_numbered_list_page_flow_lite_text" OR
+           sample_kind STREQUAL "document_cjk_page_boundary_lite_text" OR
            sample_kind STREQUAL "document_cjk_repeated_key_lite_text" OR
            sample_kind STREQUAL "document_cjk_search_density_lite_text" OR
            sample_kind STREQUAL "document_cjk_style_overlay_lite_text" OR
