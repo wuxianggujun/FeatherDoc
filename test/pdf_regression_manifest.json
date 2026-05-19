@@ -845,6 +845,23 @@
       "expect_cjk": true,
       "expect_unicode": true,
       "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-repeated-key-lite-text",
+      "kind": "document_cjk_repeated_key_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-repeated-key-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK repeated key lite sample",
+        "Repeated key lite:",
+        "RK-101 \u8de8\u533a\u68c0\u7d22\u952e",
+        "RK-777 \u5171\u7528\u68c0\u7d22\u952e",
+        "RK-777 \u5171\u7528\u68c0\u7d22\u952e ABC 123",
+        "RK-999 \u91cd\u590d\u952e\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }
