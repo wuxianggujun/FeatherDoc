@@ -500,6 +500,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_eastasia_style_probe" OR
            sample_kind STREQUAL "document_font_matrix_text" OR
            sample_kind STREQUAL "document_rtl_bidi_text" OR
+           sample_kind STREQUAL "document_table_cjk_merged_repeat_text" OR
            sample_kind STREQUAL "document_table_cjk_wrap_flow_text" OR
            sample_kind STREQUAL "document_table_cjk_vertical_merged_cant_split_text" OR
            sample_kind STREQUAL "document_table_font_matrix_text" OR
@@ -546,6 +547,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_cjk_vertical_merge_lite_text" OR
            sample_kind STREQUAL "document_eastasia_style_probe" OR
            sample_kind STREQUAL "document_font_matrix_text" OR
+           sample_kind STREQUAL "document_table_cjk_merged_repeat_text" OR
            sample_kind STREQUAL "document_table_cjk_wrap_flow_text" OR
            sample_kind STREQUAL "document_table_cjk_vertical_merged_cant_split_text" OR
            sample_kind STREQUAL "document_table_font_matrix_text")
@@ -933,6 +935,23 @@ if(WIN32)
         )
         set_tests_properties(
             pdf_document_table_cjk_vertical_merged_cant_split_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_document_table_cjk_merged_repeat_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_document_table_cjk_merged_repeat_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_document_table_cjk_merged_repeat_contract
             PROPERTIES
                 TIMEOUT 60
                 LABELS "pdf;layout;smoke")

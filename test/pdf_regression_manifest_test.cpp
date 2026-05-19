@@ -480,7 +480,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 75U);
+    REQUIRE_EQ(samples.size(), 76U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);
@@ -588,6 +588,13 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              "document_table_cjk_vertical_merged_cant_split_text");
     CHECK_EQ(cjk_vertical_merged_cant_split->expected_pages, 1U);
     CHECK_GE(cjk_vertical_merged_cant_split->expected_text.size(), 9U);
+    const auto cjk_merged_repeat =
+        find_sample("document-table-cjk-merged-repeat-text");
+    REQUIRE(cjk_merged_repeat != samples.end());
+    CHECK_EQ(cjk_merged_repeat->kind,
+             "document_table_cjk_merged_repeat_text");
+    CHECK_EQ(cjk_merged_repeat->expected_pages, 1U);
+    CHECK_GE(cjk_merged_repeat->expected_text.size(), 9U);
     const auto page_boundary =
         find_sample("document-cjk-page-boundary-lite-text");
     REQUIRE(page_boundary != samples.end());

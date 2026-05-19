@@ -854,6 +854,33 @@
       ]
     },
     {
+      "id": "document-table-cjk-merged-repeat-text",
+      "kind": "document_table_cjk_merged_repeat_text",
+      "output_file": "featherdoc-pdf-regression-document-table-cjk-merged-repeat-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document table CJK merged repeat sample",
+        "MR-CJK-101",
+        "CJK merged repeat first MR-CJK-101 page 1",
+        "CJK merged repeat footer 1 / 1",
+        "MR-CJK-201",
+        "MR-CJK-303",
+        "FE-MR-CJK-303",
+        "MR-CJK-999",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "table-cjk-merged-header",
+        "table-cjk-vertical-merge",
+        "table-cjk-repeat-header",
+        "table-cjk-cant-split"
+      ]
+    },
+    {
       "id": "document-table-cant-split-text",
       "kind": "document_table_cant_split_text",
       "output_file": "featherdoc-pdf-regression-document-table-cant-split-text.pdf",
