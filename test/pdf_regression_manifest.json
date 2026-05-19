@@ -811,6 +811,23 @@
       "expect_cjk": true,
       "expect_unicode": true,
       "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-anchor-matrix-lite-text",
+      "kind": "document_cjk_anchor_matrix_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-anchor-matrix-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK anchor matrix lite sample",
+        "Anchor matrix lite:",
+        "AM-101 \u8de8\u754c\u951a\u70b9",
+        "AM-202 \u5b57\u4f53\u5bc6\u5ea6\u77e9\u9635",
+        "AM-303 \u68c0\u7d22\u5bc6\u6392 ABC 123",
+        "AM-999 \u951a\u70b9\u77e9\u9635\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }
