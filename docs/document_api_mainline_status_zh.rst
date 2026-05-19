@@ -791,3 +791,27 @@ bullet 切换、styled run、East Asia 字体映射和稳定复制检索键。
 本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 旧分支中剩余的源码差异继续作为 PDF 专项参考；如果要继续搬入，应优先挑选可以用静态契约
 描述的小主题，等资源允许后再做受控 PDF 可视化验证。
+
+2026-05-19 PDF CJK fallback 与表格 fitting 静态契约补齐
+-------------------------------------------------------
+
+本轮继续只读复核 ``origin/codex/pdf-cjk-bullet-fallback`` 中的 East Asia 字体 fallback
+和 CJK 表格 header fitting 补丁。当前 ``dev`` 已包含对应源码与 C++ 测试入口，因此没有
+整分支合并，也没有改动 PDF 核心实现，只新增一个低资源静态契约来防止后续整理时退化。
+
+已补齐内容：
+
+1. 新增 ``test/pdf_cjk_fallback_table_static_contract_test.ps1``，检查
+   ``src/pdf/pdf_font_resolver.cpp`` 保留 Unicode fallback helper、字形支持检查、
+   East Asia resolved family 切换和默认 CJK 字体 fallback 链路。
+2. 同一脚本检查 ``test/pdf_font_resolver_tests.cpp`` 保留 Latin 字体缺字时切到
+   East Asia 映射、Unicode prefix 切到 East Asia / 默认 CJK 字体的测试入口。
+3. 同一脚本检查 ``test/pdf_document_adapter_font_tests.cpp`` 保留 bullet prefix
+   East Asia fallback 和 exact-height repeated table header 可见性测试。
+4. 同一脚本检查 ``src/pdf/pdf_document_adapter_table_layout.*`` 与
+   ``src/pdf/pdf_document_adapter_tables.cpp`` 保留 ``spanned_row_bottom``、
+   ``row_emission_height`` 和 ``repeated_headers_fit_with_row`` 的表格 fitting 链路。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该契约只确认当前 ``dev`` 已有实现入口仍存在；真实 PDF 表格分页、重复表头可见性和字体回退
+版式仍需等资源允许后通过受控 PDF 可视化验证确认。
