@@ -352,6 +352,37 @@
       ]
     },
     {
+      "id": "document-table-font-matrix-text",
+      "kind": "document_table_font_matrix_text",
+      "output_file": "featherdoc-pdf-regression-document-table-font-matrix-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document table font matrix sample",
+        "Table matrix:",
+        "涓枃琛ㄦ牸",
+        "FE-420",
+        "Table matrix header",
+        "Table matrix footer",
+        "FE-421",
+        "FE-422",
+        "FE-423",
+        "Body cell",
+        "Bidi cell",
+        "Search cell",
+        "鍗曞厓"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "table-font-mapping-cjk",
+        "table-font-mapping-rtl",
+        "table-header-footer-font-map",
+        "table-bidi-cell-font-map"
+      ]
+    },
+    {
       "id": "punctuation-text",
       "kind": "punctuation_text",
       "output_file": "featherdoc-pdf-regression-punctuation-text.pdf",

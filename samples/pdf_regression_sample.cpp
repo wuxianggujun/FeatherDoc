@@ -1675,6 +1675,188 @@ build_document_style_superscript_subscript_text_sample() {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_table_font_matrix_text_sample(
+    const std::filesystem::path &cjk_font_path,
+    const std::filesystem::path &arabic_font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document Font Matrix CJK") ||
+        !define_document_rtl_bidi_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document table font matrix sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Table matrix: ").has_next() ||
+        !intro
+             .add_run(utf8_from_u8(u8"\u4e2d\u6587\u8868\u683c"))
+             .has_next() ||
+        !intro.add_run(" / FE-420 / ").has_next()) {
+        return sample;
+    }
+    auto intro_arabic =
+        intro.add_run(utf8_from_u8(u8"\u0645\u0631\u0627\u062c\u0639\u0629"));
+    if (!intro_arabic.has_next() ||
+        !document.set_run_style(intro_arabic, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    auto header = document.ensure_section_header_paragraphs(0U);
+    if (!header.has_next() ||
+        !document.set_paragraph_style(header, "DocumentPdfRtlParagraph") ||
+        !header.set_bidi(true) ||
+        !header.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !header.add_run("Table matrix header ").has_next() ||
+        !header.add_run("{{page}}").has_next() ||
+        !header.add_run(" ").has_next() ||
+        !header
+             .add_run(utf8_from_u8(u8"\u9875\u7709"))
+             .has_next() ||
+        !header.add_run(" ").has_next()) {
+        return sample;
+    }
+    auto header_arabic =
+        header.add_run(utf8_from_u8(u8"\u0627\u0644\u062c\u062f\u0648\u0644"));
+    if (!header_arabic.has_next() ||
+        !document.set_run_style(header_arabic, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    auto footer = document.ensure_section_footer_paragraphs(0U);
+    if (!footer.has_next() ||
+        !document.set_paragraph_style(footer, "DocumentPdfRtlParagraph") ||
+        !footer.set_bidi(true) ||
+        !footer.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !footer.add_run("Table matrix footer ").has_next() ||
+        !footer.add_run("{{page}}").has_next() ||
+        !footer.add_run(" / ").has_next() ||
+        !footer.add_run("{{total_pages}}").has_next() ||
+        !footer.add_run(" ").has_next() ||
+        !footer
+             .add_run(utf8_from_u8(u8"\u9875\u811a"))
+             .has_next() ||
+        !footer.add_run(" ").has_next()) {
+        return sample;
+    }
+    auto footer_arabic =
+        footer.add_run(utf8_from_u8(u8"\u062a\u062f\u0642\u064a\u0642"));
+    if (!footer_arabic.has_next() ||
+        !document.set_run_style(footer_arabic, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    auto table = document.append_table(4U, 2U);
+    if (!table.has_next() || !table.set_width_twips(7200U) ||
+        !table.set_column_width_twips(0U, 1800U) ||
+        !table.set_column_width_twips(1U, 5400U) ||
+        !table.set_cell_text(0U, 0U, "Zone") ||
+        !table.set_cell_text(
+            0U, 1U, utf8_from_u8(u8"Value \u77e9\u9635")) ||
+        !table.set_cell_text(1U, 0U, "FE-421") ||
+        !table.set_cell_text(2U, 0U, "FE-422") ||
+        !table.set_cell_text(3U, 0U, "FE-423")) {
+        return sample;
+    }
+
+    auto configure_matrix_cell =
+        [&](std::size_t row_index, std::string_view latin,
+            const char8_t *cjk, const char8_t *arabic,
+            bool bidi) -> bool {
+        auto cell = table.find_cell(row_index, 1U);
+        if (!cell.has_value()) {
+            return false;
+        }
+        auto paragraph = cell->paragraphs();
+        if (!paragraph.has_next()) {
+            return false;
+        }
+        if (bidi &&
+            (!document.set_paragraph_style(paragraph,
+                                           "DocumentPdfRtlParagraph") ||
+             !paragraph.set_bidi(true) ||
+             !paragraph.set_alignment(
+                 featherdoc::paragraph_alignment::right))) {
+            return false;
+        }
+        if (!paragraph.add_run(std::string(latin)).has_next() ||
+            !paragraph.add_run(" ").has_next() ||
+            !paragraph.add_run(utf8_from_u8(cjk)).has_next() ||
+            !paragraph.add_run(" ").has_next()) {
+            return false;
+        }
+        auto arabic_run = paragraph.add_run(utf8_from_u8(arabic));
+        if (!arabic_run.has_next()) {
+            return false;
+        }
+        return document.set_run_style(
+            arabic_run,
+            bidi ? "DocumentPdfRtlArabicEmphasis" :
+                   "DocumentPdfRtlArabic");
+    };
+
+    if (!configure_matrix_cell(1U, "Body cell", u8"\u6b63\u6587",
+                               u8"\u0646\u0633\u062e\u0629", false) ||
+        !configure_matrix_cell(2U, "Bidi cell", u8"\u5355\u5143",
+                               u8"\u062e\u0644\u064a\u0629", true) ||
+        !configure_matrix_cell(3U, "Search cell", u8"\u68c0\u7d22",
+                               u8"\u0628\u062d\u062b", false)) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < 4U; ++row_index) {
+        if (!row.has_next() ||
+            !row.set_height_twips(row_index == 0U ? 420U : 560U,
+                                  featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        if (row_index == 0U && !row.set_repeats_header()) {
+            return sample;
+        }
+        if (row_index == 2U && !row.set_cant_split()) {
+            return sample;
+        }
+        row.next();
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document table font matrix";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document Font Matrix CJK",
+                                        cjk_font_path},
+        featherdoc::pdf::PdfFontMapping{"Document RTL Arabic",
+                                        arabic_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 9.0;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 6.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult build_three_page_text_sample() {
     ScenarioResult sample;
     sample.layout.metadata.title = "FeatherDoc regression sample: three page";
@@ -6129,6 +6311,31 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_font_matrix_text_sample(cjk_font, arabic_font);
+    } else if (config.scenario == "document_table_font_matrix_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_table_font_matrix_text\n";
+            return 1;
+        }
+        if (arabic_font.empty() || !std::filesystem::exists(arabic_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping RTL regression sample: no usable Arabic "
+                             "font found; set FEATHERDOC_TEST_ARABIC_FONT or "
+                             "install a common Arabic font\n";
+                return 77;
+            }
+            std::cerr << "missing Arabic font for scenario "
+                         "document_table_font_matrix_text\n";
+            return 1;
+        }
+        sample =
+            build_document_table_font_matrix_text_sample(cjk_font, arabic_font);
     } else if (config.scenario == "three_page_text") {
         sample = build_three_page_text_sample();
     } else if (config.scenario == "landscape_text") {
