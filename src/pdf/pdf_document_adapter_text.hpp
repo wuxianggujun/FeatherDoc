@@ -23,6 +23,7 @@ struct ResolvedRunStyle {
     bool italic{false};
     bool strikethrough{false};
     bool underline{false};
+    double vertical_shift_points{0.0};
     PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
     std::string shaping_script_tag;
     std::string shaping_language_tag;
@@ -37,6 +38,7 @@ struct TextFragment {
     bool italic{false};
     bool strikethrough{false};
     bool underline{false};
+    double vertical_shift_points{0.0};
     PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
     std::string shaping_script_tag;
     std::string shaping_language_tag;
@@ -53,6 +55,7 @@ struct TextToken {
     bool italic{false};
     bool strikethrough{false};
     bool underline{false};
+    double vertical_shift_points{0.0};
     PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
     std::string shaping_script_tag;
     std::string shaping_language_tag;

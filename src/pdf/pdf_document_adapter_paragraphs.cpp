@@ -2,6 +2,7 @@
 
 #include "pdf_document_adapter_render.hpp"
 
+#include <algorithm>
 #include <iterator>
 #include <optional>
 #include <string>
@@ -77,6 +78,7 @@ resolve_plain_text_style(featherdoc::Document &document, std::string_view text,
         false,
         false,
         false,
+        0.0,
         shaping_direction_from_rtl(rtl),
         {},
         shaping_language_tag,
@@ -247,6 +249,17 @@ resolve_run_style(featherdoc::Document &document,
         style_properties && style_properties->run_underline.value
             ? *style_properties->run_underline.value
             : false);
+    const auto style_superscript =
+        style_properties ? style_properties->run_superscript.value
+                         : std::optional<bool>{};
+    const auto style_subscript =
+        style_properties ? style_properties->run_subscript.value
+                         : std::optional<bool>{};
+    const bool superscript =
+        run.superscript.value_or(style_superscript.value_or(false));
+    const bool subscript =
+        !superscript &&
+        run.subscript.value_or(style_subscript.value_or(false));
     const bool rtl = run.rtl.value_or(
         style_properties && style_properties->run_rtl.value
             ? *style_properties->run_rtl.value
@@ -266,15 +279,24 @@ resolve_run_style(featherdoc::Document &document,
                                        : std::optional<std::string>{},
                       std::nullopt);
 
+    const auto base_font_size_points = run.font_size_points.value_or(
+        style_properties && style_properties->run_font_size_points.value
+            ? *style_properties->run_font_size_points.value
+            : options.font_size_points);
+    const auto font_size_points =
+        superscript || subscript
+            ? std::max(1.0, base_font_size_points * 0.65)
+            : base_font_size_points;
+    const auto vertical_shift_points =
+        superscript ? base_font_size_points * 0.35
+                    : subscript ? -base_font_size_points * 0.20 : 0.0;
+
     return ResolvedRunStyle{
         font_family,
         east_asia_font_family,
         resolver.resolve(font_family, east_asia_font_family, run.text, bold,
                          italic),
-        run.font_size_points.value_or(
-            style_properties && style_properties->run_font_size_points.value
-                ? *style_properties->run_font_size_points.value
-                : options.font_size_points),
+        font_size_points,
         text_color ? parse_hex_rgb_color(*text_color)
                          .value_or(PdfRgbColor{0.0, 0.0, 0.0})
                    : PdfRgbColor{0.0, 0.0, 0.0},
@@ -282,6 +304,7 @@ resolve_run_style(featherdoc::Document &document,
         italic,
         strikethrough,
         underline,
+        vertical_shift_points,
         shaping_direction_from_rtl(rtl),
         {},
         shaping_language_tag,

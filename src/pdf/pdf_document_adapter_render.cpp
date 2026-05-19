@@ -102,7 +102,8 @@ void emit_line_at(PdfPageLayout &page, const LineState &line,
             auto glyph_run = shape_fragment_text(fragment);
             page.text_runs.push_back(PdfTextRun{
                 PdfPoint{start_x_points + current_advance * x_advance,
-                         baseline_y + current_advance * y_advance},
+                         baseline_y + current_advance * y_advance +
+                             fragment.vertical_shift_points},
                 fragment.text,
                 fragment.font.font_family,
                 fragment.font.font_file_path,
@@ -117,6 +118,7 @@ void emit_line_at(PdfPageLayout &page, const LineState &line,
                 fragment.font.synthetic_italic,
                 std::move(glyph_run),
                 fragment.strikethrough,
+                fragment.vertical_shift_points,
             });
         }
         current_advance +=

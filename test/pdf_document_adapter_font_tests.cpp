@@ -753,6 +753,9 @@ TEST_CASE("document PDF adapter maps bold italic underline strikethrough run sty
                                        featherdoc::formatting_flag::strikethrough |
                                        featherdoc::formatting_flag::underline)
             .has_next());
+    REQUIRE(paragraph.add_run(" Super",
+                              featherdoc::formatting_flag::superscript)
+                .has_next());
 
     featherdoc::pdf::PdfDocumentAdapterOptions options;
     options.font_mappings = {
@@ -766,7 +769,7 @@ TEST_CASE("document PDF adapter maps bold italic underline strikethrough run sty
         featherdoc::pdf::layout_document_paragraphs(document, options);
 
     REQUIRE_EQ(layout.pages.size(), 1U);
-    REQUIRE_GE(layout.pages.front().text_runs.size(), 1U);
+    REQUIRE_GE(layout.pages.front().text_runs.size(), 2U);
 
     const auto &styled_run = layout.pages.front().text_runs.front();
     CHECK_EQ(styled_run.text, "Styled PDF");
@@ -779,6 +782,13 @@ TEST_CASE("document PDF adapter maps bold italic underline strikethrough run sty
     CHECK_FALSE(styled_run.unicode);
     CHECK_FALSE(styled_run.synthetic_bold);
     CHECK_FALSE(styled_run.synthetic_italic);
+
+    const auto &superscript_run = layout.pages.front().text_runs[1];
+    CHECK_EQ(superscript_run.text, " Super");
+    CHECK_EQ(superscript_run.font_size_points, doctest::Approx(7.8));
+    CHECK_EQ(superscript_run.vertical_shift_points, doctest::Approx(4.2));
+    CHECK_GT(superscript_run.baseline_origin.y_points,
+             styled_run.baseline_origin.y_points);
 }
 
 TEST_CASE("document PDF adapter marks synthetic styles for missing file font "
@@ -835,6 +845,7 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     style_definition.run_italic = true;
     style_definition.run_strikethrough = true;
     style_definition.run_underline = true;
+    style_definition.run_subscript = true;
     style_definition.run_font_size_points = 15.5;
     style_definition.run_font_family = std::string{"Unit Styled"};
     REQUIRE(document.ensure_character_style("PdfStyledCharacter",
@@ -858,6 +869,7 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     CHECK_EQ(resolved->run_italic.value.value_or(false), true);
     CHECK_EQ(resolved->run_strikethrough.value.value_or(false), true);
     CHECK_EQ(resolved->run_underline.value.value_or(false), true);
+    CHECK_EQ(resolved->run_subscript.value.value_or(false), true);
     REQUIRE(resolved->run_font_size_points.value.has_value());
     CHECK_EQ(*resolved->run_font_size_points.value, doctest::Approx(15.5));
 
@@ -879,7 +891,7 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     CHECK_EQ(styled_run.text, "Inherited PDF");
     CHECK_EQ(styled_run.font_family, "Unit Styled");
     CHECK_EQ(styled_run.font_file_path, bold_italic_font);
-    CHECK_EQ(styled_run.font_size_points, doctest::Approx(15.5));
+    CHECK_EQ(styled_run.font_size_points, doctest::Approx(10.075));
     CHECK_EQ(styled_run.fill_color.red, doctest::Approx(0x33 / 255.0));
     CHECK_EQ(styled_run.fill_color.green, doctest::Approx(0x66 / 255.0));
     CHECK_EQ(styled_run.fill_color.blue, doctest::Approx(0x99 / 255.0));
@@ -887,6 +899,7 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     CHECK(styled_run.italic);
     CHECK(styled_run.strikethrough);
     CHECK(styled_run.underline);
+    CHECK_EQ(styled_run.vertical_shift_points, doctest::Approx(-3.1));
 }
 
 TEST_CASE(

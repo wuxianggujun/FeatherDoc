@@ -43,7 +43,8 @@ namespace {
                               double font_size_points,
                               const PdfRgbColor &fill_color, bool bold,
                               bool italic, bool strikethrough,
-                              bool underline, PdfGlyphDirection shaping_direction,
+                              bool underline, double vertical_shift_points,
+                              PdfGlyphDirection shaping_direction,
                               std::string_view shaping_script_tag,
                               std::string_view shaping_language_tag) {
     return same_font(fragment.font, font) &&
@@ -54,6 +55,7 @@ namespace {
            fragment.bold == bold && fragment.italic == italic &&
            fragment.strikethrough == strikethrough &&
            fragment.underline == underline &&
+           fragment.vertical_shift_points == vertical_shift_points &&
            fragment.shaping_direction == shaping_direction &&
            fragment.shaping_script_tag == shaping_script_tag &&
            fragment.shaping_language_tag == shaping_language_tag;
@@ -63,6 +65,7 @@ void append_fragment(LineState &line, std::string_view text,
                      const PdfResolvedFont &font, double font_size_points,
                      const PdfRgbColor &fill_color, bool bold, bool italic,
                      bool strikethrough, bool underline,
+                     double vertical_shift_points,
                      PdfGlyphDirection shaping_direction,
                      std::string_view shaping_script_tag,
                      std::string_view shaping_language_tag) {
@@ -72,7 +75,8 @@ void append_fragment(LineState &line, std::string_view text,
 
     if (!line.fragments.empty() &&
         same_style(line.fragments.back(), font, font_size_points, fill_color,
-                   bold, italic, strikethrough, underline, shaping_direction,
+                   bold, italic, strikethrough, underline,
+                   vertical_shift_points, shaping_direction,
                    shaping_script_tag, shaping_language_tag)) {
         line.fragments.back().text.append(text);
     } else {
@@ -85,6 +89,7 @@ void append_fragment(LineState &line, std::string_view text,
             italic,
             strikethrough,
             underline,
+            vertical_shift_points,
             shaping_direction,
             std::string{shaping_script_tag},
             std::string{shaping_language_tag},
@@ -113,6 +118,7 @@ void append_broken_word(
     const std::function<double(std::size_t)> &max_width_for_line,
     double font_size_points, const PdfRgbColor &fill_color, bool bold,
     bool italic, bool strikethrough, bool underline,
+    double vertical_shift_points,
     PdfGlyphDirection shaping_direction,
     std::string_view shaping_script_tag,
     std::string_view shaping_language_tag) {
@@ -133,7 +139,8 @@ void append_broken_word(
             current = {};
         }
         append_fragment(current, codepoint, font, font_size_points, fill_color,
-                        bold, italic, strikethrough, underline, shaping_direction,
+                        bold, italic, strikethrough, underline,
+                        vertical_shift_points, shaping_direction,
                         shaping_script_tag, shaping_language_tag);
         index += codepoint_size;
     }
@@ -222,6 +229,7 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
                 style.italic,
                 style.strikethrough,
                 style.underline,
+                style.vertical_shift_points,
                 style.shaping_direction,
                 style.shaping_script_tag,
                 style.shaping_language_tag,
@@ -254,6 +262,7 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
                 style.italic,
                 style.strikethrough,
                 style.underline,
+                style.vertical_shift_points,
                 style.shaping_direction,
                 style.shaping_script_tag,
                 style.shaping_language_tag,
@@ -280,6 +289,7 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
             style.italic,
             style.strikethrough,
             style.underline,
+            style.vertical_shift_points,
             style.shaping_direction,
             style.shaping_script_tag,
             style.shaping_language_tag,
@@ -348,7 +358,8 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
                                max_width_for_line, token.font_size_points,
                                token.fill_color, token.bold, token.italic,
                                token.strikethrough,
-                               token.underline, token.shaping_direction,
+                               token.underline, token.vertical_shift_points,
+                               token.shaping_direction,
                                token.shaping_script_tag,
                                token.shaping_language_tag);
             pending_spaces.clear();
@@ -361,6 +372,7 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
                                 space.font_size_points, space.fill_color,
                                 space.bold, space.italic,
                                 space.strikethrough, space.underline,
+                                space.vertical_shift_points,
                                 space.shaping_direction,
                                 space.shaping_script_tag,
                                 space.shaping_language_tag);
@@ -370,7 +382,8 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
         append_fragment(current, token.text, token.font, token.font_size_points,
                         token.fill_color, token.bold, token.italic,
                         token.strikethrough,
-                        token.underline, token.shaping_direction,
+                        token.underline, token.vertical_shift_points,
+                        token.shaping_direction,
                         token.shaping_script_tag,
                         token.shaping_language_tag);
     }
