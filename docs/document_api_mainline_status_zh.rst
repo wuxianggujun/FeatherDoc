@@ -815,3 +815,28 @@ bullet 切换、styled run、East Asia 字体映射和稳定复制检索键。
 本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 该契约只确认当前 ``dev`` 已有实现入口仍存在；真实 PDF 表格分页、重复表头可见性和字体回退
 版式仍需等资源允许后通过受控 PDF 可视化验证确认。
+
+2026-05-19 release governance 明细汇总静态契约补齐
+---------------------------------------------------
+
+本轮转向 ``origin/codex/release-governance-rollup-details`` 的低风险部分。该分支整体
+相对当前 ``dev`` 已经严重陈旧，直接合并会删除当前 PDF 契约和多份恢复记录，因此没有整分支
+合并，也没有改动发布脚本运行逻辑。当前 ``dev`` 已经具备 release blocker rollup、
+release governance pipeline、handoff、reviewer checklist 和 release note bundle 的
+明细透传链路，本轮只新增一个静态契约锁住这些入口。
+
+已补齐内容：
+
+1. 新增 ``test/release_governance_detail_rollup_static_contract_test.ps1``，检查
+   rollup / pipeline / handoff 脚本保留 ``source_schema``、``source_report_display``、
+   ``source_json_display``、``candidate_type`` 和 action command 字段。
+2. 同一脚本检查发布治理测试继续覆盖 content-control、project onboarding、schema
+   confidence calibration 的 source JSON、source schema、open command 和 candidate
+   routing。
+3. 同一脚本检查 ``release_blocker_metadata_helpers.ps1``、release candidate summary 和
+   reviewer checklist 仍消费 release blocker rollup、governance handoff 以及 nested
+   rollup 的明细数组。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该契约只作为发布治理明细透传的防退化入口；如后续继续整合该旧分支，应逐项挑选仍未覆盖的
+小型文档或契约补丁，避免回退当前 ``dev`` 的 PDF 契约和恢复记录。
