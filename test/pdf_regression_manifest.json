@@ -1232,6 +1232,40 @@
       "expect_styled_text": true
     },
     {
+      "id": "document-cjk-table-wrap-page-flow-text",
+      "kind": "document_cjk_table_wrap_page_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-table-wrap-page-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK table wrap page flow sample",
+        "Table wrap page flow:",
+        "TF-101",
+        "Flow first header TF-101 page 1",
+        "TF-202",
+        "TF-303",
+        "Flow footer 1 / 1",
+        "Flow stripe:",
+        "FE-TF-921",
+        "TF-A-05",
+        "Flow checkpoint A:",
+        "TF-B-03",
+        "Flow checkpoint B:",
+        "Flow settle:",
+        "FE-TF-999",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-table-wrap-page-flow",
+        "cjk-table-repeat-header",
+        "cjk-table-vertical-merge",
+        "cjk-header-footer-flow"
+      ]
+    },
+    {
       "id": "document-cjk-font-embed-wrap-mix-lite-text",
       "kind": "document_cjk_font_embed_wrap_mix_lite_text",
       "output_file": "featherdoc-pdf-regression-document-cjk-font-embed-wrap-mix-lite-text.pdf",

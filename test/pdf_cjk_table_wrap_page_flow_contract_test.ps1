@@ -46,10 +46,10 @@ $manifestText = Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath
 $manifestTestText = Get-Content -Raw -LiteralPath $manifestTestPath
 $cmakeText = Get-Content -Raw -LiteralPath $cmakePath
 
-$sampleId = "document-table-cjk-vertical-merged-cant-split-text"
-$sampleKind = "document_table_cjk_vertical_merged_cant_split_text"
-$builder = "build_document_table_cjk_vertical_merged_cant_split_text_sample"
-$outputFile = "featherdoc-pdf-regression-document-table-cjk-vertical-merged-cant-split-text.pdf"
+$sampleId = "document-cjk-table-wrap-page-flow-text"
+$sampleKind = "document_cjk_table_wrap_page_flow_text"
+$builder = "build_document_cjk_table_wrap_page_flow_text_sample"
+$outputFile = "featherdoc-pdf-regression-document-cjk-table-wrap-page-flow-text.pdf"
 $manifestSampleBlock = Get-ManifestSampleBlock `
     -ManifestText $manifestText `
     -SampleId $sampleId
@@ -60,36 +60,36 @@ Assert-ContainsText -Text $sampleText -ExpectedText "config.scenario ==" `
     -Message "PDF regression sample runner should compare config.scenario."
 Assert-ContainsText -Text $sampleText -ExpectedText ('"{0}"' -f $sampleKind) `
     -Message "PDF regression sample runner should dispatch scenario '$sampleKind'."
-Assert-ContainsText -Text $sampleText -ExpectedText "Document table CJK vertical merged cant split sample" `
-    -Message "PDF table CJK vertical merged cant-split sample should keep the title."
+Assert-ContainsText -Text $sampleText -ExpectedText "Document CJK table wrap page flow sample" `
+    -Message "PDF CJK table wrap page-flow sample should keep the title."
 Assert-ContainsText -Text $sampleText -ExpectedText "Document CJK Font Embed Lite" `
-    -Message "PDF table CJK vertical merged cant-split sample should reuse the CJK font embed family."
+    -Message "PDF CJK table wrap page-flow sample should reuse the CJK font embed family."
 Assert-ContainsText -Text $sampleText -ExpectedText "ensure_section_header_paragraphs" `
-    -Message "PDF table CJK vertical merged cant-split sample should keep header coverage."
+    -Message "PDF CJK table wrap page-flow sample should keep header coverage."
 Assert-ContainsText -Text $sampleText -ExpectedText "ensure_section_footer_paragraphs" `
-    -Message "PDF table CJK vertical merged cant-split sample should keep footer coverage."
+    -Message "PDF CJK table wrap page-flow sample should keep footer coverage."
 Assert-ContainsText -Text $sampleText -ExpectedText "render_headers_and_footers = true" `
-    -Message "PDF table CJK vertical merged cant-split sample should render headers and footers."
+    -Message "PDF CJK table wrap page-flow sample should render headers and footers."
 Assert-ContainsText -Text $sampleText -ExpectedText "expand_header_footer_page_placeholders = true" `
-    -Message "PDF table CJK vertical merged cant-split sample should expand page placeholders."
+    -Message "PDF CJK table wrap page-flow sample should expand page placeholders."
 Assert-ContainsText -Text $sampleText -ExpectedText "append_table(5U, 3U)" `
-    -Message "PDF table CJK vertical merged cant-split sample should keep its table shape."
+    -Message "PDF CJK table wrap page-flow sample should keep its table shape."
+Assert-ContainsText -Text $sampleText -ExpectedText "set_column_width_twips" `
+    -Message "PDF CJK table wrap page-flow sample should keep explicit column widths."
+Assert-ContainsText -Text $sampleText -ExpectedText "merge_right(2U)" `
+    -Message "PDF CJK table wrap page-flow sample should keep merged board coverage."
 Assert-ContainsText -Text $sampleText -ExpectedText "merge_down(1U)" `
-    -Message "PDF table CJK vertical merged cant-split sample should keep vertical merge coverage."
-Assert-ContainsText -Text $sampleText -ExpectedText "merge_right(1U)" `
-    -Message "PDF table CJK vertical merged cant-split sample should keep horizontal merge coverage."
+    -Message "PDF CJK table wrap page-flow sample should keep vertical merge coverage."
 Assert-ContainsText -Text $sampleText -ExpectedText "set_repeats_header" `
-    -Message "PDF table CJK vertical merged cant-split sample should keep repeated header coverage."
+    -Message "PDF CJK table wrap page-flow sample should keep repeated header coverage."
 Assert-ContainsText -Text $sampleText -ExpectedText "set_cant_split" `
-    -Message "PDF table CJK vertical merged cant-split sample should keep cant-split row coverage."
-Assert-ContainsText -Text $sampleText -ExpectedText "cell_vertical_alignment::center" `
-    -Message "PDF table CJK vertical merged cant-split sample should keep vertical alignment coverage."
+    -Message "PDF CJK table wrap page-flow sample should keep cant-split tail coverage."
 
-foreach ($stableKey in @("CVC-101", "CVC-202", "CVC-303", "FE-CVC-404", "CVC-999", "ABC 123")) {
+foreach ($stableKey in @("TF-101", "TF-202", "TF-303", "FE-TF-921", "TF-A-05", "TF-B-03", "FE-TF-999", "ABC 123")) {
     Assert-ContainsText -Text $sampleText -ExpectedText $stableKey `
-        -Message "PDF table CJK vertical merged cant-split sample should keep stable key '$stableKey'."
+        -Message "PDF CJK table wrap page-flow sample should keep stable key '$stableKey'."
     Assert-ContainsText -Text $manifestSampleBlock -ExpectedText $stableKey `
-        -Message "PDF table CJK vertical merged cant-split manifest should include stable key '$stableKey'."
+        -Message "PDF CJK table wrap page-flow manifest should include stable key '$stableKey'."
 }
 
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText ('"kind": "{0}"' -f $sampleKind) `
@@ -97,13 +97,13 @@ Assert-ContainsText -Text $manifestSampleBlock -ExpectedText ('"kind": "{0}"' -f
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText ('"output_file": "{0}"' -f $outputFile) `
     -Message "PDF regression manifest should keep output file '$outputFile'."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expected_pages": 1' `
-    -Message "PDF table CJK vertical merged cant-split should stay a one-page lightweight sample."
+    -Message "PDF CJK table wrap page-flow should stay a one-page lightweight sample."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_cjk": true' `
-    -Message "PDF table CJK vertical merged cant-split manifest should require CJK handling."
+    -Message "PDF CJK table wrap page-flow manifest should require CJK handling."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_unicode": true' `
-    -Message "PDF table CJK vertical merged cant-split manifest should require Unicode handling."
+    -Message "PDF CJK table wrap page-flow manifest should require Unicode handling."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_styled_text": true' `
-    -Message "PDF table CJK vertical merged cant-split manifest should mark styled text."
+    -Message "PDF CJK table wrap page-flow manifest should mark styled text."
 
 Assert-ContainsText -Text $manifestTestText -ExpectedText $sampleId `
     -Message "PDF regression manifest parser test should assert sample '$sampleId'."
@@ -111,9 +111,9 @@ Assert-ContainsText -Text $manifestTestText -ExpectedText "REQUIRE_EQ(samples.si
     -Message "PDF regression manifest parser test should expect the updated sample count."
 Assert-ContainsText -Text $cmakeText -ExpectedText ('sample_kind STREQUAL "{0}"' -f $sampleKind) `
     -Message "CMake PDF regression registration should mark '$sampleKind' as a CJK test."
-Assert-ContainsText -Text $cmakeText -ExpectedText "pdf_document_table_cjk_vertical_merged_cant_split_contract" `
-    -Message "CMake should register the PDF table CJK vertical merged cant-split static contract."
-Assert-ContainsText -Text $cmakeText -ExpectedText "pdf_document_table_cjk_vertical_merged_cant_split_contract_test.ps1" `
-    -Message "CMake should point at the PDF table CJK vertical merged cant-split static contract script."
+Assert-ContainsText -Text $cmakeText -ExpectedText "pdf_cjk_table_wrap_page_flow_contract" `
+    -Message "CMake should register the PDF CJK table wrap page-flow static contract."
+Assert-ContainsText -Text $cmakeText -ExpectedText "pdf_cjk_table_wrap_page_flow_contract_test.ps1" `
+    -Message "CMake should point at the PDF CJK table wrap page-flow static contract script."
 
-Write-Host "PDF document table CJK vertical merged cant split contract passed."
+Write-Host "PDF CJK table wrap page flow contract passed."

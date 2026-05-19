@@ -1075,3 +1075,27 @@ PDF 表格 CJK 合并重复表头契约入口
 该补丁只表示 CJK 合并重复表头表格的低资源契约入口已进入 ``dev``。真实 PDF 中重复
 表头、合并单元格边框、CJK 字体换行和页眉页脚视觉质量，仍需等源码提交推送且工作区
 干净后再通过受控 PDF 可视化验证确认。
+
+PDF CJK table wrap page-flow 契约入口
+------------------------------------------------
+
+本轮继续从旧 PDF 分支的 ``document-cjk-table-wrap-page-flow-text`` 5 页样例中提取
+低风险主题，按当前 ``dev`` 的 1 页轻量样例结构重做，不整分支合并，也不搬入旧分支的
+图片压力语料或 5 页 visual baseline。
+
+已补齐内容：
+
+1. 新增 ``document-cjk-table-wrap-page-flow-text``，覆盖 CJK 表格换行、重复表头、
+   合并看板表头、纵向合并阶段块、cant-split 尾行、页眉页脚占位符和稳定检索键
+   ``TF-101`` / ``TF-202`` / ``TF-303`` / ``FE-TF-921`` / ``TF-A-05`` /
+   ``TF-B-03`` / ``FE-TF-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   77；该样例保持 ``expected_pages`` 为 1，不声明旧分支的 5 张图片压力假设。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_table_wrap_page_flow_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_table_wrap_page_flow_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类一致。
+
+该补丁只表示 CJK table wrap page-flow 的低资源契约入口已进入 ``dev``。真实 PDF 中
+多页表格换行、图片环绕、锚点恢复全宽和页眉页脚视觉质量，仍需等源码提交推送且工作区
+干净后再通过受控 PDF 可视化验证确认。
