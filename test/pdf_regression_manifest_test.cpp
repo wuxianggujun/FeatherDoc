@@ -462,9 +462,10 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_NE(json.find("\"header-footer-rtl-text\""), std::string::npos);
     CHECK_NE(json.find("\"header-footer-rtl-variants-text\""),
              std::string::npos);
+    CHECK_NE(json.find("\"document-style-gallery-text\""), std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 67U);
+    REQUIRE_EQ(samples.size(), 68U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);
@@ -512,6 +513,11 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(style_script->kind, "style_superscript_subscript_text");
     CHECK_EQ(style_script->expected_pages, 1U);
     CHECK_GE(style_script->expected_text.size(), 3U);
+    const auto style_gallery = find_sample("document-style-gallery-text");
+    REQUIRE(style_gallery != samples.end());
+    CHECK_EQ(style_gallery->kind, "document_style_gallery_text");
+    CHECK_EQ(style_gallery->expected_pages, 1U);
+    CHECK_GE(style_gallery->expected_text.size(), 7U);
     const auto document_rtl = find_sample("document-rtl-bidi-text");
     REQUIRE(document_rtl != samples.end());
     CHECK_EQ(document_rtl->kind, "document_rtl_bidi_text");

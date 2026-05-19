@@ -1068,6 +1068,32 @@ build_document_style_superscript_subscript_text_sample() {
                                           std::move(east_asia_note));
 }
 
+[[nodiscard]] bool define_document_style_gallery_styles(
+    featherdoc::Document &document) {
+    auto accent = featherdoc::character_style_definition{};
+    accent.name = "Document PDF Style Gallery Accent";
+    accent.run_font_family = std::string{"Helvetica"};
+    accent.run_font_size_points = 16.0;
+    accent.run_bold = true;
+    accent.run_italic = true;
+    accent.run_text_color = std::string{"2F5597"};
+    if (!ensure_document_contract_style(document,
+                                        "DocumentPdfStyleGalleryAccent",
+                                        std::move(accent))) {
+        return false;
+    }
+
+    auto note = featherdoc::character_style_definition{};
+    note.name = "Document PDF Style Gallery Note";
+    note.run_font_family = std::string{"Helvetica"};
+    note.run_font_size_points = 12.0;
+    note.run_underline = true;
+    note.run_text_color = std::string{"7A3E00"};
+    return ensure_document_contract_style(document,
+                                          "DocumentPdfStyleGalleryNote",
+                                          std::move(note));
+}
+
 [[nodiscard]] bool define_document_rtl_bidi_styles(
     featherdoc::Document &document) {
     auto paragraph_style = featherdoc::paragraph_style_definition{};
@@ -1371,6 +1397,87 @@ build_document_style_superscript_subscript_text_sample() {
     options.use_system_font_fallbacks = false;
     options.line_height_points = 22.0;
     options.paragraph_spacing_after_points = 8.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_document_style_gallery_text_sample() {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !define_document_style_gallery_styles(document)) {
+        return sample;
+    }
+
+    auto paragraph = document.paragraphs();
+    if (!paragraph.has_next() ||
+        !paragraph.set_text("Document style gallery sample") ||
+        !paragraph.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !paragraph.add_run("Style coverage: ").has_next()) {
+        return sample;
+    }
+    auto accent_run = paragraph.add_run("bold italic blue 16pt");
+    auto separator_run = paragraph.add_run(", ");
+    auto note_run = paragraph.add_run("underlined note");
+    if (!accent_run.has_next() || !separator_run.has_next() ||
+        !note_run.has_next() ||
+        !document.set_run_style(accent_run, "DocumentPdfStyleGalleryAccent") ||
+        !document.set_run_style(note_run, "DocumentPdfStyleGalleryNote") ||
+        !paragraph
+             .add_run(", and neutral body text keeps mixed inline styling "
+                      "stable.")
+             .has_next()) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !paragraph.add_run("Right-aligned summary marker").has_next() ||
+        !paragraph.set_alignment(featherdoc::paragraph_alignment::right)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after(
+        "Hanging indent paragraph wraps across multiple lines so the export "
+        "path keeps a narrower first-line offset and a deeper follow-on body "
+        "column.");
+    if (!paragraph.has_next() || !paragraph.set_indent_left_twips(720U) ||
+        !paragraph.set_hanging_indent_twips(360U)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after(
+        "First line indent paragraph keeps the opening clause inset while the "
+        "remaining lines align back to the body column for visual comparison.");
+    if (!paragraph.has_next() || !paragraph.set_indent_left_twips(360U) ||
+        !paragraph.set_first_line_indent_twips(360U)) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{300.0, 420.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document style gallery";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 40.0;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 10.0;
 
     sample.layout =
         featherdoc::pdf::layout_document_paragraphs(document, options);
@@ -5403,6 +5510,8 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_rtl_bidi_text_sample(arabic_font);
+    } else if (config.scenario == "document_style_gallery_text") {
+        sample = build_document_style_gallery_text_sample();
     } else if (config.scenario == "three_page_text") {
         sample = build_three_page_text_sample();
     } else if (config.scenario == "landscape_text") {
