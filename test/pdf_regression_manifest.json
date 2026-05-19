@@ -899,6 +899,23 @@
       "expect_cjk": true,
       "expect_unicode": true,
       "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-font-embed-wrap-mix-lite-text",
+      "kind": "document_cjk_font_embed_wrap_mix_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-font-embed-wrap-mix-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK font embed wrap mix lite sample",
+        "Font embed wrap mix lite:",
+        "WM-101 \u5d4c\u5b57\u73af\u7ed5\u7532",
+        "FE-WM-202 \u957f\u53e5\u6362\u884c\u4fdd\u7559 copy search ABC 123",
+        "WM-303 \u5927\u5b57\u5d4c\u5b57\u56de\u8bfb",
+        "FE-WM-999 \u73af\u7ed5\u77e9\u9635\u6536\u53e3"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }

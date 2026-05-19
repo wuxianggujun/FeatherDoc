@@ -3973,6 +3973,91 @@ build_document_table_merged_header_footer_variants_text_sample() {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult
+build_document_cjk_font_embed_wrap_mix_lite_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed Lite") ||
+        !define_document_cjk_font_embed_lite_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK font embed wrap mix lite sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Font embed wrap mix lite: ").has_next() ||
+        !add_styled_contract_run(
+            document, intro,
+            utf8_from_u8(u8"WM-101 \u5d4c\u5b57\u73af\u7ed5\u7532"),
+            "DocumentPdfCjkFontEmbedLiteAccent")) {
+        return sample;
+    }
+
+    auto wrap = intro.insert_paragraph_after("");
+    if (!wrap.has_next() ||
+        !wrap.add_run("Wrap matrix: ").has_next() ||
+        !add_styled_contract_run(
+            document, wrap,
+            utf8_from_u8(
+                u8"FE-WM-202 \u957f\u53e5\u6362\u884c\u4fdd\u7559 copy search ABC 123"),
+            "DocumentPdfCjkFontEmbedLiteNote")) {
+        return sample;
+    }
+
+    auto scale = wrap.insert_paragraph_after("");
+    if (!scale.has_next() ||
+        !scale.add_run("Wrap scale: ").has_next() ||
+        !add_styled_contract_run(
+            document, scale,
+            utf8_from_u8(u8"WM-303 \u5927\u5b57\u5d4c\u5b57\u56de\u8bfb"),
+            "DocumentPdfCjkFontEmbedLiteLarge")) {
+        return sample;
+    }
+
+    auto closing = scale.insert_paragraph_after("");
+    if (!closing.has_next() ||
+        !closing.add_run("Wrap close: ").has_next() ||
+        !add_styled_contract_run(
+            document, closing,
+            utf8_from_u8(u8"FE-WM-999 \u73af\u7ed5\u77e9\u9635\u6536\u53e3"),
+            "DocumentPdfCjkFontEmbedLiteAccent")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK font embed wrap mix lite "
+        "text";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed Lite",
+                                        font_path},
+    };
+    options.cjk_font_file_path = font_path;
+    options.use_system_font_fallbacks = false;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult build_long_report_text_sample() {
     ScenarioResult sample;
 
@@ -4448,6 +4533,22 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_cjk_table_wrap_lite_text_sample(cjk_font);
+    } else if (config.scenario ==
+               "document_cjk_font_embed_wrap_mix_lite_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing CJK font for scenario "
+                   "document_cjk_font_embed_wrap_mix_lite_text\n";
+            return 1;
+        }
+        sample =
+            build_document_cjk_font_embed_wrap_mix_lite_text_sample(cjk_font);
     } else if (config.scenario == "long_report_text") {
         sample = build_long_report_text_sample();
     } else if (config.scenario == "document_long_flow_text") {
