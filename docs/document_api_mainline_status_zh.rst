@@ -724,3 +724,26 @@ cant-split 行、styled run 和 East Asia 字体映射。
 本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 该样例只作为低资源阶段的契约入口；真实多页锚点切换、图片环绕、页眉页脚和可视化版式仍需等资源允许后
 通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK bullet overlay 轻量契约搬入
+----------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-bullet-fallback`` 的 CJK bullet overlay page flow
+方向提取低风险主题，但没有搬入旧分支的多页分页、图片资产、页眉页脚或 visual baseline。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK bullet 列表、overlay styled run、
+East Asia 字体映射和稳定复制检索键。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-bullet-overlay-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK bullet 列表、superscript/subscript/strikethrough overlay 样式和
+   East Asia 字体映射，保留稳定检索键 ``BO-101``、``BO-202``、``BO-303``、
+   ``BO-777``、``FE-BO-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_bullet_overlay_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实多页 bullet overlay、页眉页脚和可视化版式仍需等资源允许后
+通过受控 PDF 可视化验证确认。

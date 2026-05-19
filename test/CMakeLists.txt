@@ -481,6 +481,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_contract_cjk_style" OR
            sample_kind STREQUAL "document_cjk_anchor_matrix_lite_text" OR
            sample_kind STREQUAL "document_cjk_bullet_list_text" OR
+           sample_kind STREQUAL "document_cjk_bullet_overlay_lite_text" OR
            sample_kind STREQUAL "document_cjk_copy_search_lite_text" OR
            sample_kind STREQUAL "document_cjk_font_embed_lite_text" OR
            sample_kind STREQUAL "document_cjk_font_embed_wrap_mix_lite_text" OR
@@ -515,6 +516,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_contract_cjk_style" OR
            sample_kind STREQUAL "document_cjk_anchor_matrix_lite_text" OR
            sample_kind STREQUAL "document_cjk_bullet_list_text" OR
+           sample_kind STREQUAL "document_cjk_bullet_overlay_lite_text" OR
            sample_kind STREQUAL "document_cjk_copy_search_lite_text" OR
            sample_kind STREQUAL "document_cjk_font_embed_lite_text" OR
            sample_kind STREQUAL "document_cjk_font_embed_wrap_mix_lite_text" OR
