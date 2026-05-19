@@ -794,6 +794,23 @@
       "expect_cjk": true,
       "expect_unicode": true,
       "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-style-overlay-lite-text",
+      "kind": "document_cjk_style_overlay_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-style-overlay-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK style overlay lite sample",
+        "Style overlay lite:",
+        "SO-101 \u6837\u5f0f\u4e0a\u6807",
+        "SO-202 \u6837\u5f0f\u4e0b\u6807",
+        "SO-303 \u5220\u9664\u7ebf\u4ecd\u53ef\u641c",
+        "SO-999 \u6837\u5f0f\u53e0\u52a0\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }

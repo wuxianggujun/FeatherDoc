@@ -545,3 +545,25 @@ styled run 和文本层检索锚点。
 本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 该样例只作为低资源阶段的契约入口；真实字体嵌入和复制搜索效果仍需等资源允许后通过
 受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK style overlay 轻量契约搬入
+---------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK style overlay page flow
+方向提取低风险主题，但没有搬入旧分支的 6 页 page flow、图片资产、visual baseline
+或重型 gate。当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK 上标、下标、
+删除线、styled run 和文本层检索锚点。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-style-overlay-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK superscript、subscript、strikethrough 和 East Asia font family 映射，
+   保留稳定检索键 ``SO-101``、``SO-202``、``SO-303``、``SO-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_style_overlay_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实 style overlay 版式和复制搜索效果仍需等资源
+允许后通过受控 PDF 可视化验证确认。
