@@ -21,6 +21,7 @@ struct ResolvedRunStyle {
     PdfRgbColor fill_color{0.0, 0.0, 0.0};
     bool bold{false};
     bool italic{false};
+    bool strikethrough{false};
     bool underline{false};
     PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
     std::string shaping_script_tag;
@@ -34,6 +35,7 @@ struct TextFragment {
     PdfRgbColor fill_color{0.0, 0.0, 0.0};
     bool bold{false};
     bool italic{false};
+    bool strikethrough{false};
     bool underline{false};
     PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
     std::string shaping_script_tag;
@@ -49,6 +51,7 @@ struct TextToken {
     PdfRgbColor fill_color{0.0, 0.0, 0.0};
     bool bold{false};
     bool italic{false};
+    bool strikethrough{false};
     bool underline{false};
     PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
     std::string shaping_script_tag;

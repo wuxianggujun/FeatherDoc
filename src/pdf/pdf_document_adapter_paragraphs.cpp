@@ -76,6 +76,7 @@ resolve_plain_text_style(featherdoc::Document &document, std::string_view text,
         false,
         false,
         false,
+        false,
         shaping_direction_from_rtl(rtl),
         {},
         shaping_language_tag,
@@ -238,6 +239,10 @@ resolve_run_style(featherdoc::Document &document,
         style_properties && style_properties->run_italic.value
             ? *style_properties->run_italic.value
             : false);
+    const bool strikethrough = run.strikethrough.value_or(
+        style_properties && style_properties->run_strikethrough.value
+            ? *style_properties->run_strikethrough.value
+            : false);
     const bool underline = run.underline.value_or(
         style_properties && style_properties->run_underline.value
             ? *style_properties->run_underline.value
@@ -275,6 +280,7 @@ resolve_run_style(featherdoc::Document &document,
                    : PdfRgbColor{0.0, 0.0, 0.0},
         bold,
         italic,
+        strikethrough,
         underline,
         shaping_direction_from_rtl(rtl),
         {},

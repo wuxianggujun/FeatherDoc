@@ -734,7 +734,7 @@ TEST_CASE("document PDF adapter falls back to configured CJK font file path") {
     CHECK(cjk_run.unicode);
 }
 
-TEST_CASE("document PDF adapter maps bold italic underline run styling") {
+TEST_CASE("document PDF adapter maps bold italic underline strikethrough run styling") {
     const auto regular_font =
         make_temp_font_file("featherdoc-adapter-regular.ttf");
     const auto bold_italic_font =
@@ -750,6 +750,7 @@ TEST_CASE("document PDF adapter maps bold italic underline run styling") {
         paragraph
             .add_run("Styled PDF", featherdoc::formatting_flag::bold |
                                        featherdoc::formatting_flag::italic |
+                                       featherdoc::formatting_flag::strikethrough |
                                        featherdoc::formatting_flag::underline)
             .has_next());
 
@@ -773,6 +774,7 @@ TEST_CASE("document PDF adapter maps bold italic underline run styling") {
     CHECK_EQ(styled_run.font_file_path, bold_italic_font);
     CHECK(styled_run.bold);
     CHECK(styled_run.italic);
+    CHECK(styled_run.strikethrough);
     CHECK(styled_run.underline);
     CHECK_FALSE(styled_run.unicode);
     CHECK_FALSE(styled_run.synthetic_bold);
@@ -831,6 +833,7 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     style_definition.run_text_color = std::string{"336699"};
     style_definition.run_bold = true;
     style_definition.run_italic = true;
+    style_definition.run_strikethrough = true;
     style_definition.run_underline = true;
     style_definition.run_font_size_points = 15.5;
     style_definition.run_font_family = std::string{"Unit Styled"};
@@ -853,6 +856,7 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     CHECK_EQ(*resolved->run_text_color.value, "336699");
     CHECK_EQ(resolved->run_bold.value.value_or(false), true);
     CHECK_EQ(resolved->run_italic.value.value_or(false), true);
+    CHECK_EQ(resolved->run_strikethrough.value.value_or(false), true);
     CHECK_EQ(resolved->run_underline.value.value_or(false), true);
     REQUIRE(resolved->run_font_size_points.value.has_value());
     CHECK_EQ(*resolved->run_font_size_points.value, doctest::Approx(15.5));
@@ -881,6 +885,7 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     CHECK_EQ(styled_run.fill_color.blue, doctest::Approx(0x99 / 255.0));
     CHECK(styled_run.bold);
     CHECK(styled_run.italic);
+    CHECK(styled_run.strikethrough);
     CHECK(styled_run.underline);
 }
 

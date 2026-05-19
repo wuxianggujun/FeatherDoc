@@ -42,8 +42,8 @@ namespace {
                               const PdfResolvedFont &font,
                               double font_size_points,
                               const PdfRgbColor &fill_color, bool bold,
-                              bool italic, bool underline,
-                              PdfGlyphDirection shaping_direction,
+                              bool italic, bool strikethrough,
+                              bool underline, PdfGlyphDirection shaping_direction,
                               std::string_view shaping_script_tag,
                               std::string_view shaping_language_tag) {
     return same_font(fragment.font, font) &&
@@ -52,6 +52,7 @@ namespace {
            fragment.fill_color.green == fill_color.green &&
            fragment.fill_color.blue == fill_color.blue &&
            fragment.bold == bold && fragment.italic == italic &&
+           fragment.strikethrough == strikethrough &&
            fragment.underline == underline &&
            fragment.shaping_direction == shaping_direction &&
            fragment.shaping_script_tag == shaping_script_tag &&
@@ -61,7 +62,8 @@ namespace {
 void append_fragment(LineState &line, std::string_view text,
                      const PdfResolvedFont &font, double font_size_points,
                      const PdfRgbColor &fill_color, bool bold, bool italic,
-                     bool underline, PdfGlyphDirection shaping_direction,
+                     bool strikethrough, bool underline,
+                     PdfGlyphDirection shaping_direction,
                      std::string_view shaping_script_tag,
                      std::string_view shaping_language_tag) {
     if (text.empty()) {
@@ -70,7 +72,7 @@ void append_fragment(LineState &line, std::string_view text,
 
     if (!line.fragments.empty() &&
         same_style(line.fragments.back(), font, font_size_points, fill_color,
-                   bold, italic, underline, shaping_direction,
+                   bold, italic, strikethrough, underline, shaping_direction,
                    shaping_script_tag, shaping_language_tag)) {
         line.fragments.back().text.append(text);
     } else {
@@ -81,6 +83,7 @@ void append_fragment(LineState &line, std::string_view text,
             fill_color,
             bold,
             italic,
+            strikethrough,
             underline,
             shaping_direction,
             std::string{shaping_script_tag},
@@ -109,7 +112,8 @@ void append_broken_word(
     const PdfResolvedFont &font,
     const std::function<double(std::size_t)> &max_width_for_line,
     double font_size_points, const PdfRgbColor &fill_color, bool bold,
-    bool italic, bool underline, PdfGlyphDirection shaping_direction,
+    bool italic, bool strikethrough, bool underline,
+    PdfGlyphDirection shaping_direction,
     std::string_view shaping_script_tag,
     std::string_view shaping_language_tag) {
     LineState current;
@@ -129,7 +133,7 @@ void append_broken_word(
             current = {};
         }
         append_fragment(current, codepoint, font, font_size_points, fill_color,
-                        bold, italic, underline, shaping_direction,
+                        bold, italic, strikethrough, underline, shaping_direction,
                         shaping_script_tag, shaping_language_tag);
         index += codepoint_size;
     }
@@ -216,6 +220,7 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
                 style.fill_color,
                 style.bold,
                 style.italic,
+                style.strikethrough,
                 style.underline,
                 style.shaping_direction,
                 style.shaping_script_tag,
@@ -247,6 +252,7 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
                 style.fill_color,
                 style.bold,
                 style.italic,
+                style.strikethrough,
                 style.underline,
                 style.shaping_direction,
                 style.shaping_script_tag,
@@ -272,6 +278,7 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
             style.fill_color,
             style.bold,
             style.italic,
+            style.strikethrough,
             style.underline,
             style.shaping_direction,
             style.shaping_script_tag,
@@ -340,6 +347,7 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
             append_broken_word(lines, token.text, token.font,
                                max_width_for_line, token.font_size_points,
                                token.fill_color, token.bold, token.italic,
+                               token.strikethrough,
                                token.underline, token.shaping_direction,
                                token.shaping_script_tag,
                                token.shaping_language_tag);
@@ -351,7 +359,8 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
             for (const auto &space : pending_spaces) {
                 append_fragment(current, space.text, space.font,
                                 space.font_size_points, space.fill_color,
-                                space.bold, space.italic, space.underline,
+                                space.bold, space.italic,
+                                space.strikethrough, space.underline,
                                 space.shaping_direction,
                                 space.shaping_script_tag,
                                 space.shaping_language_tag);
@@ -360,6 +369,7 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
         pending_spaces.clear();
         append_fragment(current, token.text, token.font, token.font_size_points,
                         token.fill_color, token.bold, token.italic,
+                        token.strikethrough,
                         token.underline, token.shaping_direction,
                         token.shaping_script_tag,
                         token.shaping_language_tag);

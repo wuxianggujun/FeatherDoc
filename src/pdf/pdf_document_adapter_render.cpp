@@ -116,6 +116,7 @@ void emit_line_at(PdfPageLayout &page, const LineState &line,
                 fragment.font.synthetic_bold,
                 fragment.font.synthetic_italic,
                 std::move(glyph_run),
+                fragment.strikethrough,
             });
         }
         current_advance +=

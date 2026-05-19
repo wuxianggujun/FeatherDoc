@@ -62,6 +62,7 @@ struct PdfTextRun {
     bool synthetic_bold{false};
     bool synthetic_italic{false};
     PdfGlyphRun glyph_run;
+    bool strikethrough{false};
 };
 
 struct PdfRectangle {
