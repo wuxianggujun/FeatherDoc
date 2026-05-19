@@ -25,10 +25,12 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $cliExportTestPath = Join-Path $resolvedRepoRoot "test\pdf_cli_export_tests.cpp"
 $cliTestsPath = Join-Path $resolvedRepoRoot "test\cli_tests.cpp"
 $cmakePath = Join-Path $resolvedRepoRoot "test\CMakeLists.txt"
+$visualGatePath = Join-Path $resolvedRepoRoot "scripts\run_pdf_visual_release_gate.ps1"
 
 $cliExportTestText = Get-Content -Raw -LiteralPath $cliExportTestPath
 $cliTestsText = Get-Content -Raw -LiteralPath $cliTestsPath
 $cmakeText = Get-Content -Raw -LiteralPath $cmakePath
+$visualGateText = Get-Content -Raw -LiteralPath $visualGatePath
 
 Assert-ContainsText -Text $cliExportTestText -ExpectedText "auto find_cjk_font() -> fs::path" `
     -Message "CLI PDF export tests should keep CJK font discovery coverage."
@@ -62,5 +64,14 @@ Assert-ContainsText -Text $cmakeText -ExpectedText "featherdoc_set_test_labels(p
     -Message "CMake should keep cli/smoke/pdf labels for the PDF export CLI test."
 Assert-ContainsText -Text $cmakeText -ExpectedText "FEATHERDOC_CLI_ENABLE_PDF=1" `
     -Message "CMake should keep PDF-enabled CLI compile coverage."
+
+Assert-ContainsText -Text $visualGateText -ExpectedText 'name = "cli-cjk-font-source"' `
+    -Message "PDF visual release gate should keep the CLI CJK font source baseline entry."
+Assert-ContainsText -Text $visualGateText -ExpectedText 'test\pdf_cli_export\cjk-font-source.pdf' `
+    -Message "PDF visual release gate should render the CLI CJK PDF export output."
+Assert-ContainsText -Text $visualGateText -ExpectedText 'output = Join-Path $baselineDir "cli-cjk-font-source"' `
+    -Message "PDF visual release gate should keep a stable CLI CJK baseline output directory."
+Assert-ContainsText -Text $visualGateText -ExpectedText "expected_pages = 3" `
+    -Message "PDF visual release gate should keep the expected CLI CJK PDF page count."
 
 Write-Host "PDF CLI CJK export static contract passed."
