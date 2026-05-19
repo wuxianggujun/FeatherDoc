@@ -437,7 +437,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 59U);
+    REQUIRE_EQ(samples.size(), 60U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);
@@ -571,53 +571,59 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(samples[47].kind, "document_cjk_numbered_list_text");
     CHECK_EQ(samples[47].expected_pages, 1U);
     CHECK_GE(samples[47].expected_text.size(), 5U);
-    CHECK_EQ(samples[48].id, "document-cjk-bullet-overlay-lite-text");
-    CHECK_EQ(samples[48].kind, "document_cjk_bullet_overlay_lite_text");
+    CHECK_EQ(samples[48].id,
+             "document-cjk-numbered-list-page-flow-lite-text");
+    CHECK_EQ(samples[48].kind,
+             "document_cjk_numbered_list_page_flow_lite_text");
     CHECK_EQ(samples[48].expected_pages, 1U);
-    CHECK_GE(samples[48].expected_text.size(), 8U);
-    CHECK_EQ(samples[49].id, "document-cjk-copy-search-lite-text");
-    CHECK_EQ(samples[49].kind, "document_cjk_copy_search_lite_text");
+    CHECK_GE(samples[48].expected_text.size(), 9U);
+    CHECK_EQ(samples[49].id, "document-cjk-bullet-overlay-lite-text");
+    CHECK_EQ(samples[49].kind, "document_cjk_bullet_overlay_lite_text");
     CHECK_EQ(samples[49].expected_pages, 1U);
-    CHECK_GE(samples[49].expected_text.size(), 5U);
-    CHECK_EQ(samples[50].id, "document-cjk-font-embed-lite-text");
-    CHECK_EQ(samples[50].kind, "document_cjk_font_embed_lite_text");
+    CHECK_GE(samples[49].expected_text.size(), 8U);
+    CHECK_EQ(samples[50].id, "document-cjk-copy-search-lite-text");
+    CHECK_EQ(samples[50].kind, "document_cjk_copy_search_lite_text");
     CHECK_EQ(samples[50].expected_pages, 1U);
     CHECK_GE(samples[50].expected_text.size(), 5U);
-    CHECK_EQ(samples[51].id, "document-cjk-style-overlay-lite-text");
-    CHECK_EQ(samples[51].kind, "document_cjk_style_overlay_lite_text");
+    CHECK_EQ(samples[51].id, "document-cjk-font-embed-lite-text");
+    CHECK_EQ(samples[51].kind, "document_cjk_font_embed_lite_text");
     CHECK_EQ(samples[51].expected_pages, 1U);
-    CHECK_GE(samples[51].expected_text.size(), 6U);
-    CHECK_EQ(samples[52].id, "document-cjk-anchor-matrix-lite-text");
-    CHECK_EQ(samples[52].kind, "document_cjk_anchor_matrix_lite_text");
+    CHECK_GE(samples[51].expected_text.size(), 5U);
+    CHECK_EQ(samples[52].id, "document-cjk-style-overlay-lite-text");
+    CHECK_EQ(samples[52].kind, "document_cjk_style_overlay_lite_text");
     CHECK_EQ(samples[52].expected_pages, 1U);
     CHECK_GE(samples[52].expected_text.size(), 6U);
-    CHECK_EQ(samples[53].id, "document-cjk-search-density-lite-text");
-    CHECK_EQ(samples[53].kind, "document_cjk_search_density_lite_text");
+    CHECK_EQ(samples[53].id, "document-cjk-anchor-matrix-lite-text");
+    CHECK_EQ(samples[53].kind, "document_cjk_anchor_matrix_lite_text");
     CHECK_EQ(samples[53].expected_pages, 1U);
     CHECK_GE(samples[53].expected_text.size(), 6U);
-    CHECK_EQ(samples[54].id, "document-cjk-repeated-key-lite-text");
-    CHECK_EQ(samples[54].kind, "document_cjk_repeated_key_lite_text");
+    CHECK_EQ(samples[54].id, "document-cjk-search-density-lite-text");
+    CHECK_EQ(samples[54].kind, "document_cjk_search_density_lite_text");
     CHECK_EQ(samples[54].expected_pages, 1U);
     CHECK_GE(samples[54].expected_text.size(), 6U);
-    CHECK_EQ(samples[55].id, "document-cjk-vertical-merge-lite-text");
-    CHECK_EQ(samples[55].kind, "document_cjk_vertical_merge_lite_text");
+    CHECK_EQ(samples[55].id, "document-cjk-repeated-key-lite-text");
+    CHECK_EQ(samples[55].kind, "document_cjk_repeated_key_lite_text");
     CHECK_EQ(samples[55].expected_pages, 1U);
-    CHECK_GE(samples[55].expected_text.size(), 7U);
-    CHECK_EQ(samples[56].id, "document-cjk-table-wrap-lite-text");
-    CHECK_EQ(samples[56].kind, "document_cjk_table_wrap_lite_text");
+    CHECK_GE(samples[55].expected_text.size(), 6U);
+    CHECK_EQ(samples[56].id, "document-cjk-vertical-merge-lite-text");
+    CHECK_EQ(samples[56].kind, "document_cjk_vertical_merge_lite_text");
     CHECK_EQ(samples[56].expected_pages, 1U);
-    CHECK_GE(samples[56].expected_text.size(), 8U);
-    CHECK_EQ(samples[57].id, "document-cjk-font-embed-wrap-mix-lite-text");
-    CHECK_EQ(samples[57].kind,
-             "document_cjk_font_embed_wrap_mix_lite_text");
+    CHECK_GE(samples[56].expected_text.size(), 7U);
+    CHECK_EQ(samples[57].id, "document-cjk-table-wrap-lite-text");
+    CHECK_EQ(samples[57].kind, "document_cjk_table_wrap_lite_text");
     CHECK_EQ(samples[57].expected_pages, 1U);
-    CHECK_GE(samples[57].expected_text.size(), 6U);
-    CHECK_EQ(samples[58].id,
-             "document-cjk-multi-anchor-table-flow-lite-text");
+    CHECK_GE(samples[57].expected_text.size(), 8U);
+    CHECK_EQ(samples[58].id, "document-cjk-font-embed-wrap-mix-lite-text");
     CHECK_EQ(samples[58].kind,
-             "document_cjk_multi_anchor_table_flow_lite_text");
+             "document_cjk_font_embed_wrap_mix_lite_text");
     CHECK_EQ(samples[58].expected_pages, 1U);
-    CHECK_GE(samples[58].expected_text.size(), 9U);
+    CHECK_GE(samples[58].expected_text.size(), 6U);
+    CHECK_EQ(samples[59].id,
+             "document-cjk-multi-anchor-table-flow-lite-text");
+    CHECK_EQ(samples[59].kind,
+             "document_cjk_multi_anchor_table_flow_lite_text");
+    CHECK_EQ(samples[59].expected_pages, 1U);
+    CHECK_GE(samples[59].expected_text.size(), 9U);
 }
 
 TEST_CASE("PDF regression manifest parser preserves escaped strings") {

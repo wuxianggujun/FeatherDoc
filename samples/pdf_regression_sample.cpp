@@ -3313,6 +3313,118 @@ build_document_table_merged_header_footer_variants_text_sample() {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult
+build_document_cjk_numbered_list_page_flow_lite_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed Lite") ||
+        !define_document_cjk_font_embed_lite_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK numbered list page flow lite sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Numbered list flow lite: ").has_next() ||
+        !add_styled_contract_run(
+            document, intro,
+            utf8_from_u8(u8"NL-101 \u7f16\u53f7\u91cd\u542f"),
+            "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !intro.add_run(" / ").has_next() ||
+        !add_styled_contract_run(
+            document, intro,
+            utf8_from_u8(u8"FE-NL-202 \u5d4c\u5957\u5217\u8868"),
+            "DocumentPdfCjkFontEmbedLiteNote")) {
+        return sample;
+    }
+
+    const std::vector<std::string> first_block{
+        utf8_from_u8(u8"NL-888 \u7f16\u53f7\u68c0\u7d22\u952e"),
+        utf8_from_u8(u8"FE-NL-921 \u7b2c 1 \u9879 CJK \u7f16\u53f7\u6d41"),
+        utf8_from_u8(u8"NL-A-03 \u7f16\u53f7\u5206\u9875\u8868"),
+    };
+    for (std::size_t index = 0U; index < first_block.size(); ++index) {
+        if (!append_document_list_item(document, first_block[index],
+                                       featherdoc::list_kind::decimal,
+                                       index == 0U)) {
+            return sample;
+        }
+    }
+
+    auto marker = append_document_paragraph(document, "");
+    if (!marker.has_next() ||
+        !marker.add_run("List marker lite: ").has_next() ||
+        !add_styled_contract_run(
+            document, marker,
+            utf8_from_u8(u8"NL-888 \u7f16\u53f7\u68c0\u7d22\u952e"),
+            "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !marker.add_run(" / FE-NL-961 / ").has_next() ||
+        !add_styled_contract_run(
+            document, marker,
+            utf8_from_u8(u8"\u8868\u540e\u7f16\u53f7\u6062\u590d"),
+            "DocumentPdfCjkFontEmbedLiteNote")) {
+        return sample;
+    }
+
+    const std::vector<std::string> restart_block{
+        utf8_from_u8(u8"NL-501 \u91cd\u542f\u7f16\u53f7"),
+        utf8_from_u8(u8"NL-502 \u9879\u76ee\u7b26\u53f7\u5207\u6362"),
+        utf8_from_u8(u8"FE-NL-999 \u7ec8\u9875\u590d\u68c0"),
+    };
+    for (std::size_t index = 0U; index < restart_block.size(); ++index) {
+        const auto list_kind =
+            index == 1U ? featherdoc::list_kind::bullet
+                        : featherdoc::list_kind::decimal;
+        if (!append_document_list_item(document, restart_block[index],
+                                       list_kind, index != 2U)) {
+            return sample;
+        }
+    }
+
+    auto closing = append_document_paragraph(document, "");
+    if (!closing.has_next() ||
+        !closing.add_run("List close lite: ").has_next() ||
+        !add_styled_contract_run(
+            document, closing,
+            utf8_from_u8(u8"FE-NL-999 \u7ec8\u9875\u590d\u68c0"),
+            "DocumentPdfCjkFontEmbedLiteLarge")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK numbered list page flow "
+        "lite text";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed Lite",
+                                        font_path},
+    };
+    options.cjk_font_file_path = font_path;
+    options.use_system_font_fallbacks = false;
+    options.line_height_points = 19.0;
+    options.paragraph_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult build_document_cjk_bullet_overlay_lite_text_sample(
     const std::filesystem::path &font_path) {
     ScenarioResult sample;
@@ -4633,6 +4745,22 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_cjk_numbered_list_text_sample(cjk_font);
+    } else if (config.scenario ==
+               "document_cjk_numbered_list_page_flow_lite_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing CJK font for scenario "
+                   "document_cjk_numbered_list_page_flow_lite_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_numbered_list_page_flow_lite_text_sample(
+            cjk_font);
     } else if (config.scenario == "document_cjk_bullet_overlay_lite_text") {
         if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
             if (require_cjk_font) {

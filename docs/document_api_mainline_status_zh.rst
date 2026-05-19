@@ -747,3 +747,25 @@ East Asia 字体映射和稳定复制检索键。
 本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 该样例只作为低资源阶段的契约入口；真实多页 bullet overlay、页眉页脚和可视化版式仍需等资源允许后
 通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK numbered list page flow 轻量契约搬入
+------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-bullet-fallback`` 的 CJK numbered list page flow
+方向提取低风险主题，但没有搬入旧分支的 5 页分页样例、图片资产、页眉页脚或 visual baseline。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK decimal 编号列表、编号重启、
+bullet 切换、styled run、East Asia 字体映射和稳定复制检索键。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-numbered-list-page-flow-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK decimal list、编号重启、bullet 切换和 styled run，保留稳定检索键 ``NL-101``、
+   ``FE-NL-202``、``NL-888``、``FE-NL-921``、``FE-NL-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_numbered_list_page_flow_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实多页 numbered list flow、图片环绕、页眉页脚和可视化版式仍需等资源允许后
+通过受控 PDF 可视化验证确认。

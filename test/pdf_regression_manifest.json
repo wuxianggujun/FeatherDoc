@@ -764,6 +764,26 @@
       "expect_unicode": true
     },
     {
+      "id": "document-cjk-numbered-list-page-flow-lite-text",
+      "kind": "document_cjk_numbered_list_page_flow_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-numbered-list-page-flow-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK numbered list page flow lite sample",
+        "Numbered list flow lite:",
+        "NL-101 \u7f16\u53f7\u91cd\u542f",
+        "FE-NL-202 \u5d4c\u5957\u5217\u8868",
+        "NL-888 \u7f16\u53f7\u68c0\u7d22\u952e",
+        "FE-NL-921 \u7b2c 1 \u9879 CJK \u7f16\u53f7\u6d41",
+        "NL-A-03 \u7f16\u53f7\u5206\u9875\u8868",
+        "FE-NL-961",
+        "FE-NL-999 \u7ec8\u9875\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
       "id": "document-cjk-bullet-overlay-lite-text",
       "kind": "document_cjk_bullet_overlay_lite_text",
       "output_file": "featherdoc-pdf-regression-document-cjk-bullet-overlay-lite-text.pdf",
