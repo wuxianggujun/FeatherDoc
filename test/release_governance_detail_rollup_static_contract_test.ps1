@@ -43,6 +43,7 @@ $handoffScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts
 $metadataHelpersScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\release_blocker_metadata_helpers.ps1"
 $releaseCandidateScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_release_candidate_checks.ps1"
 $reviewerChecklistScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_reviewer_checklist.ps1"
+$releaseNoteBundleScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_note_bundle.ps1"
 
 $rollupTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
 $pipelineTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_pipeline_report_test.ps1"
@@ -195,6 +196,9 @@ foreach ($marker in @(
 
 foreach ($marker in @(
     "Get-ReleaseGovernanceChecklistSections",
+    "Assert-ReleaseGovernanceReviewerMetadataQuality",
+    "Assert-ReleaseGovernanceReviewerMetadataCollectionQuality",
+    "Assert-ReleaseGovernanceDeclaredCountConsistency",
     "Release governance handoff nested rollup",
     "Get-NormalizedReleaseGovernanceBlockers",
     "Get-NormalizedReleaseGovernanceActionItems"
@@ -207,7 +211,9 @@ foreach ($marker in @(
     "source_schema=featherdoc.project_template_onboarding_governance_report.v1",
     "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
     "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1",
-    "source_json_display: .\output\schema-patch-confidence-calibration\summary.json"
+    "source_json_display: .\output\schema-patch-confidence-calibration\summary.json",
+    "summary.release-rollup-missing-source-json-display.json",
+    "summary.release-handoff-missing-open-command.json"
 )) {
     Assert-ContainsText -Text $bundleTest -ExpectedText $marker `
         -Message "Release note bundle test should keep reviewer-facing governance detail '$marker'."
@@ -225,5 +231,7 @@ Assert-ContainsText -Text $releaseCandidateScript -ExpectedText "release_blocker
     -Message "Release candidate summary should keep rollup blocker details."
 Assert-ContainsText -Text $releaseCandidateScript -ExpectedText "release_governance_handoff.release_blockers" `
     -Message "Release candidate summary should keep handoff blocker details."
+Assert-ContainsText -Text $releaseNoteBundleScript -ExpectedText "Assert-ReleaseGovernanceReviewerMetadataQuality" `
+    -Message "Release note bundle should validate reviewer-facing governance detail before writing outputs."
 
 Write-Host "Release governance detail rollup static contract passed."

@@ -840,3 +840,27 @@ release governance pipeline、handoff、reviewer checklist 和 release note bund
 本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 该契约只作为发布治理明细透传的防退化入口；如后续继续整合该旧分支，应逐项挑选仍未覆盖的
 小型文档或契约补丁，避免回退当前 ``dev`` 的 PDF 契约和恢复记录。
+
+2026-05-19 release governance reviewer 明细质量门禁补齐
+--------------------------------------------------------
+
+本轮继续只读复核 ``origin/codex/release-governance-rollup-details`` 的剩余 8 个
+branch-only 提交。复核结果是：发布包入口脚本已经在当前 ``dev`` 中输出
+release blocker rollup 与 release governance handoff 明细段，旧分支剩余的大块差异仍
+混有 PDF/RTL 源码、视觉样例和旧文档删除，不适合整分支合并。本轮只搬入一个仍有价值的小
+门禁：发布包生成前校验 reviewer-facing governance 明细字段完整性。
+
+已补齐内容：
+
+1. ``release_blocker_metadata_helpers.ps1`` 新增 release governance reviewer metadata
+   quality 校验，覆盖 ``release_blocker_rollup``、``release_governance_handoff`` 和
+   ``stages`` 内的 blocker、warning、action item 明细。
+2. ``write_release_note_bundle.ps1`` 在读取 summary 后同时执行 release blocker 元数据
+   校验与 governance reviewer 明细校验；缺少 ``source_json_display`` 或 action item
+   ``open_command`` 时会在发布包生成前失败。
+3. ``release_note_bundle_version_test.ps1`` 增加 rollup 缺少 source JSON display 与
+   handoff 缺少 open command 的负例，``release_governance_detail_rollup_static_contract_test.ps1``
+   锁住这些校验入口。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该门禁只强化发布材料一致性；真实 PDF/RTL 分支功能仍保留为后续受控可视化验证前的参考项。
