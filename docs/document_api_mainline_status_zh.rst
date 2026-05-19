@@ -304,3 +304,28 @@ release gate 或 PDF visual gate。
 1. 这只是最小 Word smoke，不是完整 ``run_word_visual_release_gate.ps1``。
 2. 完整 release gate 仍应等资源稳定后再按 ``-SkipBuild`` 和分阶段策略执行。
 3. PDF visual gate 仍未执行。
+
+
+2026-05-19 最小 Word smoke 证据复核
+------------------------------------
+
+本轮只做上一轮最小 Word smoke 输出的只读证据复核，未重新启动 Word、LibreOffice、
+浏览器、CMake、CTest、Ninja、MSBuild 或 PDF visual gate。
+
+已确认：
+
+1. ``report/summary.json`` 可读取，且 ``page_count = 1``。
+2. ``evidence/contact_sheet.png`` 存在，尺寸为 ``408 x 549``，文件非空，灰度范围为
+   ``6..255``。
+3. ``evidence/pages/page-01.png`` 存在，尺寸为 ``1224 x 1584``，文件非空，灰度范围为
+   ``0..255``。
+4. ``report/review_result.json`` 与 ``report/final_review.md`` 可读取，当前 verdict 仍为
+   ``pending_manual_review``。
+5. 复核后未发现本轮遗留的 ``WINWORD`` 或 ``python`` 进程；只看到外部 ``node`` /
+   ``powershell`` 进程，未擅自关闭。
+
+剩余边界：
+
+1. 这次复核确认的是最小 smoke 证据质量，不等同于完整 Word release gate 通过。
+2. ``scripts/run_word_visual_release_gate.ps1`` 仍未执行。
+3. ``scripts/run_pdf_visual_release_gate.ps1`` 仍未执行；PDF CJK 分支继续作为参考库存冻结。
