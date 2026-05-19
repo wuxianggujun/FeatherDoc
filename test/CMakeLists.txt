@@ -495,6 +495,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_cjk_table_wrap_lite_text" OR
            sample_kind STREQUAL "document_cjk_vertical_merge_lite_text" OR
            sample_kind STREQUAL "document_eastasia_style_probe" OR
+           sample_kind STREQUAL "document_font_matrix_text" OR
            sample_kind STREQUAL "document_rtl_bidi_text" OR
            sample_kind STREQUAL "header_footer_rtl_text" OR
            sample_kind STREQUAL "header_footer_rtl_variants_text")
@@ -534,14 +535,16 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_cjk_style_overlay_lite_text" OR
            sample_kind STREQUAL "document_cjk_table_wrap_lite_text" OR
            sample_kind STREQUAL "document_cjk_vertical_merge_lite_text" OR
-           sample_kind STREQUAL "document_eastasia_style_probe")
+           sample_kind STREQUAL "document_eastasia_style_probe" OR
+           sample_kind STREQUAL "document_font_matrix_text")
             set_tests_properties(${test_name}
                 PROPERTIES
                     SKIP_RETURN_CODE 77
                     LABELS "pdf;smoke;regression;pdf-cjk")
             list(APPEND FEATHERDOC_PDF_REGRESSION_CJK_TESTS ${test_name})
         endif()
-        if(sample_kind STREQUAL "document_rtl_bidi_text" OR
+        if(sample_kind STREQUAL "document_font_matrix_text" OR
+           sample_kind STREQUAL "document_rtl_bidi_text" OR
            sample_kind STREQUAL "header_footer_rtl_text" OR
            sample_kind STREQUAL "header_footer_rtl_variants_text")
             set_tests_properties(${test_name}
@@ -848,6 +851,23 @@ if(WIN32)
             ${PROJECT_SOURCE_DIR}
         )
         set_tests_properties(pdf_document_style_gallery_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_document_font_matrix_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_document_font_matrix_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_document_font_matrix_contract
             PROPERTIES
                 TIMEOUT 60
                 LABELS "pdf;layout;smoke")
