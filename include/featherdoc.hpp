@@ -1377,7 +1377,10 @@ struct resolved_style_properties_summary {
     featherdoc::resolved_style_string_property run_text_color{};
     featherdoc::resolved_style_bool_property run_bold{};
     featherdoc::resolved_style_bool_property run_italic{};
+    featherdoc::resolved_style_bool_property run_strikethrough{};
     featherdoc::resolved_style_bool_property run_underline{};
+    featherdoc::resolved_style_bool_property run_superscript{};
+    featherdoc::resolved_style_bool_property run_subscript{};
     featherdoc::resolved_style_double_property run_font_size_points{};
     featherdoc::resolved_style_string_property run_language{};
     featherdoc::resolved_style_string_property run_east_asia_language{};
@@ -1697,6 +1700,7 @@ struct paragraph_style_definition {
     std::optional<std::string> run_text_color;
     std::optional<bool> run_bold;
     std::optional<bool> run_italic;
+    std::optional<bool> run_strikethrough;
     std::optional<bool> run_underline;
     std::optional<double> run_font_size_points;
     std::optional<std::string> run_font_family;
@@ -1719,7 +1723,10 @@ struct character_style_definition {
     std::optional<std::string> run_text_color;
     std::optional<bool> run_bold;
     std::optional<bool> run_italic;
+    std::optional<bool> run_strikethrough;
     std::optional<bool> run_underline;
+    std::optional<bool> run_superscript;
+    std::optional<bool> run_subscript;
     std::optional<double> run_font_size_points;
     std::optional<std::string> run_font_family;
     std::optional<std::string> run_east_asia_font_family;
@@ -3241,6 +3248,8 @@ class Document {
     [[nodiscard]] std::optional<bool>
     style_run_italic(std::string_view style_id);
     [[nodiscard]] std::optional<bool>
+    style_run_strikethrough(std::string_view style_id);
+    [[nodiscard]] std::optional<bool>
     style_run_underline(std::string_view style_id);
     [[nodiscard]] std::optional<double>
     style_run_font_size_points(std::string_view style_id);
@@ -3293,7 +3302,13 @@ class Document {
                                           bool enabled = true);
     [[nodiscard]] bool set_style_run_italic(std::string_view style_id,
                                             bool enabled = true);
+    [[nodiscard]] bool set_style_run_strikethrough(std::string_view style_id,
+                                                   bool enabled = true);
     [[nodiscard]] bool set_style_run_underline(std::string_view style_id,
+                                               bool enabled = true);
+    [[nodiscard]] bool set_style_run_superscript(std::string_view style_id,
+                                                 bool enabled = true);
+    [[nodiscard]] bool set_style_run_subscript(std::string_view style_id,
                                                bool enabled = true);
     [[nodiscard]] bool set_style_run_font_size_points(std::string_view style_id,
                                                       double font_size_points);
@@ -3316,7 +3331,10 @@ class Document {
     [[nodiscard]] bool clear_style_run_text_color(std::string_view style_id);
     [[nodiscard]] bool clear_style_run_bold(std::string_view style_id);
     [[nodiscard]] bool clear_style_run_italic(std::string_view style_id);
+    [[nodiscard]] bool clear_style_run_strikethrough(std::string_view style_id);
     [[nodiscard]] bool clear_style_run_underline(std::string_view style_id);
+    [[nodiscard]] bool clear_style_run_superscript(std::string_view style_id);
+    [[nodiscard]] bool clear_style_run_subscript(std::string_view style_id);
     [[nodiscard]] bool
     clear_style_run_font_size_points(std::string_view style_id);
     [[nodiscard]] bool clear_style_run_font_family(std::string_view style_id);

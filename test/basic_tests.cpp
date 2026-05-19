@@ -26744,6 +26744,8 @@ TEST_CASE("rebase_character_style_based_on preserves resolved inherited values w
     base_a.based_on = std::string{"DefaultParagraphFont"};
     base_a.run_font_family = std::string{"Segoe UI"};
     base_a.run_east_asia_language = std::string{"zh-CN"};
+    base_a.run_strikethrough = true;
+    base_a.run_superscript = true;
     base_a.run_rtl = true;
     CHECK(doc.ensure_character_style("BaseA", base_a));
 
@@ -26752,6 +26754,8 @@ TEST_CASE("rebase_character_style_based_on preserves resolved inherited values w
     base_b.based_on = std::string{"DefaultParagraphFont"};
     base_b.run_font_family = std::string{"Arial"};
     base_b.run_east_asia_language = std::string{"ja-JP"};
+    base_b.run_strikethrough = false;
+    base_b.run_subscript = true;
     base_b.run_rtl = false;
     CHECK(doc.ensure_character_style("BaseB", base_b));
 
@@ -26767,6 +26771,14 @@ TEST_CASE("rebase_character_style_based_on preserves resolved inherited values w
     CHECK_EQ(*before->run_font_family.value, "Segoe UI");
     REQUIRE(before->run_font_family.source_style_id.has_value());
     CHECK_EQ(*before->run_font_family.source_style_id, "BaseA");
+    REQUIRE(before->run_strikethrough.value.has_value());
+    CHECK(*before->run_strikethrough.value);
+    REQUIRE(before->run_strikethrough.source_style_id.has_value());
+    CHECK_EQ(*before->run_strikethrough.source_style_id, "BaseA");
+    REQUIRE(before->run_superscript.value.has_value());
+    CHECK(*before->run_superscript.value);
+    REQUIRE(before->run_superscript.source_style_id.has_value());
+    CHECK_EQ(*before->run_superscript.source_style_id, "BaseA");
 
     CHECK(doc.rebase_character_style_based_on("ChildStyle", "BaseB"));
 
@@ -26791,6 +26803,16 @@ TEST_CASE("rebase_character_style_based_on preserves resolved inherited values w
     REQUIRE(after->run_language.source_style_id.has_value());
     CHECK_EQ(*after->run_language.value, "en-US");
     CHECK_EQ(*after->run_language.source_style_id, "ChildStyle");
+    REQUIRE(after->run_strikethrough.value.has_value());
+    REQUIRE(after->run_strikethrough.source_style_id.has_value());
+    CHECK(*after->run_strikethrough.value);
+    CHECK_EQ(*after->run_strikethrough.source_style_id, "ChildStyle");
+    REQUIRE(after->run_superscript.value.has_value());
+    REQUIRE(after->run_superscript.source_style_id.has_value());
+    CHECK(*after->run_superscript.value);
+    CHECK_EQ(*after->run_superscript.source_style_id, "ChildStyle");
+    REQUIRE(after->run_subscript.value.has_value());
+    CHECK_FALSE(*after->run_subscript.value);
     REQUIRE(after->run_rtl.value.has_value());
     REQUIRE(after->run_rtl.source_style_id.has_value());
     CHECK(*after->run_rtl.value);
@@ -26808,6 +26830,10 @@ TEST_CASE("rebase_character_style_based_on preserves resolved inherited values w
     REQUIRE(reopened_after.has_value());
     REQUIRE(reopened_after->run_font_family.source_style_id.has_value());
     CHECK_EQ(*reopened_after->run_font_family.source_style_id, "ChildStyle");
+    REQUIRE(reopened_after->run_strikethrough.source_style_id.has_value());
+    CHECK_EQ(*reopened_after->run_strikethrough.source_style_id, "ChildStyle");
+    REQUIRE(reopened_after->run_superscript.source_style_id.has_value());
+    CHECK_EQ(*reopened_after->run_superscript.source_style_id, "ChildStyle");
 
     fs::remove(target);
 }
@@ -26827,6 +26853,7 @@ TEST_CASE("paragraph style property mutators update metadata without clearing di
     definition.based_on = std::string{"Normal"};
     definition.next_style = std::string{"WorkingStyle"};
     definition.run_font_family = std::string{"Consolas"};
+    definition.run_strikethrough = true;
     CHECK(doc.ensure_paragraph_style("WorkingStyle", definition));
 
     REQUIRE(doc.paragraph_style_next_style("WorkingStyle").has_value());
@@ -26834,6 +26861,8 @@ TEST_CASE("paragraph style property mutators update metadata without clearing di
     CHECK_FALSE(doc.paragraph_style_outline_level("WorkingStyle").has_value());
     REQUIRE(doc.style_run_font_family("WorkingStyle").has_value());
     CHECK_EQ(*doc.style_run_font_family("WorkingStyle"), "Consolas");
+    REQUIRE(doc.style_run_strikethrough("WorkingStyle").has_value());
+    CHECK(*doc.style_run_strikethrough("WorkingStyle"));
 
     CHECK(doc.set_paragraph_style_based_on("WorkingStyle", "Heading1"));
     CHECK(doc.set_paragraph_style_next_style("WorkingStyle", "BodyText"));
@@ -26849,6 +26878,8 @@ TEST_CASE("paragraph style property mutators update metadata without clearing di
     CHECK_EQ(*doc.paragraph_style_outline_level("WorkingStyle"), 2U);
     REQUIRE(doc.style_run_font_family("WorkingStyle").has_value());
     CHECK_EQ(*doc.style_run_font_family("WorkingStyle"), "Consolas");
+    REQUIRE(doc.style_run_strikethrough("WorkingStyle").has_value());
+    CHECK(*doc.style_run_strikethrough("WorkingStyle"));
 
     CHECK(doc.clear_paragraph_style_based_on("WorkingStyle"));
     CHECK(doc.clear_paragraph_style_next_style("WorkingStyle"));
@@ -26873,6 +26904,8 @@ TEST_CASE("paragraph style property mutators update metadata without clearing di
     CHECK_FALSE(reopened.paragraph_style_outline_level("WorkingStyle").has_value());
     REQUIRE(reopened.style_run_font_family("WorkingStyle").has_value());
     CHECK_EQ(*reopened.style_run_font_family("WorkingStyle"), "Consolas");
+    REQUIRE(reopened.style_run_strikethrough("WorkingStyle").has_value());
+    CHECK(*reopened.style_run_strikethrough("WorkingStyle"));
 
     fs::remove(target);
 }
