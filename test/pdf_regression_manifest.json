@@ -1341,6 +1341,48 @@
       "expect_styled_text": true
     },
     {
+      "id": "document-cjk-repeated-key-boundary-flow-text",
+      "kind": "document_cjk_repeated_key_boundary_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-repeated-key-boundary-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK repeated key boundary flow sample",
+        "Repeated key flow:",
+        "RK-101 \u8de8\u533a\u68c0\u7d22\u952e",
+        "FE-RK-901",
+        "RK-202 \u8fb9\u754c\u590d\u73b0\u77e9\u9635",
+        "RK-303",
+        "Repeat key first header RK-101 \u8de8\u533a page 1",
+        "Repeat marker:",
+        "RK-777 \u5171\u7528\u68c0\u7d22\u952e",
+        "FE-RK-911",
+        "\u6b63\u6587\u590d\u73b0",
+        "\u540c\u952e\u590d\u73b0\u8868",
+        "RK-A-01",
+        "Repeat checkpoint:",
+        "FE-RK-941",
+        "RK-A-04",
+        "FE-RK-951",
+        "RK-A-06",
+        "FE-RK-961",
+        "FE-RK-981",
+        "Repeat settle:",
+        "ABC 123",
+        "Repeat close:",
+        "FE-RK-999",
+        "\u7ec8\u9875\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-repeated-key-boundary-flow",
+        "cjk-header-footer-repeated-key",
+        "cjk-table-repeated-key"
+      ]
+    },
+    {
       "id": "document-cjk-vertical-merge-lite-text",
       "kind": "document_cjk_vertical_merge_lite_text",
       "output_file": "featherdoc-pdf-regression-document-cjk-vertical-merge-lite-text.pdf",

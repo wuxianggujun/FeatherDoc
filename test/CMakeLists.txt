@@ -498,6 +498,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_cjk_numbered_list_page_flow_lite_text" OR
            sample_kind STREQUAL "document_cjk_numbered_list_page_flow_text" OR
            sample_kind STREQUAL "document_cjk_page_boundary_lite_text" OR
+           sample_kind STREQUAL "document_cjk_repeated_key_boundary_flow_text" OR
            sample_kind STREQUAL "document_cjk_repeated_key_lite_text" OR
            sample_kind STREQUAL "document_cjk_search_density_lite_text" OR
            sample_kind STREQUAL "document_cjk_style_overlay_lite_text" OR
@@ -553,6 +554,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_cjk_numbered_list_page_flow_lite_text" OR
            sample_kind STREQUAL "document_cjk_numbered_list_page_flow_text" OR
            sample_kind STREQUAL "document_cjk_page_boundary_lite_text" OR
+           sample_kind STREQUAL "document_cjk_repeated_key_boundary_flow_text" OR
            sample_kind STREQUAL "document_cjk_repeated_key_lite_text" OR
            sample_kind STREQUAL "document_cjk_search_density_lite_text" OR
            sample_kind STREQUAL "document_cjk_style_overlay_lite_text" OR
@@ -999,6 +1001,23 @@ if(WIN32)
             ${PROJECT_SOURCE_DIR}
         )
         set_tests_properties(pdf_cjk_font_embed_wrap_mix_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_repeated_key_boundary_flow_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_repeated_key_boundary_flow_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_repeated_key_boundary_flow_contract
             PROPERTIES
                 TIMEOUT 60
                 LABELS "pdf;layout;smoke")
