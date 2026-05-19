@@ -346,3 +346,49 @@ release gate 或 PDF visual gate。
 3. ``review_result.json`` 仍为 ``pending_manual_review``，但肉眼目检未见空白页、乱码或
    明显布局异常。
 4. 本轮结束后未发现 ``WINWORD`` 或 ``python`` 残留进程。
+
+
+2026-05-19 PDF 新功能整合结论
+-----------------------------
+
+本轮继续按低资源方式复核 PDF 主线，没有运行 CMake、CTest、Ninja、MSBuild、
+Word、LibreOffice、浏览器或 PDF 渲染。结论是：PDF 分支里的核心小能力已经按当前
+``dev`` 结构陆续重做进主线，但两个旧 ``codex/pdf-*`` 分支并没有、也不应该被整分支
+合并。
+
+当前 ``dev`` 已确认包含的 PDF 能力包括：
+
+1. CJK copy/search 的 text-layer gate 入口：``scripts/check_pdf_text_layer.py`` 与
+   ``scripts/run_pdf_visual_release_gate.ps1`` 中的 ``cjk-copy-search`` 链路。
+2. CLI CJK PDF export 覆盖：``test/pdf_cli_export_tests.cpp`` 中已覆盖
+   ``--cjk-font-file``、字体子集开关和显式 CJK 字体导出路径。
+3. East Asia / CJK 字体 fallback：``src/pdf/pdf_font_resolver.cpp`` 已包含 FreeType
+   字形检查、Unicode prefix 到 East Asia / CJK 字体链路的 fallback，以及日文假名、
+   韩文音节和东亚兼容符号识别。
+4. CJK bullet / East Asia 字体回退契约：``test/pdf_font_resolver_tests.cpp`` 与
+   ``test/pdf_document_adapter_font_tests.cpp`` 已保留对应测试入口。
+5. PDF 表格分页与表头 fitting 小修复：当前实现使用 ``spanned_row_bottom`` 计算纵向
+   合并或跨行单元格的实际输出高度，避免页底分页判断低估跨行表格。
+6. PDF 页眉页脚段落 run 保留与对齐补丁：当前实现已保留页眉页脚段落中的 run 元数据，
+   并携带对齐后的内部布局信息。
+7. PDF visual release gate 的样式与 text-shaping 静态契约：manifest 中保留
+   style/text-shaping baseline 标记，release gate 会携带 ``visual_style_focus``、
+   ``matched_text`` 与 ``missing_text`` 等证据字段。
+
+仍未合入、继续只读保留在旧 PDF 分支中的内容主要是：
+
+1. 大批 CJK PDF regression 样例。
+2. 批量 manifest 条目。
+3. 视觉 baseline 图片和完整视觉 gate 扩展。
+4. 需要构建、渲染、PDF 可视化复核或更大资源预算才能验证的深水区改动。
+
+本轮轻量验证通过：
+
+1. ``git diff --check``。
+2. ``test/pdf_visual_release_gate_text_shaping_baselines_test.ps1``，单独 60 秒超时。
+3. ``test/pdf_visual_release_gate_style_baselines_test.ps1``，单独 60 秒超时。
+
+因此，对“PDF 新功能是否都添加成功”的准确回答是：核心源码能力、CLI 覆盖、字体回退、
+表格分页、页眉页脚 run 保留和静态 gate 契约已经进入 ``dev``；旧分支里重型的样例库、
+manifest 扩展和视觉 baseline 还没有全部添加，这部分需要后续作为 PDF 专项，在资源允许时
+分批重做和可视化验证，不能直接整分支搬入。
