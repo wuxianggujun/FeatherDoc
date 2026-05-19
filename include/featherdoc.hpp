@@ -77,7 +77,10 @@ class Run {
     [[nodiscard]] std::optional<std::string> text_color() const;
     [[nodiscard]] std::optional<bool> bold() const;
     [[nodiscard]] std::optional<bool> italic() const;
+    [[nodiscard]] std::optional<bool> strikethrough() const;
     [[nodiscard]] std::optional<bool> underline() const;
+    [[nodiscard]] std::optional<bool> superscript() const;
+    [[nodiscard]] std::optional<bool> subscript() const;
     [[nodiscard]] std::optional<double> font_size_points() const;
     [[nodiscard]] bool set_font_family(std::string_view font_family) const;
     [[nodiscard]] bool
@@ -2232,7 +2235,10 @@ struct run_inspection_summary {
     std::optional<std::string> text_color;
     std::optional<bool> bold;
     std::optional<bool> italic;
+    std::optional<bool> strikethrough;
     std::optional<bool> underline;
+    std::optional<bool> superscript;
+    std::optional<bool> subscript;
     std::optional<double> font_size_points;
     std::optional<std::string> language;
     std::optional<std::string> east_asia_language;

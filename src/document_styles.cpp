@@ -620,7 +620,10 @@ auto summarize_run_handle(const featherdoc::Run &run_handle,
     summary.text_color = run_handle.text_color();
     summary.bold = run_handle.bold();
     summary.italic = run_handle.italic();
+    summary.strikethrough = run_handle.strikethrough();
     summary.underline = run_handle.underline();
+    summary.superscript = run_handle.superscript();
+    summary.subscript = run_handle.subscript();
     summary.font_size_points = run_handle.font_size_points();
     summary.language = run_handle.language();
     summary.east_asia_language = run_handle.east_asia_language();
