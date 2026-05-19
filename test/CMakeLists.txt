@@ -630,6 +630,80 @@ if(WIN32)
 
         add_test(
             NAME
+            release_governance_warning_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_governance_warning_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_governance_warning_contract
+        )
+        set_tests_properties(release_governance_warning_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;governance;smoke")
+
+        add_test(
+            NAME
+            release_governance_warning_helper_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_governance_warning_helper_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_governance_warning_helper_contract
+        )
+        set_tests_properties(release_governance_warning_helper_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;governance;smoke")
+
+        add_test(
+            NAME
+            release_governance_metrics_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_governance_metrics_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_governance_metrics_contract
+        )
+        set_tests_properties(release_governance_metrics_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;governance;smoke")
+
+        add_test(
+            NAME
+            release_governance_detail_rollup_static_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_governance_detail_rollup_static_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(release_governance_detail_rollup_static_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;governance;smoke")
+
+        add_test(
+            NAME
             package_release_assets_safety
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

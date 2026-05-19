@@ -44,6 +44,7 @@ $metadataHelpersScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath 
 $releaseCandidateScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_release_candidate_checks.ps1"
 $reviewerChecklistScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_reviewer_checklist.ps1"
 $releaseNoteBundleScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_note_bundle.ps1"
+$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 
 $rollupTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
 $pipelineTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_pipeline_report_test.ps1"
@@ -233,5 +234,21 @@ Assert-ContainsText -Text $releaseCandidateScript -ExpectedText "release_governa
     -Message "Release candidate summary should keep handoff blocker details."
 Assert-ContainsText -Text $releaseNoteBundleScript -ExpectedText "Assert-ReleaseGovernanceReviewerMetadataQuality" `
     -Message "Release note bundle should validate reviewer-facing governance detail before writing outputs."
+
+foreach ($marker in @(
+    "release_governance_warning_contract",
+    "release_governance_warning_helper_contract",
+    "release_governance_metrics_contract",
+    "release_governance_detail_rollup_static_contract",
+    "release_governance_warning_contract_test.ps1",
+    "release_governance_warning_helper_contract_test.ps1",
+    "release_governance_metrics_contract_test.ps1",
+    "release_governance_detail_rollup_static_contract_test.ps1",
+    "TIMEOUT 60",
+    'LABELS "release;governance;smoke"'
+)) {
+    Assert-ContainsText -Text $cmakeLists -ExpectedText $marker `
+        -Message "CMake test registration should keep release governance lightweight contract marker '$marker'."
+}
 
 Write-Host "Release governance detail rollup static contract passed."
