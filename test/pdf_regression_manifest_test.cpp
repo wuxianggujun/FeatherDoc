@@ -465,6 +465,8 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              std::string::npos);
     CHECK_NE(json.find("\"document-cjk-font-embed-wrap-mix-lite-text\""),
              std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-font-embed-wrap-mix-text\""),
+             std::string::npos);
     CHECK_NE(json.find("\"document-cjk-multi-anchor-table-flow-lite-text\""),
              std::string::npos);
     CHECK_NE(json.find("\"document-cjk-multi-anchor-table-flow-text\""),
@@ -491,7 +493,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 82U);
+    REQUIRE_EQ(samples.size(), 83U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);

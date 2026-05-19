@@ -46,68 +46,62 @@ $manifestText = Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath
 $manifestTestText = Get-Content -Raw -LiteralPath $manifestTestPath
 $cmakeText = Get-Content -Raw -LiteralPath $cmakePath
 
-$sampleId = "document-cjk-multi-anchor-table-flow-text"
-$sampleKind = "document_cjk_multi_anchor_table_flow_text"
-$builderName = "build_document_cjk_multi_anchor_table_flow_text_sample"
-$outputFile = "featherdoc-pdf-regression-document-cjk-multi-anchor-table-flow-text.pdf"
+$sampleId = "document-cjk-font-embed-wrap-mix-text"
+$sampleKind = "document_cjk_font_embed_wrap_mix_text"
+$builderName = "build_document_cjk_font_embed_wrap_mix_text_sample"
+$outputFile = "featherdoc-pdf-regression-document-cjk-font-embed-wrap-mix-text.pdf"
 $manifestSampleBlock = Get-ManifestSampleBlock `
     -ManifestText $manifestText `
     -SampleId $sampleId
 
 Assert-ContainsText -Text $sampleText -ExpectedText $builderName `
     -Message "PDF regression sample generator should keep builder '$builderName'."
-Assert-ContainsText -Text $sampleText -ExpectedText $sampleKind `
-    -Message "PDF regression sample runner should mention scenario '$sampleKind'."
-Assert-ContainsText -Text $sampleText -ExpectedText ("{0}(" -f $builderName) `
+Assert-ContainsText -Text $sampleText -ExpectedText ('config.scenario == "{0}"' -f $sampleKind) `
+    -Message "PDF regression sample runner should dispatch scenario '$sampleKind'."
+Assert-ContainsText -Text $sampleText -ExpectedText ("{0}(cjk_font)" -f $builderName) `
     -Message "PDF regression sample runner should call builder '$builderName'."
 Assert-ContainsText -Text $sampleText -ExpectedText "Document CJK Font Embed Lite" `
-    -Message "PDF CJK multi anchor table flow should reuse the CJK font embed family."
-Assert-ContainsText -Text $sampleText -ExpectedText "Document CJK multi anchor table flow sample" `
-    -Message "PDF CJK multi anchor table flow should keep the full-id title."
+    -Message "PDF CJK font embed wrap mix should reuse the CJK font embed family."
+Assert-ContainsText -Text $sampleText -ExpectedText "Document CJK font embed wrap mix sample" `
+    -Message "PDF CJK font embed wrap mix should keep the full-id title."
 Assert-ContainsText -Text $sampleText -ExpectedText "ensure_section_header_paragraphs" `
-    -Message "PDF CJK multi anchor table flow should keep header coverage."
+    -Message "PDF CJK font embed wrap mix should keep header coverage."
 Assert-ContainsText -Text $sampleText -ExpectedText "ensure_section_footer_paragraphs" `
-    -Message "PDF CJK multi anchor table flow should keep footer coverage."
+    -Message "PDF CJK font embed wrap mix should keep footer coverage."
 Assert-ContainsText -Text $sampleText -ExpectedText "render_headers_and_footers = true" `
-    -Message "PDF CJK multi anchor table flow should render headers and footers."
+    -Message "PDF CJK font embed wrap mix should render headers and footers."
 Assert-ContainsText -Text $sampleText -ExpectedText "expand_header_footer_page_placeholders = true" `
-    -Message "PDF CJK multi anchor table flow should expand page placeholders."
+    -Message "PDF CJK font embed wrap mix should expand page placeholders."
 Assert-ContainsText -Text $sampleText -ExpectedText "append_table(5U, 3U)" `
-    -Message "PDF CJK multi anchor table flow should keep its table contract."
-Assert-ContainsText -Text $sampleText -ExpectedText "set_column_width_twips" `
-    -Message "PDF CJK multi anchor table flow should keep explicit column widths."
-Assert-ContainsText -Text $sampleText -ExpectedText "merge_right(2U)" `
-    -Message "PDF CJK multi anchor table flow should keep merged board coverage."
-Assert-ContainsText -Text $sampleText -ExpectedText "merge_down(1U)" `
-    -Message "PDF CJK multi anchor table flow should keep vertical merge coverage."
+    -Message "PDF CJK font embed wrap mix should keep table key coverage."
 Assert-ContainsText -Text $sampleText -ExpectedText "set_repeats_header" `
-    -Message "PDF CJK multi anchor table flow should keep repeated header coverage."
+    -Message "PDF CJK font embed wrap mix should keep repeated header coverage."
 Assert-ContainsText -Text $sampleText -ExpectedText "set_cant_split" `
-    -Message "PDF CJK multi anchor table flow should keep cant-split row coverage."
+    -Message "PDF CJK font embed wrap mix should keep cant-split coverage."
+Assert-ContainsText -Text $sampleText -ExpectedText "DocumentPdfCjkFontEmbedLiteAccent" `
+    -Message "PDF CJK font embed wrap mix should exercise styled accent text."
+Assert-ContainsText -Text $sampleText -ExpectedText "DocumentPdfCjkFontEmbedLiteNote" `
+    -Message "PDF CJK font embed wrap mix should exercise styled note text."
 Assert-ContainsText -Text $sampleText -ExpectedText "DocumentPdfCjkFontEmbedLiteLarge" `
-    -Message "PDF CJK multi anchor table flow should keep large styled text."
+    -Message "PDF CJK font embed wrap mix should exercise large styled text."
 
 foreach ($stableKey in @(
-    "MA-101",
-    "MA-202",
-    "MA-303",
-    "FE-MA-901",
-    "MA-A-04",
-    "Anchor checkpoint A:",
-    "FE-MA-951",
-    "MA-B-04",
-    "Anchor checkpoint B:",
-    "FE-MA-971",
-    "FE-MA-981",
-    "Anchor settle:",
-    "Anchor close:",
-    "FE-MA-999",
+    "WM-101",
+    "WM-202",
+    "WM-303",
+    "FE-WM-901",
+    "FE-WM-911",
+    "FE-WM-921",
+    "FE-WM-941",
+    "FE-WM-951",
+    "FE-WM-961",
+    "FE-WM-999",
     "ABC 123"
 )) {
     Assert-ContainsText -Text $sampleText -ExpectedText $stableKey `
-        -Message "PDF CJK multi anchor table flow sample should keep stable key '$stableKey'."
+        -Message "PDF CJK font embed wrap mix sample should keep stable key '$stableKey'."
     Assert-ContainsText -Text $manifestSampleBlock -ExpectedText $stableKey `
-        -Message "PDF CJK multi anchor table flow manifest should include stable key '$stableKey'."
+        -Message "PDF CJK font embed wrap mix manifest should include stable key '$stableKey'."
 }
 
 Assert-ContainsText -Text $manifestText -ExpectedText ('"id": "{0}"' -f $sampleId) `
@@ -117,15 +111,15 @@ Assert-ContainsText -Text $manifestSampleBlock -ExpectedText ('"kind": "{0}"' -f
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText ('"output_file": "{0}"' -f $outputFile) `
     -Message "PDF regression manifest should keep output file '$outputFile'."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expected_pages": 1' `
-    -Message "PDF CJK multi anchor table flow should stay a one-page lightweight sample."
+    -Message "PDF CJK font embed wrap mix should stay a one-page lightweight sample."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_cjk": true' `
-    -Message "PDF CJK multi anchor table flow manifest should require CJK handling."
+    -Message "PDF CJK font embed wrap mix manifest should require CJK handling."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_unicode": true' `
-    -Message "PDF CJK multi anchor table flow manifest should require Unicode handling."
+    -Message "PDF CJK font embed wrap mix manifest should require Unicode handling."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_styled_text": true' `
-    -Message "PDF CJK multi anchor table flow manifest should mark styled text."
+    -Message "PDF CJK font embed wrap mix manifest should mark styled text."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_visual_baseline": true' `
-    -Message "PDF CJK multi anchor table flow manifest should keep visual baseline marker."
+    -Message "PDF CJK font embed wrap mix manifest should keep visual baseline marker."
 
 Assert-ContainsText -Text $manifestTestText -ExpectedText $sampleId `
     -Message "PDF regression manifest parser test should assert sample '$sampleId'."
@@ -133,9 +127,9 @@ Assert-ContainsText -Text $manifestTestText -ExpectedText "REQUIRE_EQ(samples.si
     -Message "PDF regression manifest parser test should expect the updated sample count."
 Assert-ContainsText -Text $cmakeText -ExpectedText ('sample_kind STREQUAL "{0}"' -f $sampleKind) `
     -Message "CMake PDF regression registration should mark '$sampleKind' as a CJK test."
-Assert-ContainsText -Text $cmakeText -ExpectedText "pdf_cjk_multi_anchor_table_flow_contract" `
-    -Message "CMake should register the PDF CJK multi anchor table flow static contract."
-Assert-ContainsText -Text $cmakeText -ExpectedText "pdf_cjk_multi_anchor_table_flow_contract_test.ps1" `
-    -Message "CMake should point at the PDF CJK multi anchor table flow static contract script."
+Assert-ContainsText -Text $cmakeText -ExpectedText "pdf_cjk_font_embed_wrap_mix_contract" `
+    -Message "CMake should register the PDF CJK font embed wrap mix static contract."
+Assert-ContainsText -Text $cmakeText -ExpectedText "pdf_cjk_font_embed_wrap_mix_contract_test.ps1" `
+    -Message "CMake should point at the PDF CJK font embed wrap mix static contract script."
 
-Write-Host "PDF CJK multi anchor table flow contract passed."
+Write-Host "PDF CJK font embed wrap mix contract passed."

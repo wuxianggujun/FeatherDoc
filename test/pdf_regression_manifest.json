@@ -1429,6 +1429,45 @@
       "expect_styled_text": true
     },
     {
+      "id": "document-cjk-font-embed-wrap-mix-text",
+      "kind": "document_cjk_font_embed_wrap_mix_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-font-embed-wrap-mix-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK font embed wrap mix sample",
+        "Font embed wrap mix:",
+        "WM-101 \u5d4c\u5b57\u73af\u7ed5\u7532",
+        "FE-WM-901",
+        "WM-202 \u88c1\u526a\u56de\u8bfb\u77e9\u9635",
+        "Wrap first header WM-101 page 1",
+        "Embed wrap stripe:",
+        "FE-WM-911 \u5b57\u4f53\u56de\u8bfb ABC 123",
+        "Wrap scale:",
+        "WM-303 \u5927\u5b57\u5d4c\u5b57",
+        "FE-WM-921",
+        "\u73af\u7ed5\u77e9\u9635\u8868",
+        "FE-WM-941",
+        "Wrap checkpoint A:",
+        "\u5b57\u5bbd\u6821\u9a8c",
+        "FE-WM-951",
+        "Wrap checkpoint B:",
+        "\u7ec8\u9875\u951a\u70b9",
+        "FE-WM-961",
+        "\u7b2c 1 \u7ec4\u73af\u7ed5\u5d4c\u5b57\u9a8c\u8bc1",
+        "Wrap close:",
+        "FE-WM-999 \u5b57\u5bbd\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-font-embed-wrap-mix",
+        "cjk-header-footer-wrap",
+        "cjk-table-wrap-font-keys"
+      ]
+    },
+    {
       "id": "document-cjk-multi-anchor-table-flow-lite-text",
       "kind": "document_cjk_multi_anchor_table_flow_lite_text",
       "output_file": "featherdoc-pdf-regression-document-cjk-multi-anchor-table-flow-lite-text.pdf",
