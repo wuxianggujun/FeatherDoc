@@ -1267,6 +1267,46 @@
       "expect_styled_text": true
     },
     {
+      "id": "document-cjk-font-search-density-flow-text",
+      "kind": "document_cjk_font_search_density_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-font-search-density-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK font search density flow sample",
+        "Font search density:",
+        "SD-101 \u5bc6\u6392\u68c0\u7d22",
+        "FE-SD-901",
+        "SD-202 \u5b57\u53f7\u56de\u8bfb\u77e9\u9635",
+        "Search density first header SD-101 page 1",
+        "Density stripe:",
+        "SD-303 \u5b57\u5bbd\u8054\u6d4b",
+        "FE-SD-921 \u590d\u5236\u56de\u8bfb ABC 123",
+        "Density ladder:",
+        "\u6ce8\u8bb0\u56de\u8bfb",
+        "\u5408\u540c\u77e9\u9635",
+        "\u5927\u5b57\u5d4c\u5b57",
+        "FE-SD-931",
+        "FE-SD-932",
+        "\u68c0\u7d22\u5bc6\u5ea6\u8868",
+        "SD-A-04",
+        "Density checkpoint A:",
+        "SD-B-04",
+        "Density checkpoint B:",
+        "\u56de\u8bfb\u590d\u68c0",
+        "Density close:",
+        "FE-SD-999 \u56de\u8bfb\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-font-search-density-flow",
+        "cjk-header-footer-density",
+        "cjk-density-table-keys"
+      ]
+    },
+    {
       "id": "document-cjk-search-density-lite-text",
       "kind": "document_cjk_search_density_lite_text",
       "output_file": "featherdoc-pdf-regression-document-cjk-search-density-lite-text.pdf",

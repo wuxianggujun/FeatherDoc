@@ -602,6 +602,32 @@ copy/search matrix 或 CJK table wrap 的轻量契约，但仍应先做静态小
 ``dev``。真实多页锚点边界、图片后恢复全宽、页眉页脚文本层和 PDFium 可复制性，仍需
 等源码提交推送且工作区干净后再通过受控 PDF 可视化验证确认。
 
+2026-05-19 PDF CJK font search density flow 正式 ID 契约搬入
+-------------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-font-search-density-flow-text`` 4 页样例中提取低风险主题，按当前
+``dev`` 的 1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的图片压力语料，也不
+声明旧分支的 4 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-font-search-density-flow-text``，覆盖 CJK 密排检索、styled run
+   大小字切换、first/even/default 页眉页脚占位符、重复表头、cant-split 尾行、
+   检索密度表和稳定检索键 ``SD-101`` / ``SD-202`` / ``SD-303`` /
+   ``FE-SD-901`` / ``FE-SD-921`` / ``FE-SD-931`` / ``FE-SD-932`` /
+   ``SD-A-04`` / ``SD-B-04`` / ``FE-SD-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   82；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_font_search_density_flow_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_font_search_density_flow_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK font search density flow 的低资源正式 ID 契约入口已进入 ``dev``。
+真实多页密排检索、图片后恢复全宽、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交
+推送且工作区干净后再通过受控 PDF 可视化验证确认。
+
 2026-05-19 PDF CJK font embed 轻量契约搬入
 ------------------------------------------
 
