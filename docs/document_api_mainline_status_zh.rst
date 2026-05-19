@@ -177,3 +177,35 @@ PDF 渲染或完整构建。
    CMake、CTest、Ninja 或 MSBuild。
 4. 只有轻量清单通过、源码已提交推送、工作区干净且资源允许时，才进入截图级 Word
    visual validation 或 PDF 可视化验证。
+
+
+2026-05-19 低资源验证结果
+-------------------------
+
+本轮已按轻量清单完成脚本级验证，未启动 CMake、CTest、Ninja、MSBuild、Word、
+LibreOffice、浏览器或 PDF 渲染。
+
+已通过的固定入口：
+
+1. ``git diff --check``。
+2. 10 个 release governance 相关 PowerShell 脚本和测试的 parser 检查。
+3. ``test/check_release_metadata_docs_test.ps1``。
+4. ``test/release_governance_warning_helper_contract_test.ps1``。
+5. ``test/build_release_blocker_rollup_report_test.ps1 -Scenario passing``。
+6. ``test/build_release_governance_handoff_report_test.ps1 -Scenario aggregate``。
+7. ``test/build_release_governance_pipeline_report_test.ps1 -Scenario aggregate``。
+8. ``test/write_schema_patch_confidence_calibration_report_test.ps1 -Scenario aggregate``。
+
+已通过的第二阶段补充入口：
+
+1. 6 个文档治理相关 PowerShell 脚本和测试的 parser 检查。
+2. ``test/build_content_control_data_binding_governance_report_test.ps1 -Scenario aggregate``。
+3. ``test/build_project_template_delivery_readiness_report_test.ps1 -Scenario aggregate``。
+4. ``test/build_table_layout_delivery_governance_report_test.ps1 -Scenario aggregate``。
+
+剩余边界：
+
+1. Word visual validation 和 PDF 可视化验证仍未执行。
+2. PDF CJK 两个旧分支仍保留为参考库存，不在本轮低资源验证中扩展。
+3. 进入可视化验证前仍需重新确认 ``dev`` 与 ``origin/dev`` 对齐、工作区干净和本机资源
+   状态。
