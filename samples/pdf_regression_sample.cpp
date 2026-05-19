@@ -3266,6 +3266,169 @@ build_document_table_header_footer_variants_text_sample() {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult
+build_document_table_cjk_vertical_merged_cant_split_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed Lite") ||
+        !define_document_cjk_font_embed_lite_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text(
+            "Document table CJK vertical merged cant split sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(
+                u8"CVC-101 \u7eb5\u5411\u5408\u5e76\u8868\u683c\u4e0d\u62c6\u5206"))) {
+        return sample;
+    }
+
+    auto &default_header = document.ensure_section_header_paragraphs(0U);
+    auto &default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto &first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto &even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto &first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto &even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text(
+            utf8_from_u8(
+                u8"CJK vertical merge header CVC-303 page {{page}}")) ||
+        !default_footer.has_next() ||
+        !default_footer.set_text(
+            utf8_from_u8(
+                u8"CJK vertical merge footer {{page}} / {{total_pages}}")) ||
+        !first_header.has_next() ||
+        !first_header.set_text(
+            utf8_from_u8(
+                u8"CJK vertical merge first CVC-101 page {{page}}")) ||
+        !even_header.has_next() ||
+        !even_header.set_text(
+            utf8_from_u8(
+                u8"CJK vertical merge even CVC-202 page {{page}}")) ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(utf8_from_u8(
+            u8"CJK vertical merge first footer {{page}} / {{total_pages}}")) ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(utf8_from_u8(
+            u8"CJK vertical merge even footer {{page}} / {{total_pages}}"))) {
+        return sample;
+    }
+
+    auto table = document.append_table(5U, 3U);
+    if (!table.has_next() || !table.set_width_twips(7200U) ||
+        !table.set_column_width_twips(0U, 1500U) ||
+        !table.set_column_width_twips(1U, 2200U) ||
+        !table.set_column_width_twips(2U, 3500U) ||
+        !table.set_cell_text(0U, 0U, utf8_from_u8(u8"\u9636\u6bb5")) ||
+        !table.set_cell_text(0U, 1U, utf8_from_u8(u8"\u8d1f\u8d23")) ||
+        !table.set_cell_text(0U, 2U, utf8_from_u8(u8"\u8bf4\u660e")) ||
+        !table.set_cell_text(1U, 0U, "CVC-202") ||
+        !table.set_cell_text(1U, 1U,
+                             utf8_from_u8(u8"\u7edf\u7b79\u5757")) ||
+        !table.set_cell_text(
+            1U, 2U,
+            utf8_from_u8(
+                u8"\u7eb5\u5411\u5408\u5e76\u5757\u9700\u8981\u548c cant-split \u884c\u4e00\u8d77\u4fdd\u6301\u53ef\u8bfb\u3002")) ||
+        !table.set_cell_text(2U, 0U, "CVC-303") ||
+        !table.set_cell_text(
+            2U, 2U,
+            utf8_from_u8(
+                u8"\u7ffb\u9875\u56de\u6d41\u65f6\u4e0d\u80fd\u7834\u574f\u5408\u5e76\u5355\u5143\u683c\u8fb9\u754c\u3002")) ||
+        !table.set_cell_text(3U, 0U, "FE-CVC-404") ||
+        !table.set_cell_text(3U, 1U, utf8_from_u8(u8"\u9a8c\u6536")) ||
+        !table.set_cell_text(4U, 0U, "CVC-999") ||
+        !table.set_cell_text(4U, 1U, utf8_from_u8(u8"\u6536\u53e3")) ||
+        !table.set_cell_text(
+            4U, 2U,
+            utf8_from_u8(
+                u8"\u6536\u53e3\u884c\u4fdd\u7559 ABC 123 \u68c0\u7d22\u952e\u5e76\u7981\u6b62\u62c6\u5206\u3002"))) {
+        return sample;
+    }
+
+    auto owner_block = table.find_cell(1U, 1U);
+    auto merged_note = table.find_cell(3U, 1U);
+    auto heading_phase = table.find_cell(0U, 0U);
+    auto heading_owner = table.find_cell(0U, 1U);
+    auto heading_note = table.find_cell(0U, 2U);
+    if (!owner_block.has_value() || !merged_note.has_value() ||
+        !heading_phase.has_value() || !heading_owner.has_value() ||
+        !heading_note.has_value() || !owner_block->merge_down(1U) ||
+        !merged_note->merge_right(1U)) {
+        return sample;
+    }
+
+    if (!merged_note->set_text(utf8_from_u8(
+            u8"\u6a2a\u5411\u5408\u5e76\u884c FE-CVC-404 \u9700\u8981\u4fdd\u7559\u6574\u6bb5\u4e2d\u6587\u548c ABC 123\u3002"))) {
+        return sample;
+    }
+
+    if (!heading_phase->set_fill_color("EAF2F8") ||
+        !heading_owner->set_fill_color("EAF2F8") ||
+        !heading_note->set_fill_color("EAF2F8") ||
+        !owner_block->set_fill_color("E8F3E8") ||
+        !merged_note->set_fill_color("F6E7D8") ||
+        !owner_block->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center) ||
+        !merged_note->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center)) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < 5U; ++row_index) {
+        if (!row.has_next() ||
+            !row.set_height_twips(row_index == 0U ? 480U : 720U,
+                                  featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        if (row_index == 0U && !row.set_repeats_header()) {
+            return sample;
+        }
+        if ((row_index == 1U || row_index == 4U) && !row.set_cant_split()) {
+            return sample;
+        }
+        row.next();
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document table CJK vertical merged "
+        "cant split";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed Lite",
+                                        font_path},
+    };
+    options.cjk_font_file_path = font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 9.0;
+    options.line_height_points = 16.0;
+    options.paragraph_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult build_document_table_cant_split_text_sample() {
     ScenarioResult sample;
 
@@ -6826,6 +6989,22 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_table_cjk_wrap_flow_text_sample(cjk_font);
+    } else if (config.scenario ==
+               "document_table_cjk_vertical_merged_cant_split_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_table_cjk_vertical_merged_cant_split_text\n";
+            return 1;
+        }
+        sample =
+            build_document_table_cjk_vertical_merged_cant_split_text_sample(
+                cjk_font);
     } else if (config.scenario == "document_table_cant_split_text") {
         sample = build_document_table_cant_split_text_sample();
     } else if (config.scenario == "document_table_merged_cells_text") {

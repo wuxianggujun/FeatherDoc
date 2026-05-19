@@ -1030,3 +1030,26 @@ Word、LibreOffice、浏览器或 PDF 渲染。
 该补丁只表示 CJK 表格换行流程的低资源契约入口已进入 ``dev``。真实 CJK 字体度量、表格
 换行、重复表头与页眉页脚视觉质量，仍需等源码提交推送且工作区干净后再通过受控 PDF
 可视化验证确认。
+
+PDF 表格 CJK 纵向合并 cant-split 契约入口
+------------------------------------------------
+
+本轮继续从旧 PDF 分支的表格合并语料中提取低风险主题，按当前 ``dev`` 的 1 页轻量
+样例结构重做，不整分支合并，也不搬入旧分支的多页 visual baseline。
+
+已补齐内容：
+
+1. 新增 ``document-table-cjk-vertical-merged-cant-split-text``，覆盖 CJK 表格里的
+   纵向合并、横向合并、重复表头、cant-split 行、居中垂直对齐、页眉页脚占位符和稳定
+   检索键 ``CVC-101`` / ``CVC-202`` / ``CVC-303`` / ``FE-CVC-404`` /
+   ``CVC-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   75；该样例仍保持 ``expected_pages`` 为 1，避免低资源阶段扩大渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_document_table_cjk_vertical_merged_cant_split_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_document_table_cjk_vertical_merged_cant_split_contract_test.ps1``，
+   用纯文本静态契约确认样例生成器、manifest、manifest parser 测试和 CMake 分类一致。
+
+该补丁只表示 CJK 纵向合并表格的低资源契约入口已进入 ``dev``。真实 PDF 中合并单元格
+边框、CJK 字体换行、cant-split 分页和页眉页脚视觉质量，仍需等源码提交推送且工作区
+干净后再通过受控 PDF 可视化验证确认。

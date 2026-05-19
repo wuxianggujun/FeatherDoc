@@ -114,7 +114,7 @@ Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "Table matrix foote
 
 Assert-ContainsText -Text $manifestTestText -ExpectedText $sampleId `
     -Message "PDF regression manifest parser test should assert sample '$sampleId'."
-Assert-ContainsText -Text $manifestTestText -ExpectedText "74U" `
+Assert-ContainsText -Text $manifestTestText -ExpectedText "75U" `
     -Message "PDF regression manifest parser test should expect the updated sample count."
 Assert-ContainsText -Text $cmakeText -ExpectedText ('sample_kind STREQUAL "{0}"' -f $sampleKind) `
     -Message "CMake PDF regression registration should font-gate '$sampleKind'."

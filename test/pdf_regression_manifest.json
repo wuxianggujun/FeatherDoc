@@ -827,6 +827,33 @@
       ]
     },
     {
+      "id": "document-table-cjk-vertical-merged-cant-split-text",
+      "kind": "document_table_cjk_vertical_merged_cant_split_text",
+      "output_file": "featherdoc-pdf-regression-document-table-cjk-vertical-merged-cant-split-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document table CJK vertical merged cant split sample",
+        "CVC-101",
+        "CJK vertical merge first CVC-101 page 1",
+        "CJK vertical merge footer 1 / 1",
+        "CVC-202",
+        "CVC-303",
+        "FE-CVC-404",
+        "CVC-999",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "table-cjk-vertical-merge",
+        "table-cjk-horizontal-merge",
+        "table-cjk-repeat-header",
+        "table-cjk-cant-split"
+      ]
+    },
+    {
       "id": "document-table-cant-split-text",
       "kind": "document_table_cant_split_text",
       "output_file": "featherdoc-pdf-regression-document-table-cant-split-text.pdf",
