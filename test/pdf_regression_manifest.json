@@ -880,6 +880,25 @@
       "expect_cjk": true,
       "expect_unicode": true,
       "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-table-wrap-lite-text",
+      "kind": "document_cjk_table_wrap_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-table-wrap-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK table wrap lite sample",
+        "TW-101 \u957f\u6587\u672c\u5355\u5143\u683c\u6362\u884c",
+        "TW-202",
+        "\u590d\u5236\u6821\u9a8c",
+        "TW-303",
+        "TW-404",
+        "\u8868\u683c\u6d41\u8f6c\u770b\u677f\u7ee7\u7eed\u56de\u8bfb ABC 123",
+        "TW-999"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }

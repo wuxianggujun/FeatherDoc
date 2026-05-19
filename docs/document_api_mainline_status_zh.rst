@@ -656,3 +656,26 @@ CJK 重复检索键、共享锚点和 East Asia 字体映射。
 本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 该样例只作为低资源阶段的契约入口；真实纵向合并分页、图片和页眉页脚版式仍需等资源允许后
 通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK table wrap 轻量契约搬入
+------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK table wrap page flow
+方向提取低风险主题，但没有搬入旧分支的 5 页分页、图片资产、页眉页脚或 visual baseline。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK 长文本单元格换行、显式列宽、
+重复表头、cant-split 行和 East Asia 字体映射。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-table-wrap-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK 表格长文本、``set_column_width_twips``、``set_repeats_header`` 和
+   ``set_cant_split``，保留稳定检索键 ``TW-101``、``TW-202``、``TW-303``、
+   ``TW-404``、``TW-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_table_wrap_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实表格换行分页、图片和页眉页脚版式仍需等资源允许后
+通过受控 PDF 可视化验证确认。
