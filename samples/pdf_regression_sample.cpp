@@ -3066,6 +3066,136 @@ build_document_table_merged_header_footer_variants_text_sample() {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_cjk_bullet_list_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK List")) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK bullet list sample")) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"\u9879\u76ee\u7b26\u53f7\u5217\u8868\u5f00\u59cb"))) {
+        return sample;
+    }
+
+    const std::vector<std::string> items{
+        utf8_from_u8(u8"BL-101 \u9879\u76ee\u7b26\u53f7\u68c0\u7d22\u952e"),
+        utf8_from_u8(u8"BL-102 \u9879\u76ee\u7b26\u53f7\u5b57\u4f53\u56de\u9000"),
+        utf8_from_u8(u8"BL-103 East Asia bullet fallback"),
+        utf8_from_u8(u8"BL-104 \u4e2d\u82f1\u6df7\u6392 bullet ABC 123"),
+    };
+    for (const auto &text : items) {
+        if (!append_document_list_item(document, text,
+                                       featherdoc::list_kind::bullet,
+                                       false)) {
+            return sample;
+        }
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"\u9879\u76ee\u7b26\u53f7\u7ed3\u675f"))) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK bullet list text";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK List", font_path},
+    };
+    options.cjk_font_file_path = font_path;
+    options.use_system_font_fallbacks = false;
+    options.line_height_points = 20.0;
+    options.paragraph_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_document_cjk_numbered_list_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK List")) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK numbered list sample")) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"\u7f16\u53f7\u5217\u8868\u5f00\u59cb"))) {
+        return sample;
+    }
+
+    const std::vector<std::string> items{
+        utf8_from_u8(u8"NL-101 \u7f16\u53f7\u68c0\u7d22\u952e"),
+        utf8_from_u8(u8"NL-102 \u7f16\u53f7\u5b57\u4f53\u56de\u9000"),
+        utf8_from_u8(u8"NL-103 East Asia numbering fallback"),
+        utf8_from_u8(u8"NL-104 \u4e2d\u82f1\u6df7\u6392 numbering ABC 123"),
+    };
+    for (std::size_t index = 0U; index < items.size(); ++index) {
+        if (!append_document_list_item(document, items[index],
+                                       featherdoc::list_kind::decimal,
+                                       index == 0U)) {
+            return sample;
+        }
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"\u7f16\u53f7\u5217\u8868\u7ed3\u675f"))) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK numbered list text";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK List", font_path},
+    };
+    options.cjk_font_file_path = font_path;
+    options.use_system_font_fallbacks = false;
+    options.line_height_points = 20.0;
+    options.paragraph_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult build_long_report_text_sample() {
     ScenarioResult sample;
 
@@ -3401,6 +3531,34 @@ int run_program(const std::vector<std::string> &args) {
         sample = build_sectioned_report_text_sample();
     } else if (config.scenario == "list_report_text") {
         sample = build_list_report_text_sample();
+    } else if (config.scenario == "document_cjk_bullet_list_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing CJK font for scenario "
+                   "document_cjk_bullet_list_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_bullet_list_text_sample(cjk_font);
+    } else if (config.scenario == "document_cjk_numbered_list_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing CJK font for scenario "
+                   "document_cjk_numbered_list_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_numbered_list_text_sample(cjk_font);
     } else if (config.scenario == "long_report_text") {
         sample = build_long_report_text_sample();
     } else if (config.scenario == "document_long_flow_text") {

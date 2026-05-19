@@ -732,6 +732,36 @@
       ],
       "expect_visual_baseline": true,
       "visual_expected_pages": 3
+    },
+    {
+      "id": "document-cjk-bullet-list-text",
+      "kind": "document_cjk_bullet_list_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-bullet-list-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK bullet list sample",
+        "\u9879\u76ee\u7b26\u53f7\u5217\u8868\u5f00\u59cb",
+        "BL-101 \u9879\u76ee\u7b26\u53f7\u68c0\u7d22\u952e",
+        "BL-103 East Asia bullet fallback",
+        "\u9879\u76ee\u7b26\u53f7\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true
+    },
+    {
+      "id": "document-cjk-numbered-list-text",
+      "kind": "document_cjk_numbered_list_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-numbered-list-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK numbered list sample",
+        "\u7f16\u53f7\u5217\u8868\u5f00\u59cb",
+        "NL-101 \u7f16\u53f7\u68c0\u7d22\u952e",
+        "NL-103 East Asia numbering fallback",
+        "\u7f16\u53f7\u5217\u8868\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true
     }
   ]
 }

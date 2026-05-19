@@ -437,7 +437,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 46U);
+    REQUIRE_EQ(samples.size(), 48U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);
@@ -563,6 +563,14 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(samples[45].kind, "document_table_merged_cant_split_text");
     CHECK_EQ(samples[45].expected_pages, 3U);
     CHECK_GE(samples[45].expected_text.size(), 10U);
+    CHECK_EQ(samples[46].id, "document-cjk-bullet-list-text");
+    CHECK_EQ(samples[46].kind, "document_cjk_bullet_list_text");
+    CHECK_EQ(samples[46].expected_pages, 1U);
+    CHECK_GE(samples[46].expected_text.size(), 5U);
+    CHECK_EQ(samples[47].id, "document-cjk-numbered-list-text");
+    CHECK_EQ(samples[47].kind, "document_cjk_numbered_list_text");
+    CHECK_EQ(samples[47].expected_pages, 1U);
+    CHECK_GE(samples[47].expected_text.size(), 5U);
 }
 
 TEST_CASE("PDF regression manifest parser preserves escaped strings") {
