@@ -524,6 +524,32 @@ copy/search matrix 或 CJK table wrap 的轻量契约，但仍应先做静态小
 该样例只作为低资源阶段的契约入口；真实 copy/search 可视化验证仍需等资源允许后通过
 ``scripts/run_pdf_visual_release_gate.ps1`` 受控执行。
 
+2026-05-19 PDF CJK copy/search matrix 正式 ID 契约搬入
+------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-copy-search-matrix-text`` 3 页样例中提取低风险主题，按当前 ``dev`` 的
+1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的大矩阵正文，也不声明旧分支的
+3 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-copy-search-matrix-text``，覆盖 CJK copy/search 文本层锚点、
+   first/even/default 页眉页脚占位符、重复表头、表格检索键和稳定检索键
+   ``CS-101`` / ``CS-202`` / ``CS-303`` / ``FE-CS-901`` /
+   ``FE-CS-921`` / ``FE-CS-931`` / ``FE-CS-941`` / ``FE-CS-999`` /
+   ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   79；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_copy_search_matrix_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_copy_search_matrix_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK copy/search matrix 的低资源正式 ID 契约入口已进入 ``dev``。真实
+多页 copy/search、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且工作区干净后
+再通过受控 PDF 可视化验证确认。
+
 2026-05-19 PDF CJK font embed 轻量契约搬入
 ------------------------------------------
 
