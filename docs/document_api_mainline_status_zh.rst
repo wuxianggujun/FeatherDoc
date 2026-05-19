@@ -243,3 +243,28 @@ LibreOffice、浏览器或 PDF 渲染。
 3. PDF CJK 只验证当前 ``dev`` 已有能力；不搬入旧分支的大批 regression 样例、manifest
    或视觉 baseline。
 4. 任一可视化阶段失败时，先提交失败记录和复现命令，不继续叠加重型验证。
+
+
+2026-05-19 Word 可视化资源预检
+-------------------------------
+
+本轮在用户关闭部分后台程序后做了最小资源预检，但仍未运行完整 Word visual smoke、
+release gate 或 PDF visual gate。
+
+已确认：
+
+1. ``dev`` 与 ``origin/dev`` 对齐，工作区干净。
+2. ``Microsoft Word`` COM 可创建并退出。
+3. 本轮启动的 ``WINWORD`` 进程已在预检结束后关闭。
+
+阻塞完整 Word smoke 的前置条件：
+
+1. 当前工作区没有可直接复用的跟踪内 ``.docx`` 输入。
+2. 现有 ``build`` 目录中未找到 ``featherdoc_visual_smoke_tables`` 可执行文件。
+3. ``PATH`` 中没有 ``python``；Codex bundled Python 存在，但缺少 ``fitz`` / PyMuPDF。
+
+因此，当前不能在低资源约束下直接运行 ``scripts/run_word_visual_smoke.ps1`` 或
+``scripts/run_word_visual_release_gate.ps1``。否则会触发构建、创建 Python 环境或安装
+渲染依赖。后续若要继续可视化验证，最小风险路径是先提供或复用一个现成 DOCX，并准备
+已带 ``PIL`` 与 ``fitz`` 的 Python，再只跑 ``run_word_visual_smoke.ps1 -InputDocx ...``
+这一条最小链路。
