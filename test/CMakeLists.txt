@@ -484,6 +484,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_cjk_copy_search_lite_text" OR
            sample_kind STREQUAL "document_cjk_font_embed_lite_text" OR
            sample_kind STREQUAL "document_cjk_numbered_list_text" OR
+           sample_kind STREQUAL "document_cjk_search_density_lite_text" OR
            sample_kind STREQUAL "document_cjk_style_overlay_lite_text" OR
            sample_kind STREQUAL "document_eastasia_style_probe")
             list(APPEND sample_command --require-cjk-font)
@@ -512,6 +513,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_cjk_copy_search_lite_text" OR
            sample_kind STREQUAL "document_cjk_font_embed_lite_text" OR
            sample_kind STREQUAL "document_cjk_numbered_list_text" OR
+           sample_kind STREQUAL "document_cjk_search_density_lite_text" OR
            sample_kind STREQUAL "document_cjk_style_overlay_lite_text" OR
            sample_kind STREQUAL "document_eastasia_style_probe")
             set_tests_properties(${test_name}
