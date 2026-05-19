@@ -862,6 +862,24 @@
       "expect_cjk": true,
       "expect_unicode": true,
       "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-vertical-merge-lite-text",
+      "kind": "document_cjk_vertical_merge_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-vertical-merge-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK vertical merge lite sample",
+        "VM-101 \u7eb5\u5411\u5408\u5e76\u8054\u52a8",
+        "VM-202",
+        "\u7edf\u7b79\u5757",
+        "VM-303",
+        "VM-777 \u8868\u540e\u56de\u6d41\u68c0\u7d22\u952e",
+        "VM-999"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }

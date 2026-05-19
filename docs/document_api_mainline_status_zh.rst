@@ -633,3 +633,26 @@ CJK 重复检索键、共享锚点和 East Asia 字体映射。
 本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 该样例只作为低资源阶段的契约入口；真实 repeated-key 分页边界、图片和表格版式仍需等资源
 允许后通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK vertical merge 轻量契约搬入
+----------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK vertical merge wrap
+方向提取低风险主题，但没有搬入旧分支的 4 页分页、图片资产、页眉页脚或 visual baseline。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK 表格纵向合并、cant-split 行、
+垂直居中和 East Asia 字体映射。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-vertical-merge-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK 表格文本、``merge_down`` 纵向合并、``set_cant_split`` 禁拆行和
+   ``cell_vertical_alignment::center`` 垂直对齐，保留稳定检索键 ``VM-101``、
+   ``VM-202``、``VM-303``、``VM-777``、``VM-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_vertical_merge_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实纵向合并分页、图片和页眉页脚版式仍需等资源允许后
+通过受控 PDF 可视化验证确认。
