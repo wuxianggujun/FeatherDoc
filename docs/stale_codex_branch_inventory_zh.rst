@@ -604,3 +604,30 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或完整 PDF visual release gat
 结论：当前只证明 PDF 渲染链路可复用且静态 visual gate 契约仍通过。旧 PDF 参考分支仍应
 作为只读参考保留到完整 PDF release gate 具备可复用 build 输出并实际通过后，再判断是否
 归档或删除。
+
+2026-05-20 分支清理审计
+------------------------
+
+本轮按低资源方式复核本地和远端分支，确认 ``dev`` 与 ``origin/dev`` 对齐且工作区干净。
+
+已清理：
+
+* 删除本地分支 ``codex/dev-before-branch-merge-20260518-194700``。该分支已经被当前
+  ``dev`` 完整包含，属于合并前本地备份分支，不再保留。
+
+暂不清理的远端参考分支：
+
+* ``origin/codex/pdf-cjk-copy-search-gate``：相对当前 ``dev`` 仍有 31 个右侧提交，
+  diff 约 31 个文件；虽然 manifest 样例 ID 缺口为 0，但旧 visual baseline 和重型 gate
+  仍作为完整 PDF release gate 参考。
+* ``origin/codex/pdf-cjk-bullet-fallback``：相对当前 ``dev`` 仍有 36 个右侧提交，
+  diff 约 36 个文件；当前 ``dev`` 已覆盖明确低资源契约，但旧分支仍保留 CJK fallback
+  和 visual gate 参考证据。
+* ``origin/codex/release-governance-rollup-details``：相对当前 ``dev`` 仍有 8 个右侧提交，
+  diff 约 47 个文件；核心治理目标已按当前结构覆盖，但旧分支仍可作为治理链路参考。
+* ``origin/codex/release-governance-warning-entrypoints``：相对当前 ``dev`` 仍有 46 个
+  右侧提交，diff 约 52 个文件；当前 ``dev`` 已覆盖关键 warning 契约，但不满足 Git
+  历史已合并条件。
+
+结论：当前只删除本地已完全合入的备份分支。远端 ``origin/codex/*`` 不建议现在删除；
+应等完整 PDF release gate 和治理发布材料验证通过后，再创建明确归档记录并清理远端分支。
