@@ -24,6 +24,9 @@ performance.
   `Amt`/`Amount`, `Project Status`/`Status Project`, and parenthesized unit
   labels such as `Amount USD`/`Amount (USD)`, while keeping semantic header
   changes split into separate editable tables.
+- Added a PDF visual validation status documentation contract that keeps the
+  memory preflight guard, current blocker counts, and "do not run the full
+  visual gate yet" boundary visible in release-facing docs.
 - Added PDF repeated-header continuation diagnostics that expose whether a
   matched source header used exact, normalized text, plural variant, canonical
   abbreviation, or token-set word-order matching.

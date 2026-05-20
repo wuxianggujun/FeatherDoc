@@ -1,0 +1,99 @@
+param(
+    [string]$RepoRoot
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+function Assert-ContainsText {
+    param(
+        [string]$Text,
+        [string]$ExpectedText,
+        [string]$Message
+    )
+
+    if ($Text -notmatch [regex]::Escape($ExpectedText)) {
+        throw "$Message Missing='$ExpectedText'."
+    }
+}
+
+function Get-RepoFileText {
+    param(
+        [string]$Root,
+        [string]$RelativePath
+    )
+
+    $path = Join-Path $Root $RelativePath
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "Expected contract file was not found: $RelativePath"
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $path
+}
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    throw "RepoRoot is required."
+}
+
+$resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+
+$statusDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_visual_validation_status_zh.rst"
+$preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
+$governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
+$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+$doNotRunFullVisualGateMarker = [string]::Concat(@(
+    [char]0x4E0D,
+    [char]0x8981,
+    [char]0x76F4,
+    [char]0x63A5,
+    [char]0x542F,
+    [char]0x52A8,
+    [char]0x5B8C,
+    [char]0x6574,
+    " visual gate"
+))
+
+$statusMarkers = @(
+    "required_check_count = 11",
+    "memory_guard_blocked = false",
+    "workstation_free_memory_available",
+    "free_memory_mb",
+    "min_free_memory_mb",
+    "memory_guard_skipped",
+    "-MinFreeMemoryMB",
+    "-SkipMemoryGuard",
+    "missing_output_count = 87",
+    $doNotRunFullVisualGateMarker
+)
+
+foreach ($marker in $statusMarkers) {
+    Assert-ContainsText -Text $statusDoc -ExpectedText $marker `
+        -Message "PDF visual validation status doc should preserve memory-gate and blocker status marker."
+}
+
+$scriptMarkers = @(
+    "workstation_free_memory_available",
+    "free_memory_mb",
+    "min_free_memory_mb",
+    "memory_guard_blocked",
+    "memory_guard_skipped"
+)
+
+foreach ($marker in $scriptMarkers) {
+    foreach ($entry in @(
+        [ordered]@{ name = "PDF visual preflight script"; text = $preflightScript },
+        [ordered]@{ name = "PDF visual preflight governance report script"; text = $governanceReportScript }
+    )) {
+        Assert-ContainsText -Text $entry.text -ExpectedText $marker `
+            -Message "$($entry.name) should preserve memory-gate marker '$marker'."
+    }
+}
+
+foreach ($marker in @(
+    "pdf_visual_validation_status_docs_contract",
+    "pdf_visual_validation_status_docs_contract_test.ps1",
+    "TIMEOUT 60"
+)) {
+    Assert-ContainsText -Text $cmakeLists -ExpectedText $marker `
+        -Message "CMake test registration should keep the PDF visual status docs contract wired."
+}
