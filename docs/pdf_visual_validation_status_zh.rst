@@ -11,13 +11,15 @@ PDF 可视化验证状态
 3. 最新的 PDF preflight governance 报告仍是 ``blocked``，因为
    ``check_pdf_visual_release_gate_preflight.ps1`` 还报告：
 
-   * ``required_check_count = 10``
+   * ``required_check_count = 11``
    * ``blocking_check_count = 6``
    * ``missing_cli_pdf_count = 2``
    * ``visual_baseline_sample_count = 42``
    * ``missing_visual_baseline_pdf_count = 42``
    * ``cjk_text_layer_sample_count = 43``
    * ``missing_cjk_text_layer_pdf_count = 43``
+   * ``memory_guard_blocked = false``（当前阻断不是内存不足，而是缺少可复用
+     build / CTest / PDF baseline 输出）
    * ``output_gap_count = 3``
    * ``missing_output_count = 87``
 
@@ -31,8 +33,15 @@ PDF 可视化验证状态
 
 * ``scripts/check_pdf_visual_release_gate_preflight.ps1`` 会在 summary JSON 中输出
   ``blocking_summary``。
+* ``check_pdf_visual_release_gate_preflight.ps1`` 默认要求工作站空闲物理内存不少于
+  ``2048 MB``；如果低于阈值，会把
+  ``workstation_free_memory_available`` 记录为 blocking check，并在
+  ``blocking_summary`` 中写入 ``free_memory_mb``、``min_free_memory_mb``、
+  ``memory_guard_blocked`` 和 ``memory_guard_skipped``。
 * ``scripts/write_pdf_visual_release_gate_preflight_governance_report.ps1`` 会把同一份
   ``blocking_summary`` 透传到 governance summary、release blocker 和 action item。
+  如果它自动生成 preflight summary，也会把 ``-MinFreeMemoryMB`` 或
+  ``-SkipMemoryGuard`` 继续传给 preflight 脚本，避免绕过同一套资源门槛。
 * ``scripts/release_blocker_metadata_helpers.ps1`` 会在
   ``prepare_pdf_visual_release_gate_build_outputs`` 的 runbook / checklist guidance 中展示
   缺口摘要。
@@ -66,6 +75,10 @@ PDF 可视化验证状态
 ------
 
 1. 继续保留远端 ``origin/codex/*`` 为只读参考库存。
-2. 等可复用的 PDF build / CTest / baseline 输出补齐后，再把
-   ``check_pdf_visual_release_gate_preflight.ps1`` 推进到 ``ready``。
-3. 只有完整 visual gate 通过后，才考虑回收旧 PDF 参考分支。
+2. 在资源允许、源码已提交推送且工作区干净时，先准备可复用的 PDF build /
+   CTest / baseline 输出；不要直接启动完整 visual gate。
+3. 重新运行 ``check_pdf_visual_release_gate_preflight.ps1``。只有当
+   ``workstation_free_memory_available``、build 目录、CTest manifest、CLI PDF
+   baseline、visual baseline 和 CJK text-layer 输出全部通过后，才把预检视为
+   ``ready``。
+4. 只有完整 visual gate 通过后，才考虑归档或回收旧 PDF 参考分支。

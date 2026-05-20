@@ -110,6 +110,9 @@ performance.
 - Added memory-guard parameter passthrough to the PDF visual preflight
   governance report entry point so auto-generated preflight summaries use the
   same workstation resource threshold as the visual gate.
+- Documented the current PDF visual validation boundary, including the
+  free-memory preflight check, governance passthrough, and why the gate is
+  still blocked by missing reusable build and baseline outputs.
 
 ### Fixed
 
