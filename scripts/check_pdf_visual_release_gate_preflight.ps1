@@ -455,6 +455,17 @@ $blockingChecks = @(
     $checks | Where-Object { $_.required -eq $true -and $_.status -ne "pass" }
 )
 $status = if ($blockingChecks.Count -eq 0) { "ready" } else { "not_ready" }
+$blockingSummary = [ordered]@{
+    required_check_count = @($checks | Where-Object { $_.required -eq $true }).Count
+    blocking_check_count = $blockingChecks.Count
+    missing_cli_pdf_count = $missingCliPdfs.Count
+    visual_baseline_sample_count = $visualSamples.Count
+    missing_visual_baseline_pdf_count = $missingVisualPdfs.Count
+    cjk_text_layer_sample_count = $cjkSamples.Count
+    missing_cjk_text_layer_pdf_count = $missingCjkPdfs.Count
+    build_dir_entry_count = [int]$buildDirectorySnapshot.entry_count
+    ctest_required_pattern_count = $requiredCTestPatterns.Count
+}
 $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
     status = $status
@@ -463,6 +474,7 @@ $summary = [ordered]@{
     build_dir = $resolvedBuildDir
     build_dir_source = $buildDirSelection.Source
     requested_build_dir = $buildDirSelection.RequestedPath
+    blocking_summary = $blockingSummary
     checks = @($checks)
     blocking_checks = @($blockingChecks | ForEach-Object { $_.name })
 }

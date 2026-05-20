@@ -138,6 +138,18 @@ Assert-True -Condition (Test-Path -LiteralPath $summaryPath -PathType Leaf) `
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-True -Condition ($summary.status -eq "ready") `
     -Message "Preflight summary should be ready for a reusable fake PDF build."
+Assert-True -Condition ([int]$summary.blocking_summary.blocking_check_count -eq 0) `
+    -Message "Ready preflight should expose zero blocking checks."
+Assert-True -Condition ([int]$summary.blocking_summary.missing_cli_pdf_count -eq 0) `
+    -Message "Ready preflight should expose zero missing CLI PDFs."
+Assert-True -Condition ([int]$summary.blocking_summary.missing_visual_baseline_pdf_count -eq 0) `
+    -Message "Ready preflight should expose zero missing visual baseline PDFs."
+Assert-True -Condition ([int]$summary.blocking_summary.missing_cjk_text_layer_pdf_count -eq 0) `
+    -Message "Ready preflight should expose zero missing CJK text-layer PDFs."
+Assert-True -Condition ([int]$summary.blocking_summary.visual_baseline_sample_count -gt 0) `
+    -Message "Ready preflight should report the visual baseline sample count."
+Assert-True -Condition ([int]$summary.blocking_summary.cjk_text_layer_sample_count -gt 0) `
+    -Message "Ready preflight should report the CJK text-layer sample count."
 
 foreach ($name in @(
     "build_dir_exists",
@@ -177,6 +189,9 @@ foreach ($expectedText in @(
     "cmake_cache_exists",
     "build_dir_source",
     "requested_build_dir",
+    "blocking_summary",
+    "missing_visual_baseline_pdf_count",
+    "missing_cjk_text_layer_pdf_count",
     "entries_preview"
 )) {
     Assert-True -Condition ($preflightText -match [regex]::Escape($expectedText)) `
