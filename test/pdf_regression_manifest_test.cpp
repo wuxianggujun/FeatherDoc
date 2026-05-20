@@ -489,6 +489,10 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              std::string::npos);
     CHECK_NE(json.find("\"document-cjk-page-boundary-lite-text\""),
              std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-bullet-list-text\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"document-cjk-numbered-list-text\""),
+             std::string::npos);
     CHECK_NE(json.find("\"document-cjk-numbered-list-page-flow-lite-text\""),
              std::string::npos);
     CHECK_NE(json.find("\"document-cjk-bullet-overlay-lite-text\""),
@@ -644,6 +648,18 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(page_boundary->kind, "document_cjk_page_boundary_lite_text");
     CHECK_EQ(page_boundary->expected_pages, 1U);
     CHECK_GE(page_boundary->expected_text.size(), 10U);
+    const auto bullet_list =
+        find_sample("document-cjk-bullet-list-text");
+    REQUIRE(bullet_list != samples.end());
+    CHECK_EQ(bullet_list->kind, "document_cjk_bullet_list_text");
+    CHECK_EQ(bullet_list->expected_pages, 1U);
+    CHECK_GE(bullet_list->expected_text.size(), 8U);
+    const auto numbered_list =
+        find_sample("document-cjk-numbered-list-text");
+    REQUIRE(numbered_list != samples.end());
+    CHECK_EQ(numbered_list->kind, "document_cjk_numbered_list_text");
+    CHECK_EQ(numbered_list->expected_pages, 1U);
+    CHECK_GE(numbered_list->expected_text.size(), 8U);
     const auto numbered_list_page_flow_lite =
         find_sample("document-cjk-numbered-list-page-flow-lite-text");
     REQUIRE(numbered_list_page_flow_lite != samples.end());
