@@ -185,8 +185,7 @@ function Get-InputJsonPaths {
         if (-not (Test-Path -LiteralPath $resolvedRoot)) { continue }
 
         if ((Get-Item -LiteralPath $resolvedRoot).PSIsContainer) {
-            Get-ChildItem -LiteralPath $resolvedRoot -Recurse -File -Filter "*.json" |
-                Where-Object { $_.Name -eq "summary.json" } |
+            Get-ChildItem -LiteralPath $resolvedRoot -Recurse -File -Filter "summary.json" |
                 ForEach-Object { $paths.Add($_.FullName) | Out-Null }
         } else {
             $paths.Add($resolvedRoot) | Out-Null
