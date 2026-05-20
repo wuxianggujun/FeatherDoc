@@ -67,6 +67,7 @@ $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
+$preflightScriptPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1"
 $rollupScriptPath = Join-Path $resolvedRepoRoot "scripts\build_release_blocker_rollup_report.ps1"
 
 $tokens = $null
@@ -485,5 +486,30 @@ Assert-Equal -Actual ([int]$readySummary.release_blocker_count) -Expected 0 `
     -Message "Ready preflight should not emit blockers."
 Assert-Equal -Actual ([int]$readySummary.action_item_count) -Expected 0 `
     -Message "Ready preflight should not emit action items."
+
+$governanceScriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
+foreach ($expectedText in @(
+    "[int]`$MinFreeMemoryMB = 2048",
+    "[switch]`$SkipMemoryGuard",
+    "-MinFreeMemoryMB `$MinFreeMemoryMB",
+    "-SkipMemoryGuard:`$SkipMemoryGuard",
+    "memoryGuardCommandArgs",
+    "run_pdf_visual_release_gate.ps1",
+    "check_pdf_visual_release_gate_preflight.ps1"
+)) {
+    Assert-ContainsText -Text $governanceScriptText -ExpectedText $expectedText `
+        -Message "Governance report should keep memory guard passthrough marker '$expectedText'."
+}
+
+$preflightScriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $preflightScriptPath
+foreach ($expectedText in @(
+    "[int]`$MinFreeMemoryMB = 2048",
+    "[switch]`$SkipMemoryGuard",
+    "workstation_free_memory_available",
+    "memory_guard_blocked"
+)) {
+    Assert-ContainsText -Text $preflightScriptText -ExpectedText $expectedText `
+        -Message "Preflight script should keep memory guard contract marker '$expectedText'."
+}
 
 Write-Host "PDF visual release gate preflight governance report contract passed."

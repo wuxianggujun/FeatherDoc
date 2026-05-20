@@ -16,6 +16,8 @@ param(
     [string]$SummaryJson = "",
     [string]$ReportMarkdown = "",
     [string]$CTestExecutable = "ctest",
+    [int]$MinFreeMemoryMB = 2048,
+    [switch]$SkipMemoryGuard,
     [switch]$FailOnBlocker
 )
 
@@ -431,7 +433,9 @@ if ([string]::IsNullOrWhiteSpace($PreflightJson)) {
     & $preflightScriptPath `
         -BuildDir $BuildDir `
         -OutputJson $preflightSummaryPath `
-        -CTestExecutable $CTestExecutable | Out-Null
+        -CTestExecutable $CTestExecutable `
+        -MinFreeMemoryMB $MinFreeMemoryMB `
+        -SkipMemoryGuard:$SkipMemoryGuard | Out-Null
 }
 
 try {
@@ -454,7 +458,12 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage) -and $blockingChecks.
 
 $preflightDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $preflightSummaryPath
 $summaryDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
-$commandTemplate = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir $BuildDir -PreflightOnly"
+$memoryGuardCommandArgs = if ($SkipMemoryGuard) {
+    "-SkipMemoryGuard"
+} else {
+    "-MinFreeMemoryMB $MinFreeMemoryMB"
+}
+$commandTemplate = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir $BuildDir -PreflightOnly $memoryGuardCommandArgs"
 $summaryBuildDir = Get-JsonString -Object $preflightSummary -Name "build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
 $summaryRequestedBuildDir = Get-JsonString -Object $preflightSummary -Name "requested_build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
 $summaryBuildDirSource = Get-JsonString -Object $preflightSummary -Name "build_dir_source" -DefaultValue "requested"
@@ -491,7 +500,7 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         source_json_display = $preflightDisplay
         repair_strategy = "rerun_preflight"
         repair_hint = "Regenerate the PDF visual release gate preflight summary, then rebuild this governance report."
-        command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate_preflight.ps1 -BuildDir $BuildDir -OutputJson $preflightSummaryPath"
+        command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate_preflight.ps1 -BuildDir $BuildDir -OutputJson $preflightSummaryPath $memoryGuardCommandArgs"
         blocked_item_count = 1
         issue_keys = @("preflight_summary_unavailable")
     }) | Out-Null
