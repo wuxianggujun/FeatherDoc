@@ -60,6 +60,10 @@ $statusMarkers = @(
     "free_memory_mb",
     "min_free_memory_mb",
     "memory_guard_skipped",
+    "memory guard blocked=false",
+    "memory guard skipped=false",
+    "free memory MB",
+    "minimum free memory MB",
     "-MinFreeMemoryMB",
     "-SkipMemoryGuard",
     "missing_output_count = 87",
@@ -87,6 +91,17 @@ foreach ($marker in $scriptMarkers) {
         Assert-ContainsText -Text $entry.text -ExpectedText $marker `
             -Message "$($entry.name) should preserve memory-gate marker '$marker'."
     }
+}
+
+$releaseBlockerHelpers = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\release_blocker_metadata_helpers.ps1"
+foreach ($marker in @(
+    "memory guard blocked=",
+    "memory guard skipped=",
+    "free memory MB=",
+    "minimum free memory MB="
+)) {
+    Assert-ContainsText -Text $releaseBlockerHelpers -ExpectedText $marker `
+        -Message "Release blocker helpers should keep memory-gate fields visible in PDF preflight runbooks."
 }
 
 foreach ($marker in @(

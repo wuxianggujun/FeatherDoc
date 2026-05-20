@@ -119,6 +119,8 @@ performance.
 - Added PDF visual preflight memory-guard details to release blocker runbooks
   so reviewer checklists show whether low memory is an active blocker before
   preparing build outputs or running the full gate.
+- Documented the PDF visual release-blocker runbook memory fields so the
+  status page matches the reviewer checklist output.
 - Documented the current PDF visual validation boundary, including the
   free-memory preflight check, governance passthrough, and why the gate is
   still blocked by missing reusable build and baseline outputs.

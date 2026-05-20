@@ -44,10 +44,13 @@ PDF 可视化验证状态
   ``-SkipMemoryGuard`` 继续传给 preflight 脚本，避免绕过同一套资源门槛。
 * ``scripts/release_blocker_metadata_helpers.ps1`` 会在
   ``prepare_pdf_visual_release_gate_build_outputs`` 的 runbook / checklist guidance 中展示
-  缺口摘要。
+  缺口摘要，并继续显示 ``memory guard blocked=false``、
+  ``memory guard skipped=false``、``free memory MB`` 和
+  ``minimum free memory MB``，让 reviewer 先判断是否是资源不足阻断，再准备
+  build 输出或尝试完整 gate。
 * ``test/release_note_bundle_version_test.ps1`` 已覆盖 ``REVIEWER_CHECKLIST.md`` 中的
   ``missing CLI PDFs=2``、``missing visual baseline PDFs=42`` 和
-  ``missing CJK text-layer PDFs=43``。
+  ``missing CJK text-layer PDFs=43``，并覆盖 memory guard 状态和阈值字段。
 
 这些改动只让缺口更可追踪，不会生成 PDF baseline，也不会把完整 visual gate 标记为通过。
 
