@@ -1441,3 +1441,29 @@ PDF CJK multi anchor table-flow 契约入口
 该补丁只表示旧 PDF manifest 中最后一个明确缺失样例 ID 已按低资源方式进入 ``dev``。
 真实跨页纵向合并、重复表头、cant-split 落页和页码视觉质量，仍需等源码提交推送且工作区
 干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF 参考分支剩余差异审计
+------------------------------------
+
+本轮在删除 FeatherDoc 自动化任务后，重新以低资源方式只读复核 ``dev`` 与远端参考分支。
+当前 ``dev`` 与 ``origin/dev`` 对齐，工作区干净，最新主线提交为
+``20ba35c Add PDF table vertical merged cant split contract``。
+
+已确认结论：
+
+1. ``origin/codex/pdf-cjk-copy-search-gate`` 的 manifest 样例数为 70；当前
+   ``dev`` 的 manifest 样例数为 90；该分支相对 ``dev`` 的 ``missing_in_dev`` 为 0。
+2. ``origin/codex/pdf-cjk-bullet-fallback`` 的 manifest 样例数为 73；当前
+   ``dev`` 的 manifest 样例数为 90；该分支相对 ``dev`` 的 ``missing_in_dev`` 为 0。
+3. 当前 ``dev`` 已具备 PDF import、``import-pdf`` CLI、PDF import JSON diagnostics、
+   ``--min-table-continuation-confidence``、字体子集、HarfBuzz text shaper、
+   shaped glyph writer、CJK copy/search text layer gate 和 ``cli-cjk-font-source`` gate
+   等主线入口。
+4. ``96bac82``、``3be71b2``、``1fb55a1``、``b52bf60`` 和 ``11dc255`` 等旧分支提交
+   对应的核心方向，已在当前 ``dev`` 中通过新结构或轻量契约等价覆盖；继续整分支合并会
+   回退当前 manifest、CMake、visual gate 和文档状态记录。
+
+因此，PDF CJK 两个参考分支中可在低资源阶段继续拆入的明确 manifest 功能缺口已经处理完毕。
+剩余差异主要是旧提交历史、大批重型 visual baseline、过期 gate 结构或需要 PDF 渲染验证的
+质量证据。后续不应继续盲目搬代码，下一步最小风险动作是：保持 ``dev`` 干净并已推送，
+在资源允许时只对当前 ``dev`` 执行受控 PDF 可视化验证，验证完成后再决定是否归档旧分支。

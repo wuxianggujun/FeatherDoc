@@ -535,3 +535,39 @@ cant-split 和页眉页脚占位符主题。
 因此，PDF manifest 层面的明确缺失样例已处理完毕。剩余远端分支差异主要仍是旧提交历史、
 旧 visual baseline、重型渲染 gate、过期脚本结构或已由当前 ``dev`` 等价覆盖的治理链路；
 后续不应整分支合并，应转入受控 PDF 可视化验证和最终分支归档判断。
+
+2026-05-20 自动化删除后的 PDF 参考分支收口审计
+------------------------------------------------
+
+用户要求删除持续自动化后，本轮确认本地 ``featherdoc-pdf-branch-consolidation`` 自动化已删除，
+并复核本地自动化目录中不再存在 ``FeatherDoc`` / ``featherdoc`` 相关记录。随后只读检查
+``dev`` 与远端参考分支状态，未运行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、
+浏览器或 PDF 渲染。
+
+当前分支状态：
+
+* ``dev`` 与 ``origin/dev`` 对齐，``dev...origin/dev`` 为 ``0 0``。
+* 工作区干净。
+* 最新提交为 ``20ba35c Add PDF table vertical merged cant split contract``。
+
+PDF 参考分支收口结论：
+
+* ``origin/codex/pdf-cjk-copy-search-gate``：manifest 样例 ID 相对当前 ``dev`` 的缺口为 0。
+* ``origin/codex/pdf-cjk-bullet-fallback``：manifest 样例 ID 相对当前 ``dev`` 的缺口为 0。
+* 当前 ``dev`` 已覆盖 PDF import、字体子集、HarfBuzz text shaper、shaped glyph writer、
+  CJK copy/search text layer gate、显式 CJK 字体 CLI gate、CJK bullet / numbered list
+  fallback 契约、CJK table header fitting 相关契约和轻量 manifest 样例入口。
+
+剩余差异继续只读保留，不建议直接合并：
+
+* 旧分支的大批 PNG / visual baseline 和多页压力语料需要实际 PDF 渲染验证，不能在低资源
+  阶段用纯文本提交声明已经通过。
+* 旧分支的 ``scripts/run_pdf_visual_release_gate.ps1``、manifest schema、CMake 和 PDFium
+  构建片段与当前 ``dev`` 已漂移，整分支合并会引入回退风险。
+* ``origin/codex/release-governance-rollup-details`` 与
+  ``origin/codex/release-governance-warning-entrypoints`` 剩余价值仍是治理链路参考；当前
+  ``dev`` 已按新脚本结构覆盖核心契约，不应为追求分支数量减少而重复摘入。
+
+下一步最小风险动作是受控 PDF 可视化验证：只在源码已提交推送、工作区干净、资源允许时，
+对当前 ``dev`` 的 PDF visual gate 做小范围验证；验证结束后清理本任务启动的资源，再决定
+旧 PDF 参考分支是否可归档或删除。
