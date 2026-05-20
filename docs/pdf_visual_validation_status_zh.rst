@@ -54,6 +54,26 @@ PDF 可视化验证状态
 
 这些改动只让缺口更可追踪，不会生成 PDF baseline，也不会把完整 visual gate 标记为通过。
 
+2026-05-20 轻量复核
+-------------------
+
+本轮在 ``dev`` 与 ``origin/dev`` 对齐、工作区干净、空闲内存高于 ``2048 MB``
+门槛时，只运行轻量 preflight 和 governance report 生成检查；未运行 CMake、CTest、
+Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+
+复核结果：
+
+* ``check_pdf_visual_release_gate_preflight.ps1`` 返回 ``not_ready``。
+* ``write_pdf_visual_release_gate_preflight_governance_report.ps1`` 返回 ``blocked``。
+* ``release_blocker_count = 1``。
+* ``action_item_count = 1``。
+* ``output_gap_count = 3``。
+* ``missing_output_count = 87``。
+* ``memory_guard_blocked = false``，本轮阻断不是内存不足。
+* ``free_memory_mb`` 高于 ``min_free_memory_mb = 2048``。
+* 仍缺 ``CMakeCache.txt``、``CTestTestfile.cmake``、2 个 CLI baseline PDF、
+  42 个 visual baseline PDF 和 43 个 CJK text-layer PDF。
+
 受控视觉烟测
 --------------
 
