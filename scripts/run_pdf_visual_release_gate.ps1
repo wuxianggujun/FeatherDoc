@@ -2,7 +2,10 @@ param(
     [string]$BuildDir = ".bpdf-roundtrip-msvc",
     [string]$OutputDir = "output/pdf-visual-release-gate",
     [int]$Dpi = 144,
-    [switch]$SkipUnicodeBaseline
+    [switch]$SkipUnicodeBaseline,
+    [string]$PreflightJson = "",
+    [switch]$PreflightOnly,
+    [switch]$SkipPreflight
 )
 
 $ErrorActionPreference = "Stop"
@@ -215,6 +218,35 @@ $cjkCopySearchDir = Join-Path $reportDir "cjk-copy-search"
 $unicodeLog = Join-Path $reportDir "unicode-font.log"
 $aggregateContactSheetPath = Join-Path $reportDir "aggregate-contact-sheet.png"
 $summaryPath = Join-Path $reportDir "summary.json"
+
+if (-not $SkipPreflight) {
+    $preflightScriptPath = Join-Path $repoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1"
+    if (-not (Test-Path $preflightScriptPath)) {
+        throw "PDF visual release gate preflight script was not found: $preflightScriptPath"
+    }
+
+    $resolvedPreflightJson = if ([string]::IsNullOrWhiteSpace($PreflightJson)) {
+        Join-Path $reportDir "preflight-summary.json"
+    } else {
+        Resolve-RepoPath -RepoRoot $repoRoot -InputPath $PreflightJson
+    }
+
+    Write-Step "Running preflight"
+    & $preflightScriptPath `
+        -BuildDir $resolvedBuildDir `
+        -OutputJson $resolvedPreflightJson `
+        -Strict
+    if ($LASTEXITCODE -ne 0) {
+        throw "PDF visual release gate preflight failed. See $resolvedPreflightJson."
+    }
+
+    if ($PreflightOnly) {
+        Write-Step "Preflight passed. Skipping full visual release gate because -PreflightOnly was set."
+        return
+    }
+} elseif ($PreflightOnly) {
+    throw "-PreflightOnly cannot be used with -SkipPreflight."
+}
 
 New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null

@@ -44,6 +44,7 @@ $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1"
+$visualGatePath = Join-Path $resolvedRepoRoot "scripts\run_pdf_visual_release_gate.ps1"
 $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
 $summaryPath = Join-Path $resolvedWorkingDir "preflight-summary.json"
 $fakeBuildDir = Join-Path $resolvedWorkingDir "fake-pdf-build"
@@ -52,7 +53,12 @@ $fakePythonPath = Join-Path $resolvedWorkingDir "fake-python.cmd"
 
 New-Item -ItemType Directory -Path $fakeBuildDir -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $fakeBuildDir "test\pdf_cli_export") -Force | Out-Null
-Set-Content -LiteralPath (Join-Path $fakeBuildDir "CTestTestfile.cmake") -Encoding UTF8 -Value "# fake ctest manifest"
+@"
+add_test(pdf_cli_export "cmd" "/c" "exit 0")
+add_test(pdf_regression_manifest "cmd" "/c" "exit 0")
+add_test(pdf_visual_release_gate_style_baselines "cmd" "/c" "exit 0")
+add_test(pdf_visual_release_gate_text_shaping_baselines "cmd" "/c" "exit 0")
+"@ | Set-Content -LiteralPath (Join-Path $fakeBuildDir "CTestTestfile.cmake") -Encoding UTF8
 Set-Content -LiteralPath (Join-Path $fakeBuildDir "test\pdf_cli_export\font-map-source.pdf") -Encoding UTF8 -Value "fake"
 Set-Content -LiteralPath (Join-Path $fakeBuildDir "test\pdf_cli_export\cjk-font-source.pdf") -Encoding UTF8 -Value "fake"
 
@@ -99,6 +105,24 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "PDF visual release gate preflight should pass against the fake reusable build."
     }
+
+    $visualGatePreflightSummaryPath = Join-Path $resolvedWorkingDir "visual-gate-preflight-summary.json"
+    $visualGateOutputDir = Join-Path $resolvedWorkingDir "visual-gate-output"
+    & powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+        -File $visualGatePath `
+        -BuildDir $fakeBuildDir `
+        -OutputDir $visualGateOutputDir `
+        -PreflightJson $visualGatePreflightSummaryPath `
+        -PreflightOnly | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "PDF visual release gate -PreflightOnly should pass against the fake reusable build."
+    }
+    if (-not (Test-Path -LiteralPath $visualGatePreflightSummaryPath -PathType Leaf)) {
+        throw "PDF visual release gate -PreflightOnly should write its preflight summary."
+    }
+    if (Test-Path -LiteralPath (Join-Path $visualGateOutputDir "report\summary.json") -PathType Leaf) {
+        throw "PDF visual release gate -PreflightOnly should not write the full visual gate summary."
+    }
 } finally {
     if ($null -eq $previousRenderPython) {
         Remove-Item Env:FEATHERDOC_RENDER_PYTHON_EXECUTABLE -ErrorAction SilentlyContinue
@@ -126,6 +150,20 @@ foreach ($name in @(
     "render_python_reusable"
 )) {
     Assert-CheckPassed -Summary $summary -Name $name
+}
+
+$visualGateText = Get-Content -Raw -Encoding UTF8 -LiteralPath $visualGatePath
+foreach ($expectedText in @(
+    "[string]`$PreflightJson",
+    "[switch]`$PreflightOnly",
+    "[switch]`$SkipPreflight",
+    "scripts\check_pdf_visual_release_gate_preflight.ps1",
+    "-Strict",
+    "PDF visual release gate preflight failed",
+    "-PreflightOnly cannot be used with -SkipPreflight"
+)) {
+    Assert-True -Condition ($visualGateText -match [regex]::Escape($expectedText)) `
+        -Message "PDF visual release gate should keep preflight contract marker '$expectedText'."
 }
 
 Write-Host "PDF visual release gate preflight contract passed."

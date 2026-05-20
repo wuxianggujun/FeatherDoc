@@ -443,6 +443,18 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate
 它不会创建虚拟环境、安装依赖、运行 PDF 渲染或触发构建。需要让缺失前置条件
 直接失败时，额外传 `-Strict`。
 
+`run_pdf_visual_release_gate.ps1` 默认也会先执行同一套严格预检。只想确认完整门禁
+前置条件时，可以运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 `
+  -BuildDir .\.bpdf-roundtrip-msvc `
+  -PreflightOnly
+```
+
+只有在你已经用其他方式确认 build 输出完整、且明确要绕过保护时，才传
+`-SkipPreflight`。
+
 如果你要一次性验证“文本回读 + 页面视觉”门禁，优先跑这条：
 
 ```powershell

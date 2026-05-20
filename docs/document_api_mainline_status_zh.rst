@@ -1526,3 +1526,8 @@ Ninja、MSBuild、Word、LibreOffice 或 PDF 渲染残留进程；仍有外部 `
 配套新增 ``test/pdf_visual_release_gate_preflight_test.ps1``，用 fake build、fake ctest
 和 fake render Python 固定脚本契约，并在 ``test/CMakeLists.txt`` 中注册为 60 秒静态
 测试。
+
+随后 ``scripts/run_pdf_visual_release_gate.ps1`` 也接入同一预检：默认先运行严格预检，
+只有前置条件完整时才继续进入 ``ctest``、文本层检查和 PNG 渲染阶段。需要只做前置检查时
+传 ``-PreflightOnly``；只有在已经人工确认 build 输出完整时，才允许传 ``-SkipPreflight``
+绕过保护。

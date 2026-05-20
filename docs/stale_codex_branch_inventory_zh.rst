@@ -645,6 +645,10 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或完整 PDF visual release gat
 1. 先低资源确认当前 build 目录、CTest 注册、PDF 输出和可复用渲染 Python 是否完整。
 2. 只有预检 ``ready`` 且资源允许时，再运行完整 ``run_pdf_visual_release_gate.ps1``。
 
+完整 ``run_pdf_visual_release_gate.ps1`` 现在默认也会先运行严格预检；因此缺少 build 输出时
+会在进入 ``ctest`` 或 PNG 渲染之前停止。``-PreflightOnly`` 可用于只检查前置条件，
+``-SkipPreflight`` 只应在已经确认输出完整时使用。
+
 在完整 PDF visual release gate 没有基于当前 ``dev`` 通过前，远端 PDF 参考分支继续保留。
 等完整门禁和治理发布材料都完成后，再创建归档记录并清理远端 ``codex/*`` 分支，避免为了
 减少分支数量而丢失尚未复核的视觉证据来源。
