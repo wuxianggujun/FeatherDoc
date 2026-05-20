@@ -452,6 +452,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.p
   -PreflightOnly
 ```
 
+如果要把预检结果纳入发布治理汇总，而不是只停留在命令行输出，可以生成
+release blocker 兼容的治理报告：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1 `
+  -BuildDir .\.bpdf-roundtrip-msvc `
+  -OutputDir .\output\pdf-visual-release-gate-preflight-governance
+```
+
+该报告会读取或生成预检 summary，并在预检为 `not_ready` 时输出
+`pdf_visual_release_gate_preflight.build_outputs_missing` 阻塞项。它只做 JSON/Markdown
+治理材料，不构建、不渲染 PDF、不安装依赖，也不会创建虚拟环境。生成的
+`summary.json` 可以交给 `scripts/build_release_blocker_rollup_report.ps1` 聚合。
+
 只有在你已经用其他方式确认 build 输出完整、且明确要绕过保护时，才传
 `-SkipPreflight`。
 

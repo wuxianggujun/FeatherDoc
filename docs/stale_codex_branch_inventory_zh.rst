@@ -652,3 +652,21 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或完整 PDF visual release gat
 在完整 PDF visual release gate 没有基于当前 ``dev`` 通过前，远端 PDF 参考分支继续保留。
 等完整门禁和治理发布材料都完成后，再创建归档记录并清理远端 ``codex/*`` 分支，避免为了
 减少分支数量而丢失尚未复核的视觉证据来源。
+
+2026-05-20 PDF 预检治理报告后的分支清理判断
+--------------------------------------------
+
+本轮新增 ``scripts/write_pdf_visual_release_gate_preflight_governance_report.ps1``，把
+PDF visual release gate 的只读预检结果转成 release blocker rollup 可消费的治理报告。
+这使得分支清理判断可以进入发布治理材料，而不是只依赖手工口头记录。
+
+当前策略进一步收敛为：
+
+1. ``origin/codex/pdf-cjk-copy-search-gate`` 与
+   ``origin/codex/pdf-cjk-bullet-fallback`` 的 manifest ID 缺口已经为 0。
+2. 如果预检 summary 为 ``not_ready``，治理报告会输出
+   ``pdf_visual_release_gate_preflight.build_outputs_missing``，阻止把 PDF 分支标记为可清理。
+3. 只有当当前 ``dev`` 的完整 PDF visual release gate 具备可复用 build 输出并实际通过后，
+   才能把远端 PDF 参考分支从“保留参考”推进到“可归档/可删除候选”。
+4. release governance 两个参考分支也仍按相同原则处理：当前 ``dev`` 已覆盖核心契约，但
+   在发布治理汇总和文档材料通过前，不为了减少分支数量而删除远端参考分支。

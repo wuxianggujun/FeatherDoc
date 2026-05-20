@@ -1531,3 +1531,32 @@ Ninja、MSBuild、Word、LibreOffice 或 PDF 渲染残留进程；仍有外部 `
 只有前置条件完整时才继续进入 ``ctest``、文本层检查和 PNG 渲染阶段。需要只做前置检查时
 传 ``-PreflightOnly``；只有在已经人工确认 build 输出完整时，才允许传 ``-SkipPreflight``
 绕过保护。
+
+2026-05-20 PDF visual release gate 预检治理报告
+----------------------------------------------
+
+本轮继续把 PDF visual release gate 的剩余风险纳入 release governance，而不是继续盲目
+搬运旧 PDF 分支。新增 ``scripts/write_pdf_visual_release_gate_preflight_governance_report.ps1``，
+用于把 ``check_pdf_visual_release_gate_preflight.ps1`` 的 summary 转成 release blocker
+rollup 可消费的治理报告。
+
+该脚本保持低资源边界：
+
+1. 可以读取既有 ``-PreflightJson``，也可以调用只读预检生成 summary。
+2. 不运行 CMake、完整 CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+3. 不创建虚拟环境，不安装依赖，不生成新的 PDF baseline。
+4. 当预检为 ``not_ready`` 时，输出
+   ``pdf_visual_release_gate_preflight.build_outputs_missing`` 阻塞项，并携带
+   ``source_schema``、``source_report_display``、``source_json_display``、
+   ``repair_strategy``、``repair_hint`` 和 ``command_template``。
+
+配套新增 ``test/pdf_visual_release_gate_preflight_governance_report_test.ps1``，用 fake
+``ready`` / ``not_ready`` summary 验证：
+
+1. ``not_ready`` 会生成 release blocker 和 action item。
+2. ``ready`` 不生成阻塞项。
+3. 生成的 summary 可以被 ``scripts/build_release_blocker_rollup_report.ps1`` 聚合。
+
+当前结论不变：PDF 参考分支的 manifest 明确缺口已经收敛到 0，但完整 PDF visual
+release gate 仍需要可复用 build 目录、CTest 注册和当前 ``dev`` 生成的 PDF 输出。完整
+门禁通过前，不能把远端 PDF 参考分支视为可立即清理。
