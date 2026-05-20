@@ -453,6 +453,8 @@ function Get-PdfVisualPreflightBlockingSummaryLine {
     $missingCjkTextLayerPdfCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "missing_cjk_text_layer_pdf_count"
     $buildDirEntryCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "build_dir_entry_count"
     $ctestRequiredPatternCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "ctest_required_pattern_count"
+    $outputGapCount = Get-ReleaseBlockerIntPropertyValue -Object $Item -Name "output_gap_count"
+    $missingOutputCount = Get-ReleaseBlockerIntPropertyValue -Object $Item -Name "missing_output_count"
     $memoryGuardBlocked = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $blockingSummary -Name "memory_guard_blocked"
     $memoryGuardSkipped = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $blockingSummary -Name "memory_guard_skipped"
     $freeMemoryMb = Get-ReleaseBlockerPropertyValue -Object $blockingSummary -Name "free_memory_mb"
@@ -461,7 +463,8 @@ function Get-PdfVisualPreflightBlockingSummaryLine {
     if (($requiredCheckCount + $blockingCheckCount + $missingCliPdfCount +
             $visualBaselineSampleCount + $missingVisualBaselinePdfCount +
             $cjkTextLayerSampleCount + $missingCjkTextLayerPdfCount +
-            $buildDirEntryCount + $ctestRequiredPatternCount) -le 0 -and
+            $buildDirEntryCount + $ctestRequiredPatternCount +
+            $outputGapCount + $missingOutputCount) -le 0 -and
         [string]::IsNullOrWhiteSpace($memoryGuardBlocked) -and
         [string]::IsNullOrWhiteSpace($memoryGuardSkipped) -and
         [string]::IsNullOrWhiteSpace($freeMemoryMb) -and
@@ -469,7 +472,7 @@ function Get-PdfVisualPreflightBlockingSummaryLine {
         return ""
     }
 
-    $summaryLine = ("PDF preflight blocker summary: required checks={0}, blocking checks={1}, missing CLI PDFs={2}, visual baseline samples={3}, missing visual baseline PDFs={4}, CJK text-layer samples={5}, missing CJK text-layer PDFs={6}, build dir entries={7}, CTest required patterns={8}." -f `
+    $summaryLine = ("PDF preflight blocker summary: required checks={0}, blocking checks={1}, missing CLI PDFs={2}, visual baseline samples={3}, missing visual baseline PDFs={4}, CJK text-layer samples={5}, missing CJK text-layer PDFs={6}, build dir entries={7}, CTest required patterns={8}, output gap checks={9}, missing outputs={10}." -f `
         $requiredCheckCount,
         $blockingCheckCount,
         $missingCliPdfCount,
@@ -478,7 +481,9 @@ function Get-PdfVisualPreflightBlockingSummaryLine {
         $cjkTextLayerSampleCount,
         $missingCjkTextLayerPdfCount,
         $buildDirEntryCount,
-        $ctestRequiredPatternCount)
+        $ctestRequiredPatternCount,
+        $outputGapCount,
+        $missingOutputCount)
     $memoryParts = @()
     if (-not [string]::IsNullOrWhiteSpace($memoryGuardBlocked)) {
         $memoryParts += "memory guard blocked=$memoryGuardBlocked"

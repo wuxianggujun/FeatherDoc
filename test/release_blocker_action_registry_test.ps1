@@ -92,6 +92,8 @@ $pdfPreflightBlocker = [pscustomobject]@{
     source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
     command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
     issue_keys = @("cmake_cache_exists", "ctest_manifest_exists")
+    output_gap_count = 3
+    missing_output_count = 87
     blocking_summary = [pscustomobject]@{
         required_check_count = 11
         blocking_check_count = 6
@@ -128,6 +130,10 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing visual ba
     -Message "PDF preflight build-output blocker should include the missing visual baseline count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing CJK text-layer PDFs=43" `
     -Message "PDF preflight build-output blocker should include the missing CJK text-layer count."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "output gap checks=3" `
+    -Message "PDF preflight build-output blocker should include the output gap group count."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing outputs=87" `
+    -Message "PDF preflight build-output blocker should include the missing output total."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "required checks=11" `
     -Message "PDF preflight build-output blocker should include the memory-aware required check count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "memory guard blocked=false" `
@@ -156,6 +162,10 @@ Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing 
     -Message "PDF preflight checklist guidance should include the missing visual baseline count."
 Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing CJK text-layer PDFs=43" `
     -Message "PDF preflight checklist guidance should include the missing CJK text-layer count."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "output gap checks=3" `
+    -Message "PDF preflight checklist guidance should include the output gap group count."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing outputs=87" `
+    -Message "PDF preflight checklist guidance should include the missing output total."
 Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "memory guard blocked=false" `
     -Message "PDF preflight checklist guidance should include the memory guard blocked state."
 
