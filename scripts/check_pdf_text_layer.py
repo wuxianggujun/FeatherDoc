@@ -42,6 +42,8 @@ def find_matches(expected_texts: list[str], combined_text: str) -> tuple[list[st
     matched: list[str] = []
     missing: list[str] = []
 
+    # 同时保留原文、折叠空白和去空白三种形态，稳住 PDF
+    # 断行、CJK 换行或排版间距带来的文本层差异。
     for expected in expected_texts:
         expected_variants = (
             expected,
