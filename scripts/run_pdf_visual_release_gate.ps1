@@ -3,9 +3,11 @@ param(
     [string]$OutputDir = "output/pdf-visual-release-gate",
     [int]$Dpi = 144,
     [switch]$SkipUnicodeBaseline,
+    [int]$MinFreeMemoryMB = 2048,
     [string]$PreflightJson = "",
     [switch]$PreflightOnly,
-    [switch]$SkipPreflight
+    [switch]$SkipPreflight,
+    [switch]$SkipMemoryGuard
 )
 
 $ErrorActionPreference = "Stop"
@@ -235,6 +237,8 @@ if (-not $SkipPreflight) {
     & $preflightScriptPath `
         -BuildDir $resolvedBuildDir `
         -OutputJson $resolvedPreflightJson `
+        -MinFreeMemoryMB $MinFreeMemoryMB `
+        -SkipMemoryGuard:$SkipMemoryGuard `
         -Strict
     if ($LASTEXITCODE -ne 0) {
         throw "PDF visual release gate preflight failed. See $resolvedPreflightJson."

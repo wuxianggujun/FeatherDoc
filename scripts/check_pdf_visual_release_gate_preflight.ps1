@@ -2,6 +2,8 @@ param(
     [string]$BuildDir = ".bpdf-roundtrip-msvc",
     [string]$OutputJson = "",
     [string]$CTestExecutable = "ctest",
+    [int]$MinFreeMemoryMB = 2048,
+    [switch]$SkipMemoryGuard,
     [switch]$Strict
 )
 
@@ -185,10 +187,61 @@ function Get-BuildDirectorySnapshot {
     }
 }
 
+function Get-LocalMemorySnapshot {
+    try {
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+        return [pscustomobject]@{
+            available = $true
+            total_mb = [math]::Round(([double]$os.TotalVisibleMemorySize) / 1024, 1)
+            free_mb = [math]::Round(([double]$os.FreePhysicalMemory) / 1024, 1)
+            error_message = ""
+        }
+    } catch {
+        return [pscustomobject]@{
+            available = $false
+            total_mb = $null
+            free_mb = $null
+            error_message = $_.Exception.Message
+        }
+    }
+}
+
 $repoRoot = Resolve-RepoRoot
 $buildDirSelection = Resolve-PreferredBuildDir -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedBuildDir = $buildDirSelection.Path
 $checks = New-Object System.Collections.ArrayList
+
+$memorySnapshot = Get-LocalMemorySnapshot
+$memoryGuardSkipped = [bool]$SkipMemoryGuard -or $MinFreeMemoryMB -le 0
+$memoryGuardBlocked = $false
+$memoryCheckStatus = "pass"
+$memoryCheckMessage = ""
+if ($memoryGuardSkipped) {
+    $memoryCheckMessage = "Free-memory guard was skipped by request."
+} elseif (-not [bool]$memorySnapshot.available) {
+    $memoryCheckMessage = "Free physical memory could not be inspected; preflight did not block on workstation resource data."
+} elseif ([double]$memorySnapshot.free_mb -lt $MinFreeMemoryMB) {
+    $memoryCheckStatus = "missing"
+    $memoryGuardBlocked = $true
+    $memoryCheckMessage = "Free physical memory is below the required visual-gate preflight threshold."
+} else {
+    $memoryCheckMessage = "Free physical memory is above the visual-gate preflight threshold."
+}
+Add-CheckResult `
+    -Checks $checks `
+    -Name "workstation_free_memory_available" `
+    -Status $memoryCheckStatus `
+    -Required $true `
+    -Message $memoryCheckMessage `
+    -Details ([ordered]@{
+        min_free_memory_mb = $MinFreeMemoryMB
+        guard_skipped = [bool]$memoryGuardSkipped
+        guard_blocked = [bool]$memoryGuardBlocked
+        available = [bool]$memorySnapshot.available
+        total_mb = $memorySnapshot.total_mb
+        free_mb = $memorySnapshot.free_mb
+        error_message = $memorySnapshot.error_message
+    })
 
 $buildDirExists = Test-Path -LiteralPath $resolvedBuildDir -PathType Container
 $buildDirectorySnapshot = Get-BuildDirectorySnapshot -Path $resolvedBuildDir
@@ -465,6 +518,10 @@ $blockingSummary = [ordered]@{
     missing_cjk_text_layer_pdf_count = $missingCjkPdfs.Count
     build_dir_entry_count = [int]$buildDirectorySnapshot.entry_count
     ctest_required_pattern_count = $requiredCTestPatterns.Count
+    free_memory_mb = $memorySnapshot.free_mb
+    min_free_memory_mb = $MinFreeMemoryMB
+    memory_guard_blocked = [bool]$memoryGuardBlocked
+    memory_guard_skipped = [bool]$memoryGuardSkipped
 }
 $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")

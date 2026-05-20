@@ -101,6 +101,9 @@ performance.
 - Added a free-memory guard to `scripts/run_reused_build_check.ps1` so reused
   local build/test passes refuse to start on memory-starved workstations unless
   the operator explicitly skips the guard.
+- Added the same low-memory preflight guard to the PDF visual release gate so
+  visual validation refuses to start when the workstation is already
+  memory-starved.
 
 ### Fixed
 

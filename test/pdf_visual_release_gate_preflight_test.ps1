@@ -102,9 +102,21 @@ try {
         -BuildDir $fakeBuildDir `
         -OutputJson $summaryPath `
         -CTestExecutable $fakeCtestPath `
+        -MinFreeMemoryMB 1 `
         -Strict | Out-Host
     if ($LASTEXITCODE -ne 0) {
         throw "PDF visual release gate preflight should pass against the fake reusable build."
+    }
+
+    $lowMemorySummaryPath = Join-Path $resolvedWorkingDir "preflight-low-memory-summary.json"
+    & powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+        -File $scriptPath `
+        -BuildDir $fakeBuildDir `
+        -OutputJson $lowMemorySummaryPath `
+        -CTestExecutable $fakeCtestPath `
+        -MinFreeMemoryMB 999999 | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "PDF visual release gate preflight should report low-memory not_ready without failing when -Strict is not set."
     }
 
     $visualGatePreflightSummaryPath = Join-Path $resolvedWorkingDir "visual-gate-preflight-summary.json"
@@ -114,6 +126,7 @@ try {
         -BuildDir $fakeBuildDir `
         -OutputDir $visualGateOutputDir `
         -PreflightJson $visualGatePreflightSummaryPath `
+        -MinFreeMemoryMB 1 `
         -PreflightOnly | Out-Host
     if ($LASTEXITCODE -ne 0) {
         throw "PDF visual release gate -PreflightOnly should pass against the fake reusable build."
@@ -151,11 +164,20 @@ Assert-True -Condition ([int]$summary.blocking_summary.visual_baseline_sample_co
 Assert-True -Condition ([int]$summary.blocking_summary.cjk_text_layer_sample_count -gt 0) `
     -Message "Ready preflight should report the CJK text-layer sample count."
 
+$lowMemorySummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $lowMemorySummaryPath | ConvertFrom-Json
+Assert-True -Condition ($lowMemorySummary.status -eq "not_ready") `
+    -Message "Low-memory preflight should be not_ready."
+Assert-True -Condition ([bool]$lowMemorySummary.blocking_summary.memory_guard_blocked -eq $true) `
+    -Message "Low-memory preflight should expose the memory guard blocker summary."
+Assert-True -Condition (($lowMemorySummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "workstation_free_memory_available") `
+    -Message "Low-memory preflight should expose workstation_free_memory_available as a blocker."
+
 foreach ($name in @(
     "build_dir_exists",
     "cmake_cache_exists",
     "ctest_manifest_exists",
     "ctest_list_contains_pdf_gate_tests",
+    "workstation_free_memory_available",
     "pdf_visual_gate_scripts_exist",
     "pdf_regression_manifest_exists",
     "pdf_cli_export_baseline_pdfs_exist",
@@ -171,7 +193,10 @@ foreach ($expectedText in @(
     "[string]`$PreflightJson",
     "[switch]`$PreflightOnly",
     "[switch]`$SkipPreflight",
+    "[int]`$MinFreeMemoryMB = 2048",
+    "[switch]`$SkipMemoryGuard",
     "scripts\check_pdf_visual_release_gate_preflight.ps1",
+    "-MinFreeMemoryMB `$MinFreeMemoryMB",
     "-Strict",
     "PDF visual release gate preflight failed",
     "-PreflightOnly cannot be used with -SkipPreflight"
@@ -192,6 +217,12 @@ foreach ($expectedText in @(
     "blocking_summary",
     "missing_visual_baseline_pdf_count",
     "missing_cjk_text_layer_pdf_count",
+    "[int]`$MinFreeMemoryMB = 2048",
+    "[switch]`$SkipMemoryGuard",
+    "Get-LocalMemorySnapshot",
+    "Get-CimInstance Win32_OperatingSystem",
+    "workstation_free_memory_available",
+    "memory_guard_blocked",
     "entries_preview"
 )) {
     Assert-True -Condition ($preflightText -match [regex]::Escape($expectedText)) `
