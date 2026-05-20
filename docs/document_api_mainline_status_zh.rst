@@ -1560,3 +1560,35 @@ rollup 可消费的治理报告。
 当前结论不变：PDF 参考分支的 manifest 明确缺口已经收敛到 0，但完整 PDF visual
 release gate 仍需要可复用 CMake build 目录、CTest 注册和当前 ``dev`` 生成的 PDF 输出。完整
 门禁通过前，不能把远端 PDF 参考分支视为可立即清理。
+
+2026-05-20 受控 PDF smoke 检查器落地
+------------------------------------
+
+本轮继续推进可视化验证，但仍保持低资源边界：未运行 CMake、CTest、Ninja、MSBuild、
+Word、LibreOffice、浏览器或新的 PDF 渲染。新增并推送
+``ee81820 Add controlled PDF visual smoke checker``，把前一轮已经生成的
+``output/pdf-controlled-visual-smoke-20260520`` 证据变成可重复检查的机器契约。
+
+新增检查器覆盖：
+
+1. ``minimal`` 和 ``rerun`` 两组 smoke case 是否都有 ``summary.json``、页面 PNG、
+   contact sheet、``text-summary.json`` 和 ``text.txt``。
+2. PNG 是否可解码，尺寸是否满足阈值，非白像素比例是否足够证明页面不是空白。
+3. 文本层是否包含 ``FeatherDoc Word visual smoke input`` 和
+   ``This minimal document is generated for local visual validation preflight.``。
+4. 文本层页数是否与渲染 summary 页数一致。
+
+已用 60 秒超时包装并通过：
+
+* ``test/pdf_controlled_visual_smoke_check_test.ps1``：验证正常 fixture 通过、空白 PNG
+  fixture 失败。
+* ``scripts/check_pdf_controlled_visual_smoke.ps1``：复核真实既有 smoke 产物，结果为
+  ``pass``。
+* ``scripts/compare_pdf_reference_branch_manifest.ps1 -FailOnMissingInDev``：再次确认
+  ``origin/codex/pdf-cjk-copy-search-gate`` 的 70 个样例 ID 和
+  ``origin/codex/pdf-cjk-bullet-fallback`` 的 73 个样例 ID 在当前 ``dev`` 中缺口均为 0。
+
+因此，当前状态可以更精确地表述为：PDF CJK 参考分支的 manifest 功能入口已经被当前
+``dev`` 覆盖；已有 smoke 产物也有机器可重复检查的非空页面和文本层证据。但这仍不是完整
+PDF visual release gate。完整门禁仍被 build / CTest 注册 / 当前 ``dev`` 生成的 PDF
+baseline 输出缺口阻塞。
