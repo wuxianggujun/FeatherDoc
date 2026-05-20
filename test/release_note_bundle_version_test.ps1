@@ -294,6 +294,17 @@ $summary = [ordered]@{
                 repair_hint = "Prepare a reusable PDF build directory with CMakeCache.txt before running the full PDF visual release gate."
                 command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
                 issue_keys = @("build_dir_exists", "cmake_cache_exists", "ctest_manifest_exists")
+                blocking_summary = [ordered]@{
+                    required_check_count = 10
+                    blocking_check_count = 6
+                    missing_cli_pdf_count = 2
+                    visual_baseline_sample_count = 42
+                    missing_visual_baseline_pdf_count = 42
+                    cjk_text_layer_sample_count = 43
+                    missing_cjk_text_layer_pdf_count = 43
+                    build_dir_entry_count = 1
+                    ctest_required_pattern_count = 4
+                }
             }
         )
         action_item_count = 5
@@ -339,6 +350,17 @@ $summary = [ordered]@{
                 open_command = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
                 command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
                 issue_keys = @("build_dir_exists", "cmake_cache_exists", "ctest_manifest_exists")
+                blocking_summary = [ordered]@{
+                    required_check_count = 10
+                    blocking_check_count = 6
+                    missing_cli_pdf_count = 2
+                    visual_baseline_sample_count = 42
+                    missing_visual_baseline_pdf_count = 42
+                    cjk_text_layer_sample_count = 43
+                    missing_cjk_text_layer_pdf_count = 43
+                    build_dir_entry_count = 1
+                    ctest_required_pattern_count = 4
+                }
             }
         )
         warning_count = 3
@@ -692,6 +714,9 @@ Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\outpu
 Assert-Contains -Path $checklistPath -ExpectedText 'prepare_pdf_visual_release_gate_build_outputs' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'cmake_cache_exists' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'CMakeCache.txt' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'missing CLI PDFs=2' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'missing visual baseline PDFs=42' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'missing CJK text-layer PDFs=43' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Only after preflight is ready and workstation resources allow it' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'release note bundle' -Label 'REVIEWER_CHECKLIST.md'
@@ -708,8 +733,7 @@ Assert-Contains -Path $checklistPath -ExpectedText 'repair_hint' -Label 'REVIEWE
 Assert-Contains -Path $checklistPath -ExpectedText 'Rerun Custom XML sync or explicitly fill the bound content control before release.' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Release governance handoff blockers' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Review release governance action item' -Label 'REVIEWER_CHECKLIST.md'
-Assert-Contains -Path $checklistPath -ExpectedText 'Review release governance action item `prepare_pdf_visual_release_gate_build_outputs`' -Label 'REVIEWER_CHECKLIST.md'
-Assert-Contains -Path $checklistPath -ExpectedText 'issue_keys `build_dir_exists,cmake_cache_exists,ctest_manifest_exists`' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'build_dir_exists,cmake_cache_exists,ctest_manifest_exists' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Release blocker rollup action items' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Run ' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'for release governance action item' -Label 'REVIEWER_CHECKLIST.md'
