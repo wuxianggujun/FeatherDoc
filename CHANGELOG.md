@@ -129,6 +129,9 @@ performance.
   `CMakeCache.txt` or `CTestTestfile.cmake`.
 - Recorded the updated PDF visual preflight blocker count after stricter
   reusable-build auto-detection stopped selecting plain `build` directories.
+- Documented the stricter PDF preflight reusable-build selection in the stale
+  branch inventory so old `auto:build` evidence does not drive branch cleanup
+  decisions.
 - Documented the current PDF visual validation boundary, including the
   free-memory preflight check, governance passthrough, and why the gate is
   still blocked by missing reusable build and baseline outputs.

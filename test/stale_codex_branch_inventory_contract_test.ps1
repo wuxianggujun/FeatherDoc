@@ -82,7 +82,12 @@ $decisionMarkers = @(
     (New-TextFromCodePoints @(0x7528,0x6237,0x518D,0x6B21,0x660E,0x786E,0x8981,0x6C42,0x5220,0x9664,0x5177,0x4F53,0x5206,0x652F)),
     "PDF preflight",
     "not_ready",
-    "ready"
+    "ready",
+    "3264183",
+    "build_dir_source = requested",
+    ".bpdf-roundtrip-msvc",
+    "CMakeCache.txt",
+    "CTestTestfile.cmake"
 )
 
 foreach ($marker in $decisionMarkers) {
