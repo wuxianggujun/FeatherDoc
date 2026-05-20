@@ -169,10 +169,13 @@ foreach ($expectedText in @(
 $preflightText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 foreach ($expectedText in @(
     "Resolve-PreferredBuildDir",
+    "Get-BuildDirectorySnapshot",
     '"build", "out\build"',
     'Source = "auto:$candidate"',
     "build_dir_source",
-    "requested_build_dir"
+    "requested_build_dir",
+    "cmake_cache_exists",
+    "entries_preview"
 )) {
     Assert-True -Condition ($preflightText -match [regex]::Escape($expectedText)) `
         -Message "PDF visual release gate preflight should keep build-dir selection marker '$expectedText'."

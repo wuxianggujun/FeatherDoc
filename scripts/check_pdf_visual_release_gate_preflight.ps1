@@ -149,19 +149,57 @@ function Get-JsonPropertyValue {
     return $property.Value
 }
 
+function Get-BuildDirectorySnapshot {
+    param([string]$Path)
+
+    $exists = Test-Path -LiteralPath $Path -PathType Container
+    $cmakeCachePath = Join-Path $Path "CMakeCache.txt"
+    $ctestManifestPath = Join-Path $Path "CTestTestfile.cmake"
+    $entries = @()
+    $entryCount = 0
+
+    if ($exists) {
+        $allEntries = @(Get-ChildItem -LiteralPath $Path -Force -ErrorAction SilentlyContinue)
+        $entryCount = $allEntries.Count
+        $entries = @(
+            $allEntries |
+                Sort-Object Name |
+                Select-Object -First 20 |
+                ForEach-Object {
+                    [ordered]@{
+                        name = $_.Name
+                        type = if ($_.PSIsContainer) { "directory" } else { "file" }
+                        bytes = if ($_.PSIsContainer) { $null } else { $_.Length }
+                    }
+                }
+        )
+    }
+
+    return [ordered]@{
+        cmake_cache_path = $cmakeCachePath
+        cmake_cache_exists = Test-Path -LiteralPath $cmakeCachePath -PathType Leaf
+        ctest_manifest_path = $ctestManifestPath
+        ctest_manifest_exists = Test-Path -LiteralPath $ctestManifestPath -PathType Leaf
+        entry_count = $entryCount
+        entries_preview = $entries
+    }
+}
+
 $repoRoot = Resolve-RepoRoot
 $buildDirSelection = Resolve-PreferredBuildDir -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedBuildDir = $buildDirSelection.Path
 $checks = New-Object System.Collections.ArrayList
 
 $buildDirExists = Test-Path -LiteralPath $resolvedBuildDir -PathType Container
+$buildDirectorySnapshot = Get-BuildDirectorySnapshot -Path $resolvedBuildDir
 Add-CheckResult `
     -Checks $checks `
     -Name "build_dir_exists" `
     -Status $(if ($buildDirExists) { "pass" } else { "missing" }) `
     -Required $true `
     -Message $(if ($buildDirExists) { "Build directory exists." } else { "Build directory is missing; full PDF visual release gate would need a reusable PDF build." }) `
-    -Path $resolvedBuildDir
+    -Path $resolvedBuildDir `
+    -Details $buildDirectorySnapshot
 
 $ctestFilePath = Join-Path $resolvedBuildDir "CTestTestfile.cmake"
 $ctestFileExists = Test-Path -LiteralPath $ctestFilePath -PathType Leaf
@@ -171,7 +209,8 @@ Add-CheckResult `
     -Status $(if ($ctestFileExists) { "pass" } else { "missing" }) `
     -Required $true `
     -Message $(if ($ctestFileExists) { "CTest manifest exists in the build directory." } else { "CTestTestfile.cmake is missing; ctest -N cannot prove PDF tests are registered." }) `
-    -Path $ctestFilePath
+    -Path $ctestFilePath `
+    -Details $buildDirectorySnapshot
 
 $requiredCTestPatterns = @(
     "pdf_cli_export",
