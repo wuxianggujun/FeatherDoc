@@ -166,4 +166,16 @@ foreach ($expectedText in @(
         -Message "PDF visual release gate should keep preflight contract marker '$expectedText'."
 }
 
+$preflightText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
+foreach ($expectedText in @(
+    "Resolve-PreferredBuildDir",
+    '"build", "out\build"',
+    'Source = "auto:$candidate"',
+    "build_dir_source",
+    "requested_build_dir"
+)) {
+    Assert-True -Condition ($preflightText -match [regex]::Escape($expectedText)) `
+        -Message "PDF visual release gate preflight should keep build-dir selection marker '$expectedText'."
+}
+
 Write-Host "PDF visual release gate preflight contract passed."

@@ -25,6 +25,40 @@ function Resolve-RepoPath {
     return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $InputPath))
 }
 
+function Resolve-PreferredBuildDir {
+    param(
+        [string]$RepoRoot,
+        [string]$InputPath
+    )
+
+    $requestedPath = Resolve-RepoPath -RepoRoot $RepoRoot -InputPath $InputPath
+    if ($InputPath -ne ".bpdf-roundtrip-msvc" -or
+        (Test-Path -LiteralPath $requestedPath -PathType Container)) {
+        return [pscustomobject]@{
+            Path = $requestedPath
+            Source = "requested"
+            RequestedPath = $requestedPath
+        }
+    }
+
+    foreach ($candidate in @("build", "out\build")) {
+        $candidatePath = Resolve-RepoPath -RepoRoot $RepoRoot -InputPath $candidate
+        if (Test-Path -LiteralPath $candidatePath -PathType Container) {
+            return [pscustomobject]@{
+                Path = $candidatePath
+                Source = "auto:$candidate"
+                RequestedPath = $requestedPath
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        Path = $requestedPath
+        Source = "requested"
+        RequestedPath = $requestedPath
+    }
+}
+
 function New-CheckResult {
     param(
         [string]$Name,
@@ -116,7 +150,8 @@ function Get-JsonPropertyValue {
 }
 
 $repoRoot = Resolve-RepoRoot
-$resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
+$buildDirSelection = Resolve-PreferredBuildDir -RepoRoot $repoRoot -InputPath $BuildDir
+$resolvedBuildDir = $buildDirSelection.Path
 $checks = New-Object System.Collections.ArrayList
 
 $buildDirExists = Test-Path -LiteralPath $resolvedBuildDir -PathType Container
@@ -376,6 +411,8 @@ $summary = [ordered]@{
     strict = [bool]$Strict
     repo_root = $repoRoot
     build_dir = $resolvedBuildDir
+    build_dir_source = $buildDirSelection.Source
+    requested_build_dir = $buildDirSelection.RequestedPath
     checks = @($checks)
     blocking_checks = @($blockingChecks | ForEach-Object { $_.name })
 }
