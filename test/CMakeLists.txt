@@ -639,7 +639,7 @@ if(WIN32)
             -NoProfile
             -NonInteractive
         )
-        find_program(FEATHERDOC_PYTHON_EXECUTABLE NAMES python python3)
+        find_program(FEATHERDOC_PYTHON_EXECUTABLE NAMES python python3 py)
 
         add_test(
             NAME
@@ -1375,6 +1375,34 @@ if(WIN32)
             ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_release_gate_preflight_governance_report
         )
         set_tests_properties(pdf_visual_release_gate_preflight_governance_report
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        set(FEATHERDOC_CONTROLLED_VISUAL_SMOKE_PYTHON_ARGS)
+        if(FEATHERDOC_PYTHON_EXECUTABLE)
+            list(APPEND FEATHERDOC_CONTROLLED_VISUAL_SMOKE_PYTHON_ARGS
+                -PythonExecutable
+                ${FEATHERDOC_PYTHON_EXECUTABLE}
+            )
+        endif()
+
+        add_test(
+            NAME
+            pdf_controlled_visual_smoke_check
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_controlled_visual_smoke_check_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_controlled_visual_smoke_check
+            ${FEATHERDOC_CONTROLLED_VISUAL_SMOKE_PYTHON_ARGS}
+        )
+        set_tests_properties(pdf_controlled_visual_smoke_check
             PROPERTIES
                 TIMEOUT 60
                 LABELS "pdf;smoke;regression;visual")
