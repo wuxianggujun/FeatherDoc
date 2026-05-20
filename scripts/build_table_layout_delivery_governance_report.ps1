@@ -296,7 +296,10 @@ function New-ReleaseBlocker {
         [string]$Severity = "warning",
         [string]$Status = "needs_review",
         [string]$Action,
-        [string]$Message
+        [string]$Message,
+        [string]$RepairStrategy = "",
+        [string]$RepairHint = "",
+        [string]$CommandTemplate = ""
     )
 
     return [ordered]@{
@@ -307,6 +310,9 @@ function New-ReleaseBlocker {
         status = $Status
         action = $Action
         message = $Message
+        repair_strategy = $RepairStrategy
+        repair_hint = $RepairHint
+        command_template = $CommandTemplate
     }
 }
 
@@ -317,7 +323,10 @@ function New-ActionItem {
         [string]$SourceKind,
         [string]$Action,
         [string]$Title,
-        [string]$Command = ""
+        [string]$Command = "",
+        [string]$RepairStrategy = "",
+        [string]$RepairHint = "",
+        [string]$CommandTemplate = ""
     )
 
     return [ordered]@{
@@ -327,6 +336,9 @@ function New-ActionItem {
         action = $Action
         title = $Title
         command = $Command
+        repair_strategy = $RepairStrategy
+        repair_hint = $RepairHint
+        command_template = $CommandTemplate
     }
 }
 
@@ -356,7 +368,8 @@ function Get-MarkdownTraceSuffix {
     param($Item)
 
     $parts = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($field in @("source_schema", "source_report_display", "source_json_display", "command")) {
+    foreach ($field in @("source_schema", "source_report_display", "source_json_display",
+            "repair_strategy", "repair_hint", "command_template", "command")) {
         $value = Get-JsonString -Object $Item -Name $field
         if (-not [string]::IsNullOrWhiteSpace($value)) {
             $parts.Add(("{0}=``{1}``" -f $field, $value)) | Out-Null
@@ -594,6 +607,9 @@ foreach ($path in @($inputPaths)) {
                         status = Get-JsonString -Object $blocker -Name "status" -DefaultValue "needs_review"
                         action = Get-JsonString -Object $blocker -Name "action"
                         message = Get-JsonString -Object $blocker -Name "message"
+                        repair_strategy = Get-JsonString -Object $blocker -Name "repair_strategy"
+                        repair_hint = Get-JsonString -Object $blocker -Name "repair_hint"
+                        command_template = Get-JsonString -Object $blocker -Name "command_template"
                     })
                 }
                 foreach ($item in @(Get-JsonArray -Object $json -Name "action_items")) {
@@ -609,6 +625,9 @@ foreach ($path in @($inputPaths)) {
                         action = Get-JsonString -Object $item -Name "action"
                         title = Get-JsonString -Object $item -Name "title"
                         command = Get-JsonString -Object $item -Name "command"
+                        repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
+                        repair_hint = Get-JsonString -Object $item -Name "repair_hint"
+                        command_template = Get-JsonString -Object $item -Name "command_template"
                     })
                 }
             }
@@ -666,13 +685,19 @@ if ($totalAutomaticFixCount -gt 0) {
         -SourceKind "table_layout_delivery_governance" `
         -Status "needs_review" `
         -Action "apply_safe_tblLook_fixes_then_visual_regression" `
-        -Message "Safe tblLook-only fixes are available and need application plus visual regression.")
+        -Message "Safe tblLook-only fixes are available and need application plus visual regression." `
+        -RepairStrategy "apply_safe_tblLook_fixes" `
+        -RepairHint "Apply only safe tblLook fixes, then regenerate visual evidence before release." `
+        -CommandTemplate "featherdoc_cli apply-table-style-quality-fixes <input.docx> --look-only --output <reviewed.docx> --json")
     Add-UniqueAction -Collection $deliveryActions -Action (New-ActionItem `
         -Id "apply_safe_tblLook_fixes" `
         -Scope "table_layout_delivery" `
         -SourceKind "table_layout_delivery_governance" `
         -Action "apply_safe_tblLook_fixes_then_visual_regression" `
-        -Title "Apply safe tblLook-only fixes and regenerate visual evidence")
+        -Title "Apply safe tblLook-only fixes and regenerate visual evidence" `
+        -RepairStrategy "apply_safe_tblLook_fixes" `
+        -RepairHint "Apply only safe tblLook fixes, then regenerate visual evidence before release." `
+        -CommandTemplate "featherdoc_cli apply-table-style-quality-fixes <input.docx> --look-only --output <reviewed.docx> --json")
 }
 if ($totalManualFixCount -gt 0) {
     Add-UniqueBlocker -Collection $releaseBlockers -Blocker (New-ReleaseBlocker `
@@ -681,7 +706,10 @@ if ($totalManualFixCount -gt 0) {
         -SourceKind "table_layout_delivery_governance" `
         -Status "needs_review" `
         -Action "review_manual_table_style_definition_work" `
-        -Message "Some table style quality issues require manual style-definition work.")
+        -Message "Some table style quality issues require manual style-definition work." `
+        -RepairStrategy "review_manual_table_style_definition_work" `
+        -RepairHint "Inspect the affected table style definitions and keep manual edits separate from safe tblLook-only fixes." `
+        -CommandTemplate "featherdoc_cli inspect-table-style <input.docx> <style-id> --json")
 }
 if ($totalPositionReviewCount -gt 0) {
     Add-UniqueBlocker -Collection $releaseBlockers -Blocker (New-ReleaseBlocker `
@@ -690,13 +718,19 @@ if ($totalPositionReviewCount -gt 0) {
         -SourceKind "table_layout_delivery_governance" `
         -Status "needs_review" `
         -Action "review_floating_table_position_plans" `
-        -Message "Floating table position plans include entries requiring manual review.")
+        -Message "Floating table position plans include entries requiring manual review." `
+        -RepairStrategy "review_table_position_plan" `
+        -RepairHint "Review table-position.plan.json entries with review_count > 0 before applying presets." `
+        -CommandTemplate "featherdoc_cli apply-table-position-plan <table-position.plan.json> --dry-run --json")
     Add-UniqueAction -Collection $deliveryActions -Action (New-ActionItem `
         -Id "review_floating_table_position_plans" `
         -Scope "table_layout_delivery" `
         -SourceKind "table_layout_delivery_governance" `
         -Action "review_floating_table_position_plans" `
-        -Title "Review floating table position plans before applying presets")
+        -Title "Review floating table position plans before applying presets" `
+        -RepairStrategy "review_table_position_plan" `
+        -RepairHint "Review table-position.plan.json entries with review_count > 0 before applying presets." `
+        -CommandTemplate "featherdoc_cli apply-table-position-plan <table-position.plan.json> --dry-run --json")
 }
 if ($totalPositionAutomaticCount -gt 0) {
     Add-UniqueAction -Collection $deliveryActions -Action (New-ActionItem `
@@ -704,7 +738,10 @@ if ($totalPositionAutomaticCount -gt 0) {
         -Scope "table_layout_delivery" `
         -SourceKind "table_layout_delivery_governance" `
         -Action "dry_run_apply_table_position_plans" `
-        -Title "Dry-run saved floating table position plans before writing DOCX")
+        -Title "Dry-run saved floating table position plans before writing DOCX" `
+        -RepairStrategy "dry_run_table_position_plan" `
+        -RepairHint "Run a fingerprint-checked dry-run before writing any positioned DOCX output." `
+        -CommandTemplate "featherdoc_cli apply-table-position-plan <table-position.plan.json> --dry-run --json")
 }
 if ($totalIssueCount -gt 0 -or $totalAutomaticFixCount -gt 0 -or $totalPositionAutomaticCount -gt 0 -or $totalPositionReviewCount -gt 0) {
     Add-UniqueAction -Collection $deliveryActions -Action (New-ActionItem `
@@ -713,7 +750,10 @@ if ($totalIssueCount -gt 0 -or $totalAutomaticFixCount -gt 0 -or $totalPositionA
         -SourceKind "table_layout_delivery_governance" `
         -Action "run_table_style_quality_visual_regression" `
         -Title "Generate Word-rendered table layout visual regression evidence" `
-        -Command "pwsh -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1")
+        -Command "pwsh -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1" `
+        -RepairStrategy "generate_table_layout_visual_evidence" `
+        -RepairHint "Generate before/after rendered evidence after safe fixes or floating-position plan changes." `
+        -CommandTemplate "pwsh -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1")
 }
 
 $sourceFailureCount = @($sourceFiles.ToArray() | Where-Object { $_.status -eq "failed" }).Count

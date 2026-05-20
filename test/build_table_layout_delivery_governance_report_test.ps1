@@ -192,6 +192,9 @@ function New-LayoutRollup {
                 status = "needs_review"
                 action = "review_table_style_quality_plan"
                 message = "Table style quality has issues that need manual style-definition work."
+                repair_strategy = "review_source_table_style_quality_plan"
+                repair_hint = "Review the source rollup style quality findings before release."
+                command_template = "featherdoc_cli inspect-table-style <input.docx> <style-id> --json"
             },
             [ordered]@{
                 id = "table_layout.positioned_tables_need_review"
@@ -200,6 +203,9 @@ function New-LayoutRollup {
                 status = "needs_review"
                 action = "review_table_position_plan"
                 message = "Some existing floating table positions need manual review before applying the preset."
+                repair_strategy = "review_source_table_position_plan"
+                repair_hint = "Review source table-position.plan.json entries with existing floating positions."
+                command_template = "featherdoc_cli apply-table-position-plan <table-position.plan.json> --dry-run --json"
             }
         )
         action_items = @(
@@ -209,6 +215,9 @@ function New-LayoutRollup {
                 action = "apply_safe_tblLook_fixes"
                 title = "Apply safe tblLook-only fixes"
                 command = "featherdoc_cli apply-table-style-quality-fixes contract.docx --look-only --json"
+                repair_strategy = "source_apply_safe_tblLook_fixes"
+                repair_hint = "Apply source rollup safe tblLook fixes only."
+                command_template = "featherdoc_cli apply-table-style-quality-fixes <input.docx> --look-only --output <reviewed.docx> --json"
             }
         )
     }
@@ -308,12 +317,38 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should add safe tblLook blocker."
     Assert-ContainsText -Text $blockerText -ExpectedText "table_layout_delivery.floating_table_review_pending" `
         -Message "Summary should add floating table review blocker."
+    $blockerRepairText = ($summary.release_blockers | ForEach-Object {
+            "$($_.id)|$($_.repair_strategy)|$($_.repair_hint)|$($_.command_template)"
+        }) -join "`n"
+    Assert-ContainsText -Text $blockerRepairText -ExpectedText "table_layout_delivery.safe_tblLook_fixes_pending|apply_safe_tblLook_fixes" `
+        -Message "Safe tblLook blocker should expose repair strategy."
+    Assert-ContainsText -Text $blockerRepairText -ExpectedText "apply-table-style-quality-fixes <input.docx> --look-only --output <reviewed.docx> --json" `
+        -Message "Safe tblLook blocker should expose a command template."
+    Assert-ContainsText -Text $blockerRepairText -ExpectedText "table_layout_delivery.manual_table_style_work|review_manual_table_style_definition_work" `
+        -Message "Manual style blocker should expose repair strategy."
+    Assert-ContainsText -Text $blockerRepairText -ExpectedText "table_layout_delivery.floating_table_review_pending|review_table_position_plan" `
+        -Message "Floating table blocker should expose repair strategy."
+    Assert-ContainsText -Text $blockerRepairText -ExpectedText "table_layout.manual_table_style_quality_work|review_source_table_style_quality_plan" `
+        -Message "Rollup blocker repair strategy should be preserved."
 
     $actionText = ($summary.delivery_actions | ForEach-Object { [string]$_.id }) -join "`n"
     Assert-ContainsText -Text $actionText -ExpectedText "run_table_style_quality_visual_regression" `
         -Message "Summary should add visual regression action."
     Assert-ContainsText -Text $actionText -ExpectedText "dry_run_apply_table_position_plans" `
         -Message "Summary should add position plan dry-run action."
+    $actionRepairText = ($summary.delivery_actions | ForEach-Object {
+            "$($_.id)|$($_.repair_strategy)|$($_.repair_hint)|$($_.command_template)"
+        }) -join "`n"
+    Assert-ContainsText -Text $actionRepairText -ExpectedText "apply_safe_tblLook_fixes|source_apply_safe_tblLook_fixes" `
+        -Message "Rollup action repair strategy should be preserved."
+    Assert-ContainsText -Text $actionRepairText -ExpectedText "review_floating_table_position_plans|review_table_position_plan" `
+        -Message "Review action should expose repair strategy."
+    Assert-ContainsText -Text $actionRepairText -ExpectedText "dry_run_apply_table_position_plans|dry_run_table_position_plan" `
+        -Message "Dry-run action should expose repair strategy."
+    Assert-ContainsText -Text $actionRepairText -ExpectedText "run_table_style_quality_visual_regression|generate_table_layout_visual_evidence" `
+        -Message "Visual regression action should expose repair strategy."
+    Assert-ContainsText -Text $actionRepairText -ExpectedText "run_table_style_quality_visual_regression.ps1" `
+        -Message "Visual regression action should expose a command template."
 
     Assert-Equal -Actual ([int]$summary.action_items.Count) -Expected ([int]$summary.delivery_actions.Count) `
         -Message "Summary should mirror delivery actions as release rollup action items."
@@ -322,6 +357,11 @@ if (Test-Scenario -Name "aggregate") {
     $actionItemsText = ($summary.action_items | ForEach-Object { [string]$_.id }) -join "`n"
     Assert-ContainsText -Text $actionItemsText -ExpectedText "run_table_style_quality_visual_regression" `
         -Message "Release rollup action items should include visual regression action."
+    $nextStepRepairText = ($summary.next_steps | ForEach-Object {
+            "$($_.id)|$($_.repair_strategy)|$($_.command_template)"
+        }) -join "`n"
+    Assert-ContainsText -Text $nextStepRepairText -ExpectedText "dry_run_apply_table_position_plans|dry_run_table_position_plan" `
+        -Message "Next-step mirror should preserve repair strategy."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Table Layout Delivery Governance Report" `
@@ -340,6 +380,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include source report display fields for actions and blockers."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display" `
         -Message "Markdown should include source JSON display fields for actions and blockers."
+    Assert-ContainsText -Text $markdown -ExpectedText "repair_strategy" `
+        -Message "Markdown should include repair strategy fields for actions and blockers."
+    Assert-ContainsText -Text $markdown -ExpectedText "repair_hint" `
+        -Message "Markdown should include repair hint fields for actions and blockers."
+    Assert-ContainsText -Text $markdown -ExpectedText "command_template" `
+        -Message "Markdown should include command template fields for actions and blockers."
     Assert-ContainsText -Text $markdown -ExpectedText "featherdoc.table_layout_delivery_rollup_report.v1" `
         -Message "Markdown should include the rollup source schema."
     Assert-ContainsText -Text $markdown -ExpectedText "aggregate-evidence\rollup\summary.json" `
