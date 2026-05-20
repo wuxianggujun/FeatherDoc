@@ -239,6 +239,26 @@ foreach ($expectedText in @(
     Assert-True -Condition ($visualGateText -match [regex]::Escape($expectedText)) `
         -Message "PDF visual release gate should keep preflight contract marker '$expectedText'."
 }
+foreach ($expectedText in @(
+    "FEATHERDOC_RENDER_PYTHON_EXECUTABLE",
+    ".venv-word-visual-smoke\Scripts\python.exe",
+    "tmp\render-venv\Scripts\python.exe",
+    ".venv-pdf-visual-smoke\Scripts\python.exe",
+    "No reusable render Python with PIL and fitz was found"
+)) {
+    Assert-True -Condition ($visualGateText -match [regex]::Escape($expectedText)) `
+        -Message "PDF visual release gate should keep reusable render Python marker '$expectedText'."
+}
+foreach ($forbiddenText in @(
+    "-m venv",
+    "pip install",
+    "pillow pymupdf",
+    "Creating local Python environment",
+    "Installing Pillow and PyMuPDF"
+)) {
+    Assert-True -Condition ($visualGateText -notmatch [regex]::Escape($forbiddenText)) `
+        -Message "PDF visual release gate should not create or install render Python dependencies during the full gate: '$forbiddenText'."
+}
 
 $preflightText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 foreach ($expectedText in @(

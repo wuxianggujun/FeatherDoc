@@ -79,49 +79,45 @@ function Get-BasePython {
 function Get-RenderPython {
     param([string]$RepoRoot)
 
+    $candidatePythons = New-Object 'System.Collections.Generic.List[object]'
     if (-not [string]::IsNullOrWhiteSpace($env:FEATHERDOC_RENDER_PYTHON_EXECUTABLE) -and
         (Test-Path $env:FEATHERDOC_RENDER_PYTHON_EXECUTABLE)) {
-        $renderPython = (Resolve-Path $env:FEATHERDOC_RENDER_PYTHON_EXECUTABLE).Path
-        if ((Test-PythonImport -PythonCommand $renderPython -ModuleName "PIL") -and
-            (Test-PythonImport -PythonCommand $renderPython -ModuleName "fitz")) {
-            return $renderPython
-        }
+        $candidatePythons.Add([ordered]@{
+                Source = "FEATHERDOC_RENDER_PYTHON_EXECUTABLE"
+                Path = (Resolve-Path $env:FEATHERDOC_RENDER_PYTHON_EXECUTABLE).Path
+            }) | Out-Null
     }
 
     $basePython = Get-BasePython
-    if ((Test-PythonImport -PythonCommand $basePython -ModuleName "PIL") -and
-        (Test-PythonImport -PythonCommand $basePython -ModuleName "fitz")) {
-        return $basePython
-    }
+    $candidatePythons.Add([ordered]@{
+            Source = "base Python"
+            Path = $basePython
+        }) | Out-Null
 
-    $existingRenderPython = Join-Path $RepoRoot "tmp\render-venv\Scripts\python.exe"
-    if ((Test-Path $existingRenderPython) -and
-        (Test-PythonImport -PythonCommand $existingRenderPython -ModuleName "PIL") -and
-        (Test-PythonImport -PythonCommand $existingRenderPython -ModuleName "fitz")) {
-        return (Resolve-Path $existingRenderPython).Path
-    }
-
-    $venvDir = Join-Path $RepoRoot ".venv-pdf-visual-smoke"
-    $venvPython = Join-Path $venvDir "Scripts\python.exe"
-    if (-not (Test-Path $venvPython)) {
-        Write-Step "Creating local Python environment at $venvDir"
-        & $basePython -m venv $venvDir
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to create local Python virtual environment."
+    foreach ($relativePath in @(
+            ".venv-word-visual-smoke\Scripts\python.exe",
+            "tmp\render-venv\Scripts\python.exe",
+            ".venv-pdf-visual-smoke\Scripts\python.exe"
+        )) {
+        $candidatePath = Join-Path $RepoRoot $relativePath
+        if (Test-Path $candidatePath) {
+            $candidatePythons.Add([ordered]@{
+                    Source = $relativePath
+                    Path = (Resolve-Path $candidatePath).Path
+                }) | Out-Null
         }
     }
 
-    if (-not (Test-PythonImport -PythonCommand $venvPython -ModuleName "PIL") -or
-        -not (Test-PythonImport -PythonCommand $venvPython -ModuleName "fitz")) {
-        Write-Step "Installing Pillow and PyMuPDF into the local environment"
-        & $venvPython -m pip install --disable-pip-version-check pillow pymupdf 2>&1 |
-            ForEach-Object { Write-Host $_ }
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to install render dependencies into the local environment."
+    foreach ($candidate in @($candidatePythons.ToArray())) {
+        $pythonPath = [string]$candidate.Path
+        if ((Test-PythonImport -PythonCommand $pythonPath -ModuleName "PIL") -and
+            (Test-PythonImport -PythonCommand $pythonPath -ModuleName "fitz")) {
+            Write-Step "Using reusable render Python from $($candidate.Source): $pythonPath"
+            return $pythonPath
         }
     }
 
-    return $venvPython
+    throw "No reusable render Python with PIL and fitz was found. Run the PDF preflight, set FEATHERDOC_RENDER_PYTHON_EXECUTABLE, or prepare an existing render environment before running the full PDF visual release gate."
 }
 
 function Invoke-CapturedCommand {
