@@ -107,6 +107,10 @@ foreach ($entry in @(
         -Message "$($entry.name) should preserve action open command fields."
 }
 
+Assert-ContainsText -Text $reviewerChecklistScript `
+    -ExpectedText "For PDF/CJK-facing releases, manually verify a generated Chinese PDF can be copied and searched in at least one common reader" `
+    -Message "Reviewer checklist should preserve the PDF/CJK manual copy-search release verification."
+
 foreach ($field in @("audit_command", "review_command")) {
     foreach ($entry in @(
         [ordered]@{ name = "release governance pipeline script"; text = $pipelineScript },
