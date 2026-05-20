@@ -92,6 +92,17 @@ $pdfPreflightBlocker = [pscustomobject]@{
     source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
     command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
     issue_keys = @("cmake_cache_exists", "ctest_manifest_exists")
+    blocking_summary = [pscustomobject]@{
+        required_check_count = 10
+        blocking_check_count = 6
+        missing_cli_pdf_count = 2
+        visual_baseline_sample_count = 42
+        missing_visual_baseline_pdf_count = 42
+        cjk_text_layer_sample_count = 43
+        missing_cjk_text_layer_pdf_count = 43
+        build_dir_entry_count = 1
+        ctest_required_pattern_count = 4
+    }
 }
 $pdfPreflightGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
         -Blocker $pdfPreflightBlocker `
@@ -107,6 +118,12 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "cmake_cache_exist
     -Message "PDF preflight build-output blocker should explain the missing CMakeCache preflight issue."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "CMakeCache.txt" `
     -Message "PDF preflight build-output blocker should require a reusable CMake build directory."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing CLI PDFs=2" `
+    -Message "PDF preflight build-output blocker should include the missing CLI PDF count."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing visual baseline PDFs=42" `
+    -Message "PDF preflight build-output blocker should include the missing visual baseline count."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing CJK text-layer PDFs=43" `
+    -Message "PDF preflight build-output blocker should include the missing CJK text-layer count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "source preflight JSON" `
     -Message "PDF preflight build-output blocker should point reviewers at source_json_display evidence."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "release note bundle" `

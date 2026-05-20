@@ -38,6 +38,25 @@ function Get-ReleaseBlockerPropertyValue {
     return [string]$value
 }
 
+function Get-ReleaseBlockerIntPropertyValue {
+    param(
+        [AllowNull()]$Object,
+        [string]$Name,
+        [int]$DefaultValue = 0
+    )
+
+    $value = Get-ReleaseBlockerPropertyObject -Object $Object -Name $Name
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        return $DefaultValue
+    }
+
+    try {
+        return [int]$value
+    } catch {
+        return $DefaultValue
+    }
+}
+
 function Get-ReleaseBlockerArrayProperty {
     param(
         [AllowNull()]$Object,
@@ -391,6 +410,43 @@ function Add-ReleaseBlockerActionGuidanceLine {
     }
 }
 
+function Get-PdfVisualPreflightBlockingSummaryLine {
+    param([AllowNull()]$Item)
+
+    $blockingSummary = Get-ReleaseBlockerPropertyObject -Object $Item -Name "blocking_summary"
+    if ($null -eq $blockingSummary) {
+        return ""
+    }
+
+    $requiredCheckCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "required_check_count"
+    $blockingCheckCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "blocking_check_count"
+    $missingCliPdfCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "missing_cli_pdf_count"
+    $visualBaselineSampleCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "visual_baseline_sample_count"
+    $missingVisualBaselinePdfCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "missing_visual_baseline_pdf_count"
+    $cjkTextLayerSampleCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "cjk_text_layer_sample_count"
+    $missingCjkTextLayerPdfCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "missing_cjk_text_layer_pdf_count"
+    $buildDirEntryCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "build_dir_entry_count"
+    $ctestRequiredPatternCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "ctest_required_pattern_count"
+
+    if (($requiredCheckCount + $blockingCheckCount + $missingCliPdfCount +
+            $visualBaselineSampleCount + $missingVisualBaselinePdfCount +
+            $cjkTextLayerSampleCount + $missingCjkTextLayerPdfCount +
+            $buildDirEntryCount + $ctestRequiredPatternCount) -le 0) {
+        return ""
+    }
+
+    return ("PDF preflight blocker summary: required checks={0}, blocking checks={1}, missing CLI PDFs={2}, visual baseline samples={3}, missing visual baseline PDFs={4}, CJK text-layer samples={5}, missing CJK text-layer PDFs={6}, build dir entries={7}, CTest required patterns={8}." -f `
+        $requiredCheckCount,
+        $blockingCheckCount,
+        $missingCliPdfCount,
+        $visualBaselineSampleCount,
+        $missingVisualBaselinePdfCount,
+        $cjkTextLayerSampleCount,
+        $missingCjkTextLayerPdfCount,
+        $buildDirEntryCount,
+        $ctestRequiredPatternCount)
+}
+
 function Get-ReleaseBlockerRegisteredActions {
     return @(
         "complete_visual_manual_review",
@@ -451,6 +507,7 @@ function Get-ReleaseBlockerActionGuidanceLines {
         }
         "prepare_pdf_visual_release_gate_build_outputs" {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Use action `prepare_pdf_visual_release_gate_build_outputs`: prepare or reuse the PDF visual release gate build outputs before attempting the full PDF visual gate.'
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Blocker)
             $issueKeys = @(Get-ReleaseBlockerArrayProperty -Object $Blocker -Name "issue_keys" | ForEach-Object { [string]$_ })
             if ($issueKeys -contains "cmake_cache_exists") {
                 Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Preflight issue `cmake_cache_exists` means the selected build directory is not a reusable CMake build; prepare or point at a build directory containing `CMakeCache.txt` before checking CTest registration or PDF outputs.'
@@ -483,6 +540,7 @@ function Get-ReleaseBlockerActionGuidanceLines {
         }
         "rerun_pdf_visual_release_gate_preflight" {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Use action `rerun_pdf_visual_release_gate_preflight`: regenerate the PDF visual release gate preflight summary, then rebuild the PDF preflight governance report.'
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Blocker)
 
             $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_json_display"
             if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
@@ -1260,6 +1318,9 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text ('Use action `{0}` for release governance {1} `{2}`: prepare or reuse the PDF visual release gate build outputs before attempting the full PDF visual gate.' -f $action, $ItemKind, $id)
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Item)
         $issueKeys = @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "issue_keys" | ForEach-Object { [string]$_ })
         if ($issueKeys -contains "cmake_cache_exists") {
             Add-ReleaseBlockerActionGuidanceLine `
@@ -1283,6 +1344,9 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text ('Use action `{0}` for release governance {1} `{2}`: regenerate the PDF visual release gate preflight summary, then rebuild the PDF preflight governance report.' -f $action, $ItemKind, $id)
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Item)
         $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
         if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
             $commandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate_preflight.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputJson .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json'
