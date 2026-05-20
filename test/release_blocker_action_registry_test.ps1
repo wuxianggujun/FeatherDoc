@@ -93,7 +93,7 @@ $pdfPreflightBlocker = [pscustomobject]@{
     command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
     issue_keys = @("cmake_cache_exists", "ctest_manifest_exists")
     blocking_summary = [pscustomobject]@{
-        required_check_count = 10
+        required_check_count = 11
         blocking_check_count = 6
         missing_cli_pdf_count = 2
         visual_baseline_sample_count = 42
@@ -102,6 +102,10 @@ $pdfPreflightBlocker = [pscustomobject]@{
         missing_cjk_text_layer_pdf_count = 43
         build_dir_entry_count = 1
         ctest_required_pattern_count = 4
+        memory_guard_blocked = $false
+        memory_guard_skipped = $false
+        free_memory_mb = 1140
+        min_free_memory_mb = 2048
     }
 }
 $pdfPreflightGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
@@ -124,6 +128,16 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing visual ba
     -Message "PDF preflight build-output blocker should include the missing visual baseline count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing CJK text-layer PDFs=43" `
     -Message "PDF preflight build-output blocker should include the missing CJK text-layer count."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "required checks=11" `
+    -Message "PDF preflight build-output blocker should include the memory-aware required check count."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "memory guard blocked=false" `
+    -Message "PDF preflight build-output blocker should include the memory guard blocked state."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "memory guard skipped=false" `
+    -Message "PDF preflight build-output blocker should include the memory guard skipped state."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "free memory MB=1140" `
+    -Message "PDF preflight build-output blocker should include the observed free memory."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "minimum free memory MB=2048" `
+    -Message "PDF preflight build-output blocker should include the configured minimum free memory."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "source preflight JSON" `
     -Message "PDF preflight build-output blocker should point reviewers at source_json_display evidence."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "release note bundle" `
@@ -142,6 +156,8 @@ Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing 
     -Message "PDF preflight checklist guidance should include the missing visual baseline count."
 Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing CJK text-layer PDFs=43" `
     -Message "PDF preflight checklist guidance should include the missing CJK text-layer count."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "memory guard blocked=false" `
+    -Message "PDF preflight checklist guidance should include the memory guard blocked state."
 
 $pdfPreflightUnavailableBlocker = [pscustomobject]@{
     id = "pdf_visual_release_gate_preflight.summary_unavailable"

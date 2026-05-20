@@ -295,7 +295,7 @@ $summary = [ordered]@{
                 command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
                 issue_keys = @("build_dir_exists", "cmake_cache_exists", "ctest_manifest_exists")
                 blocking_summary = [ordered]@{
-                    required_check_count = 10
+                    required_check_count = 11
                     blocking_check_count = 6
                     missing_cli_pdf_count = 2
                     visual_baseline_sample_count = 42
@@ -304,6 +304,10 @@ $summary = [ordered]@{
                     missing_cjk_text_layer_pdf_count = 43
                     build_dir_entry_count = 1
                     ctest_required_pattern_count = 4
+                    memory_guard_blocked = $false
+                    memory_guard_skipped = $false
+                    free_memory_mb = 1140
+                    min_free_memory_mb = 2048
                 }
             }
         )
@@ -351,7 +355,7 @@ $summary = [ordered]@{
                 command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
                 issue_keys = @("build_dir_exists", "cmake_cache_exists", "ctest_manifest_exists")
                 blocking_summary = [ordered]@{
-                    required_check_count = 10
+                    required_check_count = 11
                     blocking_check_count = 6
                     missing_cli_pdf_count = 2
                     visual_baseline_sample_count = 42
@@ -360,6 +364,10 @@ $summary = [ordered]@{
                     missing_cjk_text_layer_pdf_count = 43
                     build_dir_entry_count = 1
                     ctest_required_pattern_count = 4
+                    memory_guard_blocked = $false
+                    memory_guard_skipped = $false
+                    free_memory_mb = 1140
+                    min_free_memory_mb = 2048
                 }
             }
         )
@@ -717,6 +725,10 @@ Assert-Contains -Path $checklistPath -ExpectedText 'CMakeCache.txt' -Label 'REVI
 Assert-Contains -Path $checklistPath -ExpectedText 'missing CLI PDFs=2' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'missing visual baseline PDFs=42' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'missing CJK text-layer PDFs=43' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'memory guard blocked=false' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'memory guard skipped=false' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'free memory MB=1140' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'minimum free memory MB=2048' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Only after preflight is ready and workstation resources allow it' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'release note bundle' -Label 'REVIEWER_CHECKLIST.md'

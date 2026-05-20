@@ -57,6 +57,32 @@ function Get-ReleaseBlockerIntPropertyValue {
     }
 }
 
+function Get-ReleaseBlockerBoolPropertyDisplayValue {
+    param(
+        [AllowNull()]$Object,
+        [string]$Name
+    )
+
+    $value = Get-ReleaseBlockerPropertyObject -Object $Object -Name $Name
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        return ""
+    }
+
+    if ($value -is [bool]) {
+        return ([string]$value).ToLowerInvariant()
+    }
+
+    $text = [string]$value
+    if ([string]::Equals($text, "true", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return "true"
+    }
+    if ([string]::Equals($text, "false", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return "false"
+    }
+
+    return $text
+}
+
 function Get-ReleaseBlockerArrayProperty {
     param(
         [AllowNull()]$Object,
@@ -427,15 +453,23 @@ function Get-PdfVisualPreflightBlockingSummaryLine {
     $missingCjkTextLayerPdfCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "missing_cjk_text_layer_pdf_count"
     $buildDirEntryCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "build_dir_entry_count"
     $ctestRequiredPatternCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "ctest_required_pattern_count"
+    $memoryGuardBlocked = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $blockingSummary -Name "memory_guard_blocked"
+    $memoryGuardSkipped = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $blockingSummary -Name "memory_guard_skipped"
+    $freeMemoryMb = Get-ReleaseBlockerPropertyValue -Object $blockingSummary -Name "free_memory_mb"
+    $minFreeMemoryMb = Get-ReleaseBlockerPropertyValue -Object $blockingSummary -Name "min_free_memory_mb"
 
     if (($requiredCheckCount + $blockingCheckCount + $missingCliPdfCount +
             $visualBaselineSampleCount + $missingVisualBaselinePdfCount +
             $cjkTextLayerSampleCount + $missingCjkTextLayerPdfCount +
-            $buildDirEntryCount + $ctestRequiredPatternCount) -le 0) {
+            $buildDirEntryCount + $ctestRequiredPatternCount) -le 0 -and
+        [string]::IsNullOrWhiteSpace($memoryGuardBlocked) -and
+        [string]::IsNullOrWhiteSpace($memoryGuardSkipped) -and
+        [string]::IsNullOrWhiteSpace($freeMemoryMb) -and
+        [string]::IsNullOrWhiteSpace($minFreeMemoryMb)) {
         return ""
     }
 
-    return ("PDF preflight blocker summary: required checks={0}, blocking checks={1}, missing CLI PDFs={2}, visual baseline samples={3}, missing visual baseline PDFs={4}, CJK text-layer samples={5}, missing CJK text-layer PDFs={6}, build dir entries={7}, CTest required patterns={8}." -f `
+    $summaryLine = ("PDF preflight blocker summary: required checks={0}, blocking checks={1}, missing CLI PDFs={2}, visual baseline samples={3}, missing visual baseline PDFs={4}, CJK text-layer samples={5}, missing CJK text-layer PDFs={6}, build dir entries={7}, CTest required patterns={8}." -f `
         $requiredCheckCount,
         $blockingCheckCount,
         $missingCliPdfCount,
@@ -445,6 +479,24 @@ function Get-PdfVisualPreflightBlockingSummaryLine {
         $missingCjkTextLayerPdfCount,
         $buildDirEntryCount,
         $ctestRequiredPatternCount)
+    $memoryParts = @()
+    if (-not [string]::IsNullOrWhiteSpace($memoryGuardBlocked)) {
+        $memoryParts += "memory guard blocked=$memoryGuardBlocked"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($memoryGuardSkipped)) {
+        $memoryParts += "memory guard skipped=$memoryGuardSkipped"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($freeMemoryMb)) {
+        $memoryParts += "free memory MB=$freeMemoryMb"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($minFreeMemoryMb)) {
+        $memoryParts += "minimum free memory MB=$minFreeMemoryMb"
+    }
+    if ($memoryParts.Count -gt 0) {
+        $summaryLine += " Memory guard: $($memoryParts -join ', ')."
+    }
+
+    return $summaryLine
 }
 
 function Get-ReleaseBlockerRegisteredActions {
