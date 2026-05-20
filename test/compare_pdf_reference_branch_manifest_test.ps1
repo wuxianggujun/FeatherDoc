@@ -48,16 +48,22 @@ function New-SampleFixture {
     param(
         [string]$Id,
         [string]$Kind,
+        [string[]]$ExpectedText = @(),
         [switch]$Cjk,
         [switch]$Visual
     )
+
+    $expectedTextValue = @($Id)
+    if (@($ExpectedText).Count -gt 0) {
+        $expectedTextValue = @($ExpectedText)
+    }
 
     $sample = [ordered]@{
         id = $Id
         kind = $Kind
         output_file = "featherdoc-$Id.pdf"
         expected_pages = 1
-        expected_text = @($Id)
+        expected_text = $expectedTextValue
     }
     if ($Cjk) {
         $sample.expect_cjk = $true
@@ -88,10 +94,19 @@ if ($LASTEXITCODE -ne 0) {
     throw "git init failed."
 }
 
+$utf8FixtureText = @(
+    ([char[]](0x4E2D, 0x6587, 0x6837, 0x672C) -join "")
+    (([char[]](0x751F, 0x6548, 0x65E5, 0x671F) -join "") + " 2026")
+)
+
 Write-ManifestFixture -Path $manifestPath -Samples @(
     (New-SampleFixture -Id "single-text" -Kind "single_text"),
     (New-SampleFixture -Id "cjk-text" -Kind "cjk_text" -Cjk),
-    (New-SampleFixture -Id "missing-reference" -Kind "missing_reference" -Visual)
+    (New-SampleFixture `
+        -Id "missing-reference" `
+        -Kind "missing_reference" `
+        -ExpectedText $utf8FixtureText `
+        -Visual)
 )
 & git -C $fakeRepo add test/pdf_regression_manifest.json
 & git -C $fakeRepo -c user.name=FeatherDoc -c user.email=featherdoc@example.invalid commit -q -m "reference manifest"

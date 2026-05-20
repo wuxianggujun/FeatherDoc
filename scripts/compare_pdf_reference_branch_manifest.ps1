@@ -28,46 +28,37 @@ function Invoke-ManifestAuditGit {
         [string[]]$Arguments
     )
 
-    function ConvertTo-ManifestAuditProcessArgument {
-        param([string]$Value)
-
-        if ($null -eq $Value) {
-            return '""'
-        }
-        if ($Value -notmatch '[\s"]') {
-            return $Value
-        }
-
-        return '"' + ($Value -replace '"', '\"') + '"'
+    $output = & git -C $ResolvedRepoRoot @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw ("git {0} failed with exit code {1}." -f ($Arguments -join " "), $LASTEXITCODE)
     }
 
-    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-    $startInfo.FileName = "git"
-    $startInfo.WorkingDirectory = $ResolvedRepoRoot
-    $startInfo.UseShellExecute = $false
-    $startInfo.RedirectStandardOutput = $true
-    $startInfo.RedirectStandardError = $true
-    $processArguments = @("-C", $ResolvedRepoRoot) + @($Arguments)
-    $startInfo.Arguments = (@($processArguments | ForEach-Object {
-                ConvertTo-ManifestAuditProcessArgument -Value $_
-            }) -join " ")
+    return (@($output) -join [Environment]::NewLine)
+}
 
-    $process = [System.Diagnostics.Process]::new()
-    $process.StartInfo = $startInfo
-    [void]$process.Start()
-    $stdout = New-Object System.IO.MemoryStream
-    $stderr = New-Object System.IO.MemoryStream
-    $process.StandardOutput.BaseStream.CopyTo($stdout)
-    $process.StandardError.BaseStream.CopyTo($stderr)
-    $process.WaitForExit()
+function Read-ManifestAuditGitBlobText {
+    param(
+        [string]$ResolvedRepoRoot,
+        [string]$RevisionPath
+    )
 
-    $output = [System.Text.Encoding]::UTF8.GetString($stdout.ToArray())
-    $errorOutput = [System.Text.Encoding]::UTF8.GetString($stderr.ToArray())
-    if ($process.ExitCode -ne 0) {
-        throw ("git {0} failed: {1}" -f ($Arguments -join " "), $errorOutput.Trim())
+    $objectName = (Invoke-ManifestAuditGit -ResolvedRepoRoot $ResolvedRepoRoot -Arguments @("rev-parse", $RevisionPath)).Trim()
+    $tempPath = [System.IO.Path]::GetTempFileName()
+    try {
+        $escapedRepoRoot = $ResolvedRepoRoot.Replace('"', '\"')
+        $escapedTempPath = $tempPath.Replace('"', '\"')
+        $command = 'git -C "{0}" cat-file -p {1} > "{2}"' -f $escapedRepoRoot, $objectName, $escapedTempPath
+        & cmd.exe /d /c $command
+        if ($LASTEXITCODE -ne 0) {
+            throw ("git cat-file failed for {0} with exit code {1}." -f $RevisionPath, $LASTEXITCODE)
+        }
+
+        return Get-Content -Raw -Encoding UTF8 -LiteralPath $tempPath
+    } finally {
+        if (Test-Path -LiteralPath $tempPath) {
+            Remove-Item -LiteralPath $tempPath -Force
+        }
     }
-
-    return $output
 }
 
 function Get-ManifestAuditPropertyValue {
@@ -173,7 +164,9 @@ foreach ($branch in $ReferenceBranch) {
     }
 
     $branchTip = Invoke-ManifestAuditGit -ResolvedRepoRoot $resolvedRepoRoot -Arguments @("rev-parse", $branch)
-    $branchManifestText = Invoke-ManifestAuditGit -ResolvedRepoRoot $resolvedRepoRoot -Arguments @("show", ("{0}:{1}" -f $branch, $manifestPathForGit))
+    $branchManifestText = Read-ManifestAuditGitBlobText `
+        -ResolvedRepoRoot $resolvedRepoRoot `
+        -RevisionPath ("{0}:{1}" -f $branch, $manifestPathForGit)
     $branchInfo = Get-ManifestAuditInfo -ManifestText $branchManifestText -Source $branch
 
     $missingInDev = @($branchInfo.sample_ids |
