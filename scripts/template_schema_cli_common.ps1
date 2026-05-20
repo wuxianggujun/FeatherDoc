@@ -87,16 +87,29 @@ function Invoke-TemplateSchemaMsvcCommand {
     }
 }
 
-function Find-TemplateSchemaCliBinary {
-    param([string]$SearchRoot)
+function Find-TemplateSchemaBinaryByName {
+    param(
+        [string]$SearchRoot,
+        [string[]]$Names
+    )
 
     if ([string]::IsNullOrWhiteSpace($SearchRoot) -or
         -not (Test-Path -LiteralPath $SearchRoot)) {
         return $null
     }
 
+    $lookup = @{}
+    foreach ($name in @($Names)) {
+        if (-not [string]::IsNullOrWhiteSpace($name)) {
+            $lookup[[string]$name] = $true
+        }
+    }
+    if ($lookup.Count -eq 0) {
+        return $null
+    }
+
     $candidates = Get-ChildItem -Path $SearchRoot -Recurse -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -ieq "featherdoc_cli.exe" -or $_.Name -ieq "featherdoc_cli" } |
+        Where-Object { $lookup.ContainsKey($_.Name) } |
         Sort-Object LastWriteTimeUtc -Descending
 
     if (-not $candidates) {
@@ -106,26 +119,27 @@ function Find-TemplateSchemaCliBinary {
     return $candidates[0].FullName
 }
 
+function Find-TemplateSchemaCliBinary {
+    param([string]$SearchRoot)
+
+    return Find-TemplateSchemaBinaryByName `
+        -SearchRoot $SearchRoot `
+        -Names @("featherdoc_cli.exe", "featherdoc_cli")
+}
+
 function Find-TemplateSchemaTargetBinary {
     param(
         [string]$SearchRoot,
         [string]$TargetName
     )
 
-    if ([string]::IsNullOrWhiteSpace($SearchRoot) -or
-        -not (Test-Path -LiteralPath $SearchRoot)) {
+    if ([string]::IsNullOrWhiteSpace($TargetName)) {
         return $null
     }
 
-    $candidates = Get-ChildItem -Path $SearchRoot -Recurse -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -ieq "$TargetName.exe" -or $_.Name -ieq $TargetName } |
-        Sort-Object LastWriteTimeUtc -Descending
-
-    if (-not $candidates) {
-        return $null
-    }
-
-    return $candidates[0].FullName
+    return Find-TemplateSchemaBinaryByName `
+        -SearchRoot $SearchRoot `
+        -Names @("$TargetName.exe", $TargetName)
 }
 
 function Resolve-TemplateSchemaCliPath {

@@ -32,6 +32,14 @@ function Assert-ThrowsMessage {
     throw "$Message Expected exception containing '$ExpectedText'."
 }
 
+function New-TestFile {
+    param([string]$Path, [datetime]$LastWriteTimeUtc)
+
+    New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($Path)) -Force | Out-Null
+    Set-Content -LiteralPath $Path -Value "" -Encoding UTF8
+    (Get-Item -LiteralPath $Path).LastWriteTimeUtc = $LastWriteTimeUtc
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 } else {
@@ -85,5 +93,49 @@ $emptyPortablePath = ConvertTo-TemplateSchemaPortableRelativePath `
     -TargetPath ""
 Assert-Equal -Actual $emptyPortablePath -Expected "" `
     -Message "Portable path helper should preserve empty target paths."
+
+$tempRoot = Join-Path $RepoRoot ".codex-temp\template-schema-cli-common-binary-test"
+$resolvedTempRoot = [System.IO.Path]::GetFullPath($tempRoot)
+$allowedTempRoot = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot ".codex-temp"))
+if (-not $resolvedTempRoot.StartsWith($allowedTempRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing binary lookup fixture outside .codex-temp: $resolvedTempRoot"
+}
+
+if (Test-Path -LiteralPath $resolvedTempRoot) {
+    Remove-Item -LiteralPath $resolvedTempRoot -Recurse -Force
+}
+
+try {
+    New-TestFile `
+        -Path (Join-Path $resolvedTempRoot "old\featherdoc_cli.exe") `
+        -LastWriteTimeUtc ([datetime]"2024-01-01T00:00:00Z")
+    $latestCli = Join-Path $resolvedTempRoot "new\featherdoc_cli.exe"
+    New-TestFile `
+        -Path $latestCli `
+        -LastWriteTimeUtc ([datetime]"2024-01-02T00:00:00Z")
+    $cliBinary = Find-TemplateSchemaCliBinary -SearchRoot $resolvedTempRoot
+    Assert-Equal -Actual $cliBinary -Expected ([System.IO.Path]::GetFullPath($latestCli)) `
+        -Message "CLI binary lookup should return the newest matching file."
+
+    $sampleBinary = Join-Path $resolvedTempRoot "sample\featherdoc_sample.exe"
+    New-TestFile `
+        -Path $sampleBinary `
+        -LastWriteTimeUtc ([datetime]"2024-01-03T00:00:00Z")
+    $targetBinary = Find-TemplateSchemaTargetBinary `
+        -SearchRoot $resolvedTempRoot `
+        -TargetName "featherdoc_sample"
+    Assert-Equal -Actual $targetBinary -Expected ([System.IO.Path]::GetFullPath($sampleBinary)) `
+        -Message "Target binary lookup should return the newest target executable."
+
+    $missingBinary = Find-TemplateSchemaTargetBinary `
+        -SearchRoot $resolvedTempRoot `
+        -TargetName "missing_target"
+    Assert-Equal -Actual $missingBinary -Expected $null `
+        -Message "Target binary lookup should return null for missing targets."
+} finally {
+    if (Test-Path -LiteralPath $resolvedTempRoot) {
+        Remove-Item -LiteralPath $resolvedTempRoot -Recurse -Force
+    }
+}
 
 Write-Host "template schema CLI common regression passed."
