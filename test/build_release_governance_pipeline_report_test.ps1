@@ -582,6 +582,9 @@ Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [
 Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object { [string]$_.action }) -join "`n") `
     -ExpectedText "prepare_pdf_visual_release_gate_build_outputs" `
     -Message "Pipeline final rollup should include PDF preflight actions."
+Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "write_pdf_visual_release_gate_preflight_governance_report.ps1" `
+    -Message "Pipeline final rollup should preserve the real PDF preflight governance writer command."
 Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" `
     -Message "Pipeline final rollup should preserve the PDF preflight source schema."
