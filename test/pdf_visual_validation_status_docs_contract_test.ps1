@@ -38,6 +38,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
 $statusDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_visual_validation_status_zh.rst"
+$buildingPdfDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "BUILDING_PDF.md"
 $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
 $governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
@@ -77,12 +78,34 @@ $statusMarkers = @(
     "-MinFreeMemoryMB",
     "-SkipMemoryGuard",
     "missing_output_count = 87",
+    "fake-pdf-build",
+    "fake ctest",
+    "fake python",
+    "test fixture",
+    "reusable release build substitute",
     $doNotRunFullVisualGateMarker
 )
 
 foreach ($marker in $statusMarkers) {
     Assert-ContainsText -Text $statusDoc -ExpectedText $marker `
         -Message "PDF visual validation status doc should preserve memory-gate and blocker status marker."
+}
+
+$buildingPdfFixtureMarkers = @(
+    "fake-pdf-build",
+    "fake ctest",
+    "fake python",
+    "test fixture",
+    "reusable release build substitute",
+    "CMakeCache.txt",
+    "CTestTestfile.cmake",
+    "visual baseline PDF",
+    "CJK text-layer PDF"
+)
+
+foreach ($marker in $buildingPdfFixtureMarkers) {
+    Assert-ContainsText -Text $buildingPdfDoc -ExpectedText $marker `
+        -Message "BUILDING_PDF.md should preserve the PDF preflight fixture boundary marker."
 }
 
 $scriptMarkers = @(

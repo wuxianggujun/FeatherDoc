@@ -443,6 +443,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate
 它不会创建虚拟环境、安装依赖、运行 PDF 渲染或触发构建。需要让缺失前置条件
 直接失败时，额外传 `-Strict`。
 
+`test/pdf_visual_release_gate_preflight_test.ps1` 里生成的 `fake-pdf-build`、fake ctest
+和 fake python 只用于脚本契约测试，是 test fixture。它不是不可复用 release gate build
+的示例，也不是 reusable release build substitute；不能作为 `run_pdf_visual_release_gate.ps1`
+的可复用输入。真正可复用的 release build 必须来自当前 `dev` 的真实 CMake build，并同时包含 `CMakeCache.txt`、
+`CTestTestfile.cmake`、PDF CTest 注册、CLI baseline PDF、visual baseline PDF、
+CJK text-layer PDF 和可复用渲染 Python。
+
 `run_pdf_visual_release_gate.ps1` 默认也会先执行同一套严格预检。只想确认完整门禁
 前置条件时，可以运行：
 

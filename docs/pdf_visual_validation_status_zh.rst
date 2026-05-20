@@ -84,6 +84,10 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 * 仍缺 ``.bpdf-roundtrip-msvc``、``CMakeCache.txt``、``CTestTestfile.cmake``、
   2 个 CLI baseline PDF、
   42 个 visual baseline PDF 和 43 个 CJK text-layer PDF。
+* ``test/pdf_visual_release_gate_preflight_test.ps1`` 里的 ``fake-pdf-build``、fake ctest
+  和 fake python 只是脚本契约测试使用的 test fixture；它们不是不可复用 release gate
+  build 的示例，也不是 reusable release build substitute，不能作为完整
+  ``run_pdf_visual_release_gate.ps1`` 的可复用输入。
 
 受控视觉烟测
 --------------

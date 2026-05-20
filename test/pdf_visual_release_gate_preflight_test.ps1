@@ -120,7 +120,7 @@ try {
         -MinFreeMemoryMB 1 `
         -Strict | Out-Host
     if ($LASTEXITCODE -ne 0) {
-        throw "PDF visual release gate preflight should pass against the fake reusable build."
+        throw "PDF visual release gate preflight should pass against the contract-complete fake fixture."
     }
 
     $lowMemorySummaryPath = Join-Path $resolvedWorkingDir "preflight-low-memory-summary.json"
@@ -144,7 +144,7 @@ try {
         -MinFreeMemoryMB 1 `
         -PreflightOnly | Out-Host
     if ($LASTEXITCODE -ne 0) {
-        throw "PDF visual release gate -PreflightOnly should pass against the fake reusable build."
+        throw "PDF visual release gate -PreflightOnly should pass against the contract-complete fake fixture."
     }
     if (-not (Test-Path -LiteralPath $visualGatePreflightSummaryPath -PathType Leaf)) {
         throw "PDF visual release gate -PreflightOnly should write its preflight summary."
