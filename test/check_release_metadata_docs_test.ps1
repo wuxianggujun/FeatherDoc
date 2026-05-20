@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 56) {
-        throw "Expected JSON summary to count 56 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 60) {
+        throw "Expected JSON summary to count 60 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -286,6 +286,10 @@ $defaultPipelineText = @(
     '- ``message``',
     '- ``source_schema``',
     '- ``source_report_display``',
+    '- ``output_gap_count``',
+    '- ``missing_output_count``',
+    '- ``output gap checks``',
+    '- ``missing outputs``',
     '- ``style_merge_suggestion_count``',
     '- ``featherdoc.project_template_delivery_readiness_report.v1``',
     '- ``featherdoc.content_control_data_binding_governance_report.v1``',
@@ -376,8 +380,8 @@ Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 4) {
     throw "Expected JSON summary checked document count 4, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 24) {
-    throw "Expected JSON summary pipeline marker count 24, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 28) {
+    throw "Expected JSON summary pipeline marker count 28, got: $($summary.required_pipeline_marker_count)"
 }
 if ($summary.required_checklist_marker_count -ne 21) {
     throw "Expected JSON summary checklist marker count 21, got: $($summary.required_checklist_marker_count)"
@@ -388,8 +392,8 @@ if ($summary.required_document_governance_marker_count -ne 10) {
 if ($summary.required_policy_marker_count -ne 1) {
     throw "Expected JSON summary policy marker count 1, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 56) {
-    throw "Expected JSON summary total marker count 56, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 60) {
+    throw "Expected JSON summary total marker count 60, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 4) {
     throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
@@ -406,6 +410,14 @@ Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "release_note_bundle_visual_verdict_metadata" `
     -Message "JSON summary should list required checklist markers."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue '``output_gap_count``' `
+    -Message "JSON summary should list PDF preflight output gap count marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue '``missing outputs``' `
+    -Message "JSON summary should list PDF preflight missing outputs marker."
 Assert-ArrayContains `
     -Values @($summary.required_document_governance_markers) `
     -ExpectedValue "sync_bound_content_control" `

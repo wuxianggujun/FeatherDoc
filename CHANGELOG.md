@@ -133,6 +133,9 @@ performance.
 - Added top-level `output_gap_count` and `missing_output_count` fields to the
   PDF visual preflight summary so release governance and status docs can use
   the same missing-output totals without recomputing them.
+- Added the same PDF preflight output-gap totals to release blocker runbooks
+  and release metadata pipeline docs so reviewers see the grouped and total
+  missing-output counts before preparing build outputs.
 - Recorded the updated PDF visual preflight blocker count after stricter
   reusable-build auto-detection stopped selecting plain `build` directories.
 - Documented the stricter PDF preflight reusable-build selection in the stale

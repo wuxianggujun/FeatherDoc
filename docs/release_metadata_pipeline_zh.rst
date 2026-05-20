@@ -167,6 +167,9 @@ PDF visual release gate 预检治理报告产生的
 ``source_report_display`` / ``source_json_display`` 指向的预检证据，再运行轻量
 ``-PreflightOnly`` 或预检重建命令；只有预检 ready 且资源允许时才进入完整 PDF visual gate，
 最后重新生成 release blocker rollup 与 release note bundle。
+这些 runbook 还会直接展示 ``output gap checks`` 和 ``missing outputs``，与
+preflight summary 的顶层 ``output_gap_count`` / ``missing_output_count`` 保持一致，
+避免 reviewer 需要手动合计 CLI baseline、visual baseline 和 CJK text-layer 缺口。
 无论是预检还是完整 gate，运行完成后都只清理本任务启动的 PDF gate 临时输出和相关进程；
 不要结束与 FeatherDoc 无关的 Office、浏览器、node 或其它外部构建进程。
 
