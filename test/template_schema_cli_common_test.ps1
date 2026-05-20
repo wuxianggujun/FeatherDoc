@@ -68,4 +68,22 @@ Assert-ThrowsMessage `
             -Lines @("{`"command`":`"check-template-schema`",") | Out-Null
     }
 
+$portablePath = ConvertTo-TemplateSchemaPortableRelativePath `
+    -BasePath (Join-Path $RepoRoot "output\style-merge") `
+    -TargetPath (Join-Path $RepoRoot "output\style-merge\plans\rollback.json")
+Assert-Equal -Actual $portablePath -Expected "plans/rollback.json" `
+    -Message "Portable path helper should use forward-slash relative paths."
+
+$parentPortablePath = ConvertTo-TemplateSchemaPortableRelativePath `
+    -BasePath (Join-Path $RepoRoot "output\style-merge\summary") `
+    -TargetPath (Join-Path $RepoRoot "output\style-merge\plans\rollback.json")
+Assert-Equal -Actual $parentPortablePath -Expected "../plans/rollback.json" `
+    -Message "Portable path helper should preserve parent traversal for sibling output folders."
+
+$emptyPortablePath = ConvertTo-TemplateSchemaPortableRelativePath `
+    -BasePath (Join-Path $RepoRoot "output\style-merge") `
+    -TargetPath ""
+Assert-Equal -Actual $emptyPortablePath -Expected "" `
+    -Message "Portable path helper should preserve empty target paths."
+
 Write-Host "template schema CLI common regression passed."

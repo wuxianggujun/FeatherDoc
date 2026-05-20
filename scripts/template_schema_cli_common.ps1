@@ -28,6 +28,35 @@ function Resolve-TemplateSchemaPath {
     return (Resolve-Path -LiteralPath $candidate).Path
 }
 
+function ConvertTo-TemplateSchemaPortableRelativePath {
+    param(
+        [string]$BasePath,
+        [string]$TargetPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($TargetPath)) {
+        return ""
+    }
+
+    $resolvedBasePath = [System.IO.Path]::GetFullPath($BasePath)
+    if (-not $resolvedBasePath.EndsWith([System.IO.Path]::DirectorySeparatorChar) -and
+        -not $resolvedBasePath.EndsWith([System.IO.Path]::AltDirectorySeparatorChar)) {
+        $resolvedBasePath += [System.IO.Path]::DirectorySeparatorChar
+    }
+    $resolvedTargetPath = [System.IO.Path]::GetFullPath($TargetPath)
+
+    if ([System.IO.Path]::GetPathRoot($resolvedBasePath) -ne
+        [System.IO.Path]::GetPathRoot($resolvedTargetPath)) {
+        return $resolvedTargetPath.Replace('\', '/')
+    }
+
+    $baseUri = New-Object System.Uri($resolvedBasePath)
+    $targetUri = New-Object System.Uri($resolvedTargetPath)
+    return [System.Uri]::UnescapeDataString(
+        $baseUri.MakeRelativeUri($targetUri).ToString()
+    ).Replace('\', '/')
+}
+
 function Get-TemplateSchemaVcvarsPath {
     $candidates = @(
         "D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat",
