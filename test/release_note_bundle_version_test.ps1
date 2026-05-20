@@ -286,13 +286,14 @@ $summary = [ordered]@{
                 severity = "error"
                 status = "blocked"
                 action = "prepare_pdf_visual_release_gate_build_outputs"
-                message = "PDF visual release gate preflight is not ready; blocking checks: build_dir_exists, ctest_manifest_exists."
+                message = "PDF visual release gate preflight is not ready; blocking checks: build_dir_exists, cmake_cache_exists, ctest_manifest_exists."
                 source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
                 source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
                 source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                 repair_strategy = "reuse_or_prepare_pdf_visual_release_gate_build_outputs"
-                repair_hint = "Prepare a reusable PDF build directory before running the full PDF visual release gate."
+                repair_hint = "Prepare a reusable PDF build directory with CMakeCache.txt before running the full PDF visual release gate."
                 command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
+                issue_keys = @("build_dir_exists", "cmake_cache_exists", "ctest_manifest_exists")
             }
         )
         action_item_count = 5
@@ -688,6 +689,8 @@ Assert-Contains -Path $checklistPath -ExpectedText 'source_schema=featherdoc.pdf
 Assert-Contains -Path $checklistPath -ExpectedText 'source_report_display: .\output\pdf-visual-release-gate-preflight-governance\summary.json' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'prepare_pdf_visual_release_gate_build_outputs' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'cmake_cache_exists' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'CMakeCache.txt' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Only after preflight is ready and workstation resources allow it' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'release note bundle' -Label 'REVIEWER_CHECKLIST.md'

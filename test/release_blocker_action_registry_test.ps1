@@ -91,6 +91,7 @@ $pdfPreflightBlocker = [pscustomobject]@{
     source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
     source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
     command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
+    issue_keys = @("cmake_cache_exists", "ctest_manifest_exists")
 }
 $pdfPreflightGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
         -Blocker $pdfPreflightBlocker `
@@ -102,6 +103,10 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "run_pdf_visual_re
     -Message "PDF preflight build-output blocker should point at the PDF visual gate wrapper."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "-PreflightOnly" `
     -Message "PDF preflight build-output blocker should keep the first reviewer step lightweight."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "cmake_cache_exists" `
+    -Message "PDF preflight build-output blocker should explain the missing CMakeCache preflight issue."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "CMakeCache.txt" `
+    -Message "PDF preflight build-output blocker should require a reusable CMake build directory."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "source preflight JSON" `
     -Message "PDF preflight build-output blocker should point reviewers at source_json_display evidence."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "release note bundle" `
