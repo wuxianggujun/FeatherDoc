@@ -163,6 +163,9 @@ function New-ReportMarkdown {
     $lines.Add("- Release ready: ``$($Summary.release_ready)``") | Out-Null
     $lines.Add("- Preflight status: ``$($Summary.preflight_status)``") | Out-Null
     $lines.Add("- Preflight summary: ``$($Summary.preflight_summary_json_display)``") | Out-Null
+    $lines.Add("- Build dir: ``$($Summary.build_dir_display)``") | Out-Null
+    $lines.Add("- Build dir source: ``$($Summary.build_dir_source)``") | Out-Null
+    $lines.Add("- Requested build dir: ``$($Summary.requested_build_dir_display)``") | Out-Null
     $lines.Add("- Blocking checks: ``$($Summary.blocking_check_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -266,6 +269,9 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage) -and $blockingChecks.
 $preflightDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $preflightSummaryPath
 $summaryDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
 $commandTemplate = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir $BuildDir -PreflightOnly"
+$summaryBuildDir = Get-JsonString -Object $preflightSummary -Name "build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
+$summaryRequestedBuildDir = Get-JsonString -Object $preflightSummary -Name "requested_build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
+$summaryBuildDirSource = Get-JsonString -Object $preflightSummary -Name "build_dir_source" -DefaultValue "requested"
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
@@ -355,7 +361,11 @@ $summary = [ordered]@{
     preflight_status = $preflightStatus
     preflight_summary_json = $preflightSummaryPath
     preflight_summary_json_display = $preflightDisplay
-    build_dir = Get-JsonString -Object $preflightSummary -Name "build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
+    build_dir = $summaryBuildDir
+    build_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryBuildDir
+    build_dir_source = $summaryBuildDirSource
+    requested_build_dir = $summaryRequestedBuildDir
+    requested_build_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryRequestedBuildDir
     check_count = $checks.Count
     checks = @($checks)
     blocking_check_count = $blockingChecks.Count

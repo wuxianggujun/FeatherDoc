@@ -85,6 +85,8 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
     strict = $false
     repo_root = $resolvedRepoRoot
     build_dir = Join-Path $resolvedRepoRoot ".bpdf-roundtrip-msvc"
+    build_dir_source = "auto:build"
+    requested_build_dir = Join-Path $resolvedRepoRoot ".bpdf-roundtrip-msvc"
     checks = @(
         [ordered]@{
             name = "build_dir_exists"
@@ -117,6 +119,8 @@ Write-JsonFile -Path $readyPreflightPath -Value ([ordered]@{
     strict = $false
     repo_root = $resolvedRepoRoot
     build_dir = Join-Path $resolvedRepoRoot ".bpdf-roundtrip-msvc"
+    build_dir_source = "requested"
+    requested_build_dir = Join-Path $resolvedRepoRoot ".bpdf-roundtrip-msvc"
     checks = @(
         [ordered]@{
             name = "build_dir_exists"
@@ -164,6 +168,11 @@ Assert-Equal -Actual ([int]$blockedSummary.action_item_count) -Expected 1 `
     -Message "Not-ready preflight should emit one action item."
 Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 2 `
     -Message "Governance report should preserve blocking check count."
+Assert-Equal -Actual ([string]$blockedSummary.build_dir_source) -Expected "auto:build" `
+    -Message "Governance report should preserve the selected preflight build-dir source."
+Assert-ContainsText -Text ([string]$blockedSummary.requested_build_dir_display) `
+    -ExpectedText ".bpdf-roundtrip-msvc" `
+    -Message "Governance report should preserve the originally requested build directory."
 
 $blocker = $blockedSummary.release_blockers[0]
 Assert-Equal -Actual ([string]$blocker.id) `
@@ -195,6 +204,12 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "ctest_manifest_exists" `
     -Message "Markdown should include blocking checks."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Build dir source" `
+    -Message "Markdown should include the selected build-dir source."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "auto:build" `
+    -Message "Markdown should preserve the selected build-dir source value."
 
 $rollupOutputDir = Join-Path $resolvedWorkingDir "rollup-report"
 $rollupResult = Invoke-PowerShellScript -ScriptPath $rollupScriptPath -Arguments @(
