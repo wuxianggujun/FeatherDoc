@@ -740,3 +740,29 @@ manifest ID 对比结果：
 覆盖，低资源静态契约已完成一轮大面复核；剩余价值主要是旧 visual baseline、重型 gate
 和需要真实 PDF 渲染的多页压力语料，必须等可复用 build 输出和受控可视化验证完成后再判断
 是否归档或删除远端分支。
+
+2026-05-20 提交推送后的剩余分支判断
+------------------------------------
+
+本轮开始时先确认 ``dev`` 与 ``origin/dev`` 已完全对齐，``dev...origin/dev`` 为
+``0 0``，工作区干净，最新提交为
+``46bd851 Restore PDF import docs index entries``。因此没有未提交源码需要补交，
+也没有未推送提交需要额外推送。
+
+随后再次只读复核四个远端参考分支：
+
+* ``origin/codex/pdf-cjk-copy-search-gate``。
+* ``origin/codex/pdf-cjk-bullet-fallback``。
+* ``origin/codex/release-governance-rollup-details``。
+* ``origin/codex/release-governance-warning-entrypoints``。
+
+结论仍然保持不变：这些分支相对当前 ``dev`` 都是旧快照，整分支合并会回退当前
+PDF CJK 静态契约、PDF preflight 治理、文档恢复记录和 release governance 入口。当前
+``dev`` 已经覆盖可低资源搬入的 manifest 样例 ID、CJK copy/search、CJK 字体 fallback、
+CLI CJK 字体导出、CJK list/table 静态契约和治理详情主线；剩余价值主要是旧 visual
+baseline、重型 gate、历史提交证据和需要真实 build/PDF 渲染复核的多页压力语料。
+
+下一步最小风险动作不再是继续盲目搬代码，而是先保持 ``dev`` 已提交推送且工作区干净，
+再准备一个可复用 PDF build 目录，让 ``check_pdf_visual_release_gate_preflight.ps1``
+从 ``not_ready`` 变为 ``ready``。只有完整 PDF visual release gate 基于当前 ``dev``
+实际通过后，才能把远端 PDF 参考分支推进到可归档或可删除候选。
