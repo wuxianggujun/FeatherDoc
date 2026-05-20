@@ -263,6 +263,14 @@ function New-ReportMarkdown {
         foreach ($item in @($Summary.action_items)) {
             $lines.Add("- ``$($item.id)``: action=``$($item.action)`` open_command=``$($item.open_command)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
+            $itemIssueKeys = @(
+                Get-JsonArray -Object $item -Name "issue_keys" |
+                    ForEach-Object { [string]$_ } |
+                    Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+            )
+            if ($itemIssueKeys.Count -gt 0) {
+                $lines.Add("  - issue_keys: ``$($itemIssueKeys -join ', ')``") | Out-Null
+            }
         }
     }
     return @($lines)
@@ -407,6 +415,8 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         source_json_display = $preflightDisplay
         repair_strategy = "reuse_or_prepare_pdf_visual_release_gate_build_outputs"
         repair_hint = $repairHint
+        blocked_item_count = $blockingChecks.Count
+        issue_keys = @($blockingChecks)
     }) | Out-Null
 }
 

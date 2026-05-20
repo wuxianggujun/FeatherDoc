@@ -224,6 +224,11 @@ Assert-ContainsText -Text ([string]$blocker.repair_hint) `
     -ExpectedText "CMakeCache.txt missing" `
     -Message "Blocker should explain when the selected build dir is not a reusable CMake build."
 
+$actionItem = $blockedSummary.action_items[0]
+Assert-ContainsText -Text (($actionItem.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "cmake_cache_exists" `
+    -Message "Action item should preserve individual failing preflight checks."
+
 $blockedMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $blockedMarkdownPath
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "PDF Visual Release Gate Preflight Governance Report" `
@@ -246,6 +251,9 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Build CTest manifest" `
     -Message "Markdown should include the selected build dir CTest manifest status."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "issue_keys" `
+    -Message "Markdown should include action item issue keys."
 
 $rollupOutputDir = Join-Path $resolvedWorkingDir "rollup-report"
 $rollupResult = Invoke-PowerShellScript -ScriptPath $rollupScriptPath -Arguments @(

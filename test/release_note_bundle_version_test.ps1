@@ -338,6 +338,7 @@ $summary = [ordered]@{
                 source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                 open_command = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
                 command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
+                issue_keys = @("build_dir_exists", "cmake_cache_exists", "ctest_manifest_exists")
             }
         )
         warning_count = 3
