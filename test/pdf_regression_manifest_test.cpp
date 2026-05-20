@@ -438,6 +438,9 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
         std::string::npos);
     CHECK_NE(json.find("\"document-table-merged-cant-split-text\""),
              std::string::npos);
+    CHECK_NE(
+        json.find("\"document-table-vertical-merged-cant-split-text\""),
+        std::string::npos);
     CHECK_NE(json.find("\"document-cjk-copy-search-lite-text\""),
              std::string::npos);
     CHECK_NE(json.find("\"document-cjk-copy-search-matrix-text\""),
@@ -506,7 +509,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 89U);
+    REQUIRE_EQ(samples.size(), 90U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);
@@ -614,6 +617,13 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              "document_table_cjk_vertical_merged_cant_split_text");
     CHECK_EQ(cjk_vertical_merged_cant_split->expected_pages, 1U);
     CHECK_GE(cjk_vertical_merged_cant_split->expected_text.size(), 9U);
+    const auto vertical_merged_cant_split =
+        find_sample("document-table-vertical-merged-cant-split-text");
+    REQUIRE(vertical_merged_cant_split != samples.end());
+    CHECK_EQ(vertical_merged_cant_split->kind,
+             "document_table_vertical_merged_cant_split_text");
+    CHECK_EQ(vertical_merged_cant_split->expected_pages, 1U);
+    CHECK_GE(vertical_merged_cant_split->expected_text.size(), 20U);
     const auto cjk_merged_repeat =
         find_sample("document-table-cjk-merged-repeat-text");
     REQUIRE(cjk_merged_repeat != samples.end());

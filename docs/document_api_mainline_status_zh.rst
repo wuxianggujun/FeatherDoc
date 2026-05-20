@@ -1417,3 +1417,27 @@ PDF CJK multi anchor table-flow 契约入口
 该补丁只表示 CJK vertical merge wrap cant-split 的低资源正式 ID 契约入口已进入
 ``dev``。真实多页纵向合并、整块迁移、小页高分页、页眉页脚文本层和 PDFium 可复制性，
 仍需等源码提交推送且工作区干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF table vertical merged cant-split 正式 ID 契约搬入
+---------------------------------------------------------------
+
+本轮继续从旧 PDF 分支中最后一个 manifest 缺口 ``document-table-vertical-merged-cant-split-text``
+提取低风险主题，按当前 ``dev`` 的 1 页轻量样例结构重做。不整分支合并，不搬入旧分支
+4 页 visual baseline，也不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器
+或 PDF 渲染。
+
+已补齐内容：
+
+1. 新增 ``document-table-vertical-merged-cant-split-text``，覆盖非 CJK 表格的纵向合并
+   owner block、横向合并看板表头、重复表头、cant-split 行、页眉页脚占位符和稳定检索键
+   ``VMC-01`` / ``VMC-02`` / ``VMC-03`` / ``VMC-04`` / ``VMC-05``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   90；该样例保持 ``expected_pages`` 为 1，不声明旧分支的 4 页 ``visual_expected_pages``。
+3. ``test/CMakeLists.txt`` 注册
+   ``pdf_document_table_vertical_merged_cant_split_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_document_table_vertical_merged_cant_split_contract_test.ps1``，用纯文本静态契约
+   确认样例生成器、manifest、manifest parser 测试和 CMake 注册一致。
+
+该补丁只表示旧 PDF manifest 中最后一个明确缺失样例 ID 已按低资源方式进入 ``dev``。
+真实跨页纵向合并、重复表头、cant-split 落页和页码视觉质量，仍需等源码提交推送且工作区
+干净后再通过受控 PDF 可视化验证确认。
