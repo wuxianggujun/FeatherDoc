@@ -26,6 +26,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    stale_codex_branch_inventory_zh
    project_score_assessment_zh
    release_policy_zh
+   pdf_visual_validation_status_zh
    v1_7_roadmap_zh
    pdf_import
    pdf_import_json_diagnostics
