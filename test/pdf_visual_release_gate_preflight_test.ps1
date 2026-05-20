@@ -53,6 +53,7 @@ $fakePythonPath = Join-Path $resolvedWorkingDir "fake-python.cmd"
 
 New-Item -ItemType Directory -Path $fakeBuildDir -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $fakeBuildDir "test\pdf_cli_export") -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $fakeBuildDir "CMakeCache.txt") -Encoding UTF8 -Value "FEATHERDOC_BUILD_PDF:BOOL=ON"
 @"
 add_test(pdf_cli_export "cmd" "/c" "exit 0")
 add_test(pdf_regression_manifest "cmd" "/c" "exit 0")
@@ -140,6 +141,7 @@ Assert-True -Condition ($summary.status -eq "ready") `
 
 foreach ($name in @(
     "build_dir_exists",
+    "cmake_cache_exists",
     "ctest_manifest_exists",
     "ctest_list_contains_pdf_gate_tests",
     "pdf_visual_gate_scripts_exist",
@@ -172,9 +174,9 @@ foreach ($expectedText in @(
     "Get-BuildDirectorySnapshot",
     '"build", "out\build"',
     'Source = "auto:$candidate"',
+    "cmake_cache_exists",
     "build_dir_source",
     "requested_build_dir",
-    "cmake_cache_exists",
     "entries_preview"
 )) {
     Assert-True -Condition ($preflightText -match [regex]::Escape($expectedText)) `

@@ -115,6 +115,12 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
             message = "CTestTestfile.cmake is missing."
         },
         [ordered]@{
+            name = "cmake_cache_exists"
+            status = "missing"
+            required = $true
+            message = "CMakeCache.txt is missing."
+        },
+        [ordered]@{
             name = "render_python_reusable"
             status = "pass"
             required = $true
@@ -123,6 +129,7 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
     )
     blocking_checks = @(
         "build_dir_exists",
+        "cmake_cache_exists",
         "ctest_manifest_exists"
     )
 })
@@ -180,7 +187,7 @@ Assert-Equal -Actual ([int]$blockedSummary.release_blocker_count) -Expected 1 `
     -Message "Not-ready preflight should emit one release blocker."
 Assert-Equal -Actual ([int]$blockedSummary.action_item_count) -Expected 1 `
     -Message "Not-ready preflight should emit one action item."
-Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 2 `
+Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 3 `
     -Message "Governance report should preserve blocking check count."
 Assert-Equal -Actual ([string]$blockedSummary.build_dir_source) -Expected "auto:build" `
     -Message "Governance report should preserve the selected preflight build-dir source."

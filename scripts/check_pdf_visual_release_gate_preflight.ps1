@@ -201,6 +201,17 @@ Add-CheckResult `
     -Path $resolvedBuildDir `
     -Details $buildDirectorySnapshot
 
+$cmakeCachePath = Join-Path $resolvedBuildDir "CMakeCache.txt"
+$cmakeCacheExists = Test-Path -LiteralPath $cmakeCachePath -PathType Leaf
+Add-CheckResult `
+    -Checks $checks `
+    -Name "cmake_cache_exists" `
+    -Status $(if ($cmakeCacheExists) { "pass" } else { "missing" }) `
+    -Required $true `
+    -Message $(if ($cmakeCacheExists) { "CMakeCache.txt exists in the build directory." } else { "CMakeCache.txt is missing; the selected directory is not a reusable CMake build." }) `
+    -Path $cmakeCachePath `
+    -Details $buildDirectorySnapshot
+
 $ctestFilePath = Join-Path $resolvedBuildDir "CTestTestfile.cmake"
 $ctestFileExists = Test-Path -LiteralPath $ctestFilePath -PathType Leaf
 Add-CheckResult `
@@ -219,7 +230,7 @@ $requiredCTestPatterns = @(
     "pdf_visual_release_gate_text_shaping_baselines"
 )
 
-if ($buildDirExists -and $ctestFileExists) {
+if ($buildDirExists -and $cmakeCacheExists -and $ctestFileExists) {
     $ctestOutput = @()
     $ctestExitCode = 0
     try {
@@ -252,7 +263,7 @@ if ($buildDirExists -and $ctestFileExists) {
         -Name "ctest_list_contains_pdf_gate_tests" `
         -Status "skipped" `
         -Required $true `
-        -Message "Skipped ctest -N because the build directory or CTest manifest is missing." `
+        -Message "Skipped ctest -N because the build directory, CMakeCache.txt, or CTest manifest is missing." `
         -Details ([ordered]@{
             required_patterns = $requiredCTestPatterns
         })

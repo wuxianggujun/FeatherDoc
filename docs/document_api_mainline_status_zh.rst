@@ -1509,7 +1509,7 @@ Ninja、MSBuild、Word、LibreOffice 或 PDF 渲染残留进程；仍有外部 `
 
 预检内容包括：
 
-1. build 目录和 ``CTestTestfile.cmake`` 是否存在。
+1. build 目录、``CMakeCache.txt`` 和 ``CTestTestfile.cmake`` 是否存在。
 2. ``ctest -N`` 是否能列出 ``pdf_cli_export``、``pdf_regression_``、
    ``pdf_visual_release_gate_style_baselines`` 和
    ``pdf_visual_release_gate_text_shaping_baselines``。
@@ -1558,5 +1558,5 @@ rollup 可消费的治理报告。
 3. 生成的 summary 可以被 ``scripts/build_release_blocker_rollup_report.ps1`` 聚合。
 
 当前结论不变：PDF 参考分支的 manifest 明确缺口已经收敛到 0，但完整 PDF visual
-release gate 仍需要可复用 build 目录、CTest 注册和当前 ``dev`` 生成的 PDF 输出。完整
+release gate 仍需要可复用 CMake build 目录、CTest 注册和当前 ``dev`` 生成的 PDF 输出。完整
 门禁通过前，不能把远端 PDF 参考分支视为可立即清理。
