@@ -469,6 +469,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\write_pdf_visual_release_gate
 只有在你已经用其他方式确认 build 输出完整、且明确要绕过保护时，才传
 `-SkipPreflight`。
 
+运行预检或完整门禁时，建议先记录本轮命令启动的进程和输出目录。收尾时只清理这些
+由本任务启动且已经不用的 PDF gate 资源，例如临时 `output/pdf-visual-release-gate*`
+输出；不要为了释放内存而结束无关的 Office、浏览器、node、PowerShell 或外部构建进程。
+
 如果你要一次性验证“文本回读 + 页面视觉”门禁，优先跑这条：
 
 ```powershell

@@ -167,6 +167,8 @@ PDF visual release gate 预检治理报告产生的
 ``source_report_display`` / ``source_json_display`` 指向的预检证据，再运行轻量
 ``-PreflightOnly`` 或预检重建命令；只有预检 ready 且资源允许时才进入完整 PDF visual gate，
 最后重新生成 release blocker rollup 与 release note bundle。
+无论是预检还是完整 gate，运行完成后都只清理本任务启动的 PDF gate 临时输出和相关进程；
+不要结束与 FeatherDoc 无关的 Office、浏览器、node 或其它外部构建进程。
 
 当 release summary 中存在 ``release_blocker_rollup`` 节点时，bundle 面向 reviewer 的
 四个交接文件（``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 与

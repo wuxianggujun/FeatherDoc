@@ -106,6 +106,8 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "source preflight 
     -Message "PDF preflight build-output blocker should point reviewers at source_json_display evidence."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "release note bundle" `
     -Message "PDF preflight build-output blocker should tell reviewers to refresh release materials."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "clean up only task-owned PDF gate processes" `
+    -Message "PDF preflight build-output blocker should remind reviewers to clean up only task-owned resources."
 
 $pdfPreflightUnavailableBlocker = [pscustomobject]@{
     id = "pdf_visual_release_gate_preflight.summary_unavailable"
@@ -129,5 +131,7 @@ Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "write_
     -Message "PDF preflight summary-unavailable blocker should tell reviewers to rebuild governance evidence."
 Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "release note bundle" `
     -Message "PDF preflight summary-unavailable blocker should tell reviewers to refresh release materials."
+Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "clean up only task-owned PDF gate processes" `
+    -Message "PDF preflight summary-unavailable blocker should remind reviewers to clean up only task-owned resources."
 
 Write-Host "Release blocker action registry self-check passed."
