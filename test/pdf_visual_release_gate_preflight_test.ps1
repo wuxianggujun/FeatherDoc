@@ -47,9 +47,24 @@ $scriptPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_visual_release_gate
 $visualGatePath = Join-Path $resolvedRepoRoot "scripts\run_pdf_visual_release_gate.ps1"
 $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
 $summaryPath = Join-Path $resolvedWorkingDir "preflight-summary.json"
+$plainBuildRepoRoot = Join-Path $resolvedWorkingDir "plain-build-repo"
+$plainBuildSummaryPath = Join-Path $resolvedWorkingDir "plain-build-summary.json"
 $fakeBuildDir = Join-Path $resolvedWorkingDir "fake-pdf-build"
 $fakeCtestPath = Join-Path $resolvedWorkingDir "fake-ctest.cmd"
 $fakePythonPath = Join-Path $resolvedWorkingDir "fake-python.cmd"
+
+New-Item -ItemType Directory -Path (Join-Path $plainBuildRepoRoot "build\tmp") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $plainBuildRepoRoot "scripts") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $plainBuildRepoRoot "test") -Force | Out-Null
+Copy-Item -LiteralPath $scriptPath -Destination (Join-Path $plainBuildRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1")
+Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $plainBuildRepoRoot "test\pdf_regression_manifest.json")
+& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    -File (Join-Path $plainBuildRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1") `
+    -OutputJson $plainBuildSummaryPath `
+    -MinFreeMemoryMB 1 | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    throw "PDF visual release gate preflight should report not_ready for a plain build directory without failing."
+}
 
 New-Item -ItemType Directory -Path $fakeBuildDir -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $fakeBuildDir "test\pdf_cli_export") -Force | Out-Null
@@ -147,6 +162,18 @@ try {
 
 Assert-True -Condition (Test-Path -LiteralPath $summaryPath -PathType Leaf) `
     -Message "Preflight should write a JSON summary."
+
+$plainBuildSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $plainBuildSummaryPath | ConvertFrom-Json
+Assert-True -Condition ($plainBuildSummary.status -eq "not_ready") `
+    -Message "Plain build directory preflight should stay not_ready."
+Assert-True -Condition ([string]$plainBuildSummary.build_dir_source -eq "requested") `
+    -Message "Plain build directory preflight should not auto-select build without CMake metadata."
+Assert-True -Condition ([string]$plainBuildSummary.build_dir -like "*.bpdf-roundtrip-msvc") `
+    -Message "Plain build directory preflight should keep the requested default build directory."
+Assert-True -Condition (($plainBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "build_dir_exists") `
+    -Message "Plain build directory preflight should report the missing requested build directory."
+Assert-True -Condition ([int]$plainBuildSummary.blocking_summary.build_dir_entry_count -eq 0) `
+    -Message "Plain build directory preflight should not count entries from an unrelated build directory."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-True -Condition ($summary.status -eq "ready") `
