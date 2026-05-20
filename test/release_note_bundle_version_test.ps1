@@ -230,8 +230,8 @@ $summary = [ordered]@{
     release_blocker_rollup = [ordered]@{
         requested = $true
         status = "blocked"
-        source_report_count = 4
-        release_blocker_count = 4
+        source_report_count = 5
+        release_blocker_count = 5
         release_blockers = @(
             [ordered]@{
                 id = "document_skeleton.style_numbering_issues"
@@ -279,9 +279,23 @@ $summary = [ordered]@{
                 source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                 source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            },
+            [ordered]@{
+                id = "pdf_visual_release_gate_preflight.build_outputs_missing"
+                source = "pdf_visual_release_gate_preflight"
+                severity = "error"
+                status = "blocked"
+                action = "prepare_pdf_visual_release_gate_build_outputs"
+                message = "PDF visual release gate preflight is not ready; blocking checks: build_dir_exists, ctest_manifest_exists."
+                source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                repair_strategy = "reuse_or_prepare_pdf_visual_release_gate_build_outputs"
+                repair_hint = "Prepare a reusable PDF build directory before running the full PDF visual release gate."
+                command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
             }
         )
-        action_item_count = 4
+        action_item_count = 5
         action_items = @(
             [ordered]@{
                 id = "open_document_skeleton_rollup"
@@ -314,6 +328,15 @@ $summary = [ordered]@{
                 source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+            },
+            [ordered]@{
+                id = "prepare_pdf_visual_release_gate_build_outputs"
+                action = "prepare_pdf_visual_release_gate_build_outputs"
+                source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                open_command = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
+                command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
             }
         )
         warning_count = 3
@@ -660,6 +683,14 @@ Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -Executio
 Assert-Contains -Path $checklistPath -ExpectedText 'Release Governance Handoff Details' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Handoff Action Items' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\output\schema-patch-confidence-calibration\summary.json' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'pdf_visual_release_gate_preflight.build_outputs_missing' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'source_schema=featherdoc.pdf_visual_release_gate_preflight_governance_report.v1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'source_report_display: .\output\pdf-visual-release-gate-preflight-governance\summary.json' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'prepare_pdf_visual_release_gate_build_outputs' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Only after preflight is ready and workstation resources allow it' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'release note bundle' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Stop here until' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'fix_schema_patch_approval_result' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'sync_project_template_schema_approval.ps1' -Label 'REVIEWER_CHECKLIST.md'
