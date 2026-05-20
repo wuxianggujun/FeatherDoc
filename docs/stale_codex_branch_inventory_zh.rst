@@ -839,3 +839,43 @@ LibreOffice、浏览器或 PDF 渲染。只做 git、PowerShell、JSON / Markdow
 * 继续保持远端 ``origin/codex/*`` 只读参考状态，不删除、不强推、不整分支合并。
 * 等当前 ``dev`` 的 PDF preflight blockers 清零后，再执行受控 PDF 可视化验证。
 * 可视化验证和发布治理材料通过后，再创建单独归档记录，判断远端参考分支是否可以删除。
+
+2026-05-20 PDF/CJK checklist 最小补丁收口
+-----------------------------------------
+
+本轮在 ``dev`` 已与 ``origin/dev`` 对齐、工作区干净的前提下，再次并行只读复核四个
+远端参考分支：
+
+* ``origin/codex/pdf-cjk-copy-search-gate``。
+* ``origin/codex/pdf-cjk-bullet-fallback``。
+* ``origin/codex/release-governance-rollup-details``。
+* ``origin/codex/release-governance-warning-entrypoints``。
+
+复核结论进一步收敛：
+
+* 两个 PDF CJK 分支的核心 copy/search、bullet fallback、East Asia 字体 fallback、
+  exact-height table header fitting、CLI CJK export 和 manifest 样例入口，已经由当前
+  ``dev`` 的后续实现覆盖；继续搬源码会回退 PDF shaping、preflight 治理和静态契约。
+* ``release-governance-rollup-details`` 中的 schema confidence calibration、pipeline /
+  handoff / final rollup 治理详情，已经由当前 ``dev`` 的后续提交覆盖。
+* ``release-governance-warning-entrypoints`` 中的 warning metadata、style merge governance、
+  action item open command 和 release bundle 入口，已经由当前 ``dev`` 的后续提交覆盖。
+* 该分支仅剩一个仍适合低风险摘入的 reviewer checklist 文案：发布涉及 PDF/CJK 时，
+  需要人工确认生成的中文 PDF 可在常见阅读器中复制和搜索，并记录 reader/version。
+
+已按当前 ``dev`` 结构手工重做并推送为：
+
+.. code-block:: text
+
+   b677e54 Add PDF CJK release checklist guard
+
+该提交只修改 ``scripts/write_release_reviewer_checklist.ps1`` 和
+``test/release_governance_detail_rollup_static_contract_test.ps1``，不修改 PDF 源码、
+manifest、CMake、CTest 或 visual baseline。验证只运行了 60 秒超时包装的
+``release_governance_detail_rollup_static_contract_test.ps1`` 和最小 reviewer checklist
+生成 smoke；未运行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+
+因此，当前结论是：四个远端 ``origin/codex/*`` 参考分支已没有新的明确低风险源码小补丁
+适合继续拆入 ``dev``。后续动作应转向当前 ``dev`` 的 PDF preflight blocker 清零、
+可复用 build 输出准备和受控可视化验证；这些验证完成前，远端参考分支继续只读保留，
+不删除、不强推、不整分支合并。
