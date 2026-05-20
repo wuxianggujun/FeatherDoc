@@ -127,6 +127,9 @@ performance.
 - Tightened PDF visual preflight build-dir auto-detection so generic `build`
   directories are not treated as reusable CMake builds unless they contain
   `CMakeCache.txt` or `CTestTestfile.cmake`.
+- Added a plain-build regression case for PDF visual preflight so a repository
+  with only `build/tmp` still reports the requested `.bpdf-roundtrip-msvc`
+  directory as missing instead of silently selecting an unrelated build folder.
 - Recorded the updated PDF visual preflight blocker count after stricter
   reusable-build auto-detection stopped selecting plain `build` directories.
 - Documented the stricter PDF preflight reusable-build selection in the stale

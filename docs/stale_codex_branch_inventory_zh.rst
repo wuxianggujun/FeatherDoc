@@ -948,3 +948,29 @@ preflight 从 ``not_ready`` 进入 ``ready`` 后再做受控可视化验证。
    从 ``not_ready`` 进入 ``ready``。
 2. 在资源允许且源码已提交推送、工作区干净后，再执行受控 PDF 可视化验证。
 3. 可视化验证通过后，再决定是否归档并清理旧 ``origin/codex/*`` 分支。
+
+2026-05-20 普通 build 目录回归复核
+-----------------------------------
+
+本轮继续保持低资源收尾，只在 ``test/pdf_visual_release_gate_preflight_test.ps1`` 中补充
+一个普通 ``build\tmp`` 场景，并提交推送为：
+
+.. code-block:: text
+
+   b63908c Cover plain build PDF preflight selection
+
+该回归确认：当仓库只有普通 ``build`` 子目录、且没有 ``CMakeCache.txt`` 或
+``CTestTestfile.cmake`` 时，``check_pdf_visual_release_gate_preflight.ps1`` 不会把它
+自动选为可复用 PDF build。summary 仍保留 ``build_dir_source = requested``，
+``build_dir`` 指向默认 ``.bpdf-roundtrip-msvc``，并用 ``build_dir_exists`` 阻断项
+说明真正缺少的是可复用 build 输出。
+
+验证范围仍是轻量级：
+
+* PowerShell 解析检查通过。
+* ``git diff --check`` 通过，仅保留既有 CRLF 工作区提示。
+* ``pdf_visual_release_gate_preflight_test.ps1`` 在 60 秒超时包装下通过。
+
+分支判断不变：两个 PDF CJK 参考分支的 manifest 样例入口已在当前 ``dev`` 覆盖，
+但完整 PDF visual release gate 仍缺可复用 build / CTest / baseline 输出。因此这些
+远端参考分支继续只读保留，不删除、不强推、不整分支合并。
