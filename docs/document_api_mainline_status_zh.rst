@@ -1467,3 +1467,35 @@ PDF CJK multi anchor table-flow 契约入口
 剩余差异主要是旧提交历史、大批重型 visual baseline、过期 gate 结构或需要 PDF 渲染验证的
 质量证据。后续不应继续盲目搬代码，下一步最小风险动作是：保持 ``dev`` 干净并已推送，
 在资源允许时只对当前 ``dev`` 执行受控 PDF 可视化验证，验证完成后再决定是否归档旧分支。
+
+2026-05-20 受控 PDF 可视化烟测
+------------------------------
+
+用户关闭 Edge 后，本轮重新做了资源预检。当前没有 Edge、Chrome、Firefox、CMake、CTest、
+Ninja、MSBuild、Word、LibreOffice 或 PDF 渲染残留进程；仍有外部 ``node`` 和
+``powershell`` 进程，但不是本任务启动，未擅自关闭。
+
+验证边界：
+
+1. 当前 ``build`` 目录没有 ``CTestTestfile.cmake``，也没有可复用的 PDF regression 输出，
+   因此未运行完整 ``scripts/run_pdf_visual_release_gate.ps1``。该脚本会先调用
+   ``ctest``，并可能创建 ``.venv-pdf-visual-smoke`` 或安装渲染依赖，不适合在本轮低资源
+   前提下直接启动。
+2. 已复用既有 ``.venv-word-visual-smoke``，确认其中已有 ``PIL`` 和 ``fitz``，没有新建虚拟
+   环境，也没有安装依赖。
+3. 已用 60 秒超时分别运行并通过两个静态 PDF visual gate 契约：
+   ``pdf_visual_release_gate_style_baselines_test.ps1`` 和
+   ``pdf_visual_release_gate_text_shaping_baselines_test.ps1``。
+4. 已复用既有两个小 PDF：
+   ``output/word-visual-smoke-minimal-20260519/table_visual_smoke.pdf`` 和
+   ``output/word-visual-smoke-rerun-20260519/table_visual_smoke.pdf``，用
+   ``scripts/render_pdf_pages.py`` 渲染到
+   ``output/pdf-controlled-visual-smoke-20260520``，并用
+   ``scripts/check_pdf_text_layer.py`` 完成文本层提取。
+5. 人工查看了两个 contact sheet 和两个原始 ``page-01.png``；页面非空，页数为 1，
+   标题、正文和小表格均可见。该检查证明本机当前 PDF 渲染链路可用，但不等同于完整
+   PDF release gate 或 PDF CJK 样例库可视化验收。
+
+下一步若要进入完整 PDF release gate，最小风险前置条件是先准备或复用一个有效的 PDF
+构建目录，让 ``pdf_cli_export``、``pdf_regression_`` 和相关 PDF 输出存在；否则会触发
+构建或直接失败。

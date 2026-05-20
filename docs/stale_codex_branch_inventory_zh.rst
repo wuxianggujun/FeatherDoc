@@ -571,3 +571,36 @@ PDF 参考分支收口结论：
 下一步最小风险动作是受控 PDF 可视化验证：只在源码已提交推送、工作区干净、资源允许时，
 对当前 ``dev`` 的 PDF visual gate 做小范围验证；验证结束后清理本任务启动的资源，再决定
 旧 PDF 参考分支是否可归档或删除。
+
+2026-05-20 PDF 可视化烟测结果
+------------------------------
+
+本轮在用户关闭 Edge 后执行受控验证，仍坚持低资源原则：不运行 CMake、CTest 全量、
+Ninja、MSBuild、Word、LibreOffice、浏览器或完整 PDF visual release gate。
+
+已完成：
+
+* ``dev`` 与 ``origin/dev`` 仍对齐，工作区开始时干净。
+* 本地 FeatherDoc 自动化记录仍无残留。
+* ``pdftoppm`` / ``pdfinfo`` 不存在；未安装 Poppler。
+* 复用 ``.venv-word-visual-smoke`` 中已有的 ``PIL`` 和 ``fitz``，未创建
+  ``.venv-pdf-visual-smoke``，未安装依赖。
+* 60 秒超时通过：
+  ``test/pdf_visual_release_gate_style_baselines_test.ps1``。
+* 60 秒超时通过：
+  ``test/pdf_visual_release_gate_text_shaping_baselines_test.ps1``。
+* 使用 ``scripts/render_pdf_pages.py`` 渲染既有两个小 PDF 到
+  ``output/pdf-controlled-visual-smoke-20260520``，并用
+  ``scripts/check_pdf_text_layer.py`` 生成文本层摘要。
+* 人工查看两个 contact sheet 和两个原始 page PNG，确认页面非空且标题、正文、小表格可见。
+
+未完成且不能误记为已完成：
+
+* 未运行 ``scripts/run_pdf_visual_release_gate.ps1``。
+* 未运行 ``pdf_cli_export`` 或 ``pdf_regression_`` CTest。
+* 未生成当前 PDF CJK manifest 样例库的新 PDF。
+* 未验证旧 PDF 分支的大批 visual baseline、PNG 基线或多页压力语料。
+
+结论：当前只证明 PDF 渲染链路可复用且静态 visual gate 契约仍通过。旧 PDF 参考分支仍应
+作为只读参考保留到完整 PDF release gate 具备可复用 build 输出并实际通过后，再判断是否
+归档或删除。
