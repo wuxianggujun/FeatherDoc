@@ -1381,6 +1381,25 @@ if(WIN32)
 
         add_test(
             NAME
+            compare_pdf_reference_branch_manifest
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/compare_pdf_reference_branch_manifest_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/compare_pdf_reference_branch_manifest
+        )
+        set_tests_properties(compare_pdf_reference_branch_manifest
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression")
+
+        add_test(
+            NAME
             sync_github_release_notes
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
