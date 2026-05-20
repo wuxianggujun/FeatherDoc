@@ -27,6 +27,9 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    project_score_assessment_zh
    release_policy_zh
    v1_7_roadmap_zh
+   pdf_import
+   pdf_import_json_diagnostics
+   pdf_import_scope
    licensing_zh
    automation/word_visual_workflow_zh
    libreoffice_pdf/index_zh
@@ -164,6 +167,11 @@ LibreOffice PDF Study Notes
 ---------------------------
 The LibreOffice PDF research log now lives under
 :doc:`libreoffice_pdf/index_zh`.
+
+PDF Import
+----------
+For the experimental import path, see :doc:`pdf_import`,
+:doc:`pdf_import_json_diagnostics`, and :doc:`pdf_import_scope`.
 
 
 How to install
