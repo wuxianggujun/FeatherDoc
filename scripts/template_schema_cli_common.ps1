@@ -162,7 +162,7 @@ function Get-TemplateSchemaCommandJsonLine {
         throw "Template schema command name must not be empty."
     }
 
-    $pattern = '^\{"command":"' + [regex]::Escape($Command) + '",'
+    $pattern = '^\s*\{"command":"' + [regex]::Escape($Command) + '",'
     $jsonLine = $Lines |
         Where-Object { $_ -match $pattern } |
         Select-Object -Last 1
@@ -180,5 +180,10 @@ function Get-TemplateSchemaCommandJsonObject {
         [string]$Command
     )
 
-    return (Get-TemplateSchemaCommandJsonLine -Lines $Lines -Command $Command) | ConvertFrom-Json
+    $jsonLine = Get-TemplateSchemaCommandJsonLine -Lines $Lines -Command $Command
+    try {
+        return $jsonLine | ConvertFrom-Json
+    } catch {
+        throw "Template schema command '$Command' emitted invalid JSON: $jsonLine"
+    }
 }
