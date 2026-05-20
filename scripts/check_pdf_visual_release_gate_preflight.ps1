@@ -510,6 +510,16 @@ $blockingChecks = @(
     $checks | Where-Object { $_.required -eq $true -and $_.status -ne "pass" }
 )
 $status = if ($blockingChecks.Count -eq 0) { "ready" } else { "not_ready" }
+$missingOutputCounts = @(
+    $missingCliPdfs.Count,
+    $missingVisualPdfs.Count,
+    $missingCjkPdfs.Count
+)
+$outputGapCount = @($missingOutputCounts | Where-Object { $_ -gt 0 }).Count
+$missingOutputCount = 0
+foreach ($count in $missingOutputCounts) {
+    $missingOutputCount += [int]$count
+}
 $blockingSummary = [ordered]@{
     required_check_count = @($checks | Where-Object { $_.required -eq $true }).Count
     blocking_check_count = $blockingChecks.Count
@@ -534,6 +544,8 @@ $summary = [ordered]@{
     build_dir_source = $buildDirSelection.Source
     requested_build_dir = $buildDirSelection.RequestedPath
     blocking_summary = $blockingSummary
+    output_gap_count = $outputGapCount
+    missing_output_count = $missingOutputCount
     checks = @($checks)
     blocking_checks = @($blockingChecks | ForEach-Object { $_.name })
 }

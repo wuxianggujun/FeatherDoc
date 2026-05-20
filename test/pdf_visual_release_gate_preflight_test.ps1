@@ -174,12 +174,20 @@ Assert-True -Condition (($plainBuildSummary.blocking_checks | ForEach-Object { [
     -Message "Plain build directory preflight should report the missing requested build directory."
 Assert-True -Condition ([int]$plainBuildSummary.blocking_summary.build_dir_entry_count -eq 0) `
     -Message "Plain build directory preflight should not count entries from an unrelated build directory."
+Assert-True -Condition ([int]$plainBuildSummary.output_gap_count -eq 3) `
+    -Message "Plain build directory preflight should report the three missing output groups."
+Assert-True -Condition ([int]$plainBuildSummary.missing_output_count -gt 0) `
+    -Message "Plain build directory preflight should report missing output totals."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-True -Condition ($summary.status -eq "ready") `
     -Message "Preflight summary should be ready for a reusable fake PDF build."
 Assert-True -Condition ([int]$summary.blocking_summary.blocking_check_count -eq 0) `
     -Message "Ready preflight should expose zero blocking checks."
+Assert-True -Condition ([int]$summary.output_gap_count -eq 0) `
+    -Message "Ready preflight should expose zero missing output groups."
+Assert-True -Condition ([int]$summary.missing_output_count -eq 0) `
+    -Message "Ready preflight should expose zero missing outputs."
 Assert-True -Condition ([int]$summary.blocking_summary.missing_cli_pdf_count -eq 0) `
     -Message "Ready preflight should expose zero missing CLI PDFs."
 Assert-True -Condition ([int]$summary.blocking_summary.missing_visual_baseline_pdf_count -eq 0) `
@@ -243,6 +251,8 @@ foreach ($expectedText in @(
     "build_dir_source",
     "requested_build_dir",
     "blocking_summary",
+    "output_gap_count",
+    "missing_output_count",
     "missing_visual_baseline_pdf_count",
     "missing_cjk_text_layer_pdf_count",
     "[int]`$MinFreeMemoryMB = 2048",
