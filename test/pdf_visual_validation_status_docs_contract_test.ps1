@@ -90,7 +90,9 @@ $scriptMarkers = @(
     "free_memory_mb",
     "min_free_memory_mb",
     "memory_guard_blocked",
-    "memory_guard_skipped"
+    "memory_guard_skipped",
+    "output_gap_count",
+    "missing_output_count"
 )
 
 foreach ($marker in $scriptMarkers) {

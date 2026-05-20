@@ -130,6 +130,9 @@ performance.
 - Added a plain-build regression case for PDF visual preflight so a repository
   with only `build/tmp` still reports the requested `.bpdf-roundtrip-msvc`
   directory as missing instead of silently selecting an unrelated build folder.
+- Added top-level `output_gap_count` and `missing_output_count` fields to the
+  PDF visual preflight summary so release governance and status docs can use
+  the same missing-output totals without recomputing them.
 - Recorded the updated PDF visual preflight blocker count after stricter
   reusable-build auto-detection stopped selecting plain `build` directories.
 - Documented the stricter PDF preflight reusable-build selection in the stale

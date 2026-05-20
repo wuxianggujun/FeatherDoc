@@ -33,6 +33,9 @@ PDF 可视化验证状态
 
 * ``scripts/check_pdf_visual_release_gate_preflight.ps1`` 会在 summary JSON 中输出
   ``blocking_summary``。
+* 同一份 preflight summary 现在也直接输出顶层 ``output_gap_count`` 和
+  ``missing_output_count``，让状态页、governance report 和 release blocker
+  使用同一组缺失输出总数。
 * ``check_pdf_visual_release_gate_preflight.ps1`` 默认要求工作站空闲物理内存不少于
   ``2048 MB``；如果低于阈值，会把
   ``workstation_free_memory_available`` 记录为 blocking check，并在
