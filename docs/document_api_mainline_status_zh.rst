@@ -1499,3 +1499,30 @@ Ninja、MSBuild、Word、LibreOffice 或 PDF 渲染残留进程；仍有外部 `
 下一步若要进入完整 PDF release gate，最小风险前置条件是先准备或复用一个有效的 PDF
 构建目录，让 ``pdf_cli_export``、``pdf_regression_`` 和相关 PDF 输出存在；否则会触发
 构建或直接失败。
+
+2026-05-20 PDF 可视化发布门禁预检
+-----------------------------------
+
+本轮补充了低资源预检入口 ``scripts/check_pdf_visual_release_gate_preflight.ps1``。
+该脚本用于判断当前机器是否已经具备运行完整
+``scripts/run_pdf_visual_release_gate.ps1`` 的前置条件，而不是直接启动完整门禁。
+
+预检内容包括：
+
+1. build 目录和 ``CTestTestfile.cmake`` 是否存在。
+2. ``ctest -N`` 是否能列出 ``pdf_cli_export``、``pdf_regression_``、
+   ``pdf_visual_release_gate_style_baselines`` 和
+   ``pdf_visual_release_gate_text_shaping_baselines``。
+3. ``pdf_cli_export`` 的两个 baseline PDF 是否已存在。
+4. manifest 中 ``expect_visual_baseline`` 和 ``expect_cjk`` 样例对应的 PDF 输出是否已存在。
+5. ``render_pdf_pages.py``、``check_pdf_text_layer.py`` 和
+   ``build_image_contact_sheet.py`` 等 helper 是否存在。
+6. 是否能复用已有 ``FEATHERDOC_RENDER_PYTHON_EXECUTABLE``、
+   ``.venv-word-visual-smoke`` 或 ``tmp/render-venv`` 中同时具备 ``PIL`` 与 ``fitz`` 的
+   Python。
+
+该预检默认只报告 ``ready`` / ``not_ready`` 并输出 JSON；只有传入 ``-Strict`` 时，
+缺少前置条件才会用非零退出。它不会创建虚拟环境、安装依赖、运行 PDF 渲染或触发构建。
+配套新增 ``test/pdf_visual_release_gate_preflight_test.ps1``，用 fake build、fake ctest
+和 fake render Python 固定脚本契约，并在 ``test/CMakeLists.txt`` 中注册为 60 秒静态
+测试。

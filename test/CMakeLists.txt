@@ -1343,6 +1343,25 @@ if(WIN32)
 
         add_test(
             NAME
+            pdf_visual_release_gate_preflight
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_release_gate_preflight_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_release_gate_preflight
+        )
+        set_tests_properties(pdf_visual_release_gate_preflight
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        add_test(
+            NAME
             sync_github_release_notes
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

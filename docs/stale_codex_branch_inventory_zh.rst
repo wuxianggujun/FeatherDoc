@@ -631,3 +631,20 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或完整 PDF visual release gat
 
 结论：当前只删除本地已完全合入的备份分支。远端 ``origin/codex/*`` 不建议现在删除；
 应等完整 PDF release gate 和治理发布材料验证通过后，再创建明确归档记录并清理远端分支。
+
+2026-05-20 PDF release gate 预检后的分支清理策略
+------------------------------------------------
+
+当前远端 ``origin/codex/pdf-cjk-copy-search-gate`` 和
+``origin/codex/pdf-cjk-bullet-fallback`` 的 manifest 明确样例缺口已经为 0，但这些分支
+仍保留旧 visual baseline、重型 gate 和历史提交证据。因此，分支清理不应只看样例 ID
+是否已经搬入。
+
+新增的 ``scripts/check_pdf_visual_release_gate_preflight.ps1`` 把下一步判断拆成两层：
+
+1. 先低资源确认当前 build 目录、CTest 注册、PDF 输出和可复用渲染 Python 是否完整。
+2. 只有预检 ``ready`` 且资源允许时，再运行完整 ``run_pdf_visual_release_gate.ps1``。
+
+在完整 PDF visual release gate 没有基于当前 ``dev`` 通过前，远端 PDF 参考分支继续保留。
+等完整门禁和治理发布材料都完成后，再创建归档记录并清理远端 ``codex/*`` 分支，避免为了
+减少分支数量而丢失尚未复核的视觉证据来源。
