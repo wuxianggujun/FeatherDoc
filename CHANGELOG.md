@@ -19,6 +19,9 @@ performance.
 - Added a stale `codex/*` branch inventory that records which remote branches
   are not fully merged and why they should not be deleted without an explicit
   archive or discard decision.
+- Added a stale `codex/*` branch inventory documentation contract so the
+  reference-branch retention, preflight readiness, and deletion safeguards stay
+  wired into lightweight regression checks.
 - Added conservative PDF repeated-header abbreviation and same-token word-order
   matching for common cross-page table headers such as `Qty`/`Quantity`,
   `Amt`/`Amount`, `Project Status`/`Status Project`, and parenthesized unit

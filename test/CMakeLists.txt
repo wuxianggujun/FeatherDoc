@@ -1464,6 +1464,23 @@ if(WIN32)
 
         add_test(
             NAME
+            stale_codex_branch_inventory_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/stale_codex_branch_inventory_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(stale_codex_branch_inventory_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;regression")
+
+        add_test(
+            NAME
             sync_github_release_notes
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
