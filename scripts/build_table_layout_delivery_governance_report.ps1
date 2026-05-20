@@ -352,6 +352,21 @@ function Add-UniqueAction {
     $Collection.Add($Action) | Out-Null
 }
 
+function Get-MarkdownTraceSuffix {
+    param($Item)
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($field in @("source_schema", "source_report_display", "source_json_display", "command")) {
+        $value = Get-JsonString -Object $Item -Name $field
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $parts.Add(("{0}=``{1}``" -f $field, $value)) | Out-Null
+        }
+    }
+
+    if ($parts.Count -eq 0) { return "" }
+    return " " + ($parts.ToArray() -join " ")
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -433,7 +448,8 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.delivery_actions)) {
-            $lines.Add("- ``$($item.scope)`` / ``$($item.id)``: action=``$($item.action)`` title=$($item.title)") | Out-Null
+            $trace = Get-MarkdownTraceSuffix -Item $item
+            $lines.Add("- ``$($item.scope)`` / ``$($item.id)``: action=``$($item.action)`` title=$($item.title)$trace") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -444,7 +460,8 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` message=$($blocker.message)") | Out-Null
+            $trace = Get-MarkdownTraceSuffix -Item $blocker
+            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` message=$($blocker.message)$trace") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -568,6 +585,9 @@ foreach ($path in @($inputPaths)) {
                         id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
                         scope = Get-FirstJsonString -Object $blocker -Names @("document_name", "scope") -DefaultValue "table_layout_delivery"
                         source_kind = "table_layout_delivery_rollup_report"
+                        source_schema = "featherdoc.table_layout_delivery_rollup_report.v1"
+                        source_json = $path
+                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "warning"
@@ -581,6 +601,9 @@ foreach ($path in @($inputPaths)) {
                         id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
                         scope = Get-FirstJsonString -Object $item -Names @("document_name", "scope") -DefaultValue "table_layout_delivery"
                         source_kind = "table_layout_delivery_rollup_report"
+                        source_schema = "featherdoc.table_layout_delivery_rollup_report.v1"
+                        source_json = $path
+                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         action = Get-JsonString -Object $item -Name "action"

@@ -334,6 +334,16 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include delivery quality section."
     Assert-ContainsText -Text $markdown -ExpectedText "safe_tblLook_fixes_pending" `
         -Message "Markdown should include delivery quality penalty details."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_schema" `
+        -Message "Markdown should include traceable source schema fields for actions and blockers."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display" `
+        -Message "Markdown should include source report display fields for actions and blockers."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display" `
+        -Message "Markdown should include source JSON display fields for actions and blockers."
+    Assert-ContainsText -Text $markdown -ExpectedText "featherdoc.table_layout_delivery_rollup_report.v1" `
+        -Message "Markdown should include the rollup source schema."
+    Assert-ContainsText -Text $markdown -ExpectedText "aggregate-evidence\rollup\summary.json" `
+        -Message "Markdown should include the source rollup summary display path."
 }
 
 if (Test-Scenario -Name "ready") {
