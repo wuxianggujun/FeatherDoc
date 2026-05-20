@@ -45,7 +45,9 @@ function Resolve-PreferredBuildDir {
 
     foreach ($candidate in @("build", "out\build")) {
         $candidatePath = Resolve-RepoPath -RepoRoot $RepoRoot -InputPath $candidate
-        if (Test-Path -LiteralPath $candidatePath -PathType Container) {
+        $candidateLooksReusable = (Test-Path -LiteralPath (Join-Path $candidatePath "CMakeCache.txt") -PathType Leaf) -or
+            (Test-Path -LiteralPath (Join-Path $candidatePath "CTestTestfile.cmake") -PathType Leaf)
+        if ($candidateLooksReusable) {
             return [pscustomobject]@{
                 Path = $candidatePath
                 Source = "auto:$candidate"

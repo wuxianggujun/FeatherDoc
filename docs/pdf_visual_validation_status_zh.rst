@@ -12,7 +12,7 @@ PDF 可视化验证状态
    ``check_pdf_visual_release_gate_preflight.ps1`` 还报告：
 
    * ``required_check_count = 11``
-   * ``blocking_check_count = 6``
+   * ``blocking_check_count = 7``
    * ``missing_cli_pdf_count = 2``
    * ``visual_baseline_sample_count = 42``
    * ``missing_visual_baseline_pdf_count = 42``
@@ -65,13 +65,17 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 
 * ``check_pdf_visual_release_gate_preflight.ps1`` 返回 ``not_ready``。
 * ``write_pdf_visual_release_gate_preflight_governance_report.ps1`` 返回 ``blocked``。
+* 默认 ``.bpdf-roundtrip-msvc`` 不存在且 ``build`` / ``out\build`` 不像可复用
+  CMake build 时，``build_dir_source = requested``；自动候选只有在包含
+  ``CMakeCache.txt`` 或 ``CTestTestfile.cmake`` 时才会被视为可复用 build。
 * ``release_blocker_count = 1``。
 * ``action_item_count = 1``。
 * ``output_gap_count = 3``。
 * ``missing_output_count = 87``。
 * ``memory_guard_blocked = false``，本轮阻断不是内存不足。
 * ``free_memory_mb`` 高于 ``min_free_memory_mb = 2048``。
-* 仍缺 ``CMakeCache.txt``、``CTestTestfile.cmake``、2 个 CLI baseline PDF、
+* 仍缺 ``.bpdf-roundtrip-msvc``、``CMakeCache.txt``、``CTestTestfile.cmake``、
+  2 个 CLI baseline PDF、
   42 个 visual baseline PDF 和 43 个 CJK text-layer PDF。
 
 受控视觉烟测

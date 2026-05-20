@@ -210,6 +210,7 @@ foreach ($expectedText in @(
     "Resolve-PreferredBuildDir",
     "Get-BuildDirectorySnapshot",
     '"build", "out\build"',
+    "candidateLooksReusable",
     'Source = "auto:$candidate"',
     "cmake_cache_exists",
     "build_dir_source",

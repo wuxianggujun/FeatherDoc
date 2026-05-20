@@ -124,6 +124,11 @@ performance.
 - Recorded the latest lightweight PDF preflight and governance-report result
   so the status page distinguishes the current build/baseline blockers from
   the passing memory guard.
+- Tightened PDF visual preflight build-dir auto-detection so generic `build`
+  directories are not treated as reusable CMake builds unless they contain
+  `CMakeCache.txt` or `CTestTestfile.cmake`.
+- Recorded the updated PDF visual preflight blocker count after stricter
+  reusable-build auto-detection stopped selecting plain `build` directories.
 - Documented the current PDF visual validation boundary, including the
   free-memory preflight check, governance passthrough, and why the gate is
   still blocked by missing reusable build and baseline outputs.
