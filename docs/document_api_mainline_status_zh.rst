@@ -1392,3 +1392,28 @@ PDF CJK multi anchor table-flow 契约入口
 该补丁只表示 CJK multi-anchor table-flow 的低资源契约入口已进入 ``dev``。真实 PDF 中
 多锚点跨页表格流、图片环绕、header/footer 变体和 copy/search 视觉质量，仍需等源码
 提交推送且工作区干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF CJK vertical merge wrap cant-split 正式 ID 契约搬入
+------------------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK vertical merge wrap
+样例中提取低风险主题，按当前 ``dev`` 的 1 页轻量样例结构重做。不整分支合并，
+不搬入旧分支图片语料，也不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、
+浏览器或 PDF 渲染。
+
+已补齐内容：
+
+1. 新增 ``document-cjk-vertical-merge-wrap-cant-split-text``，覆盖 first/even/default
+   页眉页脚占位符、纵向合并、横向合并、重复表头、cant-split 行、styled CJK run 和
+   稳定检索键 ``VM-101`` / ``VM-202`` / ``VM-303`` / ``FE-VM-901`` /
+   ``FE-VM-921`` / ``CVM-04`` / ``FE-VM-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   89；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_vertical_merge_wrap_cant_split_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_vertical_merge_wrap_cant_split_contract_test.ps1``，用纯文本静态契约
+   确认样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK vertical merge wrap cant-split 的低资源正式 ID 契约入口已进入
+``dev``。真实多页纵向合并、整块迁移、小页高分页、页眉页脚文本层和 PDFium 可复制性，
+仍需等源码提交推送且工作区干净后再通过受控 PDF 可视化验证确认。

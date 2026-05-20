@@ -508,6 +508,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_cjk_style_overlay_page_flow_text" OR
            sample_kind STREQUAL "document_cjk_table_wrap_lite_text" OR
            sample_kind STREQUAL "document_cjk_table_wrap_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_vertical_merge_wrap_cant_split_text" OR
            sample_kind STREQUAL "document_cjk_vertical_merge_lite_text" OR
            sample_kind STREQUAL "document_eastasia_style_probe" OR
            sample_kind STREQUAL "document_font_matrix_text" OR
@@ -568,6 +569,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
            sample_kind STREQUAL "document_cjk_style_overlay_page_flow_text" OR
            sample_kind STREQUAL "document_cjk_table_wrap_lite_text" OR
            sample_kind STREQUAL "document_cjk_table_wrap_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_vertical_merge_wrap_cant_split_text" OR
            sample_kind STREQUAL "document_cjk_vertical_merge_lite_text" OR
            sample_kind STREQUAL "document_eastasia_style_probe" OR
            sample_kind STREQUAL "document_font_matrix_text" OR
@@ -1094,6 +1096,23 @@ if(WIN32)
             ${PROJECT_SOURCE_DIR}
         )
         set_tests_properties(pdf_cjk_extreme_page_breaks_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_vertical_merge_wrap_cant_split_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_vertical_merge_wrap_cant_split_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_vertical_merge_wrap_cant_split_contract
             PROPERTIES
                 TIMEOUT 60
                 LABELS "pdf;layout;smoke")
