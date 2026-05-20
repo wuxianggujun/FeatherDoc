@@ -397,7 +397,7 @@ function New-PdfPreflightGovernance {
                 source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
                 source_report_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
                 source_json_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
-                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_pdf_visual_release_gate_preflight_governance_report.ps1"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
             }
         )
     }
