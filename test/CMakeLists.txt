@@ -688,6 +688,25 @@ if(WIN32)
 
         add_test(
             NAME
+            run_reused_build_check_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/run_reused_build_check_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/run_reused_build_check_contract
+        )
+        set_tests_properties(run_reused_build_check_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;governance;smoke")
+
+        add_test(
+            NAME
             release_governance_warning_contract
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

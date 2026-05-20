@@ -98,6 +98,9 @@ performance.
   operations, plus regression coverage for clearing direct table-column widths.
 - Expanded edit-plan regression coverage for clearing direct table-cell fill,
   border, vertical alignment, and horizontal alignment overrides.
+- Added a free-memory guard to `scripts/run_reused_build_check.ps1` so reused
+  local build/test passes refuse to start on memory-starved workstations unless
+  the operator explicitly skips the guard.
 
 ### Fixed
 
