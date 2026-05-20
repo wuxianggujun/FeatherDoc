@@ -89,6 +89,7 @@ $restoreAuditActionItem = [pscustomobject]@{
     candidate_type = "rename"
     source_schema = "featherdoc.style_merge_restore_audit.v1"
     source_report_display = ".\output\document-skeleton-governance\style-merge.restore-audit.summary.json"
+    issue_keys = @("word_visual_review_pending", "style_merge_restore_audit_pending")
     command = "pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx -DocumentSourceKind style-merge-restore-audit -Mode review-only"
     open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit -PrintPrompt"
     audit_command = "featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.apply.rollback.json --dry-run --json"
@@ -513,6 +514,8 @@ Assert-ContainsText -Text $actionChecklistText -ExpectedText 'action `review_sty
     -Message "Action item checklist text should include action."
 Assert-ContainsText -Text $actionChecklistText -ExpectedText 'source_schema `featherdoc.style_merge_restore_audit.v1`' `
     -Message "Action item checklist text should include source schema."
+Assert-ContainsText -Text $actionChecklistText -ExpectedText 'issue_keys `style_merge_restore_audit_pending,word_visual_review_pending`' `
+    -Message "Action item checklist text should include issue keys."
 Assert-ContainsText -Text $actionChecklistText -ExpectedText 'project_id `project-finance`' `
     -Message "Action item checklist text should include project id."
 Assert-ContainsText -Text $actionChecklistText -ExpectedText 'template_name `invoice-template`' `

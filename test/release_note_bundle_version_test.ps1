@@ -708,6 +708,8 @@ Assert-Contains -Path $checklistPath -ExpectedText 'repair_hint' -Label 'REVIEWE
 Assert-Contains -Path $checklistPath -ExpectedText 'Rerun Custom XML sync or explicitly fill the bound content control before release.' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Release governance handoff blockers' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Review release governance action item' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Review release governance action item `prepare_pdf_visual_release_gate_build_outputs`' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'issue_keys `build_dir_exists,cmake_cache_exists,ctest_manifest_exists`' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Release blocker rollup action items' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Run ' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'for release governance action item' -Label 'REVIEWER_CHECKLIST.md'

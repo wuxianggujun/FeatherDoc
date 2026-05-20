@@ -1173,6 +1173,11 @@ function Get-ReleaseGovernanceActionItemChecklistText {
         $text += ('; title: {0}' -f $title)
     }
 
+    $issueKeys = Join-ReleaseBlockerValues -Values @(Get-ReleaseBlockerArrayProperty -Object $item -Name "issue_keys")
+    if ($issueKeys -ne "(none)") {
+        $text += ('; issue_keys `{0}`' -f $issueKeys)
+    }
+
     foreach ($fieldName in @("project_id", "template_name", "candidate_type")) {
         $value = Get-ReleaseBlockerPropertyValue -Object $item -Name $fieldName
         if (-not [string]::IsNullOrWhiteSpace($value)) {
