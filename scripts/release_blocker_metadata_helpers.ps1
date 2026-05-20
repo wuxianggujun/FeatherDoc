@@ -591,6 +591,7 @@ function Get-ReleaseBlockerActionGuidanceLines {
                 $commandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly'
             }
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text ('Run the lightweight preflight command first: `{0}`' -f $commandTemplate)
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'The `-PreflightOnly` command only verifies PDF visual gate prerequisites; it is not release-ready evidence until the full PDF visual release gate passes.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Only after preflight is ready and workstation resources allow it, run the full PDF visual release gate, rebuild the release blocker rollup, and regenerate the release note bundle.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'After each PDF preflight or gate attempt, clean up only task-owned PDF gate processes and transient outputs after capturing the required evidence; do not terminate unrelated external build, Office, browser, node, or PowerShell processes.'
             break
@@ -612,6 +613,7 @@ function Get-ReleaseBlockerActionGuidanceLines {
                 $commandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate_preflight.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputJson .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json'
             }
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text ('Run the lightweight preflight regeneration command: `{0}`' -f $commandTemplate)
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'A regenerated PDF preflight summary only refreshes prerequisite evidence; it is not release-ready evidence until the full PDF visual release gate passes.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'After the preflight summary is readable, rerun `write_pdf_visual_release_gate_preflight_governance_report.ps1`, rebuild the release blocker rollup, and regenerate the release note bundle.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'After each PDF preflight or gate attempt, clean up only task-owned PDF gate processes and transient outputs after capturing the required evidence; do not terminate unrelated external build, Office, browser, node, or PowerShell processes.'
             break
@@ -1393,6 +1395,9 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             -Text ('Run the lightweight PDF preflight command first: `{0}`' -f $commandTemplate)
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
+            -Text 'The `-PreflightOnly` command only verifies PDF visual gate prerequisites; it is not release-ready evidence until the full PDF visual release gate passes.'
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
             -Text ('Only after preflight is ready and workstation resources allow it, run the full PDF visual release gate, rerun release governance checks, and regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
@@ -1411,6 +1416,9 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text ('Run the lightweight PDF preflight regeneration command: `{0}`' -f $commandTemplate)
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text 'A regenerated PDF preflight summary only refreshes prerequisite evidence; it is not release-ready evidence until the full PDF visual release gate passes.'
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text ('After the preflight summary is readable, rerun `write_pdf_visual_release_gate_preflight_governance_report.ps1`, rerun release governance checks, and regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)

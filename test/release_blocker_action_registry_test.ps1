@@ -120,6 +120,8 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "run_pdf_visual_re
     -Message "PDF preflight build-output blocker should point at the PDF visual gate wrapper."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "-PreflightOnly" `
     -Message "PDF preflight build-output blocker should keep the first reviewer step lightweight."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "not release-ready evidence" `
+    -Message "PDF preflight build-output blocker should state that preflight-only is not release-ready evidence."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "cmake_cache_exists" `
     -Message "PDF preflight build-output blocker should explain the missing CMakeCache preflight issue."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "CMakeCache.txt" `
@@ -168,6 +170,8 @@ Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing 
     -Message "PDF preflight checklist guidance should include the missing output total."
 Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "memory guard blocked=false" `
     -Message "PDF preflight checklist guidance should include the memory guard blocked state."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "not release-ready evidence" `
+    -Message "PDF preflight checklist guidance should state that preflight-only is not release-ready evidence."
 
 $pdfPreflightUnavailableBlocker = [pscustomobject]@{
     id = "pdf_visual_release_gate_preflight.summary_unavailable"
@@ -189,6 +193,8 @@ Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "check_
     -Message "PDF preflight summary-unavailable blocker should point at lightweight preflight regeneration."
 Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "write_pdf_visual_release_gate_preflight_governance_report.ps1" `
     -Message "PDF preflight summary-unavailable blocker should tell reviewers to rebuild governance evidence."
+Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "not release-ready evidence" `
+    -Message "PDF preflight summary-unavailable blocker should state that preflight summary is not release-ready evidence."
 Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "release note bundle" `
     -Message "PDF preflight summary-unavailable blocker should tell reviewers to refresh release materials."
 Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "clean up only task-owned PDF gate processes" `
