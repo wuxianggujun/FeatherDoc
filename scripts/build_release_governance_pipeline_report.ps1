@@ -491,6 +491,7 @@ function New-ReportMarkdown {
     $lines.Add("# Release Governance Pipeline") | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("- Status: ``$($Summary.status)``") | Out-Null
+    $lines.Add("- Governance detail source: ``$($Summary.governance_detail_source)``") | Out-Null
     $lines.Add("- Stages: ``$($Summary.completed_stage_count)`` completed / ``$($Summary.stage_count)`` total") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
@@ -644,17 +645,30 @@ $missingReportCount = 0
 $releaseBlockerCount = 0
 $actionItemCount = 0
 $warningCount = 0
+$releaseBlockers = @()
+$actionItems = @()
+$warnings = @()
+$governanceDetailSource = "stage_aggregate_fallback"
 foreach ($stage in $stageItems) {
     $missingReportCount += [int]$stage.missing_report_count
     $releaseBlockerCount += [int]$stage.release_blocker_count
     $actionItemCount += [int]$stage.action_item_count
     $warningCount += [int]$stage.warning_count
+    $releaseBlockers += @($stage.release_blockers)
+    $actionItems += @($stage.action_items)
+    $warnings += @($stage.warnings)
 }
 $finalRollup = @($stageItems | Where-Object { [string]$_.id -eq "release_blocker_rollup" } | Select-Object -First 1)
-if ($finalRollup.Count -gt 0) {
+if ($finalRollup.Count -gt 0 -and
+    [string]$finalRollup[0].status -notin @("failed", "missing_summary") -and
+    [int]$finalRollup[0].exit_code -eq 0) {
     $releaseBlockerCount = [int]$finalRollup[0].release_blocker_count
     $actionItemCount = [int]$finalRollup[0].action_item_count
     $warningCount = [int]$finalRollup[0].warning_count
+    $releaseBlockers = @($finalRollup[0].release_blockers)
+    $actionItems = @($finalRollup[0].action_items)
+    $warnings = @($finalRollup[0].warnings)
+    $governanceDetailSource = "release_blocker_rollup"
 }
 
 $status = if ($failedStageCount -gt 0) {
@@ -685,9 +699,13 @@ $summary = [ordered]@{
     completed_stage_count = $completedStageCount
     failed_stage_count = $failedStageCount
     missing_report_count = $missingReportCount
+    governance_detail_source = $governanceDetailSource
     release_blocker_count = $releaseBlockerCount
+    release_blockers = $releaseBlockers
     action_item_count = $actionItemCount
+    action_items = $actionItems
     warning_count = $warningCount
+    warnings = $warnings
     stages = $stageItems
     final_governance_reports = $handoffInputs
     release_governance_handoff_summary = Join-Path $handoffOutputDir "summary.json"

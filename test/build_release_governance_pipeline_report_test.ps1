@@ -474,6 +474,8 @@ Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.release_gov
     -Message "Pipeline summary should expose schema."
 Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
     -Message "Pipeline should be blocked by fixture governance reports."
+Assert-Equal -Actual ([string]$summary.governance_detail_source) -Expected "release_blocker_rollup" `
+    -Message "Pipeline should expose final rollup as the top-level governance detail source."
 Assert-Equal -Actual ([int]$summary.stage_count) -Expected 7 `
     -Message "Pipeline should run seven read-only stages."
 Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 7 `
@@ -487,6 +489,12 @@ Assert-True -Condition ([int]$summary.action_item_count -ge 4) `
 Assert-ContainsText -Text (($summary.final_governance_reports | ForEach-Object { [string]$_ }) -join "`n") `
     -ExpectedText "pdf-visual-release-gate-preflight-governance\summary.json" `
     -Message "Pipeline should include an existing PDF preflight governance summary in final governance inputs."
+Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "pdf_visual_release_gate_preflight.build_outputs_missing" `
+    -Message "Pipeline top-level blocker details should mirror final rollup blockers."
+Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.action }) -join "`n") `
+    -ExpectedText "prepare_pdf_visual_release_gate_build_outputs" `
+    -Message "Pipeline top-level action details should mirror final rollup actions."
 
 $stageIds = @($summary.stages | ForEach-Object { [string]$_.id })
 foreach ($expectedStage in @(
@@ -581,6 +589,8 @@ Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline" `
     -Message "Pipeline Markdown should include title."
+Assert-ContainsText -Text $markdown -ExpectedText 'Governance detail source: `release_blocker_rollup`' `
+    -Message "Pipeline Markdown should include the governance detail source."
 Assert-ContainsText -Text $markdown -ExpectedText "release_blocker_rollup" `
     -Message "Pipeline Markdown should include final rollup stage."
 Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
