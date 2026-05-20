@@ -1377,6 +1377,47 @@
       ]
     },
     {
+      "id": "document-cjk-extreme-page-breaks-text",
+      "kind": "document_cjk_extreme_page_breaks_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-extreme-page-breaks-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK extreme page breaks sample",
+        "Extreme page breaks:",
+        "\u4e34\u754c\u5206\u9875\u8fb9\u754c",
+        "\u6bb5\u843d\u56de\u6d41\u77e9\u9635",
+        "FE-PB-901",
+        "Break first header PB-101 page 1",
+        "Break even header PB-202 page 2",
+        "Break header PB-303 page 3",
+        "Break first footer 1 / 5",
+        "Break even footer 2 / 5",
+        "Break footer 5 / 5",
+        "Boundary stripe:",
+        "\u7ec8\u9875\u6536\u53e3",
+        "\u56de\u6d41\u68c0\u6d4b",
+        "\u7b2c 1 \u7ec4\u5206\u9875\u8fb9\u754c\u9a8c\u8bc1",
+        "FE-PB-921",
+        "\u7b2c 12 \u7ec4\u5206\u9875\u8fb9\u754c\u9a8c\u8bc1",
+        "FE-PB-932",
+        "\u7b2c 18 \u7ec4\u5206\u9875\u8fb9\u754c\u9a8c\u8bc1",
+        "FE-PB-938",
+        "Boundary close:",
+        "FE-PB-999",
+        "\u672b\u9875\u6536\u53e3",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-extreme-page-break-flow",
+        "cjk-extreme-page-break-header-footer",
+        "cjk-extreme-page-break-table-keys"
+      ]
+    },
+    {
       "id": "document-cjk-anchor-matrix-lite-text",
       "kind": "document_cjk_anchor_matrix_lite_text",
       "output_file": "featherdoc-pdf-regression-document-cjk-anchor-matrix-lite-text.pdf",

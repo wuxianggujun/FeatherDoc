@@ -149,8 +149,8 @@ Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_visual_bas
 
 Assert-ContainsText -Text $manifestTestText -ExpectedText $sampleId `
     -Message "PDF regression manifest parser test should assert sample '$sampleId'."
-Assert-ContainsText -Text $manifestTestText -ExpectedText "REQUIRE_EQ(samples.size(), 87U)" `
-    -Message "PDF regression manifest parser test should track 87 samples."
+Assert-ContainsText -Text $manifestTestText -ExpectedText "REQUIRE_EQ(samples.size(), 88U)" `
+    -Message "PDF regression manifest parser test should track 88 samples."
 Assert-ContainsText -Text $cmakeText -ExpectedText ('sample_kind STREQUAL "{0}"' -f $sampleKind) `
     -Message "CMake PDF regression registration should mark '$sampleKind' as a CJK test."
 Assert-ContainsText -Text $cmakeText -ExpectedText "pdf_cjk_image_wrap_stress_contract" `

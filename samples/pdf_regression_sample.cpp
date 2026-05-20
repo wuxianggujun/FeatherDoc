@@ -6582,6 +6582,232 @@ build_document_cjk_anchor_font_matrix_boundary_text_sample(
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_cjk_extreme_page_breaks_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed Lite") ||
+        !define_document_cjk_font_embed_lite_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK extreme page breaks sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Extreme page breaks: ").has_next() ||
+        !add_styled_contract_run(
+            document, intro,
+            utf8_from_u8(u8"\u4e34\u754c\u5206\u9875\u8fb9\u754c"),
+            "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !intro.add_run(" / FE-PB-901 / ").has_next() ||
+        !add_styled_contract_run(
+            document, intro,
+            utf8_from_u8(u8"\u6bb5\u843d\u56de\u6d41\u77e9\u9635"),
+            "DocumentPdfCjkFontEmbedLiteNote")) {
+        return sample;
+    }
+
+    auto &default_header = document.ensure_section_header_paragraphs(0U);
+    auto &default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto &first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto &first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto &even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto &even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text("Break header PB-303 page {{page}}") ||
+        !default_footer.has_next() ||
+        !default_footer.set_text("Break footer {{page}} / {{total_pages}}") ||
+        !first_header.has_next() ||
+        !first_header.set_text(
+            "Break first header PB-101 page {{page}}") ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(
+            "Break first footer {{page}} / {{total_pages}}") ||
+        !even_header.has_next() ||
+        !even_header.set_text("Break even header PB-202 page {{page}}") ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(
+            "Break even footer {{page}} / {{total_pages}}")) {
+        return sample;
+    }
+
+    auto header_contract = append_document_paragraph(document, "");
+    if (!header_contract.has_next() ||
+        !header_contract.add_run("Break header contract: ").has_next() ||
+        !add_styled_contract_run(
+            document, header_contract, "Break first header PB-101 page 1",
+            "DocumentPdfCjkFontEmbedLiteNote") ||
+        !header_contract
+             .add_run(" / Break even header PB-202 page 2 / Break header "
+                      "PB-303 page 3")
+             .has_next()) {
+        return sample;
+    }
+
+    auto footer_contract = append_document_paragraph(document, "");
+    if (!footer_contract.has_next() ||
+        !footer_contract.add_run("Break footer contract: ").has_next() ||
+        !add_styled_contract_run(
+            document, footer_contract, "Break first footer 1 / 5",
+            "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !footer_contract
+             .add_run(" / Break even footer 2 / 5 / Break footer 5 / 5")
+             .has_next()) {
+        return sample;
+    }
+
+    auto marker = append_document_paragraph(document, "");
+    if (!marker.has_next() ||
+        !marker.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !marker.add_run("Boundary stripe: ").has_next() ||
+        !add_styled_contract_run(
+            document, marker, utf8_from_u8(u8"\u7ec8\u9875\u6536\u53e3"),
+            "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !marker.add_run(" / FE-PB-921 / ").has_next() ||
+        !add_styled_contract_run(
+            document, marker, utf8_from_u8(u8"\u56de\u6d41\u68c0\u6d4b"),
+            "DocumentPdfCjkFontEmbedLiteNote")) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(
+                u8"\u7b2c 1 \u7ec4\u5206\u9875\u8fb9\u754c\u9a8c\u8bc1\uff1a\u5de6\u4fa7\u5305\u56f4\u7f29\u8fdb\u4fdd\u7559\u9875\u7709\u7d22\u5f15\u3001\u9875\u811a\u7d22\u5f15\u548c English token FE-PB-921\u3002")) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(
+                u8"\u7b2c 12 \u7ec4\u5206\u9875\u8fb9\u754c\u9a8c\u8bc1\uff1a\u6574\u680f\u56de\u6d41\u5207\u6362\u4fdd\u6301\u6587\u672c\u5c42\u8fde\u7eed\uff0c\u68c0\u7d22\u952e FE-PB-932\u3002")) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(
+                u8"\u7b2c 18 \u7ec4\u5206\u9875\u8fb9\u754c\u9a8c\u8bc1\uff1a\u672b\u9875\u4e34\u754c\u5206\u9875\u4e0d\u5e94\u7f3a\u5b57\u3001\u91cd\u53e0\u6216\u9519\u8bef\u7f29\u8fdb\uff0c\u68c0\u7d22\u952e FE-PB-938\u3002"))) {
+        return sample;
+    }
+
+    auto table = document.append_table(6U, 3U);
+    if (!table.has_next() || !table.set_width_twips(7200U) ||
+        !table.set_column_width_twips(0U, 1500U) ||
+        !table.set_column_width_twips(1U, 2200U) ||
+        !table.set_column_width_twips(2U, 3500U) ||
+        !table.set_cell_text(0U, 0U, utf8_from_u8(u8"\u533a\u57df")) ||
+        !table.set_cell_text(0U, 1U,
+                             utf8_from_u8(u8"\u5206\u9875\u5951\u7ea6")) ||
+        !table.set_cell_text(0U, 2U, utf8_from_u8(u8"\u8bf4\u660e")) ||
+        !table.set_cell_text(1U, 0U, "PB-A-01") ||
+        !table.set_cell_text(
+            1U, 1U,
+            utf8_from_u8(u8"\u4e34\u754c\u5206\u9875\u8fb9\u754c")) ||
+        !table.set_cell_text(
+            1U, 2U,
+            utf8_from_u8(
+                u8"FE-PB-901 \u8868\u683c\u4e2d\u4fdd\u7559\u5206\u9875\u8fb9\u754c\u4e3b\u9898\u952e")) ||
+        !table.set_cell_text(2U, 0U, "FE-PB-921") ||
+        !table.set_cell_text(2U, 1U,
+                             utf8_from_u8(u8"\u56de\u6d41\u68c0\u6d4b")) ||
+        !table.set_cell_text(
+            2U, 2U,
+            utf8_from_u8(
+                u8"\u7eb5\u5411\u5408\u5e76\u5757\u7b2c\u4e00\u884c\u56fa\u5b9a\u4e34\u754c\u8fb9\u754c")) ||
+        !table.set_cell_text(3U, 0U, "FE-PB-932") ||
+        !table.set_cell_text(
+            3U, 2U,
+            utf8_from_u8(
+                u8"\u7eb5\u5411\u5408\u5e76\u5757\u7b2c\u4e8c\u884c\u7ee7\u7eed\u68c0\u67e5\u6574\u680f\u56de\u6d41")) ||
+        !table.set_cell_text(4U, 0U, "FE-PB-938") ||
+        !table.set_cell_text(4U, 1U,
+                             utf8_from_u8(u8"\u672b\u9875\u6536\u53e3")) ||
+        !table.set_cell_text(
+            4U, 2U,
+            utf8_from_u8(
+                u8"\u7981\u6b62\u62c6\u5206\u884c\u4fdd\u6301\u4e34\u754c\u5206\u9875\u8bed\u4e49")) ||
+        !table.set_cell_text(5U, 0U, "FE-PB-999") ||
+        !table.set_cell_text(5U, 1U,
+                             utf8_from_u8(u8"\u7ec8\u9875\u6536\u53e3")) ||
+        !table.set_cell_text(
+            5U, 2U,
+            utf8_from_u8(
+                u8"Boundary close \u6536\u53e3\u884c\u4fdd\u7559 ABC 123 \u548c\u672b\u9875\u6536\u53e3\u3002"))) {
+        return sample;
+    }
+
+    auto merged_boundary = table.find_cell(2U, 1U);
+    if (!merged_boundary.has_value() || !merged_boundary->merge_down(1U) ||
+        !merged_boundary->set_fill_color("DDEBF7") ||
+        !merged_boundary->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center)) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < 6U; ++row_index) {
+        if (!row.has_next() ||
+            !row.set_height_twips(row_index == 0U ? 440U : 600U,
+                                  featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        if (row_index == 0U && !row.set_repeats_header()) {
+            return sample;
+        }
+        if (row_index == 4U && !row.set_cant_split()) {
+            return sample;
+        }
+        row.next();
+    }
+
+    auto closing = append_document_paragraph(document, "");
+    if (!closing.has_next() ||
+        !closing.add_run("Boundary close: ").has_next() ||
+        !add_styled_contract_run(
+            document, closing,
+            utf8_from_u8(u8"\u4e34\u754c\u5206\u9875\u8fb9\u754c"),
+            "DocumentPdfCjkFontEmbedLiteAccent") ||
+        !closing.add_run(" / FE-PB-999 / ").has_next() ||
+        !add_styled_contract_run(
+            document, closing, utf8_from_u8(u8"\u672b\u9875\u6536\u53e3"),
+            "DocumentPdfCjkFontEmbedLiteLarge")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK extreme page breaks text";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed Lite",
+                                        font_path},
+    };
+    options.cjk_font_file_path = font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 8.0;
+    options.line_height_points = 15.0;
+    options.paragraph_spacing_after_points = 4.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult
 build_document_cjk_style_overlay_page_flow_text_sample(
     const std::filesystem::path &font_path) {
@@ -9243,6 +9469,20 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_cjk_image_wrap_stress_text_sample(cjk_font);
+    } else if (config.scenario == "document_cjk_extreme_page_breaks_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing CJK font for scenario "
+                   "document_cjk_extreme_page_breaks_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_extreme_page_breaks_text_sample(cjk_font);
     } else if (config.scenario == "document_cjk_style_overlay_page_flow_text") {
         if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
             if (require_cjk_font) {

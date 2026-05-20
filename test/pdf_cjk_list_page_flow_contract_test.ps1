@@ -128,7 +128,7 @@ foreach ($required in $requiredSamples) {
         -Message "CMake PDF regression registration should mark '$($required.Kind)' as a CJK test."
 }
 
-Assert-ContainsText -Text $manifestTestText -ExpectedText "REQUIRE_EQ(samples.size(), 87U)" `
+Assert-ContainsText -Text $manifestTestText -ExpectedText "REQUIRE_EQ(samples.size(), 88U)" `
     -Message "PDF regression manifest parser test should expect the updated sample count."
 Assert-ContainsText -Text $cmakeText -ExpectedText "pdf_cjk_list_page_flow_contract" `
     -Message "CMake should register the PDF CJK list page flow static contract."
