@@ -245,6 +245,36 @@ function Get-PreflightMissingOutputCount {
     return $count
 }
 
+function Get-PreflightBlockingSummary {
+    param($PreflightSummary, $Checks, $BlockingChecks, $BuildDirSnapshot)
+
+    $declaredSummary = Get-JsonProperty -Object $PreflightSummary -Name "blocking_summary"
+    if ($null -ne $declaredSummary) {
+        return $declaredSummary
+    }
+
+    $cliCheck = Get-PreflightCheck -Checks $Checks -Name "pdf_cli_export_baseline_pdfs_exist"
+    $cliDetails = Get-JsonProperty -Object $cliCheck -Name "details"
+    $visualCheck = Get-PreflightCheck -Checks $Checks -Name "visual_baseline_manifest_pdfs_exist"
+    $visualDetails = Get-JsonProperty -Object $visualCheck -Name "details"
+    $cjkCheck = Get-PreflightCheck -Checks $Checks -Name "cjk_text_layer_manifest_pdfs_exist"
+    $cjkDetails = Get-JsonProperty -Object $cjkCheck -Name "details"
+    $ctestCheck = Get-PreflightCheck -Checks $Checks -Name "ctest_list_contains_pdf_gate_tests"
+    $ctestDetails = Get-JsonProperty -Object $ctestCheck -Name "details"
+
+    return [ordered]@{
+        required_check_count = @($Checks | Where-Object { Get-JsonBool -Object $_ -Name "required" }).Count
+        blocking_check_count = @($BlockingChecks).Count
+        missing_cli_pdf_count = @(Get-JsonArray -Object $cliDetails -Name "missing_paths").Count
+        visual_baseline_sample_count = Get-JsonInt -Object $visualDetails -Name "sample_count"
+        missing_visual_baseline_pdf_count = Get-JsonInt -Object $visualDetails -Name "missing_count"
+        cjk_text_layer_sample_count = Get-JsonInt -Object $cjkDetails -Name "sample_count"
+        missing_cjk_text_layer_pdf_count = Get-JsonInt -Object $cjkDetails -Name "missing_count"
+        build_dir_entry_count = Get-JsonInt -Object $BuildDirSnapshot -Name "entry_count"
+        ctest_required_pattern_count = @(Get-JsonArray -Object $ctestDetails -Name "required_patterns").Count
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -273,6 +303,13 @@ function New-ReportMarkdown {
         $lines.Add("- Build entry count: ``$(Get-JsonInt -Object $buildDirSnapshot -Name "entry_count")``") | Out-Null
     }
     $lines.Add("- Blocking checks: ``$($Summary.blocking_check_count)``") | Out-Null
+    $blockingSummary = Get-JsonProperty -Object $Summary -Name "blocking_summary"
+    if ($null -ne $blockingSummary) {
+        $lines.Add("- Required checks: ``$(Get-JsonInt -Object $blockingSummary -Name "required_check_count")``") | Out-Null
+        $lines.Add("- Missing CLI PDFs: ``$(Get-JsonInt -Object $blockingSummary -Name "missing_cli_pdf_count")``") | Out-Null
+        $lines.Add("- Missing visual baseline PDFs: ``$(Get-JsonInt -Object $blockingSummary -Name "missing_visual_baseline_pdf_count")``") | Out-Null
+        $lines.Add("- Missing CJK text-layer PDFs: ``$(Get-JsonInt -Object $blockingSummary -Name "missing_cjk_text_layer_pdf_count")``") | Out-Null
+    }
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Output gap checks: ``$($Summary.output_gap_count)``") | Out-Null
     $lines.Add("- Missing outputs: ``$($Summary.missing_output_count)``") | Out-Null
@@ -407,6 +444,11 @@ $summaryBuildDirSource = Get-JsonString -Object $preflightSummary -Name "build_d
 $buildDirSnapshot = Get-BuildDirectorySnapshotFromChecks -Checks $checks
 $outputGapSummary = @(Get-PreflightOutputGapSummary -Checks $checks)
 $missingOutputCount = Get-PreflightMissingOutputCount -OutputGapSummary $outputGapSummary
+$preflightBlockingSummary = Get-PreflightBlockingSummary `
+    -PreflightSummary $preflightSummary `
+    -Checks $checks `
+    -BlockingChecks $blockingChecks `
+    -BuildDirSnapshot $buildDirSnapshot
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
@@ -469,6 +511,7 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         command_template = $commandTemplate
         blocked_item_count = $blockingChecks.Count
         issue_keys = @($blockingChecks)
+        blocking_summary = $preflightBlockingSummary
         output_gap_count = $outputGapSummary.Count
         missing_output_count = $missingOutputCount
         output_gap_summary = @($outputGapSummary)
@@ -488,6 +531,7 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         repair_hint = $repairHint
         blocked_item_count = $blockingChecks.Count
         issue_keys = @($blockingChecks)
+        blocking_summary = $preflightBlockingSummary
         output_gap_count = $outputGapSummary.Count
         missing_output_count = $missingOutputCount
         output_gap_summary = @($outputGapSummary)
@@ -527,6 +571,7 @@ $summary = [ordered]@{
     checks = @($checks)
     blocking_check_count = $blockingChecks.Count
     blocking_checks = @($blockingChecks)
+    blocking_summary = $preflightBlockingSummary
     output_gap_count = $outputGapSummary.Count
     missing_output_count = $missingOutputCount
     output_gap_summary = @($outputGapSummary)

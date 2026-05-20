@@ -179,6 +179,17 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
         "visual_baseline_manifest_pdfs_exist",
         "cjk_text_layer_manifest_pdfs_exist"
     )
+    blocking_summary = [ordered]@{
+        required_check_count = 7
+        blocking_check_count = 6
+        missing_cli_pdf_count = 2
+        visual_baseline_sample_count = 42
+        missing_visual_baseline_pdf_count = 42
+        cjk_text_layer_sample_count = 43
+        missing_cjk_text_layer_pdf_count = 43
+        build_dir_entry_count = 1
+        ctest_required_pattern_count = 0
+    }
 })
 
 Write-JsonFile -Path $readyPreflightPath -Value ([ordered]@{
@@ -204,6 +215,17 @@ Write-JsonFile -Path $readyPreflightPath -Value ([ordered]@{
         }
     )
     blocking_checks = @()
+    blocking_summary = [ordered]@{
+        required_check_count = 2
+        blocking_check_count = 0
+        missing_cli_pdf_count = 0
+        visual_baseline_sample_count = 0
+        missing_visual_baseline_pdf_count = 0
+        cjk_text_layer_sample_count = 0
+        missing_cjk_text_layer_pdf_count = 0
+        build_dir_entry_count = 1
+        ctest_required_pattern_count = 0
+    }
 })
 
 $blockedOutputDir = Join-Path $resolvedWorkingDir "blocked-report"
@@ -236,6 +258,24 @@ Assert-Equal -Actual ([int]$blockedSummary.action_item_count) -Expected 1 `
     -Message "Not-ready preflight should emit one action item."
 Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 6 `
     -Message "Governance report should preserve blocking check count."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.required_check_count) -Expected 7 `
+    -Message "Governance report should preserve the required check count."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.blocking_check_count) -Expected 6 `
+    -Message "Governance report should preserve the blocking check count summary."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.missing_cli_pdf_count) -Expected 2 `
+    -Message "Governance report should preserve the missing CLI PDF count summary."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.visual_baseline_sample_count) -Expected 42 `
+    -Message "Governance report should preserve the visual baseline sample count summary."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.missing_visual_baseline_pdf_count) -Expected 42 `
+    -Message "Governance report should preserve the missing visual baseline PDF count summary."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.cjk_text_layer_sample_count) -Expected 43 `
+    -Message "Governance report should preserve the CJK text-layer sample count summary."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.missing_cjk_text_layer_pdf_count) -Expected 43 `
+    -Message "Governance report should preserve the missing CJK text-layer PDF count summary."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.build_dir_entry_count) -Expected 1 `
+    -Message "Governance report should preserve the build dir entry count summary."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.ctest_required_pattern_count) -Expected 0 `
+    -Message "Governance report should preserve the CTest required pattern count summary."
 Assert-Equal -Actual ([string]$blockedSummary.build_dir_source) -Expected "auto:build" `
     -Message "Governance report should preserve the selected preflight build-dir source."
 Assert-ContainsText -Text ([string]$blockedSummary.requested_build_dir_display) `
@@ -299,6 +339,8 @@ Assert-Equal -Actual ([int]$blocker.output_gap_count) -Expected 3 `
     -Message "Blocker should expose how many output gap groups remain."
 Assert-Equal -Actual ([int]$blocker.missing_output_count) -Expected 87 `
     -Message "Blocker should expose the total missing output count."
+Assert-Equal -Actual ([int]$blocker.blocking_summary.missing_visual_baseline_pdf_count) -Expected 42 `
+    -Message "Blocker should preserve the missing visual baseline PDF count summary."
 Assert-ContainsText -Text (($blocker.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n") `
     -ExpectedText "cjk_text_layer_manifest_pdfs_exist" `
     -Message "Blocker should preserve output gap summary details."
@@ -311,6 +353,8 @@ Assert-Equal -Actual ([int]$actionItem.output_gap_count) -Expected 3 `
     -Message "Action item should expose how many output gap groups remain."
 Assert-Equal -Actual ([int]$actionItem.missing_output_count) -Expected 87 `
     -Message "Action item should expose the total missing output count."
+Assert-Equal -Actual ([int]$actionItem.blocking_summary.missing_cjk_text_layer_pdf_count) -Expected 43 `
+    -Message "Action item should preserve the missing CJK text-layer PDF count summary."
 
 $blockedMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $blockedMarkdownPath
 Assert-ContainsText -Text $blockedMarkdown `
@@ -334,6 +378,9 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Build CTest manifest" `
     -Message "Markdown should include the selected build dir CTest manifest status."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Missing CLI PDFs" `
+    -Message "Markdown should expose the missing CLI PDF count summary."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "issue_keys" `
     -Message "Markdown should include action item issue keys."
