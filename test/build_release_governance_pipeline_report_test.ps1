@@ -370,6 +370,39 @@ function New-ContentControlSyncResult {
     }
 }
 
+function New-PdfPreflightGovernance {
+    return [ordered]@{
+        schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+        status = "blocked"
+        release_ready = $false
+        release_blocker_count = 1
+        release_blockers = @(
+            [ordered]@{
+                id = "pdf_visual_release_gate_preflight.build_outputs_missing"
+                severity = "error"
+                status = "blocked"
+                action = "prepare_pdf_visual_release_gate_build_outputs"
+                message = "PDF visual release gate build outputs are missing."
+                source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                source_report_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
+                source_json_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
+            }
+        )
+        action_item_count = 1
+        action_items = @(
+            [ordered]@{
+                id = "prepare_pdf_visual_release_gate_build_outputs"
+                action = "prepare_pdf_visual_release_gate_build_outputs"
+                title = "Prepare PDF visual release gate build outputs"
+                source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                source_report_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
+                source_json_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_pdf_visual_release_gate_preflight_governance_report.ps1"
+            }
+        )
+    }
+}
+
 function New-InputFixture {
     param([string]$Root)
 
@@ -380,6 +413,7 @@ function New-InputFixture {
     Write-JsonFile -Path (Join-Path $Root "content-control-data-binding\sync-content-controls-from-custom-xml.json") -Value (New-ContentControlSyncResult)
     Write-JsonFile -Path (Join-Path $Root "project-template-onboarding-governance\summary.json") -Value (New-OnboardingGovernance)
     Write-JsonFile -Path (Join-Path $Root "project-template-schema-approval-history\history.json") -Value (New-SchemaApprovalHistory)
+    Write-JsonFile -Path (Join-Path $Root "pdf-visual-release-gate-preflight-governance\summary.json") -Value (New-PdfPreflightGovernance)
 }
 
 function Invoke-Pipeline {
@@ -446,10 +480,13 @@ Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 7 `
     -Message "Pipeline should complete every stage."
 Assert-Equal -Actual ([int]$summary.failed_stage_count) -Expected 0 `
     -Message "Pipeline should not record stage failures."
-Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 11 `
+Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 12 `
     -Message "Pipeline should mirror final rollup blocker count."
 Assert-True -Condition ([int]$summary.action_item_count -ge 4) `
     -Message "Pipeline should mirror final rollup action count."
+Assert-ContainsText -Text (($summary.final_governance_reports | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "pdf-visual-release-gate-preflight-governance\summary.json" `
+    -Message "Pipeline should include an existing PDF preflight governance summary in final governance inputs."
 
 $stageIds = @($summary.stages | ForEach-Object { [string]$_.id })
 foreach ($expectedStage in @(
@@ -530,6 +567,17 @@ Assert-Equal -Actual ([string]$handoffSummary.schema) -Expected "featherdoc.rele
 Assert-Equal -Actual ([bool]$handoffSummary.release_blocker_rollup.included) -Expected $true `
     -Message "Pipeline handoff should include nested release blocker rollup."
 
+$rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
+Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "pdf_visual_release_gate_preflight.build_outputs_missing" `
+    -Message "Pipeline final rollup should include PDF preflight blockers."
+Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object { [string]$_.action }) -join "`n") `
+    -ExpectedText "prepare_pdf_visual_release_gate_build_outputs" `
+    -Message "Pipeline final rollup should include PDF preflight actions."
+Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+    -ExpectedText "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" `
+    -Message "Pipeline final rollup should preserve the PDF preflight source schema."
+
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline" `
     -Message "Pipeline Markdown should include title."
@@ -547,5 +595,9 @@ Assert-ContainsText -Text $markdown -ExpectedText "review_command:" `
     -Message "Pipeline Markdown should include stage review commands."
 Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-finance` template=`invoice-template` candidate=`rename`' `
     -Message "Pipeline Markdown should include calibration project/template/candidate routing fields."
+Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_release_gate_preflight.build_outputs_missing" `
+    -Message "Pipeline Markdown should include PDF preflight blocker ids."
+Assert-ContainsText -Text $markdown -ExpectedText "prepare_pdf_visual_release_gate_build_outputs" `
+    -Message "Pipeline Markdown should include PDF preflight action ids."
 
 Write-Host "Release governance pipeline report regression passed."

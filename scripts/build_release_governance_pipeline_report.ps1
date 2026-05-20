@@ -605,6 +605,10 @@ $handoffInputs = @(
     Join-Path $projectOutputDir "summary.json"
     Join-Path $calibrationOutputDir "summary.json"
 )
+$pdfPreflightGovernanceSummary = Join-Path $resolvedInputRoot "pdf-visual-release-gate-preflight-governance\summary.json"
+if (Test-Path -LiteralPath $pdfPreflightGovernanceSummary) {
+    $handoffInputs += $pdfPreflightGovernanceSummary
+}
 $handoffExtraArguments = @(
     "-InputRoot"
     $outputGovernanceRoot
