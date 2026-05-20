@@ -53,6 +53,11 @@ $outputFile = "featherdoc-pdf-regression-document-table-font-matrix-text.pdf"
 $manifestSampleBlock = Get-ManifestSampleBlock `
     -ManifestText $manifestText `
     -SampleId $sampleId
+$expectedSampleCount =
+    ([regex]::Matches($manifestText, '(?m)^\s*"id":\s*"')).Count
+if ($expectedSampleCount -le 0) {
+    throw "PDF regression manifest sample count should be discoverable."
+}
 
 Assert-ContainsText -Text $sampleText -ExpectedText $builder `
     -Message "PDF regression sample generator should keep builder '$builder'."
@@ -114,7 +119,8 @@ Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "Table matrix foote
 
 Assert-ContainsText -Text $manifestTestText -ExpectedText $sampleId `
     -Message "PDF regression manifest parser test should assert sample '$sampleId'."
-Assert-ContainsText -Text $manifestTestText -ExpectedText "82U" `
+Assert-ContainsText -Text $manifestTestText `
+    -ExpectedText ('REQUIRE_EQ(samples.size(), {0}U)' -f $expectedSampleCount) `
     -Message "PDF regression manifest parser test should expect the updated sample count."
 Assert-ContainsText -Text $cmakeText -ExpectedText ('sample_kind STREQUAL "{0}"' -f $sampleKind) `
     -Message "CMake PDF regression registration should font-gate '$sampleKind'."
