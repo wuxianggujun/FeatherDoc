@@ -113,6 +113,20 @@ function Get-JsonBool {
     return [string]$value -in @("true", "True", "1", "yes", "Yes")
 }
 
+function Get-JsonInt {
+    param($Object, [string]$Name, [int]$DefaultValue = 0)
+
+    $value = Get-JsonProperty -Object $Object -Name $Name
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        return $DefaultValue
+    }
+    try {
+        return [int]$value
+    } catch {
+        return $DefaultValue
+    }
+}
+
 function Get-JsonArray {
     param($Object, [string]$Name)
 
@@ -153,6 +167,36 @@ function Get-BlockingCheckNames {
     )
 }
 
+function Get-PreflightCheck {
+    param($Checks, [string]$Name)
+
+    foreach ($check in @($Checks)) {
+        if ((Get-JsonString -Object $check -Name "name") -eq $Name) {
+            return $check
+        }
+    }
+    return $null
+}
+
+function Get-BuildDirectorySnapshotFromChecks {
+    param($Checks)
+
+    $buildDirCheck = Get-PreflightCheck -Checks $Checks -Name "build_dir_exists"
+    $details = Get-JsonProperty -Object $buildDirCheck -Name "details"
+    if ($null -eq $details) {
+        return [ordered]@{}
+    }
+
+    return [ordered]@{
+        cmake_cache_path = Get-JsonString -Object $details -Name "cmake_cache_path"
+        cmake_cache_exists = Get-JsonBool -Object $details -Name "cmake_cache_exists"
+        ctest_manifest_path = Get-JsonString -Object $details -Name "ctest_manifest_path"
+        ctest_manifest_exists = Get-JsonBool -Object $details -Name "ctest_manifest_exists"
+        entry_count = Get-JsonInt -Object $details -Name "entry_count"
+        entries_preview = @(Get-JsonArray -Object $details -Name "entries_preview")
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -166,6 +210,20 @@ function New-ReportMarkdown {
     $lines.Add("- Build dir: ``$($Summary.build_dir_display)``") | Out-Null
     $lines.Add("- Build dir source: ``$($Summary.build_dir_source)``") | Out-Null
     $lines.Add("- Requested build dir: ``$($Summary.requested_build_dir_display)``") | Out-Null
+    $buildDirSnapshot = Get-JsonProperty -Object $Summary -Name "build_dir_snapshot"
+    $hasBuildDirSnapshot = $false
+    if ($null -ne $buildDirSnapshot) {
+        if ($buildDirSnapshot -is [System.Collections.IDictionary]) {
+            $hasBuildDirSnapshot = $buildDirSnapshot.Count -gt 0
+        } else {
+            $hasBuildDirSnapshot = @($buildDirSnapshot.PSObject.Properties).Count -gt 0
+        }
+    }
+    if ($hasBuildDirSnapshot) {
+        $lines.Add("- Build CMake cache: ``$(Get-JsonBool -Object $buildDirSnapshot -Name "cmake_cache_exists")``") | Out-Null
+        $lines.Add("- Build CTest manifest: ``$(Get-JsonBool -Object $buildDirSnapshot -Name "ctest_manifest_exists")``") | Out-Null
+        $lines.Add("- Build entry count: ``$(Get-JsonInt -Object $buildDirSnapshot -Name "entry_count")``") | Out-Null
+    }
     $lines.Add("- Blocking checks: ``$($Summary.blocking_check_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -272,6 +330,7 @@ $commandTemplate = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_v
 $summaryBuildDir = Get-JsonString -Object $preflightSummary -Name "build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
 $summaryRequestedBuildDir = Get-JsonString -Object $preflightSummary -Name "requested_build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
 $summaryBuildDirSource = Get-JsonString -Object $preflightSummary -Name "build_dir_source" -DefaultValue "requested"
+$buildDirSnapshot = Get-BuildDirectorySnapshotFromChecks -Checks $checks
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
@@ -303,6 +362,19 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
     } else {
         "preflight_status=$preflightStatus"
     }
+    $repairHint = "Prepare a reusable PDF build directory with CTest registration, CLI baseline PDFs, manifest PDF outputs, helper scripts, and render Python before running the full PDF visual release gate."
+    if ($buildDirSnapshot.Count -gt 0) {
+        $snapshotHints = @()
+        if (-not [bool]$buildDirSnapshot["cmake_cache_exists"]) {
+            $snapshotHints += "CMakeCache.txt missing"
+        }
+        if (-not [bool]$buildDirSnapshot["ctest_manifest_exists"]) {
+            $snapshotHints += "CTestTestfile.cmake missing"
+        }
+        if ($snapshotHints.Count -gt 0) {
+            $repairHint += " Current build directory snapshot: $($snapshotHints -join '; ')."
+        }
+    }
     $message = "PDF visual release gate preflight is not ready; blocking checks: $blockedText."
     $releaseBlockers.Add([ordered]@{
         id = "pdf_visual_release_gate_preflight.build_outputs_missing"
@@ -317,7 +389,7 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         source_json = $preflightSummaryPath
         source_json_display = $preflightDisplay
         repair_strategy = "reuse_or_prepare_pdf_visual_release_gate_build_outputs"
-        repair_hint = "Prepare a reusable PDF build directory with CTest registration, CLI baseline PDFs, manifest PDF outputs, helper scripts, and render Python before running the full PDF visual release gate."
+        repair_hint = $repairHint
         command_template = $commandTemplate
         blocked_item_count = $blockingChecks.Count
         issue_keys = @($blockingChecks)
@@ -334,7 +406,7 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         source_json = $preflightSummaryPath
         source_json_display = $preflightDisplay
         repair_strategy = "reuse_or_prepare_pdf_visual_release_gate_build_outputs"
-        repair_hint = "Rerun the preflight after the reusable build and generated PDF outputs are available."
+        repair_hint = $repairHint
     }) | Out-Null
 }
 
@@ -366,6 +438,7 @@ $summary = [ordered]@{
     build_dir_source = $summaryBuildDirSource
     requested_build_dir = $summaryRequestedBuildDir
     requested_build_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryRequestedBuildDir
+    build_dir_snapshot = $buildDirSnapshot
     check_count = $checks.Count
     checks = @($checks)
     blocking_check_count = $blockingChecks.Count

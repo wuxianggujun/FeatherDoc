@@ -93,6 +93,20 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
             status = "missing"
             required = $true
             message = "Build directory is missing."
+            details = [ordered]@{
+                cmake_cache_path = Join-Path $resolvedRepoRoot ".bpdf-roundtrip-msvc\CMakeCache.txt"
+                cmake_cache_exists = $false
+                ctest_manifest_path = Join-Path $resolvedRepoRoot ".bpdf-roundtrip-msvc\CTestTestfile.cmake"
+                ctest_manifest_exists = $false
+                entry_count = 1
+                entries_preview = @(
+                    [ordered]@{
+                        name = "tmp"
+                        type = "directory"
+                        bytes = $null
+                    }
+                )
+            }
         },
         [ordered]@{
             name = "ctest_manifest_exists"
@@ -173,6 +187,12 @@ Assert-Equal -Actual ([string]$blockedSummary.build_dir_source) -Expected "auto:
 Assert-ContainsText -Text ([string]$blockedSummary.requested_build_dir_display) `
     -ExpectedText ".bpdf-roundtrip-msvc" `
     -Message "Governance report should preserve the originally requested build directory."
+Assert-Equal -Actual ([bool]$blockedSummary.build_dir_snapshot.cmake_cache_exists) -Expected $false `
+    -Message "Governance report should expose whether the selected build dir has CMakeCache.txt."
+Assert-Equal -Actual ([bool]$blockedSummary.build_dir_snapshot.ctest_manifest_exists) -Expected $false `
+    -Message "Governance report should expose whether the selected build dir has CTestTestfile.cmake."
+Assert-Equal -Actual ([int]$blockedSummary.build_dir_snapshot.entry_count) -Expected 1 `
+    -Message "Governance report should preserve the selected build dir entry count."
 
 $blocker = $blockedSummary.release_blockers[0]
 Assert-Equal -Actual ([string]$blocker.id) `
@@ -193,6 +213,9 @@ Assert-ContainsText -Text ([string]$blocker.command_template) `
 Assert-ContainsText -Text (($blocker.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
     -ExpectedText "ctest_manifest_exists" `
     -Message "Blocker should preserve individual failing preflight checks."
+Assert-ContainsText -Text ([string]$blocker.repair_hint) `
+    -ExpectedText "CMakeCache.txt missing" `
+    -Message "Blocker should explain when the selected build dir is not a reusable CMake build."
 
 $blockedMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $blockedMarkdownPath
 Assert-ContainsText -Text $blockedMarkdown `
@@ -210,6 +233,12 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "auto:build" `
     -Message "Markdown should preserve the selected build-dir source value."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Build CMake cache" `
+    -Message "Markdown should include the selected build dir CMake cache status."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Build CTest manifest" `
+    -Message "Markdown should include the selected build dir CTest manifest status."
 
 $rollupOutputDir = Join-Path $resolvedWorkingDir "rollup-report"
 $rollupResult = Invoke-PowerShellScript -ScriptPath $rollupScriptPath -Arguments @(
