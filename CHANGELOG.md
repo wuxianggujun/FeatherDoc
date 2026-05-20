@@ -104,6 +104,9 @@ performance.
 - Added the same low-memory preflight guard to the PDF visual release gate so
   visual validation refuses to start when the workstation is already
   memory-starved.
+- Added PDF visual preflight governance reporting for free-memory guard
+  outcomes so release-blocker summaries explain whether resource pressure, not
+  missing PDF artifacts alone, is blocking visual validation.
 
 ### Fixed
 

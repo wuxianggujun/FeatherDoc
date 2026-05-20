@@ -89,6 +89,21 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
     requested_build_dir = Join-Path $resolvedRepoRoot ".bpdf-roundtrip-msvc"
     checks = @(
         [ordered]@{
+            name = "workstation_free_memory_available"
+            status = "missing"
+            required = $true
+            message = "Free physical memory is below the required visual-gate preflight threshold."
+            details = [ordered]@{
+                min_free_memory_mb = 2048
+                guard_skipped = $false
+                guard_blocked = $true
+                available = $true
+                total_mb = 16384
+                free_mb = 512.5
+                error_message = ""
+            }
+        },
+        [ordered]@{
             name = "build_dir_exists"
             status = "missing"
             required = $true
@@ -172,6 +187,7 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
         }
     )
     blocking_checks = @(
+        "workstation_free_memory_available",
         "build_dir_exists",
         "cmake_cache_exists",
         "ctest_manifest_exists",
@@ -180,8 +196,8 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
         "cjk_text_layer_manifest_pdfs_exist"
     )
     blocking_summary = [ordered]@{
-        required_check_count = 7
-        blocking_check_count = 6
+        required_check_count = 8
+        blocking_check_count = 7
         missing_cli_pdf_count = 2
         visual_baseline_sample_count = 42
         missing_visual_baseline_pdf_count = 42
@@ -189,6 +205,10 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
         missing_cjk_text_layer_pdf_count = 43
         build_dir_entry_count = 1
         ctest_required_pattern_count = 0
+        free_memory_mb = 512.5
+        min_free_memory_mb = 2048
+        memory_guard_blocked = $true
+        memory_guard_skipped = $false
     }
 })
 
@@ -225,6 +245,10 @@ Write-JsonFile -Path $readyPreflightPath -Value ([ordered]@{
         missing_cjk_text_layer_pdf_count = 0
         build_dir_entry_count = 1
         ctest_required_pattern_count = 0
+        free_memory_mb = 4096.5
+        min_free_memory_mb = 2048
+        memory_guard_blocked = $false
+        memory_guard_skipped = $false
     }
 })
 
@@ -256,11 +280,11 @@ Assert-Equal -Actual ([int]$blockedSummary.release_blocker_count) -Expected 1 `
     -Message "Not-ready preflight should emit one release blocker."
 Assert-Equal -Actual ([int]$blockedSummary.action_item_count) -Expected 1 `
     -Message "Not-ready preflight should emit one action item."
-Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 6 `
+Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 7 `
     -Message "Governance report should preserve blocking check count."
-Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.required_check_count) -Expected 7 `
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.required_check_count) -Expected 8 `
     -Message "Governance report should preserve the required check count."
-Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.blocking_check_count) -Expected 6 `
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.blocking_check_count) -Expected 7 `
     -Message "Governance report should preserve the blocking check count summary."
 Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.missing_cli_pdf_count) -Expected 2 `
     -Message "Governance report should preserve the missing CLI PDF count summary."
@@ -276,6 +300,16 @@ Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.build_dir_entry_coun
     -Message "Governance report should preserve the build dir entry count summary."
 Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.ctest_required_pattern_count) -Expected 0 `
     -Message "Governance report should preserve the CTest required pattern count summary."
+Assert-Equal -Actual ([string]$blockedSummary.free_memory_mb) -Expected "512.5" `
+    -Message "Governance report should promote the preflight free memory summary."
+Assert-Equal -Actual ([string]$blockedSummary.min_free_memory_mb) -Expected "2048" `
+    -Message "Governance report should promote the minimum free memory threshold."
+Assert-Equal -Actual ([bool]$blockedSummary.memory_guard_blocked) -Expected $true `
+    -Message "Governance report should expose whether the memory guard blocked preflight."
+Assert-Equal -Actual ([bool]$blockedSummary.memory_guard_skipped) -Expected $false `
+    -Message "Governance report should expose whether the memory guard was skipped."
+Assert-Equal -Actual ([bool]$blockedSummary.blocking_summary.memory_guard_blocked) -Expected $true `
+    -Message "Governance report should preserve the memory guard blocker summary."
 Assert-Equal -Actual ([string]$blockedSummary.build_dir_source) -Expected "auto:build" `
     -Message "Governance report should preserve the selected preflight build-dir source."
 Assert-ContainsText -Text ([string]$blockedSummary.requested_build_dir_display) `
@@ -332,6 +366,15 @@ Assert-ContainsText -Text ([string]$blocker.command_template) `
 Assert-ContainsText -Text (($blocker.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
     -ExpectedText "ctest_manifest_exists" `
     -Message "Blocker should preserve individual failing preflight checks."
+Assert-ContainsText -Text (($blocker.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "workstation_free_memory_available" `
+    -Message "Blocker should preserve the memory guard preflight check."
+Assert-ContainsText -Text ([string]$blocker.repair_hint) `
+    -ExpectedText "Close unrelated applications" `
+    -Message "Blocker should explain how to clear a low-memory preflight blocker."
+Assert-ContainsText -Text ([string]$blocker.repair_hint) `
+    -ExpectedText "512.5 MB free, 2048 MB required" `
+    -Message "Blocker should include the preflight memory threshold and snapshot."
 Assert-ContainsText -Text ([string]$blocker.repair_hint) `
     -ExpectedText "CMakeCache.txt missing" `
     -Message "Blocker should explain when the selected build dir is not a reusable CMake build."
@@ -381,6 +424,15 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Missing CLI PDFs" `
     -Message "Markdown should expose the missing CLI PDF count summary."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Free memory MB" `
+    -Message "Markdown should expose the free-memory preflight summary."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Memory guard blocked" `
+    -Message "Markdown should expose whether the memory guard blocked preflight."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "workstation_free_memory_available" `
+    -Message "Markdown should list the memory guard blocking check."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "issue_keys" `
     -Message "Markdown should include action item issue keys."

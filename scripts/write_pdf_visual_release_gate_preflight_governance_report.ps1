@@ -127,6 +127,16 @@ function Get-JsonInt {
     }
 }
 
+function Get-JsonValueText {
+    param($Object, [string]$Name, [string]$DefaultValue = "")
+
+    $value = Get-JsonProperty -Object $Object -Name $Name
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        return $DefaultValue
+    }
+    return [string]$value
+}
+
 function Get-JsonArray {
     param($Object, [string]$Name)
 
@@ -309,6 +319,13 @@ function New-ReportMarkdown {
         $lines.Add("- Missing CLI PDFs: ``$(Get-JsonInt -Object $blockingSummary -Name "missing_cli_pdf_count")``") | Out-Null
         $lines.Add("- Missing visual baseline PDFs: ``$(Get-JsonInt -Object $blockingSummary -Name "missing_visual_baseline_pdf_count")``") | Out-Null
         $lines.Add("- Missing CJK text-layer PDFs: ``$(Get-JsonInt -Object $blockingSummary -Name "missing_cjk_text_layer_pdf_count")``") | Out-Null
+        if ($null -ne (Get-JsonProperty -Object $blockingSummary -Name "free_memory_mb") -or
+            $null -ne (Get-JsonProperty -Object $blockingSummary -Name "min_free_memory_mb")) {
+            $lines.Add("- Free memory MB: ``$(Get-JsonValueText -Object $blockingSummary -Name "free_memory_mb")``") | Out-Null
+            $lines.Add("- Minimum free memory MB: ``$(Get-JsonValueText -Object $blockingSummary -Name "min_free_memory_mb")``") | Out-Null
+            $lines.Add("- Memory guard blocked: ``$(Get-JsonBool -Object $blockingSummary -Name "memory_guard_blocked")``") | Out-Null
+            $lines.Add("- Memory guard skipped: ``$(Get-JsonBool -Object $blockingSummary -Name "memory_guard_skipped")``") | Out-Null
+        }
     }
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Output gap checks: ``$($Summary.output_gap_count)``") | Out-Null
@@ -449,6 +466,10 @@ $preflightBlockingSummary = Get-PreflightBlockingSummary `
     -Checks $checks `
     -BlockingChecks $blockingChecks `
     -BuildDirSnapshot $buildDirSnapshot
+$memoryGuardBlocked = Get-JsonBool -Object $preflightBlockingSummary -Name "memory_guard_blocked"
+$memoryGuardSkipped = Get-JsonBool -Object $preflightBlockingSummary -Name "memory_guard_skipped"
+$freeMemoryMb = Get-JsonValueText -Object $preflightBlockingSummary -Name "free_memory_mb"
+$minFreeMemoryMb = Get-JsonValueText -Object $preflightBlockingSummary -Name "min_free_memory_mb"
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
@@ -480,7 +501,20 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
     } else {
         "preflight_status=$preflightStatus"
     }
-    $repairHint = "Prepare a reusable PDF build directory with CTest registration, CLI baseline PDFs, manifest PDF outputs, helper scripts, and render Python before running the full PDF visual release gate."
+    $memoryGuardIsBlocking = @($blockingChecks | Where-Object { [string]$_ -eq "workstation_free_memory_available" }).Count -gt 0
+    $buildOutputRepairHint = "Prepare a reusable PDF build directory with CTest registration, CLI baseline PDFs, manifest PDF outputs, helper scripts, and render Python before running the full PDF visual release gate."
+    $repairHint = $buildOutputRepairHint
+    if ($memoryGuardIsBlocking) {
+        $repairHint = "Free physical memory is below the PDF visual release gate threshold. Close unrelated applications or wait for external render/test processes to finish, then rerun the preflight; use -SkipMemoryGuard only after a manual resource check."
+        if (-not [string]::IsNullOrWhiteSpace($freeMemoryMb) -or
+            -not [string]::IsNullOrWhiteSpace($minFreeMemoryMb)) {
+            $repairHint += " Current memory snapshot: $freeMemoryMb MB free, $minFreeMemoryMb MB required."
+        }
+        $nonMemoryBlockingChecks = @($blockingChecks | Where-Object { [string]$_ -ne "workstation_free_memory_available" })
+        if ($nonMemoryBlockingChecks.Count -gt 0) {
+            $repairHint += " Also $buildOutputRepairHint"
+        }
+    }
     if ($buildDirSnapshot.Count -gt 0) {
         $snapshotHints = @()
         if (-not [bool]$buildDirSnapshot["cmake_cache_exists"]) {
@@ -567,6 +601,10 @@ $summary = [ordered]@{
     requested_build_dir = $summaryRequestedBuildDir
     requested_build_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryRequestedBuildDir
     build_dir_snapshot = $buildDirSnapshot
+    free_memory_mb = $freeMemoryMb
+    min_free_memory_mb = $minFreeMemoryMb
+    memory_guard_blocked = $memoryGuardBlocked
+    memory_guard_skipped = $memoryGuardSkipped
     check_count = $checks.Count
     checks = @($checks)
     blocking_check_count = $blockingChecks.Count
