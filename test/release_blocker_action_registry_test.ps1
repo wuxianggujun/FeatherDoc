@@ -131,6 +131,18 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "release note bund
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "clean up only task-owned PDF gate processes" `
     -Message "PDF preflight build-output blocker should remind reviewers to clean up only task-owned resources."
 
+$pdfPreflightChecklistGuidance = @(Get-ReleaseGovernanceChecklistGuidanceLines `
+        -Item $pdfPreflightBlocker `
+        -ItemKind "action item" `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing CLI PDFs=2" `
+    -Message "PDF preflight checklist guidance should include the missing CLI PDF count."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing visual baseline PDFs=42" `
+    -Message "PDF preflight checklist guidance should include the missing visual baseline count."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing CJK text-layer PDFs=43" `
+    -Message "PDF preflight checklist guidance should include the missing CJK text-layer count."
+
 $pdfPreflightUnavailableBlocker = [pscustomobject]@{
     id = "pdf_visual_release_gate_preflight.summary_unavailable"
     source = "pdf_visual_release_gate_preflight"

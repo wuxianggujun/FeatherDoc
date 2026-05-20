@@ -11,12 +11,36 @@ PDF 可视化验证状态
 3. 最新的 PDF preflight governance 报告仍是 ``blocked``，因为
    ``check_pdf_visual_release_gate_preflight.ps1`` 还报告：
 
+   * ``required_check_count = 10``
    * ``blocking_check_count = 6``
+   * ``missing_cli_pdf_count = 2``
+   * ``visual_baseline_sample_count = 42``
+   * ``missing_visual_baseline_pdf_count = 42``
+   * ``cjk_text_layer_sample_count = 43``
+   * ``missing_cjk_text_layer_pdf_count = 43``
    * ``output_gap_count = 3``
    * ``missing_output_count = 87``
 
 4. 这表示完整的 ``scripts/run_pdf_visual_release_gate.ps1`` 仍然不能在
    低资源边界内直接进入 ready 状态。
+
+治理链路
+--------
+
+当前 PDF preflight 的阻断数字已经接入发布治理链路：
+
+* ``scripts/check_pdf_visual_release_gate_preflight.ps1`` 会在 summary JSON 中输出
+  ``blocking_summary``。
+* ``scripts/write_pdf_visual_release_gate_preflight_governance_report.ps1`` 会把同一份
+  ``blocking_summary`` 透传到 governance summary、release blocker 和 action item。
+* ``scripts/release_blocker_metadata_helpers.ps1`` 会在
+  ``prepare_pdf_visual_release_gate_build_outputs`` 的 runbook / checklist guidance 中展示
+  缺口摘要。
+* ``test/release_note_bundle_version_test.ps1`` 已覆盖 ``REVIEWER_CHECKLIST.md`` 中的
+  ``missing CLI PDFs=2``、``missing visual baseline PDFs=42`` 和
+  ``missing CJK text-layer PDFs=43``。
+
+这些改动只让缺口更可追踪，不会生成 PDF baseline，也不会把完整 visual gate 标记为通过。
 
 受控视觉烟测
 --------------
