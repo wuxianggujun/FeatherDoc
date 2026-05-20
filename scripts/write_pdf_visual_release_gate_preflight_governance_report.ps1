@@ -197,6 +197,54 @@ function Get-BuildDirectorySnapshotFromChecks {
     }
 }
 
+function Get-PreflightOutputGapSummary {
+    param($Checks)
+
+    $gaps = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($check in @($Checks)) {
+        $details = Get-JsonProperty -Object $check -Name "details"
+        if ($null -eq $details) {
+            continue
+        }
+
+        $missingPaths = @(Get-JsonArray -Object $details -Name "missing_paths")
+        $missingPreview = @(Get-JsonArray -Object $details -Name "missing_paths_preview")
+        $missingCount = Get-JsonInt -Object $details -Name "missing_count" -DefaultValue -1
+        if ($missingCount -lt 0) {
+            $missingCount = if ($missingPaths.Count -gt 0) { $missingPaths.Count } else { $missingPreview.Count }
+        }
+        if ($missingCount -le 0 -and $missingPaths.Count -eq 0 -and $missingPreview.Count -eq 0) {
+            continue
+        }
+
+        if ($missingPreview.Count -eq 0) {
+            $missingPreview = @($missingPaths | Select-Object -First 20)
+        }
+
+        $requiredPaths = @(Get-JsonArray -Object $details -Name "required_paths")
+        $sampleCount = Get-JsonInt -Object $details -Name "sample_count" -DefaultValue $requiredPaths.Count
+        $gaps.Add([ordered]@{
+            check = Get-JsonString -Object $check -Name "name"
+            message = Get-JsonString -Object $check -Name "message"
+            sample_count = $sampleCount
+            missing_count = $missingCount
+            missing_paths_preview = @($missingPreview | ForEach-Object { [string]$_ })
+        }) | Out-Null
+    }
+
+    return @($gaps.ToArray())
+}
+
+function Get-PreflightMissingOutputCount {
+    param($OutputGapSummary)
+
+    $count = 0
+    foreach ($gap in @($OutputGapSummary)) {
+        $count += Get-JsonInt -Object $gap -Name "missing_count"
+    }
+    return $count
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -226,6 +274,8 @@ function New-ReportMarkdown {
     }
     $lines.Add("- Blocking checks: ``$($Summary.blocking_check_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
+    $lines.Add("- Output gap checks: ``$($Summary.output_gap_count)``") | Out-Null
+    $lines.Add("- Missing outputs: ``$($Summary.missing_output_count)``") | Out-Null
     $lines.Add("") | Out-Null
 
     $lines.Add("## Blocking Checks") | Out-Null
@@ -250,6 +300,22 @@ function New-ReportMarkdown {
             $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
                 $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
+            }
+        }
+    }
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Output Gaps") | Out-Null
+    $lines.Add("") | Out-Null
+    $outputGapSummary = @(Get-JsonArray -Object $Summary -Name "output_gap_summary")
+    if ($outputGapSummary.Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($gap in $outputGapSummary) {
+            $lines.Add("- ``$(Get-JsonString -Object $gap -Name "check")``: missing=``$(Get-JsonInt -Object $gap -Name "missing_count")`` sample_count=``$(Get-JsonInt -Object $gap -Name "sample_count")``") | Out-Null
+            $preview = @(Get-JsonArray -Object $gap -Name "missing_paths_preview")
+            foreach ($path in @($preview | Select-Object -First 5)) {
+                $lines.Add("  - ``$path``") | Out-Null
             }
         }
     }
@@ -339,6 +405,8 @@ $summaryBuildDir = Get-JsonString -Object $preflightSummary -Name "build_dir" -D
 $summaryRequestedBuildDir = Get-JsonString -Object $preflightSummary -Name "requested_build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
 $summaryBuildDirSource = Get-JsonString -Object $preflightSummary -Name "build_dir_source" -DefaultValue "requested"
 $buildDirSnapshot = Get-BuildDirectorySnapshotFromChecks -Checks $checks
+$outputGapSummary = @(Get-PreflightOutputGapSummary -Checks $checks)
+$missingOutputCount = Get-PreflightMissingOutputCount -OutputGapSummary $outputGapSummary
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
@@ -401,6 +469,9 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         command_template = $commandTemplate
         blocked_item_count = $blockingChecks.Count
         issue_keys = @($blockingChecks)
+        output_gap_count = $outputGapSummary.Count
+        missing_output_count = $missingOutputCount
+        output_gap_summary = @($outputGapSummary)
     }) | Out-Null
     $actionItems.Add([ordered]@{
         id = "prepare_pdf_visual_release_gate_build_outputs"
@@ -417,6 +488,9 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         repair_hint = $repairHint
         blocked_item_count = $blockingChecks.Count
         issue_keys = @($blockingChecks)
+        output_gap_count = $outputGapSummary.Count
+        missing_output_count = $missingOutputCount
+        output_gap_summary = @($outputGapSummary)
     }) | Out-Null
 }
 
@@ -453,6 +527,9 @@ $summary = [ordered]@{
     checks = @($checks)
     blocking_check_count = $blockingChecks.Count
     blocking_checks = @($blockingChecks)
+    output_gap_count = $outputGapSummary.Count
+    missing_output_count = $missingOutputCount
+    output_gap_summary = @($outputGapSummary)
     source_failure_count = $sourceFailureCount
     release_blocker_count = $releaseBlockers.Count
     release_blockers = @($releaseBlockers.ToArray())

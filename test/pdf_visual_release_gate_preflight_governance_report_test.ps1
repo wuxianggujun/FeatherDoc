@@ -121,6 +121,50 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
             message = "CMakeCache.txt is missing."
         },
         [ordered]@{
+            name = "pdf_cli_export_baseline_pdfs_exist"
+            status = "missing"
+            required = $true
+            message = "PDF CLI export source PDFs are missing."
+            details = [ordered]@{
+                required_paths = @(
+                    "test\pdf_cli_export\font-map-source.pdf",
+                    "test\pdf_cli_export\cjk-font-source.pdf"
+                )
+                missing_paths = @(
+                    "test\pdf_cli_export\font-map-source.pdf",
+                    "test\pdf_cli_export\cjk-font-source.pdf"
+                )
+            }
+        },
+        [ordered]@{
+            name = "visual_baseline_manifest_pdfs_exist"
+            status = "missing"
+            required = $true
+            message = "PDF visual baseline manifest outputs are missing."
+            details = [ordered]@{
+                sample_count = 42
+                missing_count = 42
+                missing_paths_preview = @(
+                    "test\pdf_visual_baselines\cjk\font_map_text.pdf",
+                    "test\pdf_visual_baselines\layout\table_grid.pdf"
+                )
+            }
+        },
+        [ordered]@{
+            name = "cjk_text_layer_manifest_pdfs_exist"
+            status = "missing"
+            required = $true
+            message = "PDF CJK text-layer manifest outputs are missing."
+            details = [ordered]@{
+                sample_count = 43
+                missing_count = 43
+                missing_paths_preview = @(
+                    "test\pdf_text_layer_cjk\copy_search\mixed_cjk_text.pdf",
+                    "test\pdf_text_layer_cjk\bullets\nested_cjk_bullets.pdf"
+                )
+            }
+        },
+        [ordered]@{
             name = "render_python_reusable"
             status = "pass"
             required = $true
@@ -130,7 +174,10 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
     blocking_checks = @(
         "build_dir_exists",
         "cmake_cache_exists",
-        "ctest_manifest_exists"
+        "ctest_manifest_exists",
+        "pdf_cli_export_baseline_pdfs_exist",
+        "visual_baseline_manifest_pdfs_exist",
+        "cjk_text_layer_manifest_pdfs_exist"
     )
 })
 
@@ -187,7 +234,7 @@ Assert-Equal -Actual ([int]$blockedSummary.release_blocker_count) -Expected 1 `
     -Message "Not-ready preflight should emit one release blocker."
 Assert-Equal -Actual ([int]$blockedSummary.action_item_count) -Expected 1 `
     -Message "Not-ready preflight should emit one action item."
-Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 3 `
+Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 6 `
     -Message "Governance report should preserve blocking check count."
 Assert-Equal -Actual ([string]$blockedSummary.build_dir_source) -Expected "auto:build" `
     -Message "Governance report should preserve the selected preflight build-dir source."
@@ -200,6 +247,31 @@ Assert-Equal -Actual ([bool]$blockedSummary.build_dir_snapshot.ctest_manifest_ex
     -Message "Governance report should expose whether the selected build dir has CTestTestfile.cmake."
 Assert-Equal -Actual ([int]$blockedSummary.build_dir_snapshot.entry_count) -Expected 1 `
     -Message "Governance report should preserve the selected build dir entry count."
+Assert-Equal -Actual ([int]$blockedSummary.output_gap_count) -Expected 3 `
+    -Message "Governance report should summarize checks with missing output paths."
+Assert-Equal -Actual ([int]$blockedSummary.missing_output_count) -Expected 87 `
+    -Message "Governance report should total missing PDF output counts."
+
+$outputGapChecks = ($blockedSummary.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n"
+Assert-ContainsText -Text $outputGapChecks `
+    -ExpectedText "pdf_cli_export_baseline_pdfs_exist" `
+    -Message "Output gap summary should include missing CLI export source PDFs."
+Assert-ContainsText -Text $outputGapChecks `
+    -ExpectedText "visual_baseline_manifest_pdfs_exist" `
+    -Message "Output gap summary should include missing visual baseline PDFs."
+Assert-ContainsText -Text $outputGapChecks `
+    -ExpectedText "cjk_text_layer_manifest_pdfs_exist" `
+    -Message "Output gap summary should include missing CJK text-layer PDFs."
+$outputGapPreview = ($blockedSummary.output_gap_summary | ForEach-Object { $_.missing_paths_preview } | ForEach-Object { [string]$_ }) -join "`n"
+Assert-ContainsText -Text $outputGapPreview `
+    -ExpectedText "test\pdf_cli_export\font-map-source.pdf" `
+    -Message "Output gap summary should preserve representative CLI export missing paths."
+Assert-ContainsText -Text $outputGapPreview `
+    -ExpectedText "test\pdf_visual_baselines\cjk\font_map_text.pdf" `
+    -Message "Output gap summary should preserve representative visual baseline missing paths."
+Assert-ContainsText -Text $outputGapPreview `
+    -ExpectedText "test\pdf_text_layer_cjk\copy_search\mixed_cjk_text.pdf" `
+    -Message "Output gap summary should preserve representative CJK text-layer missing paths."
 
 $blocker = $blockedSummary.release_blockers[0]
 Assert-Equal -Actual ([string]$blocker.id) `
@@ -223,11 +295,22 @@ Assert-ContainsText -Text (($blocker.issue_keys | ForEach-Object { [string]$_ })
 Assert-ContainsText -Text ([string]$blocker.repair_hint) `
     -ExpectedText "CMakeCache.txt missing" `
     -Message "Blocker should explain when the selected build dir is not a reusable CMake build."
+Assert-Equal -Actual ([int]$blocker.output_gap_count) -Expected 3 `
+    -Message "Blocker should expose how many output gap groups remain."
+Assert-Equal -Actual ([int]$blocker.missing_output_count) -Expected 87 `
+    -Message "Blocker should expose the total missing output count."
+Assert-ContainsText -Text (($blocker.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n") `
+    -ExpectedText "cjk_text_layer_manifest_pdfs_exist" `
+    -Message "Blocker should preserve output gap summary details."
 
 $actionItem = $blockedSummary.action_items[0]
 Assert-ContainsText -Text (($actionItem.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
     -ExpectedText "cmake_cache_exists" `
     -Message "Action item should preserve individual failing preflight checks."
+Assert-Equal -Actual ([int]$actionItem.output_gap_count) -Expected 3 `
+    -Message "Action item should expose how many output gap groups remain."
+Assert-Equal -Actual ([int]$actionItem.missing_output_count) -Expected 87 `
+    -Message "Action item should expose the total missing output count."
 
 $blockedMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $blockedMarkdownPath
 Assert-ContainsText -Text $blockedMarkdown `
@@ -254,6 +337,18 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "issue_keys" `
     -Message "Markdown should include action item issue keys."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Missing outputs" `
+    -Message "Markdown should summarize the missing output count."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Output Gaps" `
+    -Message "Markdown should include an output gaps section."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "visual_baseline_manifest_pdfs_exist" `
+    -Message "Markdown should list output gap checks."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "test\pdf_cli_export\font-map-source.pdf" `
+    -Message "Markdown should list representative missing output paths."
 
 $rollupOutputDir = Join-Path $resolvedWorkingDir "rollup-report"
 $rollupResult = Invoke-PowerShellScript -ScriptPath $rollupScriptPath -Arguments @(
