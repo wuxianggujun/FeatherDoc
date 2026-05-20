@@ -394,7 +394,9 @@ function Add-ReleaseBlockerActionGuidanceLine {
 function Get-ReleaseBlockerRegisteredActions {
     return @(
         "complete_visual_manual_review",
-        "fix_schema_patch_approval_result"
+        "fix_schema_patch_approval_result",
+        "prepare_pdf_visual_release_gate_build_outputs",
+        "rerun_pdf_visual_release_gate_preflight"
     )
 }
 
@@ -445,6 +447,52 @@ function Get-ReleaseBlockerActionGuidanceLines {
         }
         "complete_visual_manual_review" {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Use action `complete_visual_manual_review`: open the referenced visual review task, record the reviewer verdict and reviewed_at, then resync the visual verdict metadata before public release.'
+            break
+        }
+        "prepare_pdf_visual_release_gate_build_outputs" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Use action `prepare_pdf_visual_release_gate_build_outputs`: prepare or reuse the PDF visual release gate build outputs before attempting the full PDF visual gate.'
+
+            $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_report_display"
+            if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+                $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_report")
+            }
+            if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+                Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text ("Open the PDF preflight governance report first: {0}" -f $sourceReportDisplay)
+            }
+
+            $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_json_display"
+            if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_json")
+            }
+            if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text ("Open the source preflight JSON before changing build outputs: {0}" -f $sourceJsonDisplay)
+            }
+
+            $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "command_template"
+            if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+                $commandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly'
+            }
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text ('Run the lightweight preflight command first: `{0}`' -f $commandTemplate)
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Only after preflight is ready and workstation resources allow it, run the full PDF visual release gate, rebuild the release blocker rollup, and regenerate the release note bundle.'
+            break
+        }
+        "rerun_pdf_visual_release_gate_preflight" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Use action `rerun_pdf_visual_release_gate_preflight`: regenerate the PDF visual release gate preflight summary, then rebuild the PDF preflight governance report.'
+
+            $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_json_display"
+            if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_json")
+            }
+            if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text ("Inspect the missing or unreadable preflight JSON path before rerunning: {0}" -f $sourceJsonDisplay)
+            }
+
+            $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "command_template"
+            if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+                $commandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate_preflight.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputJson .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json'
+            }
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text ('Run the lightweight preflight regeneration command: `{0}`' -f $commandTemplate)
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'After the preflight summary is readable, rerun `write_pdf_visual_release_gate_preflight_governance_report.ps1`, rebuild the release blocker rollup, and regenerate the release note bundle.'
             break
         }
         default {

@@ -161,6 +161,12 @@ Markdown 文件。
 重新同步 schema approval metadata 并重新生成 release note bundle。未知 ``action`` 不会
 阻断 bundle 生成，但 checklist 会标记未登记 runbook，提醒维护者把新 action 加入
 ``release_blocker_metadata_helpers.ps1`` 的注册表和固定指引。
+PDF visual release gate 预检治理报告产生的
+``prepare_pdf_visual_release_gate_build_outputs`` 与
+``rerun_pdf_visual_release_gate_preflight`` 也已映射到固定 runbook：reviewer 先查看
+``source_report_display`` / ``source_json_display`` 指向的预检证据，再运行轻量
+``-PreflightOnly`` 或预检重建命令；只有预检 ready 且资源允许时才进入完整 PDF visual gate，
+最后重新生成 release blocker rollup 与 release note bundle。
 
 当 release summary 中存在 ``release_blocker_rollup`` 节点时，bundle 面向 reviewer 的
 四个交接文件（``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 与

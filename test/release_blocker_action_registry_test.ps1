@@ -81,4 +81,53 @@ $unknownGuidance = @(Get-ReleaseBlockerActionGuidanceLines -Blocker ([pscustomob
 Assert-ContainsText -Text $unknownGuidance -ExpectedText ("Unregistered release blocker action ``{0}``" -f $unknownAction) `
     -Message "Unknown release blocker action should render the unregistered runbook fallback."
 
+$pdfPreflightBlocker = [pscustomobject]@{
+    id = "pdf_visual_release_gate_preflight.build_outputs_missing"
+    source = "pdf_visual_release_gate_preflight"
+    severity = "error"
+    status = "blocked"
+    action = "prepare_pdf_visual_release_gate_build_outputs"
+    source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+    source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+    source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+    command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
+}
+$pdfPreflightGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $pdfPreflightBlocker `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "prepare_pdf_visual_release_gate_build_outputs" `
+    -Message "PDF preflight build-output blocker should render its fixed action runbook."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "run_pdf_visual_release_gate.ps1" `
+    -Message "PDF preflight build-output blocker should point at the PDF visual gate wrapper."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "-PreflightOnly" `
+    -Message "PDF preflight build-output blocker should keep the first reviewer step lightweight."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "source preflight JSON" `
+    -Message "PDF preflight build-output blocker should point reviewers at source_json_display evidence."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "release note bundle" `
+    -Message "PDF preflight build-output blocker should tell reviewers to refresh release materials."
+
+$pdfPreflightUnavailableBlocker = [pscustomobject]@{
+    id = "pdf_visual_release_gate_preflight.summary_unavailable"
+    source = "pdf_visual_release_gate_preflight"
+    severity = "error"
+    status = "blocked"
+    action = "rerun_pdf_visual_release_gate_preflight"
+    source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+    source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+    command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate_preflight.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputJson .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+}
+$pdfPreflightUnavailableGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $pdfPreflightUnavailableBlocker `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "rerun_pdf_visual_release_gate_preflight" `
+    -Message "PDF preflight summary-unavailable blocker should render its fixed action runbook."
+Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "check_pdf_visual_release_gate_preflight.ps1" `
+    -Message "PDF preflight summary-unavailable blocker should point at lightweight preflight regeneration."
+Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "write_pdf_visual_release_gate_preflight_governance_report.ps1" `
+    -Message "PDF preflight summary-unavailable blocker should tell reviewers to rebuild governance evidence."
+Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "release note bundle" `
+    -Message "PDF preflight summary-unavailable blocker should tell reviewers to refresh release materials."
+
 Write-Host "Release blocker action registry self-check passed."
