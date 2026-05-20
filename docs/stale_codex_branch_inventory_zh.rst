@@ -974,3 +974,39 @@ preflight 从 ``not_ready`` 进入 ``ready`` 后再做受控可视化验证。
 分支判断不变：两个 PDF CJK 参考分支的 manifest 样例入口已在当前 ``dev`` 覆盖，
 但完整 PDF visual release gate 仍缺可复用 build / CTest / baseline 输出。因此这些
 远端参考分支继续只读保留，不删除、不强推、不整分支合并。
+
+2026-05-21 远端参考分支再复核
+-----------------------------
+
+本轮在 ``dev`` 与 ``origin/dev`` 对齐、工作区干净后执行 ``git fetch --prune origin``，
+并再次只读复核四个远端参考分支：
+
+* ``origin/codex/pdf-cjk-copy-search-gate``。
+* ``origin/codex/pdf-cjk-bullet-fallback``。
+* ``origin/codex/release-governance-rollup-details``。
+* ``origin/codex/release-governance-warning-entrypoints``。
+
+复核结论仍然是：不整分支合并、不强推、不删除远端参考分支。直接对比
+``dev..origin/codex/...`` 后可以看到这些分支仍是旧快照，覆盖回当前 ``dev`` 会删除或
+回退已经恢复的文档、PDF preflight、controlled smoke、release metadata 契约和多轮
+PDF CJK 轻量样例记录。
+
+本轮重点复核 ``release-governance-warning-entrypoints`` 的最新小提交
+``d10f8d8 Preserve content-control governance source metadata``。该提交的目标已经被
+当前 ``dev`` 更完整覆盖：``build_content_control_data_binding_governance_report.ps1``
+已经为 blocker、action item、repair plan 和 warning 保留 ``source_schema``、
+``source_json_display``、``source_report_display``、``repair_strategy``、
+``command_template`` 与相关 markdown 输出；对应契约也已经在
+``build_content_control_data_binding_governance_report_test.ps1`` 和
+``release_governance_warning_helper_contract_test.ps1`` 中固定。因此该旧提交不再摘入，
+避免用旧实现回退当前治理字段。
+
+``release-governance-rollup-details`` 中的 schema calibration、handoff、pipeline 与
+release bundle 方向也已被当前 ``dev`` 的新结构覆盖；剩余差异会回退当前 release
+metadata pipeline 与 PDF preflight runbook 记录，不作为低风险补丁来源。两个 PDF CJK
+参考分支仍以重型 regression 样例、visual baseline 和历史 gate 证据为主；在完整 PDF
+visual release gate 未基于当前 ``dev`` 通过前，它们继续只读保留。
+
+下一步最小风险动作不再是继续搬旧分支代码，而是复用当前 ``dev`` 已有输出，推进
+PDF preflight 缺口清零或形成明确豁免记录；只有在 preflight 与受控可视化验证闭环后，
+再判断这些远端参考分支是否可以归档或删除。
