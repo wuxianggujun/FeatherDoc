@@ -280,6 +280,16 @@ Assert-ContainsText -Text ([string]$duplicateAction.command_template) -ExpectedT
     -Message "Duplicate binding actions should carry an inspection command template."
 Assert-ContainsText -Text ([string]$duplicateAction.source_report_display) -ExpectedText "inspect-content-controls.json" `
     -Message "Duplicate binding actions should carry source report display."
+Assert-Equal -Actual ([string]$duplicateAction.duplicate_binding_key) -Expected "{55555555-5555-5555-5555-555555555555}|/invoice/dueDate" `
+    -Message "Duplicate binding actions should carry a duplicate binding key."
+Assert-Equal -Actual ([int]$duplicateAction.duplicate_member_count) -Expected 2 `
+    -Message "Duplicate binding actions should carry the shared-binding group size."
+Assert-Equal -Actual (@($duplicateAction.duplicate_members).Count) -Expected 2 `
+    -Message "Duplicate binding actions should carry the full duplicate member list."
+Assert-ContainsText -Text ((@($duplicateAction.duplicate_members) | ForEach-Object { [string]$_.alias }) -join "`n") -ExpectedText "Due Date Copy" `
+    -Message "Duplicate binding actions should include the second shared-binding member."
+Assert-ContainsText -Text ([string]$duplicateAction.command_template) -ExpectedText "inspect-content-controls <input.docx> --json" `
+    -Message "Duplicate binding actions should inspect the whole document."
 $repairStatuses = @($summary.repair_plan_status_summary | ForEach-Object { [string]$_.plan_status }) -join "`n"
 Assert-ContainsText -Text $repairStatuses -ExpectedText "source_fix_required" `
     -Message "Repair plan should flag Custom XML source fixes."
@@ -316,6 +326,12 @@ Assert-ContainsText -Text ((@($unboundPlan.required_user_values) | ForEach-Objec
 $duplicatePlan = @($summary.repair_plan_items | Where-Object { [string]$_.repair_strategy -eq "deduplicate_or_confirm_shared_binding" })[0]
 Assert-Equal -Actual ([bool]$duplicatePlan.apply_supported) -Expected $false `
     -Message "Duplicate binding repair should stay review-only."
+Assert-Equal -Actual ([string]$duplicatePlan.duplicate_binding_key) -Expected "{55555555-5555-5555-5555-555555555555}|/invoice/dueDate" `
+    -Message "Duplicate binding repair plan should keep the shared-binding key."
+Assert-Equal -Actual ([int]$duplicatePlan.duplicate_member_count) -Expected 2 `
+    -Message "Duplicate binding repair plan should keep the member count."
+Assert-Equal -Actual (@($duplicatePlan.duplicate_members).Count) -Expected 2 `
+    -Message "Duplicate binding repair plan should keep the full duplicate member list."
 $warning = @($summary.warnings)[0]
 Assert-Equal -Actual ([string]$warning.source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
     -Message "Warnings should carry content-control governance source schema."
@@ -337,6 +353,8 @@ Assert-ContainsText -Text $markdown -ExpectedText "sync_bound_content_control" `
     -Message "Markdown should include bound content-control sync strategy."
 Assert-ContainsText -Text $markdown -ExpectedText "sync-content-controls-from-custom-xml" `
     -Message "Markdown should include bound content-control sync command."
+Assert-ContainsText -Text $markdown -ExpectedText "duplicate_binding_key" `
+    -Message "Markdown should include duplicate binding evidence."
 Assert-ContainsText -Text $markdown -ExpectedText "bound_placeholder" `
     -Message "Markdown should include explicit binding coverage statuses."
 Assert-ContainsText -Text $markdown -ExpectedText "locked_bound" `

@@ -310,7 +310,10 @@ function New-ActionItem {
         [string]$RepairHint = "",
         [string]$CommandTemplate = "",
         [string]$SourceJsonDisplay = "",
-        [string]$OpenCommand = $contentControlGovernanceOpenCommand
+        [string]$OpenCommand = $contentControlGovernanceOpenCommand,
+        [string]$DuplicateBindingKey = "",
+        [int]$DuplicateMemberCount = 0,
+        [object[]]$DuplicateMembers = @()
     )
 
     return [ordered]@{
@@ -331,6 +334,9 @@ function New-ActionItem {
         alias = $Alias
         store_item_id = $StoreItemId
         xpath = $XPath
+        duplicate_binding_key = $DuplicateBindingKey
+        duplicate_member_count = $DuplicateMemberCount
+        duplicate_members = @($DuplicateMembers)
     }
 }
 
@@ -383,6 +389,11 @@ function New-RepairPlanItem {
         repair_strategy = $repairStrategy
         repair_hint = Get-JsonString -Object $Item -Name "repair_hint"
         command_template = Get-JsonString -Object $Item -Name "command_template"
+        duplicate_binding_key = Get-JsonString -Object $Item -Name "duplicate_binding_key"
+        duplicate_member_count = Get-JsonInt -Object $Item -Name "duplicate_member_count"
+        duplicate_members = @(
+            Get-JsonArray -Object $Item -Name "duplicate_members"
+        )
         plan_status = $planStatus
         apply_supported = $applySupported
         native_dry_run_supported = $false
@@ -587,6 +598,18 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
             }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.duplicate_binding_key)) {
+                $lines.Add("  - duplicate_binding_key: ``$($item.duplicate_binding_key)``") | Out-Null
+            }
+            if (($null -ne $item.duplicate_member_count) -and ([int]$item.duplicate_member_count -gt 0)) {
+                $lines.Add("  - duplicate_member_count: ``$($item.duplicate_member_count)``") | Out-Null
+            }
+            if (@($item.duplicate_members).Count -gt 0) {
+                $lines.Add("  - duplicate_members:") | Out-Null
+                foreach ($member in @($item.duplicate_members)) {
+                    $lines.Add("    - part_entry_name=``$([string]$member.part_entry_name)`` index=``$([string]$member.content_control_index)`` tag=``$([string]$member.tag)`` alias=``$([string]$member.alias)``") | Out-Null
+                }
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -606,6 +629,18 @@ function New-ReportMarkdown {
             }
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.duplicate_binding_key)) {
+                $lines.Add("  - duplicate_binding_key: ``$($item.duplicate_binding_key)``") | Out-Null
+            }
+            if (($null -ne $item.duplicate_member_count) -and ([int]$item.duplicate_member_count -gt 0)) {
+                $lines.Add("  - duplicate_member_count: ``$($item.duplicate_member_count)``") | Out-Null
+            }
+            if (@($item.duplicate_members).Count -gt 0) {
+                $lines.Add("  - duplicate_members:") | Out-Null
+                foreach ($member in @($item.duplicate_members)) {
+                    $lines.Add("    - part_entry_name=``$([string]$member.part_entry_name)`` index=``$([string]$member.content_control_index)`` tag=``$([string]$member.tag)`` alias=``$([string]$member.alias)``") | Out-Null
+                }
             }
             $requiredUserValues = @(Get-JsonArray -Object $item -Name "required_user_values")
             if ($requiredUserValues.Count -gt 0) {
@@ -835,6 +870,17 @@ $bindingGroups = @($contentControls.ToArray() | Where-Object {
     } | Group-Object { [string]$_.binding_key } | Where-Object { $_.Count -gt 1 })
 foreach ($group in @($bindingGroups)) {
     $first = @($group.Group)[0]
+    $duplicateMembers = @(
+        $group.Group | ForEach-Object {
+            [ordered]@{
+                part_entry_name = [string]$_.part_entry_name
+                content_control_index = $_.content_control_index
+                tag = [string]$_.tag
+                alias = [string]$_.alias
+                source_json_display = [string]$_.source_json_display
+            }
+        }
+    )
     $actionItems.Add((New-ActionItem `
                 -Id "review_duplicate_content_control_binding" `
                 -Action "review_duplicate_content_control_binding" `
@@ -847,9 +893,12 @@ foreach ($group in @($bindingGroups)) {
                 -StoreItemId ([string]$first.store_item_id) `
                 -XPath ([string]$first.xpath) `
                 -RepairStrategy "deduplicate_or_confirm_shared_binding" `
-                -RepairHint "Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths." `
-                -CommandTemplate (New-InspectContentControlCommandTemplate -Tag ([string]$first.tag) -Alias ([string]$first.alias)) `
-                -SourceJsonDisplay ([string]$first.source_json_display))) | Out-Null
+                -RepairHint "Review the entire shared-binding group. Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths." `
+                -CommandTemplate "featherdoc_cli inspect-content-controls <input.docx> --json" `
+                -SourceJsonDisplay ([string]$first.source_json_display) `
+                -DuplicateBindingKey ([string]$group.Name) `
+                -DuplicateMemberCount ([int]$group.Count) `
+                -DuplicateMembers @($duplicateMembers))) | Out-Null
 }
 
 $repairPlanItems = New-Object 'System.Collections.Generic.List[object]'
