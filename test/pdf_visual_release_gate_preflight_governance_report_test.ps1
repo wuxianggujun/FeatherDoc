@@ -86,15 +86,30 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
     strict = $false
     repo_root = $resolvedRepoRoot
     build_dir = Join-Path $resolvedRepoRoot ".bpdf-roundtrip-msvc"
-    build_dir_source = "auto:build"
+    build_dir_source = "requested"
     requested_build_dir = Join-Path $resolvedRepoRoot ".bpdf-roundtrip-msvc"
     build_dir_auto_candidates = @(
         [ordered]@{
             relative_path = "build"
             path = Join-Path $resolvedRepoRoot "build"
             exists = $true
-            cmake_cache_exists = $false
-            ctest_manifest_exists = $false
+            cmake_cache_exists = $true
+            ctest_manifest_exists = $true
+            pdf_build_options_enabled = $false
+            pdf_build_options = @(
+                [ordered]@{
+                    name = "FEATHERDOC_BUILD_PDF"
+                    present = $true
+                    value = "OFF"
+                    enabled = $false
+                },
+                [ordered]@{
+                    name = "FEATHERDOC_BUILD_PDF_IMPORT"
+                    present = $true
+                    value = "OFF"
+                    enabled = $false
+                }
+            )
             looks_reusable = $false
         },
         [ordered]@{
@@ -103,6 +118,21 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
             exists = $false
             cmake_cache_exists = $false
             ctest_manifest_exists = $false
+            pdf_build_options_enabled = $false
+            pdf_build_options = @(
+                [ordered]@{
+                    name = "FEATHERDOC_BUILD_PDF"
+                    present = $false
+                    value = ""
+                    enabled = $false
+                },
+                [ordered]@{
+                    name = "FEATHERDOC_BUILD_PDF_IMPORT"
+                    present = $false
+                    value = ""
+                    enabled = $false
+                }
+            )
             looks_reusable = $false
         }
     )
@@ -437,7 +467,7 @@ Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.pdf_dependency_missi
 Assert-ContainsText -Text (($blockedSummary.blocking_summary.disabled_pdf_build_options | ForEach-Object { [string]$_ }) -join "`n") `
     -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT" `
     -Message "Governance report should preserve disabled PDF build options."
-Assert-Equal -Actual ([string]$blockedSummary.build_dir_source) -Expected "auto:build" `
+Assert-Equal -Actual ([string]$blockedSummary.build_dir_source) -Expected "requested" `
     -Message "Governance report should preserve the selected preflight build-dir source."
 Assert-ContainsText -Text ([string]$blockedSummary.requested_build_dir_display) `
     -ExpectedText ".bpdf-roundtrip-msvc" `
@@ -454,10 +484,18 @@ $buildAutoCandidate = @($blockedSummary.build_dir_auto_candidates | Where-Object
     Select-Object -First 1
 Assert-Equal -Actual ([bool]$buildAutoCandidate.exists) -Expected $true `
     -Message "Governance report should preserve whether the build auto-candidate exists."
-Assert-Equal -Actual ([bool]$buildAutoCandidate.cmake_cache_exists) -Expected $false `
+Assert-Equal -Actual ([bool]$buildAutoCandidate.cmake_cache_exists) -Expected $true `
     -Message "Governance report should preserve the build auto-candidate CMake cache state."
-Assert-Equal -Actual ([bool]$buildAutoCandidate.ctest_manifest_exists) -Expected $false `
+Assert-Equal -Actual ([bool]$buildAutoCandidate.ctest_manifest_exists) -Expected $true `
     -Message "Governance report should preserve the build auto-candidate CTest manifest state."
+Assert-Equal -Actual ([bool]$buildAutoCandidate.pdf_build_options_enabled) -Expected $false `
+    -Message "Governance report should preserve the build auto-candidate PDF option readiness."
+Assert-ContainsText -Text (($buildAutoCandidate.pdf_build_options | ForEach-Object { "$($_.name)=$($_.value):$($_.enabled)" }) -join "`n") `
+    -ExpectedText "FEATHERDOC_BUILD_PDF=OFF:False" `
+    -Message "Governance report should preserve the build auto-candidate PDF writer option snapshot."
+Assert-ContainsText -Text (($buildAutoCandidate.pdf_build_options | ForEach-Object { "$($_.name)=$($_.value):$($_.enabled)" }) -join "`n") `
+    -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT=OFF:False" `
+    -Message "Governance report should preserve the build auto-candidate PDF import option snapshot."
 Assert-Equal -Actual ([bool]$buildAutoCandidate.looks_reusable) -Expected $false `
     -Message "Governance report should preserve the build auto-candidate reusable decision."
 Assert-Equal -Actual ([int]$blockedSummary.output_gap_count) -Expected 3 `
@@ -581,7 +619,7 @@ Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "not_run_by_preflight_governance" `
     -Message "Markdown should not imply preflight governance ran the full visual gate."
 Assert-ContainsText -Text $blockedMarkdown `
-    -ExpectedText "auto:build" `
+    -ExpectedText "Build dir source: ``requested``" `
     -Message "Markdown should preserve the selected build-dir source value."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Build CMake cache" `
@@ -595,6 +633,15 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText 'reusable=`False`' `
     -Message "Markdown should show why the auto build candidate was not reusable."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText 'PDFOptions=`False`' `
+    -Message "Markdown should show whether the auto build candidate has release-ready PDF options."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText 'PDF option `FEATHERDOC_BUILD_PDF`: present=`True`; value=`OFF`; enabled=`False`' `
+    -Message "Markdown should show the auto build candidate PDF writer option state."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText 'PDF option `FEATHERDOC_BUILD_PDF_IMPORT`: present=`True`; value=`OFF`; enabled=`False`' `
+    -Message "Markdown should show the auto build candidate PDF import option state."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Missing CLI PDFs" `
     -Message "Markdown should expose the missing CLI PDF count summary."

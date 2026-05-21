@@ -327,7 +327,11 @@ function New-ReportMarkdown {
     if ($buildDirAutoCandidates.Count -gt 0) {
         $lines.Add("- Build auto candidates:") | Out-Null
         foreach ($candidate in $buildDirAutoCandidates) {
-            $lines.Add("  - ``$(Get-JsonString -Object $candidate -Name "relative_path")``: reusable=``$(Get-JsonBool -Object $candidate -Name "looks_reusable")``; CMakeCache=``$(Get-JsonBool -Object $candidate -Name "cmake_cache_exists")``; CTest=``$(Get-JsonBool -Object $candidate -Name "ctest_manifest_exists")``") | Out-Null
+            $lines.Add("  - ``$(Get-JsonString -Object $candidate -Name "relative_path")``: reusable=``$(Get-JsonBool -Object $candidate -Name "looks_reusable")``; CMakeCache=``$(Get-JsonBool -Object $candidate -Name "cmake_cache_exists")``; CTest=``$(Get-JsonBool -Object $candidate -Name "ctest_manifest_exists")``; PDFOptions=``$(Get-JsonBool -Object $candidate -Name "pdf_build_options_enabled")``") | Out-Null
+            $candidatePdfOptions = @(Get-JsonArray -Object $candidate -Name "pdf_build_options")
+            foreach ($option in $candidatePdfOptions) {
+                $lines.Add("    - PDF option ``$(Get-JsonString -Object $option -Name "name")``: present=``$(Get-JsonBool -Object $option -Name "present")``; value=``$(Get-JsonString -Object $option -Name "value")``; enabled=``$(Get-JsonBool -Object $option -Name "enabled")``") | Out-Null
+            }
         }
     }
     $lines.Add("- PDF dependency inputs status: ``$(Get-JsonString -Object $Summary -Name "pdf_dependency_inputs_status")``") | Out-Null

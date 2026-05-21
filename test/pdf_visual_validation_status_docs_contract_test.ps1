@@ -79,6 +79,7 @@ $statusMarkers = @(
     "action_item_count = 1",
     "build_dir_source = requested",
     "build_dir_auto_candidates",
+    "pdf_build_options",
     "looks_reusable",
     "preflight_ready = false",
     "full_visual_gate_required = true",
