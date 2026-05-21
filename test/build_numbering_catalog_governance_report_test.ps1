@@ -361,6 +361,30 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "numbering_catalog_governance.dirty_baseline" `
         -Message "Summary should create dirty baseline blocker."
+    $skeletonBlocker = @($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "document_skeleton.style_numbering_issues" })[0]
+    Assert-ContainsText -Text ([string]$skeletonBlocker.source_report_display) `
+        -ExpectedText "skeleton\summary.json" `
+        -Message "Skeleton blockers should expose the source report display path."
+    Assert-ContainsText -Text ([string]$skeletonBlocker.source_json_display) `
+        -ExpectedText "skeleton\summary.json" `
+        -Message "Skeleton blockers should expose the source JSON display path."
+    $dirtyBaselineBlocker = @($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.dirty_baseline" })[0]
+    Assert-ContainsText -Text ([string]$dirtyBaselineBlocker.source_report_display) `
+        -ExpectedText "manifest\summary.json" `
+        -Message "Baseline blockers should expose the source report display path."
+    Assert-ContainsText -Text ([string]$dirtyBaselineBlocker.source_json_display) `
+        -ExpectedText "manifest\summary.json" `
+        -Message "Baseline blockers should expose the source JSON display path."
+    $skeletonAction = @($summary.action_items |
+        Where-Object { [string]$_.id -eq "review_style_numbering_audit" })[0]
+    Assert-ContainsText -Text ([string]$skeletonAction.source_report_display) `
+        -ExpectedText "skeleton\summary.json" `
+        -Message "Skeleton action items should expose the source report display path."
+    Assert-ContainsText -Text ([string]$skeletonAction.source_json_display) `
+        -ExpectedText "skeleton\summary.json" `
+        -Message "Skeleton action items should expose the source JSON display path."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Numbering Catalog Governance Report" `
@@ -381,6 +405,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include action audit commands."
     Assert-ContainsText -Text $markdown -ExpectedText "review_command:" `
         -Message "Markdown should include action review commands."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Markdown should include source report display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
+        -Message "Markdown should include source JSON display fields."
 }
 
 if (Test-Scenario -Name "clean") {

@@ -532,7 +532,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` message=$($blocker.message)") | Out-Null
+            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)`` source_json_display=``$($blocker.source_json_display)`` message=$($blocker.message)") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -543,7 +543,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.scope)`` / ``$($item.id)``: action=``$($item.action)`` title=$($item.title)") | Out-Null
+            $lines.Add("- ``$($item.scope)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)`` title=$($item.title)") | Out-Null
             foreach ($commandName in @("open_command", "audit_command", "review_command")) {
                 $commandValue = Get-JsonString -Object $item -Name $commandName
                 if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
@@ -560,7 +560,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
+            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)`` source_json_display=``$($warning.source_json_display)`` message=$($warning.message)") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -647,6 +647,8 @@ foreach ($path in @($inputPaths)) {
                         exemplar_catalog_display = Get-JsonString -Object $catalog -Name "exemplar_catalog_display"
                         definition_count = Get-JsonInt -Object $catalog -Name "definition_count"
                         instance_count = Get-JsonInt -Object $catalog -Name "instance_count"
+                        source_json = $path
+                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     }) | Out-Null
@@ -663,6 +665,8 @@ foreach ($path in @($inputPaths)) {
                         scope = Get-FirstJsonString -Object $blocker -Names @("document_name", "scope") -DefaultValue "document_skeleton"
                         source_kind = "document_skeleton_governance_rollup"
                         source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                        source_json = $path
+                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
@@ -677,6 +681,8 @@ foreach ($path in @($inputPaths)) {
                         scope = Get-FirstJsonString -Object $item -Names @("document_name", "scope") -DefaultValue "document_skeleton"
                         source_kind = "document_skeleton_governance_rollup"
                         source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                        source_json = $path
+                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         action = Get-JsonString -Object $item -Name "action"
@@ -713,16 +719,24 @@ foreach ($path in @($inputPaths)) {
                         added_definition_count = Get-JsonInt -Object $entry -Name "added_definition_count"
                         removed_definition_count = Get-JsonInt -Object $entry -Name "removed_definition_count"
                         changed_definition_count = Get-JsonInt -Object $entry -Name "changed_definition_count"
+                        source_json = $path
+                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     }) | Out-Null
 
                     $blocker = New-BaselineBlocker -Entry $entry
                     if ($null -ne $blocker) {
+                        $blocker["source_schema"] = "featherdoc.numbering_catalog_manifest_summary.v1"
+                        $blocker["source_json"] = $path
+                        $blocker["source_json_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         $blocker["source_report"] = $path
                         $blocker["source_report_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         $releaseBlockers.Add($blocker) | Out-Null
                         $action = New-ActionForBaselineBlocker -Blocker $blocker -Entry $entry
+                        $action["source_schema"] = "featherdoc.numbering_catalog_manifest_summary.v1"
+                        $action["source_json"] = $path
+                        $action["source_json_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         $action["source_report"] = $path
                         $action["source_report_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         $actionItems.Add($action) | Out-Null
@@ -739,6 +753,7 @@ foreach ($path in @($inputPaths)) {
                     source_schema = "featherdoc.numbering_catalog_governance_report.v1"
                     source_json = $path
                     source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                    source_report = $path
                     source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "Input JSON kind '$kind' is not numbering catalog governance evidence."
                 }) | Out-Null
@@ -753,6 +768,7 @@ foreach ($path in @($inputPaths)) {
             source_schema = "featherdoc.numbering_catalog_governance_report.v1"
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_report = $path
             source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage
         }) | Out-Null
@@ -772,6 +788,10 @@ if ($skeletonRollupCount -eq 0) {
         id = "document_skeleton_governance_rollup_missing"
         action = "rebuild_document_skeleton_governance_rollup"
         source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+        source_json = $summaryPath
+        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+        source_report = $summaryPath
+        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "No document skeleton governance rollup summary was loaded."
     }) | Out-Null
 }
@@ -780,6 +800,10 @@ if ($manifestSummaryCount -eq 0) {
         id = "numbering_catalog_manifest_summary_missing"
         action = "rebuild_numbering_catalog_manifest_summary"
         source_schema = "featherdoc.numbering_catalog_manifest_summary.v1"
+        source_json = $summaryPath
+        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+        source_report = $summaryPath
+        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "No numbering catalog manifest check summary was loaded."
     }) | Out-Null
 }
