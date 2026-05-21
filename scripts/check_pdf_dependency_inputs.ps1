@@ -155,7 +155,8 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedPdfiumPrebuiltRoot)) {
     if ([string]::IsNullOrWhiteSpace($PdfiumIncludeDir)) {
         $PdfiumIncludeDir = Join-Path $resolvedPdfiumPrebuiltRoot "include"
     }
-    if ([string]::IsNullOrWhiteSpace($PdfiumRuntimeDll)) {
+    if ([string]::IsNullOrWhiteSpace($PdfiumRuntimeDll) -and
+        [string]::IsNullOrWhiteSpace($PdfiumRuntimeDir)) {
         $PdfiumRuntimeDll = Join-Path $resolvedPdfiumPrebuiltRoot "bin\pdfium.dll"
     }
 }

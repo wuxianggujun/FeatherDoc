@@ -152,4 +152,33 @@ Assert-Equal -Actual ([string]$prebuiltSummary.pdfium_runtime_dll) `
     -Expected ([System.IO.Path]::GetFullPath((Join-Path $prebuiltBinDir "pdfium.dll"))) `
     -Message "Prebuilt dependency input check should derive runtime DLL from the root."
 
+$runtimeDirRoot = Join-Path $resolvedWorkingDir "prebuilt-runtime-dir"
+$runtimeDirInclude = Join-Path $runtimeDirRoot "include"
+$runtimeDirLibDir = Join-Path $runtimeDirRoot "lib"
+$externalRuntimeDir = Join-Path $resolvedWorkingDir "external-runtime"
+New-Item -ItemType Directory -Path $runtimeDirInclude -Force | Out-Null
+New-Item -ItemType Directory -Path $runtimeDirLibDir -Force | Out-Null
+New-Item -ItemType Directory -Path $externalRuntimeDir -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $runtimeDirInclude "fpdfview.h") -Encoding UTF8 -Value "/* fake pdfium */"
+Set-Content -LiteralPath (Join-Path $runtimeDirLibDir "pdfium.dll.lib") -Encoding UTF8 -Value "fake import lib"
+$runtimeDirSummaryPath = Join-Path $resolvedWorkingDir "prebuilt-runtime-dir-summary.json"
+$runtimeDirResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
+    "-PdfioSourceDir", $pdfioSource,
+    "-PdfiumProvider", "prebuilt",
+    "-PdfiumPrebuiltRoot", $runtimeDirRoot,
+    "-PdfiumRuntimeDir", $externalRuntimeDir,
+    "-OutputJson", $runtimeDirSummaryPath,
+    "-Strict"
+)
+Assert-Equal -Actual $runtimeDirResult.ExitCode -Expected 0 `
+    -Message "Prebuilt dependency input check should accept an explicit runtime directory."
+$runtimeDirSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $runtimeDirSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$runtimeDirSummary.status) -Expected "ready" `
+    -Message "Prebuilt dependency input check should be ready with an explicit runtime directory."
+Assert-Equal -Actual ([string]$runtimeDirSummary.pdfium_runtime_dll) -Expected "" `
+    -Message "Prebuilt dependency input check should not derive bin\pdfium.dll when runtime dir is explicit."
+Assert-Equal -Actual ([string]$runtimeDirSummary.pdfium_runtime_dir) `
+    -Expected ([System.IO.Path]::GetFullPath($externalRuntimeDir)) `
+    -Message "Prebuilt dependency input check should preserve the explicit runtime directory."
+
 Write-Host "PDF dependency input check contract passed."
