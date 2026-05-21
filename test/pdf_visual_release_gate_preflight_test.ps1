@@ -49,6 +49,10 @@ $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
 $summaryPath = Join-Path $resolvedWorkingDir "preflight-summary.json"
 $plainBuildRepoRoot = Join-Path $resolvedWorkingDir "plain-build-repo"
 $plainBuildSummaryPath = Join-Path $resolvedWorkingDir "plain-build-summary.json"
+$disabledBuildDir = Join-Path $resolvedWorkingDir "disabled-pdf-build"
+$disabledBuildSummaryPath = Join-Path $resolvedWorkingDir "disabled-pdf-build-summary.json"
+$disabledCtestMarkerPath = Join-Path $resolvedWorkingDir "disabled-ctest-invoked.txt"
+$disabledCtestPath = Join-Path $resolvedWorkingDir "disabled-ctest.cmd"
 $fakeBuildDir = Join-Path $resolvedWorkingDir "fake-pdf-build"
 $fakeCtestPath = Join-Path $resolvedWorkingDir "fake-ctest.cmd"
 $fakePythonPath = Join-Path $resolvedWorkingDir "fake-python.cmd"
@@ -64,6 +68,33 @@ Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $plainBuildRepoRoot
     -MinFreeMemoryMB 1 | Out-Host
 if ($LASTEXITCODE -ne 0) {
     throw "PDF visual release gate preflight should report not_ready for a plain build directory without failing."
+}
+
+New-Item -ItemType Directory -Path $disabledBuildDir -Force | Out-Null
+@"
+FEATHERDOC_BUILD_PDF:BOOL=OFF
+FEATHERDOC_BUILD_PDF_IMPORT:BOOL=OFF
+"@ | Set-Content -LiteralPath (Join-Path $disabledBuildDir "CMakeCache.txt") -Encoding UTF8
+@"
+add_test(pdf_cli_export "cmd" "/c" "exit 0")
+add_test(pdf_regression_manifest "cmd" "/c" "exit 0")
+"@ | Set-Content -LiteralPath (Join-Path $disabledBuildDir "CTestTestfile.cmake") -Encoding UTF8
+@"
+@echo off
+echo invoked > "$disabledCtestMarkerPath"
+exit /b 0
+"@ | Set-Content -LiteralPath $disabledCtestPath -Encoding ASCII
+& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    -File $scriptPath `
+    -BuildDir $disabledBuildDir `
+    -OutputJson $disabledBuildSummaryPath `
+    -CTestExecutable $disabledCtestPath `
+    -MinFreeMemoryMB 1 | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    throw "PDF visual release gate preflight should report not_ready for disabled PDF build options without failing."
+}
+if (Test-Path -LiteralPath $disabledCtestMarkerPath -PathType Leaf) {
+    throw "PDF visual release gate preflight should skip ctest -N when PDF build options are disabled."
 }
 
 New-Item -ItemType Directory -Path $fakeBuildDir -Force | Out-Null
@@ -215,6 +246,25 @@ Assert-True -Condition ([int]$plainBuildSummary.output_gap_count -eq 3) `
 Assert-True -Condition ([int]$plainBuildSummary.missing_output_count -gt 0) `
     -Message "Plain build directory preflight should report missing output totals."
 
+$disabledBuildSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $disabledBuildSummaryPath | ConvertFrom-Json
+Assert-True -Condition ($disabledBuildSummary.status -eq "not_ready") `
+    -Message "Disabled PDF build preflight should stay not_ready."
+Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_build_options_enabled") `
+    -Message "Disabled PDF build preflight should report the disabled PDF build options blocker."
+Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "ctest_list_contains_pdf_gate_tests") `
+    -Message "Disabled PDF build preflight should keep ctest registration as blocked until PDF options are enabled."
+$disabledCtestCheck = @($disabledBuildSummary.checks | Where-Object { [string]$_.name -eq "ctest_list_contains_pdf_gate_tests" })[0]
+Assert-True -Condition ([string]$disabledCtestCheck.status -eq "skipped") `
+    -Message "Disabled PDF build preflight should skip ctest list enumeration."
+Assert-True -Condition ([string]$disabledCtestCheck.message -match "PDF build/import options") `
+    -Message "Disabled PDF build ctest check should explain that PDF options must be enabled first."
+Assert-True -Condition ([bool]$disabledCtestCheck.details.pdf_build_options_enabled -eq $false) `
+    -Message "Disabled PDF build ctest check should expose the PDF build option readiness flag."
+Assert-True -Condition ((@($disabledCtestCheck.details.disabled_pdf_build_options) | ForEach-Object { [string]$_ }) -contains "FEATHERDOC_BUILD_PDF") `
+    -Message "Disabled PDF build ctest check should expose FEATHERDOC_BUILD_PDF as disabled."
+Assert-True -Condition ((@($disabledCtestCheck.details.disabled_pdf_build_options) | ForEach-Object { [string]$_ }) -contains "FEATHERDOC_BUILD_PDF_IMPORT") `
+    -Message "Disabled PDF build ctest check should expose FEATHERDOC_BUILD_PDF_IMPORT as disabled."
+
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-True -Condition ($summary.status -eq "ready") `
     -Message "Preflight summary should be ready for a reusable fake PDF build."
@@ -344,6 +394,8 @@ foreach ($expectedText in @(
     "FEATHERDOC_BUILD_PDF_IMPORT",
     "disabled_pdf_build_options",
     "missing_pdf_build_options",
+    "Skipped ctest -N because PDF build/import options are not enabled in CMakeCache.txt.",
+    "pdf_build_options_enabled = [bool]`$pdfBuildOptionsReady",
     "build_dir_source",
     "requested_build_dir",
     "blocking_summary",

@@ -489,7 +489,7 @@ $requiredCTestPatterns = @(
     "pdf_visual_release_gate_text_shaping_baselines"
 )
 
-if ($buildDirExists -and $cmakeCacheExists -and $ctestFileExists) {
+if ($buildDirExists -and $cmakeCacheExists -and $ctestFileExists -and $pdfBuildOptionsReady) {
     $ctestOutput = @()
     $ctestExitCode = 0
     try {
@@ -517,14 +517,29 @@ if ($buildDirExists -and $cmakeCacheExists -and $ctestFileExists) {
             missing_patterns = $missingCTestPatterns
         })
 } else {
+    $ctestSkipMessage = if (-not $buildDirExists) {
+        "Skipped ctest -N because the build directory is missing."
+    } elseif (-not $cmakeCacheExists) {
+        "Skipped ctest -N because CMakeCache.txt is missing."
+    } elseif (-not $ctestFileExists) {
+        "Skipped ctest -N because CTestTestfile.cmake is missing."
+    } elseif (-not $pdfBuildOptionsReady) {
+        "Skipped ctest -N because PDF build/import options are not enabled in CMakeCache.txt."
+    } else {
+        "Skipped ctest -N because the reusable PDF build prerequisites are incomplete."
+    }
     Add-CheckResult `
         -Checks $checks `
         -Name "ctest_list_contains_pdf_gate_tests" `
         -Status "skipped" `
         -Required $true `
-        -Message "Skipped ctest -N because the build directory, CMakeCache.txt, or CTest manifest is missing." `
+        -Message $ctestSkipMessage `
         -Details ([ordered]@{
+            ctest_executable = $CTestExecutable
             required_patterns = $requiredCTestPatterns
+            pdf_build_options_enabled = [bool]$pdfBuildOptionsReady
+            missing_pdf_build_options = @($pdfBuildOptionSnapshot.missing_options)
+            disabled_pdf_build_options = @($pdfBuildOptionSnapshot.disabled_options)
         })
 }
 
