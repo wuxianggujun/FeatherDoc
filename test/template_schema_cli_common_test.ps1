@@ -94,6 +94,31 @@ $emptyPortablePath = ConvertTo-TemplateSchemaPortableRelativePath `
 Assert-Equal -Actual $emptyPortablePath -Expected "" `
     -Message "Portable path helper should preserve empty target paths."
 
+$plainCommandLine = ConvertTo-TemplateSchemaCommandLine -Arguments @(
+    "featherdoc_cli",
+    "inspect-styles",
+    ".\samples\invoice.docx",
+    "--json"
+)
+Assert-Equal -Actual $plainCommandLine -Expected "featherdoc_cli inspect-styles .\samples\invoice.docx --json" `
+    -Message "Command-line helper should keep plain arguments unquoted."
+
+$quotedCommandLine = ConvertTo-TemplateSchemaCommandLine -Arguments @(
+    "featherdoc_cli",
+    "apply-style-refactor",
+    "C:\Temp\input doc.docx",
+    "--style",
+    "Body/Text",
+    "--label",
+    'Owner "Review"'
+)
+Assert-Equal -Actual $quotedCommandLine -Expected 'featherdoc_cli apply-style-refactor "C:\Temp\input doc.docx" --style Body/Text --label "Owner \"Review\""' `
+    -Message "Command-line helper should quote whitespace and embedded double quotes while preserving safe path separators."
+
+$nullSkippedCommandLine = ConvertTo-TemplateSchemaCommandLine -Arguments @("cmd", $null, "next")
+Assert-Equal -Actual $nullSkippedCommandLine -Expected "cmd next" `
+    -Message "Command-line helper should skip null arguments."
+
 $tempRoot = Join-Path $RepoRoot ".codex-temp\template-schema-cli-common-binary-test"
 $resolvedTempRoot = [System.IO.Path]::GetFullPath($tempRoot)
 $allowedTempRoot = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot ".codex-temp"))

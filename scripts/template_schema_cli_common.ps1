@@ -57,6 +57,25 @@ function ConvertTo-TemplateSchemaPortableRelativePath {
     ).Replace('\', '/')
 }
 
+function ConvertTo-TemplateSchemaCommandLine {
+    param([object[]]$Arguments)
+
+    $escaped = foreach ($argument in @($Arguments)) {
+        if ($null -eq $argument) {
+            continue
+        }
+
+        $text = [string]$argument
+        if ($text -match '^[A-Za-z0-9_./:\\=-]+$') {
+            $text
+        } else {
+            '"' + ($text -replace '"', '\"') + '"'
+        }
+    }
+
+    return ($escaped -join ' ')
+}
+
 function Get-TemplateSchemaVcvarsPath {
     $candidates = @(
         "D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat",

@@ -16,6 +16,8 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
+. (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
+
 function Write-Step { param([string]$Message) Write-Host "[table-layout-delivery] $Message" }
 function Resolve-RepoRoot { return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path }
 function Resolve-RepoPath {
@@ -92,11 +94,7 @@ function Get-IntValue {
 }
 function ConvertTo-CommandLine {
     param([string[]]$Parts)
-    $escaped = foreach ($part in $Parts) {
-        if ($null -eq $part) { continue }
-        if ($part -match '^[A-Za-z0-9_./:\\=-]+$') { $part } else { '"' + ($part -replace '"', '\"') + '"' }
-    }
-    return ($escaped -join " ")
+    return ConvertTo-TemplateSchemaCommandLine -Arguments $Parts
 }
 function ConvertTo-SafeFileName {
     param([string]$Value)

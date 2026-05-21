@@ -63,15 +63,7 @@ function Convert-ToReportPath {
 function ConvertTo-CommandLine {
     param([string[]]$Arguments)
 
-    $quoted = foreach ($argument in $Arguments) {
-        if ($argument -match '[\s"`]') {
-            '"' + ($argument -replace '"', '\"') + '"'
-        } else {
-            $argument
-        }
-    }
-
-    return ($quoted -join ' ')
+    return ConvertTo-TemplateSchemaCommandLine -Arguments $Arguments
 }
 
 function Get-JsonPropertyValue {

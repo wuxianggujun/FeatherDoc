@@ -151,14 +151,7 @@ function Read-JsonObjectFromLines {
 function ConvertTo-CommandLine {
     param([string[]]$Arguments)
 
-    $quoted = foreach ($argument in @($Arguments)) {
-        if ($argument -match '[\s"`]') {
-            '"' + ($argument -replace '"', '\"') + '"'
-        } else {
-            $argument
-        }
-    }
-    return ($quoted -join ' ')
+    return ConvertTo-TemplateSchemaCommandLine -Arguments $Arguments
 }
 
 $repoRoot = Resolve-TemplateSchemaRepoRoot -ScriptRoot $PSScriptRoot
