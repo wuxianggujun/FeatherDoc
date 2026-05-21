@@ -132,19 +132,23 @@ function Invoke-CommandWithTimeout {
     $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $stdoutPath = Join-Path $logRoot "$stamp-$safeLabel.stdout.log"
     $stderrPath = Join-Path $logRoot "$stamp-$safeLabel.stderr.log"
+    $commandPath = Join-Path $logRoot "$stamp-$safeLabel.cmd"
+    [System.IO.File]::WriteAllLines(
+        $commandPath,
+        @("@echo off", $CommandText, "exit /b %ERRORLEVEL%"),
+        [System.Text.Encoding]::Default)
 
     Write-Step "$Label"
     Write-Host "  command: $CommandText"
     Write-Host "  timeout: ${TimeoutSeconds}s"
 
+    $cmdText = "call `"$commandPath`" > `"$stdoutPath`" 2> `"$stderrPath`""
     $process = Start-Process `
         -FilePath "cmd.exe" `
-        -ArgumentList @("/d", "/s", "/c", $CommandText) `
+        -ArgumentList @("/d", "/s", "/c", $cmdText) `
         -WorkingDirectory $WorkingDirectory `
-        -NoNewWindow `
         -PassThru `
-        -RedirectStandardOutput $stdoutPath `
-        -RedirectStandardError $stderrPath
+        -WindowStyle Hidden
 
     $completed = $process.WaitForExit($TimeoutSeconds * 1000)
     if (-not $completed) {
@@ -160,7 +164,10 @@ function Invoke-CommandWithTimeout {
 
     $process.WaitForExit()
     $process.Refresh()
-    $exitCode = if ($null -eq $process.ExitCode) { 0 } else { [int]$process.ExitCode }
+    if ($null -eq $process.ExitCode) {
+        throw "$Label finished, but the process exit code could not be read."
+    }
+    $exitCode = [int]$process.ExitCode
     if (Test-Path -LiteralPath $stdoutPath) {
         Get-Content -LiteralPath $stdoutPath -Tail 120
     }
