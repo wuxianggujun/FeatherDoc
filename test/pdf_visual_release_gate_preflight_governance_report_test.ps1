@@ -596,6 +596,37 @@ Assert-Equal -Actual (@($actionItem.build_dir_auto_candidates).Count) -Expected 
 Assert-Equal -Actual ([string]$actionItem.pdf_dependency_inputs.status) -Expected "not_ready" `
     -Message "Action item should carry the PDF dependency input summary."
 
+$overrideOutputDir = Join-Path $resolvedWorkingDir "override-report"
+$overridePdfioDir = Join-Path $resolvedWorkingDir "dependency overrides\pdfio"
+$overridePdfiumPrebuiltRoot = Join-Path $resolvedWorkingDir "dependency overrides\pdfium prebuilt"
+$overrideResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
+    "-PreflightJson", $notReadyPreflightPath,
+    "-OutputDir", $overrideOutputDir,
+    "-BuildDir", ".bpdf-roundtrip-msvc",
+    "-PdfioSourceDir", $overridePdfioDir,
+    "-PdfiumProvider", "prebuilt",
+    "-PdfiumPrebuiltRoot", $overridePdfiumPrebuiltRoot
+)
+Assert-Equal -Actual $overrideResult.ExitCode -Expected 0 `
+    -Message "Governance report should accept PDF dependency override arguments. Output: $($overrideResult.Text)"
+$overrideSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $overrideOutputDir "summary.json") | ConvertFrom-Json
+$overrideCommandTemplate = [string]$overrideSummary.release_blockers[0].command_template
+Assert-ContainsText -Text $overrideCommandTemplate `
+    -ExpectedText "-PdfioSourceDir" `
+    -Message "Override command template should preserve the PDFio override parameter."
+Assert-ContainsText -Text $overrideCommandTemplate `
+    -ExpectedText "dependency overrides\pdfio" `
+    -Message "Override command template should preserve the PDFio override value."
+Assert-ContainsText -Text $overrideCommandTemplate `
+    -ExpectedText "-PdfiumProvider prebuilt" `
+    -Message "Override command template should preserve the PDFium provider override."
+Assert-ContainsText -Text $overrideCommandTemplate `
+    -ExpectedText "-PdfiumPrebuiltRoot" `
+    -Message "Override command template should preserve the PDFium prebuilt root override parameter."
+Assert-ContainsText -Text $overrideCommandTemplate `
+    -ExpectedText "dependency overrides\pdfium prebuilt" `
+    -Message "Override command template should quote and preserve the PDFium prebuilt root override value."
+
 $blockedMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $blockedMarkdownPath
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "PDF Visual Release Gate Preflight Governance Report" `
@@ -751,7 +782,14 @@ foreach ($expectedText in @(
     "[int]`$MinFreeMemoryMB = 2048",
     "[switch]`$SkipMemoryGuard",
     "-MinFreeMemoryMB `$MinFreeMemoryMB",
-    "-SkipMemoryGuard:`$SkipMemoryGuard",
+    "SkipMemoryGuard = [bool]`$SkipMemoryGuard",
+    "[string]`$PdfioSourceDir = `"`"",
+    "[string]`$PdfiumProvider = `"`"",
+    "[string]`$PdfiumPrebuiltRoot = `"`"",
+    "Add-OptionalPreflightOverride",
+    "PdfioSourceDir",
+    "PdfiumPrebuiltRoot",
+    "PdfiumRuntimeDir",
     "memoryGuardCommandArgs",
     "run_pdf_visual_release_gate.ps1",
     "check_pdf_visual_release_gate_preflight.ps1"

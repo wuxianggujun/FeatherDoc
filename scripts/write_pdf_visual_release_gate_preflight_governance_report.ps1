@@ -12,6 +12,14 @@ environments.
 param(
     [string]$PreflightJson = "",
     [string]$BuildDir = ".bpdf-roundtrip-msvc",
+    [string]$PdfioSourceDir = "",
+    [string]$PdfiumProvider = "",
+    [string]$PdfiumSourceDir = "",
+    [string]$PdfiumPrebuiltRoot = "",
+    [string]$PdfiumLibrary = "",
+    [string]$PdfiumIncludeDir = "",
+    [string]$PdfiumRuntimeDll = "",
+    [string]$PdfiumRuntimeDir = "",
     [string]$OutputDir = "output/pdf-visual-release-gate-preflight-governance",
     [string]$SummaryJson = "",
     [string]$ReportMarkdown = "",
@@ -153,6 +161,28 @@ function Get-JsonArray {
         return @($value | Where-Object { $null -ne $_ })
     }
     return @($value)
+}
+
+function ConvertTo-CommandArgument {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return '""' }
+    if ($Value -notmatch '[\s"'']') { return $Value }
+    return "'" + ($Value -replace "'", "''") + "'"
+}
+
+function Add-OptionalPreflightOverride {
+    param(
+        [hashtable]$Arguments,
+        [System.Collections.Generic.List[string]]$CommandArguments,
+        [string]$Name,
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return }
+
+    $Arguments[$Name] = $Value
+    [void]$CommandArguments.Add(("-{0} {1}" -f $Name, (ConvertTo-CommandArgument -Value $Value)))
 }
 
 function Get-BlockingCheckNames {
@@ -472,12 +502,32 @@ if ([string]::IsNullOrWhiteSpace($PreflightJson)) {
     }
 
     Write-Step "Running lightweight preflight"
-    & $preflightScriptPath `
-        -BuildDir $BuildDir `
-        -OutputJson $preflightSummaryPath `
-        -CTestExecutable $CTestExecutable `
-        -MinFreeMemoryMB $MinFreeMemoryMB `
-        -SkipMemoryGuard:$SkipMemoryGuard | Out-Null
+    $preflightArguments = @{
+        BuildDir = $BuildDir
+        OutputJson = $preflightSummaryPath
+        CTestExecutable = $CTestExecutable
+        MinFreeMemoryMB = $MinFreeMemoryMB
+        SkipMemoryGuard = [bool]$SkipMemoryGuard
+    }
+    $preflightOverrideCommandArguments = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($entry in @(
+        @{ Name = "PdfioSourceDir"; Value = $PdfioSourceDir },
+        @{ Name = "PdfiumProvider"; Value = $PdfiumProvider },
+        @{ Name = "PdfiumSourceDir"; Value = $PdfiumSourceDir },
+        @{ Name = "PdfiumPrebuiltRoot"; Value = $PdfiumPrebuiltRoot },
+        @{ Name = "PdfiumLibrary"; Value = $PdfiumLibrary },
+        @{ Name = "PdfiumIncludeDir"; Value = $PdfiumIncludeDir },
+        @{ Name = "PdfiumRuntimeDll"; Value = $PdfiumRuntimeDll },
+        @{ Name = "PdfiumRuntimeDir"; Value = $PdfiumRuntimeDir }
+    )) {
+        Add-OptionalPreflightOverride `
+            -Arguments $preflightArguments `
+            -CommandArguments $preflightOverrideCommandArguments `
+            -Name ([string]$entry.Name) `
+            -Value ([string]$entry.Value)
+    }
+
+    & $preflightScriptPath @preflightArguments | Out-Null
 }
 
 try {
@@ -505,7 +555,29 @@ $memoryGuardCommandArgs = if ($SkipMemoryGuard) {
 } else {
     "-MinFreeMemoryMB $MinFreeMemoryMB"
 }
+$preflightOverrideCommandArguments = New-Object 'System.Collections.Generic.List[string]'
+$unusedPreflightArguments = @{}
+foreach ($entry in @(
+    @{ Name = "PdfioSourceDir"; Value = $PdfioSourceDir },
+    @{ Name = "PdfiumProvider"; Value = $PdfiumProvider },
+    @{ Name = "PdfiumSourceDir"; Value = $PdfiumSourceDir },
+    @{ Name = "PdfiumPrebuiltRoot"; Value = $PdfiumPrebuiltRoot },
+    @{ Name = "PdfiumLibrary"; Value = $PdfiumLibrary },
+    @{ Name = "PdfiumIncludeDir"; Value = $PdfiumIncludeDir },
+    @{ Name = "PdfiumRuntimeDll"; Value = $PdfiumRuntimeDll },
+    @{ Name = "PdfiumRuntimeDir"; Value = $PdfiumRuntimeDir }
+)) {
+    Add-OptionalPreflightOverride `
+        -Arguments $unusedPreflightArguments `
+        -CommandArguments $preflightOverrideCommandArguments `
+        -Name ([string]$entry.Name) `
+        -Value ([string]$entry.Value)
+}
+$preflightOverrideCommandArgs = ($preflightOverrideCommandArguments.ToArray() -join " ")
 $commandTemplate = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir $BuildDir -PreflightOnly $memoryGuardCommandArgs"
+if (-not [string]::IsNullOrWhiteSpace($preflightOverrideCommandArgs)) {
+    $commandTemplate += " $preflightOverrideCommandArgs"
+}
 $summaryBuildDir = Get-JsonString -Object $preflightSummary -Name "build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
 $summaryRequestedBuildDir = Get-JsonString -Object $preflightSummary -Name "requested_build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
 $summaryBuildDirSource = Get-JsonString -Object $preflightSummary -Name "build_dir_source" -DefaultValue "requested"
