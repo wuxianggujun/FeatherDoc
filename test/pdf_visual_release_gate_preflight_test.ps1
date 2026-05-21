@@ -103,17 +103,21 @@ $fakePdfioSourceDir = Join-Path $resolvedWorkingDir "fake-pdfio-src"
 $fakePdfiumPrebuiltDir = Join-Path $resolvedWorkingDir "fake-pdfium-prebuilt"
 $fakePdfiumIncludeDir = Join-Path $fakePdfiumPrebuiltDir "include"
 $fakePdfiumLibraryDir = Join-Path $fakePdfiumPrebuiltDir "lib"
+$fakePdfiumBinDir = Join-Path $fakePdfiumPrebuiltDir "bin"
 New-Item -ItemType Directory -Path $fakePdfioSourceDir -Force | Out-Null
 New-Item -ItemType Directory -Path $fakePdfiumIncludeDir -Force | Out-Null
 New-Item -ItemType Directory -Path $fakePdfiumLibraryDir -Force | Out-Null
+New-Item -ItemType Directory -Path $fakePdfiumBinDir -Force | Out-Null
 Set-Content -LiteralPath (Join-Path $fakePdfioSourceDir "pdfio.h") -Encoding UTF8 -Value "/* fake pdfio */"
 Set-Content -LiteralPath (Join-Path $fakePdfiumIncludeDir "fpdfview.h") -Encoding UTF8 -Value "/* fake pdfium */"
 Set-Content -LiteralPath (Join-Path $fakePdfiumLibraryDir "pdfium.lib") -Encoding UTF8 -Value "fake lib"
+Set-Content -LiteralPath (Join-Path $fakePdfiumBinDir "pdfium.dll") -Encoding UTF8 -Value "fake runtime"
 @"
 FEATHERDOC_BUILD_PDF:BOOL=ON
 FEATHERDOC_BUILD_PDF_IMPORT:BOOL=ON
 FEATHERDOC_PDFIO_SOURCE_DIR:PATH=$fakePdfioSourceDir
 FEATHERDOC_PDFIUM_PROVIDER:STRING=prebuilt
+FEATHERDOC_PDFIUM_PREBUILT_ROOT:PATH=$fakePdfiumPrebuiltDir
 FEATHERDOC_PDFIUM_LIBRARY:FILEPATH=$(Join-Path $fakePdfiumLibraryDir "pdfium.lib")
 FEATHERDOC_PDFIUM_INCLUDE_DIR:PATH=$fakePdfiumIncludeDir
 "@ | Set-Content -LiteralPath (Join-Path $fakeBuildDir "CMakeCache.txt") -Encoding UTF8
@@ -302,6 +306,13 @@ Assert-True -Condition ([bool]$summary.pdf_dependency_inputs.pdfium_ready -eq $t
     -Message "Ready preflight should report the CMakeCache PDFium prebuilt inputs as ready."
 Assert-True -Condition ([string]$summary.pdf_dependency_inputs.cmake_cache_variables.FEATHERDOC_PDFIUM_PROVIDER -eq "prebuilt") `
     -Message "Dependency input summary should retain CMakeCache PDFium provider evidence."
+$expectedPdfiumPrebuiltRoot = [System.IO.Path]::GetFullPath($fakePdfiumPrebuiltDir)
+Assert-True -Condition ([string]$summary.pdf_dependency_inputs.cmake_cache_variables.FEATHERDOC_PDFIUM_PREBUILT_ROOT -eq $expectedPdfiumPrebuiltRoot) `
+    -Message "Dependency input summary should retain CMakeCache PDFium prebuilt root evidence."
+Assert-True -Condition ([string]$summary.pdf_dependency_inputs.pdfium_prebuilt_root -eq $expectedPdfiumPrebuiltRoot) `
+    -Message "Ready preflight should expose the PDFium prebuilt root from CMakeCache."
+Assert-True -Condition ([bool]$summary.pdf_dependency_inputs.pdfium_prebuilt_root_exists -eq $true) `
+    -Message "Ready preflight should expose whether the PDFium prebuilt root exists."
 Assert-True -Condition ([string]$summary.blocking_summary.pdf_dependency_inputs_status -eq [string]$summary.pdf_dependency_inputs.status) `
     -Message "Ready preflight should mirror PDF dependency input status into blocking_summary."
 Assert-True -Condition ([int]$summary.blocking_summary.pdf_dependency_missing_input_count -eq [int]$summary.pdf_dependency_inputs.missing_input_count) `

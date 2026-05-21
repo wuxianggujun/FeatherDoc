@@ -264,6 +264,8 @@ function Get-PdfDependencyInputsSummary {
         pdfium_provider = ""
         selected_pdfium_provider = ""
         pdfium_ready = $false
+        pdfium_prebuilt_root = ""
+        pdfium_prebuilt_root_exists = $false
         missing_input_count = 0
         missing_inputs = @()
     }
@@ -279,6 +281,7 @@ function Get-PdfDependencyInputsSummary {
             FEATHERDOC_PDFIO_SOURCE_DIR = "PdfioSourceDir"
             FEATHERDOC_PDFIUM_PROVIDER = "PdfiumProvider"
             FEATHERDOC_PDFIUM_SOURCE_DIR = "PdfiumSourceDir"
+            FEATHERDOC_PDFIUM_PREBUILT_ROOT = "PdfiumPrebuiltRoot"
             FEATHERDOC_PDFIUM_LIBRARY = "PdfiumLibrary"
             FEATHERDOC_PDFIUM_INCLUDE_DIR = "PdfiumIncludeDir"
             FEATHERDOC_PDFIUM_RUNTIME_DLL = "PdfiumRuntimeDll"
@@ -313,6 +316,8 @@ function Get-PdfDependencyInputsSummary {
         $summary.pdfium_provider = [string](Get-JsonPropertyValue -Object $dependencySummary -Name "pdfium_provider" -DefaultValue "")
         $summary.selected_pdfium_provider = [string](Get-JsonPropertyValue -Object $dependencySummary -Name "selected_pdfium_provider" -DefaultValue "")
         $summary.pdfium_ready = [bool](Get-JsonPropertyValue -Object $dependencySummary -Name "pdfium_ready" -DefaultValue $false)
+        $summary.pdfium_prebuilt_root = [string](Get-JsonPropertyValue -Object $dependencySummary -Name "pdfium_prebuilt_root" -DefaultValue "")
+        $summary.pdfium_prebuilt_root_exists = [bool](Get-JsonPropertyValue -Object $dependencySummary -Name "pdfium_prebuilt_root_exists" -DefaultValue $false)
         $summary.missing_input_count = [int](Get-JsonPropertyValue -Object $dependencySummary -Name "missing_input_count" -DefaultValue 0)
         $summary.missing_inputs = @(
             Get-JsonPropertyValue -Object $dependencySummary -Name "missing_inputs" -DefaultValue @() |

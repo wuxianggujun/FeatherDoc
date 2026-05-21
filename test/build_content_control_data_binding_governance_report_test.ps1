@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("aggregate", "fail_on_blocker")]
+    [ValidateSet("aggregate", "fail_on_blocker", "fail_on_warning")]
     [string]$Scenario = "aggregate"
 )
 
@@ -165,11 +165,14 @@ $arguments = @(
 if ($Scenario -eq "fail_on_blocker") {
     $arguments += "-FailOnBlocker"
 }
+if ($Scenario -eq "fail_on_warning") {
+    $arguments += "-FailOnWarning"
+}
 
 $result = Invoke-Report -Arguments $arguments
-if ($Scenario -eq "fail_on_blocker") {
+if ($Scenario -in @("fail_on_blocker", "fail_on_warning")) {
     if ($result.ExitCode -eq 0) {
-        throw "Content-control governance fail-on-blocker run should fail. Output: $($result.Text)"
+        throw "Content-control governance fail run should fail. Output: $($result.Text)"
     }
 } else {
     Assert-Equal -Actual $result.ExitCode -Expected 0 `
