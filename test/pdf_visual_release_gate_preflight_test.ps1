@@ -232,6 +232,8 @@ Assert-True -Condition ([bool]$plainBuildCandidate.ctest_manifest_exists -eq $fa
     -Message "Plain build auto-candidate should report the missing CTest manifest."
 Assert-True -Condition ([bool]$plainBuildCandidate.looks_reusable -eq $false) `
     -Message "Plain build auto-candidate should not look reusable without CMake metadata."
+Assert-True -Condition ([bool]$plainBuildCandidate.pdf_build_options_enabled -eq $false) `
+    -Message "Plain build auto-candidate should report PDF build options as not enabled."
 $plainOutBuildCandidate = @($plainBuildCandidates | Where-Object { [string]$_.relative_path -eq "out\build" }) | Select-Object -First 1
 Assert-True -Condition ($null -ne $plainOutBuildCandidate) `
     -Message "Plain build directory preflight should record the out\build auto-candidate."
@@ -387,6 +389,8 @@ foreach ($expectedText in @(
     "build_dir_auto_candidates",
     "relative_path",
     "looks_reusable",
+    "pdf_build_options = @(`$pdfOptionSnapshot)",
+    "candidateExists -and `$cmakeCacheExists -and `$ctestManifestExists -and `$pdfBuildOptionsReady",
     'Source = "auto:$candidate"',
     "cmake_cache_exists",
     "pdf_build_options_enabled",

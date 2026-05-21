@@ -27,6 +27,33 @@ function Resolve-RepoPath {
     return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $InputPath))
 }
 
+function Test-CMakeCacheBoolOn {
+    param([string]$Value)
+
+    return [string]$Value -in @("1", "ON", "TRUE", "YES", "Y")
+}
+
+function Get-CMakeCacheValues {
+    param(
+        [string]$Path,
+        [string[]]$Names
+    )
+
+    $rawValues = @{}
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        foreach ($line in Get-Content -LiteralPath $Path -Encoding UTF8) {
+            foreach ($name in $Names) {
+                $pattern = "^{0}:[^=]*=(.*)$" -f [regex]::Escape($name)
+                if ($line -match $pattern) {
+                    $rawValues[$name] = $Matches[1].Trim()
+                }
+            }
+        }
+    }
+
+    return $rawValues
+}
+
 function Resolve-PreferredBuildDir {
     param(
         [string]$RepoRoot,
@@ -47,16 +74,40 @@ function Resolve-PreferredBuildDir {
 
     foreach ($candidate in @("build", "out\build")) {
         $candidatePath = Resolve-RepoPath -RepoRoot $RepoRoot -InputPath $candidate
+        $cmakeCachePath = Join-Path $candidatePath "CMakeCache.txt"
         $candidateExists = Test-Path -LiteralPath $candidatePath -PathType Container
-        $cmakeCacheExists = Test-Path -LiteralPath (Join-Path $candidatePath "CMakeCache.txt") -PathType Leaf
+        $cmakeCacheExists = Test-Path -LiteralPath $cmakeCachePath -PathType Leaf
         $ctestManifestExists = Test-Path -LiteralPath (Join-Path $candidatePath "CTestTestfile.cmake") -PathType Leaf
-        $candidateLooksReusable = $cmakeCacheExists -or $ctestManifestExists
+        $requiredPdfBuildOptions = @(
+            "FEATHERDOC_BUILD_PDF",
+            "FEATHERDOC_BUILD_PDF_IMPORT"
+        )
+        $cacheValues = Get-CMakeCacheValues -Path $cmakeCachePath -Names $requiredPdfBuildOptions
+        $pdfOptionSnapshot = New-Object System.Collections.ArrayList
+        $pdfBuildOptionsReady = $cmakeCacheExists
+        foreach ($name in $requiredPdfBuildOptions) {
+            $hasValue = $cacheValues.ContainsKey($name)
+            $value = if ($hasValue) { [string]$cacheValues[$name] } else { "" }
+            $enabled = $hasValue -and (Test-CMakeCacheBoolOn -Value $value)
+            if (-not $enabled) {
+                $pdfBuildOptionsReady = $false
+            }
+            $pdfOptionSnapshot.Add([ordered]@{
+                name = $name
+                present = [bool]$hasValue
+                value = $value
+                enabled = [bool]$enabled
+            }) | Out-Null
+        }
+        $candidateLooksReusable = $candidateExists -and $cmakeCacheExists -and $ctestManifestExists -and $pdfBuildOptionsReady
         $autoCandidates += [ordered]@{
             relative_path = $candidate
             path = $candidatePath
             exists = [bool]$candidateExists
             cmake_cache_exists = [bool]$cmakeCacheExists
             ctest_manifest_exists = [bool]$ctestManifestExists
+            pdf_build_options_enabled = [bool]$pdfBuildOptionsReady
+            pdf_build_options = @($pdfOptionSnapshot)
             looks_reusable = [bool]$candidateLooksReusable
         }
         if ($candidateLooksReusable) {
@@ -308,33 +359,6 @@ function Get-BuildDirectorySnapshot {
         entry_count = $entryCount
         entries_preview = $entries
     }
-}
-
-function Test-CMakeCacheBoolOn {
-    param([string]$Value)
-
-    return [string]$Value -in @("1", "ON", "TRUE", "YES", "Y")
-}
-
-function Get-CMakeCacheValues {
-    param(
-        [string]$Path,
-        [string[]]$Names
-    )
-
-    $rawValues = @{}
-    if (Test-Path -LiteralPath $Path -PathType Leaf) {
-        foreach ($line in Get-Content -LiteralPath $Path -Encoding UTF8) {
-            foreach ($name in $Names) {
-                $pattern = "^{0}:[^=]*=(.*)$" -f [regex]::Escape($name)
-                if ($line -match $pattern) {
-                    $rawValues[$name] = $Matches[1].Trim()
-                }
-            }
-        }
-    }
-
-    return $rawValues
 }
 
 function Get-CMakeCachePdfBuildOptions {
