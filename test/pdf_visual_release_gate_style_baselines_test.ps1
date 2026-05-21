@@ -69,6 +69,14 @@ Assert-ContainsText -Text $scriptText -ExpectedText "expect_visual_baseline -eq 
     -Message "PDF visual release gate should select visual baseline samples from the manifest."
 Assert-ContainsText -Text $scriptText -ExpectedText "visual_style_focus" `
     -Message "PDF visual release gate should carry manifest style focus metadata."
+Assert-ContainsText -Text $scriptText -ExpectedText "unicode-font.log" `
+    -Message "PDF visual release gate should define the unicode font visual regression log path."
+Assert-ContainsText -Text $scriptText -ExpectedText "-ExecutablePath `$unicodeScriptPath" `
+    -Message "PDF visual release gate should run unicode visual regression through captured command logging."
+Assert-ContainsText -Text $scriptText -ExpectedText "-LogPath `$unicodeLog" `
+    -Message "PDF visual release gate should write unicode visual regression output to its declared log."
+Assert-ContainsText -Text $scriptText -ExpectedText "unicode_font = `$unicodeLog" `
+    -Message "PDF visual release gate summary should expose the captured unicode visual regression log."
 Assert-ContainsText -Text $manifestText -ExpectedText '"expect_visual_baseline": true' `
     -Message "PDF regression manifest should mark visual baseline samples."
 

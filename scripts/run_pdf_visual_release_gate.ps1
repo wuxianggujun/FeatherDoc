@@ -270,10 +270,11 @@ Invoke-CapturedCommand `
 
 if (-not $SkipUnicodeBaseline) {
     Write-Step "Running unicode font visual regression"
-    & $unicodeScriptPath -BuildDir $resolvedBuildDir -OutputDir $unicodeOutputDir -Dpi $Dpi
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unicode font visual regression failed."
-    }
+    Invoke-CapturedCommand `
+        -ExecutablePath $unicodeScriptPath `
+        -Arguments @("-BuildDir", $resolvedBuildDir, "-OutputDir", $unicodeOutputDir, "-Dpi", [string]$Dpi) `
+        -LogPath $unicodeLog `
+        -FailureMessage "Unicode font visual regression failed."
 }
 
 $renderPython = Get-RenderPython -RepoRoot $repoRoot
