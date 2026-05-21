@@ -82,6 +82,11 @@ PDF 可视化验证状态
   同一份 summary 还会显式写入 ``preflight_ready``、
   ``full_visual_gate_required`` 和 ``full_visual_gate_status``，避免把
   ``-PreflightOnly`` 结果误读为完整 visual gate 结果。
+* 同一份治理报告还会检查 ``evidence_kind``。如果 preflight summary 标记为
+  ``synthetic_fixture``，或阻断项包含 ``synthetic_preflight_evidence``，即使脚本
+  fixture 看起来满足前置条件，治理报告也必须保持 ``release_ready = false`` 和
+  ``preflight_ready = false``。这些 fake / synthetic 证据只能用于脚本契约测试，
+  不能作为真实 ``run_pdf_visual_release_gate.ps1`` 通过或发布就绪证据。
 * ``scripts/release_blocker_metadata_helpers.ps1`` 会在
   ``prepare_pdf_visual_release_gate_build_outputs`` 的 runbook / checklist guidance 中展示
   缺口摘要，并继续显示 ``memory guard blocked=false``、
