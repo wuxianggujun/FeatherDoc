@@ -94,6 +94,52 @@ $pdfPreflightBlocker = [pscustomobject]@{
     issue_keys = @("cmake_cache_exists", "ctest_manifest_exists", "pdf_build_options_enabled")
     output_gap_count = 3
     missing_output_count = 87
+    build_dir_auto_candidates = @(
+        [pscustomobject]@{
+            relative_path = "build"
+            exists = $true
+            cmake_cache_exists = $true
+            ctest_manifest_exists = $true
+            pdf_build_options_enabled = $false
+            looks_reusable = $false
+            pdf_build_options = @(
+                [pscustomobject]@{
+                    name = "FEATHERDOC_BUILD_PDF"
+                    present = $true
+                    value = "OFF"
+                    enabled = $false
+                },
+                [pscustomobject]@{
+                    name = "FEATHERDOC_BUILD_PDF_IMPORT"
+                    present = $true
+                    value = "OFF"
+                    enabled = $false
+                }
+            )
+        },
+        [pscustomobject]@{
+            relative_path = "out\build"
+            exists = $false
+            cmake_cache_exists = $false
+            ctest_manifest_exists = $false
+            pdf_build_options_enabled = $false
+            looks_reusable = $false
+            pdf_build_options = @(
+                [pscustomobject]@{
+                    name = "FEATHERDOC_BUILD_PDF"
+                    present = $false
+                    value = ""
+                    enabled = $false
+                },
+                [pscustomobject]@{
+                    name = "FEATHERDOC_BUILD_PDF_IMPORT"
+                    present = $false
+                    value = ""
+                    enabled = $false
+                }
+            )
+        }
+    )
     blocking_summary = [pscustomobject]@{
         required_check_count = 12
         blocking_check_count = 7
@@ -151,6 +197,14 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "PDF build options
     -Message "PDF preflight build-output blocker should summarize PDF build option readiness."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "disabled=FEATHERDOC_BUILD_PDF,FEATHERDOC_BUILD_PDF_IMPORT" `
     -Message "PDF preflight build-output blocker should list disabled PDF build options."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "PDF preflight build auto candidates" `
+    -Message "PDF preflight build-output blocker should summarize auto build candidate readiness."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "build(exists=true, CMakeCache=true, CTest=true, PDF options=false, reusable=false" `
+    -Message "PDF preflight build-output blocker should show the build candidate is rejected by PDF options."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "FEATHERDOC_BUILD_PDF(present=true,value=OFF,enabled=false)" `
+    -Message "PDF preflight build-output blocker should show the writer option snapshot for build candidate."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT(present=true,value=OFF,enabled=false)" `
+    -Message "PDF preflight build-output blocker should show the import option snapshot for build candidate."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "memory guard blocked=false" `
     -Message "PDF preflight build-output blocker should include the memory guard blocked state."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "memory guard skipped=false" `
@@ -183,6 +237,10 @@ Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing 
     -Message "PDF preflight checklist guidance should include the missing output total."
 Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "memory guard blocked=false" `
     -Message "PDF preflight checklist guidance should include the memory guard blocked state."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "PDF preflight build auto candidates" `
+    -Message "PDF preflight checklist guidance should summarize auto build candidate readiness."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT(present=true,value=OFF,enabled=false)" `
+    -Message "PDF preflight checklist guidance should show candidate PDF option snapshots."
 Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "not release-ready evidence" `
     -Message "PDF preflight checklist guidance should state that preflight-only is not release-ready evidence."
 

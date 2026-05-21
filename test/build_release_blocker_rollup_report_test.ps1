@@ -376,8 +376,23 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
                 [ordered]@{
                     relative_path = "build"
                     exists = $true
-                    cmake_cache_exists = $false
-                    ctest_manifest_exists = $false
+                    cmake_cache_exists = $true
+                    ctest_manifest_exists = $true
+                    pdf_build_options_enabled = $false
+                    pdf_build_options = @(
+                        [ordered]@{
+                            name = "FEATHERDOC_BUILD_PDF"
+                            present = $true
+                            value = "OFF"
+                            enabled = $false
+                        },
+                        [ordered]@{
+                            name = "FEATHERDOC_BUILD_PDF_IMPORT"
+                            present = $true
+                            value = "OFF"
+                            enabled = $false
+                        }
+                    )
                     looks_reusable = $false
                 },
                 [ordered]@{
@@ -385,6 +400,7 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
                     exists = $false
                     cmake_cache_exists = $false
                     ctest_manifest_exists = $false
+                    pdf_build_options_enabled = $false
                     looks_reusable = $false
                 }
             )
@@ -414,8 +430,23 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
                 [ordered]@{
                     relative_path = "build"
                     exists = $true
-                    cmake_cache_exists = $false
-                    ctest_manifest_exists = $false
+                    cmake_cache_exists = $true
+                    ctest_manifest_exists = $true
+                    pdf_build_options_enabled = $false
+                    pdf_build_options = @(
+                        [ordered]@{
+                            name = "FEATHERDOC_BUILD_PDF"
+                            present = $true
+                            value = "OFF"
+                            enabled = $false
+                        },
+                        [ordered]@{
+                            name = "FEATHERDOC_BUILD_PDF_IMPORT"
+                            present = $true
+                            value = "OFF"
+                            enabled = $false
+                        }
+                    )
                     looks_reusable = $false
                 },
                 [ordered]@{
@@ -423,6 +454,7 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
                     exists = $false
                     cmake_cache_exists = $false
                     ctest_manifest_exists = $false
+                    pdf_build_options_enabled = $false
                     looks_reusable = $false
                 }
             )
@@ -629,6 +661,18 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve PDF preflight blocker blocking summary details."
     Assert-Equal -Actual (@($pdfPreflightBlocker.build_dir_auto_candidates).Count) -Expected 2 `
         -Message "Rollup should preserve PDF preflight blocker build auto candidates."
+    $pdfPreflightBuildCandidate = @($pdfPreflightBlocker.build_dir_auto_candidates |
+            Where-Object { [string]$_.relative_path -eq "build" } |
+            Select-Object -First 1)
+    Assert-Equal -Actual ([bool]$pdfPreflightBuildCandidate.cmake_cache_exists) -Expected $true `
+        -Message "Rollup should preserve PDF preflight build candidate CMake cache state."
+    Assert-Equal -Actual ([bool]$pdfPreflightBuildCandidate.ctest_manifest_exists) -Expected $true `
+        -Message "Rollup should preserve PDF preflight build candidate CTest manifest state."
+    Assert-Equal -Actual ([bool]$pdfPreflightBuildCandidate.pdf_build_options_enabled) -Expected $false `
+        -Message "Rollup should preserve PDF preflight build candidate PDF option readiness."
+    Assert-ContainsText -Text (($pdfPreflightBuildCandidate.pdf_build_options | ForEach-Object { "$($_.name)=$($_.value):$($_.enabled)" }) -join "`n") `
+        -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT=OFF:False" `
+        -Message "Rollup should preserve PDF preflight build candidate PDF option snapshots."
     Assert-ContainsText -Text (($pdfPreflightBlocker.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n") `
         -ExpectedText "visual_baseline_manifest_pdfs_exist" `
         -Message "Rollup should preserve PDF preflight blocker output gap summary."
@@ -641,6 +685,11 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve PDF preflight action blocking summary details."
     Assert-Equal -Actual (@($pdfPreflightAction.build_dir_auto_candidates).Count) -Expected 2 `
         -Message "Rollup should preserve PDF preflight action build auto candidates."
+    $pdfPreflightActionBuildCandidate = @($pdfPreflightAction.build_dir_auto_candidates |
+            Where-Object { [string]$_.relative_path -eq "build" } |
+            Select-Object -First 1)
+    Assert-Equal -Actual ([bool]$pdfPreflightActionBuildCandidate.pdf_build_options_enabled) -Expected $false `
+        -Message "Rollup should preserve PDF preflight action item build candidate PDF option readiness."
     $projectTemplateSourceReport = ($summary.source_reports |
         Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
         Select-Object -First 1)

@@ -523,6 +523,79 @@ function Get-PdfVisualPreflightBlockingSummaryLine {
     return $summaryLine
 }
 
+function Get-PdfVisualPreflightBuildCandidateSummaryLine {
+    param([AllowNull()]$Item)
+
+    $candidates = @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "build_dir_auto_candidates")
+    if ($candidates.Count -eq 0) {
+        return ""
+    }
+
+    $candidateParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($candidate in $candidates) {
+        $relativePath = Get-ReleaseBlockerPropertyValue -Object $candidate -Name "relative_path"
+        if ([string]::IsNullOrWhiteSpace($relativePath)) {
+            $relativePath = Get-ReleaseBlockerPropertyValue -Object $candidate -Name "path"
+        }
+        if ([string]::IsNullOrWhiteSpace($relativePath)) {
+            $relativePath = "(unknown)"
+        }
+
+        $stateParts = @()
+        foreach ($stateName in @(
+                [ordered]@{ Label = "exists"; Name = "exists" },
+                [ordered]@{ Label = "CMakeCache"; Name = "cmake_cache_exists" },
+                [ordered]@{ Label = "CTest"; Name = "ctest_manifest_exists" },
+                [ordered]@{ Label = "PDF options"; Name = "pdf_build_options_enabled" },
+                [ordered]@{ Label = "reusable"; Name = "looks_reusable" }
+            )) {
+            $value = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $candidate -Name $stateName.Name
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                $stateParts += "$($stateName.Label)=$value"
+            }
+        }
+
+        $pdfOptionParts = @()
+        foreach ($option in @(Get-ReleaseBlockerArrayProperty -Object $candidate -Name "pdf_build_options")) {
+            $name = Get-ReleaseBlockerPropertyValue -Object $option -Name "name"
+            if ([string]::IsNullOrWhiteSpace($name)) {
+                continue
+            }
+
+            $present = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $option -Name "present"
+            $value = Get-ReleaseBlockerPropertyValue -Object $option -Name "value"
+            $enabled = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $option -Name "enabled"
+            $optionStateParts = @()
+            if (-not [string]::IsNullOrWhiteSpace($present)) {
+                $optionStateParts += "present=$present"
+            }
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                $optionStateParts += "value=$value"
+            }
+            if (-not [string]::IsNullOrWhiteSpace($enabled)) {
+                $optionStateParts += "enabled=$enabled"
+            }
+            if ($optionStateParts.Count -gt 0) {
+                $pdfOptionParts += "$name($($optionStateParts -join ','))"
+            } else {
+                $pdfOptionParts += $name
+            }
+        }
+
+        if ($pdfOptionParts.Count -gt 0) {
+            $stateParts += "options=$($pdfOptionParts -join ';')"
+        }
+
+        if ($stateParts.Count -gt 0) {
+            $candidateParts.Add("$relativePath($($stateParts -join ', '))") | Out-Null
+        } else {
+            $candidateParts.Add($relativePath) | Out-Null
+        }
+    }
+
+    return "PDF preflight build auto candidates: $($candidateParts.ToArray() -join '; ')."
+}
+
 function Get-ReleaseBlockerRegisteredActions {
     return @(
         "complete_visual_manual_review",
@@ -584,6 +657,7 @@ function Get-ReleaseBlockerActionGuidanceLines {
         "prepare_pdf_visual_release_gate_build_outputs" {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Use action `prepare_pdf_visual_release_gate_build_outputs`: prepare or reuse the PDF visual release gate build outputs before attempting the full PDF visual gate.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Blocker)
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBuildCandidateSummaryLine -Item $Blocker)
             $issueKeys = @(Get-ReleaseBlockerArrayProperty -Object $Blocker -Name "issue_keys" | ForEach-Object { [string]$_ })
             if ($issueKeys -contains "cmake_cache_exists") {
                 Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Preflight issue `cmake_cache_exists` means the selected build directory is not a reusable CMake build; prepare or point at a build directory containing `CMakeCache.txt` before checking CTest registration or PDF outputs.'
@@ -621,6 +695,7 @@ function Get-ReleaseBlockerActionGuidanceLines {
         "rerun_pdf_visual_release_gate_preflight" {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Use action `rerun_pdf_visual_release_gate_preflight`: regenerate the PDF visual release gate preflight summary, then rebuild the PDF preflight governance report.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Blocker)
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBuildCandidateSummaryLine -Item $Blocker)
 
             $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_json_display"
             if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
@@ -1402,6 +1477,9 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Item)
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text (Get-PdfVisualPreflightBuildCandidateSummaryLine -Item $Item)
         $issueKeys = @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "issue_keys" | ForEach-Object { [string]$_ })
         if ($issueKeys -contains "cmake_cache_exists") {
             Add-ReleaseBlockerActionGuidanceLine `
@@ -1436,6 +1514,9 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Item)
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text (Get-PdfVisualPreflightBuildCandidateSummaryLine -Item $Item)
         $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
         if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
             $commandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate_preflight.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputJson .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json'
