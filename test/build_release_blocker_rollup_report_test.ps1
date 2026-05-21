@@ -372,6 +372,18 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
                     missing_paths_preview = @("test\pdf_visual_baselines\cjk\font_map_text.pdf")
                 }
             )
+            pdf_dependency_inputs = [ordered]@{
+                status = "not_ready"
+                selected_pdfium_provider = "unresolved"
+                pdfio_ready = $false
+                pdfium_ready = $false
+                missing_input_count = 3
+                missing_inputs = @(
+                    "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h",
+                    "PDFium source header: C:\repo\tmp\pdfium-workspace\pdfium\public\fpdfview.h",
+                    "PDFium input: provide prebuilt library/include inputs or a source checkout with public/fpdfview.h."
+                )
+            }
             build_dir_auto_candidates = @(
                 [ordered]@{
                     relative_path = "build"
@@ -426,6 +438,18 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
                     missing_paths_preview = @("test\pdf_text_layer_cjk\copy_search\mixed_cjk_text.pdf")
                 }
             )
+            pdf_dependency_inputs = [ordered]@{
+                status = "not_ready"
+                selected_pdfium_provider = "unresolved"
+                pdfio_ready = $false
+                pdfium_ready = $false
+                missing_input_count = 3
+                missing_inputs = @(
+                    "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h",
+                    "PDFium source header: C:\repo\tmp\pdfium-workspace\pdfium\public\fpdfview.h",
+                    "PDFium input: provide prebuilt library/include inputs or a source checkout with public/fpdfview.h."
+                )
+            }
             build_dir_auto_candidates = @(
                 [ordered]@{
                     relative_path = "build"
@@ -673,6 +697,12 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (($pdfPreflightBuildCandidate.pdf_build_options | ForEach-Object { "$($_.name)=$($_.value):$($_.enabled)" }) -join "`n") `
         -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT=OFF:False" `
         -Message "Rollup should preserve PDF preflight build candidate PDF option snapshots."
+    Assert-Equal -Actual ([string]$pdfPreflightBlocker.pdf_dependency_inputs.status) -Expected "not_ready" `
+        -Message "Rollup should preserve PDF preflight dependency input readiness."
+    Assert-Equal -Actual ([string]$pdfPreflightBlocker.pdf_dependency_inputs.selected_pdfium_provider) -Expected "unresolved" `
+        -Message "Rollup should preserve PDF preflight selected PDFium provider."
+    Assert-Equal -Actual ([int]$pdfPreflightBlocker.pdf_dependency_inputs.missing_input_count) -Expected 3 `
+        -Message "Rollup should preserve PDF preflight dependency missing input count."
     Assert-ContainsText -Text (($pdfPreflightBlocker.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n") `
         -ExpectedText "visual_baseline_manifest_pdfs_exist" `
         -Message "Rollup should preserve PDF preflight blocker output gap summary."
@@ -690,6 +720,8 @@ if (Test-Scenario -Name "passing") {
             Select-Object -First 1)
     Assert-Equal -Actual ([bool]$pdfPreflightActionBuildCandidate.pdf_build_options_enabled) -Expected $false `
         -Message "Rollup should preserve PDF preflight action item build candidate PDF option readiness."
+    Assert-Equal -Actual ([string]$pdfPreflightAction.pdf_dependency_inputs.status) -Expected "not_ready" `
+        -Message "Rollup should preserve PDF preflight action item dependency input readiness."
     $projectTemplateSourceReport = ($summary.source_reports |
         Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
         Select-Object -First 1)

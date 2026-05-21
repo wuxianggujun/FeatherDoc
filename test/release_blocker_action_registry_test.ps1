@@ -94,6 +94,18 @@ $pdfPreflightBlocker = [pscustomobject]@{
     issue_keys = @("cmake_cache_exists", "ctest_manifest_exists", "pdf_build_options_enabled")
     output_gap_count = 3
     missing_output_count = 87
+    pdf_dependency_inputs = [pscustomobject]@{
+        status = "not_ready"
+        selected_pdfium_provider = "unresolved"
+        pdfio_ready = $false
+        pdfium_ready = $false
+        missing_input_count = 3
+        missing_inputs = @(
+            "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h",
+            "PDFium source header: C:\repo\tmp\pdfium-workspace\pdfium\public\fpdfview.h",
+            "PDFium input: provide prebuilt library/include inputs or a source checkout with public/fpdfview.h."
+        )
+    }
     build_dir_auto_candidates = @(
         [pscustomobject]@{
             relative_path = "build"
@@ -157,6 +169,11 @@ $pdfPreflightBlocker = [pscustomobject]@{
         pdf_build_options_enabled = $false
         disabled_pdf_build_options = @("FEATHERDOC_BUILD_PDF", "FEATHERDOC_BUILD_PDF_IMPORT")
         missing_pdf_build_options = @()
+        pdf_dependency_inputs_status = "not_ready"
+        selected_pdfium_provider = "unresolved"
+        pdfio_dependency_ready = $false
+        pdfium_dependency_ready = $false
+        pdf_dependency_missing_input_count = 3
     }
 }
 $pdfPreflightGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
@@ -205,6 +222,18 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "FEATHERDOC_BUILD_
     -Message "PDF preflight build-output blocker should show the writer option snapshot for build candidate."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT(present=true,value=OFF,enabled=false)" `
     -Message "PDF preflight build-output blocker should show the import option snapshot for build candidate."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "PDF dependency inputs: status=not_ready" `
+    -Message "PDF preflight build-output blocker should summarize PDF dependency input readiness."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "selected PDFium provider=unresolved" `
+    -Message "PDF preflight build-output blocker should show the selected PDFium provider."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "PDFio ready=false" `
+    -Message "PDF preflight build-output blocker should show PDFio readiness."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "PDFium ready=false" `
+    -Message "PDF preflight build-output blocker should show PDFium readiness."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing inputs=3" `
+    -Message "PDF preflight build-output blocker should show the missing dependency input count."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "PDFium source header" `
+    -Message "PDF preflight build-output blocker should show dependency missing input preview."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "memory guard blocked=false" `
     -Message "PDF preflight build-output blocker should include the memory guard blocked state."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "memory guard skipped=false" `
@@ -241,6 +270,10 @@ Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "PDF pref
     -Message "PDF preflight checklist guidance should summarize auto build candidate readiness."
 Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT(present=true,value=OFF,enabled=false)" `
     -Message "PDF preflight checklist guidance should show candidate PDF option snapshots."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "PDF dependency inputs: status=not_ready" `
+    -Message "PDF preflight checklist guidance should summarize PDF dependency input readiness."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing inputs=3" `
+    -Message "PDF preflight checklist guidance should show missing dependency input count."
 Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "not release-ready evidence" `
     -Message "PDF preflight checklist guidance should state that preflight-only is not release-ready evidence."
 

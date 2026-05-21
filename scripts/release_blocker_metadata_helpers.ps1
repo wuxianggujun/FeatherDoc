@@ -596,6 +596,64 @@ function Get-PdfVisualPreflightBuildCandidateSummaryLine {
     return "PDF preflight build auto candidates: $($candidateParts.ToArray() -join '; ')."
 }
 
+function Get-PdfVisualPreflightDependencyInputSummaryLine {
+    param([AllowNull()]$Item)
+
+    $dependencyInputs = Get-ReleaseBlockerPropertyObject -Object $Item -Name "pdf_dependency_inputs"
+    $blockingSummary = Get-ReleaseBlockerPropertyObject -Object $Item -Name "blocking_summary"
+    $status = Get-ReleaseBlockerPropertyValue -Object $dependencyInputs -Name "status"
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        $status = Get-ReleaseBlockerPropertyValue -Object $blockingSummary -Name "pdf_dependency_inputs_status"
+    }
+    $selectedPdfiumProvider = Get-ReleaseBlockerPropertyValue -Object $dependencyInputs -Name "selected_pdfium_provider"
+    if ([string]::IsNullOrWhiteSpace($selectedPdfiumProvider)) {
+        $selectedPdfiumProvider = Get-ReleaseBlockerPropertyValue -Object $blockingSummary -Name "selected_pdfium_provider"
+    }
+    $pdfioReady = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $dependencyInputs -Name "pdfio_ready"
+    if ([string]::IsNullOrWhiteSpace($pdfioReady)) {
+        $pdfioReady = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $blockingSummary -Name "pdfio_dependency_ready"
+    }
+    $pdfiumReady = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $dependencyInputs -Name "pdfium_ready"
+    if ([string]::IsNullOrWhiteSpace($pdfiumReady)) {
+        $pdfiumReady = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $blockingSummary -Name "pdfium_dependency_ready"
+    }
+
+    $missingInputCount = Get-ReleaseBlockerIntPropertyValue -Object $dependencyInputs -Name "missing_input_count" -DefaultValue -1
+    if ($missingInputCount -lt 0) {
+        $missingInputCount = Get-ReleaseBlockerIntPropertyValue -Object $blockingSummary -Name "pdf_dependency_missing_input_count" -DefaultValue -1
+    }
+    $missingInputs = @(Get-ReleaseBlockerArrayProperty -Object $dependencyInputs -Name "missing_inputs" | ForEach-Object { [string]$_ })
+    if ($missingInputs.Count -eq 0) {
+        $missingInputs = @(Get-ReleaseBlockerArrayProperty -Object $blockingSummary -Name "pdf_dependency_missing_inputs_preview" | ForEach-Object { [string]$_ })
+    }
+
+    $parts = @()
+    if (-not [string]::IsNullOrWhiteSpace($status)) {
+        $parts += "status=$status"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($selectedPdfiumProvider)) {
+        $parts += "selected PDFium provider=$selectedPdfiumProvider"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($pdfioReady)) {
+        $parts += "PDFio ready=$pdfioReady"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($pdfiumReady)) {
+        $parts += "PDFium ready=$pdfiumReady"
+    }
+    if ($missingInputCount -ge 0) {
+        $parts += "missing inputs=$missingInputCount"
+    }
+    if ($missingInputs.Count -gt 0) {
+        $parts += "missing input preview=$(@($missingInputs | Select-Object -First 5) -join '; ')"
+    }
+
+    if ($parts.Count -eq 0) {
+        return ""
+    }
+
+    return "PDF dependency inputs: $($parts -join ', ')."
+}
+
 function Get-ReleaseBlockerRegisteredActions {
     return @(
         "complete_visual_manual_review",
@@ -658,6 +716,7 @@ function Get-ReleaseBlockerActionGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Use action `prepare_pdf_visual_release_gate_build_outputs`: prepare or reuse the PDF visual release gate build outputs before attempting the full PDF visual gate.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Blocker)
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBuildCandidateSummaryLine -Item $Blocker)
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightDependencyInputSummaryLine -Item $Blocker)
             $issueKeys = @(Get-ReleaseBlockerArrayProperty -Object $Blocker -Name "issue_keys" | ForEach-Object { [string]$_ })
             if ($issueKeys -contains "cmake_cache_exists") {
                 Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Preflight issue `cmake_cache_exists` means the selected build directory is not a reusable CMake build; prepare or point at a build directory containing `CMakeCache.txt` before checking CTest registration or PDF outputs.'
@@ -696,6 +755,7 @@ function Get-ReleaseBlockerActionGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Use action `rerun_pdf_visual_release_gate_preflight`: regenerate the PDF visual release gate preflight summary, then rebuild the PDF preflight governance report.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Blocker)
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBuildCandidateSummaryLine -Item $Blocker)
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightDependencyInputSummaryLine -Item $Blocker)
 
             $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_json_display"
             if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
@@ -1480,6 +1540,9 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text (Get-PdfVisualPreflightBuildCandidateSummaryLine -Item $Item)
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text (Get-PdfVisualPreflightDependencyInputSummaryLine -Item $Item)
         $issueKeys = @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "issue_keys" | ForEach-Object { [string]$_ })
         if ($issueKeys -contains "cmake_cache_exists") {
             Add-ReleaseBlockerActionGuidanceLine `
@@ -1517,6 +1580,9 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text (Get-PdfVisualPreflightBuildCandidateSummaryLine -Item $Item)
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text (Get-PdfVisualPreflightDependencyInputSummaryLine -Item $Item)
         $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
         if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
             $commandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate_preflight.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputJson .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json'
