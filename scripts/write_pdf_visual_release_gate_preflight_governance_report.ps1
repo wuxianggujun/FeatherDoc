@@ -180,6 +180,128 @@ function Set-JsonPropertyValue {
     $property.Value = $Value
 }
 
+function Test-SyntheticEvidencePath {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    $normalized = ([string]$Value) -replace '/', '\'
+    return $normalized -match '(^|\\)fake-[^\\]*($|\\)'
+}
+
+function Add-SyntheticEvidenceMarker {
+    param(
+        [System.Collections.ArrayList]$Markers,
+        [string]$Label,
+        [string]$Value
+    )
+
+    if (Test-SyntheticEvidencePath -Value $Value) {
+        $Markers.Add(("{0}={1}" -f $Label, $Value)) | Out-Null
+    }
+}
+
+function Add-JsonObjectStringEvidenceMarkers {
+    param(
+        [System.Collections.ArrayList]$Markers,
+        [string]$Label,
+        [object]$Object
+    )
+
+    if ($null -eq $Object) {
+        return
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        foreach ($key in $Object.Keys) {
+            Add-SyntheticEvidenceMarker `
+                -Markers $Markers `
+                -Label ("{0}.{1}" -f $Label, $key) `
+                -Value ([string]$Object[$key])
+        }
+        return
+    }
+
+    foreach ($property in @($Object.PSObject.Properties)) {
+        Add-SyntheticEvidenceMarker `
+            -Markers $Markers `
+            -Label ("{0}.{1}" -f $Label, $property.Name) `
+            -Value ([string]$property.Value)
+    }
+}
+
+function Get-PreflightEvidenceKindSummary {
+    param($PreflightSummary, $Checks)
+
+    $declaredKind = Get-JsonString -Object $PreflightSummary -Name "evidence_kind"
+    $declaredDetails = Get-JsonProperty -Object $PreflightSummary -Name "evidence_kind_details"
+    $declaredMarkers = @(
+        Get-JsonArray -Object $declaredDetails -Name "synthetic_markers" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+
+    $markers = New-Object System.Collections.ArrayList
+    foreach ($marker in $declaredMarkers) {
+        $markers.Add($marker) | Out-Null
+    }
+
+    Add-SyntheticEvidenceMarker `
+        -Markers $markers `
+        -Label "build_dir" `
+        -Value (Get-JsonString -Object $PreflightSummary -Name "build_dir")
+    Add-SyntheticEvidenceMarker `
+        -Markers $markers `
+        -Label "requested_build_dir" `
+        -Value (Get-JsonString -Object $PreflightSummary -Name "requested_build_dir")
+
+    $ctestCheck = Get-PreflightCheck -Checks $Checks -Name "ctest_list_contains_pdf_gate_tests"
+    $ctestDetails = Get-JsonProperty -Object $ctestCheck -Name "details"
+    Add-SyntheticEvidenceMarker `
+        -Markers $markers `
+        -Label "ctest_executable" `
+        -Value (Get-JsonString -Object $ctestDetails -Name "ctest_executable")
+
+    $renderPythonCheck = Get-PreflightCheck -Checks $Checks -Name "render_python_reusable"
+    $renderPythonDetails = Get-JsonProperty -Object $renderPythonCheck -Name "details"
+    Add-SyntheticEvidenceMarker `
+        -Markers $markers `
+        -Label "render_python" `
+        -Value (Get-JsonString -Object $renderPythonDetails -Name "selected_python_path")
+
+    $pdfDependencyInputs = Get-JsonProperty -Object $PreflightSummary -Name "pdf_dependency_inputs"
+    Add-SyntheticEvidenceMarker `
+        -Markers $markers `
+        -Label "pdf_dependency_inputs.pdfium_prebuilt_root" `
+        -Value (Get-JsonString -Object $pdfDependencyInputs -Name "pdfium_prebuilt_root")
+    Add-JsonObjectStringEvidenceMarkers `
+        -Markers $markers `
+        -Label "pdf_dependency_inputs.cmake_cache_variables" `
+        -Object (Get-JsonProperty -Object $pdfDependencyInputs -Name "cmake_cache_variables")
+    Add-JsonObjectStringEvidenceMarkers `
+        -Markers $markers `
+        -Label "pdf_dependency_inputs.dependency_overrides" `
+        -Object (Get-JsonProperty -Object $pdfDependencyInputs -Name "dependency_overrides")
+
+    $uniqueMarkers = @($markers.ToArray() | Sort-Object -Unique)
+    $kind = $declaredKind
+    if ($uniqueMarkers.Count -gt 0) {
+        $kind = "synthetic_fixture"
+    } elseif ([string]::IsNullOrWhiteSpace($kind)) {
+        $kind = "unknown"
+    }
+
+    return [ordered]@{
+        evidence_kind = $kind
+        synthetic_marker_count = $uniqueMarkers.Count
+        synthetic_markers = @($uniqueMarkers)
+        declared_evidence_kind = $declaredKind
+        declared_evidence_kind_details = $declaredDetails
+    }
+}
+
 function ConvertTo-CommandArgument {
     param([string]$Value)
 
@@ -352,6 +474,15 @@ function New-ReportMarkdown {
     $lines.Add("- Preflight status: ``$($Summary.preflight_status)``") | Out-Null
     $lines.Add("- Full visual gate required: ``$($Summary.full_visual_gate_required)``") | Out-Null
     $lines.Add("- Full visual gate status: ``$($Summary.full_visual_gate_status)``") | Out-Null
+    $lines.Add("- Evidence kind: ``$(Get-JsonString -Object $Summary -Name "evidence_kind")``") | Out-Null
+    $lines.Add("- Synthetic evidence markers: ``$(Get-JsonInt -Object $Summary -Name "synthetic_evidence_marker_count")``") | Out-Null
+    $syntheticEvidenceMarkers = @(Get-JsonArray -Object $Summary -Name "synthetic_evidence_markers")
+    if ($syntheticEvidenceMarkers.Count -gt 0) {
+        $lines.Add("- Synthetic evidence marker preview:") | Out-Null
+        foreach ($marker in @($syntheticEvidenceMarkers | Select-Object -First 5)) {
+            $lines.Add("  - ``$([string]$marker)``") | Out-Null
+        }
+    }
     $lines.Add("- Preflight summary: ``$($Summary.preflight_summary_json_display)``") | Out-Null
     $lines.Add("- Build dir: ``$($Summary.build_dir_display)``") | Out-Null
     $lines.Add("- Build dir source: ``$($Summary.build_dir_source)``") | Out-Null
@@ -599,6 +730,15 @@ $summaryBuildDir = Get-JsonString -Object $preflightSummary -Name "build_dir" -D
 $summaryRequestedBuildDir = Get-JsonString -Object $preflightSummary -Name "requested_build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
 $summaryBuildDirSource = Get-JsonString -Object $preflightSummary -Name "build_dir_source" -DefaultValue "requested"
 $summaryBuildDirAutoCandidates = @(Get-JsonArray -Object $preflightSummary -Name "build_dir_auto_candidates")
+$summaryEvidenceKindDetails = Get-PreflightEvidenceKindSummary -PreflightSummary $preflightSummary -Checks $checks
+$summaryEvidenceKind = Get-JsonString -Object $summaryEvidenceKindDetails -Name "evidence_kind" -DefaultValue "unknown"
+$syntheticEvidenceMarkerCount = Get-JsonInt -Object $summaryEvidenceKindDetails -Name "synthetic_marker_count"
+$syntheticEvidenceMarkers = @(
+    Get-JsonArray -Object $summaryEvidenceKindDetails -Name "synthetic_markers" |
+        ForEach-Object { [string]$_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+)
+$syntheticEvidenceIsBlocking = $summaryEvidenceKind -eq "synthetic_fixture"
 $buildDirSnapshot = Get-BuildDirectorySnapshotFromChecks -Checks $checks
 $outputGapSummary = @(Get-PreflightOutputGapSummary -Checks $checks)
 $missingOutputCount = Get-PreflightMissingOutputCount -OutputGapSummary $outputGapSummary
@@ -630,6 +770,10 @@ if ($pdfDependencyInputsAreBlocking -and
     @($blockingChecks | Where-Object { [string]$_ -eq "pdf_dependency_inputs_ready" }).Count -eq 0) {
     $blockingChecks = @($blockingChecks + "pdf_dependency_inputs_ready" | Sort-Object -Unique)
 }
+if ($syntheticEvidenceIsBlocking -and
+    @($blockingChecks | Where-Object { [string]$_ -eq "synthetic_preflight_evidence" }).Count -eq 0) {
+    $blockingChecks = @($blockingChecks + "synthetic_preflight_evidence" | Sort-Object -Unique)
+}
 if ($pdfDependencyInputsAreBlocking) {
     Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "blocking_check_count" -Value $blockingChecks.Count
     Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "pdf_dependency_inputs_status" -Value $pdfDependencyInputsStatus
@@ -638,6 +782,12 @@ if ($pdfDependencyInputsAreBlocking) {
     Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "pdfio_dependency_ready" -Value $pdfioDependencyReady
     Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "pdfium_dependency_ready" -Value $pdfiumDependencyReady
     Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "pdf_dependency_missing_inputs_preview" -Value @($pdfDependencyMissingInputsPreview)
+}
+if ($syntheticEvidenceIsBlocking) {
+    Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "blocking_check_count" -Value $blockingChecks.Count
+    Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "evidence_kind" -Value $summaryEvidenceKind
+    Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "synthetic_evidence_marker_count" -Value $syntheticEvidenceMarkerCount
+    Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "synthetic_evidence_markers_preview" -Value @($syntheticEvidenceMarkers | Select-Object -First 5)
 }
 $memoryGuardBlocked = Get-JsonBool -Object $preflightBlockingSummary -Name "memory_guard_blocked"
 $memoryGuardSkipped = Get-JsonBool -Object $preflightBlockingSummary -Name "memory_guard_skipped"
@@ -727,6 +877,17 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         }
         $repairHint += " PDF dependency inputs are also not release-gate ready: $($dependencyHints -join '; ')."
     }
+    if ($syntheticEvidenceIsBlocking) {
+        $syntheticHints = @("evidence_kind=synthetic_fixture")
+        if ($syntheticEvidenceMarkerCount -gt 0) {
+            $syntheticHints += "marker_count=$syntheticEvidenceMarkerCount"
+        }
+        $syntheticPreview = @($syntheticEvidenceMarkers | Select-Object -First 3)
+        if ($syntheticPreview.Count -gt 0) {
+            $syntheticHints += "marker_preview=$($syntheticPreview -join '; ')"
+        }
+        $repairHint += " The preflight evidence is synthetic test-fixture evidence and cannot release the real PDF visual gate: $($syntheticHints -join '; '). Rerun preflight against a real reusable PDF build before the full visual gate."
+    }
     if ($buildDirSnapshot.Count -gt 0) {
         $snapshotHints = @()
         if (-not [bool]$buildDirSnapshot["cmake_cache_exists"]) {
@@ -759,6 +920,10 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         issue_keys = @($blockingChecks)
         blocking_summary = $preflightBlockingSummary
         pdf_dependency_inputs = $pdfDependencyInputs
+        evidence_kind = $summaryEvidenceKind
+        evidence_kind_details = $summaryEvidenceKindDetails
+        synthetic_evidence_marker_count = $syntheticEvidenceMarkerCount
+        synthetic_evidence_markers = @($syntheticEvidenceMarkers)
         build_dir_auto_candidates = @($summaryBuildDirAutoCandidates)
         output_gap_count = $outputGapSummary.Count
         missing_output_count = $missingOutputCount
@@ -781,6 +946,10 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         issue_keys = @($blockingChecks)
         blocking_summary = $preflightBlockingSummary
         pdf_dependency_inputs = $pdfDependencyInputs
+        evidence_kind = $summaryEvidenceKind
+        evidence_kind_details = $summaryEvidenceKindDetails
+        synthetic_evidence_marker_count = $syntheticEvidenceMarkerCount
+        synthetic_evidence_markers = @($syntheticEvidenceMarkers)
         build_dir_auto_candidates = @($summaryBuildDirAutoCandidates)
         output_gap_count = $outputGapSummary.Count
         missing_output_count = $missingOutputCount
@@ -817,6 +986,10 @@ $summary = [ordered]@{
     build_dir = $summaryBuildDir
     build_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryBuildDir
     build_dir_source = $summaryBuildDirSource
+    evidence_kind = $summaryEvidenceKind
+    evidence_kind_details = $summaryEvidenceKindDetails
+    synthetic_evidence_marker_count = $syntheticEvidenceMarkerCount
+    synthetic_evidence_markers = @($syntheticEvidenceMarkers)
     requested_build_dir = $summaryRequestedBuildDir
     requested_build_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryRequestedBuildDir
     build_dir_snapshot = $buildDirSnapshot

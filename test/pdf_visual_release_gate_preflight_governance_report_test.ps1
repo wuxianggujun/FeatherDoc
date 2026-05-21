@@ -79,6 +79,7 @@ if ($errors.Count -gt 0) {
 
 $notReadyPreflightPath = Join-Path $resolvedWorkingDir "fixtures\not-ready-preflight.json"
 $readyPreflightPath = Join-Path $resolvedWorkingDir "fixtures\ready-preflight.json"
+$syntheticReadyPreflightPath = Join-Path $resolvedWorkingDir "fixtures\synthetic-ready-preflight.json"
 
 Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
     generated_at = "2026-05-20T00:00:00"
@@ -381,6 +382,99 @@ Write-JsonFile -Path $readyPreflightPath -Value ([ordered]@{
             "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h",
             "PDFium input: provide prebuilt library/include inputs or a source checkout with public/fpdfview.h."
         )
+    }
+})
+
+Write-JsonFile -Path $syntheticReadyPreflightPath -Value ([ordered]@{
+    generated_at = "2026-05-20T00:00:00"
+    status = "ready"
+    strict = $false
+    repo_root = $resolvedRepoRoot
+    build_dir = Join-Path $resolvedWorkingDir "fake-pdf-build"
+    build_dir_source = "requested"
+    requested_build_dir = Join-Path $resolvedWorkingDir "fake-pdf-build"
+    checks = @(
+        [ordered]@{
+            name = "build_dir_exists"
+            status = "pass"
+            required = $true
+            message = "Build directory exists."
+        },
+        [ordered]@{
+            name = "ctest_list_contains_pdf_gate_tests"
+            status = "pass"
+            required = $true
+            message = "ctest -N lists the PDF visual gate prerequisites."
+            details = [ordered]@{
+                ctest_executable = Join-Path $resolvedWorkingDir "fake-ctest.cmd"
+                exit_code = 0
+                required_patterns = @(
+                    "pdf_cli_export",
+                    "pdf_regression_",
+                    "pdf_visual_release_gate_style_baselines",
+                    "pdf_visual_release_gate_text_shaping_baselines"
+                )
+                missing_patterns = @()
+            }
+        },
+        [ordered]@{
+            name = "render_python_reusable"
+            status = "pass"
+            required = $true
+            message = "A reusable render Python with PIL and fitz is available."
+            details = [ordered]@{
+                selected_python_source = "FEATHERDOC_RENDER_PYTHON_EXECUTABLE"
+                selected_python_path = Join-Path $resolvedWorkingDir "fake-python.cmd"
+            }
+        }
+    )
+    blocking_checks = @()
+    blocking_summary = [ordered]@{
+        required_check_count = 3
+        blocking_check_count = 0
+        missing_cli_pdf_count = 0
+        visual_baseline_sample_count = 0
+        missing_visual_baseline_pdf_count = 0
+        cjk_text_layer_sample_count = 0
+        missing_cjk_text_layer_pdf_count = 0
+        build_dir_entry_count = 6
+        ctest_required_pattern_count = 4
+        free_memory_mb = 4096.5
+        min_free_memory_mb = 2048
+        memory_guard_blocked = $false
+        memory_guard_skipped = $false
+        pdf_build_options_enabled = $true
+        pdf_build_option_count = 2
+        disabled_pdf_build_options = @()
+        missing_pdf_build_options = @()
+        pdf_dependency_inputs_status = "ready"
+        pdf_dependency_check_available = $true
+        pdf_dependency_missing_input_count = 0
+        selected_pdfium_provider = "prebuilt"
+        pdfio_dependency_ready = $true
+        pdfium_dependency_ready = $true
+        pdf_dependency_missing_inputs_preview = @()
+    }
+    pdf_dependency_inputs = [ordered]@{
+        available = $true
+        script_path = Join-Path $resolvedRepoRoot "scripts\check_pdf_dependency_inputs.ps1"
+        schema = "featherdoc.pdf_dependency_inputs_check.v1"
+        status = "ready"
+        check_exit_code = 0
+        error_message = ""
+        pdfio_ready = $true
+        pdfium_provider = "prebuilt"
+        selected_pdfium_provider = "prebuilt"
+        pdfium_ready = $true
+        pdfium_prebuilt_root = Join-Path $resolvedWorkingDir "fake-pdfium-prebuilt"
+        pdfium_prebuilt_root_exists = $true
+        missing_input_count = 0
+        missing_inputs = @()
+        cmake_cache_variables = [ordered]@{
+            FEATHERDOC_PDFIO_SOURCE_DIR = Join-Path $resolvedWorkingDir "fake-pdfio-src"
+            FEATHERDOC_PDFIUM_PROVIDER = "prebuilt"
+            FEATHERDOC_PDFIUM_PREBUILT_ROOT = Join-Path $resolvedWorkingDir "fake-pdfium-prebuilt"
+        }
     }
 })
 
@@ -796,6 +890,52 @@ Assert-Equal -Actual ([int]$dependencyBlockedSummary.pdf_dependency_missing_inpu
     -Message "Dependency-blocked governance report should expose PDF dependency missing input count."
 Assert-Equal -Actual ([int]$dependencyBlockedSummary.blocking_summary.blocking_check_count) -Expected 1 `
     -Message "Dependency-blocked governance report should update blocking summary count."
+
+$syntheticReadyOutputDir = Join-Path $resolvedWorkingDir "synthetic-ready-report"
+$syntheticReadyResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
+    "-PreflightJson", $syntheticReadyPreflightPath,
+    "-OutputDir", $syntheticReadyOutputDir,
+    "-BuildDir", ".bpdf-roundtrip-msvc"
+)
+Assert-Equal -Actual $syntheticReadyResult.ExitCode -Expected 0 `
+    -Message "Synthetic-ready governance report should succeed while blocking release readiness. Output: $($syntheticReadyResult.Text)"
+$syntheticReadySummary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $syntheticReadyOutputDir "summary.json") | ConvertFrom-Json
+Assert-Equal -Actual ([string]$syntheticReadySummary.status) -Expected "blocked" `
+    -Message "Governance report should block synthetic fixture evidence even when preflight status is ready."
+Assert-Equal -Actual ([bool]$syntheticReadySummary.release_ready) -Expected $false `
+    -Message "Synthetic fixture evidence should not be release-ready."
+Assert-Equal -Actual ([bool]$syntheticReadySummary.preflight_ready) -Expected $false `
+    -Message "Synthetic fixture evidence should not be treated as real preflight readiness."
+Assert-Equal -Actual ([int]$syntheticReadySummary.blocking_check_count) -Expected 1 `
+    -Message "Synthetic fixture evidence should add exactly one blocking governance check."
+Assert-Equal -Actual ([string]$syntheticReadySummary.evidence_kind) -Expected "synthetic_fixture" `
+    -Message "Synthetic-ready governance report should expose the synthetic evidence kind."
+Assert-True -Condition ([int]$syntheticReadySummary.synthetic_evidence_marker_count -gt 0) `
+    -Message "Synthetic-ready governance report should expose synthetic evidence markers."
+Assert-ContainsText -Text (($syntheticReadySummary.blocking_checks | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "synthetic_preflight_evidence" `
+    -Message "Synthetic-ready governance report should expose the synthetic evidence blocking check."
+Assert-ContainsText -Text (($syntheticReadySummary.release_blockers[0].issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "synthetic_preflight_evidence" `
+    -Message "Synthetic-ready blocker should preserve the synthetic evidence issue key."
+Assert-ContainsText -Text ([string]$syntheticReadySummary.release_blockers[0].repair_hint) `
+    -ExpectedText "synthetic test-fixture evidence" `
+    -Message "Synthetic-ready blocker should explain that fake fixture evidence cannot release the real visual gate."
+$syntheticMarkerText = ($syntheticReadySummary.synthetic_evidence_markers | ForEach-Object { [string]$_ }) -join "`n"
+Assert-ContainsText -Text $syntheticMarkerText `
+    -ExpectedText "fake-pdf-build" `
+    -Message "Synthetic-ready governance report should identify the fake build marker."
+Assert-ContainsText -Text $syntheticMarkerText `
+    -ExpectedText "fake-ctest.cmd" `
+    -Message "Synthetic-ready governance report should identify the fake CTest marker."
+Assert-ContainsText -Text $syntheticMarkerText `
+    -ExpectedText "fake-python.cmd" `
+    -Message "Synthetic-ready governance report should identify the fake render Python marker."
+Assert-ContainsText -Text $syntheticMarkerText `
+    -ExpectedText "fake-pdfio-src" `
+    -Message "Synthetic-ready governance report should identify the fake PDFio marker."
+Assert-Equal -Actual ([int]$syntheticReadySummary.blocking_summary.blocking_check_count) -Expected 1 `
+    -Message "Synthetic-ready governance report should update blocking summary count."
 
 $governanceScriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 foreach ($expectedText in @(

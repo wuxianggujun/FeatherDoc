@@ -246,11 +246,110 @@ function Get-JsonPropertyValue {
         [object]$DefaultValue = $null
     )
 
+    if ($null -eq $Object) {
+        return $DefaultValue
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Name)) {
+            return $Object[$Name]
+        }
+        return $DefaultValue
+    }
+
     $property = $Object.PSObject.Properties[$Name]
     if ($null -eq $property) {
         return $DefaultValue
     }
     return $property.Value
+}
+
+function Test-SyntheticEvidencePath {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    $normalized = ([string]$Value) -replace '/', '\'
+    return $normalized -match '(^|\\)fake-[^\\]*($|\\)'
+}
+
+function Add-SyntheticEvidenceMarker {
+    param(
+        [System.Collections.ArrayList]$Markers,
+        [string]$Label,
+        [string]$Value
+    )
+
+    if (Test-SyntheticEvidencePath -Value $Value) {
+        $Markers.Add(("{0}={1}" -f $Label, $Value)) | Out-Null
+    }
+}
+
+function Add-JsonObjectStringEvidenceMarkers {
+    param(
+        [System.Collections.ArrayList]$Markers,
+        [string]$Label,
+        [object]$Object
+    )
+
+    if ($null -eq $Object) {
+        return
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        foreach ($key in $Object.Keys) {
+            Add-SyntheticEvidenceMarker `
+                -Markers $Markers `
+                -Label ("{0}.{1}" -f $Label, $key) `
+                -Value ([string]$Object[$key])
+        }
+        return
+    }
+
+    foreach ($property in @($Object.PSObject.Properties)) {
+        Add-SyntheticEvidenceMarker `
+            -Markers $Markers `
+            -Label ("{0}.{1}" -f $Label, $property.Name) `
+            -Value ([string]$property.Value)
+    }
+}
+
+function Get-PreflightEvidenceKind {
+    param(
+        [string]$ResolvedBuildDir,
+        [string]$CTestExecutable,
+        [string]$SelectedPythonPath,
+        [object]$PdfDependencyInputs
+    )
+
+    $markers = New-Object System.Collections.ArrayList
+    Add-SyntheticEvidenceMarker -Markers $markers -Label "build_dir" -Value $ResolvedBuildDir
+    Add-SyntheticEvidenceMarker -Markers $markers -Label "ctest_executable" -Value $CTestExecutable
+    Add-SyntheticEvidenceMarker -Markers $markers -Label "render_python" -Value $SelectedPythonPath
+
+    if ($null -ne $PdfDependencyInputs) {
+        Add-SyntheticEvidenceMarker `
+            -Markers $markers `
+            -Label "pdf_dependency_inputs.pdfium_prebuilt_root" `
+            -Value ([string](Get-JsonPropertyValue -Object $PdfDependencyInputs -Name "pdfium_prebuilt_root" -DefaultValue ""))
+        Add-JsonObjectStringEvidenceMarkers `
+            -Markers $markers `
+            -Label "pdf_dependency_inputs.cmake_cache_variables" `
+            -Object (Get-JsonPropertyValue -Object $PdfDependencyInputs -Name "cmake_cache_variables" -DefaultValue $null)
+        Add-JsonObjectStringEvidenceMarkers `
+            -Markers $markers `
+            -Label "pdf_dependency_inputs.dependency_overrides" `
+            -Object (Get-JsonPropertyValue -Object $PdfDependencyInputs -Name "dependency_overrides" -DefaultValue $null)
+    }
+
+    $uniqueMarkers = @($markers.ToArray() | Sort-Object -Unique)
+    return [ordered]@{
+        evidence_kind = if ($uniqueMarkers.Count -gt 0) { "synthetic_fixture" } else { "real_build" }
+        synthetic_marker_count = $uniqueMarkers.Count
+        synthetic_markers = @($uniqueMarkers)
+    }
 }
 
 function Get-PdfDependencyInputsSummary {
@@ -798,6 +897,12 @@ if ($null -ne $selectedPython) {
     $selectedPythonSource = [string]$selectedPython.source
     $selectedPythonPath = [string]$selectedPython.path
 }
+$evidenceKindDetails = Get-PreflightEvidenceKind `
+    -ResolvedBuildDir $resolvedBuildDir `
+    -CTestExecutable $CTestExecutable `
+    -SelectedPythonPath $selectedPythonPath `
+    -PdfDependencyInputs $pdfDependencyInputs
+$evidenceKind = [string]$evidenceKindDetails.evidence_kind
 $checks.Add([ordered]@{
     name = "render_python_reusable"
     status = $renderPythonStatus
@@ -849,6 +954,8 @@ $blockingSummary = [ordered]@{
     pdfio_dependency_ready = [bool]$pdfDependencyInputs.pdfio_ready
     pdfium_dependency_ready = [bool]$pdfDependencyInputs.pdfium_ready
     pdf_dependency_missing_inputs_preview = @($pdfDependencyInputs.missing_inputs | Select-Object -First 5)
+    evidence_kind = $evidenceKind
+    synthetic_evidence_marker_count = [int]$evidenceKindDetails.synthetic_marker_count
 }
 $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
@@ -862,6 +969,8 @@ $summary = [ordered]@{
     blocking_summary = $blockingSummary
     output_gap_count = $outputGapCount
     missing_output_count = $missingOutputCount
+    evidence_kind = $evidenceKind
+    evidence_kind_details = $evidenceKindDetails
     pdf_dependency_inputs = $pdfDependencyInputs
     checks = @($checks)
     blocking_checks = @($blockingChecks | ForEach-Object { $_.name })

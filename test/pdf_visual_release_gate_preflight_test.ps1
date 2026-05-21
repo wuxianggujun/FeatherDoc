@@ -376,6 +376,21 @@ Assert-True -Condition (@($summary.blocking_summary.disabled_pdf_build_options).
     -Message "Ready preflight should report zero disabled PDF build options."
 Assert-True -Condition (@($summary.blocking_summary.missing_pdf_build_options).Count -eq 0) `
     -Message "Ready preflight should report zero missing PDF build options."
+Assert-True -Condition ([string]$summary.evidence_kind -eq "synthetic_fixture") `
+    -Message "Ready preflight should mark fake fixture evidence as synthetic."
+Assert-True -Condition ([int]$summary.evidence_kind_details.synthetic_marker_count -gt 0) `
+    -Message "Ready preflight should expose synthetic evidence markers for fake fixtures."
+Assert-True -Condition ([int]$summary.blocking_summary.synthetic_evidence_marker_count -gt 0) `
+    -Message "Ready preflight blocking summary should mirror synthetic evidence marker count."
+$syntheticMarkers = ($summary.evidence_kind_details.synthetic_markers | ForEach-Object { [string]$_ }) -join "`n"
+Assert-True -Condition ($syntheticMarkers -match [regex]::Escape("fake-pdf-build")) `
+    -Message "Ready fake fixture preflight should identify the fake build directory evidence marker."
+Assert-True -Condition ($syntheticMarkers -match [regex]::Escape("fake-pdfio-src")) `
+    -Message "Ready fake fixture preflight should identify the fake PDFio dependency evidence marker."
+Assert-True -Condition ($syntheticMarkers -match [regex]::Escape("fake-ctest.cmd")) `
+    -Message "Ready fake fixture preflight should identify the fake CTest evidence marker."
+Assert-True -Condition ($syntheticMarkers -match [regex]::Escape("fake-python.cmd")) `
+    -Message "Ready fake fixture preflight should identify the fake render Python evidence marker."
 
 $lowMemorySummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $lowMemorySummaryPath | ConvertFrom-Json
 Assert-True -Condition ($lowMemorySummary.status -eq "not_ready") `
@@ -493,7 +508,11 @@ foreach ($expectedText in @(
     ".cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe",
     "Get-Command python",
     "Get-Command python3",
-    'source = "base Python"'
+    'source = "base Python"',
+    "Get-PreflightEvidenceKind",
+    "evidence_kind",
+    "synthetic_fixture",
+    "synthetic_markers"
 )) {
     Assert-True -Condition ($preflightText -match [regex]::Escape($expectedText)) `
         -Message "PDF visual release gate preflight should keep build-dir selection marker '$expectedText'."
