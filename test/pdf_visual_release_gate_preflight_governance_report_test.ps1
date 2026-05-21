@@ -88,6 +88,24 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
     build_dir = Join-Path $resolvedRepoRoot ".bpdf-roundtrip-msvc"
     build_dir_source = "auto:build"
     requested_build_dir = Join-Path $resolvedRepoRoot ".bpdf-roundtrip-msvc"
+    build_dir_auto_candidates = @(
+        [ordered]@{
+            relative_path = "build"
+            path = Join-Path $resolvedRepoRoot "build"
+            exists = $true
+            cmake_cache_exists = $false
+            ctest_manifest_exists = $false
+            looks_reusable = $false
+        },
+        [ordered]@{
+            relative_path = "out\build"
+            path = Join-Path $resolvedRepoRoot "out\build"
+            exists = $false
+            cmake_cache_exists = $false
+            ctest_manifest_exists = $false
+            looks_reusable = $false
+        }
+    )
     checks = @(
         [ordered]@{
             name = "workstation_free_memory_available"
@@ -322,6 +340,18 @@ Assert-Equal -Actual ([bool]$blockedSummary.build_dir_snapshot.ctest_manifest_ex
     -Message "Governance report should expose whether the selected build dir has CTestTestfile.cmake."
 Assert-Equal -Actual ([int]$blockedSummary.build_dir_snapshot.entry_count) -Expected 1 `
     -Message "Governance report should preserve the selected build dir entry count."
+Assert-Equal -Actual (@($blockedSummary.build_dir_auto_candidates).Count) -Expected 2 `
+    -Message "Governance report should preserve auto build candidate records."
+$buildAutoCandidate = @($blockedSummary.build_dir_auto_candidates | Where-Object { [string]$_.relative_path -eq "build" }) |
+    Select-Object -First 1
+Assert-Equal -Actual ([bool]$buildAutoCandidate.exists) -Expected $true `
+    -Message "Governance report should preserve whether the build auto-candidate exists."
+Assert-Equal -Actual ([bool]$buildAutoCandidate.cmake_cache_exists) -Expected $false `
+    -Message "Governance report should preserve the build auto-candidate CMake cache state."
+Assert-Equal -Actual ([bool]$buildAutoCandidate.ctest_manifest_exists) -Expected $false `
+    -Message "Governance report should preserve the build auto-candidate CTest manifest state."
+Assert-Equal -Actual ([bool]$buildAutoCandidate.looks_reusable) -Expected $false `
+    -Message "Governance report should preserve the build auto-candidate reusable decision."
 Assert-Equal -Actual ([int]$blockedSummary.output_gap_count) -Expected 3 `
     -Message "Governance report should summarize checks with missing output paths."
 Assert-Equal -Actual ([int]$blockedSummary.missing_output_count) -Expected 87 `
@@ -385,6 +415,8 @@ Assert-Equal -Actual ([int]$blocker.missing_output_count) -Expected 87 `
     -Message "Blocker should expose the total missing output count."
 Assert-Equal -Actual ([int]$blocker.blocking_summary.missing_visual_baseline_pdf_count) -Expected 42 `
     -Message "Blocker should preserve the missing visual baseline PDF count summary."
+Assert-Equal -Actual (@($blocker.build_dir_auto_candidates).Count) -Expected 2 `
+    -Message "Blocker should carry auto build candidate records."
 Assert-ContainsText -Text (($blocker.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n") `
     -ExpectedText "cjk_text_layer_manifest_pdfs_exist" `
     -Message "Blocker should preserve output gap summary details."
@@ -399,6 +431,8 @@ Assert-Equal -Actual ([int]$actionItem.missing_output_count) -Expected 87 `
     -Message "Action item should expose the total missing output count."
 Assert-Equal -Actual ([int]$actionItem.blocking_summary.missing_cjk_text_layer_pdf_count) -Expected 43 `
     -Message "Action item should preserve the missing CJK text-layer PDF count summary."
+Assert-Equal -Actual (@($actionItem.build_dir_auto_candidates).Count) -Expected 2 `
+    -Message "Action item should carry auto build candidate records."
 
 $blockedMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $blockedMarkdownPath
 Assert-ContainsText -Text $blockedMarkdown `
@@ -422,6 +456,12 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Build CTest manifest" `
     -Message "Markdown should include the selected build dir CTest manifest status."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Build auto candidates" `
+    -Message "Markdown should include auto build candidate details."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText 'reusable=`False`' `
+    -Message "Markdown should show why the auto build candidate was not reusable."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Missing CLI PDFs" `
     -Message "Markdown should expose the missing CLI PDF count summary."

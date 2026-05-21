@@ -314,6 +314,13 @@ function New-ReportMarkdown {
         $lines.Add("- Build CTest manifest: ``$(Get-JsonBool -Object $buildDirSnapshot -Name "ctest_manifest_exists")``") | Out-Null
         $lines.Add("- Build entry count: ``$(Get-JsonInt -Object $buildDirSnapshot -Name "entry_count")``") | Out-Null
     }
+    $buildDirAutoCandidates = @(Get-JsonArray -Object $Summary -Name "build_dir_auto_candidates")
+    if ($buildDirAutoCandidates.Count -gt 0) {
+        $lines.Add("- Build auto candidates:") | Out-Null
+        foreach ($candidate in $buildDirAutoCandidates) {
+            $lines.Add("  - ``$(Get-JsonString -Object $candidate -Name "relative_path")``: reusable=``$(Get-JsonBool -Object $candidate -Name "looks_reusable")``; CMakeCache=``$(Get-JsonBool -Object $candidate -Name "cmake_cache_exists")``; CTest=``$(Get-JsonBool -Object $candidate -Name "ctest_manifest_exists")``") | Out-Null
+        }
+    }
     $lines.Add("- Blocking checks: ``$($Summary.blocking_check_count)``") | Out-Null
     $blockingSummary = Get-JsonProperty -Object $Summary -Name "blocking_summary"
     if ($null -ne $blockingSummary) {
@@ -467,6 +474,7 @@ $commandTemplate = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_v
 $summaryBuildDir = Get-JsonString -Object $preflightSummary -Name "build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
 $summaryRequestedBuildDir = Get-JsonString -Object $preflightSummary -Name "requested_build_dir" -DefaultValue (Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir -AllowMissing)
 $summaryBuildDirSource = Get-JsonString -Object $preflightSummary -Name "build_dir_source" -DefaultValue "requested"
+$summaryBuildDirAutoCandidates = @(Get-JsonArray -Object $preflightSummary -Name "build_dir_auto_candidates")
 $buildDirSnapshot = Get-BuildDirectorySnapshotFromChecks -Checks $checks
 $outputGapSummary = @(Get-PreflightOutputGapSummary -Checks $checks)
 $missingOutputCount = Get-PreflightMissingOutputCount -OutputGapSummary $outputGapSummary
@@ -555,6 +563,7 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         blocked_item_count = $blockingChecks.Count
         issue_keys = @($blockingChecks)
         blocking_summary = $preflightBlockingSummary
+        build_dir_auto_candidates = @($summaryBuildDirAutoCandidates)
         output_gap_count = $outputGapSummary.Count
         missing_output_count = $missingOutputCount
         output_gap_summary = @($outputGapSummary)
@@ -575,6 +584,7 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         blocked_item_count = $blockingChecks.Count
         issue_keys = @($blockingChecks)
         blocking_summary = $preflightBlockingSummary
+        build_dir_auto_candidates = @($summaryBuildDirAutoCandidates)
         output_gap_count = $outputGapSummary.Count
         missing_output_count = $missingOutputCount
         output_gap_summary = @($outputGapSummary)
@@ -610,6 +620,7 @@ $summary = [ordered]@{
     requested_build_dir = $summaryRequestedBuildDir
     requested_build_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryRequestedBuildDir
     build_dir_snapshot = $buildDirSnapshot
+    build_dir_auto_candidates = @($summaryBuildDirAutoCandidates)
     free_memory_mb = $freeMemoryMb
     min_free_memory_mb = $minFreeMemoryMb
     memory_guard_blocked = $memoryGuardBlocked
