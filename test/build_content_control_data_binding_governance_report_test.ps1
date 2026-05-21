@@ -213,6 +213,21 @@ Assert-Equal -Actual ([int]$summary.repair_plan_requires_user_values_count) -Exp
 Assert-Equal -Actual ([int]$summary.repair_plan_requires_visual_verification_count) -Expected 4 `
     -Message "Summary should count apply paths that require visual verification."
 
+$bindingCoverage = @{}
+foreach ($entry in @($summary.binding_coverage_summary)) {
+    $bindingCoverage[[string]$entry.coverage] = [int]$entry.count
+}
+Assert-Equal -Actual ([int]$bindingCoverage["bound"]) -Expected 2 `
+    -Message "Summary should count content controls with data bindings."
+Assert-Equal -Actual ([int]$bindingCoverage["bound_placeholder"]) -Expected 1 `
+    -Message "Summary should count data-bound placeholders separately."
+Assert-Equal -Actual ([int]$bindingCoverage["locked_bound"]) -Expected 1 `
+    -Message "Summary should count locked data-bound controls separately."
+Assert-Equal -Actual ([int]$bindingCoverage["unbound"]) -Expected 1 `
+    -Message "Summary should count unbound controls separately."
+Assert-True -Condition (@($summary.binding_status_summary).Count -gt 0) `
+    -Message "Summary should retain legacy binding status summary for downstream readers."
+
 $blockerIds = @($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n"
 Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.custom_xml_sync_issue" `
     -Message "Summary should include Custom XML sync blocker."
@@ -322,6 +337,10 @@ Assert-ContainsText -Text $markdown -ExpectedText "sync_bound_content_control" `
     -Message "Markdown should include bound content-control sync strategy."
 Assert-ContainsText -Text $markdown -ExpectedText "sync-content-controls-from-custom-xml" `
     -Message "Markdown should include bound content-control sync command."
+Assert-ContainsText -Text $markdown -ExpectedText "bound_placeholder" `
+    -Message "Markdown should include explicit binding coverage statuses."
+Assert-ContainsText -Text $markdown -ExpectedText "locked_bound" `
+    -Message "Markdown should include locked binding coverage."
 Assert-ContainsText -Text $markdown -ExpectedText "## Repair Plan Feasibility" `
     -Message "Markdown should include repair plan feasibility."
 Assert-ContainsText -Text $markdown -ExpectedText "native_dry_run_supported" `

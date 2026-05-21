@@ -407,6 +407,46 @@ function Add-SummaryGroup {
     )
 }
 
+function New-BindingCoverageSummary {
+    param([object[]]$Items)
+
+    if (@($Items).Count -eq 0) { return @() }
+
+    $counts = [ordered]@{
+        bound = 0
+        bound_placeholder = 0
+        locked_bound = 0
+        unbound = 0
+    }
+
+    foreach ($item in @($Items)) {
+        $bindingKey = [string](Get-JsonProperty -Object $item -Name "binding_key")
+        $hasBinding = -not [string]::IsNullOrWhiteSpace($bindingKey)
+        if (-not $hasBinding) {
+            $counts["unbound"] = [int]$counts["unbound"] + 1
+            continue
+        }
+
+        $counts["bound"] = [int]$counts["bound"] + 1
+        if ([bool](Get-JsonProperty -Object $item -Name "showing_placeholder")) {
+            $counts["bound_placeholder"] = [int]$counts["bound_placeholder"] + 1
+        }
+        $lock = [string](Get-JsonProperty -Object $item -Name "lock")
+        if (-not [string]::IsNullOrWhiteSpace($lock)) {
+            $counts["locked_bound"] = [int]$counts["locked_bound"] + 1
+        }
+    }
+
+    return @(
+        foreach ($coverage in @($counts.Keys)) {
+            [ordered]@{
+                coverage = $coverage
+                count = [int]$counts[$coverage]
+            }
+        }
+    )
+}
+
 function Convert-InspectContentControls {
     param([string]$RepoRoot, [string]$Path, $Json)
 
@@ -495,7 +535,11 @@ function New-ReportMarkdown {
     $lines.Add("") | Out-Null
     $lines.Add("## Binding Coverage") | Out-Null
     $lines.Add("") | Out-Null
-    if (@($Summary.binding_status_summary).Count -eq 0) {
+    if (@($Summary.binding_coverage_summary).Count -gt 0) {
+        foreach ($entry in @($Summary.binding_coverage_summary)) {
+            $lines.Add("- ``$($entry.coverage)``: ``$($entry.count)``") | Out-Null
+        }
+    } elseif (@($Summary.binding_status_summary).Count -eq 0) {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($entry in @($Summary.binding_status_summary)) {
@@ -887,6 +931,7 @@ $summary = [ordered]@{
     content_controls = @($contentControls.ToArray())
     sync_items = @($syncItems.ToArray())
     sync_issues = @($syncIssues.ToArray())
+    binding_coverage_summary = @(New-BindingCoverageSummary -Items $contentControls.ToArray())
     binding_status_summary = @(Add-SummaryGroup -Items $contentControls.ToArray() -PropertyName "binding_key" -OutputName "status")
     form_kind_summary = @(Add-SummaryGroup -Items $contentControls.ToArray() -PropertyName "form_kind" -OutputName "form_kind")
     sync_issue_reason_summary = @(Add-SummaryGroup -Items $syncIssues.ToArray() -PropertyName "reason" -OutputName "reason")
