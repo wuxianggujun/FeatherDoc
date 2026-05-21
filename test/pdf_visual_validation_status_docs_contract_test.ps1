@@ -55,9 +55,13 @@ $doNotRunFullVisualGateMarker = [string]::Concat(@(
 ))
 
 $statusMarkers = @(
-    "required_check_count = 11",
+    "required_check_count = 12",
     "memory_guard_blocked = false",
-    "blocking_check_count = 7",
+    "blocking_check_count = 5",
+    "pdf_build_options_enabled = false",
+    "disabled_pdf_build_options = FEATHERDOC_BUILD_PDF, FEATHERDOC_BUILD_PDF_IMPORT",
+    "FEATHERDOC_BUILD_PDF=OFF",
+    "FEATHERDOC_BUILD_PDF_IMPORT=OFF",
     "workstation_free_memory_available",
     "git status --short",
     "free_memory_mb",
@@ -81,6 +85,9 @@ $statusMarkers = @(
     ".bpdf-roundtrip-msvc",
     "CMakeCache.txt",
     "CTestTestfile.cmake",
+    "FEATHERDOC_BUILD_PDF=ON",
+    "FEATHERDOC_BUILD_PDF_IMPORT=ON",
+    "pdf_build_options_enabled",
     "out\build",
     "-MinFreeMemoryMB",
     "-SkipMemoryGuard",
@@ -106,6 +113,9 @@ $buildingPdfFixtureMarkers = @(
     "reusable release build substitute",
     "CMakeCache.txt",
     "CTestTestfile.cmake",
+    "FEATHERDOC_BUILD_PDF",
+    "FEATHERDOC_BUILD_PDF_IMPORT",
+    "pdf_build_options_enabled",
     "ctest -N",
     "skipped",
     "visual baseline PDF",
@@ -119,6 +129,11 @@ foreach ($marker in $buildingPdfFixtureMarkers) {
 
 $scriptMarkers = @(
     "workstation_free_memory_available",
+    "pdf_build_options_enabled",
+    "FEATHERDOC_BUILD_PDF",
+    "FEATHERDOC_BUILD_PDF_IMPORT",
+    "disabled_pdf_build_options",
+    "missing_pdf_build_options",
     "free_memory_mb",
     "min_free_memory_mb",
     "memory_guard_blocked",
@@ -142,7 +157,9 @@ foreach ($marker in @(
     "memory guard blocked=",
     "memory guard skipped=",
     "free memory MB=",
-    "minimum free memory MB="
+    "minimum free memory MB=",
+    "PDF build options:",
+    "pdf_build_options_enabled"
 )) {
     Assert-ContainsText -Text $releaseBlockerHelpers -ExpectedText $marker `
         -Message "Release blocker helpers should keep memory-gate fields visible in PDF preflight runbooks."

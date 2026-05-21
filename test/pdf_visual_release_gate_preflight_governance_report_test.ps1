@@ -155,6 +155,23 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
             message = "CMakeCache.txt is missing."
         },
         [ordered]@{
+            name = "pdf_build_options_enabled"
+            status = "missing"
+            required = $true
+            message = "CMakeCache.txt does not enable every PDF writer/import build option required by the full visual gate."
+            details = [ordered]@{
+                required_options = @(
+                    "FEATHERDOC_BUILD_PDF",
+                    "FEATHERDOC_BUILD_PDF_IMPORT"
+                )
+                missing_options = @()
+                disabled_options = @(
+                    "FEATHERDOC_BUILD_PDF",
+                    "FEATHERDOC_BUILD_PDF_IMPORT"
+                )
+            }
+        },
+        [ordered]@{
             name = "pdf_cli_export_baseline_pdfs_exist"
             status = "missing"
             required = $true
@@ -210,13 +227,14 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
         "build_dir_exists",
         "cmake_cache_exists",
         "ctest_manifest_exists",
+        "pdf_build_options_enabled",
         "pdf_cli_export_baseline_pdfs_exist",
         "visual_baseline_manifest_pdfs_exist",
         "cjk_text_layer_manifest_pdfs_exist"
     )
     blocking_summary = [ordered]@{
-        required_check_count = 8
-        blocking_check_count = 7
+        required_check_count = 9
+        blocking_check_count = 8
         missing_cli_pdf_count = 2
         visual_baseline_sample_count = 42
         missing_visual_baseline_pdf_count = 42
@@ -228,6 +246,13 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
         min_free_memory_mb = 2048
         memory_guard_blocked = $true
         memory_guard_skipped = $false
+        pdf_build_options_enabled = $false
+        pdf_build_option_count = 2
+        disabled_pdf_build_options = @(
+            "FEATHERDOC_BUILD_PDF",
+            "FEATHERDOC_BUILD_PDF_IMPORT"
+        )
+        missing_pdf_build_options = @()
     }
 })
 
@@ -268,6 +293,10 @@ Write-JsonFile -Path $readyPreflightPath -Value ([ordered]@{
         min_free_memory_mb = 2048
         memory_guard_blocked = $false
         memory_guard_skipped = $false
+        pdf_build_options_enabled = $true
+        pdf_build_option_count = 2
+        disabled_pdf_build_options = @()
+        missing_pdf_build_options = @()
     }
 })
 
@@ -305,11 +334,11 @@ Assert-Equal -Actual ([int]$blockedSummary.release_blocker_count) -Expected 1 `
     -Message "Not-ready preflight should emit one release blocker."
 Assert-Equal -Actual ([int]$blockedSummary.action_item_count) -Expected 1 `
     -Message "Not-ready preflight should emit one action item."
-Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 7 `
+Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 8 `
     -Message "Governance report should preserve blocking check count."
-Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.required_check_count) -Expected 8 `
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.required_check_count) -Expected 9 `
     -Message "Governance report should preserve the required check count."
-Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.blocking_check_count) -Expected 7 `
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.blocking_check_count) -Expected 8 `
     -Message "Governance report should preserve the blocking check count summary."
 Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.missing_cli_pdf_count) -Expected 2 `
     -Message "Governance report should preserve the missing CLI PDF count summary."
@@ -335,6 +364,11 @@ Assert-Equal -Actual ([bool]$blockedSummary.memory_guard_skipped) -Expected $fal
     -Message "Governance report should expose whether the memory guard was skipped."
 Assert-Equal -Actual ([bool]$blockedSummary.blocking_summary.memory_guard_blocked) -Expected $true `
     -Message "Governance report should preserve the memory guard blocker summary."
+Assert-Equal -Actual ([bool]$blockedSummary.blocking_summary.pdf_build_options_enabled) -Expected $false `
+    -Message "Governance report should preserve the PDF build option blocker summary."
+Assert-ContainsText -Text (($blockedSummary.blocking_summary.disabled_pdf_build_options | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT" `
+    -Message "Governance report should preserve disabled PDF build options."
 Assert-Equal -Actual ([string]$blockedSummary.build_dir_source) -Expected "auto:build" `
     -Message "Governance report should preserve the selected preflight build-dir source."
 Assert-ContainsText -Text ([string]$blockedSummary.requested_build_dir_display) `
@@ -406,6 +440,9 @@ Assert-ContainsText -Text (($blocker.issue_keys | ForEach-Object { [string]$_ })
 Assert-ContainsText -Text (($blocker.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
     -ExpectedText "workstation_free_memory_available" `
     -Message "Blocker should preserve the memory guard preflight check."
+Assert-ContainsText -Text (($blocker.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "pdf_build_options_enabled" `
+    -Message "Blocker should preserve the PDF build option preflight check."
 Assert-ContainsText -Text ([string]$blocker.repair_hint) `
     -ExpectedText "Close unrelated applications" `
     -Message "Blocker should explain how to clear a low-memory preflight blocker."
@@ -415,6 +452,9 @@ Assert-ContainsText -Text ([string]$blocker.repair_hint) `
 Assert-ContainsText -Text ([string]$blocker.repair_hint) `
     -ExpectedText "CMakeCache.txt missing" `
     -Message "Blocker should explain when the selected build dir is not a reusable CMake build."
+Assert-ContainsText -Text ([string]$blocker.repair_hint) `
+    -ExpectedText "-DFEATHERDOC_BUILD_PDF=ON" `
+    -Message "Blocker should explain how to reconfigure disabled PDF build options."
 Assert-Equal -Actual ([int]$blocker.output_gap_count) -Expected 3 `
     -Message "Blocker should expose how many output gap groups remain."
 Assert-Equal -Actual ([int]$blocker.missing_output_count) -Expected 87 `
@@ -480,6 +520,12 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Missing CLI PDFs" `
     -Message "Markdown should expose the missing CLI PDF count summary."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "PDF build options enabled" `
+    -Message "Markdown should expose the PDF build option readiness summary."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT" `
+    -Message "Markdown should list disabled PDF build options."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Free memory MB" `
     -Message "Markdown should expose the free-memory preflight summary."

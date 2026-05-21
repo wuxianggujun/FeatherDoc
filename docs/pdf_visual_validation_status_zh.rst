@@ -9,18 +9,23 @@ PDF 可视化验证状态
 1. ``dev`` 与 ``origin/dev`` 已对齐。
 2. 2026-05-20 复核时仓库工作区干净；后续轮次需以
    ``git status --short`` 为准。
-3. 最新的 PDF preflight governance 报告仍是 ``blocked``，因为
+3. 2026-05-21 最新的 PDF preflight governance 报告仍是 ``blocked``，因为
    ``check_pdf_visual_release_gate_preflight.ps1`` 还报告：
 
-   * ``required_check_count = 11``
-   * ``blocking_check_count = 7``
+   * ``required_check_count = 12``
+   * ``blocking_check_count = 5``
    * ``missing_cli_pdf_count = 2``
    * ``visual_baseline_sample_count = 42``
    * ``missing_visual_baseline_pdf_count = 42``
    * ``cjk_text_layer_sample_count = 43``
    * ``missing_cjk_text_layer_pdf_count = 43``
-   * ``memory_guard_blocked = false``（当前阻断不是内存不足，而是缺少可复用
-     build / CTest / PDF baseline 输出）
+   * ``pdf_build_options_enabled = false``
+   * ``disabled_pdf_build_options = FEATHERDOC_BUILD_PDF, FEATHERDOC_BUILD_PDF_IMPORT``
+   * 当前 ``CMakeCache.txt`` 中 ``FEATHERDOC_BUILD_PDF=OFF`` 且
+     ``FEATHERDOC_BUILD_PDF_IMPORT=OFF``
+   * ``memory_guard_blocked = false``（当前阻断不是内存不足，而是 PDF writer/import
+     构建选项未开启，导致真实 ``pdf_cli_export`` / ``pdf_regression_`` 目标和
+     PDF baseline 输出不可用）
    * ``output_gap_count = 3``
    * ``missing_output_count = 87``
    * ``preflight_ready = false``
@@ -41,6 +46,11 @@ PDF 可视化验证状态
 * 同一份 preflight summary 现在也直接输出顶层 ``output_gap_count`` 和
   ``missing_output_count``，让状态页、governance report 和 release blocker
   使用同一组缺失输出总数。
+* ``check_pdf_visual_release_gate_preflight.ps1`` 会读取 ``CMakeCache.txt``，
+  并用 ``pdf_build_options_enabled`` 显式检查 ``FEATHERDOC_BUILD_PDF`` 和
+  ``FEATHERDOC_BUILD_PDF_IMPORT``。如果它们是 ``OFF`` 或缺失，preflight 会在
+  运行完整 visual gate 前直接阻断，避免把 87 个缺失 PDF 输出误读成单纯的
+  baseline 漏生成。
 * ``check_pdf_visual_release_gate_preflight.ps1`` 默认要求工作站空闲物理内存不少于
   ``2048 MB``；如果低于阈值，会把
   ``workstation_free_memory_available`` 记录为 blocking check，并在
@@ -91,8 +101,9 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 * ``missing_output_count = 87``。
 * ``memory_guard_blocked = false``，本轮阻断不是内存不足。
 * ``free_memory_mb`` 高于 ``min_free_memory_mb = 2048``。
-* 仍缺 ``.bpdf-roundtrip-msvc``、``CMakeCache.txt``、``CTestTestfile.cmake``、
-  2 个 CLI baseline PDF、
+* 2026-05-21 复核时，``.bpdf-roundtrip-msvc``、``CMakeCache.txt`` 和
+  ``CTestTestfile.cmake`` 已存在；但 ``FEATHERDOC_BUILD_PDF=OFF``、
+  ``FEATHERDOC_BUILD_PDF_IMPORT=OFF``，所以仍缺 2 个 CLI baseline PDF、
   42 个 visual baseline PDF 和 43 个 CJK text-layer PDF。
 * ``test/pdf_visual_release_gate_preflight_test.ps1`` 里的 ``fake-pdf-build``、fake ctest
   和 fake python 只是脚本契约测试使用的 test fixture；它们不是不可复用 release gate
@@ -124,9 +135,11 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 
 1. 继续保留远端 ``origin/codex/*`` 为只读参考库存。
 2. 在资源允许、源码已提交推送且工作区干净时，先准备可复用的 PDF build /
-   CTest / baseline 输出；不要直接启动完整 visual gate。
+   CTest / baseline 输出；当前第一步是用真实 PDFio/PDFium 输入重新配置
+   ``.bpdf-roundtrip-msvc``，确保 ``FEATHERDOC_BUILD_PDF=ON`` 且
+   ``FEATHERDOC_BUILD_PDF_IMPORT=ON``，不要直接启动完整 visual gate。
 3. 重新运行 ``check_pdf_visual_release_gate_preflight.ps1``。只有当
-   ``workstation_free_memory_available``、build 目录、CTest manifest、CLI PDF
-   baseline、visual baseline 和 CJK text-layer 输出全部通过后，才把预检视为
-   ``ready``。
+   ``workstation_free_memory_available``、build 目录、CTest manifest、
+   ``pdf_build_options_enabled``、CLI PDF baseline、visual baseline 和
+   CJK text-layer 输出全部通过后，才把预检视为 ``ready``。
 4. 只有完整 visual gate 通过后，才考虑归档或回收旧 PDF 参考分支。

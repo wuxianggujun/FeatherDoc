@@ -229,6 +229,60 @@ function Get-BuildDirectorySnapshot {
     }
 }
 
+function Test-CMakeCacheBoolOn {
+    param([string]$Value)
+
+    return [string]$Value -in @("1", "ON", "TRUE", "YES", "Y")
+}
+
+function Get-CMakeCachePdfBuildOptions {
+    param(
+        [string]$Path,
+        [string[]]$Names
+    )
+
+    $rawValues = @{}
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        foreach ($line in Get-Content -LiteralPath $Path -Encoding UTF8) {
+            foreach ($name in $Names) {
+                $pattern = "^{0}:[^=]*=(.*)$" -f [regex]::Escape($name)
+                if ($line -match $pattern) {
+                    $rawValues[$name] = $Matches[1].Trim()
+                }
+            }
+        }
+    }
+
+    $options = New-Object System.Collections.ArrayList
+    $missingOptions = New-Object System.Collections.ArrayList
+    $disabledOptions = New-Object System.Collections.ArrayList
+    foreach ($name in $Names) {
+        $hasValue = $rawValues.ContainsKey($name)
+        $value = if ($hasValue) { [string]$rawValues[$name] } else { "" }
+        $enabled = $hasValue -and (Test-CMakeCacheBoolOn -Value $value)
+        if (-not $hasValue) {
+            $missingOptions.Add($name) | Out-Null
+        } elseif (-not $enabled) {
+            $disabledOptions.Add($name) | Out-Null
+        }
+
+        $options.Add([ordered]@{
+            name = $name
+            present = [bool]$hasValue
+            value = $value
+            enabled = [bool]$enabled
+        }) | Out-Null
+    }
+
+    return [ordered]@{
+        cmake_cache_path = $Path
+        required_options = @($Names)
+        options = @($options)
+        missing_options = @($missingOptions)
+        disabled_options = @($disabledOptions)
+    }
+}
+
 function Get-LocalMemorySnapshot {
     try {
         $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
@@ -306,6 +360,23 @@ Add-CheckResult `
     -Message $(if ($cmakeCacheExists) { "CMakeCache.txt exists in the build directory." } else { "CMakeCache.txt is missing; the selected directory is not a reusable CMake build." }) `
     -Path $cmakeCachePath `
     -Details $buildDirectorySnapshot
+
+$requiredPdfBuildOptions = @(
+    "FEATHERDOC_BUILD_PDF",
+    "FEATHERDOC_BUILD_PDF_IMPORT"
+)
+$pdfBuildOptionSnapshot = Get-CMakeCachePdfBuildOptions -Path $cmakeCachePath -Names $requiredPdfBuildOptions
+$pdfBuildOptionMissingCount = @($pdfBuildOptionSnapshot.missing_options).Count
+$pdfBuildOptionDisabledCount = @($pdfBuildOptionSnapshot.disabled_options).Count
+$pdfBuildOptionsReady = $cmakeCacheExists -and $pdfBuildOptionMissingCount -eq 0 -and $pdfBuildOptionDisabledCount -eq 0
+Add-CheckResult `
+    -Checks $checks `
+    -Name "pdf_build_options_enabled" `
+    -Status $(if (-not $cmakeCacheExists) { "skipped" } elseif ($pdfBuildOptionsReady) { "pass" } else { "missing" }) `
+    -Required $cmakeCacheExists `
+    -Message $(if (-not $cmakeCacheExists) { "Skipped PDF build option checks because CMakeCache.txt is missing." } elseif ($pdfBuildOptionsReady) { "CMakeCache.txt enables the PDF writer/import build options required by the full visual gate." } else { "CMakeCache.txt does not enable every PDF writer/import build option required by the full visual gate." }) `
+    -Path $cmakeCachePath `
+    -Details $pdfBuildOptionSnapshot
 
 $ctestFilePath = Join-Path $resolvedBuildDir "CTestTestfile.cmake"
 $ctestFileExists = Test-Path -LiteralPath $ctestFilePath -PathType Leaf
@@ -577,6 +648,10 @@ $blockingSummary = [ordered]@{
     missing_cjk_text_layer_pdf_count = $missingCjkPdfs.Count
     build_dir_entry_count = [int]$buildDirectorySnapshot.entry_count
     ctest_required_pattern_count = $requiredCTestPatterns.Count
+    pdf_build_options_enabled = [bool]$pdfBuildOptionsReady
+    pdf_build_option_count = $requiredPdfBuildOptions.Count
+    missing_pdf_build_options = @($pdfBuildOptionSnapshot.missing_options)
+    disabled_pdf_build_options = @($pdfBuildOptionSnapshot.disabled_options)
     free_memory_mb = $memorySnapshot.free_mb
     min_free_memory_mb = $MinFreeMemoryMB
     memory_guard_blocked = [bool]$memoryGuardBlocked

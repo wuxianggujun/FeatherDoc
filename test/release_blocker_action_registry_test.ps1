@@ -91,12 +91,12 @@ $pdfPreflightBlocker = [pscustomobject]@{
     source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
     source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
     command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
-    issue_keys = @("cmake_cache_exists", "ctest_manifest_exists")
+    issue_keys = @("cmake_cache_exists", "ctest_manifest_exists", "pdf_build_options_enabled")
     output_gap_count = 3
     missing_output_count = 87
     blocking_summary = [pscustomobject]@{
-        required_check_count = 11
-        blocking_check_count = 6
+        required_check_count = 12
+        blocking_check_count = 7
         missing_cli_pdf_count = 2
         visual_baseline_sample_count = 42
         missing_visual_baseline_pdf_count = 42
@@ -108,6 +108,9 @@ $pdfPreflightBlocker = [pscustomobject]@{
         memory_guard_skipped = $false
         free_memory_mb = 1140
         min_free_memory_mb = 2048
+        pdf_build_options_enabled = $false
+        disabled_pdf_build_options = @("FEATHERDOC_BUILD_PDF", "FEATHERDOC_BUILD_PDF_IMPORT")
+        missing_pdf_build_options = @()
     }
 }
 $pdfPreflightGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
@@ -126,6 +129,12 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "cmake_cache_exist
     -Message "PDF preflight build-output blocker should explain the missing CMakeCache preflight issue."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "CMakeCache.txt" `
     -Message "PDF preflight build-output blocker should require a reusable CMake build directory."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "pdf_build_options_enabled" `
+    -Message "PDF preflight build-output blocker should explain disabled PDF build options."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "-DFEATHERDOC_BUILD_PDF=ON" `
+    -Message "PDF preflight build-output blocker should include the PDF writer build option."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "-DFEATHERDOC_BUILD_PDF_IMPORT=ON" `
+    -Message "PDF preflight build-output blocker should include the PDF import build option."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing CLI PDFs=2" `
     -Message "PDF preflight build-output blocker should include the missing CLI PDF count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing visual baseline PDFs=42" `
@@ -136,8 +145,12 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "output gap checks
     -Message "PDF preflight build-output blocker should include the output gap group count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing outputs=87" `
     -Message "PDF preflight build-output blocker should include the missing output total."
-Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "required checks=11" `
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "required checks=12" `
     -Message "PDF preflight build-output blocker should include the memory-aware required check count."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "PDF build options: enabled=false" `
+    -Message "PDF preflight build-output blocker should summarize PDF build option readiness."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "disabled=FEATHERDOC_BUILD_PDF,FEATHERDOC_BUILD_PDF_IMPORT" `
+    -Message "PDF preflight build-output blocker should list disabled PDF build options."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "memory guard blocked=false" `
     -Message "PDF preflight build-output blocker should include the memory guard blocked state."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "memory guard skipped=false" `

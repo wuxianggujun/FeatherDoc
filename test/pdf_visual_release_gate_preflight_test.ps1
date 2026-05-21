@@ -68,7 +68,10 @@ if ($LASTEXITCODE -ne 0) {
 
 New-Item -ItemType Directory -Path $fakeBuildDir -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $fakeBuildDir "test\pdf_cli_export") -Force | Out-Null
-Set-Content -LiteralPath (Join-Path $fakeBuildDir "CMakeCache.txt") -Encoding UTF8 -Value "FEATHERDOC_BUILD_PDF:BOOL=ON"
+@"
+FEATHERDOC_BUILD_PDF:BOOL=ON
+FEATHERDOC_BUILD_PDF_IMPORT:BOOL=ON
+"@ | Set-Content -LiteralPath (Join-Path $fakeBuildDir "CMakeCache.txt") -Encoding UTF8
 @"
 add_test(pdf_cli_export "cmd" "/c" "exit 0")
 add_test(pdf_regression_manifest "cmd" "/c" "exit 0")
@@ -217,6 +220,12 @@ Assert-True -Condition ([int]$summary.blocking_summary.visual_baseline_sample_co
     -Message "Ready preflight should report the visual baseline sample count."
 Assert-True -Condition ([int]$summary.blocking_summary.cjk_text_layer_sample_count -gt 0) `
     -Message "Ready preflight should report the CJK text-layer sample count."
+Assert-True -Condition ([bool]$summary.blocking_summary.pdf_build_options_enabled -eq $true) `
+    -Message "Ready preflight should report enabled PDF build options."
+Assert-True -Condition (@($summary.blocking_summary.disabled_pdf_build_options).Count -eq 0) `
+    -Message "Ready preflight should report zero disabled PDF build options."
+Assert-True -Condition (@($summary.blocking_summary.missing_pdf_build_options).Count -eq 0) `
+    -Message "Ready preflight should report zero missing PDF build options."
 
 $lowMemorySummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $lowMemorySummaryPath | ConvertFrom-Json
 Assert-True -Condition ($lowMemorySummary.status -eq "not_ready") `
@@ -229,6 +238,7 @@ Assert-True -Condition (($lowMemorySummary.blocking_checks | ForEach-Object { [s
 foreach ($name in @(
     "build_dir_exists",
     "cmake_cache_exists",
+    "pdf_build_options_enabled",
     "ctest_manifest_exists",
     "ctest_list_contains_pdf_gate_tests",
     "workstation_free_memory_available",
@@ -284,6 +294,8 @@ $preflightText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 foreach ($expectedText in @(
     "Resolve-PreferredBuildDir",
     "Get-BuildDirectorySnapshot",
+    "Get-CMakeCachePdfBuildOptions",
+    "Test-CMakeCacheBoolOn",
     '"build", "out\build"',
     "candidateLooksReusable",
     "build_dir_auto_candidates",
@@ -291,6 +303,11 @@ foreach ($expectedText in @(
     "looks_reusable",
     'Source = "auto:$candidate"',
     "cmake_cache_exists",
+    "pdf_build_options_enabled",
+    "FEATHERDOC_BUILD_PDF",
+    "FEATHERDOC_BUILD_PDF_IMPORT",
+    "disabled_pdf_build_options",
+    "missing_pdf_build_options",
     "build_dir_source",
     "requested_build_dir",
     "blocking_summary",

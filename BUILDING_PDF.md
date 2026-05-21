@@ -438,10 +438,15 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate
   -OutputJson .\output\pdf-visual-release-gate-preflight\summary.json
 ```
 
-预检只检查 build 目录、`CMakeCache.txt`、`CTestTestfile.cmake`、`ctest -N` 中的 PDF 测试注册、
-既有 PDF 输出、manifest 驱动样本和可复用的 `PIL` / `fitz` 渲染 Python。
+预检只检查 build 目录、`CMakeCache.txt`、`CTestTestfile.cmake`、`CMakeCache.txt`
+里的 `FEATHERDOC_BUILD_PDF` / `FEATHERDOC_BUILD_PDF_IMPORT` 是否同时为 `ON`、
+`ctest -N` 中的 PDF 测试注册、既有 PDF 输出、manifest 驱动样本和可复用的
+`PIL` / `fitz` 渲染 Python。
 其中 `ctest -N` 只在 build 目录、`CMakeCache.txt` 和 `CTestTestfile.cmake`
 都存在时执行；缺失时只记录 `skipped` / `missing` 状态，不触发构建或渲染。
+如果 CMake cache 存在但 `FEATHERDOC_BUILD_PDF=OFF` 或
+`FEATHERDOC_BUILD_PDF_IMPORT=OFF`，预检会用 `pdf_build_options_enabled`
+提前阻断，提示先重新配置 PDFio / PDFium 输入。
 它不会创建虚拟环境、安装依赖、运行 PDF 渲染或触发构建。需要让缺失前置条件
 直接失败时，额外传 `-Strict`。
 
@@ -450,7 +455,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate
 的示例，也不是 reusable release build substitute；不能作为 `run_pdf_visual_release_gate.ps1`
 的可复用输入。真正可复用的 release build 必须来自当前 `dev` 的真实 CMake build，并同时包含 `CMakeCache.txt`、
 `CTestTestfile.cmake`、PDF CTest 注册、CLI baseline PDF、visual baseline PDF、
-CJK text-layer PDF 和可复用渲染 Python。
+CJK text-layer PDF、可复用渲染 Python，并在 CMake cache 中同时启用
+`FEATHERDOC_BUILD_PDF=ON` 和 `FEATHERDOC_BUILD_PDF_IMPORT=ON`。
 
 `run_pdf_visual_release_gate.ps1` 默认也会先执行同一套严格预检。只想确认完整门禁
 前置条件时，可以运行：

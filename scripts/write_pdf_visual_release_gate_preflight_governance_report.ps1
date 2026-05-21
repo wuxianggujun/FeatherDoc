@@ -273,6 +273,8 @@ function Get-PreflightBlockingSummary {
     $cjkDetails = Get-JsonProperty -Object $cjkCheck -Name "details"
     $ctestCheck = Get-PreflightCheck -Checks $Checks -Name "ctest_list_contains_pdf_gate_tests"
     $ctestDetails = Get-JsonProperty -Object $ctestCheck -Name "details"
+    $pdfOptionsCheck = Get-PreflightCheck -Checks $Checks -Name "pdf_build_options_enabled"
+    $pdfOptionsDetails = Get-JsonProperty -Object $pdfOptionsCheck -Name "details"
 
     return [ordered]@{
         required_check_count = @($Checks | Where-Object { Get-JsonBool -Object $_ -Name "required" }).Count
@@ -284,6 +286,10 @@ function Get-PreflightBlockingSummary {
         missing_cjk_text_layer_pdf_count = Get-JsonInt -Object $cjkDetails -Name "missing_count"
         build_dir_entry_count = Get-JsonInt -Object $BuildDirSnapshot -Name "entry_count"
         ctest_required_pattern_count = @(Get-JsonArray -Object $ctestDetails -Name "required_patterns").Count
+        pdf_build_options_enabled = ((Get-JsonString -Object $pdfOptionsCheck -Name "status") -eq "pass")
+        pdf_build_option_count = @(Get-JsonArray -Object $pdfOptionsDetails -Name "required_options").Count
+        missing_pdf_build_options = @(Get-JsonArray -Object $pdfOptionsDetails -Name "missing_options")
+        disabled_pdf_build_options = @(Get-JsonArray -Object $pdfOptionsDetails -Name "disabled_options")
     }
 }
 
@@ -331,6 +337,13 @@ function New-ReportMarkdown {
         $lines.Add("- Missing CLI PDFs: ``$(Get-JsonInt -Object $blockingSummary -Name "missing_cli_pdf_count")``") | Out-Null
         $lines.Add("- Missing visual baseline PDFs: ``$(Get-JsonInt -Object $blockingSummary -Name "missing_visual_baseline_pdf_count")``") | Out-Null
         $lines.Add("- Missing CJK text-layer PDFs: ``$(Get-JsonInt -Object $blockingSummary -Name "missing_cjk_text_layer_pdf_count")``") | Out-Null
+        if ($null -ne (Get-JsonProperty -Object $blockingSummary -Name "pdf_build_options_enabled")) {
+            $disabledPdfBuildOptions = @(Get-JsonArray -Object $blockingSummary -Name "disabled_pdf_build_options")
+            $missingPdfBuildOptions = @(Get-JsonArray -Object $blockingSummary -Name "missing_pdf_build_options")
+            $lines.Add("- PDF build options enabled: ``$(Get-JsonBool -Object $blockingSummary -Name "pdf_build_options_enabled")``") | Out-Null
+            $lines.Add("- Disabled PDF build options: ``$($disabledPdfBuildOptions -join ', ')``") | Out-Null
+            $lines.Add("- Missing PDF build options: ``$($missingPdfBuildOptions -join ', ')``") | Out-Null
+        }
         if ($null -ne (Get-JsonProperty -Object $blockingSummary -Name "free_memory_mb") -or
             $null -ne (Get-JsonProperty -Object $blockingSummary -Name "min_free_memory_mb")) {
             $lines.Add("- Free memory MB: ``$(Get-JsonValueText -Object $blockingSummary -Name "free_memory_mb")``") | Out-Null
@@ -522,6 +535,7 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         "preflight_status=$preflightStatus"
     }
     $memoryGuardIsBlocking = @($blockingChecks | Where-Object { [string]$_ -eq "workstation_free_memory_available" }).Count -gt 0
+    $pdfBuildOptionsAreBlocking = @($blockingChecks | Where-Object { [string]$_ -eq "pdf_build_options_enabled" }).Count -gt 0
     $buildOutputRepairHint = "Prepare a reusable PDF build directory with CTest registration, CLI baseline PDFs, manifest PDF outputs, helper scripts, and render Python before running the full PDF visual release gate."
     $repairHint = $buildOutputRepairHint
     if ($memoryGuardIsBlocking) {
@@ -533,6 +547,30 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         $nonMemoryBlockingChecks = @($blockingChecks | Where-Object { [string]$_ -ne "workstation_free_memory_available" })
         if ($nonMemoryBlockingChecks.Count -gt 0) {
             $repairHint += " Also $buildOutputRepairHint"
+        }
+    }
+    if ($pdfBuildOptionsAreBlocking) {
+        $pdfOptionsCheck = Get-PreflightCheck -Checks $checks -Name "pdf_build_options_enabled"
+        $pdfOptionsDetails = Get-JsonProperty -Object $pdfOptionsCheck -Name "details"
+        $disabledPdfBuildOptions = @(
+            Get-JsonArray -Object $pdfOptionsDetails -Name "disabled_options" |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        $missingPdfBuildOptions = @(
+            Get-JsonArray -Object $pdfOptionsDetails -Name "missing_options" |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        $optionHints = @()
+        if ($disabledPdfBuildOptions.Count -gt 0) {
+            $optionHints += "disabled=$($disabledPdfBuildOptions -join ', ')"
+        }
+        if ($missingPdfBuildOptions.Count -gt 0) {
+            $optionHints += "missing=$($missingPdfBuildOptions -join ', ')"
+        }
+        if ($optionHints.Count -gt 0) {
+            $repairHint += " Current CMakeCache.txt PDF options are not release-gate ready: $($optionHints -join '; '). Reconfigure with -DFEATHERDOC_BUILD_PDF=ON and -DFEATHERDOC_BUILD_PDF_IMPORT=ON, including the required PDFio/PDFium inputs, before generating visual gate outputs."
         }
     }
     if ($buildDirSnapshot.Count -gt 0) {

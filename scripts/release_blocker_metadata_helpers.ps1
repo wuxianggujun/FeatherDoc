@@ -459,6 +459,9 @@ function Get-PdfVisualPreflightBlockingSummaryLine {
     $memoryGuardSkipped = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $blockingSummary -Name "memory_guard_skipped"
     $freeMemoryMb = Get-ReleaseBlockerPropertyValue -Object $blockingSummary -Name "free_memory_mb"
     $minFreeMemoryMb = Get-ReleaseBlockerPropertyValue -Object $blockingSummary -Name "min_free_memory_mb"
+    $pdfBuildOptionsEnabled = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $blockingSummary -Name "pdf_build_options_enabled"
+    $disabledPdfBuildOptions = @(Get-ReleaseBlockerArrayProperty -Object $blockingSummary -Name "disabled_pdf_build_options" | ForEach-Object { [string]$_ })
+    $missingPdfBuildOptions = @(Get-ReleaseBlockerArrayProperty -Object $blockingSummary -Name "missing_pdf_build_options" | ForEach-Object { [string]$_ })
 
     if (($requiredCheckCount + $blockingCheckCount + $missingCliPdfCount +
             $visualBaselineSampleCount + $missingVisualBaselinePdfCount +
@@ -468,7 +471,10 @@ function Get-PdfVisualPreflightBlockingSummaryLine {
         [string]::IsNullOrWhiteSpace($memoryGuardBlocked) -and
         [string]::IsNullOrWhiteSpace($memoryGuardSkipped) -and
         [string]::IsNullOrWhiteSpace($freeMemoryMb) -and
-        [string]::IsNullOrWhiteSpace($minFreeMemoryMb)) {
+        [string]::IsNullOrWhiteSpace($minFreeMemoryMb) -and
+        [string]::IsNullOrWhiteSpace($pdfBuildOptionsEnabled) -and
+        $disabledPdfBuildOptions.Count -eq 0 -and
+        $missingPdfBuildOptions.Count -eq 0) {
         return ""
     }
 
@@ -499,6 +505,19 @@ function Get-PdfVisualPreflightBlockingSummaryLine {
     }
     if ($memoryParts.Count -gt 0) {
         $summaryLine += " Memory guard: $($memoryParts -join ', ')."
+    }
+    $pdfBuildOptionParts = @()
+    if (-not [string]::IsNullOrWhiteSpace($pdfBuildOptionsEnabled)) {
+        $pdfBuildOptionParts += "enabled=$pdfBuildOptionsEnabled"
+    }
+    if ($disabledPdfBuildOptions.Count -gt 0) {
+        $pdfBuildOptionParts += "disabled=$($disabledPdfBuildOptions -join ',')"
+    }
+    if ($missingPdfBuildOptions.Count -gt 0) {
+        $pdfBuildOptionParts += "missing=$($missingPdfBuildOptions -join ',')"
+    }
+    if ($pdfBuildOptionParts.Count -gt 0) {
+        $summaryLine += " PDF build options: $($pdfBuildOptionParts -join ', ')."
     }
 
     return $summaryLine
@@ -568,6 +587,9 @@ function Get-ReleaseBlockerActionGuidanceLines {
             $issueKeys = @(Get-ReleaseBlockerArrayProperty -Object $Blocker -Name "issue_keys" | ForEach-Object { [string]$_ })
             if ($issueKeys -contains "cmake_cache_exists") {
                 Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Preflight issue `cmake_cache_exists` means the selected build directory is not a reusable CMake build; prepare or point at a build directory containing `CMakeCache.txt` before checking CTest registration or PDF outputs.'
+            }
+            if ($issueKeys -contains "pdf_build_options_enabled") {
+                Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Preflight issue `pdf_build_options_enabled` means the selected CMake cache does not enable the full PDF writer/import build; reconfigure with `-DFEATHERDOC_BUILD_PDF=ON` and `-DFEATHERDOC_BUILD_PDF_IMPORT=ON` plus the required PDFio/PDFium inputs before generating visual gate outputs.'
             }
 
             $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_report_display"
@@ -1385,6 +1407,11 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine `
                 -Lines $guidanceLines `
                 -Text 'Preflight issue `cmake_cache_exists` means the selected build directory is not a reusable CMake build; prepare or point at a build directory containing `CMakeCache.txt` before checking CTest registration or PDF outputs.'
+        }
+        if ($issueKeys -contains "pdf_build_options_enabled") {
+            Add-ReleaseBlockerActionGuidanceLine `
+                -Lines $guidanceLines `
+                -Text 'Preflight issue `pdf_build_options_enabled` means the selected CMake cache does not enable the full PDF writer/import build; reconfigure with `-DFEATHERDOC_BUILD_PDF=ON` and `-DFEATHERDOC_BUILD_PDF_IMPORT=ON` plus the required PDFio/PDFium inputs before generating visual gate outputs.'
         }
         $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
         if ([string]::IsNullOrWhiteSpace($commandTemplate)) {

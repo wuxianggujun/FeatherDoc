@@ -286,17 +286,17 @@ $summary = [ordered]@{
                 severity = "error"
                 status = "blocked"
                 action = "prepare_pdf_visual_release_gate_build_outputs"
-                message = "PDF visual release gate preflight is not ready; blocking checks: build_dir_exists, cmake_cache_exists, ctest_manifest_exists."
+                message = "PDF visual release gate preflight is not ready; blocking checks: build_dir_exists, cmake_cache_exists, ctest_manifest_exists, pdf_build_options_enabled."
                 source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
                 source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
                 source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                 repair_strategy = "reuse_or_prepare_pdf_visual_release_gate_build_outputs"
-                repair_hint = "Prepare a reusable PDF build directory with CMakeCache.txt before running the full PDF visual release gate."
+                repair_hint = "Prepare a reusable PDF build directory with CMakeCache.txt and enable FEATHERDOC_BUILD_PDF / FEATHERDOC_BUILD_PDF_IMPORT before running the full PDF visual release gate."
                 command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
-                issue_keys = @("build_dir_exists", "cmake_cache_exists", "ctest_manifest_exists")
+                issue_keys = @("build_dir_exists", "cmake_cache_exists", "ctest_manifest_exists", "pdf_build_options_enabled")
                 blocking_summary = [ordered]@{
-                    required_check_count = 11
-                    blocking_check_count = 6
+                    required_check_count = 12
+                    blocking_check_count = 7
                     missing_cli_pdf_count = 2
                     visual_baseline_sample_count = 42
                     missing_visual_baseline_pdf_count = 42
@@ -308,6 +308,9 @@ $summary = [ordered]@{
                     memory_guard_skipped = $false
                     free_memory_mb = 1140
                     min_free_memory_mb = 2048
+                    pdf_build_options_enabled = $false
+                    disabled_pdf_build_options = @("FEATHERDOC_BUILD_PDF", "FEATHERDOC_BUILD_PDF_IMPORT")
+                    missing_pdf_build_options = @()
                 }
             }
         )
@@ -353,10 +356,10 @@ $summary = [ordered]@{
                 source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                 open_command = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
                 command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly"
-                issue_keys = @("build_dir_exists", "cmake_cache_exists", "ctest_manifest_exists")
+                issue_keys = @("build_dir_exists", "cmake_cache_exists", "ctest_manifest_exists", "pdf_build_options_enabled")
                 blocking_summary = [ordered]@{
-                    required_check_count = 11
-                    blocking_check_count = 6
+                    required_check_count = 12
+                    blocking_check_count = 7
                     missing_cli_pdf_count = 2
                     visual_baseline_sample_count = 42
                     missing_visual_baseline_pdf_count = 42
@@ -368,6 +371,9 @@ $summary = [ordered]@{
                     memory_guard_skipped = $false
                     free_memory_mb = 1140
                     min_free_memory_mb = 2048
+                    pdf_build_options_enabled = $false
+                    disabled_pdf_build_options = @("FEATHERDOC_BUILD_PDF", "FEATHERDOC_BUILD_PDF_IMPORT")
+                    missing_pdf_build_options = @()
                 }
             }
         )
@@ -722,6 +728,9 @@ Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\outpu
 Assert-Contains -Path $checklistPath -ExpectedText 'prepare_pdf_visual_release_gate_build_outputs' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'cmake_cache_exists' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'CMakeCache.txt' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'pdf_build_options_enabled' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText '-DFEATHERDOC_BUILD_PDF=ON' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText '-DFEATHERDOC_BUILD_PDF_IMPORT=ON' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'missing CLI PDFs=2' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'missing visual baseline PDFs=42' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'missing CJK text-layer PDFs=43' -Label 'REVIEWER_CHECKLIST.md'
@@ -729,6 +738,8 @@ Assert-Contains -Path $checklistPath -ExpectedText 'memory guard blocked=false' 
 Assert-Contains -Path $checklistPath -ExpectedText 'memory guard skipped=false' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'free memory MB=1140' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'minimum free memory MB=2048' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'PDF build options: enabled=false' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'disabled=FEATHERDOC_BUILD_PDF,FEATHERDOC_BUILD_PDF_IMPORT' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -PreflightOnly' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'not release-ready evidence' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Only after preflight is ready and workstation resources allow it' -Label 'REVIEWER_CHECKLIST.md'
@@ -746,7 +757,7 @@ Assert-Contains -Path $checklistPath -ExpectedText 'repair_hint' -Label 'REVIEWE
 Assert-Contains -Path $checklistPath -ExpectedText 'Rerun Custom XML sync or explicitly fill the bound content control before release.' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Release governance handoff blockers' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Review release governance action item' -Label 'REVIEWER_CHECKLIST.md'
-Assert-Contains -Path $checklistPath -ExpectedText 'build_dir_exists,cmake_cache_exists,ctest_manifest_exists' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'build_dir_exists,cmake_cache_exists,ctest_manifest_exists,pdf_build_options_enabled' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Release blocker rollup action items' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Run ' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'for release governance action item' -Label 'REVIEWER_CHECKLIST.md'
