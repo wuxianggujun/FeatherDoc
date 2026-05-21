@@ -292,15 +292,24 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text ([string]$onboardingBlockers[0].source_json_display) `
         -ExpectedText "governance\summary.json" `
         -Message "Onboarding-derived blockers should retain the onboarding governance source JSON display."
+    Assert-ContainsText -Text ([string]$onboardingBlockers[0].source_report_display) `
+        -ExpectedText "governance\summary.json" `
+        -Message "Onboarding-derived blockers should retain the onboarding governance source report display."
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.project_template_delivery_readiness_report.v1" `
         -Message "Delivery-generated blockers should expose the delivery readiness source schema."
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
         -ExpectedText "summary.json" `
         -Message "Release blockers should expose reviewer source JSON display paths."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+        -ExpectedText "summary.json" `
+        -Message "Release blockers should expose reviewer source report display paths."
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
         -Message "Onboarding-derived action items should retain the onboarding governance source schema."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+        -ExpectedText "governance\summary.json" `
+        -Message "Action items should expose the onboarding governance source report display."
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "sync_project_template_schema_approval.ps1" `
         -Message "Action items should expose the reviewer open command."
@@ -322,6 +331,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include release blockers."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
         -Message "Markdown should include source JSON display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Markdown should include source report display fields."
     Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
         -Message "Markdown should include action item open commands."
 }

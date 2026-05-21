@@ -231,8 +231,17 @@ function New-ReleaseBlocker {
         [string]$Message,
         [string]$SourceSchema = $deliveryReadinessSchema,
         [string]$SourceJson = "",
-        [string]$SourceJsonDisplay = ""
+        [string]$SourceJsonDisplay = "",
+        [string]$SourceReport = "",
+        [string]$SourceReportDisplay = ""
     )
+
+    if ([string]::IsNullOrWhiteSpace($SourceReport)) {
+        $SourceReport = $SourceJson
+    }
+    if ([string]::IsNullOrWhiteSpace($SourceReportDisplay)) {
+        $SourceReportDisplay = $SourceJsonDisplay
+    }
 
     return [ordered]@{
         id = $Id
@@ -240,6 +249,8 @@ function New-ReleaseBlocker {
         source_schema = $SourceSchema
         source_json = $SourceJson
         source_json_display = $SourceJsonDisplay
+        source_report = $SourceReport
+        source_report_display = $SourceReportDisplay
         severity = "error"
         status = $Status
         action = $Action
@@ -325,6 +336,8 @@ function New-ReadinessTemplate {
         source_kind = $SourceKind
         source_json = $SourceJson
         source_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $SourceJson
+        source_report = $SourceJson
+        source_report_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $SourceJson
     }
 }
 
@@ -435,6 +448,8 @@ function Add-HistoryToTemplates {
                 source_schema = $deliveryReadinessSchema
                 source_json = [string]$template.source_json
                 source_json_display = [string]$template.source_json_display
+                source_report = [string]$template.source_report
+                source_report_display = [string]$template.source_report_display
                 message = "No schema approval history entry matched this template name."
             }) | Out-Null
             continue
@@ -532,7 +547,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)`` source_report_display=``$($blocker.source_report_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - message: $($blocker.message)") | Out-Null
             }
@@ -545,7 +560,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.template_name)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($item.template_name)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)`` source_report_display=``$($item.source_report_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -558,7 +573,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)`` source_report_display=``$($warning.source_report_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - message: $($warning.message)") | Out-Null
             }
@@ -643,6 +658,8 @@ foreach ($path in @($inputPaths)) {
                     source_schema = $deliveryReadinessSchema
                     source_json = $path
                     source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                    source_report = $path
+                    source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "Input JSON kind '$kind' is not project-template readiness evidence."
                 }) | Out-Null
             }
@@ -656,6 +673,8 @@ foreach ($path in @($inputPaths)) {
             source_schema = $deliveryReadinessSchema
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_report = $path
+            source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage
         }) | Out-Null
     }
@@ -676,6 +695,8 @@ if ($templates.Count -eq 0) {
         source_schema = $deliveryReadinessSchema
         source_json = $summaryPath
         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+        source_report = $summaryPath
+        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "No onboarding template evidence was loaded."
     }) | Out-Null
 }
@@ -710,10 +731,12 @@ foreach ($blocker in @($globalReleaseBlockers.ToArray())) {
     $releaseBlockers.Add([ordered]@{
         scope = "global"
         template_name = ""
-        source_kind = Get-JsonString -Object $blocker -Name "source"
+        source_kind = Get-JsonString -Object $blocker -Name "source" -DefaultValue "project_template_delivery_readiness_report"
         source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue $deliveryReadinessSchema
         source_json = Get-JsonString -Object $blocker -Name "source_json" -DefaultValue $summaryPath
         source_json_display = Get-JsonString -Object $blocker -Name "source_json_display" -DefaultValue (Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath)
+        source_report = Get-JsonString -Object $blocker -Name "source_report" -DefaultValue $summaryPath
+        source_report_display = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue (Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath)
         id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
         severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
         status = Get-JsonString -Object $blocker -Name "status"
@@ -727,10 +750,12 @@ foreach ($template in @($templates.ToArray())) {
         $releaseBlockers.Add([ordered]@{
             scope = [string]$template.template_name
             template_name = [string]$template.template_name
-            source_kind = [string]$template.source_kind
+            source_kind = Get-JsonString -Object $blocker -Name "source" -DefaultValue ([string]$template.source_kind)
             source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue (Get-DefaultSourceSchema -SourceKind ([string]$template.source_kind))
             source_json = Get-JsonString -Object $blocker -Name "source_json" -DefaultValue ([string]$template.source_json)
             source_json_display = Get-JsonString -Object $blocker -Name "source_json_display" -DefaultValue ([string]$template.source_json_display)
+            source_report = Get-JsonString -Object $blocker -Name "source_report" -DefaultValue ([string]$template.source_report)
+            source_report_display = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue ([string]$template.source_report_display)
             id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
             severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
             status = Get-JsonString -Object $blocker -Name "status" -DefaultValue ([string]$template.schema_approval_status)
@@ -741,10 +766,12 @@ foreach ($template in @($templates.ToArray())) {
     foreach ($item in @($template.action_items)) {
         $actionItems.Add([ordered]@{
             template_name = [string]$template.template_name
-            source_kind = [string]$template.source_kind
+            source_kind = Get-JsonString -Object $item -Name "source" -DefaultValue ([string]$template.source_kind)
             source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue (Get-DefaultSourceSchema -SourceKind ([string]$template.source_kind))
             source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue ([string]$template.source_json)
             source_json_display = Get-JsonString -Object $item -Name "source_json_display" -DefaultValue ([string]$template.source_json_display)
+            source_report = Get-JsonString -Object $item -Name "source_report" -DefaultValue ([string]$template.source_report)
+            source_report_display = Get-JsonString -Object $item -Name "source_report_display" -DefaultValue ([string]$template.source_report_display)
             id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
