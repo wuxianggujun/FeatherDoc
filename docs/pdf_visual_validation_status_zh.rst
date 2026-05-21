@@ -31,14 +31,16 @@ PDF 可视化验证状态
    * ``preflight_ready = false``
    * ``full_visual_gate_required = true``
    * ``full_visual_gate_status = not_run_by_preflight_governance``
-   * 同日真实 ``check_pdf_dependency_inputs.ps1`` 仍返回 ``status = not_ready``
-   * ``selected_pdfium_provider = unresolved``
+   * 2026-05-21 23:43 真实 ``check_pdf_dependency_inputs.ps1`` 仍返回
+     ``status = not_ready``
+   * ``selected_pdfium_provider = prebuilt``
    * ``pdfio_ready = false``
-   * ``pdfium_ready = false``
-   * ``missing_input_count = 3``
+   * ``pdfium_ready = true``
+   * ``pdfium_prebuilt_root_exists = true``
+   * ``pdfium_library = TinaToolBox\dependencies\pdfium-win-x64\lib\pdfium.dll.lib``
+   * ``missing_input_count = 1``
    * 缺失 ``tmp\pdfio-src\pdfio.h``
-   * 缺失 ``tmp\pdfium-workspace\pdfium\public\fpdfview.h``
-   * 在补齐 PDFio / PDFium 输入前，不应启动完整 PDF visual gate
+   * 在补齐 PDFio 输入前，不应启动完整 PDF visual gate
 
 4. ``preflight_ready`` 只表示预检是否清零；即使它为 ``true``，
    也仍需完整 ``scripts/run_pdf_visual_release_gate.ps1`` 产出新的
@@ -126,10 +128,13 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
   ``CTestTestfile.cmake`` 已存在；但 ``FEATHERDOC_BUILD_PDF=OFF``、
   ``FEATHERDOC_BUILD_PDF_IMPORT=OFF``，所以仍缺 2 个 CLI baseline PDF、
   42 个 visual baseline PDF 和 43 个 CJK text-layer PDF。
-* 同日只读依赖输入检查还确认 ``selected_pdfium_provider = unresolved``、
-  ``missing_input_count = 3``，且真实缺口仍是 ``tmp\pdfio-src\pdfio.h`` 和
-  ``tmp\pdfium-workspace\pdfium\public\fpdfview.h``；在这些输入补齐前，
-  重新配置 ``.bpdf-roundtrip-msvc`` 只会继续停留在 ``not_ready``。
+* 同日只读依赖输入检查还确认 ``selected_pdfium_provider = prebuilt``、
+  ``pdfium_ready = true``、``pdfium_prebuilt_root_exists = true``，并从
+  ``TinaToolBox\dependencies\pdfium-win-x64`` 探测到
+  ``lib\pdfium.dll.lib``、``include\fpdfview.h`` 和 ``bin\pdfium.dll``；
+  当前真实缺口收敛为 ``tmp\pdfio-src\pdfio.h``，所以
+  ``missing_input_count = 1``，在补齐 PDFio 输入前，重新配置
+  ``.bpdf-roundtrip-msvc`` 仍会继续停留在 ``not_ready``。
 * ``test/pdf_visual_release_gate_preflight_test.ps1`` 里的 ``fake-pdf-build``、fake ctest
   和 fake python 只是脚本契约测试使用的 test fixture；它们不是不可复用 release gate
   build 的示例，也不是 reusable release build substitute，不能作为完整
@@ -159,7 +164,8 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 ------
 
 1. 继续保留远端 ``origin/codex/*`` 为只读参考库存。
-2. 先运行 ``check_pdf_dependency_inputs.ps1`` 确认本机 PDFio / PDFium 输入齐备。
+2. 先补齐 ``tmp\pdfio-src\pdfio.h``，再运行
+   ``check_pdf_dependency_inputs.ps1`` 确认本机 PDFio / PDFium 输入齐备。
 3. 在资源允许、源码已提交推送且工作区干净时，先准备可复用的 PDF build /
    CTest / baseline 输出；当前第一步是用真实 PDFio/PDFium 输入重新配置
    ``.bpdf-roundtrip-msvc``，确保 ``FEATHERDOC_BUILD_PDF=ON`` 且
