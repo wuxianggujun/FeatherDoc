@@ -84,6 +84,13 @@ $statusMarkers = @(
     "full_visual_gate_required = true",
     "full_visual_gate_status = not_run_by_preflight_governance",
     "not_run_by_preflight_governance",
+    "status = not_ready",
+    "selected_pdfium_provider = unresolved",
+    "pdfio_ready = false",
+    "pdfium_ready = false",
+    "missing_input_count = 3",
+    "tmp\pdfio-src\pdfio.h",
+    "tmp\pdfium-workspace\pdfium\public\fpdfview.h",
     "output_gap_count = 3",
     ".bpdf-roundtrip-msvc",
     "CMakeCache.txt",
@@ -100,6 +107,11 @@ $statusMarkers = @(
     "fake python",
     "test fixture",
     "reusable release build substitute",
+    "pdf_dependency_inputs",
+    "pdf_dependency_inputs_status",
+    "pdf_dependency_missing_input_count",
+    "pdfio_dependency_ready",
+    "pdfium_dependency_ready",
     $doNotRunFullVisualGateMarker
 )
 

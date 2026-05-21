@@ -31,6 +31,14 @@ PDF 可视化验证状态
    * ``preflight_ready = false``
    * ``full_visual_gate_required = true``
    * ``full_visual_gate_status = not_run_by_preflight_governance``
+   * 同日真实 ``check_pdf_dependency_inputs.ps1`` 仍返回 ``status = not_ready``
+   * ``selected_pdfium_provider = unresolved``
+   * ``pdfio_ready = false``
+   * ``pdfium_ready = false``
+   * ``missing_input_count = 3``
+   * 缺失 ``tmp\pdfio-src\pdfio.h``
+   * 缺失 ``tmp\pdfium-workspace\pdfium\public\fpdfview.h``
+   * 在补齐 PDFio / PDFium 输入前，不应启动完整 PDF visual gate
 
 4. ``preflight_ready`` 只表示预检是否清零；即使它为 ``true``，
    也仍需完整 ``scripts/run_pdf_visual_release_gate.ps1`` 产出新的
@@ -47,6 +55,11 @@ PDF 可视化验证状态
   CTest、Ninja、MSBuild、下载依赖或 PDF 渲染。
 * ``scripts/check_pdf_visual_release_gate_preflight.ps1`` 会在 summary JSON 中输出
   ``blocking_summary``。
+* 同一份 preflight summary 现在还会附带 ``pdf_dependency_inputs``，并在
+  ``blocking_summary`` 中同步写入 ``pdf_dependency_inputs_status``、
+  ``pdf_dependency_missing_input_count``、``selected_pdfium_provider``、
+  ``pdfio_dependency_ready`` 和 ``pdfium_dependency_ready``，让 reviewer 不必手工对照两份
+  JSON 才知道当前是否被 PDFio / PDFium 输入卡住。
 * 同一份 preflight summary 现在也直接输出顶层 ``output_gap_count`` 和
   ``missing_output_count``，让状态页、governance report 和 release blocker
   使用同一组缺失输出总数。
@@ -109,6 +122,10 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
   ``CTestTestfile.cmake`` 已存在；但 ``FEATHERDOC_BUILD_PDF=OFF``、
   ``FEATHERDOC_BUILD_PDF_IMPORT=OFF``，所以仍缺 2 个 CLI baseline PDF、
   42 个 visual baseline PDF 和 43 个 CJK text-layer PDF。
+* 同日只读依赖输入检查还确认 ``selected_pdfium_provider = unresolved``、
+  ``missing_input_count = 3``，且真实缺口仍是 ``tmp\pdfio-src\pdfio.h`` 和
+  ``tmp\pdfium-workspace\pdfium\public\fpdfview.h``；在这些输入补齐前，
+  重新配置 ``.bpdf-roundtrip-msvc`` 只会继续停留在 ``not_ready``。
 * ``test/pdf_visual_release_gate_preflight_test.ps1`` 里的 ``fake-pdf-build``、fake ctest
   和 fake python 只是脚本契约测试使用的 test fixture；它们不是不可复用 release gate
   build 的示例，也不是 reusable release build substitute，不能作为完整
