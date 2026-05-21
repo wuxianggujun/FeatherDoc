@@ -75,6 +75,13 @@ $governanceMetrics = @(
             catalog_coverage_percent = 100
             baseline_coverage_percent = 100
             coverage_score = 100
+            matched_document_count = 2
+            unmatched_catalog_document_count = 0
+            unmatched_baseline_document_count = 0
+            alignment_gap_count = 0
+            catalog_document_keys = @("contract.docx", "invoice.docx")
+            baseline_document_keys = @("contract.docx", "invoice.docx")
+            matched_document_keys = @("contract.docx", "invoice.docx")
             penalty_summary = @(
                 [ordered]@{ factor = "style_numbering_issues"; count = 4; penalty = 20 },
                 [ordered]@{ factor = "catalog_drift_or_dirty_baseline"; count = 2; penalty = 20 },
@@ -316,7 +323,7 @@ Set-Content -LiteralPath $passEntryGovernanceTracePath -Encoding UTF8 -Value @"
 - Content-control contract: source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
-- Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence level=low score=56 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 penalty_summary=style_numbering_issues(count=4, penalty=20)
+- Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence level=low score=56 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 

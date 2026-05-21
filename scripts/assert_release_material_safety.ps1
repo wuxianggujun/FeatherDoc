@@ -317,6 +317,13 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "catalog_coverage_percent",
             "baseline_coverage_percent",
             "coverage_score",
+            "matched_document_count",
+            "unmatched_catalog_document_count",
+            "unmatched_baseline_document_count",
+            "alignment_gap_count",
+            "catalog_document_keys",
+            "baseline_document_keys",
+            "matched_document_keys",
             "penalty_summary",
             "style_numbering_issues"
         )) {
@@ -700,7 +707,14 @@ function Add-GovernanceMetricContractViolations {
                     "baseline_entry_count",
                     "catalog_coverage_percent",
                     "baseline_coverage_percent",
-                    "coverage_score"
+                    "coverage_score",
+                    "matched_document_count",
+                    "unmatched_catalog_document_count",
+                    "unmatched_baseline_document_count",
+                    "alignment_gap_count",
+                    "catalog_document_keys",
+                    "baseline_document_keys",
+                    "matched_document_keys"
                 ) `
                 -Violations $Violations
         } elseif ($metricName -eq "delivery_quality") {

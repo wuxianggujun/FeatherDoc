@@ -168,12 +168,18 @@ foreach ($marker in @(
     "alignment_gap_count",
     "catalog_document_keys",
     "baseline_document_keys",
-    "matched_document_keys",
-    "numbering_catalog_governance.real_corpus_alignment_gap"
+    "matched_document_keys"
 )) {
     Assert-ContainsText -Text $numberingCatalogReportScript -ExpectedText $marker `
         -Message "Numbering catalog governance report should keep the real-corpus alignment marker '$marker'."
+    Assert-ContainsText -Text $safetyAuditScript -ExpectedText $marker `
+        -Message "Release material safety audit should keep the numbering real-corpus alignment marker '$marker'."
+    Assert-ContainsText -Text $safetyAuditTest -ExpectedText $marker `
+        -Message "Release material safety regression should lock the numbering real-corpus alignment marker '$marker'."
 }
+
+Assert-ContainsText -Text $numberingCatalogReportScript -ExpectedText "numbering_catalog_governance.real_corpus_alignment_gap" `
+    -Message "Numbering catalog governance report should keep the real-corpus alignment blocker marker."
 
 foreach ($marker in @(
     "table_style_issue_count",
