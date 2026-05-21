@@ -126,6 +126,32 @@ function Test-PythonImport {
     }
 }
 
+function Resolve-BasePythonCandidate {
+    if (-not [string]::IsNullOrWhiteSpace($env:FEATHERDOC_PYTHON_EXECUTABLE) -and
+        (Test-Path -LiteralPath $env:FEATHERDOC_PYTHON_EXECUTABLE -PathType Leaf)) {
+        return (Resolve-Path -LiteralPath $env:FEATHERDOC_PYTHON_EXECUTABLE).Path
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+        $bundledPython = Join-Path $env:USERPROFILE ".cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
+        if (Test-Path -LiteralPath $bundledPython -PathType Leaf) {
+            return (Resolve-Path -LiteralPath $bundledPython).Path
+        }
+    }
+
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($python) {
+        return $python.Source
+    }
+
+    $python3 = Get-Command python3 -ErrorAction SilentlyContinue
+    if ($python3) {
+        return $python3.Source
+    }
+
+    return ""
+}
+
 function Test-JsonBooleanProperty {
     param(
         [object]$Object,
@@ -439,6 +465,13 @@ if (-not [string]::IsNullOrWhiteSpace($env:FEATHERDOC_RENDER_PYTHON_EXECUTABLE))
     $pythonCandidates.Add([ordered]@{
         source = "FEATHERDOC_RENDER_PYTHON_EXECUTABLE"
         path = $env:FEATHERDOC_RENDER_PYTHON_EXECUTABLE
+    }) | Out-Null
+}
+$basePython = Resolve-BasePythonCandidate
+if (-not [string]::IsNullOrWhiteSpace($basePython)) {
+    $pythonCandidates.Add([ordered]@{
+        source = "base Python"
+        path = $basePython
     }) | Out-Null
 }
 $pythonCandidates.Add([ordered]@{

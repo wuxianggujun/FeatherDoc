@@ -241,6 +241,7 @@ foreach ($expectedText in @(
 }
 foreach ($expectedText in @(
     "FEATHERDOC_RENDER_PYTHON_EXECUTABLE",
+    "base Python",
     ".venv-word-visual-smoke\Scripts\python.exe",
     "tmp\render-venv\Scripts\python.exe",
     ".venv-pdf-visual-smoke\Scripts\python.exe",
@@ -281,7 +282,13 @@ foreach ($expectedText in @(
     "Get-CimInstance Win32_OperatingSystem",
     "workstation_free_memory_available",
     "memory_guard_blocked",
-    "entries_preview"
+    "entries_preview",
+    "Resolve-BasePythonCandidate",
+    "FEATHERDOC_PYTHON_EXECUTABLE",
+    ".cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe",
+    "Get-Command python",
+    "Get-Command python3",
+    'source = "base Python"'
 )) {
     Assert-True -Condition ($preflightText -match [regex]::Escape($expectedText)) `
         -Message "PDF visual release gate preflight should keep build-dir selection marker '$expectedText'."
