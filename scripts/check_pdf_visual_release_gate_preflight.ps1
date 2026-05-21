@@ -2,6 +2,15 @@ param(
     [string]$BuildDir = ".bpdf-roundtrip-msvc",
     [string]$OutputJson = "",
     [string]$CTestExecutable = "ctest",
+    [string]$PdfioSourceDir = "",
+    [ValidateSet("", "auto", "source", "prebuilt", "package")]
+    [string]$PdfiumProvider = "",
+    [string]$PdfiumSourceDir = "",
+    [string]$PdfiumPrebuiltRoot = "",
+    [string]$PdfiumLibrary = "",
+    [string]$PdfiumIncludeDir = "",
+    [string]$PdfiumRuntimeDll = "",
+    [string]$PdfiumRuntimeDir = "",
     [int]$MinFreeMemoryMB = 2048,
     [switch]$SkipMemoryGuard,
     [switch]$Strict
@@ -247,7 +256,8 @@ function Get-JsonPropertyValue {
 function Get-PdfDependencyInputsSummary {
     param(
         [string]$RepoRoot,
-        [string]$CMakeCachePath = ""
+        [string]$CMakeCachePath = "",
+        [hashtable]$OverrideArguments = @{}
     )
 
     $scriptPath = Join-Path $RepoRoot "scripts\check_pdf_dependency_inputs.ps1"
@@ -256,6 +266,7 @@ function Get-PdfDependencyInputsSummary {
         script_path = $scriptPath
         cmake_cache_path = $CMakeCachePath
         cmake_cache_variables = [ordered]@{}
+        dependency_overrides = [ordered]@{}
         schema = ""
         status = "unavailable"
         check_exit_code = $null
@@ -303,6 +314,15 @@ function Get-PdfDependencyInputsSummary {
                 $summary.cmake_cache_variables[$cacheName] = $value
                 $dependencyArguments[$cacheVariableMap[$cacheName]] = $value
             }
+        }
+        foreach ($argumentName in $OverrideArguments.Keys) {
+            $value = [string]$OverrideArguments[$argumentName]
+            if ([string]::IsNullOrWhiteSpace($value)) {
+                continue
+            }
+
+            $summary.dependency_overrides[$argumentName] = $value
+            $dependencyArguments[$argumentName] = $value
         }
 
         $output = @(& $scriptPath @dependencyArguments 2>&1 | ForEach-Object { $_.ToString() })
@@ -473,7 +493,25 @@ Add-CheckResult `
 
 $cmakeCachePath = Join-Path $resolvedBuildDir "CMakeCache.txt"
 $cmakeCacheExists = Test-Path -LiteralPath $cmakeCachePath -PathType Leaf
-$pdfDependencyInputs = Get-PdfDependencyInputsSummary -RepoRoot $repoRoot -CMakeCachePath $cmakeCachePath
+$pdfDependencyOverrides = @{}
+foreach ($entry in @(
+    @{ Name = "PdfioSourceDir"; Value = $PdfioSourceDir },
+    @{ Name = "PdfiumProvider"; Value = $PdfiumProvider },
+    @{ Name = "PdfiumSourceDir"; Value = $PdfiumSourceDir },
+    @{ Name = "PdfiumPrebuiltRoot"; Value = $PdfiumPrebuiltRoot },
+    @{ Name = "PdfiumLibrary"; Value = $PdfiumLibrary },
+    @{ Name = "PdfiumIncludeDir"; Value = $PdfiumIncludeDir },
+    @{ Name = "PdfiumRuntimeDll"; Value = $PdfiumRuntimeDll },
+    @{ Name = "PdfiumRuntimeDir"; Value = $PdfiumRuntimeDir }
+)) {
+    if (-not [string]::IsNullOrWhiteSpace([string]$entry.Value)) {
+        $pdfDependencyOverrides[$entry.Name] = [string]$entry.Value
+    }
+}
+$pdfDependencyInputs = Get-PdfDependencyInputsSummary `
+    -RepoRoot $repoRoot `
+    -CMakeCachePath $cmakeCachePath `
+    -OverrideArguments $pdfDependencyOverrides
 $pdfDependencyInputsReady = [bool]$pdfDependencyInputs.available -and
     [string]$pdfDependencyInputs.status -eq "ready" -and
     [int]$pdfDependencyInputs.missing_input_count -eq 0

@@ -51,6 +51,7 @@ $plainBuildRepoRoot = Join-Path $resolvedWorkingDir "plain-build-repo"
 $plainBuildSummaryPath = Join-Path $resolvedWorkingDir "plain-build-summary.json"
 $disabledBuildDir = Join-Path $resolvedWorkingDir "disabled-pdf-build"
 $disabledBuildSummaryPath = Join-Path $resolvedWorkingDir "disabled-pdf-build-summary.json"
+$disabledOverrideSummaryPath = Join-Path $resolvedWorkingDir "disabled-pdf-build-override-summary.json"
 $disabledCtestMarkerPath = Join-Path $resolvedWorkingDir "disabled-ctest-invoked.txt"
 $disabledCtestPath = Join-Path $resolvedWorkingDir "disabled-ctest.cmd"
 $fakeBuildDir = Join-Path $resolvedWorkingDir "fake-pdf-build"
@@ -84,6 +85,19 @@ add_test(pdf_regression_manifest "cmd" "/c" "exit 0")
 echo invoked > "$disabledCtestMarkerPath"
 exit /b 0
 "@ | Set-Content -LiteralPath $disabledCtestPath -Encoding ASCII
+$overridePdfioSourceDir = Join-Path $resolvedWorkingDir "override-pdfio-src"
+$overridePdfiumPrebuiltDir = Join-Path $resolvedWorkingDir "override-pdfium-prebuilt"
+$overridePdfiumIncludeDir = Join-Path $overridePdfiumPrebuiltDir "include"
+$overridePdfiumLibraryDir = Join-Path $overridePdfiumPrebuiltDir "lib"
+$overridePdfiumBinDir = Join-Path $overridePdfiumPrebuiltDir "bin"
+New-Item -ItemType Directory -Path $overridePdfioSourceDir -Force | Out-Null
+New-Item -ItemType Directory -Path $overridePdfiumIncludeDir -Force | Out-Null
+New-Item -ItemType Directory -Path $overridePdfiumLibraryDir -Force | Out-Null
+New-Item -ItemType Directory -Path $overridePdfiumBinDir -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $overridePdfioSourceDir "pdfio.h") -Encoding UTF8 -Value "/* fake pdfio override */"
+Set-Content -LiteralPath (Join-Path $overridePdfiumIncludeDir "fpdfview.h") -Encoding UTF8 -Value "/* fake pdfium override */"
+Set-Content -LiteralPath (Join-Path $overridePdfiumLibraryDir "pdfium.dll.lib") -Encoding UTF8 -Value "fake import lib"
+Set-Content -LiteralPath (Join-Path $overridePdfiumBinDir "pdfium.dll") -Encoding UTF8 -Value "fake runtime"
 & powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
     -File $scriptPath `
     -BuildDir $disabledBuildDir `
@@ -95,6 +109,18 @@ if ($LASTEXITCODE -ne 0) {
 }
 if (Test-Path -LiteralPath $disabledCtestMarkerPath -PathType Leaf) {
     throw "PDF visual release gate preflight should skip ctest -N when PDF build options are disabled."
+}
+& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    -File $scriptPath `
+    -BuildDir $disabledBuildDir `
+    -OutputJson $disabledOverrideSummaryPath `
+    -CTestExecutable $disabledCtestPath `
+    -PdfioSourceDir $overridePdfioSourceDir `
+    -PdfiumProvider "prebuilt" `
+    -PdfiumPrebuiltRoot $overridePdfiumPrebuiltDir `
+    -MinFreeMemoryMB 1 | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    throw "PDF visual release gate preflight should accept dependency input overrides without failing."
 }
 
 New-Item -ItemType Directory -Path $fakeBuildDir -Force | Out-Null
@@ -280,6 +306,22 @@ Assert-True -Condition ((@($disabledCtestCheck.details.disabled_pdf_build_option
 Assert-True -Condition ((@($disabledCtestCheck.details.disabled_pdf_build_options) | ForEach-Object { [string]$_ }) -contains "FEATHERDOC_BUILD_PDF_IMPORT") `
     -Message "Disabled PDF build ctest check should expose FEATHERDOC_BUILD_PDF_IMPORT as disabled."
 
+$disabledOverrideSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $disabledOverrideSummaryPath | ConvertFrom-Json
+Assert-True -Condition ($disabledOverrideSummary.status -eq "not_ready") `
+    -Message "Disabled PDF build override preflight should still be not_ready because build options are disabled."
+Assert-True -Condition (($disabledOverrideSummary.blocking_checks | ForEach-Object { [string]$_ }) -notcontains "pdf_dependency_inputs_ready") `
+    -Message "Dependency overrides should clear the dependency input blocker."
+Assert-True -Condition (($disabledOverrideSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_build_options_enabled") `
+    -Message "Dependency overrides should not bypass disabled PDF build options."
+Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.status -eq "ready") `
+    -Message "Dependency overrides should make the dependency input summary ready."
+Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.selected_pdfium_provider -eq "prebuilt") `
+    -Message "Dependency overrides should select the prebuilt PDFium provider."
+Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.dependency_overrides.PdfiumProvider -eq "prebuilt") `
+    -Message "Dependency override summary should expose the provider override."
+Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.pdfium_prebuilt_root -eq [System.IO.Path]::GetFullPath($overridePdfiumPrebuiltDir)) `
+    -Message "Dependency overrides should replace CMakeCache dependency inputs for the dependency check."
+
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-True -Condition ($summary.status -eq "ready") `
     -Message "Preflight summary should be ready for a reusable fake PDF build."
@@ -366,11 +408,15 @@ foreach ($expectedText in @(
     "[string]`$PreflightJson",
     "[switch]`$PreflightOnly",
     "[switch]`$SkipPreflight",
+    "[string]`$PdfioSourceDir = `"`"",
+    "[string]`$PdfiumPrebuiltRoot = `"`"",
     "[int]`$MinFreeMemoryMB = 2048",
     "[switch]`$SkipMemoryGuard",
     "scripts\check_pdf_visual_release_gate_preflight.ps1",
-    "-MinFreeMemoryMB `$MinFreeMemoryMB",
-    "-Strict",
+    "preflightArguments",
+    "MinFreeMemoryMB = `$MinFreeMemoryMB",
+    "SkipMemoryGuard = [bool]`$SkipMemoryGuard",
+    "Strict = `$true",
     "PDF visual release gate preflight failed",
     "-PreflightOnly cannot be used with -SkipPreflight"
 )) {
@@ -420,6 +466,10 @@ foreach ($expectedText in @(
     "disabled_pdf_build_options",
     "missing_pdf_build_options",
     "pdf_dependency_inputs_ready",
+    "OverrideArguments",
+    "dependency_overrides",
+    "PdfioSourceDir",
+    "PdfiumPrebuiltRoot",
     "PDF dependency inputs are not ready for the full visual gate.",
     "PDF dependency inputs are ready for the full visual gate.",
     "Skipped ctest -N because PDF build/import options are not enabled in CMakeCache.txt.",

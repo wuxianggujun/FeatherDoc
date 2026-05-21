@@ -4,6 +4,15 @@ param(
     [int]$Dpi = 144,
     [switch]$SkipUnicodeBaseline,
     [int]$MinFreeMemoryMB = 2048,
+    [string]$PdfioSourceDir = "",
+    [ValidateSet("", "auto", "source", "prebuilt", "package")]
+    [string]$PdfiumProvider = "",
+    [string]$PdfiumSourceDir = "",
+    [string]$PdfiumPrebuiltRoot = "",
+    [string]$PdfiumLibrary = "",
+    [string]$PdfiumIncludeDir = "",
+    [string]$PdfiumRuntimeDll = "",
+    [string]$PdfiumRuntimeDir = "",
     [string]$PreflightJson = "",
     [switch]$PreflightOnly,
     [switch]$SkipPreflight,
@@ -230,12 +239,29 @@ if (-not $SkipPreflight) {
     }
 
     Write-Step "Running preflight"
-    & $preflightScriptPath `
-        -BuildDir $resolvedBuildDir `
-        -OutputJson $resolvedPreflightJson `
-        -MinFreeMemoryMB $MinFreeMemoryMB `
-        -SkipMemoryGuard:$SkipMemoryGuard `
-        -Strict
+    $preflightArguments = @{
+        BuildDir = $resolvedBuildDir
+        OutputJson = $resolvedPreflightJson
+        MinFreeMemoryMB = $MinFreeMemoryMB
+        SkipMemoryGuard = [bool]$SkipMemoryGuard
+        Strict = $true
+    }
+    foreach ($entry in @(
+        @{ Name = "PdfioSourceDir"; Value = $PdfioSourceDir },
+        @{ Name = "PdfiumProvider"; Value = $PdfiumProvider },
+        @{ Name = "PdfiumSourceDir"; Value = $PdfiumSourceDir },
+        @{ Name = "PdfiumPrebuiltRoot"; Value = $PdfiumPrebuiltRoot },
+        @{ Name = "PdfiumLibrary"; Value = $PdfiumLibrary },
+        @{ Name = "PdfiumIncludeDir"; Value = $PdfiumIncludeDir },
+        @{ Name = "PdfiumRuntimeDll"; Value = $PdfiumRuntimeDll },
+        @{ Name = "PdfiumRuntimeDir"; Value = $PdfiumRuntimeDir }
+    )) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$entry.Value)) {
+            $preflightArguments[$entry.Name] = [string]$entry.Value
+        }
+    }
+
+    & $preflightScriptPath @preflightArguments
     if ($LASTEXITCODE -ne 0) {
         throw "PDF visual release gate preflight failed. See $resolvedPreflightJson."
     }
