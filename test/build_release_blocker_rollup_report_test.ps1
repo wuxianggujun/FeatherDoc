@@ -74,6 +74,7 @@ $contentControlPath = Join-Path $fixtureRoot "content-control\summary.json"
 $projectTemplateReadinessPath = Join-Path $fixtureRoot "project-template-readiness\summary.json"
 $schemaCalibrationPath = Join-Path $fixtureRoot "schema-patch-confidence-calibration\summary.json"
 $releaseCandidatePath = Join-Path $fixtureRoot "release-candidate\summary.json"
+$pdfPreflightGovernancePath = Join-Path $fixtureRoot "pdf-preflight-governance\summary.json"
 $styleGovernancePath = Join-Path $fixtureRoot "style-governance\summary.json"
 $emptyPath = Join-Path $fixtureRoot "empty\summary.json"
 $malformedPath = Join-Path $fixtureRoot "malformed\summary.json"
@@ -341,6 +342,91 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
     action_items = @()
 })
 
+Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
+    schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+    status = "blocked"
+    release_ready = $false
+    release_blocker_count = 1
+    release_blockers = @(
+        [ordered]@{
+            id = "pdf_visual_release_gate_preflight.build_outputs_missing"
+            severity = "error"
+            status = "blocked"
+            message = "PDF visual release gate preflight is not ready."
+            action = "prepare_pdf_visual_release_gate_build_outputs"
+            source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+            source_json_display = ".\output\pdf-visual-release-gate-preflight\summary.json"
+            blocking_summary = [ordered]@{
+                missing_visual_baseline_pdf_count = 42
+                missing_cjk_text_layer_pdf_count = 43
+            }
+            output_gap_count = 3
+            missing_output_count = 87
+            output_gap_summary = @(
+                [ordered]@{
+                    check = "visual_baseline_manifest_pdfs_exist"
+                    missing_count = 42
+                    missing_paths_preview = @("test\pdf_visual_baselines\cjk\font_map_text.pdf")
+                }
+            )
+            build_dir_auto_candidates = @(
+                [ordered]@{
+                    relative_path = "build"
+                    exists = $true
+                    cmake_cache_exists = $false
+                    ctest_manifest_exists = $false
+                    looks_reusable = $false
+                },
+                [ordered]@{
+                    relative_path = "out\build"
+                    exists = $false
+                    cmake_cache_exists = $false
+                    ctest_manifest_exists = $false
+                    looks_reusable = $false
+                }
+            )
+        }
+    )
+    action_items = @(
+        [ordered]@{
+            id = "prepare_pdf_visual_release_gate_build_outputs"
+            action = "prepare_pdf_visual_release_gate_build_outputs"
+            title = "Prepare PDF visual release gate build outputs"
+            open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -PreflightOnly"
+            source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+            source_json_display = ".\output\pdf-visual-release-gate-preflight\summary.json"
+            blocking_summary = [ordered]@{
+                missing_cjk_text_layer_pdf_count = 43
+            }
+            output_gap_count = 3
+            missing_output_count = 87
+            output_gap_summary = @(
+                [ordered]@{
+                    check = "cjk_text_layer_manifest_pdfs_exist"
+                    missing_count = 43
+                    missing_paths_preview = @("test\pdf_text_layer_cjk\copy_search\mixed_cjk_text.pdf")
+                }
+            )
+            build_dir_auto_candidates = @(
+                [ordered]@{
+                    relative_path = "build"
+                    exists = $true
+                    cmake_cache_exists = $false
+                    ctest_manifest_exists = $false
+                    looks_reusable = $false
+                },
+                [ordered]@{
+                    relative_path = "out\build"
+                    exists = $false
+                    cmake_cache_exists = $false
+                    ctest_manifest_exists = $false
+                    looks_reusable = $false
+                }
+            )
+        }
+    )
+})
+
 Write-JsonFile -Path $emptyPath -Value ([ordered]@{
     schema = "featherdoc.empty_report.v1"
     release_blocker_count = 0
@@ -402,6 +488,8 @@ if (Test-Scenario -Name "passing") {
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $schemaCalibrationPath | ConvertFrom-Json)
     Write-JsonFile -Path (Join-Path $passingInputRoot "release-candidate\summary.json") `
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseCandidatePath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $passingInputRoot "pdf-preflight-governance\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfPreflightGovernancePath | ConvertFrom-Json)
     $result = Invoke-RollupScript -Arguments @(
         "-InputRoot", $passingInputRoot,
         "-OutputDir", $outputDir
@@ -421,13 +509,13 @@ if (Test-Scenario -Name "passing") {
         -Message "Summary should expose rollup schema."
     Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
         -Message "Rollup should be blocked when blockers exist."
-    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 7 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 8 `
         -Message "Rollup should aggregate all blockers."
-    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 5 `
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 6 `
         -Message "Rollup should aggregate action items."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
         -Message "Rollup should aggregate warning items."
-    Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 8 `
+    Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 9 `
         -Message "Rollup should keep source report count."
     Assert-Equal -Actual ([int]$summary.governance_metric_count) -Expected 2 `
         -Message "Rollup should aggregate report-level governance metrics."
@@ -527,6 +615,29 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve content-control action repair strategy."
     Assert-ContainsText -Text ([string]$contentControlAction.command_template) -ExpectedText "--clear-lock" `
         -Message "Rollup should preserve content-control action command template."
+    $pdfPreflightBlocker = ($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "pdf_visual_release_gate_preflight.build_outputs_missing" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([int]$pdfPreflightBlocker.output_gap_count) -Expected 3 `
+        -Message "Rollup should preserve PDF preflight blocker output gap count."
+    Assert-Equal -Actual ([int]$pdfPreflightBlocker.missing_output_count) -Expected 87 `
+        -Message "Rollup should preserve PDF preflight blocker missing output count."
+    Assert-Equal -Actual ([int]$pdfPreflightBlocker.blocking_summary.missing_visual_baseline_pdf_count) -Expected 42 `
+        -Message "Rollup should preserve PDF preflight blocker blocking summary details."
+    Assert-Equal -Actual (@($pdfPreflightBlocker.build_dir_auto_candidates).Count) -Expected 2 `
+        -Message "Rollup should preserve PDF preflight blocker build auto candidates."
+    Assert-ContainsText -Text (($pdfPreflightBlocker.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n") `
+        -ExpectedText "visual_baseline_manifest_pdfs_exist" `
+        -Message "Rollup should preserve PDF preflight blocker output gap summary."
+    $pdfPreflightAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "prepare_pdf_visual_release_gate_build_outputs" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([int]$pdfPreflightAction.output_gap_count) -Expected 3 `
+        -Message "Rollup should preserve PDF preflight action output gap count."
+    Assert-Equal -Actual ([int]$pdfPreflightAction.blocking_summary.missing_cjk_text_layer_pdf_count) -Expected 43 `
+        -Message "Rollup should preserve PDF preflight action blocking summary details."
+    Assert-Equal -Actual (@($pdfPreflightAction.build_dir_auto_candidates).Count) -Expected 2 `
+        -Message "Rollup should preserve PDF preflight action build auto candidates."
     $projectTemplateSourceReport = ($summary.source_reports |
         Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
         Select-Object -First 1)

@@ -508,6 +508,18 @@ Assert-Equal -Actual ([string]$rollupSummary.release_blockers[0].source_schema) 
 Assert-ContainsText -Text ([string]$rollupSummary.release_blockers[0].source_json_display) `
     -ExpectedText "not-ready-preflight.json" `
     -Message "Rollup should preserve the source preflight JSON display."
+Assert-Equal -Actual ([int]$rollupSummary.release_blockers[0].output_gap_count) -Expected 3 `
+    -Message "Rollup should preserve PDF preflight blocker output gap count."
+Assert-Equal -Actual ([int]$rollupSummary.release_blockers[0].missing_output_count) -Expected 87 `
+    -Message "Rollup should preserve PDF preflight blocker missing output count."
+Assert-Equal -Actual ([int]$rollupSummary.release_blockers[0].blocking_summary.missing_visual_baseline_pdf_count) -Expected 42 `
+    -Message "Rollup should preserve PDF preflight blocker blocking summary details."
+Assert-Equal -Actual (@($rollupSummary.release_blockers[0].build_dir_auto_candidates).Count) -Expected 2 `
+    -Message "Rollup should preserve PDF preflight blocker build auto candidates."
+Assert-Equal -Actual ([int]$rollupSummary.action_items[0].output_gap_count) -Expected 3 `
+    -Message "Rollup should preserve PDF preflight action item output gap count."
+Assert-Equal -Actual (@($rollupSummary.action_items[0].build_dir_auto_candidates).Count) -Expected 2 `
+    -Message "Rollup should preserve PDF preflight action item build auto candidates."
 
 $readyOutputDir = Join-Path $resolvedWorkingDir "ready-report"
 $readyResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(

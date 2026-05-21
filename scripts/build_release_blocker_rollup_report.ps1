@@ -138,6 +138,21 @@ function Get-JsonArray {
     return @($value)
 }
 
+function Copy-OptionalJsonProperties {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Source,
+        [string[]]$Names
+    )
+
+    foreach ($name in @($Names)) {
+        $value = Get-JsonProperty -Object $Source -Name $name
+        if ($null -ne $value) {
+            $Target[$name] = $value
+        }
+    }
+}
+
 function Get-ReportIdFromSchema {
     param([string]$SourceSchema)
 
@@ -589,7 +604,7 @@ foreach ($path in @($inputPaths)) {
             $sourceJsonDisplay = Get-JsonString -Object $blocker -Name "source_json_display"
             $originSourceReport = Get-JsonString -Object $blocker -Name "source_report"
             $originSourceReportDisplay = Get-JsonString -Object $blocker -Name "source_report_display"
-            $blockers.Add([ordered]@{
+            $rollupBlocker = [ordered]@{
                 composite_id = ("source{0}.blocker{1}.{2}" -f $sourceIndex, $blockerIndex, $id)
                 id = $id
                 project_id = Get-JsonString -Object $blocker -Name "project_id"
@@ -626,7 +641,18 @@ foreach ($path in @($inputPaths)) {
                 repair_strategy = Get-JsonString -Object $blocker -Name "repair_strategy"
                 repair_hint = Get-JsonString -Object $blocker -Name "repair_hint"
                 command_template = Get-JsonString -Object $blocker -Name "command_template"
-            }) | Out-Null
+            }
+            Copy-OptionalJsonProperties `
+                -Target $rollupBlocker `
+                -Source $blocker `
+                -Names @(
+                    "blocking_summary",
+                    "output_gap_count",
+                    "missing_output_count",
+                    "output_gap_summary",
+                    "build_dir_auto_candidates"
+                )
+            $blockers.Add($rollupBlocker) | Out-Null
         }
 
         $actionIndex = 0
@@ -637,7 +663,7 @@ foreach ($path in @($inputPaths)) {
             $sourceJsonDisplay = Get-JsonString -Object $item -Name "source_json_display"
             $originSourceReport = Get-JsonString -Object $item -Name "source_report"
             $originSourceReportDisplay = Get-JsonString -Object $item -Name "source_report_display"
-            $actionItems.Add([ordered]@{
+            $rollupActionItem = [ordered]@{
                 composite_id = ("source{0}.action{1}.{2}" -f $sourceIndex, $actionIndex, $id)
                 id = $id
                 project_id = Get-JsonString -Object $item -Name "project_id"
@@ -673,7 +699,18 @@ foreach ($path in @($inputPaths)) {
                 repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
                 repair_hint = Get-JsonString -Object $item -Name "repair_hint"
                 command_template = Get-JsonString -Object $item -Name "command_template"
-            }) | Out-Null
+            }
+            Copy-OptionalJsonProperties `
+                -Target $rollupActionItem `
+                -Source $item `
+                -Names @(
+                    "blocking_summary",
+                    "output_gap_count",
+                    "missing_output_count",
+                    "output_gap_summary",
+                    "build_dir_auto_candidates"
+                )
+            $actionItems.Add($rollupActionItem) | Out-Null
         }
 
         $warningIndex = 0
