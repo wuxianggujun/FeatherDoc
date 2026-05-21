@@ -193,6 +193,53 @@ function Get-JsonPropertyValue {
     return $property.Value
 }
 
+function Get-PdfDependencyInputsSummary {
+    param([string]$RepoRoot)
+
+    $scriptPath = Join-Path $RepoRoot "scripts\check_pdf_dependency_inputs.ps1"
+    $summary = [ordered]@{
+        available = $false
+        script_path = $scriptPath
+        schema = ""
+        status = "unavailable"
+        check_exit_code = $null
+        error_message = ""
+        pdfio_ready = $false
+        pdfium_provider = ""
+        selected_pdfium_provider = ""
+        pdfium_ready = $false
+        missing_input_count = 0
+        missing_inputs = @()
+    }
+
+    if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+        $summary.error_message = "Dependency input check script was not found."
+        return $summary
+    }
+
+    try {
+        $output = @(& $scriptPath 2>&1 | ForEach-Object { $_.ToString() })
+        $summary.check_exit_code = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+        $dependencySummary = ($output -join "`n") | ConvertFrom-Json
+        $summary.available = $true
+        $summary.schema = [string](Get-JsonPropertyValue -Object $dependencySummary -Name "schema" -DefaultValue "")
+        $summary.status = [string](Get-JsonPropertyValue -Object $dependencySummary -Name "status" -DefaultValue "unavailable")
+        $summary.pdfio_ready = [bool](Get-JsonPropertyValue -Object $dependencySummary -Name "pdfio_ready" -DefaultValue $false)
+        $summary.pdfium_provider = [string](Get-JsonPropertyValue -Object $dependencySummary -Name "pdfium_provider" -DefaultValue "")
+        $summary.selected_pdfium_provider = [string](Get-JsonPropertyValue -Object $dependencySummary -Name "selected_pdfium_provider" -DefaultValue "")
+        $summary.pdfium_ready = [bool](Get-JsonPropertyValue -Object $dependencySummary -Name "pdfium_ready" -DefaultValue $false)
+        $summary.missing_input_count = [int](Get-JsonPropertyValue -Object $dependencySummary -Name "missing_input_count" -DefaultValue 0)
+        $summary.missing_inputs = @(
+            Get-JsonPropertyValue -Object $dependencySummary -Name "missing_inputs" -DefaultValue @() |
+                ForEach-Object { [string]$_ }
+        )
+        return $summary
+    } catch {
+        $summary.error_message = $_.Exception.Message
+        return $summary
+    }
+}
+
 function Get-BuildDirectorySnapshot {
     param([string]$Path)
 
@@ -306,6 +353,7 @@ $repoRoot = Resolve-RepoRoot
 $buildDirSelection = Resolve-PreferredBuildDir -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedBuildDir = $buildDirSelection.Path
 $checks = New-Object System.Collections.ArrayList
+$pdfDependencyInputs = Get-PdfDependencyInputsSummary -RepoRoot $repoRoot
 
 $memorySnapshot = Get-LocalMemorySnapshot
 $memoryGuardSkipped = [bool]$SkipMemoryGuard -or $MinFreeMemoryMB -le 0
@@ -656,6 +704,13 @@ $blockingSummary = [ordered]@{
     min_free_memory_mb = $MinFreeMemoryMB
     memory_guard_blocked = [bool]$memoryGuardBlocked
     memory_guard_skipped = [bool]$memoryGuardSkipped
+    pdf_dependency_inputs_status = [string]$pdfDependencyInputs.status
+    pdf_dependency_check_available = [bool]$pdfDependencyInputs.available
+    pdf_dependency_missing_input_count = [int]$pdfDependencyInputs.missing_input_count
+    selected_pdfium_provider = [string]$pdfDependencyInputs.selected_pdfium_provider
+    pdfio_dependency_ready = [bool]$pdfDependencyInputs.pdfio_ready
+    pdfium_dependency_ready = [bool]$pdfDependencyInputs.pdfium_ready
+    pdf_dependency_missing_inputs_preview = @($pdfDependencyInputs.missing_inputs | Select-Object -First 5)
 }
 $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
@@ -669,6 +724,7 @@ $summary = [ordered]@{
     blocking_summary = $blockingSummary
     output_gap_count = $outputGapCount
     missing_output_count = $missingOutputCount
+    pdf_dependency_inputs = $pdfDependencyInputs
     checks = @($checks)
     blocking_checks = @($blockingChecks | ForEach-Object { $_.name })
 }

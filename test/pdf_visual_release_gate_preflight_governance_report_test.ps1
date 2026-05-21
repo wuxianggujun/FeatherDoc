@@ -253,6 +253,34 @@ Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
             "FEATHERDOC_BUILD_PDF_IMPORT"
         )
         missing_pdf_build_options = @()
+        pdf_dependency_inputs_status = "not_ready"
+        pdf_dependency_check_available = $true
+        pdf_dependency_missing_input_count = 3
+        selected_pdfium_provider = "unresolved"
+        pdfio_dependency_ready = $false
+        pdfium_dependency_ready = $false
+        pdf_dependency_missing_inputs_preview = @(
+            "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h",
+            "PDFium source header: C:\repo\tmp\pdfium-workspace\pdfium\public\fpdfview.h"
+        )
+    }
+    pdf_dependency_inputs = [ordered]@{
+        available = $true
+        script_path = Join-Path $resolvedRepoRoot "scripts\check_pdf_dependency_inputs.ps1"
+        schema = "featherdoc.pdf_dependency_inputs_check.v1"
+        status = "not_ready"
+        check_exit_code = 0
+        error_message = ""
+        pdfio_ready = $false
+        pdfium_provider = "auto"
+        selected_pdfium_provider = "unresolved"
+        pdfium_ready = $false
+        missing_input_count = 3
+        missing_inputs = @(
+            "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h",
+            "PDFium source header: C:\repo\tmp\pdfium-workspace\pdfium\public\fpdfview.h",
+            "PDFium input: provide prebuilt library/include inputs or a source checkout with public/fpdfview.h."
+        )
     }
 })
 
@@ -297,6 +325,32 @@ Write-JsonFile -Path $readyPreflightPath -Value ([ordered]@{
         pdf_build_option_count = 2
         disabled_pdf_build_options = @()
         missing_pdf_build_options = @()
+        pdf_dependency_inputs_status = "not_ready"
+        pdf_dependency_check_available = $true
+        pdf_dependency_missing_input_count = 2
+        selected_pdfium_provider = "unresolved"
+        pdfio_dependency_ready = $false
+        pdfium_dependency_ready = $false
+        pdf_dependency_missing_inputs_preview = @(
+            "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h"
+        )
+    }
+    pdf_dependency_inputs = [ordered]@{
+        available = $true
+        script_path = Join-Path $resolvedRepoRoot "scripts\check_pdf_dependency_inputs.ps1"
+        schema = "featherdoc.pdf_dependency_inputs_check.v1"
+        status = "not_ready"
+        check_exit_code = 0
+        error_message = ""
+        pdfio_ready = $false
+        pdfium_provider = "auto"
+        selected_pdfium_provider = "unresolved"
+        pdfium_ready = $false
+        missing_input_count = 2
+        missing_inputs = @(
+            "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h",
+            "PDFium input: provide prebuilt library/include inputs or a source checkout with public/fpdfview.h."
+        )
     }
 })
 
@@ -366,6 +420,20 @@ Assert-Equal -Actual ([bool]$blockedSummary.blocking_summary.memory_guard_blocke
     -Message "Governance report should preserve the memory guard blocker summary."
 Assert-Equal -Actual ([bool]$blockedSummary.blocking_summary.pdf_build_options_enabled) -Expected $false `
     -Message "Governance report should preserve the PDF build option blocker summary."
+Assert-Equal -Actual ([string]$blockedSummary.pdf_dependency_inputs_status) -Expected "not_ready" `
+    -Message "Governance report should promote the PDF dependency input status."
+Assert-Equal -Actual ([int]$blockedSummary.pdf_dependency_missing_input_count) -Expected 3 `
+    -Message "Governance report should promote the PDF dependency missing input count."
+Assert-Equal -Actual ([string]$blockedSummary.selected_pdfium_provider) -Expected "unresolved" `
+    -Message "Governance report should promote the selected PDFium provider."
+Assert-Equal -Actual ([bool]$blockedSummary.pdfio_dependency_ready) -Expected $false `
+    -Message "Governance report should promote PDFio dependency readiness."
+Assert-Equal -Actual ([bool]$blockedSummary.pdfium_dependency_ready) -Expected $false `
+    -Message "Governance report should promote PDFium dependency readiness."
+Assert-Equal -Actual ([string]$blockedSummary.blocking_summary.pdf_dependency_inputs_status) -Expected "not_ready" `
+    -Message "Governance report should preserve the PDF dependency input status summary."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.pdf_dependency_missing_input_count) -Expected 3 `
+    -Message "Governance report should preserve the PDF dependency missing input count summary."
 Assert-ContainsText -Text (($blockedSummary.blocking_summary.disabled_pdf_build_options | ForEach-Object { [string]$_ }) -join "`n") `
     -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT" `
     -Message "Governance report should preserve disabled PDF build options."
@@ -455,6 +523,12 @@ Assert-ContainsText -Text ([string]$blocker.repair_hint) `
 Assert-ContainsText -Text ([string]$blocker.repair_hint) `
     -ExpectedText "-DFEATHERDOC_BUILD_PDF=ON" `
     -Message "Blocker should explain how to reconfigure disabled PDF build options."
+Assert-ContainsText -Text ([string]$blocker.repair_hint) `
+    -ExpectedText "selected_pdfium_provider=unresolved" `
+    -Message "Blocker should surface the selected PDFium provider when dependency inputs are not ready."
+Assert-ContainsText -Text ([string]$blocker.repair_hint) `
+    -ExpectedText "missing_input_count=3" `
+    -Message "Blocker should surface the PDF dependency missing input count."
 Assert-Equal -Actual ([int]$blocker.output_gap_count) -Expected 3 `
     -Message "Blocker should expose how many output gap groups remain."
 Assert-Equal -Actual ([int]$blocker.missing_output_count) -Expected 87 `
@@ -463,6 +537,8 @@ Assert-Equal -Actual ([int]$blocker.blocking_summary.missing_visual_baseline_pdf
     -Message "Blocker should preserve the missing visual baseline PDF count summary."
 Assert-Equal -Actual (@($blocker.build_dir_auto_candidates).Count) -Expected 2 `
     -Message "Blocker should carry auto build candidate records."
+Assert-Equal -Actual ([string]$blocker.pdf_dependency_inputs.status) -Expected "not_ready" `
+    -Message "Blocker should carry the PDF dependency input summary."
 Assert-ContainsText -Text (($blocker.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n") `
     -ExpectedText "cjk_text_layer_manifest_pdfs_exist" `
     -Message "Blocker should preserve output gap summary details."
@@ -479,6 +555,8 @@ Assert-Equal -Actual ([int]$actionItem.blocking_summary.missing_cjk_text_layer_p
     -Message "Action item should preserve the missing CJK text-layer PDF count summary."
 Assert-Equal -Actual (@($actionItem.build_dir_auto_candidates).Count) -Expected 2 `
     -Message "Action item should carry auto build candidate records."
+Assert-Equal -Actual ([string]$actionItem.pdf_dependency_inputs.status) -Expected "not_ready" `
+    -Message "Action item should carry the PDF dependency input summary."
 
 $blockedMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $blockedMarkdownPath
 Assert-ContainsText -Text $blockedMarkdown `
@@ -523,6 +601,15 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "PDF build options enabled" `
     -Message "Markdown should expose the PDF build option readiness summary."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "PDF dependency inputs status" `
+    -Message "Markdown should expose the PDF dependency input status."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Selected PDFium provider" `
+    -Message "Markdown should expose the selected PDFium provider."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "PDF dependency missing inputs preview" `
+    -Message "Markdown should expose a PDF dependency missing-input preview."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT" `
     -Message "Markdown should list disabled PDF build options."
@@ -577,6 +664,8 @@ Assert-Equal -Actual ([int]$rollupSummary.release_blockers[0].blocking_summary.m
     -Message "Rollup should preserve PDF preflight blocker blocking summary details."
 Assert-Equal -Actual (@($rollupSummary.release_blockers[0].build_dir_auto_candidates).Count) -Expected 2 `
     -Message "Rollup should preserve PDF preflight blocker build auto candidates."
+Assert-Equal -Actual ([string]$rollupSummary.release_blockers[0].pdf_dependency_inputs.status) -Expected "not_ready" `
+    -Message "Rollup should preserve the PDF dependency input summary."
 Assert-Equal -Actual ([int]$rollupSummary.action_items[0].output_gap_count) -Expected 3 `
     -Message "Rollup should preserve PDF preflight action item output gap count."
 Assert-Equal -Actual (@($rollupSummary.action_items[0].build_dir_auto_candidates).Count) -Expected 2 `
@@ -605,6 +694,10 @@ Assert-Equal -Actual ([int]$readySummary.release_blocker_count) -Expected 0 `
     -Message "Ready preflight should not emit blockers."
 Assert-Equal -Actual ([int]$readySummary.action_item_count) -Expected 0 `
     -Message "Ready preflight should not emit action items."
+Assert-Equal -Actual ([string]$readySummary.pdf_dependency_inputs_status) -Expected "not_ready" `
+    -Message "Ready governance report should still expose advisory PDF dependency input status."
+Assert-Equal -Actual ([int]$readySummary.pdf_dependency_missing_input_count) -Expected 2 `
+    -Message "Ready governance report should still expose advisory PDF dependency missing input count."
 
 $governanceScriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 foreach ($expectedText in @(

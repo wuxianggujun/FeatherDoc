@@ -663,7 +663,8 @@ foreach ($path in @($inputPaths)) {
                     "output_gap_count",
                     "missing_output_count",
                     "output_gap_summary",
-                    "build_dir_auto_candidates"
+                    "build_dir_auto_candidates",
+                    "pdf_dependency_inputs"
                 )
             $blockers.Add($rollupBlocker) | Out-Null
         }
@@ -721,7 +722,8 @@ foreach ($path in @($inputPaths)) {
                     "output_gap_count",
                     "missing_output_count",
                     "output_gap_summary",
-                    "build_dir_auto_candidates"
+                    "build_dir_auto_candidates",
+                    "pdf_dependency_inputs"
                 )
             $actionItems.Add($rollupActionItem) | Out-Null
         }

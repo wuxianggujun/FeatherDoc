@@ -220,6 +220,18 @@ Assert-True -Condition ([int]$summary.blocking_summary.visual_baseline_sample_co
     -Message "Ready preflight should report the visual baseline sample count."
 Assert-True -Condition ([int]$summary.blocking_summary.cjk_text_layer_sample_count -gt 0) `
     -Message "Ready preflight should report the CJK text-layer sample count."
+Assert-True -Condition ($null -ne $summary.PSObject.Properties["pdf_dependency_inputs"]) `
+    -Message "Ready preflight should expose the PDF dependency input summary."
+Assert-True -Condition ($null -ne $summary.pdf_dependency_inputs.PSObject.Properties["status"]) `
+    -Message "PDF dependency input summary should expose status."
+Assert-True -Condition ($null -ne $summary.pdf_dependency_inputs.PSObject.Properties["selected_pdfium_provider"]) `
+    -Message "PDF dependency input summary should expose the selected PDFium provider."
+Assert-True -Condition ([string]$summary.blocking_summary.pdf_dependency_inputs_status -eq [string]$summary.pdf_dependency_inputs.status) `
+    -Message "Ready preflight should mirror PDF dependency input status into blocking_summary."
+Assert-True -Condition ([int]$summary.blocking_summary.pdf_dependency_missing_input_count -eq [int]$summary.pdf_dependency_inputs.missing_input_count) `
+    -Message "Ready preflight should mirror the PDF dependency missing input count into blocking_summary."
+Assert-True -Condition ([string]$summary.blocking_summary.selected_pdfium_provider -eq [string]$summary.pdf_dependency_inputs.selected_pdfium_provider) `
+    -Message "Ready preflight should mirror the selected PDFium provider into blocking_summary."
 Assert-True -Condition ([bool]$summary.blocking_summary.pdf_build_options_enabled -eq $true) `
     -Message "Ready preflight should report enabled PDF build options."
 Assert-True -Condition (@($summary.blocking_summary.disabled_pdf_build_options).Count -eq 0) `

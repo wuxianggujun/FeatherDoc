@@ -330,6 +330,21 @@ function New-ReportMarkdown {
             $lines.Add("  - ``$(Get-JsonString -Object $candidate -Name "relative_path")``: reusable=``$(Get-JsonBool -Object $candidate -Name "looks_reusable")``; CMakeCache=``$(Get-JsonBool -Object $candidate -Name "cmake_cache_exists")``; CTest=``$(Get-JsonBool -Object $candidate -Name "ctest_manifest_exists")``") | Out-Null
         }
     }
+    $lines.Add("- PDF dependency inputs status: ``$(Get-JsonString -Object $Summary -Name "pdf_dependency_inputs_status")``") | Out-Null
+    $lines.Add("- Selected PDFium provider: ``$(Get-JsonString -Object $Summary -Name "selected_pdfium_provider")``") | Out-Null
+    $lines.Add("- PDF dependency missing inputs: ``$(Get-JsonInt -Object $Summary -Name "pdf_dependency_missing_input_count")``") | Out-Null
+    $lines.Add("- PDFio dependency ready: ``$(Get-JsonBool -Object $Summary -Name "pdfio_dependency_ready")``") | Out-Null
+    $lines.Add("- PDFium dependency ready: ``$(Get-JsonBool -Object $Summary -Name "pdfium_dependency_ready")``") | Out-Null
+    $dependencyInputs = Get-JsonProperty -Object $Summary -Name "pdf_dependency_inputs"
+    if ($null -ne $dependencyInputs) {
+        $dependencyMissingInputs = @(Get-JsonArray -Object $dependencyInputs -Name "missing_inputs")
+        if ($dependencyMissingInputs.Count -gt 0) {
+            $lines.Add("- PDF dependency missing inputs preview:") | Out-Null
+            foreach ($input in @($dependencyMissingInputs | Select-Object -First 5)) {
+                $lines.Add("  - ``$([string]$input)``") | Out-Null
+            }
+        }
+    }
     $lines.Add("- Blocking checks: ``$($Summary.blocking_check_count)``") | Out-Null
     $blockingSummary = Get-JsonProperty -Object $Summary -Name "blocking_summary"
     if ($null -ne $blockingSummary) {
@@ -499,6 +514,24 @@ $preflightBlockingSummary = Get-PreflightBlockingSummary `
     -Checks $checks `
     -BlockingChecks $blockingChecks `
     -BuildDirSnapshot $buildDirSnapshot
+$pdfDependencyInputs = Get-JsonProperty -Object $preflightSummary -Name "pdf_dependency_inputs"
+$pdfDependencyInputsStatus = Get-JsonString -Object $pdfDependencyInputs -Name "status" -DefaultValue (Get-JsonValueText -Object $preflightBlockingSummary -Name "pdf_dependency_inputs_status")
+$pdfDependencyMissingInputCount = Get-JsonInt -Object $pdfDependencyInputs -Name "missing_input_count" -DefaultValue (Get-JsonInt -Object $preflightBlockingSummary -Name "pdf_dependency_missing_input_count")
+$selectedPdfiumProvider = Get-JsonString -Object $pdfDependencyInputs -Name "selected_pdfium_provider" -DefaultValue (Get-JsonValueText -Object $preflightBlockingSummary -Name "selected_pdfium_provider")
+$pdfioDependencyReady = Get-JsonBool -Object $pdfDependencyInputs -Name "pdfio_ready" -DefaultValue (Get-JsonBool -Object $preflightBlockingSummary -Name "pdfio_dependency_ready")
+$pdfiumDependencyReady = Get-JsonBool -Object $pdfDependencyInputs -Name "pdfium_ready" -DefaultValue (Get-JsonBool -Object $preflightBlockingSummary -Name "pdfium_dependency_ready")
+$pdfDependencyMissingInputsPreview = @(
+    Get-JsonArray -Object $pdfDependencyInputs -Name "missing_inputs" |
+        Select-Object -First 5 |
+        ForEach-Object { [string]$_ }
+)
+if ($pdfDependencyMissingInputsPreview.Count -eq 0) {
+    $pdfDependencyMissingInputsPreview = @(
+        Get-JsonArray -Object $preflightBlockingSummary -Name "pdf_dependency_missing_inputs_preview" |
+            Select-Object -First 5 |
+            ForEach-Object { [string]$_ }
+    )
+}
 $memoryGuardBlocked = Get-JsonBool -Object $preflightBlockingSummary -Name "memory_guard_blocked"
 $memoryGuardSkipped = Get-JsonBool -Object $preflightBlockingSummary -Name "memory_guard_skipped"
 $freeMemoryMb = Get-JsonValueText -Object $preflightBlockingSummary -Name "free_memory_mb"
@@ -573,6 +606,19 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
             $repairHint += " Current CMakeCache.txt PDF options are not release-gate ready: $($optionHints -join '; '). Reconfigure with -DFEATHERDOC_BUILD_PDF=ON and -DFEATHERDOC_BUILD_PDF_IMPORT=ON, including the required PDFio/PDFium inputs, before generating visual gate outputs."
         }
     }
+    if ($pdfDependencyInputsStatus -eq "not_ready") {
+        $dependencyHints = @()
+        if (-not [string]::IsNullOrWhiteSpace($selectedPdfiumProvider)) {
+            $dependencyHints += "selected_pdfium_provider=$selectedPdfiumProvider"
+        }
+        $dependencyHints += "missing_input_count=$pdfDependencyMissingInputCount"
+        if ($pdfDependencyMissingInputsPreview.Count -gt 0) {
+            $dependencyHints += "missing_inputs_preview=$($pdfDependencyMissingInputsPreview -join '; ')"
+        }
+        $repairHint += " PDF dependency inputs are also not ready: $($dependencyHints -join '; ')."
+    } elseif ($pdfDependencyInputsStatus -eq "unavailable") {
+        $repairHint += " PDF dependency input status is unavailable; rerun scripts\check_pdf_dependency_inputs.ps1 before reconfiguring the PDF build."
+    }
     if ($buildDirSnapshot.Count -gt 0) {
         $snapshotHints = @()
         if (-not [bool]$buildDirSnapshot["cmake_cache_exists"]) {
@@ -604,6 +650,7 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         blocked_item_count = $blockingChecks.Count
         issue_keys = @($blockingChecks)
         blocking_summary = $preflightBlockingSummary
+        pdf_dependency_inputs = $pdfDependencyInputs
         build_dir_auto_candidates = @($summaryBuildDirAutoCandidates)
         output_gap_count = $outputGapSummary.Count
         missing_output_count = $missingOutputCount
@@ -625,6 +672,7 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         blocked_item_count = $blockingChecks.Count
         issue_keys = @($blockingChecks)
         blocking_summary = $preflightBlockingSummary
+        pdf_dependency_inputs = $pdfDependencyInputs
         build_dir_auto_candidates = @($summaryBuildDirAutoCandidates)
         output_gap_count = $outputGapSummary.Count
         missing_output_count = $missingOutputCount
@@ -665,6 +713,12 @@ $summary = [ordered]@{
     requested_build_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryRequestedBuildDir
     build_dir_snapshot = $buildDirSnapshot
     build_dir_auto_candidates = @($summaryBuildDirAutoCandidates)
+    pdf_dependency_inputs_status = $pdfDependencyInputsStatus
+    pdf_dependency_missing_input_count = $pdfDependencyMissingInputCount
+    selected_pdfium_provider = $selectedPdfiumProvider
+    pdfio_dependency_ready = $pdfioDependencyReady
+    pdfium_dependency_ready = $pdfiumDependencyReady
+    pdf_dependency_inputs = $pdfDependencyInputs
     free_memory_mb = $freeMemoryMb
     min_free_memory_mb = $minFreeMemoryMb
     memory_guard_blocked = $memoryGuardBlocked
