@@ -467,13 +467,24 @@ visual gate 仍会被 `FEATHERDOC_BUILD_PDF=OFF` / `FEATHERDOC_BUILD_PDF_IMPORT=
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate_preflight.ps1 `
   -BuildDir .\.bpdf-roundtrip-msvc `
+  -PdfioSourceDir .\tmp\pdfio-src `
+  -PdfiumProvider prebuilt `
+  -PdfiumPrebuiltRoot "D:/deps/pdfium" `
   -OutputJson .\output\pdf-visual-release-gate-preflight\summary.json
 ```
 
-预检只检查 build 目录、`CMakeCache.txt`、`CTestTestfile.cmake`、`CMakeCache.txt`
+预检会先检查 PDFio / PDFium 依赖输入，再检查 build 目录、`CMakeCache.txt`、`CTestTestfile.cmake`、`CMakeCache.txt`
 里的 `FEATHERDOC_BUILD_PDF` / `FEATHERDOC_BUILD_PDF_IMPORT` 是否同时为 `ON`、
 `ctest -N` 中的 PDF 测试注册、既有 PDF 输出、manifest 驱动样本和可复用的
 `PIL` / `fitz` 渲染 Python。
+`-PdfioSourceDir`、`-PdfiumProvider`、`-PdfiumSourceDir`、`-PdfiumPrebuiltRoot`、
+`-PdfiumLibrary`、`-PdfiumIncludeDir`、`-PdfiumRuntimeDll` 和 `-PdfiumRuntimeDir`
+只覆盖 dependency input check 的输入来源；summary 会写出 `dependency_overrides`，
+方便 reviewer 区分 CMake cache 推导值和本次命令显式覆盖值。
+这些覆盖参数不会绕过 `pdf_build_options_enabled`、PDF CTest 注册、CLI baseline PDF、
+visual baseline PDF 或 CJK text-layer PDF 等 release gate blockers。比如 PDFium prebuilt
+已经齐备但 `tmp\pdfio-src\pdfio.h` 仍缺失时，预检仍会保持 `not_ready`，并把缺失的
+PDFio header 记录到 `missing_inputs`。
 其中 `ctest -N` 只在 build 目录、`CMakeCache.txt` 和 `CTestTestfile.cmake`
 都存在时执行；缺失时只记录 `skipped` / `missing` 状态，不触发构建或渲染。
 如果 CMake cache 存在但 `FEATHERDOC_BUILD_PDF=OFF` 或
@@ -496,6 +507,9 @@ CJK text-layer PDF、可复用渲染 Python，并在 CMake cache 中同时启用
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 `
   -BuildDir .\.bpdf-roundtrip-msvc `
+  -PdfioSourceDir .\tmp\pdfio-src `
+  -PdfiumProvider prebuilt `
+  -PdfiumPrebuiltRoot "D:/deps/pdfium" `
   -PreflightOnly
 ```
 
