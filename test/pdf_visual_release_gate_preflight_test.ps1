@@ -195,10 +195,9 @@ try {
         -BuildDir $fakeBuildDir `
         -OutputJson $summaryPath `
         -CTestExecutable $fakeCtestPath `
-        -MinFreeMemoryMB 1 `
-        -Strict | Out-Host
+        -MinFreeMemoryMB 1 | Out-Host
     if ($LASTEXITCODE -ne 0) {
-        throw "PDF visual release gate preflight should pass against the contract-complete fake fixture."
+        throw "PDF visual release gate preflight should write a not_ready summary for the contract-complete fake fixture."
     }
 
     $lowMemorySummaryPath = Join-Path $resolvedWorkingDir "preflight-low-memory-summary.json"
@@ -214,18 +213,26 @@ try {
 
     $visualGatePreflightSummaryPath = Join-Path $resolvedWorkingDir "visual-gate-preflight-summary.json"
     $visualGateOutputDir = Join-Path $resolvedWorkingDir "visual-gate-output"
-    & powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
-        -File $visualGatePath `
-        -BuildDir $fakeBuildDir `
-        -OutputDir $visualGateOutputDir `
-        -PreflightJson $visualGatePreflightSummaryPath `
-        -MinFreeMemoryMB 1 `
-        -PreflightOnly | Out-Host
-    if ($LASTEXITCODE -ne 0) {
-        throw "PDF visual release gate -PreflightOnly should pass against the contract-complete fake fixture."
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $visualGatePreflightOnlyOutput = @(& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            -File $visualGatePath `
+            -BuildDir $fakeBuildDir `
+            -OutputDir $visualGateOutputDir `
+            -PreflightJson $visualGatePreflightSummaryPath `
+            -MinFreeMemoryMB 1 `
+            -PreflightOnly 2>&1)
+        $visualGatePreflightOnlyExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    $visualGatePreflightOnlyOutput | ForEach-Object { $_.ToString() } | Out-Host
+    if ($visualGatePreflightOnlyExitCode -eq 0) {
+        throw "PDF visual release gate -PreflightOnly should reject synthetic fake fixture evidence."
     }
     if (-not (Test-Path -LiteralPath $visualGatePreflightSummaryPath -PathType Leaf)) {
-        throw "PDF visual release gate -PreflightOnly should write its preflight summary."
+        throw "PDF visual release gate -PreflightOnly should write its rejected preflight summary."
     }
     if (Test-Path -LiteralPath (Join-Path $visualGateOutputDir "report\summary.json") -PathType Leaf) {
         throw "PDF visual release gate -PreflightOnly should not write the full visual gate summary."
@@ -334,63 +341,70 @@ Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.p
     -Message "Dependency overrides should replace CMakeCache dependency inputs for the dependency check."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
-Assert-True -Condition ($summary.status -eq "ready") `
-    -Message "Preflight summary should be ready for a reusable fake PDF build."
-Assert-True -Condition ([int]$summary.blocking_summary.blocking_check_count -eq 0) `
-    -Message "Ready preflight should expose zero blocking checks."
+Assert-True -Condition ($summary.status -eq "not_ready") `
+    -Message "Preflight summary should reject reusable fake PDF build evidence."
+Assert-True -Condition ([int]$summary.blocking_summary.blocking_check_count -eq 1) `
+    -Message "Synthetic fixture preflight should expose one blocking check."
+Assert-True -Condition (($summary.blocking_checks | ForEach-Object { [string]$_ }) -contains "synthetic_preflight_evidence") `
+    -Message "Synthetic fixture preflight should expose synthetic_preflight_evidence as a blocker."
+$syntheticEvidenceCheck = @($summary.checks | Where-Object { [string]$_.name -eq "synthetic_preflight_evidence" })[0]
+Assert-True -Condition ([string]$syntheticEvidenceCheck.status -eq "blocked") `
+    -Message "Synthetic evidence check should be blocked for fake fixture evidence."
+Assert-True -Condition ([string]$syntheticEvidenceCheck.message -match [regex]::Escape("cannot release the real PDF visual gate")) `
+    -Message "Synthetic evidence check should explain that fake fixture evidence cannot release the real gate."
 Assert-True -Condition ([int]$summary.output_gap_count -eq 0) `
-    -Message "Ready preflight should expose zero missing output groups."
+    -Message "Synthetic fixture preflight should still expose zero missing output groups."
 Assert-True -Condition ([int]$summary.missing_output_count -eq 0) `
-    -Message "Ready preflight should expose zero missing outputs."
+    -Message "Synthetic fixture preflight should still expose zero missing outputs."
 Assert-True -Condition ([int]$summary.blocking_summary.missing_cli_pdf_count -eq 0) `
-    -Message "Ready preflight should expose zero missing CLI PDFs."
+    -Message "Synthetic fixture preflight should expose zero missing CLI PDFs."
 Assert-True -Condition ([int]$summary.blocking_summary.missing_visual_baseline_pdf_count -eq 0) `
-    -Message "Ready preflight should expose zero missing visual baseline PDFs."
+    -Message "Synthetic fixture preflight should expose zero missing visual baseline PDFs."
 Assert-True -Condition ([int]$summary.blocking_summary.missing_cjk_text_layer_pdf_count -eq 0) `
-    -Message "Ready preflight should expose zero missing CJK text-layer PDFs."
+    -Message "Synthetic fixture preflight should expose zero missing CJK text-layer PDFs."
 Assert-True -Condition ([int]$summary.blocking_summary.visual_baseline_sample_count -gt 0) `
-    -Message "Ready preflight should report the visual baseline sample count."
+    -Message "Synthetic fixture preflight should report the visual baseline sample count."
 Assert-True -Condition ([int]$summary.blocking_summary.cjk_text_layer_sample_count -gt 0) `
-    -Message "Ready preflight should report the CJK text-layer sample count."
+    -Message "Synthetic fixture preflight should report the CJK text-layer sample count."
 Assert-True -Condition ($null -ne $summary.PSObject.Properties["pdf_dependency_inputs"]) `
-    -Message "Ready preflight should expose the PDF dependency input summary."
+    -Message "Synthetic fixture preflight should expose the PDF dependency input summary."
 Assert-True -Condition ($null -ne $summary.pdf_dependency_inputs.PSObject.Properties["status"]) `
     -Message "PDF dependency input summary should expose status."
 Assert-True -Condition ($null -ne $summary.pdf_dependency_inputs.PSObject.Properties["selected_pdfium_provider"]) `
     -Message "PDF dependency input summary should expose the selected PDFium provider."
 Assert-True -Condition ([string]$summary.pdf_dependency_inputs.status -eq "ready") `
-    -Message "Ready preflight should pass dependency input values from CMakeCache."
+    -Message "Synthetic fixture preflight should pass dependency input values from CMakeCache."
 Assert-True -Condition ([string]$summary.pdf_dependency_inputs.selected_pdfium_provider -eq "prebuilt") `
-    -Message "Ready preflight should preserve the CMakeCache PDFium provider selection."
+    -Message "Synthetic fixture preflight should preserve the CMakeCache PDFium provider selection."
 Assert-True -Condition ([bool]$summary.pdf_dependency_inputs.pdfio_ready -eq $true) `
-    -Message "Ready preflight should report the CMakeCache PDFio source input as ready."
+    -Message "Synthetic fixture preflight should report the CMakeCache PDFio source input as ready."
 Assert-True -Condition ([bool]$summary.pdf_dependency_inputs.pdfium_ready -eq $true) `
-    -Message "Ready preflight should report the CMakeCache PDFium prebuilt inputs as ready."
+    -Message "Synthetic fixture preflight should report the CMakeCache PDFium prebuilt inputs as ready."
 Assert-True -Condition ([string]$summary.pdf_dependency_inputs.cmake_cache_variables.FEATHERDOC_PDFIUM_PROVIDER -eq "prebuilt") `
     -Message "Dependency input summary should retain CMakeCache PDFium provider evidence."
 $expectedPdfiumPrebuiltRoot = [System.IO.Path]::GetFullPath($fakePdfiumPrebuiltDir)
 Assert-True -Condition ([string]$summary.pdf_dependency_inputs.cmake_cache_variables.FEATHERDOC_PDFIUM_PREBUILT_ROOT -eq $expectedPdfiumPrebuiltRoot) `
     -Message "Dependency input summary should retain CMakeCache PDFium prebuilt root evidence."
 Assert-True -Condition ([string]$summary.pdf_dependency_inputs.pdfium_prebuilt_root -eq $expectedPdfiumPrebuiltRoot) `
-    -Message "Ready preflight should expose the PDFium prebuilt root from CMakeCache."
+    -Message "Synthetic fixture preflight should expose the PDFium prebuilt root from CMakeCache."
 Assert-True -Condition ([bool]$summary.pdf_dependency_inputs.pdfium_prebuilt_root_exists -eq $true) `
-    -Message "Ready preflight should expose whether the PDFium prebuilt root exists."
+    -Message "Synthetic fixture preflight should expose whether the PDFium prebuilt root exists."
 Assert-True -Condition ([string]$summary.blocking_summary.pdf_dependency_inputs_status -eq [string]$summary.pdf_dependency_inputs.status) `
-    -Message "Ready preflight should mirror PDF dependency input status into blocking_summary."
+    -Message "Synthetic fixture preflight should mirror PDF dependency input status into blocking_summary."
 Assert-True -Condition ([int]$summary.blocking_summary.pdf_dependency_missing_input_count -eq [int]$summary.pdf_dependency_inputs.missing_input_count) `
-    -Message "Ready preflight should mirror the PDF dependency missing input count into blocking_summary."
+    -Message "Synthetic fixture preflight should mirror the PDF dependency missing input count into blocking_summary."
 Assert-True -Condition ([string]$summary.blocking_summary.selected_pdfium_provider -eq [string]$summary.pdf_dependency_inputs.selected_pdfium_provider) `
-    -Message "Ready preflight should mirror the selected PDFium provider into blocking_summary."
+    -Message "Synthetic fixture preflight should mirror the selected PDFium provider into blocking_summary."
 Assert-True -Condition ([bool]$summary.blocking_summary.pdf_build_options_enabled -eq $true) `
-    -Message "Ready preflight should report enabled PDF build options."
+    -Message "Synthetic fixture preflight should report enabled PDF build options."
 Assert-True -Condition (@($summary.blocking_summary.disabled_pdf_build_options).Count -eq 0) `
-    -Message "Ready preflight should report zero disabled PDF build options."
+    -Message "Synthetic fixture preflight should report zero disabled PDF build options."
 Assert-True -Condition (@($summary.blocking_summary.missing_pdf_build_options).Count -eq 0) `
-    -Message "Ready preflight should report zero missing PDF build options."
+    -Message "Synthetic fixture preflight should report zero missing PDF build options."
 Assert-True -Condition ([string]$summary.evidence_kind -eq "synthetic_fixture") `
-    -Message "Ready preflight should mark fake fixture evidence as synthetic."
+    -Message "Synthetic fixture preflight should mark fake fixture evidence as synthetic."
 Assert-True -Condition ([int]$summary.evidence_kind_details.synthetic_marker_count -gt 0) `
-    -Message "Ready preflight should expose synthetic evidence markers for fake fixtures."
+    -Message "Synthetic fixture preflight should expose synthetic evidence markers for fake fixtures."
 Assert-True -Condition ([int]$summary.blocking_summary.synthetic_evidence_marker_count -gt 0) `
     -Message "Ready preflight blocking summary should mirror synthetic evidence marker count."
 $syntheticMarkers = ($summary.evidence_kind_details.synthetic_markers | ForEach-Object { [string]$_ }) -join "`n"

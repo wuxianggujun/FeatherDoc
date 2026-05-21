@@ -68,37 +68,6 @@ function Get-JsonArray {
     return @($value)
 }
 
-function Convert-ToRelativePath {
-    param([string]$BasePath, [string]$Path)
-
-    if ([string]::IsNullOrWhiteSpace($Path)) { return "" }
-    $baseDirectory = [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($BasePath))
-    if ([string]::IsNullOrWhiteSpace($baseDirectory)) {
-        $baseDirectory = (Get-Location).Path
-    }
-    $targetPath = [System.IO.Path]::GetFullPath($Path)
-
-    try {
-        return ([System.IO.Path]::GetRelativePath($baseDirectory, $targetPath)).Replace('\', '/')
-    } catch {
-        if ([System.IO.Path]::GetPathRoot($baseDirectory) -ne
-            [System.IO.Path]::GetPathRoot($targetPath)) {
-            return $targetPath.Replace('\', '/')
-        }
-
-        if (-not $baseDirectory.EndsWith([System.IO.Path]::DirectorySeparatorChar) -and
-            -not $baseDirectory.EndsWith([System.IO.Path]::AltDirectorySeparatorChar)) {
-            $baseDirectory += [System.IO.Path]::DirectorySeparatorChar
-        }
-
-        $baseUri = New-Object System.Uri($baseDirectory)
-        $targetUri = New-Object System.Uri($targetPath)
-        return [System.Uri]::UnescapeDataString(
-            $baseUri.MakeRelativeUri($targetUri).ToString()
-        ).Replace('\', '/')
-    }
-}
-
 function Resolve-ReviewPath {
     param([string]$RepoRoot, [string]$InputPath, [switch]$AllowMissing)
 
@@ -116,6 +85,10 @@ $resolvedOutputJson = if ([string]::IsNullOrWhiteSpace($OutputJson)) {
     Resolve-ReviewPath -RepoRoot $repoRoot -InputPath $OutputJson -AllowMissing
 }
 $resolvedRollbackPlanFile = Resolve-ReviewPath -RepoRoot $repoRoot -InputPath $RollbackPlanFile -AllowMissing
+$summaryBasePath = [System.IO.Path]::GetDirectoryName($resolvedOutputJson)
+if ([string]::IsNullOrWhiteSpace($summaryBasePath)) {
+    $summaryBasePath = (Get-Location).Path
+}
 
 Write-Step "Reading style merge suggestion plan: $resolvedPlanFile"
 $plan = Get-Content -Raw -Encoding UTF8 -LiteralPath $resolvedPlanFile | ConvertFrom-Json
@@ -152,10 +125,10 @@ $summary = [ordered]@{
     reviewed_at = $reviewedAtValue
     style_merge_suggestion_count = $suggestionCount
     reviewed_suggestion_count = $reviewedCount
-    plan_file = Convert-ToRelativePath -BasePath $resolvedOutputJson -Path $resolvedPlanFile
+    plan_file = ConvertTo-TemplateSchemaPortableRelativePath -BasePath $summaryBasePath -TargetPath $resolvedPlanFile
     plan_path = $resolvedPlanFile
     plan_exists = (Test-Path -LiteralPath $resolvedPlanFile)
-    rollback_plan_file = Convert-ToRelativePath -BasePath $resolvedOutputJson -Path $resolvedRollbackPlanFile
+    rollback_plan_file = ConvertTo-TemplateSchemaPortableRelativePath -BasePath $summaryBasePath -TargetPath $resolvedRollbackPlanFile
     rollback_plan_path = $resolvedRollbackPlanFile
     rollback_plan_exists = if ([string]::IsNullOrWhiteSpace($resolvedRollbackPlanFile)) { $false } else { Test-Path -LiteralPath $resolvedRollbackPlanFile }
     suggestion_confidence_summary = $confidenceSummary

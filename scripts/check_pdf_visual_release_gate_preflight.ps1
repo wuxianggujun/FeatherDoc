@@ -915,6 +915,19 @@ $checks.Add([ordered]@{
         candidates = @($pythonCandidateDetails)
     }
 }) | Out-Null
+$syntheticEvidenceStatus = if ($evidenceKind -eq "synthetic_fixture") { "blocked" } else { "pass" }
+$syntheticEvidenceMessage = if ($evidenceKind -eq "synthetic_fixture") {
+    "Preflight evidence comes from synthetic test fixtures and cannot release the real PDF visual gate."
+} else {
+    "Preflight evidence does not contain synthetic fixture markers."
+}
+$checks.Add([ordered]@{
+    name = "synthetic_preflight_evidence"
+    status = $syntheticEvidenceStatus
+    required = $true
+    message = $syntheticEvidenceMessage
+    details = $evidenceKindDetails
+}) | Out-Null
 
 $blockingChecks = @(
     $checks | Where-Object { $_.required -eq $true -and $_.status -ne "pass" }
