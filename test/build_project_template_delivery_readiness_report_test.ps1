@@ -295,6 +295,16 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text ([string]$onboardingBlockers[0].source_report_display) `
         -ExpectedText "governance\summary.json" `
         -Message "Onboarding-derived blockers should retain the onboarding governance source report display."
+    $historyGateBlocker = @(
+        $summary.release_blockers |
+            Where-Object { [string]$_.id -eq "project_template_delivery_readiness.schema_approval_history_gate" }
+    )[0]
+    Assert-ContainsText -Text ([string]$historyGateBlocker.source_json_display) `
+        -ExpectedText "history\history.json" `
+        -Message "History gate blockers should retain the schema approval history source JSON display."
+    Assert-ContainsText -Text ([string]$historyGateBlocker.source_report_display) `
+        -ExpectedText "history\history.json" `
+        -Message "History gate blockers should retain the schema approval history source report display."
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.project_template_delivery_readiness_report.v1" `
         -Message "Delivery-generated blockers should expose the delivery readiness source schema."

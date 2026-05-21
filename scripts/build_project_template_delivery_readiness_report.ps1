@@ -631,6 +631,8 @@ foreach ($path in @($inputPaths)) {
                 $status = "loaded"
             }
             "schema_approval_history" {
+                $json | Add-Member -NotePropertyName "source_json" -NotePropertyValue $path -Force
+                $json | Add-Member -NotePropertyName "source_json_display" -NotePropertyValue (Get-DisplayPath -RepoRoot $repoRoot -Path $path) -Force
                 $histories.Add($json) | Out-Null
                 $status = "loaded"
             }
@@ -699,6 +701,8 @@ $latestGateStatus = if ($null -ne $latestHistory) {
 $historyBlockedRunCount = if ($null -ne $latestHistory) { Get-JsonInt -Object $latestHistory -Name "blocked_run_count" } else { 0 }
 $historyPendingRunCount = if ($null -ne $latestHistory) { Get-JsonInt -Object $latestHistory -Name "pending_run_count" } else { 0 }
 $historyPassedRunCount = if ($null -ne $latestHistory) { Get-JsonInt -Object $latestHistory -Name "passed_run_count" } else { 0 }
+$latestHistorySourceJson = if ($null -ne $latestHistory) { Get-JsonString -Object $latestHistory -Name "source_json" } else { "" }
+$latestHistorySourceJsonDisplay = if ($null -ne $latestHistory) { Get-JsonString -Object $latestHistory -Name "source_json_display" } else { "" }
 
 $globalReleaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 if ($latestGateStatus -in @("blocked", "pending")) {
@@ -707,7 +711,11 @@ if ($latestGateStatus -in @("blocked", "pending")) {
         -Source "schema_approval_history" `
         -Status $latestGateStatus `
         -Action "review_schema_approval_history" `
-        -Message "Latest schema approval history gate is not release-ready.")) | Out-Null
+        -Message "Latest schema approval history gate is not release-ready." `
+        -SourceJson $latestHistorySourceJson `
+        -SourceJsonDisplay $latestHistorySourceJsonDisplay `
+        -SourceReport $latestHistorySourceJson `
+        -SourceReportDisplay $latestHistorySourceJsonDisplay)) | Out-Null
 }
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
