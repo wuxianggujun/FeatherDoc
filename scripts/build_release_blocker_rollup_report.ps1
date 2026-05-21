@@ -20,6 +20,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[release-blocker-rollup] $Message"
@@ -284,32 +286,17 @@ function New-GovernanceMetrics {
     return @($metrics.ToArray())
 }
 
-function Expand-InputPathList {
-    param([string[]]$Paths)
-
-    return @(
-        foreach ($path in @($Paths)) {
-            foreach ($part in ([string]$path -split ",")) {
-                $trimmed = $part.Trim()
-                if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
-                    $trimmed
-                }
-            }
-        }
-    )
-}
-
 function Get-InputJsonPaths {
     param([string]$RepoRoot, [string[]]$ExplicitPaths, [string[]]$Roots)
 
     $paths = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($path in @(Expand-InputPathList -Paths $ExplicitPaths)) {
+    foreach ($path in @(Expand-TemplateSchemaArgumentList -Values $ExplicitPaths)) {
         if (-not [string]::IsNullOrWhiteSpace($path)) {
             $paths.Add((Resolve-RepoPath -RepoRoot $RepoRoot -Path $path)) | Out-Null
         }
     }
 
-    $scanRoots = @(Expand-InputPathList -Paths $Roots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $scanRoots = @(Expand-TemplateSchemaArgumentList -Values $Roots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($paths.Count -eq 0 -and $scanRoots.Count -eq 0) {
         $scanRoots = @("output")
     }
