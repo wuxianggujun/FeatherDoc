@@ -208,12 +208,12 @@ function ConvertTo-CommandTemplateArgument {
     param([string]$Value)
 
     if ([string]::IsNullOrWhiteSpace($Value)) {
-        return '""'
+        return "''"
     }
     if ($Value -match '^[A-Za-z0-9_./:{}-]+$') {
         return $Value
     }
-    return '"' + ($Value -replace '"', '\"') + '"'
+    return "'" + ($Value -replace "'", "''") + "'"
 }
 
 function New-ContentControlSelectorTemplate {
