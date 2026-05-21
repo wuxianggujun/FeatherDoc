@@ -140,6 +140,42 @@ function Get-JsonArray {
     return @($value)
 }
 
+function Set-DefaultJsonProperty {
+    param($Object, [string]$Name, $Value)
+
+    if ($null -eq $Object -or $null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {
+        return
+    }
+    if (-not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $Object -Name $Name))) {
+        return
+    }
+    if ($Object -is [System.Collections.IDictionary]) {
+        $Object[$Name] = $Value
+        return
+    }
+    $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value -Force
+}
+
+function Set-GovernanceTraceMetadata {
+    param(
+        $Item,
+        [string]$RepoRoot,
+        [string]$SummaryPath,
+        [switch]$EnsureOpenCommand
+    )
+
+    $summaryDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $SummaryPath
+    Set-DefaultJsonProperty -Object $Item -Name "source_schema" -Value "featherdoc.table_layout_delivery_governance_report.v1"
+    Set-DefaultJsonProperty -Object $Item -Name "source_report" -Value $SummaryPath
+    Set-DefaultJsonProperty -Object $Item -Name "source_report_display" -Value $summaryDisplay
+    Set-DefaultJsonProperty -Object $Item -Name "source_json" -Value $SummaryPath
+    Set-DefaultJsonProperty -Object $Item -Name "source_json_display" -Value $summaryDisplay
+    if ($EnsureOpenCommand) {
+        $openCommand = Get-FirstJsonString -Object $Item -Names @("open_command", "command", "command_template")
+        Set-DefaultJsonProperty -Object $Item -Name "open_command" -Value $openCommand
+    }
+}
+
 function Get-Percent {
     param([int]$Numerator, [int]$Denominator)
 
@@ -625,6 +661,7 @@ foreach ($path in @($inputPaths)) {
                         action = Get-JsonString -Object $item -Name "action"
                         title = Get-JsonString -Object $item -Name "title"
                         command = Get-JsonString -Object $item -Name "command"
+                        open_command = Get-FirstJsonString -Object $item -Names @("open_command", "command", "command_template")
                         repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
                         repair_hint = Get-JsonString -Object $item -Name "repair_hint"
                         command_template = Get-JsonString -Object $item -Name "command_template"
@@ -754,6 +791,13 @@ if ($totalIssueCount -gt 0 -or $totalAutomaticFixCount -gt 0 -or $totalPositionA
         -RepairStrategy "generate_table_layout_visual_evidence" `
         -RepairHint "Generate before/after rendered evidence after safe fixes or floating-position plan changes." `
         -CommandTemplate "pwsh -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1")
+}
+
+foreach ($blocker in @($releaseBlockers.ToArray())) {
+    Set-GovernanceTraceMetadata -Item $blocker -RepoRoot $repoRoot -SummaryPath $summaryPath
+}
+foreach ($item in @($deliveryActions.ToArray())) {
+    Set-GovernanceTraceMetadata -Item $item -RepoRoot $repoRoot -SummaryPath $summaryPath -EnsureOpenCommand
 }
 
 $sourceFailureCount = @($sourceFiles.ToArray() | Where-Object { $_.status -eq "failed" }).Count

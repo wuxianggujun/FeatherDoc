@@ -330,6 +330,24 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Floating table blocker should expose repair strategy."
     Assert-ContainsText -Text $blockerRepairText -ExpectedText "table_layout.manual_table_style_quality_work|review_source_table_style_quality_plan" `
         -Message "Rollup blocker repair strategy should be preserved."
+    $safeTblLookBlocker = ($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "table_layout_delivery.safe_tblLook_fixes_pending" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$safeTblLookBlocker.source_schema) `
+        -Expected "featherdoc.table_layout_delivery_governance_report.v1" `
+        -Message "Synthetic safe tblLook blocker should carry the governance source schema."
+    Assert-ContainsText -Text ([string]$safeTblLookBlocker.source_report_display) `
+        -ExpectedText "aggregate-report\summary.json" `
+        -Message "Synthetic safe tblLook blocker should point to the governance source report."
+    Assert-ContainsText -Text ([string]$safeTblLookBlocker.source_json_display) `
+        -ExpectedText "aggregate-report\summary.json" `
+        -Message "Synthetic safe tblLook blocker should point to the governance source JSON."
+    $floatingReviewBlocker = ($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "table_layout_delivery.floating_table_review_pending" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$floatingReviewBlocker.source_schema) `
+        -Expected "featherdoc.table_layout_delivery_governance_report.v1" `
+        -Message "Synthetic floating-table blocker should carry the governance source schema."
 
     $actionText = ($summary.delivery_actions | ForEach-Object { [string]$_.id }) -join "`n"
     Assert-ContainsText -Text $actionText -ExpectedText "run_table_style_quality_visual_regression" `
@@ -349,6 +367,30 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Visual regression action should expose repair strategy."
     Assert-ContainsText -Text $actionRepairText -ExpectedText "run_table_style_quality_visual_regression.ps1" `
         -Message "Visual regression action should expose a command template."
+    $visualRegressionAction = ($summary.delivery_actions |
+        Where-Object { [string]$_.id -eq "run_table_style_quality_visual_regression" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$visualRegressionAction.source_schema) `
+        -Expected "featherdoc.table_layout_delivery_governance_report.v1" `
+        -Message "Synthetic visual regression action should carry the governance source schema."
+    Assert-ContainsText -Text ([string]$visualRegressionAction.source_json_display) `
+        -ExpectedText "aggregate-report\summary.json" `
+        -Message "Synthetic visual regression action should point to the governance source JSON."
+    Assert-ContainsText -Text ([string]$visualRegressionAction.open_command) `
+        -ExpectedText "run_table_style_quality_visual_regression.ps1" `
+        -Message "Synthetic visual regression action should expose an open command."
+    $sourceSafeTblLookAction = ($summary.delivery_actions |
+        Where-Object {
+            [string]$_.id -eq "apply_safe_tblLook_fixes" -and
+            [string]$_.repair_strategy -eq "source_apply_safe_tblLook_fixes"
+        } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$sourceSafeTblLookAction.source_schema) `
+        -Expected "featherdoc.table_layout_delivery_rollup_report.v1" `
+        -Message "Source rollup action should keep the rollup source schema."
+    Assert-ContainsText -Text ([string]$sourceSafeTblLookAction.open_command) `
+        -ExpectedText "apply-table-style-quality-fixes contract.docx" `
+        -Message "Source rollup action should expose its command as open_command."
 
     Assert-Equal -Actual ([int]$summary.action_items.Count) -Expected ([int]$summary.delivery_actions.Count) `
         -Message "Summary should mirror delivery actions as release rollup action items."
