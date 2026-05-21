@@ -8,6 +8,7 @@ param(
     [string]$PositionedOutputDocx = "",
     [string]$StyleLookOutputDocx = "",
     [string]$VisualRegressionOutputDir = "",
+    [string]$CliPath = "",
     [switch]$ReplacePositioned,
     [switch]$SkipBuild,
     [switch]$FailOnIssue
@@ -73,7 +74,7 @@ function Invoke-CommandCapture {
         [string]$FailureMessage
     )
     $commandOutput = @(& $ExecutablePath @Arguments 2>&1)
-    $exitCode = $LASTEXITCODE
+    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
     $lines = @($commandOutput | ForEach-Object { $_.ToString() })
     if (-not [string]::IsNullOrWhiteSpace($OutputPath)) { $lines | Set-Content -LiteralPath $OutputPath -Encoding UTF8 }
     if ($exitCode -ne 0) { throw $FailureMessage }
@@ -222,9 +223,18 @@ if (-not $SkipBuild) {
     Write-Step "Building featherdoc_cli"
     Invoke-MsvcCommand -VcvarsPath $vcvarsPath -CommandText "cmake --build `"$resolvedBuildDir`" --target featherdoc_cli"
 }
-$buildSearchRoot = Resolve-BuildSearchRoot -RepoRoot $repoRoot -PreferredBuildRoot $resolvedBuildDir -TargetNames @("featherdoc_cli")
-if ($buildSearchRoot -ne $resolvedBuildDir) { Write-Step "Using existing build directory $buildSearchRoot" }
-$cliExecutable = Find-BuildExecutable -BuildRoot $buildSearchRoot -TargetName "featherdoc_cli"
+if ([string]::IsNullOrWhiteSpace($CliPath)) {
+    $buildSearchRoot = Resolve-BuildSearchRoot -RepoRoot $repoRoot -PreferredBuildRoot $resolvedBuildDir -TargetNames @("featherdoc_cli")
+    if ($buildSearchRoot -ne $resolvedBuildDir) { Write-Step "Using existing build directory $buildSearchRoot" }
+    $cliExecutable = Find-BuildExecutable -BuildRoot $buildSearchRoot -TargetName "featherdoc_cli"
+} else {
+    $cliExecutable = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $CliPath
+    if (-not (Test-Path -LiteralPath $cliExecutable)) {
+        throw "CLI path does not exist: $cliExecutable"
+    }
+    $buildSearchRoot = Split-Path -Parent $cliExecutable
+    Write-Step "Using explicit CLI path $cliExecutable"
+}
 
 $inspectTablesJsonPath = Join-Path $resolvedOutputDir "inspect-tables.json"
 $styleDefinitionsDir = Join-Path $resolvedOutputDir "table-style-definitions"
