@@ -72,6 +72,8 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 * 默认 ``.bpdf-roundtrip-msvc`` 不存在且 ``build`` / ``out\build`` 不像可复用
   CMake build 时，``build_dir_source = requested``；自动候选只有在包含
   ``CMakeCache.txt`` 或 ``CTestTestfile.cmake`` 时才会被视为可复用 build。
+  summary JSON 会同步记录 ``build_dir_auto_candidates``，用于说明每个自动候选的
+  ``cmake_cache_exists``、``ctest_manifest_exists`` 和 ``looks_reusable`` 状态。
 * 已新增并通过普通 ``build\tmp`` 回归场景：仓库里只有普通 ``build`` 子目录时，
   preflight 仍保持 ``build_dir_source = requested``，并把缺失的
   ``.bpdf-roundtrip-msvc`` 记录为 ``build_dir_exists`` 阻断项，避免旧

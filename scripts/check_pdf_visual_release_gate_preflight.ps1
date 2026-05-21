@@ -34,24 +34,37 @@ function Resolve-PreferredBuildDir {
     )
 
     $requestedPath = Resolve-RepoPath -RepoRoot $RepoRoot -InputPath $InputPath
+    $autoCandidates = @()
     if ($InputPath -ne ".bpdf-roundtrip-msvc" -or
         (Test-Path -LiteralPath $requestedPath -PathType Container)) {
         return [pscustomobject]@{
             Path = $requestedPath
             Source = "requested"
             RequestedPath = $requestedPath
+            AutoCandidates = $autoCandidates
         }
     }
 
     foreach ($candidate in @("build", "out\build")) {
         $candidatePath = Resolve-RepoPath -RepoRoot $RepoRoot -InputPath $candidate
-        $candidateLooksReusable = (Test-Path -LiteralPath (Join-Path $candidatePath "CMakeCache.txt") -PathType Leaf) -or
-            (Test-Path -LiteralPath (Join-Path $candidatePath "CTestTestfile.cmake") -PathType Leaf)
+        $candidateExists = Test-Path -LiteralPath $candidatePath -PathType Container
+        $cmakeCacheExists = Test-Path -LiteralPath (Join-Path $candidatePath "CMakeCache.txt") -PathType Leaf
+        $ctestManifestExists = Test-Path -LiteralPath (Join-Path $candidatePath "CTestTestfile.cmake") -PathType Leaf
+        $candidateLooksReusable = $cmakeCacheExists -or $ctestManifestExists
+        $autoCandidates += [ordered]@{
+            relative_path = $candidate
+            path = $candidatePath
+            exists = [bool]$candidateExists
+            cmake_cache_exists = [bool]$cmakeCacheExists
+            ctest_manifest_exists = [bool]$ctestManifestExists
+            looks_reusable = [bool]$candidateLooksReusable
+        }
         if ($candidateLooksReusable) {
             return [pscustomobject]@{
                 Path = $candidatePath
                 Source = "auto:$candidate"
                 RequestedPath = $requestedPath
+                AutoCandidates = $autoCandidates
             }
         }
     }
@@ -60,6 +73,7 @@ function Resolve-PreferredBuildDir {
         Path = $requestedPath
         Source = "requested"
         RequestedPath = $requestedPath
+        AutoCandidates = $autoCandidates
     }
 }
 
@@ -576,6 +590,7 @@ $summary = [ordered]@{
     build_dir = $resolvedBuildDir
     build_dir_source = $buildDirSelection.Source
     requested_build_dir = $buildDirSelection.RequestedPath
+    build_dir_auto_candidates = @($buildDirSelection.AutoCandidates)
     blocking_summary = $blockingSummary
     output_gap_count = $outputGapCount
     missing_output_count = $missingOutputCount

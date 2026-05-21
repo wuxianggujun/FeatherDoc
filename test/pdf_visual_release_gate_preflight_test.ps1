@@ -170,6 +170,25 @@ Assert-True -Condition ([string]$plainBuildSummary.build_dir_source -eq "request
     -Message "Plain build directory preflight should not auto-select build without CMake metadata."
 Assert-True -Condition ([string]$plainBuildSummary.build_dir -like "*.bpdf-roundtrip-msvc") `
     -Message "Plain build directory preflight should keep the requested default build directory."
+$plainBuildCandidates = @($plainBuildSummary.build_dir_auto_candidates)
+Assert-True -Condition ($plainBuildCandidates.Count -eq 2) `
+    -Message "Plain build directory preflight should record both automatic build directory candidates."
+$plainBuildCandidate = @($plainBuildCandidates | Where-Object { [string]$_.relative_path -eq "build" }) | Select-Object -First 1
+Assert-True -Condition ($null -ne $plainBuildCandidate) `
+    -Message "Plain build directory preflight should record the build auto-candidate."
+Assert-True -Condition ([bool]$plainBuildCandidate.exists -eq $true) `
+    -Message "Plain build auto-candidate should report the existing build directory."
+Assert-True -Condition ([bool]$plainBuildCandidate.cmake_cache_exists -eq $false) `
+    -Message "Plain build auto-candidate should report the missing CMakeCache.txt."
+Assert-True -Condition ([bool]$plainBuildCandidate.ctest_manifest_exists -eq $false) `
+    -Message "Plain build auto-candidate should report the missing CTest manifest."
+Assert-True -Condition ([bool]$plainBuildCandidate.looks_reusable -eq $false) `
+    -Message "Plain build auto-candidate should not look reusable without CMake metadata."
+$plainOutBuildCandidate = @($plainBuildCandidates | Where-Object { [string]$_.relative_path -eq "out\build" }) | Select-Object -First 1
+Assert-True -Condition ($null -ne $plainOutBuildCandidate) `
+    -Message "Plain build directory preflight should record the out\build auto-candidate."
+Assert-True -Condition ([bool]$plainOutBuildCandidate.looks_reusable -eq $false) `
+    -Message "Plain out\build auto-candidate should not look reusable."
 Assert-True -Condition (($plainBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "build_dir_exists") `
     -Message "Plain build directory preflight should report the missing requested build directory."
 Assert-True -Condition ([int]$plainBuildSummary.blocking_summary.build_dir_entry_count -eq 0) `
@@ -267,6 +286,9 @@ foreach ($expectedText in @(
     "Get-BuildDirectorySnapshot",
     '"build", "out\build"',
     "candidateLooksReusable",
+    "build_dir_auto_candidates",
+    "relative_path",
+    "looks_reusable",
     'Source = "auto:$candidate"',
     "cmake_cache_exists",
     "build_dir_source",

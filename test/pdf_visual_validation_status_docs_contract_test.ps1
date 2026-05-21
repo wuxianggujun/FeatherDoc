@@ -71,6 +71,8 @@ $statusMarkers = @(
     "release_blocker_count = 1",
     "action_item_count = 1",
     "build_dir_source = requested",
+    "build_dir_auto_candidates",
+    "looks_reusable",
     "output_gap_count = 3",
     ".bpdf-roundtrip-msvc",
     "CMakeCache.txt",
