@@ -84,7 +84,7 @@ Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
-- Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 penalty_summary=style_numbering_issues(count=4, penalty=20)
+- Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 
@@ -120,7 +120,7 @@ Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
 # Artifact Guide
 
 - Report root: $resolvedRepoRoot\output\release-candidate-checks\report
-- Governance metric: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 penalty_summary=style_numbering_issues(count=4, penalty=20)
+- Governance metric: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Governance metric: table_layout_delivery_governance.delivery_quality release_ready 100 source_schema=featherdoc.table_layout_delivery_governance_report.v1 table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - Project template onboarding governance: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
@@ -133,7 +133,7 @@ Set-Content -LiteralPath $reviewerChecklistPath -Encoding UTF8 -Value @"
 
 - Review root: $resolvedRepoRoot\output\word-visual-release-gate\report
 - Confirm governance_metrics before publishing release assets.
-- Confirm numbering_catalog_governance.real_corpus_confidence catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 penalty_summary=style_numbering_issues(count=4, penalty=20) before publishing release assets.
+- Confirm numbering_catalog_governance.real_corpus_confidence catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20) before publishing release assets.
 - Check content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json before release.
 - Confirm project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json before release.
 - Check project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json before release.
@@ -312,6 +312,13 @@ $summary = [ordered]@{
                 catalog_coverage_percent = 100
                 baseline_coverage_percent = 100
                 coverage_score = 100
+                matched_document_count = 2
+                unmatched_catalog_document_count = 0
+                unmatched_baseline_document_count = 0
+                alignment_gap_count = 0
+                catalog_document_keys = @("contract.docx", "invoice.docx")
+                baseline_document_keys = @("contract.docx", "invoice.docx")
+                matched_document_keys = @("contract.docx", "invoice.docx")
                 penalty_summary = @(
                     [ordered]@{ factor = "style_numbering_issues"; count = 4; penalty = 20 },
                     [ordered]@{ factor = "catalog_drift_or_dirty_baseline"; count = 2; penalty = 20 },
@@ -446,6 +453,9 @@ Assert-Contains -Path $stagedStartHerePath -ExpectedText 'schema_approval_status
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'numbering_catalog_governance.real_corpus_confidence' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'table_layout_delivery_governance.delivery_quality' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'catalog_coverage_percent=100' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'matched_document_count=2' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'alignment_gap_count=0' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'matched_document_keys=contract.docx,invoice.docx' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'style_numbering_issues(count=4, penalty=20)' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'unresolved_item_count=0' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'floating_table_plans_pending(count=0, penalty=0)' -Label 'staged START_HERE.md'
@@ -470,6 +480,9 @@ Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'featherdoc.project
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'schema_approval_status_summary' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'table_layout_delivery_governance.delivery_quality' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'catalog_coverage_percent=100' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'matched_document_count=2' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'alignment_gap_count=0' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'matched_document_keys=contract.docx,invoice.docx' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'style_numbering_issues(count=4, penalty=20)' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'unresolved_item_count=0' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'floating_table_plans_pending(count=0, penalty=0)' -Label 'staged ARTIFACT_GUIDE.md'
@@ -492,6 +505,9 @@ Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'featherdoc.pro
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'schema_approval_status_summary' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'table_layout_delivery_governance.delivery_quality' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'catalog_coverage_percent=100' -Label 'staged REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'matched_document_count=2' -Label 'staged REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'alignment_gap_count=0' -Label 'staged REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'matched_document_keys=contract.docx,invoice.docx' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'style_numbering_issues(count=4, penalty=20)' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'unresolved_item_count=0' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'floating_table_plans_pending(count=0, penalty=0)' -Label 'staged REVIEWER_CHECKLIST.md'
@@ -551,6 +567,15 @@ if ([int]$manifestNumberingConfidence.details.document_count -ne 2) {
 }
 if ([int]$manifestNumberingConfidence.details.catalog_coverage_percent -ne 100) {
     throw "release_assets_manifest.json lost numbering real corpus confidence catalog coverage."
+}
+if ([int]$manifestNumberingConfidence.details.matched_document_count -ne 2) {
+    throw "release_assets_manifest.json lost numbering real corpus confidence matched document count."
+}
+if ([int]$manifestNumberingConfidence.details.alignment_gap_count -ne 0) {
+    throw "release_assets_manifest.json lost numbering real corpus confidence alignment gap count."
+}
+if (-not (@($manifestNumberingConfidence.details.matched_document_keys) -contains "contract.docx")) {
+    throw "release_assets_manifest.json lost numbering real corpus confidence matched document keys."
 }
 $manifestNumberingPenaltyFactors = @($manifestNumberingConfidence.details.penalty_summary |
     ForEach-Object { [string]$_.factor })
