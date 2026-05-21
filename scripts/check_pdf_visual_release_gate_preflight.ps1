@@ -474,6 +474,17 @@ Add-CheckResult `
 $cmakeCachePath = Join-Path $resolvedBuildDir "CMakeCache.txt"
 $cmakeCacheExists = Test-Path -LiteralPath $cmakeCachePath -PathType Leaf
 $pdfDependencyInputs = Get-PdfDependencyInputsSummary -RepoRoot $repoRoot -CMakeCachePath $cmakeCachePath
+$pdfDependencyInputsReady = [bool]$pdfDependencyInputs.available -and
+    [string]$pdfDependencyInputs.status -eq "ready" -and
+    [int]$pdfDependencyInputs.missing_input_count -eq 0
+Add-CheckResult `
+    -Checks $checks `
+    -Name "pdf_dependency_inputs_ready" `
+    -Status $(if ($pdfDependencyInputsReady) { "pass" } else { "missing" }) `
+    -Required $true `
+    -Message $(if ($pdfDependencyInputsReady) { "PDF dependency inputs are ready for the full visual gate." } else { "PDF dependency inputs are not ready for the full visual gate." }) `
+    -Path $cmakeCachePath `
+    -Details $pdfDependencyInputs
 Add-CheckResult `
     -Checks $checks `
     -Name "cmake_cache_exists" `

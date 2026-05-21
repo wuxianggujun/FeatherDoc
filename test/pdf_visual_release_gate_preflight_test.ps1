@@ -257,8 +257,17 @@ Assert-True -Condition ($disabledBuildSummary.status -eq "not_ready") `
     -Message "Disabled PDF build preflight should stay not_ready."
 Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_build_options_enabled") `
     -Message "Disabled PDF build preflight should report the disabled PDF build options blocker."
+Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_dependency_inputs_ready") `
+    -Message "Disabled PDF build preflight should report missing PDF dependency inputs as a blocker."
 Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "ctest_list_contains_pdf_gate_tests") `
     -Message "Disabled PDF build preflight should keep ctest registration as blocked until PDF options are enabled."
+$disabledDependencyCheck = @($disabledBuildSummary.checks | Where-Object { [string]$_.name -eq "pdf_dependency_inputs_ready" })[0]
+Assert-True -Condition ([string]$disabledDependencyCheck.status -eq "missing") `
+    -Message "Disabled PDF build dependency check should be missing."
+Assert-True -Condition ([string]$disabledDependencyCheck.details.status -eq "not_ready") `
+    -Message "Disabled PDF build dependency check should expose the dependency summary status."
+Assert-True -Condition ([int]$disabledDependencyCheck.details.missing_input_count -gt 0) `
+    -Message "Disabled PDF build dependency check should expose missing dependency input count."
 $disabledCtestCheck = @($disabledBuildSummary.checks | Where-Object { [string]$_.name -eq "ctest_list_contains_pdf_gate_tests" })[0]
 Assert-True -Condition ([string]$disabledCtestCheck.status -eq "skipped") `
     -Message "Disabled PDF build preflight should skip ctest list enumeration."
@@ -337,6 +346,7 @@ Assert-True -Condition (($lowMemorySummary.blocking_checks | ForEach-Object { [s
 foreach ($name in @(
     "build_dir_exists",
     "cmake_cache_exists",
+    "pdf_dependency_inputs_ready",
     "pdf_build_options_enabled",
     "ctest_manifest_exists",
     "ctest_list_contains_pdf_gate_tests",
@@ -409,6 +419,9 @@ foreach ($expectedText in @(
     "FEATHERDOC_BUILD_PDF_IMPORT",
     "disabled_pdf_build_options",
     "missing_pdf_build_options",
+    "pdf_dependency_inputs_ready",
+    "PDF dependency inputs are not ready for the full visual gate.",
+    "PDF dependency inputs are ready for the full visual gate.",
     "Skipped ctest -N because PDF build/import options are not enabled in CMakeCache.txt.",
     "pdf_build_options_enabled = [bool]`$pdfBuildOptionsReady",
     "build_dir_source",
