@@ -1038,6 +1038,7 @@ $badContentControlStrategy = [ordered]@{
             severity = "blocker"
             source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
             command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
         }
     )
@@ -1055,6 +1056,34 @@ if (-not $missingContentControlRepairStrategyFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed content-control blocker without repair_strategy."
 }
 
+$badContentControlHintPath = Join-Path $failDir "content_control_bad_repair_hint.json"
+$badContentControlHint = [ordered]@{
+    schema = "featherdoc.content_control_data_binding_governance_report.v1"
+    release_blockers = @(
+        [ordered]@{
+            id = "content_control_data_binding.bound_placeholder"
+            severity = "blocker"
+            source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+            source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            repair_strategy = "sync_bound_content_control"
+            repair_hint = "Review the content control manually before release."
+            command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+        }
+    )
+}
+($badContentControlHint | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $badContentControlHintPath -Encoding UTF8
+
+$badContentControlHintFailedAsExpected = $false
+try {
+    & $auditScript -Path $badContentControlHintPath
+} catch {
+    $badContentControlHintFailedAsExpected = $true
+}
+
+if (-not $badContentControlHintFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed content-control blocker without Custom XML sync repair_hint."
+}
+
 $badContentControlCommandPath = Join-Path $failDir "content_control_bad_command_template.json"
 $badContentControlCommand = [ordered]@{
     schema = "featherdoc.content_control_data_binding_governance_report.v1"
@@ -1065,6 +1094,7 @@ $badContentControlCommand = [ordered]@{
             source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
             repair_strategy = "sync_bound_content_control"
+            repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
             command_template = "featherdoc_cli inspect-content-controls <input.docx> --json"
         }
     )

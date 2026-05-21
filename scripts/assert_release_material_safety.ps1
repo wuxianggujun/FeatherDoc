@@ -254,6 +254,7 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "source_json_display",
             "repair_strategy",
             "repair_hint",
+            "Rerun Custom XML sync",
             "sync_bound_content_control",
             "command_template",
             "sync-content-controls-from-custom-xml"
@@ -370,6 +371,7 @@ function Add-ContentControlRepairContractViolations {
 
     $contentControlBlockerId = "content_control_data_binding.bound_placeholder"
     $expectedRepairStrategy = "sync_bound_content_control"
+    $expectedRepairHintMarker = "Rerun Custom XML sync"
     $expectedCommand = "sync-content-controls-from-custom-xml"
     $label = "content-control repair contract"
     $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
@@ -433,12 +435,12 @@ function Add-ContentControlRepairContractViolations {
         }
 
         $repairHint = [string](Get-JsonPropertyValue -Object $blocker -Name "repair_hint")
-        if ([string]::IsNullOrWhiteSpace($repairHint)) {
+        if ([string]::IsNullOrWhiteSpace($repairHint) -or $repairHint -notlike "*$expectedRepairHintMarker*") {
             Add-AuditViolation `
                 -Violations $Violations `
                 -File $File `
                 -Label $label `
-                -Text "content_control_data_binding.bound_placeholder must carry repair_hint."
+                -Text "content_control_data_binding.bound_placeholder must carry repair_hint containing $expectedRepairHintMarker."
         }
 
         $commandTemplate = [string](Get-JsonPropertyValue -Object $blocker -Name "command_template")
