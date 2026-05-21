@@ -379,6 +379,19 @@ $contentControlContract = @($manifest.content_control_repair_contracts | Where-O
 if ($null -eq $contentControlContract) {
     throw "Release assets manifest lost content_control_data_binding.bound_placeholder repair contract in AllowIncomplete mode."
 }
+if ([string]$contentControlContract.source_schema -ne "featherdoc.content_control_data_binding_governance_report.v1") {
+    throw "Release assets manifest lost content-control repair contract source_schema in AllowIncomplete mode."
+}
+$normalizedRepoRoot = [System.IO.Path]::GetFullPath($resolvedRepoRoot).TrimEnd('\', '/')
+$normalizedContentControlSummaryPath = [System.IO.Path]::GetFullPath($contentControlSummaryPath)
+$expectedContentControlSummaryDisplay = $normalizedContentControlSummaryPath
+if ($normalizedContentControlSummaryPath.StartsWith($normalizedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    $relativeContentControlSummaryPath = $normalizedContentControlSummaryPath.Substring($normalizedRepoRoot.Length).TrimStart('\', '/')
+    $expectedContentControlSummaryDisplay = ".\" + ($relativeContentControlSummaryPath -replace '/', '\')
+}
+if ([string]$contentControlContract.source_json_display -ne $expectedContentControlSummaryDisplay) {
+    throw "Release assets manifest lost content-control repair contract source_json_display in AllowIncomplete mode."
+}
 if ([string]$contentControlContract.repair_strategy -ne "sync_bound_content_control") {
     throw "Release assets manifest lost sync_bound_content_control repair strategy in AllowIncomplete mode."
 }
