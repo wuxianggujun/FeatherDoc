@@ -448,6 +448,15 @@ if (Test-Scenario -Name "alignment_gap") {
 
     $alignmentBlocker = @($summary.release_blockers |
         Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_alignment_gap" })[0]
+    Assert-Equal -Actual ([string]$alignmentBlocker.source_schema) `
+        -Expected "featherdoc.numbering_catalog_governance_report.v1" `
+        -Message "Alignment blocker should preserve the numbering governance source schema."
+    Assert-ContainsText -Text ([string]$alignmentBlocker.source_report_display) `
+        -ExpectedText "summary.json" `
+        -Message "Alignment blocker should expose the governance source report display path."
+    Assert-ContainsText -Text ([string]$alignmentBlocker.source_json_display) `
+        -ExpectedText "summary.json" `
+        -Message "Alignment blocker should expose the governance source JSON display path."
     Assert-Equal -Actual ([int]$alignmentBlocker.matched_document_count) -Expected 1 `
         -Message "Alignment blocker should expose matched document count."
     Assert-Equal -Actual ([int]$alignmentBlocker.unmatched_catalog_document_count) -Expected 1 `

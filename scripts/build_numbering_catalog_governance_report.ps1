@@ -827,6 +827,8 @@ if ($realCorpusConfidence.alignment_gap_count -gt 0) {
     $alignmentBlocker["source_schema"] = "featherdoc.numbering_catalog_governance_report.v1"
     $alignmentBlocker["source_report"] = $summaryPath
     $alignmentBlocker["source_report_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+    $alignmentBlocker["source_json"] = $summaryPath
+    $alignmentBlocker["source_json_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
     $alignmentBlocker["matched_document_count"] = $realCorpusConfidence.matched_document_count
     $alignmentBlocker["unmatched_catalog_document_count"] = $realCorpusConfidence.unmatched_catalog_document_count
     $alignmentBlocker["unmatched_baseline_document_count"] = $realCorpusConfidence.unmatched_baseline_document_count
