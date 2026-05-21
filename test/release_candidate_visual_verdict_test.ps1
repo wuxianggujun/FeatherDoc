@@ -24,6 +24,11 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
 $scriptText = Get-Content -Raw -LiteralPath $scriptPath
+$metadataHelpersPath = Join-Path $resolvedRepoRoot "scripts\release_blocker_metadata_helpers.ps1"
+$metadataHelpersText = Get-Content -Raw -LiteralPath $metadataHelpersPath
+. $metadataHelpersPath
+$templateSchemaCommonPath = Join-Path $resolvedRepoRoot "scripts\template_schema_cli_common.ps1"
+. $templateSchemaCommonPath
 
 foreach ($name in @(
         "SmokeReviewVerdict",
@@ -174,23 +179,20 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'Release blockers:' `
 Assert-ContainsText -Text $scriptText -ExpectedText 'project_template_smoke.schema_approval' `
     -Message "Release blockers should include a stable schema approval blocker id."
 
-Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-NormalizedReleaseGovernanceWarnings' `
-    -Message "Release preflight should normalize governance warning details before copying them into summary.json."
+Assert-ContainsText -Text $scriptText -ExpectedText 'release_blocker_metadata_helpers.ps1' `
+    -Message "Release preflight should load shared release governance metadata helpers."
 
-Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-ReleaseGovernanceWarningSummaryMarkdown' `
-    -Message "Release final review should render governance warning details."
+Assert-ContainsText -Text $metadataHelpersText -ExpectedText 'function Get-NormalizedReleaseGovernanceWarnings' `
+    -Message "Shared metadata helpers should normalize governance warning details before copying them into summary.json."
 
-Assert-ContainsText -Text $scriptText -ExpectedText '## Release governance warnings' `
-    -Message "Release final review should add a governance warning details section when warnings exist."
+Assert-ContainsText -Text $metadataHelpersText -ExpectedText 'function Add-ReleaseGovernanceWarningsMarkdownSection' `
+    -Message "Shared metadata helpers should render governance warning details."
 
-Assert-ContainsText -Text $scriptText -ExpectedText 'Release blocker rollup warnings' `
-    -Message "Release final review should label rollup warning details."
+Assert-ContainsText -Text $metadataHelpersText -ExpectedText '## Release Governance Warnings' `
+    -Message "Shared metadata helpers should add a governance warning details section when warnings exist."
 
-Assert-ContainsText -Text $scriptText -ExpectedText 'Release governance handoff nested rollup warnings' `
-    -Message "Release final review should label nested handoff rollup warning details."
-
-Assert-ContainsText -Text $scriptText -ExpectedText '$releaseGovernanceWarningSummary' `
-    -Message "Release final review should embed governance warning details."
+Assert-ContainsText -Text $metadataHelpersText -ExpectedText '$($sectionInfo.Context) warnings' `
+    -Message "Shared metadata helpers should label rollup, handoff, and nested warning details."
 
 Assert-ContainsText -Text $scriptText -ExpectedText 'Invoke-ProjectTemplateSchemaApprovalHistory' `
     -Message "Release preflight should isolate schema approval history generation."
@@ -215,7 +217,6 @@ $functionNames = @(
     "Set-ProjectTemplateSchemaApprovalReleaseBlocker",
     "Get-ProjectTemplateSchemaApprovalHistoryInputList",
     "Get-ReleaseBlockerRollupInputList",
-    "Expand-ReleaseBlockerRollupPathList",
     "Get-RepoRelativePath",
     "Get-OptionalPropertyValue",
     "Convert-ReviewTimestamp",
@@ -424,7 +425,7 @@ if ($historyMissingInputList.Count -ne 1 -or $historyMissingInputList[0] -ne $hi
     throw "Schema approval history input list should skip missing smoke summaries."
 }
 
-$expandedRollupPaths = @(Expand-ReleaseBlockerRollupPathList -Paths @("a.json,b.json", " c.json "))
+$expandedRollupPaths = @(Expand-TemplateSchemaArgumentList -Values @("a.json,b.json", " c.json "))
 if ($expandedRollupPaths.Count -ne 3 -or
     $expandedRollupPaths[0] -ne "a.json" -or
     $expandedRollupPaths[1] -ne "b.json" -or

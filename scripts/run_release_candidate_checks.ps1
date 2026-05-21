@@ -123,6 +123,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+. (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
 
 function Write-Step {
     param([string]$Message)
@@ -1027,21 +1028,6 @@ function Get-ReleaseBlockerRollupInputList {
     )
 }
 
-function Expand-ReleaseBlockerRollupPathList {
-    param([string[]]$Paths)
-
-    return @(
-        foreach ($path in @($Paths)) {
-            foreach ($part in ([string]$path -split ",")) {
-                $trimmed = $part.Trim()
-                if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
-                    $trimmed
-                }
-            }
-        }
-    )
-}
-
 function Select-UniqueReleaseBlockerRollupPathList {
     param([string[]]$Paths)
 
@@ -1456,8 +1442,8 @@ $resolvedProjectTemplateSmokeCandidateDiscoveryPath = if ($projectTemplateSmokeR
 }
 $templateSchemaRequested = -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaInputDocx) -or
     -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaBaseline)
-$expandedReleaseBlockerRollupInputJson = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseBlockerRollupInputJson)
-$expandedReleaseBlockerRollupInputRoot = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseBlockerRollupInputRoot)
+$expandedReleaseBlockerRollupInputJson = @(Expand-TemplateSchemaArgumentList -Values $ReleaseBlockerRollupInputJson)
+$expandedReleaseBlockerRollupInputRoot = @(Expand-TemplateSchemaArgumentList -Values $ReleaseBlockerRollupInputRoot)
 $resolvedReleaseBlockerRollupAutoDiscoverRoot = Resolve-FullPath -RepoRoot $repoRoot `
     -InputPath $ReleaseBlockerRollupAutoDiscoverRoot
 $autoDiscoveredReleaseBlockerRollupInputJson = if ($ReleaseBlockerRollupAutoDiscover) {
@@ -1507,7 +1493,7 @@ $releaseBlockerRollupMarkdownPath = if ($releaseBlockerRollupRequested) {
 } else {
     ""
 }
-$expandedReleaseGovernanceHandoffInputJson = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseGovernanceHandoffInputJson)
+$expandedReleaseGovernanceHandoffInputJson = @(Expand-TemplateSchemaArgumentList -Values $ReleaseGovernanceHandoffInputJson)
 $resolvedReleaseGovernanceHandoffInputJson = @(
     foreach ($path in @($expandedReleaseGovernanceHandoffInputJson)) {
         if (-not [string]::IsNullOrWhiteSpace($path)) {
