@@ -168,12 +168,18 @@ Write-JsonFile -Path $tableLayoutPath -Value ([ordered]@{
             severity = "warning"
             message = "Manual table style work remains."
             action = "review_table_style_quality_plan"
+            repair_strategy = "review_source_table_style_quality_plan"
+            repair_hint = "Review the source rollup style quality findings before release."
+            command_template = "featherdoc_cli inspect-table-style <input.docx> <style-id> --json"
         },
         [ordered]@{
             id = "table_layout.positioned_tables_need_review"
             severity = "warning"
             message = "Existing floating positions need review."
             action = "review_table_position_plan"
+            repair_strategy = "review_source_table_position_plan"
+            repair_hint = "Review source table-position.plan.json entries with existing floating positions."
+            command_template = "featherdoc_cli apply-table-position-plan <table-position.plan.json> --dry-run --json"
         }
     )
     action_items = @(
@@ -182,6 +188,9 @@ Write-JsonFile -Path $tableLayoutPath -Value ([ordered]@{
             action = "review_table_position_preset"
             title = "Review table position preset"
             command = "featherdoc_cli apply-table-position-plan plan.json --dry-run --json"
+            repair_strategy = "dry_run_table_position_plan"
+            repair_hint = "Dry-run the table position plan before applying floating-position presets."
+            command_template = "featherdoc_cli apply-table-position-plan <table-position.plan.json> --dry-run --json"
         }
     )
 })
@@ -459,6 +468,29 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (($tableMetric.details.penalty_summary | ForEach-Object { [string]$_.factor }) -join "`n") `
         -ExpectedText "floating_table_plans_pending" `
         -Message "Rollup should preserve table layout delivery penalty summary."
+    $tableStyleBlocker = ($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "table_layout.manual_table_style_quality_work" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$tableStyleBlocker.repair_strategy) -Expected "review_source_table_style_quality_plan" `
+        -Message "Rollup should preserve table layout style blocker repair strategy."
+    Assert-ContainsText -Text ([string]$tableStyleBlocker.repair_hint) -ExpectedText "style quality findings" `
+        -Message "Rollup should preserve table layout style blocker repair hint."
+    Assert-ContainsText -Text ([string]$tableStyleBlocker.command_template) -ExpectedText "inspect-table-style" `
+        -Message "Rollup should preserve table layout style blocker command template."
+    $tablePositionBlocker = ($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "table_layout.positioned_tables_need_review" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$tablePositionBlocker.repair_strategy) -Expected "review_source_table_position_plan" `
+        -Message "Rollup should preserve table layout position blocker repair strategy."
+    Assert-ContainsText -Text ([string]$tablePositionBlocker.command_template) -ExpectedText "apply-table-position-plan" `
+        -Message "Rollup should preserve table layout position blocker command template."
+    $tablePositionAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "review_table_position_preset" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$tablePositionAction.repair_strategy) -Expected "dry_run_table_position_plan" `
+        -Message "Rollup should preserve table layout action repair strategy."
+    Assert-ContainsText -Text ([string]$tablePositionAction.command_template) -ExpectedText "--dry-run" `
+        -Message "Rollup should preserve table layout action command template."
     $skeletonBlocker = @(
         $summary.release_blockers |
             Where-Object { [string]$_.id -eq "document_skeleton.style_numbering_issues" } |
@@ -589,6 +621,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include review floating table detail fields."
     Assert-ContainsText -Text $markdown -ExpectedText "floating_table_plans_pending(count=3, penalty=14)" `
         -Message "Markdown should include table layout delivery penalty summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_source_table_position_plan" `
+        -Message "Markdown should include table layout blocker repair strategy."
+    Assert-ContainsText -Text $markdown -ExpectedText "apply-table-position-plan <table-position.plan.json> --dry-run --json" `
+        -Message "Markdown should include table layout command template."
     Assert-ContainsText -Text $markdown -ExpectedText "repair_strategy" `
         -Message "Markdown should include repair strategy details."
     Assert-ContainsText -Text $markdown -ExpectedText "command_template" `
