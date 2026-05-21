@@ -414,8 +414,10 @@ function Get-ProjectTemplateDeliveryReadinessContract {
     Assert-PathExists -Path $resolvedReadinessSummaryPath -Label "project template delivery readiness summary"
 
     $readinessSummary = Get-Content -Raw -LiteralPath $resolvedReadinessSummaryPath | ConvertFrom-Json
+    $readinessSummaryDisplay = Convert-RepoPathToRelative -Value $resolvedReadinessSummaryPath -RepoRoot $RepoRoot
     return [ordered]@{
         schema = Get-OptionalPropertyValue -Object $readinessSummary -Name "schema"
+        source_schema = Get-OptionalPropertyValue -Object $readinessSummary -Name "schema"
         status = Get-OptionalPropertyValue -Object $readinessSummary -Name "status"
         release_ready = Get-OptionalPropertyObject -Object $readinessSummary -Name "release_ready"
         latest_schema_approval_gate_status = Get-OptionalPropertyValue -Object $readinessSummary -Name "latest_schema_approval_gate_status"
@@ -428,7 +430,8 @@ function Get-ProjectTemplateDeliveryReadinessContract {
         release_blocker_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "release_blocker_count"
         action_item_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "action_item_count"
         warning_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "warning_count"
-        source_json_display = Convert-RepoPathToRelative -Value $resolvedReadinessSummaryPath -RepoRoot $RepoRoot
+        source_report_display = $readinessSummaryDisplay
+        source_json_display = $readinessSummaryDisplay
     }
 }
 
@@ -447,8 +450,10 @@ function Get-ProjectTemplateOnboardingGovernanceContract {
     Assert-PathExists -Path $resolvedOnboardingSummaryPath -Label "project template onboarding governance summary"
 
     $onboardingSummary = Get-Content -Raw -LiteralPath $resolvedOnboardingSummaryPath | ConvertFrom-Json
+    $onboardingSummaryDisplay = Convert-RepoPathToRelative -Value $resolvedOnboardingSummaryPath -RepoRoot $RepoRoot
     return [ordered]@{
         schema = Get-OptionalPropertyValue -Object $onboardingSummary -Name "schema"
+        source_schema = Get-OptionalPropertyValue -Object $onboardingSummary -Name "schema"
         status = Get-OptionalPropertyValue -Object $onboardingSummary -Name "status"
         release_ready = Get-OptionalPropertyObject -Object $onboardingSummary -Name "release_ready"
         source_file_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "source_file_count"
@@ -463,7 +468,8 @@ function Get-ProjectTemplateOnboardingGovernanceContract {
         release_blocker_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "release_blocker_count"
         action_item_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "action_item_count"
         manual_review_recommendation_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "manual_review_recommendation_count"
-        source_json_display = Convert-RepoPathToRelative -Value $resolvedOnboardingSummaryPath -RepoRoot $RepoRoot
+        source_report_display = $onboardingSummaryDisplay
+        source_json_display = $onboardingSummaryDisplay
     }
 }
 

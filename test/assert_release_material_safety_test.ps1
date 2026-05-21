@@ -121,6 +121,7 @@ $governanceMetrics = @(
 $governanceMetricCount = $governanceMetrics.Count
 $projectTemplateDeliveryReadinessContract = [ordered]@{
     schema = "featherdoc.project_template_delivery_readiness_report.v1"
+    source_schema = "featherdoc.project_template_delivery_readiness_report.v1"
     status = "ready"
     release_ready = $true
     latest_schema_approval_gate_status = "passed"
@@ -133,10 +134,12 @@ $projectTemplateDeliveryReadinessContract = [ordered]@{
     release_blocker_count = 0
     action_item_count = 0
     warning_count = 0
+    source_report_display = ".\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json"
     source_json_display = ".\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json"
 }
 $projectTemplateOnboardingGovernanceContract = [ordered]@{
     schema = "featherdoc.project_template_onboarding_governance_report.v1"
+    source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
     status = "ready"
     release_ready = $true
     source_file_count = 3
@@ -160,6 +163,7 @@ $projectTemplateOnboardingGovernanceContract = [ordered]@{
     release_blocker_count = 0
     action_item_count = 0
     manual_review_recommendation_count = 1
+    source_report_display = ".\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json"
     source_json_display = ".\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json"
 }
 
@@ -612,6 +616,78 @@ if (-not $badManifestContentControlContractSourceJsonFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with content-control repair contract missing source_json_display."
 }
 
+$badManifestProjectTemplateReadinessSourceSchemaDir = Join-Path $failDir "manifest-project-template-readiness-missing-source-schema"
+$badManifestProjectTemplateReadinessSourceSchemaPath = Join-Path $badManifestProjectTemplateReadinessSourceSchemaDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessSourceSchemaDir -Force | Out-Null
+$badManifestProjectTemplateReadinessSourceSchema = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateReadinessSourceSchema.project_template_delivery_readiness_contract.PSObject.Properties.Remove("source_schema")
+($badManifestProjectTemplateReadinessSourceSchema | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateReadinessSourceSchemaPath -Encoding UTF8
+
+$badManifestProjectTemplateReadinessSourceSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateReadinessSourceSchemaPath
+} catch {
+    $badManifestProjectTemplateReadinessSourceSchemaFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateReadinessSourceSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness contract missing source_schema."
+}
+
+$badManifestProjectTemplateReadinessSourceReportDir = Join-Path $failDir "manifest-project-template-readiness-missing-source-report"
+$badManifestProjectTemplateReadinessSourceReportPath = Join-Path $badManifestProjectTemplateReadinessSourceReportDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessSourceReportDir -Force | Out-Null
+$badManifestProjectTemplateReadinessSourceReport = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateReadinessSourceReport.project_template_delivery_readiness_contract.PSObject.Properties.Remove("source_report_display")
+($badManifestProjectTemplateReadinessSourceReport | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateReadinessSourceReportPath -Encoding UTF8
+
+$badManifestProjectTemplateReadinessSourceReportFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateReadinessSourceReportPath
+} catch {
+    $badManifestProjectTemplateReadinessSourceReportFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateReadinessSourceReportFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness contract missing source_report_display."
+}
+
+$badManifestProjectTemplateOnboardingSourceSchemaDir = Join-Path $failDir "manifest-project-template-onboarding-missing-source-schema"
+$badManifestProjectTemplateOnboardingSourceSchemaPath = Join-Path $badManifestProjectTemplateOnboardingSourceSchemaDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateOnboardingSourceSchemaDir -Force | Out-Null
+$badManifestProjectTemplateOnboardingSourceSchema = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateOnboardingSourceSchema.project_template_onboarding_governance_contract.PSObject.Properties.Remove("source_schema")
+($badManifestProjectTemplateOnboardingSourceSchema | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateOnboardingSourceSchemaPath -Encoding UTF8
+
+$badManifestProjectTemplateOnboardingSourceSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateOnboardingSourceSchemaPath
+} catch {
+    $badManifestProjectTemplateOnboardingSourceSchemaFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateOnboardingSourceSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template onboarding contract missing source_schema."
+}
+
+$badManifestProjectTemplateOnboardingSourceReportDir = Join-Path $failDir "manifest-project-template-onboarding-missing-source-report"
+$badManifestProjectTemplateOnboardingSourceReportPath = Join-Path $badManifestProjectTemplateOnboardingSourceReportDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateOnboardingSourceReportDir -Force | Out-Null
+$badManifestProjectTemplateOnboardingSourceReport = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateOnboardingSourceReport.project_template_onboarding_governance_contract.PSObject.Properties.Remove("source_report_display")
+($badManifestProjectTemplateOnboardingSourceReport | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateOnboardingSourceReportPath -Encoding UTF8
+
+$badManifestProjectTemplateOnboardingSourceReportFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateOnboardingSourceReportPath
+} catch {
+    $badManifestProjectTemplateOnboardingSourceReportFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateOnboardingSourceReportFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template onboarding contract missing source_report_display."
+}
+
 $badManifestMissingNumberingConfidenceDir = Join-Path $failDir "manifest-missing-numbering-confidence"
 $badManifestMissingNumberingConfidencePath = Join-Path $badManifestMissingNumberingConfidenceDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestMissingNumberingConfidenceDir -Force | Out-Null
@@ -873,6 +949,7 @@ $badManifestBlockedProjectTemplateReadiness = [ordered]@{
     )
     project_template_delivery_readiness_contract = [ordered]@{
         schema = "featherdoc.project_template_delivery_readiness_report.v1"
+        source_schema = "featherdoc.project_template_delivery_readiness_report.v1"
         status = "blocked"
         release_ready = $false
         latest_schema_approval_gate_status = "blocked"
@@ -885,6 +962,7 @@ $badManifestBlockedProjectTemplateReadiness = [ordered]@{
         release_blocker_count = 0
         action_item_count = 1
         warning_count = 0
+        source_report_display = ".\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json"
         source_json_display = ".\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json"
     }
     project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
@@ -994,6 +1072,7 @@ $badManifestProjectTemplateOnboardingCount = [ordered]@{
     project_template_delivery_readiness_contract = $projectTemplateDeliveryReadinessContract
     project_template_onboarding_governance_contract = [ordered]@{
         schema = "featherdoc.project_template_onboarding_governance_report.v1"
+        source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
         status = "ready"
         release_ready = $true
         source_file_count = 3
@@ -1013,6 +1092,7 @@ $badManifestProjectTemplateOnboardingCount = [ordered]@{
         release_blocker_count = 0
         action_item_count = 0
         manual_review_recommendation_count = 1
+        source_report_display = ".\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json"
         source_json_display = ".\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json"
     }
 }

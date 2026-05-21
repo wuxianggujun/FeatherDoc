@@ -33,6 +33,22 @@ function Assert-NotContains {
     }
 }
 
+function Convert-TestPathToRepoRelativeDisplay {
+    param(
+        [string]$Path,
+        [string]$RepoRoot
+    )
+
+    $normalizedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $normalizedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($normalizedPath.StartsWith($normalizedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relativePath = $normalizedPath.Substring($normalizedRepoRoot.Length).TrimStart('\', '/')
+        return ".\" + ($relativePath -replace '/', '\')
+    }
+
+    return $normalizedPath
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $workingDirParent = Split-Path -Parent $resolvedWorkingDir
@@ -654,6 +670,9 @@ if ($null -eq $manifestProjectTemplateReadiness) {
 if ([string]$manifestProjectTemplateReadiness.schema -ne "featherdoc.project_template_delivery_readiness_report.v1") {
     throw "release_assets_manifest.json lost project template delivery readiness schema."
 }
+if ([string]$manifestProjectTemplateReadiness.source_schema -ne "featherdoc.project_template_delivery_readiness_report.v1") {
+    throw "release_assets_manifest.json lost project template delivery readiness source_schema."
+}
 if ([string]$manifestProjectTemplateReadiness.status -ne "ready") {
     throw "release_assets_manifest.json lost project template delivery readiness status."
 }
@@ -672,7 +691,13 @@ if ([int]$manifestProjectTemplateReadiness.ready_template_count -ne 4) {
 if ([int]$manifestProjectTemplateReadiness.release_blocker_count -ne 0) {
     throw "release_assets_manifest.json lost project template delivery readiness release_blocker_count."
 }
-if ([string]::IsNullOrWhiteSpace([string]$manifestProjectTemplateReadiness.source_json_display)) {
+$expectedProjectTemplateDeliveryReadinessDisplay = Convert-TestPathToRepoRelativeDisplay `
+    -Path $projectTemplateDeliveryReadinessSummaryPath `
+    -RepoRoot $resolvedRepoRoot
+if ([string]$manifestProjectTemplateReadiness.source_report_display -ne $expectedProjectTemplateDeliveryReadinessDisplay) {
+    throw "release_assets_manifest.json lost project template delivery readiness source_report_display."
+}
+if ([string]$manifestProjectTemplateReadiness.source_json_display -ne $expectedProjectTemplateDeliveryReadinessDisplay) {
     throw "release_assets_manifest.json lost project template delivery readiness source_json_display."
 }
 $manifestProjectTemplateOnboarding = $manifest.project_template_onboarding_governance_contract
@@ -681,6 +706,9 @@ if ($null -eq $manifestProjectTemplateOnboarding) {
 }
 if ([string]$manifestProjectTemplateOnboarding.schema -ne "featherdoc.project_template_onboarding_governance_report.v1") {
     throw "release_assets_manifest.json lost project template onboarding governance schema."
+}
+if ([string]$manifestProjectTemplateOnboarding.source_schema -ne "featherdoc.project_template_onboarding_governance_report.v1") {
+    throw "release_assets_manifest.json lost project template onboarding governance source_schema."
 }
 if ([string]$manifestProjectTemplateOnboarding.status -ne "ready") {
     throw "release_assets_manifest.json lost project template onboarding governance status."
@@ -706,7 +734,13 @@ if ([int]$manifestProjectTemplateOnboarding.release_blocker_count -ne 0) {
 if (@($manifestProjectTemplateOnboarding.schema_approval_status_summary).Count -ne 2) {
     throw "release_assets_manifest.json lost project template onboarding governance schema_approval_status_summary."
 }
-if ([string]::IsNullOrWhiteSpace([string]$manifestProjectTemplateOnboarding.source_json_display)) {
+$expectedProjectTemplateOnboardingGovernanceDisplay = Convert-TestPathToRepoRelativeDisplay `
+    -Path $projectTemplateOnboardingGovernanceSummaryPath `
+    -RepoRoot $resolvedRepoRoot
+if ([string]$manifestProjectTemplateOnboarding.source_report_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
+    throw "release_assets_manifest.json lost project template onboarding governance source_report_display."
+}
+if ([string]$manifestProjectTemplateOnboarding.source_json_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
     throw "release_assets_manifest.json lost project template onboarding governance source_json_display."
 }
 

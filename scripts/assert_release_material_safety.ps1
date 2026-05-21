@@ -772,6 +772,11 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.schema is invalid."
     }
 
+    $sourceSchema = Get-JsonPropertyValue -Object $contract -Name "source_schema"
+    if ([string]$sourceSchema -ne "featherdoc.project_template_delivery_readiness_report.v1") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.source_schema is invalid."
+    }
+
     $status = Get-JsonPropertyValue -Object $contract -Name "status"
     if ([string]::IsNullOrWhiteSpace([string]$status)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.status is missing."
@@ -785,6 +790,11 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
     $sourceJsonDisplay = Get-JsonPropertyValue -Object $contract -Name "source_json_display"
     if ([string]::IsNullOrWhiteSpace([string]$sourceJsonDisplay)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.source_json_display is missing."
+    }
+
+    $sourceReportDisplay = Get-JsonPropertyValue -Object $contract -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace([string]$sourceReportDisplay)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.source_report_display is missing."
     }
 
     $releaseReady = Get-JsonPropertyValue -Object $contract -Name "release_ready"
@@ -853,6 +863,11 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.schema is invalid."
     }
 
+    $sourceSchema = Get-JsonPropertyValue -Object $contract -Name "source_schema"
+    if ([string]$sourceSchema -ne "featherdoc.project_template_onboarding_governance_report.v1") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.source_schema is invalid."
+    }
+
     $status = Get-JsonPropertyValue -Object $contract -Name "status"
     if ([string]::IsNullOrWhiteSpace([string]$status)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.status is missing."
@@ -861,6 +876,11 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
     $sourceJsonDisplay = Get-JsonPropertyValue -Object $contract -Name "source_json_display"
     if ([string]::IsNullOrWhiteSpace([string]$sourceJsonDisplay)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.source_json_display is missing."
+    }
+
+    $sourceReportDisplay = Get-JsonPropertyValue -Object $contract -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace([string]$sourceReportDisplay)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.source_report_display is missing."
     }
 
     $releaseReady = Get-JsonPropertyValue -Object $contract -Name "release_ready"

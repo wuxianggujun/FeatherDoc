@@ -6,6 +6,22 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Convert-TestPathToRepoRelativeDisplay {
+    param(
+        [string]$Path,
+        [string]$RepoRoot
+    )
+
+    $normalizedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $normalizedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($normalizedPath.StartsWith($normalizedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relativePath = $normalizedPath.Substring($normalizedRepoRoot.Length).TrimStart('\', '/')
+        return ".\" + ($relativePath -replace '/', '\')
+    }
+
+    return $normalizedPath
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $installPrefix = Join-Path $resolvedWorkingDir "build-msvc-install"
@@ -402,17 +418,44 @@ if ([string]$contentControlContract.command_template -notmatch "sync-content-con
     throw "Release assets manifest lost sync-content-controls-from-custom-xml command template in AllowIncomplete mode."
 }
 
-if ($null -eq $manifest.project_template_delivery_readiness_contract) {
+$projectTemplateDeliveryReadinessContract = $manifest.project_template_delivery_readiness_contract
+if ($null -eq $projectTemplateDeliveryReadinessContract) {
     throw "Release assets manifest lost project_template_delivery_readiness_contract in AllowIncomplete mode."
 }
-if ([string]$manifest.project_template_delivery_readiness_contract.schema -ne "featherdoc.project_template_delivery_readiness_report.v1") {
+$expectedProjectTemplateDeliveryReadinessDisplay = Convert-TestPathToRepoRelativeDisplay `
+    -Path $projectTemplateDeliveryReadinessSummaryPath `
+    -RepoRoot $resolvedRepoRoot
+if ([string]$projectTemplateDeliveryReadinessContract.schema -ne "featherdoc.project_template_delivery_readiness_report.v1") {
     throw "Release assets manifest lost project template delivery readiness schema in AllowIncomplete mode."
 }
-if ($null -eq $manifest.project_template_onboarding_governance_contract) {
+if ([string]$projectTemplateDeliveryReadinessContract.source_schema -ne "featherdoc.project_template_delivery_readiness_report.v1") {
+    throw "Release assets manifest lost project template delivery readiness source_schema in AllowIncomplete mode."
+}
+if ([string]$projectTemplateDeliveryReadinessContract.source_report_display -ne $expectedProjectTemplateDeliveryReadinessDisplay) {
+    throw "Release assets manifest lost project template delivery readiness source_report_display in AllowIncomplete mode."
+}
+if ([string]$projectTemplateDeliveryReadinessContract.source_json_display -ne $expectedProjectTemplateDeliveryReadinessDisplay) {
+    throw "Release assets manifest lost project template delivery readiness source_json_display in AllowIncomplete mode."
+}
+
+$projectTemplateOnboardingGovernanceContract = $manifest.project_template_onboarding_governance_contract
+if ($null -eq $projectTemplateOnboardingGovernanceContract) {
     throw "Release assets manifest lost project_template_onboarding_governance_contract in AllowIncomplete mode."
 }
-if ([string]$manifest.project_template_onboarding_governance_contract.schema -ne "featherdoc.project_template_onboarding_governance_report.v1") {
+$expectedProjectTemplateOnboardingGovernanceDisplay = Convert-TestPathToRepoRelativeDisplay `
+    -Path $projectTemplateOnboardingGovernanceSummaryPath `
+    -RepoRoot $resolvedRepoRoot
+if ([string]$projectTemplateOnboardingGovernanceContract.schema -ne "featherdoc.project_template_onboarding_governance_report.v1") {
     throw "Release assets manifest lost project template onboarding governance schema in AllowIncomplete mode."
+}
+if ([string]$projectTemplateOnboardingGovernanceContract.source_schema -ne "featherdoc.project_template_onboarding_governance_report.v1") {
+    throw "Release assets manifest lost project template onboarding governance source_schema in AllowIncomplete mode."
+}
+if ([string]$projectTemplateOnboardingGovernanceContract.source_report_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
+    throw "Release assets manifest lost project template onboarding governance source_report_display in AllowIncomplete mode."
+}
+if ([string]$projectTemplateOnboardingGovernanceContract.source_json_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
+    throw "Release assets manifest lost project template onboarding governance source_json_display in AllowIncomplete mode."
 }
 
 $stagedSummaryContent = Get-Content -Raw -LiteralPath $stagedSummaryPath
