@@ -295,7 +295,10 @@ function New-ReportMarkdown {
     $lines.Add("") | Out-Null
     $lines.Add("- Status: ``$($Summary.status)``") | Out-Null
     $lines.Add("- Release ready: ``$($Summary.release_ready)``") | Out-Null
+    $lines.Add("- Preflight ready: ``$($Summary.preflight_ready)``") | Out-Null
     $lines.Add("- Preflight status: ``$($Summary.preflight_status)``") | Out-Null
+    $lines.Add("- Full visual gate required: ``$($Summary.full_visual_gate_required)``") | Out-Null
+    $lines.Add("- Full visual gate status: ``$($Summary.full_visual_gate_status)``") | Out-Null
     $lines.Add("- Preflight summary: ``$($Summary.preflight_summary_json_display)``") | Out-Null
     $lines.Add("- Build dir: ``$($Summary.build_dir_display)``") | Out-Null
     $lines.Add("- Build dir source: ``$($Summary.build_dir_source)``") | Out-Null
@@ -605,6 +608,9 @@ $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
     status = $status
     release_ready = ($status -eq "ready")
+    preflight_ready = ($status -eq "ready")
+    full_visual_gate_required = $true
+    full_visual_gate_status = "not_run_by_preflight_governance"
     output_dir = $resolvedOutputDir
     output_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedOutputDir
     summary_json = $summaryPath

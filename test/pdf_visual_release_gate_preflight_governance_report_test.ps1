@@ -295,6 +295,12 @@ Assert-Equal -Actual ([string]$blockedSummary.status) -Expected "blocked" `
     -Message "Not-ready preflight should block release governance."
 Assert-Equal -Actual ([bool]$blockedSummary.release_ready) -Expected $false `
     -Message "Not-ready preflight should not be release-ready."
+Assert-Equal -Actual ([bool]$blockedSummary.preflight_ready) -Expected $false `
+    -Message "Not-ready preflight should not be marked preflight-ready."
+Assert-Equal -Actual ([bool]$blockedSummary.full_visual_gate_required) -Expected $true `
+    -Message "Governance report should make the full visual gate requirement explicit."
+Assert-Equal -Actual ([string]$blockedSummary.full_visual_gate_status) -Expected "not_run_by_preflight_governance" `
+    -Message "Preflight governance should not claim the full visual gate has run."
 Assert-Equal -Actual ([int]$blockedSummary.release_blocker_count) -Expected 1 `
     -Message "Not-ready preflight should emit one release blocker."
 Assert-Equal -Actual ([int]$blockedSummary.action_item_count) -Expected 1 `
@@ -448,6 +454,15 @@ Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Build dir source" `
     -Message "Markdown should include the selected build-dir source."
 Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Preflight ready" `
+    -Message "Markdown should distinguish preflight readiness from full visual gate readiness."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Full visual gate required" `
+    -Message "Markdown should show the full visual gate is still required."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "not_run_by_preflight_governance" `
+    -Message "Markdown should not imply preflight governance ran the full visual gate."
+Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "auto:build" `
     -Message "Markdown should preserve the selected build-dir source value."
 Assert-ContainsText -Text $blockedMarkdown `
@@ -534,6 +549,12 @@ Assert-Equal -Actual ([string]$readySummary.status) -Expected "ready" `
     -Message "Ready preflight should produce a ready governance report."
 Assert-Equal -Actual ([bool]$readySummary.release_ready) -Expected $true `
     -Message "Ready preflight should be release-ready."
+Assert-Equal -Actual ([bool]$readySummary.preflight_ready) -Expected $true `
+    -Message "Ready preflight should be marked preflight-ready."
+Assert-Equal -Actual ([bool]$readySummary.full_visual_gate_required) -Expected $true `
+    -Message "Ready preflight should still require the full visual gate."
+Assert-Equal -Actual ([string]$readySummary.full_visual_gate_status) -Expected "not_run_by_preflight_governance" `
+    -Message "Ready preflight should not claim the full visual gate has run."
 Assert-Equal -Actual ([int]$readySummary.release_blocker_count) -Expected 0 `
     -Message "Ready preflight should not emit blockers."
 Assert-Equal -Actual ([int]$readySummary.action_item_count) -Expected 0 `

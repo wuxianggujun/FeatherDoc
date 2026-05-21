@@ -23,9 +23,13 @@ PDF 可视化验证状态
      build / CTest / PDF baseline 输出）
    * ``output_gap_count = 3``
    * ``missing_output_count = 87``
+   * ``preflight_ready = false``
+   * ``full_visual_gate_required = true``
+   * ``full_visual_gate_status = not_run_by_preflight_governance``
 
-4. 这表示完整的 ``scripts/run_pdf_visual_release_gate.ps1`` 仍然不能在
-   低资源边界内直接进入 ready 状态。
+4. ``preflight_ready`` 只表示预检是否清零；即使它为 ``true``，
+   也仍需完整 ``scripts/run_pdf_visual_release_gate.ps1`` 产出新的
+   full visual gate 证据后，才可把 PDF 线视为完整可视化验收通过。
 
 治理链路
 --------
@@ -46,6 +50,9 @@ PDF 可视化验证状态
   ``blocking_summary`` 透传到 governance summary、release blocker 和 action item。
   如果它自动生成 preflight summary，也会把 ``-MinFreeMemoryMB`` 或
   ``-SkipMemoryGuard`` 继续传给 preflight 脚本，避免绕过同一套资源门槛。
+  同一份 summary 还会显式写入 ``preflight_ready``、
+  ``full_visual_gate_required`` 和 ``full_visual_gate_status``，避免把
+  ``-PreflightOnly`` 结果误读为完整 visual gate 结果。
 * ``scripts/release_blocker_metadata_helpers.ps1`` 会在
   ``prepare_pdf_visual_release_gate_build_outputs`` 的 runbook / checklist guidance 中展示
   缺口摘要，并继续显示 ``memory guard blocked=false``、
