@@ -114,16 +114,19 @@ Assert-Equal -Actual ([int]$sourceSummary.missing_input_count) -Expected 0 `
 $prebuiltRoot = Join-Path $resolvedWorkingDir "prebuilt-ready"
 $prebuiltInclude = Join-Path $prebuiltRoot "include"
 $prebuiltLibDir = Join-Path $prebuiltRoot "lib"
+$prebuiltBinDir = Join-Path $prebuiltRoot "bin"
 New-Item -ItemType Directory -Path $prebuiltInclude -Force | Out-Null
 New-Item -ItemType Directory -Path $prebuiltLibDir -Force | Out-Null
+New-Item -ItemType Directory -Path $prebuiltBinDir -Force | Out-Null
 Set-Content -LiteralPath (Join-Path $prebuiltInclude "fpdfview.h") -Encoding UTF8 -Value "/* fake pdfium */"
-Set-Content -LiteralPath (Join-Path $prebuiltLibDir "pdfium.lib") -Encoding UTF8 -Value "fake lib"
+Set-Content -LiteralPath (Join-Path $prebuiltLibDir "pdfium.dll.lib") -Encoding UTF8 -Value "fake import lib"
+Set-Content -LiteralPath (Join-Path $prebuiltLibDir "pdfium.lib") -Encoding UTF8 -Value "fallback lib"
+Set-Content -LiteralPath (Join-Path $prebuiltBinDir "pdfium.dll") -Encoding UTF8 -Value "fake runtime"
 $prebuiltSummaryPath = Join-Path $resolvedWorkingDir "prebuilt-summary.json"
 $prebuiltResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
     "-PdfioSourceDir", $pdfioSource,
     "-PdfiumProvider", "prebuilt",
-    "-PdfiumLibrary", (Join-Path $prebuiltLibDir "pdfium.lib"),
-    "-PdfiumIncludeDir", $prebuiltInclude,
+    "-PdfiumPrebuiltRoot", $prebuiltRoot,
     "-OutputJson", $prebuiltSummaryPath,
     "-Strict"
 )
@@ -134,5 +137,19 @@ Assert-Equal -Actual ([string]$prebuiltSummary.status) -Expected "ready" `
     -Message "Prebuilt dependency input check should be ready."
 Assert-Equal -Actual ([string]$prebuiltSummary.selected_pdfium_provider) -Expected "prebuilt" `
     -Message "Prebuilt dependency input check should select prebuilt."
+Assert-Equal -Actual ([string]$prebuiltSummary.pdfium_prebuilt_root) `
+    -Expected ([System.IO.Path]::GetFullPath($prebuiltRoot)) `
+    -Message "Prebuilt dependency input check should expose the prebuilt root."
+Assert-Equal -Actual ([bool]$prebuiltSummary.pdfium_prebuilt_root_exists) -Expected $true `
+    -Message "Prebuilt dependency input check should report the prebuilt root as present."
+Assert-Equal -Actual ([string]$prebuiltSummary.pdfium_library) `
+    -Expected ([System.IO.Path]::GetFullPath((Join-Path $prebuiltLibDir "pdfium.dll.lib"))) `
+    -Message "Prebuilt dependency input check should prefer pdfium.dll.lib from the root."
+Assert-Equal -Actual ([string]$prebuiltSummary.pdfium_include_dir) `
+    -Expected ([System.IO.Path]::GetFullPath($prebuiltInclude)) `
+    -Message "Prebuilt dependency input check should derive include from the root."
+Assert-Equal -Actual ([string]$prebuiltSummary.pdfium_runtime_dll) `
+    -Expected ([System.IO.Path]::GetFullPath((Join-Path $prebuiltBinDir "pdfium.dll"))) `
+    -Message "Prebuilt dependency input check should derive runtime DLL from the root."
 
 Write-Host "PDF dependency input check contract passed."

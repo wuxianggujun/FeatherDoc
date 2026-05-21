@@ -123,6 +123,9 @@ foreach ($marker in $statusMarkers) {
 
 $buildingPdfFixtureMarkers = @(
     "check_pdf_dependency_inputs.ps1",
+    "PdfiumPrebuiltRoot",
+    "pdfium_prebuilt_root",
+    "pdfium.dll.lib",
     "selected_pdfium_provider",
     "missing_inputs",
     "fake-pdf-build",
@@ -176,6 +179,8 @@ foreach ($marker in @(
     "pdfio_source_header_exists",
     "pdfium_source_header_exists",
     "pdfium_prebuilt_inputs_exist",
+    "PdfiumPrebuiltRoot",
+    "pdfium_prebuilt_root",
     "selected_pdfium_provider",
     "missing_inputs"
 )) {

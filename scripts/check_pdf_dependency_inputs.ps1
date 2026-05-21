@@ -13,6 +13,7 @@ param(
     [ValidateSet("auto", "source", "prebuilt", "package")]
     [string]$PdfiumProvider = "auto",
     [string]$PdfiumSourceDir = "tmp\pdfium-workspace\pdfium",
+    [string]$PdfiumPrebuiltRoot = "",
     [string]$PdfiumLibrary = "",
     [string]$PdfiumIncludeDir = "",
     [string]$PdfiumRuntimeDll = "",
@@ -39,6 +40,22 @@ function Resolve-RepoPath {
         return [System.IO.Path]::GetFullPath($Path)
     }
     return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $Path))
+}
+
+function Get-FirstExistingFile {
+    param([string[]]$Paths)
+
+    foreach ($path in $Paths) {
+        if (-not [string]::IsNullOrWhiteSpace($path) -and
+            (Test-Path -LiteralPath $path -PathType Leaf)) {
+            return $path
+        }
+    }
+
+    if ($Paths.Count -gt 0) {
+        return $Paths[0]
+    }
+    return ""
 }
 
 function New-CheckResult {
@@ -125,6 +142,24 @@ $pdfiumSourceHeader = if ([string]::IsNullOrWhiteSpace($resolvedPdfiumSourceDir)
 $pdfiumSourceReady = (-not [string]::IsNullOrWhiteSpace($pdfiumSourceHeader)) -and
     (Test-Path -LiteralPath $pdfiumSourceHeader -PathType Leaf)
 
+$resolvedPdfiumPrebuiltRoot = Resolve-RepoPath -RepoRoot $repoRoot -Path $PdfiumPrebuiltRoot
+$pdfiumPrebuiltRootExists = (-not [string]::IsNullOrWhiteSpace($resolvedPdfiumPrebuiltRoot)) -and
+    (Test-Path -LiteralPath $resolvedPdfiumPrebuiltRoot -PathType Container)
+if (-not [string]::IsNullOrWhiteSpace($resolvedPdfiumPrebuiltRoot)) {
+    if ([string]::IsNullOrWhiteSpace($PdfiumLibrary)) {
+        $PdfiumLibrary = Get-FirstExistingFile -Paths @(
+            (Join-Path $resolvedPdfiumPrebuiltRoot "lib\pdfium.dll.lib"),
+            (Join-Path $resolvedPdfiumPrebuiltRoot "lib\pdfium.lib")
+        )
+    }
+    if ([string]::IsNullOrWhiteSpace($PdfiumIncludeDir)) {
+        $PdfiumIncludeDir = Join-Path $resolvedPdfiumPrebuiltRoot "include"
+    }
+    if ([string]::IsNullOrWhiteSpace($PdfiumRuntimeDll)) {
+        $PdfiumRuntimeDll = Join-Path $resolvedPdfiumPrebuiltRoot "bin\pdfium.dll"
+    }
+}
+
 $resolvedPdfiumLibrary = Resolve-RepoPath -RepoRoot $repoRoot -Path $PdfiumLibrary
 $resolvedPdfiumIncludeDir = Resolve-RepoPath -RepoRoot $repoRoot -Path $PdfiumIncludeDir
 $resolvedPdfiumRuntimeDll = Resolve-RepoPath -RepoRoot $repoRoot -Path $PdfiumRuntimeDll
@@ -210,6 +245,8 @@ Add-CheckResult -Checks $checks `
     -Required ([bool]$prebuiltRequired) `
     -Message $(if ($pdfiumPrebuiltReady) { "PDFium prebuilt library and include inputs are present." } else { "PDFium prebuilt inputs are incomplete." }) `
     -Details ([ordered]@{
+        prebuilt_root = $resolvedPdfiumPrebuiltRoot
+        prebuilt_root_exists = [bool]$pdfiumPrebuiltRootExists
         library = $resolvedPdfiumLibrary
         library_exists = [bool]$pdfiumPrebuiltLibraryExists
         include_dir = $resolvedPdfiumIncludeDir
@@ -263,6 +300,8 @@ $summary = [ordered]@{
     pdfium_ready = [bool]$pdfiumReady
     pdfium_source_dir = $resolvedPdfiumSourceDir
     pdfium_source_header = $pdfiumSourceHeader
+    pdfium_prebuilt_root = $resolvedPdfiumPrebuiltRoot
+    pdfium_prebuilt_root_exists = [bool]$pdfiumPrebuiltRootExists
     pdfium_library = $resolvedPdfiumLibrary
     pdfium_include_dir = $resolvedPdfiumIncludeDir
     pdfium_runtime_dll = $resolvedPdfiumRuntimeDll
