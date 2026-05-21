@@ -534,9 +534,30 @@ Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Obje
 Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "sync-content-controls-from-custom-xml.json" `
     -Message "Pipeline content-control stage should expose sync evidence JSON display."
+$placeholderBlockers = @($contentControlStage.release_blockers | Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" })
+Assert-Equal -Actual $placeholderBlockers.Count -Expected 1 `
+    -Message "Pipeline content-control stage should include one bound-placeholder blocker."
+$placeholderBlocker = $placeholderBlockers[0]
+Assert-Equal -Actual ([string]$placeholderBlocker.repair_strategy) -Expected "sync_bound_content_control" `
+    -Message "Pipeline content-control stage should preserve blocker repair strategy."
+Assert-ContainsText -Text ([string]$placeholderBlocker.repair_hint) `
+    -ExpectedText "Rerun Custom XML sync" `
+    -Message "Pipeline content-control stage should preserve blocker repair hint."
+Assert-ContainsText -Text ([string]$placeholderBlocker.command_template) `
+    -ExpectedText "sync-content-controls-from-custom-xml" `
+    -Message "Pipeline content-control stage should preserve blocker command template."
 Assert-ContainsText -Text (($contentControlStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
     -Message "Pipeline content-control stage should expose reviewer open command."
+$lockActions = @($contentControlStage.action_items | Where-Object { [string]$_.id -eq "review_content_control_lock_strategy" })
+Assert-Equal -Actual $lockActions.Count -Expected 1 `
+    -Message "Pipeline content-control stage should include one lock review action."
+$lockAction = $lockActions[0]
+Assert-Equal -Actual ([string]$lockAction.repair_strategy) -Expected "review_lock_state" `
+    -Message "Pipeline content-control stage should preserve action repair strategy."
+Assert-ContainsText -Text ([string]$lockAction.command_template) `
+    -ExpectedText "--clear-lock" `
+    -Message "Pipeline content-control stage should preserve action command template."
 
 $projectStage = Get-StageById -Summary $summary -Id "project_template_delivery_readiness"
 Assert-ContainsText -Text (($projectStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
@@ -606,6 +627,10 @@ Assert-ContainsText -Text $markdown -ExpectedText "audit_command:" `
     -Message "Pipeline Markdown should include stage audit commands."
 Assert-ContainsText -Text $markdown -ExpectedText "review_command:" `
     -Message "Pipeline Markdown should include stage review commands."
+Assert-ContainsText -Text $markdown -ExpectedText "repair_strategy:" `
+    -Message "Pipeline Markdown should include stage repair strategies."
+Assert-ContainsText -Text $markdown -ExpectedText "command_template:" `
+    -Message "Pipeline Markdown should include stage repair command templates."
 Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-finance` template=`invoice-template` candidate=`rename`' `
     -Message "Pipeline Markdown should include calibration project/template/candidate routing fields."
 Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_release_gate_preflight.build_outputs_missing" `

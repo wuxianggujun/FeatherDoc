@@ -190,6 +190,9 @@ function New-StageBlockerItems {
                 source_report_display = $sourceReportDisplay
                 source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue (Get-JsonString -Object $item -Name "source_report" -DefaultValue $SummaryJson)
                 source_json_display = $sourceJsonDisplay
+                repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
+                repair_hint = Get-JsonString -Object $item -Name "repair_hint"
+                command_template = Get-JsonString -Object $item -Name "command_template"
             }
         }
     )
@@ -239,6 +242,9 @@ function New-StageActionItems {
                 source_report_display = $sourceReportDisplay
                 source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue (Get-JsonString -Object $item -Name "source_report" -DefaultValue $SummaryJson)
                 source_json_display = $sourceJsonDisplay
+                repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
+                repair_hint = Get-JsonString -Object $item -Name "repair_hint"
+                command_template = Get-JsonString -Object $item -Name "command_template"
             }
         }
     )
@@ -283,6 +289,9 @@ function New-StageWarningItems {
                 source_report_display = $sourceReportDisplay
                 source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue (Get-JsonString -Object $item -Name "source_report" -DefaultValue $SummaryJson)
                 source_json_display = $sourceJsonDisplay
+                repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
+                repair_hint = Get-JsonString -Object $item -Name "repair_hint"
+                command_template = Get-JsonString -Object $item -Name "command_template"
             }
         }
     )
@@ -472,6 +481,12 @@ function Add-StageGovernanceMarkdown {
         $Lines.Add("  - $Label ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string](Get-JsonProperty -Object $item -Name "message"))) {
             $Lines.Add("    - message: ``$($item.message)``") | Out-Null
+        }
+        foreach ($repairFieldName in @("repair_strategy", "repair_hint", "command_template")) {
+            $repairFieldValue = Get-JsonString -Object $item -Name $repairFieldName
+            if (-not [string]::IsNullOrWhiteSpace($repairFieldValue)) {
+                $Lines.Add("    - ${repairFieldName}: ``$repairFieldValue``") | Out-Null
+            }
         }
         if ($Label -eq "action") {
             foreach ($commandName in @("open_command", "audit_command", "review_command")) {
