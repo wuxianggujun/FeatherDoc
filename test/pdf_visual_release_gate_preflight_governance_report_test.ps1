@@ -418,12 +418,12 @@ Assert-Equal -Actual ([int]$blockedSummary.release_blocker_count) -Expected 1 `
     -Message "Not-ready preflight should emit one release blocker."
 Assert-Equal -Actual ([int]$blockedSummary.action_item_count) -Expected 1 `
     -Message "Not-ready preflight should emit one action item."
-Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 8 `
-    -Message "Governance report should preserve blocking check count."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_check_count) -Expected 9 `
+    -Message "Governance report should include PDF dependency input readiness in blocking check count."
 Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.required_check_count) -Expected 9 `
     -Message "Governance report should preserve the required check count."
-Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.blocking_check_count) -Expected 8 `
-    -Message "Governance report should preserve the blocking check count summary."
+Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.blocking_check_count) -Expected 9 `
+    -Message "Governance report should include PDF dependency input readiness in blocking summary count."
 Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.missing_cli_pdf_count) -Expected 2 `
     -Message "Governance report should preserve the missing CLI PDF count summary."
 Assert-Equal -Actual ([int]$blockedSummary.blocking_summary.visual_baseline_sample_count) -Expected 42 `
@@ -549,6 +549,9 @@ Assert-ContainsText -Text (($blocker.issue_keys | ForEach-Object { [string]$_ })
 Assert-ContainsText -Text (($blocker.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
     -ExpectedText "pdf_build_options_enabled" `
     -Message "Blocker should preserve the PDF build option preflight check."
+Assert-ContainsText -Text (($blocker.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "pdf_dependency_inputs_ready" `
+    -Message "Blocker should preserve the PDF dependency input readiness check."
 Assert-ContainsText -Text ([string]$blocker.repair_hint) `
     -ExpectedText "Close unrelated applications" `
     -Message "Blocker should explain how to clear a low-memory preflight blocker."
@@ -585,6 +588,9 @@ $actionItem = $blockedSummary.action_items[0]
 Assert-ContainsText -Text (($actionItem.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
     -ExpectedText "cmake_cache_exists" `
     -Message "Action item should preserve individual failing preflight checks."
+Assert-ContainsText -Text (($actionItem.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "pdf_dependency_inputs_ready" `
+    -Message "Action item should preserve the PDF dependency input readiness check."
 Assert-Equal -Actual ([int]$actionItem.output_gap_count) -Expected 3 `
     -Message "Action item should expose how many output gap groups remain."
 Assert-Equal -Actual ([int]$actionItem.missing_output_count) -Expected 87 `
@@ -749,33 +755,47 @@ Assert-Equal -Actual ([int]$rollupSummary.action_items[0].output_gap_count) -Exp
 Assert-Equal -Actual (@($rollupSummary.action_items[0].build_dir_auto_candidates).Count) -Expected 2 `
     -Message "Rollup should preserve PDF preflight action item build auto candidates."
 
-$readyOutputDir = Join-Path $resolvedWorkingDir "ready-report"
+$dependencyBlockedOutputDir = Join-Path $resolvedWorkingDir "dependency-blocked-report"
 $readyResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
     "-PreflightJson", $readyPreflightPath,
-    "-OutputDir", $readyOutputDir,
+    "-OutputDir", $dependencyBlockedOutputDir,
     "-BuildDir", ".bpdf-roundtrip-msvc"
 )
 Assert-Equal -Actual $readyResult.ExitCode -Expected 0 `
-    -Message "Ready governance report should succeed. Output: $($readyResult.Text)"
-$readySummary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $readyOutputDir "summary.json") | ConvertFrom-Json
-Assert-Equal -Actual ([string]$readySummary.status) -Expected "ready" `
-    -Message "Ready preflight should produce a ready governance report."
-Assert-Equal -Actual ([bool]$readySummary.release_ready) -Expected $true `
-    -Message "Ready preflight should be release-ready."
-Assert-Equal -Actual ([bool]$readySummary.preflight_ready) -Expected $true `
-    -Message "Ready preflight should be marked preflight-ready."
-Assert-Equal -Actual ([bool]$readySummary.full_visual_gate_required) -Expected $true `
-    -Message "Ready preflight should still require the full visual gate."
-Assert-Equal -Actual ([string]$readySummary.full_visual_gate_status) -Expected "not_run_by_preflight_governance" `
-    -Message "Ready preflight should not claim the full visual gate has run."
-Assert-Equal -Actual ([int]$readySummary.release_blocker_count) -Expected 0 `
-    -Message "Ready preflight should not emit blockers."
-Assert-Equal -Actual ([int]$readySummary.action_item_count) -Expected 0 `
-    -Message "Ready preflight should not emit action items."
-Assert-Equal -Actual ([string]$readySummary.pdf_dependency_inputs_status) -Expected "not_ready" `
-    -Message "Ready governance report should still expose advisory PDF dependency input status."
-Assert-Equal -Actual ([int]$readySummary.pdf_dependency_missing_input_count) -Expected 2 `
-    -Message "Ready governance report should still expose advisory PDF dependency missing input count."
+    -Message "Dependency-blocked governance report should succeed. Output: $($readyResult.Text)"
+$dependencyBlockedSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $dependencyBlockedOutputDir "summary.json") | ConvertFrom-Json
+Assert-Equal -Actual ([string]$dependencyBlockedSummary.status) -Expected "blocked" `
+    -Message "Governance report should block a top-level ready preflight when PDF dependency inputs are not ready."
+Assert-Equal -Actual ([bool]$dependencyBlockedSummary.release_ready) -Expected $false `
+    -Message "Dependency-blocked preflight should not be release-ready."
+Assert-Equal -Actual ([bool]$dependencyBlockedSummary.preflight_ready) -Expected $false `
+    -Message "Dependency-blocked preflight should not be marked preflight-ready."
+Assert-Equal -Actual ([bool]$dependencyBlockedSummary.full_visual_gate_required) -Expected $true `
+    -Message "Dependency-blocked preflight should still require the full visual gate."
+Assert-Equal -Actual ([string]$dependencyBlockedSummary.full_visual_gate_status) -Expected "not_run_by_preflight_governance" `
+    -Message "Dependency-blocked preflight should not claim the full visual gate has run."
+Assert-Equal -Actual ([int]$dependencyBlockedSummary.release_blocker_count) -Expected 1 `
+    -Message "Dependency-blocked preflight should emit one blocker."
+Assert-Equal -Actual ([int]$dependencyBlockedSummary.action_item_count) -Expected 1 `
+    -Message "Dependency-blocked preflight should emit one action item."
+Assert-Equal -Actual ([int]$dependencyBlockedSummary.blocking_check_count) -Expected 1 `
+    -Message "Dependency-blocked preflight should add the dependency input blocking check."
+Assert-ContainsText -Text (($dependencyBlockedSummary.blocking_checks | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "pdf_dependency_inputs_ready" `
+    -Message "Dependency-blocked preflight should expose the dependency input blocking check."
+Assert-ContainsText -Text (($dependencyBlockedSummary.release_blockers[0].issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "pdf_dependency_inputs_ready" `
+    -Message "Dependency-blocked blocker should preserve the dependency input issue key."
+Assert-ContainsText -Text ([string]$dependencyBlockedSummary.release_blockers[0].repair_hint) -ExpectedText "status=not_ready" `
+    -Message "Dependency-blocked blocker should include dependency status guidance."
+Assert-ContainsText -Text ([string]$dependencyBlockedSummary.release_blockers[0].repair_hint) -ExpectedText "missing_input_count=2" `
+    -Message "Dependency-blocked blocker should include dependency missing input guidance."
+Assert-Equal -Actual ([string]$dependencyBlockedSummary.pdf_dependency_inputs_status) -Expected "not_ready" `
+    -Message "Dependency-blocked governance report should expose PDF dependency input status."
+Assert-Equal -Actual ([int]$dependencyBlockedSummary.pdf_dependency_missing_input_count) -Expected 2 `
+    -Message "Dependency-blocked governance report should expose PDF dependency missing input count."
+Assert-Equal -Actual ([int]$dependencyBlockedSummary.blocking_summary.blocking_check_count) -Expected 1 `
+    -Message "Dependency-blocked governance report should update blocking summary count."
 
 $governanceScriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 foreach ($expectedText in @(

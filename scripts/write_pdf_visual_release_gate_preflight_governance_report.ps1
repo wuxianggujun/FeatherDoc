@@ -163,6 +163,23 @@ function Get-JsonArray {
     return @($value)
 }
 
+function Set-JsonPropertyValue {
+    param($Object, [string]$Name, $Value)
+
+    if ($null -eq $Object) { return }
+    if ($Object -is [System.Collections.IDictionary]) {
+        $Object[$Name] = $Value
+        return
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value -Force
+        return
+    }
+    $property.Value = $Value
+}
+
 function ConvertTo-CommandArgument {
     param([string]$Value)
 
@@ -608,6 +625,20 @@ if ($pdfDependencyMissingInputsPreview.Count -eq 0) {
             ForEach-Object { [string]$_ }
     )
 }
+$pdfDependencyInputsAreBlocking = ($pdfDependencyInputsStatus -ne "ready" -or $pdfDependencyMissingInputCount -gt 0)
+if ($pdfDependencyInputsAreBlocking -and
+    @($blockingChecks | Where-Object { [string]$_ -eq "pdf_dependency_inputs_ready" }).Count -eq 0) {
+    $blockingChecks = @($blockingChecks + "pdf_dependency_inputs_ready" | Sort-Object -Unique)
+}
+if ($pdfDependencyInputsAreBlocking) {
+    Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "blocking_check_count" -Value $blockingChecks.Count
+    Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "pdf_dependency_inputs_status" -Value $pdfDependencyInputsStatus
+    Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "pdf_dependency_missing_input_count" -Value $pdfDependencyMissingInputCount
+    Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "selected_pdfium_provider" -Value $selectedPdfiumProvider
+    Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "pdfio_dependency_ready" -Value $pdfioDependencyReady
+    Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "pdfium_dependency_ready" -Value $pdfiumDependencyReady
+    Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "pdf_dependency_missing_inputs_preview" -Value @($pdfDependencyMissingInputsPreview)
+}
 $memoryGuardBlocked = Get-JsonBool -Object $preflightBlockingSummary -Name "memory_guard_blocked"
 $memoryGuardSkipped = Get-JsonBool -Object $preflightBlockingSummary -Name "memory_guard_skipped"
 $freeMemoryMb = Get-JsonValueText -Object $preflightBlockingSummary -Name "free_memory_mb"
@@ -682,8 +713,11 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
             $repairHint += " Current CMakeCache.txt PDF options are not release-gate ready: $($optionHints -join '; '). Reconfigure with -DFEATHERDOC_BUILD_PDF=ON and -DFEATHERDOC_BUILD_PDF_IMPORT=ON, including the required PDFio/PDFium inputs, before generating visual gate outputs."
         }
     }
-    if ($pdfDependencyInputsStatus -eq "not_ready") {
+    if ($pdfDependencyInputsAreBlocking) {
         $dependencyHints = @()
+        if (-not [string]::IsNullOrWhiteSpace($pdfDependencyInputsStatus)) {
+            $dependencyHints += "status=$pdfDependencyInputsStatus"
+        }
         if (-not [string]::IsNullOrWhiteSpace($selectedPdfiumProvider)) {
             $dependencyHints += "selected_pdfium_provider=$selectedPdfiumProvider"
         }
@@ -691,9 +725,7 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         if ($pdfDependencyMissingInputsPreview.Count -gt 0) {
             $dependencyHints += "missing_inputs_preview=$($pdfDependencyMissingInputsPreview -join '; ')"
         }
-        $repairHint += " PDF dependency inputs are also not ready: $($dependencyHints -join '; ')."
-    } elseif ($pdfDependencyInputsStatus -eq "unavailable") {
-        $repairHint += " PDF dependency input status is unavailable; rerun scripts\check_pdf_dependency_inputs.ps1 before reconfiguring the PDF build."
+        $repairHint += " PDF dependency inputs are also not release-gate ready: $($dependencyHints -join '; ')."
     }
     if ($buildDirSnapshot.Count -gt 0) {
         $snapshotHints = @()
