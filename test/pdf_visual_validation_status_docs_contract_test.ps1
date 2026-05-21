@@ -39,6 +39,7 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
 $statusDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_visual_validation_status_zh.rst"
 $buildingPdfDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "BUILDING_PDF.md"
+$dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
 $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
 $governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
@@ -55,6 +56,8 @@ $doNotRunFullVisualGateMarker = [string]::Concat(@(
 ))
 
 $statusMarkers = @(
+    "check_pdf_dependency_inputs.ps1",
+    "featherdoc.pdf_dependency_inputs_check.v1",
     "required_check_count = 12",
     "memory_guard_blocked = false",
     "blocking_check_count = 5",
@@ -106,6 +109,9 @@ foreach ($marker in $statusMarkers) {
 }
 
 $buildingPdfFixtureMarkers = @(
+    "check_pdf_dependency_inputs.ps1",
+    "selected_pdfium_provider",
+    "missing_inputs",
     "fake-pdf-build",
     "fake ctest",
     "fake python",
@@ -152,6 +158,18 @@ foreach ($marker in $scriptMarkers) {
     }
 }
 
+foreach ($marker in @(
+    "featherdoc.pdf_dependency_inputs_check.v1",
+    "pdfio_source_header_exists",
+    "pdfium_source_header_exists",
+    "pdfium_prebuilt_inputs_exist",
+    "selected_pdfium_provider",
+    "missing_inputs"
+)) {
+    Assert-ContainsText -Text $dependencyInputsScript -ExpectedText $marker `
+        -Message "PDF dependency input script should keep marker '$marker'."
+}
+
 $releaseBlockerHelpers = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\release_blocker_metadata_helpers.ps1"
 foreach ($marker in @(
     "memory guard blocked=",
@@ -166,6 +184,8 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+    "pdf_dependency_inputs_check",
+    "pdf_dependency_inputs_check_test.ps1",
     "pdf_visual_validation_status_docs_contract",
     "pdf_visual_validation_status_docs_contract_test.ps1",
     "TIMEOUT 60"

@@ -41,6 +41,10 @@ PDF 可视化验证状态
 
 当前 PDF preflight 的阻断数字已经接入发布治理链路：
 
+* ``scripts/check_pdf_dependency_inputs.ps1`` 会在重新配置 PDF build 前检查
+  本机 PDFio / PDFium 输入是否齐备，并输出
+  ``featherdoc.pdf_dependency_inputs_check.v1``。它只读取路径，不运行 CMake、
+  CTest、Ninja、MSBuild、下载依赖或 PDF 渲染。
 * ``scripts/check_pdf_visual_release_gate_preflight.ps1`` 会在 summary JSON 中输出
   ``blocking_summary``。
 * 同一份 preflight summary 现在也直接输出顶层 ``output_gap_count`` 和
@@ -134,12 +138,13 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 ------
 
 1. 继续保留远端 ``origin/codex/*`` 为只读参考库存。
-2. 在资源允许、源码已提交推送且工作区干净时，先准备可复用的 PDF build /
+2. 先运行 ``check_pdf_dependency_inputs.ps1`` 确认本机 PDFio / PDFium 输入齐备。
+3. 在资源允许、源码已提交推送且工作区干净时，先准备可复用的 PDF build /
    CTest / baseline 输出；当前第一步是用真实 PDFio/PDFium 输入重新配置
    ``.bpdf-roundtrip-msvc``，确保 ``FEATHERDOC_BUILD_PDF=ON`` 且
    ``FEATHERDOC_BUILD_PDF_IMPORT=ON``，不要直接启动完整 visual gate。
-3. 重新运行 ``check_pdf_visual_release_gate_preflight.ps1``。只有当
+4. 重新运行 ``check_pdf_visual_release_gate_preflight.ps1``。只有当
    ``workstation_free_memory_available``、build 目录、CTest manifest、
    ``pdf_build_options_enabled``、CLI PDF baseline、visual baseline 和
    CJK text-layer 输出全部通过后，才把预检视为 ``ready``。
-4. 只有完整 visual gate 通过后，才考虑归档或回收旧 PDF 参考分支。
+5. 只有完整 visual gate 通过后，才考虑归档或回收旧 PDF 参考分支。
