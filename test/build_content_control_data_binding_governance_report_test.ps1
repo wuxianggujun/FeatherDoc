@@ -273,8 +273,8 @@ Assert-Equal -Actual ([string]$unboundAction.repair_strategy) -Expected "bind_or
     -Message "Unbound form actions should carry a repair strategy."
 Assert-ContainsText -Text ([string]$unboundAction.command_template) -ExpectedText "--data-binding-store-item-id" `
     -Message "Unbound form actions should carry a binding command template."
-Assert-ContainsText -Text ([string]$unboundAction.command_template) -ExpectedText "--alias 'Status Owner''s Choice'" `
-    -Message "Unbound form actions should single-quote alias arguments using PowerShell literal escaping."
+Assert-ContainsText -Text ([string]$unboundAction.command_template) -ExpectedText '--alias "Status Owner''s Choice"' `
+    -Message "Unbound form actions should quote alias arguments with the shared command-line helper."
 $duplicateAction = @($summary.action_items | Where-Object { [string]$_.id -eq "review_duplicate_content_control_binding" })[0]
 Assert-Equal -Actual ([string]$duplicateAction.repair_strategy) -Expected "deduplicate_or_confirm_shared_binding" `
     -Message "Duplicate binding actions should carry a repair strategy."

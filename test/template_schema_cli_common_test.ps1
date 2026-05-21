@@ -115,6 +115,17 @@ $quotedCommandLine = ConvertTo-TemplateSchemaCommandLine -Arguments @(
 Assert-Equal -Actual $quotedCommandLine -Expected 'featherdoc_cli apply-style-refactor "C:\Temp\input doc.docx" --style Body/Text --label "Owner \"Review\""' `
     -Message "Command-line helper should quote whitespace and embedded double quotes while preserving safe path separators."
 
+$singleQuoteAndBraceCommandLine = ConvertTo-TemplateSchemaCommandLine -Arguments @(
+    "featherdoc_cli",
+    "set-content-control-form-state",
+    "--alias",
+    "Status Owner's Choice",
+    "--data-binding-store-item-id",
+    "{55555555-5555-5555-5555-555555555555}"
+)
+Assert-Equal -Actual $singleQuoteAndBraceCommandLine -Expected 'featherdoc_cli set-content-control-form-state --alias "Status Owner''s Choice" --data-binding-store-item-id "{55555555-5555-5555-5555-555555555555}"' `
+    -Message "Command-line helper should quote single-quote text and brace-wrapped binding ids consistently."
+
 $nullSkippedCommandLine = ConvertTo-TemplateSchemaCommandLine -Arguments @("cmd", $null, "next")
 Assert-Equal -Actual $nullSkippedCommandLine -Expected "cmd next" `
     -Message "Command-line helper should skip null arguments."

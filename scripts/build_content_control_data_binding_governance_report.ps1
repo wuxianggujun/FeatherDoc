@@ -21,6 +21,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
+
 $contentControlGovernanceSchema = "featherdoc.content_control_data_binding_governance_report.v1"
 $contentControlGovernanceOpenCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
 
@@ -204,26 +206,14 @@ function New-BindingKey {
     return ($StoreItemId.Trim().ToLowerInvariant() + "|" + $XPath.Trim())
 }
 
-function ConvertTo-CommandTemplateArgument {
-    param([string]$Value)
-
-    if ([string]::IsNullOrWhiteSpace($Value)) {
-        return "''"
-    }
-    if ($Value -match '^[A-Za-z0-9_./:{}-]+$') {
-        return $Value
-    }
-    return "'" + ($Value -replace "'", "''") + "'"
-}
-
 function New-ContentControlSelectorTemplate {
     param([string]$Tag, [string]$Alias)
 
     if (-not [string]::IsNullOrWhiteSpace($Tag)) {
-        return "--tag " + (ConvertTo-CommandTemplateArgument -Value $Tag)
+        return ConvertTo-TemplateSchemaCommandLine -Arguments @("--tag", $Tag)
     }
     if (-not [string]::IsNullOrWhiteSpace($Alias)) {
-        return "--alias " + (ConvertTo-CommandTemplateArgument -Value $Alias)
+        return ConvertTo-TemplateSchemaCommandLine -Arguments @("--alias", $Alias)
     }
     return "<content-control-selector>"
 }
