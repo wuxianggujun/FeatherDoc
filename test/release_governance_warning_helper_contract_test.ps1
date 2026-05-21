@@ -93,6 +93,9 @@ $restoreAuditActionItem = [pscustomobject]@{
     command = "pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx -DocumentSourceKind style-merge-restore-audit -Mode review-only"
     open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit -PrintPrompt"
     audit_command = "featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.apply.rollback.json --dry-run --json"
+    repair_strategy = "review_style_merge_restore_audit"
+    repair_hint = "Open the review task, confirm the restored style merge output in Word, then rerun the restore audit before release."
+    command_template = "featherdoc_cli restore-style-merge <input.docx> --rollback-plan <rollback.json> --dry-run --json"
 }
 
 $styleNumberingBlocker = [pscustomobject]@{
@@ -214,6 +217,12 @@ Assert-Equal -Actual ([string]$normalizedActionItems[0].candidate_type) -Expecte
     -Message "Normalized action item should preserve candidate type."
 Assert-ContainsText -Text ([string]$normalizedActionItems[0].audit_command) -ExpectedText "restore-style-merge" `
     -Message "Normalized action item should preserve audit commands."
+Assert-Equal -Actual ([string]$normalizedActionItems[0].repair_strategy) -Expected "review_style_merge_restore_audit" `
+    -Message "Normalized action item should preserve repair strategy."
+Assert-ContainsText -Text ([string]$normalizedActionItems[0].repair_hint) -ExpectedText "confirm the restored style merge output" `
+    -Message "Normalized action item should preserve repair hints."
+Assert-ContainsText -Text ([string]$normalizedActionItems[0].command_template) -ExpectedText "restore-style-merge <input.docx>" `
+    -Message "Normalized action item should preserve command templates."
 Assert-Equal -Actual (Get-ReleaseGovernanceActionItemCount -SummaryObject ([pscustomobject]@{ action_item_count = 7; action_items = @($restoreAuditActionItem) })) -Expected 7 `
     -Message "Declared action_item_count should win over materialized action items."
 
@@ -278,6 +287,12 @@ Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'open_latest_w
     -Message "Action item Markdown subsection should include open-latest commands."
 Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'project_id: `project-finance`' `
     -Message "Action item Markdown subsection should include project id."
+Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'repair_strategy: review_style_merge_restore_audit' `
+    -Message "Action item Markdown subsection should include repair strategy."
+Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'repair_hint: Open the review task, confirm the restored style merge output in Word, then rerun the restore audit before release.' `
+    -Message "Action item Markdown subsection should include repair hint."
+Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'command_template: featherdoc_cli restore-style-merge <input.docx> --rollback-plan <rollback.json> --dry-run --json' `
+    -Message "Action item Markdown subsection should include command template."
 Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'template_name: `invoice-template`' `
     -Message "Action item Markdown subsection should include template name."
 Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'candidate_type: `rename`' `
@@ -490,6 +505,10 @@ Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "### Release gove
     -Message "Markdown section should include the nested handoff action subsection."
 Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
     -Message "Markdown section should render restore audit helper commands."
+Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "repair_strategy: review_style_merge_restore_audit" `
+    -Message "Markdown section should render action item repair strategy."
+Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "command_template: featherdoc_cli restore-style-merge <input.docx> --rollback-plan <rollback.json> --dry-run --json" `
+    -Message "Markdown section should render action item command template."
 
 $actionChecklistItems = @(Get-ReleaseGovernanceActionItemChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{

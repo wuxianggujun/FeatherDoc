@@ -47,7 +47,12 @@ function Assert-ContentControlGovernanceTrace {
         'source_json_display: .\output\content-control-data-binding\inspect-content-controls.json',
         'repair_strategy: sync_bound_content_control',
         'repair_hint: Rerun Custom XML sync or explicitly fill the bound content control before release.',
-        $contentControlCommandTemplateMarker
+        $contentControlCommandTemplateMarker,
+        'review_duplicate_content_control_binding',
+        'repair_strategy: deduplicate_or_confirm_shared_binding',
+        'repair_hint: Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths.',
+        $contentControlDuplicateActionCommandTemplateMarker,
+        'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1'
     )
 
     foreach ($expectedFragment in $expectedFragments) {
@@ -131,6 +136,7 @@ $supersededReviewTasksReportPath = Join-Path $taskOutputRoot "superseded_review_
 $expectedSupersededReviewTasksReportDisplayPath = ".\" + `
     ($supersededReviewTasksReportPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/') -replace '/', '\')
 $contentControlCommandTemplateMarker = "command_template: featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+$contentControlDuplicateActionCommandTemplateMarker = "command_template: featherdoc_cli inspect-content-controls <input.docx> --json"
 
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $installDir -Force | Out-Null
@@ -353,6 +359,9 @@ $summary = [ordered]@{
                 source_report_display = ".\output\content-control-data-binding-governance\summary.json"
                 source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
                 open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
+                repair_strategy = "deduplicate_or_confirm_shared_binding"
+                repair_hint = "Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths."
+                command_template = "featherdoc_cli inspect-content-controls <input.docx> --json"
             },
             [ordered]@{
                 id = "review_invoice_schema"

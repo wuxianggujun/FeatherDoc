@@ -1035,6 +1035,13 @@ function Get-NormalizedReleaseGovernanceActionItems {
             }
         }
 
+        foreach ($repairFieldName in @("repair_strategy", "repair_hint", "command_template")) {
+            $repairValue = Get-ReleaseBlockerPropertyValue -Object $item -Name $repairFieldName
+            if (-not [string]::IsNullOrWhiteSpace($repairValue)) {
+                $entry[$repairFieldName] = [string]$repairValue
+            }
+        }
+
         [void]$normalizedActions.Add([pscustomobject]$entry)
     }
 
@@ -1227,6 +1234,7 @@ function Add-ReleaseGovernanceActionItemMarkdownSubsection {
                 [void]$Lines.Add("  - ${commandName}: ``$commandValue``")
             }
         }
+        Add-ReleaseGovernanceRepairLines -Lines $Lines -Item $item
     }
     [void]$Lines.Add("")
 
