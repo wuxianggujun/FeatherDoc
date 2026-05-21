@@ -32,6 +32,29 @@ function Get-OptionalPropertyRawValue {
     return $property.Value
 }
 
+function Get-OptionalPropertyValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $value = Get-OptionalPropertyRawValue -Object $Object -Name $Name
+    if ($null -eq $value) {
+        return ""
+    }
+
+    return [string]$value
+}
+
+function Get-OptionalPropertyObject {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    return Get-OptionalPropertyRawValue -Object $Object -Name $Name
+}
+
 function Get-VisualTaskVerdict {
     param(
         $VisualGateSummary,
