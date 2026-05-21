@@ -20,6 +20,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
+
 $deliveryReadinessSchema = "featherdoc.project_template_delivery_readiness_report.v1"
 $onboardingGovernanceSchema = "featherdoc.project_template_onboarding_governance_report.v1"
 $deliveryReadinessOpenCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
@@ -129,32 +131,17 @@ function Get-JsonArray {
     return @($value)
 }
 
-function Expand-ArgumentList {
-    param([string[]]$Values)
-
-    return @(
-        foreach ($value in @($Values)) {
-            if ([string]::IsNullOrWhiteSpace($value)) { continue }
-            foreach ($part in ([string]$value -split ",")) {
-                if (-not [string]::IsNullOrWhiteSpace($part)) {
-                    $part.Trim()
-                }
-            }
-        }
-    )
-}
-
 function Get-InputJsonPaths {
     param([string]$RepoRoot, [string[]]$ExplicitPaths, [string[]]$Roots)
 
     $paths = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($path in @(Expand-ArgumentList -Values $ExplicitPaths)) {
+    foreach ($path in @(Expand-TemplateSchemaArgumentList -Values $ExplicitPaths)) {
         if (-not [string]::IsNullOrWhiteSpace($path)) {
             $paths.Add((Resolve-RepoPath -RepoRoot $RepoRoot -Path $path)) | Out-Null
         }
     }
 
-    $scanRoots = @(Expand-ArgumentList -Values $Roots)
+    $scanRoots = @(Expand-TemplateSchemaArgumentList -Values $Roots)
     if ($paths.Count -eq 0 -and $scanRoots.Count -eq 0) {
         $scanRoots = @(
             "output/project-template-onboarding-governance",

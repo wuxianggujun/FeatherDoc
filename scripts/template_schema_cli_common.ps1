@@ -76,6 +76,19 @@ function ConvertTo-TemplateSchemaCommandLine {
     return ($escaped -join ' ')
 }
 
+function Expand-TemplateSchemaArgumentList {
+    param([string[]]$Values)
+
+    return @(
+        foreach ($value in @($Values)) {
+            if ([string]::IsNullOrWhiteSpace($value)) { continue }
+            foreach ($part in ([string]$value -split ",")) {
+                if (-not [string]::IsNullOrWhiteSpace($part)) { $part.Trim() }
+            }
+        }
+    )
+}
+
 function Get-TemplateSchemaVcvarsPath {
     $candidates = @(
         "D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat",

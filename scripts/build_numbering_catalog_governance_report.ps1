@@ -23,6 +23,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[numbering-catalog-governance] $Message"
@@ -151,28 +153,15 @@ function Get-JsonArray {
     return @($value)
 }
 
-function Expand-ArgumentList {
-    param([string[]]$Values)
-
-    return @(
-        foreach ($value in @($Values)) {
-            if ([string]::IsNullOrWhiteSpace($value)) { continue }
-            foreach ($part in ([string]$value -split ",")) {
-                if (-not [string]::IsNullOrWhiteSpace($part)) { $part.Trim() }
-            }
-        }
-    )
-}
-
 function Get-InputJsonPaths {
     param([string]$RepoRoot, [string[]]$ExplicitPaths, [string[]]$Roots)
 
     $paths = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($path in @(Expand-ArgumentList -Values $ExplicitPaths)) {
+    foreach ($path in @(Expand-TemplateSchemaArgumentList -Values $ExplicitPaths)) {
         $paths.Add((Resolve-RepoPath -RepoRoot $RepoRoot -Path $path)) | Out-Null
     }
 
-    $scanRoots = @(Expand-ArgumentList -Values $Roots)
+    $scanRoots = @(Expand-TemplateSchemaArgumentList -Values $Roots)
     if ($paths.Count -eq 0 -and $scanRoots.Count -eq 0) {
         $scanRoots = @(
             "output/document-skeleton-governance-rollup",

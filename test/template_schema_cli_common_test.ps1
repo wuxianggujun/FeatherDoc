@@ -130,6 +130,15 @@ $nullSkippedCommandLine = ConvertTo-TemplateSchemaCommandLine -Arguments @("cmd"
 Assert-Equal -Actual $nullSkippedCommandLine -Expected "cmd next" `
     -Message "Command-line helper should skip null arguments."
 
+$expandedArgumentList = Expand-TemplateSchemaArgumentList -Values @(
+    "alpha, beta",
+    " gamma ",
+    "",
+    " ,delta,, "
+)
+Assert-Equal -Actual ($expandedArgumentList -join "|") -Expected "alpha|beta|gamma|delta" `
+    -Message "Argument-list helper should trim comma-delimited values and skip blanks."
+
 $tempRoot = Join-Path $RepoRoot ".codex-temp\template-schema-cli-common-binary-test"
 $resolvedTempRoot = [System.IO.Path]::GetFullPath($tempRoot)
 $allowedTempRoot = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot ".codex-temp"))
