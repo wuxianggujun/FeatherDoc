@@ -259,9 +259,10 @@ function New-ReleaseBlocker {
         repair_hint = $RepairHint
         command_template = $CommandTemplate
         source_schema = $contentControlGovernanceSchema
+        source_report = $summaryPath
+        source_report_display = $summaryDisplay
         source_json = $SourceJson
         source_json_display = $SourceJsonDisplay
-        source_report_display = $SourceJsonDisplay
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
@@ -302,9 +303,10 @@ function New-ActionItem {
         repair_hint = $RepairHint
         command_template = $CommandTemplate
         source_schema = $contentControlGovernanceSchema
+        source_report = $summaryPath
+        source_report_display = $summaryDisplay
         source_json = $SourceJson
         source_json_display = $SourceJsonDisplay
-        source_report_display = $SourceJsonDisplay
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
@@ -354,9 +356,10 @@ function New-RepairPlanItem {
         source_kind = $SourceKind
         source_id = Get-JsonString -Object $Item -Name "id"
         source_schema = Get-JsonString -Object $Item -Name "source_schema"
+        source_report = Get-JsonString -Object $Item -Name "source_report"
+        source_report_display = Get-JsonString -Object $Item -Name "source_report_display" -DefaultValue (Get-JsonString -Object $Item -Name "source_json_display")
         source_json = Get-JsonString -Object $Item -Name "source_json"
         source_json_display = Get-JsonString -Object $Item -Name "source_json_display"
-        source_report_display = Get-JsonString -Object $Item -Name "source_report_display" -DefaultValue (Get-JsonString -Object $Item -Name "source_json_display")
         part_entry_name = Get-JsonString -Object $Item -Name "part_entry_name"
         content_control_index = Get-JsonProperty -Object $Item -Name "content_control_index"
         tag = Get-JsonString -Object $Item -Name "tag"
@@ -665,6 +668,7 @@ $markdownPath = if ([string]::IsNullOrWhiteSpace($ReportMarkdown)) {
 } else {
     Resolve-RepoPath -RepoRoot $repoRoot -Path $ReportMarkdown -AllowMissing
 }
+$summaryDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($summaryPath))
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($markdownPath))
 
@@ -688,9 +692,10 @@ foreach ($path in @($inputPaths)) {
             id = "input_json_missing"
             action = "collect_content_control_data_binding_evidence"
             source_schema = $contentControlGovernanceSchema
+            source_report = $summaryPath
+            source_report_display = $summaryDisplay
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-            source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = "Input JSON was not found."
         }) | Out-Null
     } else {
@@ -731,9 +736,10 @@ foreach ($path in @($inputPaths)) {
                         id = "source_json_schema_skipped"
                         action = "review_content_control_data_binding_evidence"
                         source_schema = $contentControlGovernanceSchema
+                        source_report = $summaryPath
+                        source_report_display = $summaryDisplay
                         source_json = $path
                         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         message = "Input JSON kind '$kind' is not content-control data-binding evidence."
                     }) | Out-Null
                 }
@@ -745,9 +751,10 @@ foreach ($path in @($inputPaths)) {
                 id = "source_json_read_failed"
                 action = "review_content_control_data_binding_evidence"
                 source_schema = $contentControlGovernanceSchema
+                source_report = $summaryPath
+                source_report_display = $summaryDisplay
                 source_json = $path
                 source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 message = $errorMessage
             }) | Out-Null
         }
