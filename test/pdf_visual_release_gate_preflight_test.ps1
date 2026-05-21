@@ -287,6 +287,17 @@ Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object 
     -Message "Disabled PDF build preflight should report missing PDF dependency inputs as a blocker."
 Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "ctest_list_contains_pdf_gate_tests") `
     -Message "Disabled PDF build preflight should keep ctest registration as blocked until PDF options are enabled."
+$disabledPdfBuildOptionsCheck = @($disabledBuildSummary.checks | Where-Object { [string]$_.name -eq "pdf_build_options_enabled" })[0]
+Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.status -eq "missing") `
+    -Message "Disabled PDF build options check should be missing."
+Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("Prepare real PDFio/PDFium inputs")) `
+    -Message "Disabled PDF build options check should explain that real PDF dependencies must be prepared first."
+Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("-DFEATHERDOC_BUILD_PDF=ON")) `
+    -Message "Disabled PDF build options check should explain how to reconfigure FEATHERDOC_BUILD_PDF."
+Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("-DFEATHERDOC_BUILD_PDF_IMPORT=ON")) `
+    -Message "Disabled PDF build options check should explain how to reconfigure FEATHERDOC_BUILD_PDF_IMPORT."
+Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("before starting the full PDF visual gate")) `
+    -Message "Disabled PDF build options check should prevent starting the full PDF visual gate before preflight is repaired."
 $disabledDependencyCheck = @($disabledBuildSummary.checks | Where-Object { [string]$_.name -eq "pdf_dependency_inputs_ready" })[0]
 Assert-True -Condition ([string]$disabledDependencyCheck.status -eq "missing") `
     -Message "Disabled PDF build dependency check should be missing."

@@ -639,12 +639,13 @@ $pdfBuildOptionSnapshot = Get-CMakeCachePdfBuildOptions -Path $cmakeCachePath -N
 $pdfBuildOptionMissingCount = @($pdfBuildOptionSnapshot.missing_options).Count
 $pdfBuildOptionDisabledCount = @($pdfBuildOptionSnapshot.disabled_options).Count
 $pdfBuildOptionsReady = $cmakeCacheExists -and $pdfBuildOptionMissingCount -eq 0 -and $pdfBuildOptionDisabledCount -eq 0
+$pdfBuildOptionsMissingMessage = "CMakeCache.txt does not enable every PDF writer/import build option required by the full visual gate. Prepare real PDFio/PDFium inputs, reconfigure with -DFEATHERDOC_BUILD_PDF=ON and -DFEATHERDOC_BUILD_PDF_IMPORT=ON, then rerun preflight before starting the full PDF visual gate."
 Add-CheckResult `
     -Checks $checks `
     -Name "pdf_build_options_enabled" `
     -Status $(if (-not $cmakeCacheExists) { "skipped" } elseif ($pdfBuildOptionsReady) { "pass" } else { "missing" }) `
     -Required $cmakeCacheExists `
-    -Message $(if (-not $cmakeCacheExists) { "Skipped PDF build option checks because CMakeCache.txt is missing." } elseif ($pdfBuildOptionsReady) { "CMakeCache.txt enables the PDF writer/import build options required by the full visual gate." } else { "CMakeCache.txt does not enable every PDF writer/import build option required by the full visual gate." }) `
+    -Message $(if (-not $cmakeCacheExists) { "Skipped PDF build option checks because CMakeCache.txt is missing." } elseif ($pdfBuildOptionsReady) { "CMakeCache.txt enables the PDF writer/import build options required by the full visual gate." } else { $pdfBuildOptionsMissingMessage }) `
     -Path $cmakeCachePath `
     -Details $pdfBuildOptionSnapshot
 
