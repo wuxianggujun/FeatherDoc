@@ -478,6 +478,40 @@ Write-JsonFile -Path $syntheticReadyPreflightPath -Value ([ordered]@{
     }
 })
 
+$missingPreflightPath = Join-Path $resolvedWorkingDir "fixtures\missing-preflight.json"
+$missingPreflightOutputDir = Join-Path $resolvedWorkingDir "missing-preflight-report"
+$missingPreflightResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
+    "-PreflightJson", $missingPreflightPath,
+    "-OutputDir", $missingPreflightOutputDir,
+    "-BuildDir", ".bpdf-roundtrip-msvc"
+)
+Assert-Equal -Actual $missingPreflightResult.ExitCode -Expected 1 `
+    -Message "Missing explicit preflight JSON should fail after writing structured governance evidence. Output: $($missingPreflightResult.Text)"
+
+$missingPreflightSummaryPath = Join-Path $missingPreflightOutputDir "summary.json"
+$missingPreflightMarkdownPath = Join-Path $missingPreflightOutputDir "pdf_visual_release_gate_preflight_governance.md"
+Assert-True -Condition (Test-Path -LiteralPath $missingPreflightSummaryPath) `
+    -Message "Missing explicit preflight JSON should still write summary.json."
+Assert-True -Condition (Test-Path -LiteralPath $missingPreflightMarkdownPath) `
+    -Message "Missing explicit preflight JSON should still write Markdown."
+
+$missingPreflightSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingPreflightSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$missingPreflightSummary.status) -Expected "failed" `
+    -Message "Missing explicit preflight JSON should produce failed governance status."
+Assert-Equal -Actual ([int]$missingPreflightSummary.source_failure_count) -Expected 1 `
+    -Message "Missing explicit preflight JSON should count one source failure."
+Assert-Equal -Actual ([int]$missingPreflightSummary.release_blocker_count) -Expected 1 `
+    -Message "Missing explicit preflight JSON should emit one source failure blocker."
+Assert-Equal -Actual ([string]$missingPreflightSummary.release_blockers[0].id) `
+    -Expected "pdf_visual_release_gate_preflight.summary_unavailable" `
+    -Message "Missing explicit preflight JSON should emit the summary unavailable blocker."
+Assert-ContainsText -Text (($missingPreflightSummary.release_blockers[0].issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "preflight_summary_unavailable" `
+    -Message "Missing explicit preflight JSON blocker should preserve the issue key."
+Assert-ContainsText -Text ([string]$missingPreflightSummary.release_blockers[0].source_json_display) `
+    -ExpectedText "missing-preflight.json" `
+    -Message "Missing explicit preflight JSON blocker should point to the missing source path."
+
 $blockedOutputDir = Join-Path $resolvedWorkingDir "blocked-report"
 $blockedResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
     "-PreflightJson", $notReadyPreflightPath,

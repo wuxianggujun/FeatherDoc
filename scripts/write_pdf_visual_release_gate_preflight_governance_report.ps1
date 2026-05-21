@@ -638,7 +638,7 @@ Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($markdownPath))
 $preflightSummaryPath = if ([string]::IsNullOrWhiteSpace($PreflightJson)) {
     Join-Path $resolvedOutputDir "preflight-summary.json"
 } else {
-    Resolve-RepoPath -RepoRoot $repoRoot -Path $PreflightJson
+    Resolve-RepoPath -RepoRoot $repoRoot -Path $PreflightJson -AllowMissing
 }
 
 $preflightSummary = $null
