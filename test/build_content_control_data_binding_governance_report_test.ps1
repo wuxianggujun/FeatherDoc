@@ -225,8 +225,8 @@ Assert-Equal -Actual ([int]$bindingCoverage["locked_bound"]) -Expected 1 `
     -Message "Summary should count locked data-bound controls separately."
 Assert-Equal -Actual ([int]$bindingCoverage["unbound"]) -Expected 1 `
     -Message "Summary should count unbound controls separately."
-Assert-True -Condition (@($summary.binding_status_summary).Count -gt 0) `
-    -Message "Summary should retain legacy binding status summary for downstream readers."
+Assert-True -Condition ($null -eq $summary.PSObject.Properties["binding_status_summary"]) `
+    -Message "Summary should not emit the removed legacy binding_status_summary field."
 
 $blockerIds = @($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n"
 Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.custom_xml_sync_issue" `

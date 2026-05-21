@@ -535,15 +535,11 @@ function New-ReportMarkdown {
     $lines.Add("") | Out-Null
     $lines.Add("## Binding Coverage") | Out-Null
     $lines.Add("") | Out-Null
-    if (@($Summary.binding_coverage_summary).Count -gt 0) {
-        foreach ($entry in @($Summary.binding_coverage_summary)) {
-            $lines.Add("- ``$($entry.coverage)``: ``$($entry.count)``") | Out-Null
-        }
-    } elseif (@($Summary.binding_status_summary).Count -eq 0) {
+    if (@($Summary.binding_coverage_summary).Count -eq 0) {
         $lines.Add("- none") | Out-Null
     } else {
-        foreach ($entry in @($Summary.binding_status_summary)) {
-            $lines.Add("- ``$($entry.status)``: ``$($entry.count)``") | Out-Null
+        foreach ($entry in @($Summary.binding_coverage_summary)) {
+            $lines.Add("- ``$($entry.coverage)``: ``$($entry.count)``") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -932,7 +928,6 @@ $summary = [ordered]@{
     sync_items = @($syncItems.ToArray())
     sync_issues = @($syncIssues.ToArray())
     binding_coverage_summary = @(New-BindingCoverageSummary -Items $contentControls.ToArray())
-    binding_status_summary = @(Add-SummaryGroup -Items $contentControls.ToArray() -PropertyName "binding_key" -OutputName "status")
     form_kind_summary = @(Add-SummaryGroup -Items $contentControls.ToArray() -PropertyName "form_kind" -OutputName "form_kind")
     sync_issue_reason_summary = @(Add-SummaryGroup -Items $syncIssues.ToArray() -PropertyName "reason" -OutputName "reason")
     repair_plan_schema = "featherdoc.content_control_data_binding_repair_plan.v1"
