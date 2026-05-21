@@ -194,12 +194,17 @@ function Get-JsonPropertyValue {
 }
 
 function Get-PdfDependencyInputsSummary {
-    param([string]$RepoRoot)
+    param(
+        [string]$RepoRoot,
+        [string]$CMakeCachePath = ""
+    )
 
     $scriptPath = Join-Path $RepoRoot "scripts\check_pdf_dependency_inputs.ps1"
     $summary = [ordered]@{
         available = $false
         script_path = $scriptPath
+        cmake_cache_path = $CMakeCachePath
+        cmake_cache_variables = [ordered]@{}
         schema = ""
         status = "unavailable"
         check_exit_code = $null
@@ -218,8 +223,37 @@ function Get-PdfDependencyInputsSummary {
     }
 
     try {
-        $output = @(& $scriptPath 2>&1 | ForEach-Object { $_.ToString() })
-        $summary.check_exit_code = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+        $dependencyArguments = @{}
+        $cacheVariableMap = [ordered]@{
+            FEATHERDOC_PDFIO_SOURCE_DIR = "PdfioSourceDir"
+            FEATHERDOC_PDFIUM_PROVIDER = "PdfiumProvider"
+            FEATHERDOC_PDFIUM_SOURCE_DIR = "PdfiumSourceDir"
+            FEATHERDOC_PDFIUM_LIBRARY = "PdfiumLibrary"
+            FEATHERDOC_PDFIUM_INCLUDE_DIR = "PdfiumIncludeDir"
+            FEATHERDOC_PDFIUM_RUNTIME_DLL = "PdfiumRuntimeDll"
+            FEATHERDOC_PDFIUM_RUNTIME_DIR = "PdfiumRuntimeDir"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($CMakeCachePath) -and
+            (Test-Path -LiteralPath $CMakeCachePath -PathType Leaf)) {
+            $cacheValues = Get-CMakeCacheValues -Path $CMakeCachePath -Names @($cacheVariableMap.Keys)
+            foreach ($cacheName in $cacheVariableMap.Keys) {
+                if (-not $cacheValues.ContainsKey($cacheName)) {
+                    continue
+                }
+
+                $value = [string]$cacheValues[$cacheName]
+                if ([string]::IsNullOrWhiteSpace($value)) {
+                    continue
+                }
+
+                $summary.cmake_cache_variables[$cacheName] = $value
+                $dependencyArguments[$cacheVariableMap[$cacheName]] = $value
+            }
+        }
+
+        $output = @(& $scriptPath @dependencyArguments 2>&1 | ForEach-Object { $_.ToString() })
+        $lastExitCodeValue = Get-Variable -Name LASTEXITCODE -ValueOnly -ErrorAction SilentlyContinue
+        $summary.check_exit_code = if ($null -eq $lastExitCodeValue) { 0 } else { [int]$lastExitCodeValue }
         $dependencySummary = ($output -join "`n") | ConvertFrom-Json
         $summary.available = $true
         $summary.schema = [string](Get-JsonPropertyValue -Object $dependencySummary -Name "schema" -DefaultValue "")
@@ -282,7 +316,7 @@ function Test-CMakeCacheBoolOn {
     return [string]$Value -in @("1", "ON", "TRUE", "YES", "Y")
 }
 
-function Get-CMakeCachePdfBuildOptions {
+function Get-CMakeCacheValues {
     param(
         [string]$Path,
         [string[]]$Names
@@ -299,6 +333,17 @@ function Get-CMakeCachePdfBuildOptions {
             }
         }
     }
+
+    return $rawValues
+}
+
+function Get-CMakeCachePdfBuildOptions {
+    param(
+        [string]$Path,
+        [string[]]$Names
+    )
+
+    $rawValues = Get-CMakeCacheValues -Path $Path -Names $Names
 
     $options = New-Object System.Collections.ArrayList
     $missingOptions = New-Object System.Collections.ArrayList
@@ -353,7 +398,6 @@ $repoRoot = Resolve-RepoRoot
 $buildDirSelection = Resolve-PreferredBuildDir -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedBuildDir = $buildDirSelection.Path
 $checks = New-Object System.Collections.ArrayList
-$pdfDependencyInputs = Get-PdfDependencyInputsSummary -RepoRoot $repoRoot
 
 $memorySnapshot = Get-LocalMemorySnapshot
 $memoryGuardSkipped = [bool]$SkipMemoryGuard -or $MinFreeMemoryMB -le 0
@@ -400,6 +444,7 @@ Add-CheckResult `
 
 $cmakeCachePath = Join-Path $resolvedBuildDir "CMakeCache.txt"
 $cmakeCacheExists = Test-Path -LiteralPath $cmakeCachePath -PathType Leaf
+$pdfDependencyInputs = Get-PdfDependencyInputsSummary -RepoRoot $repoRoot -CMakeCachePath $cmakeCachePath
 Add-CheckResult `
     -Checks $checks `
     -Name "cmake_cache_exists" `

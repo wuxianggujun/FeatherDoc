@@ -68,9 +68,23 @@ if ($LASTEXITCODE -ne 0) {
 
 New-Item -ItemType Directory -Path $fakeBuildDir -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $fakeBuildDir "test\pdf_cli_export") -Force | Out-Null
+$fakePdfioSourceDir = Join-Path $resolvedWorkingDir "fake-pdfio-src"
+$fakePdfiumPrebuiltDir = Join-Path $resolvedWorkingDir "fake-pdfium-prebuilt"
+$fakePdfiumIncludeDir = Join-Path $fakePdfiumPrebuiltDir "include"
+$fakePdfiumLibraryDir = Join-Path $fakePdfiumPrebuiltDir "lib"
+New-Item -ItemType Directory -Path $fakePdfioSourceDir -Force | Out-Null
+New-Item -ItemType Directory -Path $fakePdfiumIncludeDir -Force | Out-Null
+New-Item -ItemType Directory -Path $fakePdfiumLibraryDir -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $fakePdfioSourceDir "pdfio.h") -Encoding UTF8 -Value "/* fake pdfio */"
+Set-Content -LiteralPath (Join-Path $fakePdfiumIncludeDir "fpdfview.h") -Encoding UTF8 -Value "/* fake pdfium */"
+Set-Content -LiteralPath (Join-Path $fakePdfiumLibraryDir "pdfium.lib") -Encoding UTF8 -Value "fake lib"
 @"
 FEATHERDOC_BUILD_PDF:BOOL=ON
 FEATHERDOC_BUILD_PDF_IMPORT:BOOL=ON
+FEATHERDOC_PDFIO_SOURCE_DIR:PATH=$fakePdfioSourceDir
+FEATHERDOC_PDFIUM_PROVIDER:STRING=prebuilt
+FEATHERDOC_PDFIUM_LIBRARY:FILEPATH=$(Join-Path $fakePdfiumLibraryDir "pdfium.lib")
+FEATHERDOC_PDFIUM_INCLUDE_DIR:PATH=$fakePdfiumIncludeDir
 "@ | Set-Content -LiteralPath (Join-Path $fakeBuildDir "CMakeCache.txt") -Encoding UTF8
 @"
 add_test(pdf_cli_export "cmd" "/c" "exit 0")
@@ -226,6 +240,16 @@ Assert-True -Condition ($null -ne $summary.pdf_dependency_inputs.PSObject.Proper
     -Message "PDF dependency input summary should expose status."
 Assert-True -Condition ($null -ne $summary.pdf_dependency_inputs.PSObject.Properties["selected_pdfium_provider"]) `
     -Message "PDF dependency input summary should expose the selected PDFium provider."
+Assert-True -Condition ([string]$summary.pdf_dependency_inputs.status -eq "ready") `
+    -Message "Ready preflight should pass dependency input values from CMakeCache."
+Assert-True -Condition ([string]$summary.pdf_dependency_inputs.selected_pdfium_provider -eq "prebuilt") `
+    -Message "Ready preflight should preserve the CMakeCache PDFium provider selection."
+Assert-True -Condition ([bool]$summary.pdf_dependency_inputs.pdfio_ready -eq $true) `
+    -Message "Ready preflight should report the CMakeCache PDFio source input as ready."
+Assert-True -Condition ([bool]$summary.pdf_dependency_inputs.pdfium_ready -eq $true) `
+    -Message "Ready preflight should report the CMakeCache PDFium prebuilt inputs as ready."
+Assert-True -Condition ([string]$summary.pdf_dependency_inputs.cmake_cache_variables.FEATHERDOC_PDFIUM_PROVIDER -eq "prebuilt") `
+    -Message "Dependency input summary should retain CMakeCache PDFium provider evidence."
 Assert-True -Condition ([string]$summary.blocking_summary.pdf_dependency_inputs_status -eq [string]$summary.pdf_dependency_inputs.status) `
     -Message "Ready preflight should mirror PDF dependency input status into blocking_summary."
 Assert-True -Condition ([int]$summary.blocking_summary.pdf_dependency_missing_input_count -eq [int]$summary.pdf_dependency_inputs.missing_input_count) `
