@@ -158,8 +158,9 @@ function Invoke-CommandWithTimeout {
         throw "$Label timed out after ${TimeoutSeconds}s. Stopped owned process tree rooted at PID $($process.Id)."
     }
 
+    $process.WaitForExit()
     $process.Refresh()
-    $exitCode = $process.ExitCode
+    $exitCode = if ($null -eq $process.ExitCode) { 0 } else { [int]$process.ExitCode }
     if (Test-Path -LiteralPath $stdoutPath) {
         Get-Content -LiteralPath $stdoutPath -Tail 120
     }

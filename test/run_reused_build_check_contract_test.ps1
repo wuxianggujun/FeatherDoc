@@ -41,7 +41,9 @@ foreach ($expectedText in @(
     "FreePhysicalMemory",
     "Refusing to start because free physical memory",
     "Close unrelated applications or rerun with -SkipMemoryGuard",
-    "Assert-FreeMemoryAvailable -MinimumFreeMemoryMB `$MinFreeMemoryMB"
+    "Assert-FreeMemoryAvailable -MinimumFreeMemoryMB `$MinFreeMemoryMB",
+    "`$process.WaitForExit()",
+    "[int]`$process.ExitCode"
 )) {
     Assert-ContainsText -Text $scriptText -ExpectedText $expectedText `
         -Message "run_reused_build_check.ps1 should keep resource guard contract marker '$expectedText'."
