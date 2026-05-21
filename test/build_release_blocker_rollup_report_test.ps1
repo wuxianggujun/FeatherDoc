@@ -346,6 +346,9 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
     schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
     status = "blocked"
     release_ready = $false
+    preflight_ready = $false
+    full_visual_gate_required = $true
+    full_visual_gate_status = "not_run_by_preflight_governance"
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -646,6 +649,15 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (($projectTemplateSourceReport.schema_approval_status_summary | ForEach-Object { "$($_.status)=$($_.count)" }) -join "`n") `
         -ExpectedText "pending_review=1" `
         -Message "Rollup should preserve project-template schema approval status summary."
+    $pdfPreflightSourceReport = ($summary.source_reports |
+        Where-Object { [string]$_.schema -eq "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([bool]$pdfPreflightSourceReport.preflight_ready) -Expected $false `
+        -Message "Rollup should preserve PDF preflight readiness on the source report contract."
+    Assert-Equal -Actual ([bool]$pdfPreflightSourceReport.full_visual_gate_required) -Expected $true `
+        -Message "Rollup should preserve that PDF preflight still requires the full visual gate."
+    Assert-Equal -Actual ([string]$pdfPreflightSourceReport.full_visual_gate_status) -Expected "not_run_by_preflight_governance" `
+        -Message "Rollup should preserve the full visual gate status from PDF preflight governance."
     $skeletonWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "document_skeleton.exemplar_catalog_missing" } |
         Select-Object -First 1)
@@ -698,6 +710,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include project-template gate status field."
     Assert-ContainsText -Text $markdown -ExpectedText "schema_approval_status_summary" `
         -Message "Markdown should include project-template schema approval status summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "full_visual_gate_status" `
+        -Message "Markdown should include PDF full visual gate status from source report contracts."
+    Assert-ContainsText -Text $markdown -ExpectedText "not_run_by_preflight_governance" `
+        -Message "Markdown should make clear that PDF preflight did not run the full visual gate."
     Assert-ContainsText -Text $markdown -ExpectedText "Governance Metric Review Focus" `
         -Message "Markdown should include governance metric review focus."
     Assert-ContainsText -Text $markdown -ExpectedText "Numbering real-corpus confidence" `

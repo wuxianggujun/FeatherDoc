@@ -433,6 +433,18 @@ function New-ReportMarkdown {
     } else {
         foreach ($report in @($Summary.source_reports)) {
             $lines.Add("- ``$($report.schema)``: status=``$($report.status)`` ready=``$($report.release_ready)`` path=``$($report.path_display)``") | Out-Null
+            $preflightReady = Get-JsonProperty -Object $report -Name "preflight_ready"
+            if ($null -ne $preflightReady) {
+                $lines.Add("  - preflight_ready: ``$preflightReady``") | Out-Null
+            }
+            $fullVisualGateRequired = Get-JsonProperty -Object $report -Name "full_visual_gate_required"
+            if ($null -ne $fullVisualGateRequired) {
+                $lines.Add("  - full_visual_gate_required: ``$fullVisualGateRequired``") | Out-Null
+            }
+            $fullVisualGateStatus = Get-JsonString -Object $report -Name "full_visual_gate_status"
+            if (-not [string]::IsNullOrWhiteSpace($fullVisualGateStatus)) {
+                $lines.Add("  - full_visual_gate_status: ``$fullVisualGateStatus``") | Out-Null
+            }
             if (-not [string]::IsNullOrWhiteSpace([string]$report.latest_schema_approval_gate_status)) {
                 $lines.Add("  - latest_schema_approval_gate_status: ``$($report.latest_schema_approval_gate_status)``") | Out-Null
             }
@@ -558,6 +570,7 @@ foreach ($path in @($inputPaths)) {
     $releaseReady = $false
     $latestSchemaApprovalGateStatus = ""
     $schemaApprovalStatusSummary = @()
+    $summaryObject = $null
     try {
         $summaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
         $kind = Get-ReportKind -Summary $summaryObject
@@ -772,7 +785,7 @@ foreach ($path in @($inputPaths)) {
         }) | Out-Null
     }
 
-    $sourceReports.Add([ordered]@{
+    $sourceReport = [ordered]@{
         path = $path
         path_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
         schema = $kind
@@ -783,7 +796,16 @@ foreach ($path in @($inputPaths)) {
         schema_approval_status_summary = @($schemaApprovalStatusSummary)
         governance_metric_count = @($sourceMetrics).Count
         governance_metrics = @($sourceMetrics)
-    }) | Out-Null
+    }
+    Copy-OptionalJsonProperties `
+        -Target $sourceReport `
+        -Source $summaryObject `
+        -Names @(
+            "preflight_ready",
+            "full_visual_gate_required",
+            "full_visual_gate_status"
+        )
+    $sourceReports.Add($sourceReport) | Out-Null
 }
 
 $sourceFailureCount = @($sourceReports.ToArray() | Where-Object { $_.status -eq "failed" }).Count
