@@ -170,6 +170,7 @@ function Write-GovernanceFixtures {
                     repair_strategy = "sync_bound_content_control"
                     repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
                     command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+                    source_report_display = ".\output\content-control-data-binding-governance\summary.json"
                     source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
                 }
             )
@@ -183,6 +184,7 @@ function Write-GovernanceFixtures {
                     repair_strategy = "deduplicate_or_confirm_shared_binding"
                     repair_hint = "Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths."
                     command_template = "featherdoc_cli inspect-content-controls <input.docx> --tag due_date --json"
+                    source_report_display = ".\output\content-control-data-binding-governance\summary.json"
                     source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
                 }
             )
@@ -399,6 +401,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve content-control blocker repair strategy."
     Assert-ContainsText -Text ([string]$contentControlBlocker.command_template) -ExpectedText "sync-content-controls-from-custom-xml" `
         -Message "Aggregate handoff should preserve content-control blocker command template."
+    Assert-ContainsText -Text ([string]$contentControlBlocker.source_report_display) -ExpectedText "content-control-data-binding-governance\summary.json" `
+        -Message "Aggregate handoff should preserve content-control blocker source report display."
+    Assert-ContainsText -Text ([string]$contentControlBlocker.source_json_display) -ExpectedText "content-control-data-binding\inspect-content-controls.json" `
+        -Message "Aggregate handoff should preserve content-control blocker source JSON display."
     $contentControlAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "review_duplicate_content_control_binding" } |
         Select-Object -First 1)
@@ -406,6 +412,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve content-control action repair strategy."
     Assert-ContainsText -Text ([string]$contentControlAction.command_template) -ExpectedText "inspect-content-controls" `
         -Message "Aggregate handoff should preserve content-control action command template."
+    Assert-ContainsText -Text ([string]$contentControlAction.source_report_display) -ExpectedText "content-control-data-binding-governance\summary.json" `
+        -Message "Aggregate handoff should preserve content-control action source report display."
+    Assert-ContainsText -Text ([string]$contentControlAction.source_json_display) -ExpectedText "content-control-data-binding\inspect-content-controls.json" `
+        -Message "Aggregate handoff should preserve content-control action source JSON display."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Release Governance Handoff" `
@@ -420,6 +430,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include project-template schema approval status summary."
     Assert-ContainsText -Text $markdown -ExpectedText "content_control_data_binding_governance" `
         -Message "Markdown should include content-control data-binding governance."
+    Assert-ContainsText -Text $markdown -ExpectedText "content-control-data-binding-governance\summary.json" `
+        -Message "Markdown should include content-control source report display."
+    Assert-ContainsText -Text $markdown -ExpectedText "content-control-data-binding\inspect-content-controls.json" `
+        -Message "Markdown should include content-control source JSON display."
     Assert-ContainsText -Text $markdown -ExpectedText "schema_patch_confidence_calibration" `
         -Message "Markdown should include schema patch confidence calibration."
     Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-finance` template=`invoice-template` candidate=`rename`' `

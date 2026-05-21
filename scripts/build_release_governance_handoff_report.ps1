@@ -564,6 +564,8 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
                 $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
             }
+            $lines.Add("  - source_report_display: ``$($blocker.source_report_display)``") | Out-Null
+            $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -587,6 +589,8 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
             }
+            $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
+            $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
