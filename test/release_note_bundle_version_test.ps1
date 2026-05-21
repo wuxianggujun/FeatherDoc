@@ -33,6 +33,28 @@ function Assert-NotContains {
     }
 }
 
+function Assert-ContentControlGovernanceTrace {
+    param(
+        [string]$Path,
+        [string]$Label
+    )
+
+    $expectedFragments = @(
+        'content_control_data_binding.bound_placeholder',
+        'custom_xml_sync_evidence_missing',
+        'source_schema=featherdoc.content_control_data_binding_governance_report.v1',
+        'source_report_display: .\output\content-control-data-binding-governance\summary.json',
+        'source_json_display: .\output\content-control-data-binding\inspect-content-controls.json',
+        'repair_strategy: sync_bound_content_control',
+        'repair_hint: Rerun Custom XML sync or explicitly fill the bound content control before release.',
+        $contentControlCommandTemplateMarker
+    )
+
+    foreach ($expectedFragment in $expectedFragments) {
+        Assert-Contains -Path $Path -ExpectedText $expectedFragment -Label $Label
+    }
+}
+
 function New-NumberingGovernanceMetricFixture {
     return [ordered]@{
         id = "numbering_catalog_governance.real_corpus_confidence"
@@ -393,7 +415,7 @@ $summary = [ordered]@{
                 message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
                 source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
                 source_report_display = ".\output\content-control-data-binding-governance\summary.json"
-                source_json_display = ".\output\content-control-data-binding-governance\summary.json"
+                source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
             },
             [ordered]@{
                 id = "schema_patch_confidence_calibration.unscored_candidates"
@@ -812,6 +834,11 @@ Assert-Contains -Path $startHerePath -ExpectedText 'Template table CLI selector 
 Assert-Contains -Path $startHerePath -ExpectedText 'Section page setup review task' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Template table CLI selector review task' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'open_latest_word_review_task.ps1 -SourceKind template-table-cli-selector-visual-regression-bundle -PrintPrompt' -Label 'START_HERE.md'
+
+Assert-ContentControlGovernanceTrace -Path $handoffPath -Label 'release_handoff.md'
+Assert-ContentControlGovernanceTrace -Path $guidePath -Label 'ARTIFACT_GUIDE.md'
+Assert-ContentControlGovernanceTrace -Path $checklistPath -Label 'REVIEWER_CHECKLIST.md'
+Assert-ContentControlGovernanceTrace -Path $startHerePath -Label 'START_HERE.md'
 
 function Copy-ReleaseSummaryForNegativeCase {
     return ($summary | ConvertTo-Json -Depth 10 | ConvertFrom-Json)

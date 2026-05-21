@@ -898,6 +898,16 @@ foreach ($item in @($actionItems.ToArray())) {
 $boundControls = @($contentControls.ToArray() | Where-Object {
         -not [string]::IsNullOrWhiteSpace([string]$_.binding_key)
     })
+$customXmlSyncEvidenceSourceJson = $summaryPath
+$customXmlSyncEvidenceSourceJsonDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+$boundControlEvidence = @($boundControls | Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_.source_json) -and
+        -not [string]::IsNullOrWhiteSpace([string]$_.source_json_display)
+    } | Select-Object -First 1)
+if ($null -ne $boundControlEvidence) {
+    $customXmlSyncEvidenceSourceJson = [string]$boundControlEvidence.source_json
+    $customXmlSyncEvidenceSourceJsonDisplay = [string]$boundControlEvidence.source_json_display
+}
 if ($contentControls.Count -eq 0 -and $syncItems.Count -eq 0 -and $syncIssues.Count -eq 0) {
     $warnings.Add([ordered]@{
         id = "content_control_binding_evidence_missing"
@@ -914,8 +924,8 @@ if ($boundControls.Count -gt 0 -and $syncItems.Count -eq 0 -and $syncIssues.Coun
         id = "custom_xml_sync_evidence_missing"
         action = "run_content_control_custom_xml_sync"
         source_schema = $contentControlGovernanceSchema
-        source_json = $summaryPath
-        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+        source_json = $customXmlSyncEvidenceSourceJson
+        source_json_display = $customXmlSyncEvidenceSourceJsonDisplay
         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
     }) | Out-Null

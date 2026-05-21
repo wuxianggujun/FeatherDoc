@@ -359,6 +359,26 @@ Assert-ContainsText -Text ([string]$warning.source_report) -ExpectedText "summar
 Assert-ContainsText -Text ([string]$warning.source_report_display) -ExpectedText "report\summary.json" `
     -Message "Warning source report display should point at the governance summary."
 
+$missingSyncDir = Join-Path $resolvedWorkingDir "missing-sync"
+$missingSyncOutputDir = Join-Path $missingSyncDir "report"
+$missingSyncResult = Invoke-Report -Arguments @(
+    "-InputJson"
+    $inspectPath
+    "-OutputDir"
+    $missingSyncOutputDir
+)
+Assert-Equal -Actual $missingSyncResult.ExitCode -Expected 0 `
+    -Message "Content-control governance missing-sync run should pass. Output: $($missingSyncResult.Text)"
+$missingSyncSummaryPath = Join-Path $missingSyncOutputDir "summary.json"
+$missingSyncSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingSyncSummaryPath | ConvertFrom-Json
+$missingSyncWarning = @($missingSyncSummary.warnings | Where-Object { [string]$_.id -eq "custom_xml_sync_evidence_missing" })[0]
+Assert-ContainsText -Text ([string]$missingSyncWarning.source_json_display) -ExpectedText "inspect-content-controls.json" `
+    -Message "Missing sync warnings should point source_json_display at the inspect evidence."
+Assert-ContainsText -Text ([string]$missingSyncWarning.source_report_display) -ExpectedText "report\summary.json" `
+    -Message "Missing sync warnings should keep source_report_display on the governance summary."
+Assert-ContainsText -Text ([string]$missingSyncWarning.source_json) -ExpectedText "inspect-content-controls.json" `
+    -Message "Missing sync warnings should preserve the inspect evidence source_json."
+
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Content Control Data Binding Governance" `
     -Message "Markdown should include title."
