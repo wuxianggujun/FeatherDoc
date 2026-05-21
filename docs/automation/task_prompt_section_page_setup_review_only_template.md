@@ -23,7 +23,7 @@
 2. 优先使用当前任务目录里的现成 bundle 证据；只有在关键证据缺失、
    路径失效或明显过期时，才允许执行上面的 refresh command。
 3. 一切结论必须基于截图证据，尤其是 aggregate contact sheet、
-   `aggregate-contact-sheets\\*.png` 和 `bundle_review_manifest.json`
+   `aggregate-contact-sheets\*.png` 和 `bundle_review_manifest.json`
    中的 `expected_visual_cues`。
 4. 必须先做总览，再分别检查 `api-sample` 与 `cli-rewrite`，不允许
    只挑一个 case 下结论。
@@ -36,20 +36,20 @@
    - `{{TASK_BUNDLE_AGGREGATE_CONTACT_SHEET}}`
    - `{{TASK_BUNDLE_REVIEW_MANIFEST_PATH}}`
    - `{{TASK_BUNDLE_SUMMARY_PATH}}`
-   - `{{TASK_BUNDLE_CONTACT_SHEETS_DIR}}\\*.png`
+   - `{{TASK_BUNDLE_CONTACT_SHEETS_DIR}}\*.png`
 2. 先查看 `{{TASK_BUNDLE_AGGREGATE_CONTACT_SHEET}}`，快速判断两个 case
    的页面方向和页面宽高是否落在预期区间。
 3. 读取 `{{TASK_BUNDLE_REVIEW_MANIFEST_PATH}}`，逐 case 使用
    `cases[*].expected_visual_cues` 作为检查断言。
-4. 至少逐一检查 `{{TASK_BUNDLE_CONTACT_SHEETS_DIR}}\\*.png`；如需更细节，
+4. 至少逐一检查 `{{TASK_BUNDLE_CONTACT_SHEETS_DIR}}\*.png`；如需更细节，
    再根据 manifest 里的 `visual_artifacts.contact_sheet`、
    `visual_artifacts.page_01`、`visual_artifacts.page_02` 打开原始证据。
 5. 若关键证据缺失或 manifest 指向无效路径，执行：
    `{{BUNDLE_REFRESH_COMMAND}}`
    若刷新仍失败，则结论只能是“无法判定”。
 6. 将最终结论与问题列表回写到：
-   - `{{REPORT_DIR}}\\review_result.json`
-   - `{{REPORT_DIR}}\\final_review.md`
+   - `{{REPORT_DIR}}\review_result.json`
+   - `{{REPORT_DIR}}\final_review.md`
 
 重点检查项：
 
