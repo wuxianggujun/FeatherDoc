@@ -7,7 +7,8 @@ PDF 可视化验证状态
 --------
 
 1. ``dev`` 与 ``origin/dev`` 已对齐。
-2. 当前仓库工作区干净，没有未提交修改。
+2. 2026-05-20 复核时仓库工作区干净；后续轮次需以
+   ``git status --short`` 为准。
 3. 最新的 PDF preflight governance 报告仍是 ``blocked``，因为
    ``check_pdf_visual_release_gate_preflight.ps1`` 还报告：
 

@@ -440,6 +440,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate
 
 预检只检查 build 目录、`CMakeCache.txt`、`CTestTestfile.cmake`、`ctest -N` 中的 PDF 测试注册、
 既有 PDF 输出、manifest 驱动样本和可复用的 `PIL` / `fitz` 渲染 Python。
+其中 `ctest -N` 只在 build 目录、`CMakeCache.txt` 和 `CTestTestfile.cmake`
+都存在时执行；缺失时只记录 `skipped` / `missing` 状态，不触发构建或渲染。
 它不会创建虚拟环境、安装依赖、运行 PDF 渲染或触发构建。需要让缺失前置条件
 直接失败时，额外传 `-Strict`。
 

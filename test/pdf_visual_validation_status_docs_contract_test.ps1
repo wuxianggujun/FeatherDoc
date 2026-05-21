@@ -59,6 +59,7 @@ $statusMarkers = @(
     "memory_guard_blocked = false",
     "blocking_check_count = 7",
     "workstation_free_memory_available",
+    "git status --short",
     "free_memory_mb",
     "min_free_memory_mb",
     "memory_guard_skipped",
@@ -99,6 +100,8 @@ $buildingPdfFixtureMarkers = @(
     "reusable release build substitute",
     "CMakeCache.txt",
     "CTestTestfile.cmake",
+    "ctest -N",
+    "skipped",
     "visual baseline PDF",
     "CJK text-layer PDF"
 )
