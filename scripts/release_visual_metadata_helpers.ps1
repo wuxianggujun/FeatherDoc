@@ -55,6 +55,36 @@ function Get-OptionalPropertyObject {
     return Get-OptionalPropertyRawValue -Object $Object -Name $Name
 }
 
+function Get-SupersededReviewTasksReportPath {
+    param(
+        $Summary,
+        $VisualGateSummary
+    )
+
+    $reportPath = Get-OptionalPropertyValue -Object $VisualGateSummary -Name "superseded_review_tasks_report"
+    if (-not [string]::IsNullOrWhiteSpace($reportPath)) {
+        return $reportPath
+    }
+
+    return Get-OptionalPropertyValue -Object $Summary -Name "superseded_review_tasks_report"
+}
+
+function Get-SupersededReviewTaskCount {
+    param([string]$ReportPath)
+
+    if ([string]::IsNullOrWhiteSpace($ReportPath) -or -not (Test-Path -LiteralPath $ReportPath)) {
+        return ""
+    }
+
+    try {
+        $report = Get-Content -Raw -LiteralPath $ReportPath | ConvertFrom-Json
+    } catch {
+        return ""
+    }
+
+    return Get-OptionalPropertyValue -Object $report -Name "superseded_task_count"
+}
+
 function Get-VisualTaskVerdict {
     param(
         $VisualGateSummary,
