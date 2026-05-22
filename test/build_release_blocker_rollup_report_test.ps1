@@ -90,6 +90,8 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
             status = "needs_review"
             message = "Style numbering audit reported issues."
             action = "review_style_numbering_audit"
+            source_report = "output/document-skeleton-governance-rollup/summary.json"
+            source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
             source_json = "output/document-skeleton-governance/contract/style-numbering-audit.json"
             source_json_display = ".\output\document-skeleton-governance\contract\style-numbering-audit.json"
         }
@@ -108,6 +110,8 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
             id = "document_skeleton.exemplar_catalog_missing"
             action = "open_document_skeleton_rollup"
             message = "One exemplar catalog path is missing."
+            source_report = "output/document-skeleton-governance-rollup/summary.json"
+            source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
             source_json = "output/document-skeleton-governance-rollup/summary.json"
             source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
         }
@@ -265,6 +269,8 @@ Write-JsonFile -Path $projectTemplateReadinessPath -Value ([ordered]@{
             message = "Schema approval is pending."
             action = "review_schema_update_candidate"
             source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+            source_report = "output/project-template-onboarding-governance/summary.json"
+            source_report_display = ".\output\project-template-onboarding-governance\summary.json"
             source_json_display = ".\output\project-template-onboarding-governance\summary.json"
         }
     )
@@ -275,6 +281,8 @@ Write-JsonFile -Path $projectTemplateReadinessPath -Value ([ordered]@{
             title = "Review project template schema approval"
             open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
             source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+            source_report = "output/project-template-onboarding-governance/summary.json"
+            source_report_display = ".\output\project-template-onboarding-governance\summary.json"
             source_json_display = ".\output\project-template-onboarding-governance\summary.json"
         }
     )
@@ -296,6 +304,8 @@ Write-JsonFile -Path $schemaCalibrationPath -Value ([ordered]@{
             template_name = "invoice-template"
             candidate_type = "rename"
             source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            source_report = "output/schema-patch-confidence-calibration/summary.json"
+            source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
             source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
         }
     )
@@ -310,6 +320,8 @@ Write-JsonFile -Path $schemaCalibrationPath -Value ([ordered]@{
             template_name = "invoice-template"
             candidate_type = "rename"
             source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            source_report = "output/schema-patch-confidence-calibration/summary.json"
+            source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
             source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
         }
     )
@@ -323,6 +335,8 @@ Write-JsonFile -Path $schemaCalibrationPath -Value ([ordered]@{
             template_name = "invoice-template"
             candidate_type = "rename"
             source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            source_report = "output/schema-patch-confidence-calibration/summary.json"
+            source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
             source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
         }
     )
@@ -337,6 +351,9 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
             status = "blocked"
             message = "Schema approval blocks release."
             action = "fix_schema_patch_approval_result"
+            source_report = "output/release-candidate/summary.json"
+            source_report_display = ".\output\release-candidate\summary.json"
+            source_json_display = ".\output\release-candidate\summary.json"
         }
     )
     action_items = @()
@@ -655,6 +672,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve blocker message."
     Assert-ContainsText -Text ([string]$skeletonBlocker.source_json_display) -ExpectedText "style-numbering-audit.json" `
         -Message "Rollup should preserve blocker source JSON display."
+    Assert-ContainsText -Text ([string]$skeletonBlocker.origin_source_report_display) -ExpectedText "document-skeleton-governance-rollup\summary.json" `
+        -Message "Rollup should preserve blocker origin source report display."
     $skeletonAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "preview_style_numbering_repair" } |
         Select-Object -First 1)
@@ -755,6 +774,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve calibration blocker template name."
     Assert-Equal -Actual ([string]$calibrationBlocker.candidate_type) -Expected "rename" `
         -Message "Rollup should preserve calibration blocker candidate type."
+    Assert-ContainsText -Text ([string]$calibrationBlocker.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+        -Message "Rollup should preserve calibration blocker origin source report display."
     $calibrationAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "resolve_pending_schema_approvals" } |
         Select-Object -First 1)
@@ -764,6 +785,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve calibration action template name."
     Assert-Equal -Actual ([string]$calibrationAction.candidate_type) -Expected "rename" `
         -Message "Rollup should preserve calibration action candidate type."
+    Assert-ContainsText -Text ([string]$calibrationAction.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+        -Message "Rollup should preserve calibration action origin source report display."
     $calibrationWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.unscored_candidates" } |
         Select-Object -First 1)
@@ -773,6 +796,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve calibration warning template name."
     Assert-Equal -Actual ([string]$calibrationWarning.candidate_type) -Expected "rename" `
         -Message "Rollup should preserve calibration warning candidate type."
+    Assert-ContainsText -Text ([string]$calibrationWarning.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+        -Message "Rollup should preserve calibration warning origin source report display."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blocker Rollup Report" `
