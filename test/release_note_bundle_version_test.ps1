@@ -259,6 +259,21 @@ $summary = [ordered]@{
         requested = $true
         status = "blocked"
         source_report_count = 5
+        source_failure_count = 1
+        source_reports = @(
+            [ordered]@{
+                schema = "featherdoc.table_layout_delivery_governance_report.v1"
+                status = "failed"
+                release_ready = $false
+                path = ".\output\table-layout-delivery-governance\summary.json"
+                path_display = ".\output\table-layout-delivery-governance\summary.json"
+                source_json = ".\output\table-layout-delivery-governance\unreadable-summary.json"
+                source_json_display = ".\output\table-layout-delivery-governance\unreadable-summary.json"
+                source_failure_count = 1
+                error = "Unexpected token while reading table layout governance summary."
+                build_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1"
+            }
+        )
         release_blocker_count = 5
         release_blockers = @(
             [ordered]@{
@@ -447,6 +462,22 @@ $summary = [ordered]@{
         expected_report_count = 5
         loaded_report_count = 5
         missing_report_count = 0
+        failed_report_count = 1
+        reports = @(
+            [ordered]@{
+                id = "project_template_delivery_readiness"
+                schema = "featherdoc.project_template_delivery_readiness_report.v1"
+                status = "failed"
+                release_ready = $false
+                expected_summary = ".\output\project-template-delivery-readiness\summary.json"
+                expected_summary_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_json = ".\output\project-template-delivery-readiness\summary.json"
+                source_json_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_failure_count = 1
+                error = "Failed to parse project template delivery readiness summary."
+                build_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
+            }
+        )
         release_blocker_count = 2
         release_blockers = @(
             [ordered]@{
@@ -667,6 +698,24 @@ Assert-NotContains -Path $shortPath -UnexpectedText '这份文件由 `write_rele
 $guidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $checklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $startHerePath = Join-Path (Split-Path -Parent $reportDir) "START_HERE.md"
+$releaseGovernanceReportIssueDocuments = @(
+    [pscustomobject]@{ Path = $handoffPath; Label = "release_handoff.md" },
+    [pscustomobject]@{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+    [pscustomobject]@{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+    [pscustomobject]@{ Path = $startHerePath; Label = "START_HERE.md" }
+)
+foreach ($document in $releaseGovernanceReportIssueDocuments) {
+    Assert-Contains -Path $document.Path -ExpectedText 'Rollup Source Report Issues' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_report: .\output\table-layout-delivery-governance\summary.json' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_json: .\output\table-layout-delivery-governance\unreadable-summary.json' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'error: Unexpected token while reading table layout governance summary.' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'build: pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'Handoff Report Issues' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_report: .\output\project-template-delivery-readiness\summary.json' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_json: .\output\project-template-delivery-readiness\summary.json' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'error: Failed to parse project template delivery readiness summary.' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'build: pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1' -Label $document.Label
+}
 Assert-Contains -Path $guidePath -ExpectedText 'publish_github_release.ps1' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'publish_github_release.ps1' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'publish_github_release.ps1' -Label 'START_HERE.md'
