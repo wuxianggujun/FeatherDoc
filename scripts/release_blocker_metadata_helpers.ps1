@@ -781,6 +781,7 @@ function Get-ReleaseBlockerActionGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Blocker)
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBuildCandidateSummaryLine -Item $Blocker)
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightDependencyInputSummaryLine -Item $Blocker)
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightReadinessActionEvidenceLine -Item $Blocker)
             $issueKeys = @(Get-ReleaseBlockerArrayProperty -Object $Blocker -Name "issue_keys" | ForEach-Object { [string]$_ })
             if ($issueKeys -contains "cmake_cache_exists") {
                 Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Preflight issue `cmake_cache_exists` means the selected build directory is not a reusable CMake build; prepare or point at a build directory containing `CMakeCache.txt` before checking CTest registration or PDF outputs.'
@@ -820,6 +821,7 @@ function Get-ReleaseBlockerActionGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Blocker)
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBuildCandidateSummaryLine -Item $Blocker)
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightDependencyInputSummaryLine -Item $Blocker)
+            Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightReadinessActionEvidenceLine -Item $Blocker)
 
             $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_json_display"
             if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {

@@ -106,6 +106,20 @@ $pdfPreflightBlocker = [pscustomobject]@{
             "PDFium input: provide prebuilt library/include inputs or a source checkout with public/fpdfview.h."
         )
     }
+    readiness_action_evidence = @(
+        [pscustomobject]@{
+            action = "provide_pdf_dependency_input"
+            issue_key = "pdf_dependency_inputs_ready"
+            item = "PDFio source header"
+            source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+        },
+        [pscustomobject]@{
+            action = "enable_pdf_build_option"
+            issue_key = "pdf_build_options_enabled"
+            item = "FEATHERDOC_BUILD_PDF_IMPORT"
+            source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+        }
+    )
     build_dir_auto_candidates = @(
         [pscustomobject]@{
             relative_path = "build"
@@ -234,6 +248,14 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing inputs=3"
     -Message "PDF preflight build-output blocker should show the missing dependency input count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "PDFium source header" `
     -Message "PDF preflight build-output blocker should show dependency missing input preview."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "Readiness action evidence" `
+    -Message "PDF preflight build-output blocker should summarize readiness action evidence."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "provide_pdf_dependency_input/pdf_dependency_inputs_ready -> PDFio source header" `
+    -Message "PDF preflight build-output blocker should show dependency input readiness evidence."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "enable_pdf_build_option/pdf_build_options_enabled -> FEATHERDOC_BUILD_PDF_IMPORT" `
+    -Message "PDF preflight build-output blocker should show disabled build option readiness evidence."
+Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "source JSON: .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json" `
+    -Message "PDF preflight build-output blocker should keep readiness evidence traceable to source JSON."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "memory guard blocked=false" `
     -Message "PDF preflight build-output blocker should include the memory guard blocked state."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "memory guard skipped=false" `
@@ -274,6 +296,10 @@ Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "PDF depe
     -Message "PDF preflight checklist guidance should summarize PDF dependency input readiness."
 Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "missing inputs=3" `
     -Message "PDF preflight checklist guidance should show missing dependency input count."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "Readiness action evidence" `
+    -Message "PDF preflight checklist guidance should summarize readiness action evidence."
+Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "provide_pdf_dependency_input/pdf_dependency_inputs_ready -> PDFio source header" `
+    -Message "PDF preflight checklist guidance should show dependency input readiness evidence."
 Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "not release-ready evidence" `
     -Message "PDF preflight checklist guidance should state that preflight-only is not release-ready evidence."
 
@@ -286,6 +312,14 @@ $pdfPreflightUnavailableBlocker = [pscustomobject]@{
     source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
     source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
     command_template = "powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate_preflight.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputJson .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+    readiness_action_evidence = @(
+        [pscustomobject]@{
+            action = "rerun_pdf_visual_release_gate_preflight"
+            issue_key = "summary_unavailable"
+            item = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+            source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+        }
+    )
 }
 $pdfPreflightUnavailableGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
         -Blocker $pdfPreflightUnavailableBlocker `
@@ -297,6 +331,10 @@ Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "check_
     -Message "PDF preflight summary-unavailable blocker should point at lightweight preflight regeneration."
 Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "write_pdf_visual_release_gate_preflight_governance_report.ps1" `
     -Message "PDF preflight summary-unavailable blocker should tell reviewers to rebuild governance evidence."
+Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "Readiness action evidence" `
+    -Message "PDF preflight summary-unavailable blocker should summarize readiness action evidence."
+Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "rerun_pdf_visual_release_gate_preflight/summary_unavailable -> .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json" `
+    -Message "PDF preflight summary-unavailable blocker should keep its rerun readiness evidence visible."
 Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "not release-ready evidence" `
     -Message "PDF preflight summary-unavailable blocker should state that preflight summary is not release-ready evidence."
 Assert-ContainsText -Text $pdfPreflightUnavailableGuidance -ExpectedText "release note bundle" `
