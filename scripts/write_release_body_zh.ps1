@@ -115,24 +115,6 @@ function Get-PublicArtifactPath {
     return Split-Path -Leaf $Value
 }
 
-function Get-CommandPathDisplayValue {
-    param(
-        [string]$RepoRoot,
-        [string]$Value
-    )
-
-    $relative = Get-RepoRelativePath -RepoRoot $RepoRoot -Value $Value
-    if ([string]::IsNullOrWhiteSpace($relative)) {
-        return $Value
-    }
-
-    if ($relative.StartsWith(".\") -or $relative.StartsWith("./")) {
-        return $relative
-    }
-
-    return ".\$relative"
-}
-
 function Get-ProjectVersion {
     param([string]$RepoRoot)
 
@@ -930,10 +912,10 @@ $shortSummaryBullets = Get-ShortSummaryBullets `
 $releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1"
 $releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
 $refreshCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\write_release_note_bundle.ps1 -SummaryJson "{0}" -HandoffOutputPath "{1}" -BodyOutputPath "{2}" -ShortOutputPath "{3}"' -f `
-    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $resolvedSummaryPath),
-    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $releaseHandoffPath),
-    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $resolvedOutputPath),
-    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $resolvedShortOutputPath)
+    (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $resolvedSummaryPath),
+    (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $releaseHandoffPath),
+    (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $resolvedOutputPath),
+    (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $resolvedShortOutputPath)
 if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseVersion)) {
     $refreshCommand += (' -ReleaseVersion "{0}"' -f $resolvedReleaseVersion)
 }
@@ -978,7 +960,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 }
 [void]$lines.Add("- README 展示图刷新：$(if ($readmeGalleryStatus) { $readmeGalleryStatus } else { 'unknown' })")
 [void]$lines.Add("- 说明：$validationNote")
-Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot -Heading "## 发布阻断项"
+Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot -Heading "## 发布阻断项" -PublicArtifactPaths
 [void]$lines.Add("")
 [void]$lines.Add("## 安装包入口")
 [void]$lines.Add("- 以下路径使用安装树相对位置，不包含本机绝对目录。")

@@ -383,6 +383,27 @@ function Get-ReleaseBlockerDisplayPath {
     }
 }
 
+function Get-ReleaseBlockerPublicDisplayPath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    $displayPath = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $Path
+    if ([string]::IsNullOrWhiteSpace($displayPath) -or
+        [string]::Equals($displayPath, "(not available)", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $displayPath
+    }
+
+    if ($displayPath.StartsWith(".\") -or
+        $displayPath.StartsWith("./") -or
+        -not [System.IO.Path]::IsPathRooted($displayPath)) {
+        return $displayPath
+    }
+
+    return Split-Path -Leaf $displayPath
+}
+
 function Join-ReleaseBlockerValues {
     param([object[]]$Values)
 
@@ -654,6 +675,49 @@ function Get-PdfVisualPreflightDependencyInputSummaryLine {
     return "PDF dependency inputs: $($parts -join ', ')."
 }
 
+function Get-PdfVisualPreflightReadinessActionEvidenceLine {
+    param([AllowNull()]$Item)
+
+    $evidenceItems = @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "readiness_action_evidence")
+    if ($evidenceItems.Count -eq 0) {
+        return ""
+    }
+
+    $evidenceParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($evidence in $evidenceItems) {
+        $action = Get-ReleaseBlockerDisplayValue `
+            -Value (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "action") `
+            -Fallback "(unknown action)"
+        $issueKey = Get-ReleaseBlockerDisplayValue `
+            -Value (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "issue_key") `
+            -Fallback "(unknown issue)"
+        $item = Get-ReleaseBlockerPropertyValue -Object $evidence -Name "item"
+
+        $part = "$action/$issueKey"
+        if (-not [string]::IsNullOrWhiteSpace($item)) {
+            $part += " -> $item"
+        }
+
+        [void]$evidenceParts.Add($part)
+    }
+
+    $summaryLine = "Readiness action evidence: $($evidenceParts.ToArray() -join '; ')."
+    $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        foreach ($evidence in $evidenceItems) {
+            $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $evidence -Name "source_json_display"
+            if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                break
+            }
+        }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $summaryLine += " source JSON: $sourceJsonDisplay"
+    }
+
+    return $summaryLine
+}
+
 function Get-ReleaseBlockerRegisteredActions {
     return @(
         "complete_visual_manual_review",
@@ -789,7 +853,8 @@ function Add-ReleaseBlockerMarkdownSection {
         [AllowNull()]$Summary,
         [string]$RepoRoot,
         [string]$Heading = "## Release Blockers",
-        [switch]$IncludeWhenEmpty
+        [switch]$IncludeWhenEmpty,
+        [switch]$PublicArtifactPaths
     )
 
     Assert-ReleaseBlockerMetadataQuality -Summary $Summary -Context $Heading
@@ -821,7 +886,12 @@ function Add-ReleaseBlockerMarkdownSection {
             )) {
             $pathValue = Get-ReleaseBlockerPropertyValue -Object $releaseBlocker -Name $pathInfo.Name
             if (-not [string]::IsNullOrWhiteSpace($pathValue)) {
-                [void]$Lines.Add("  - $($pathInfo.Label): $(Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $pathValue)")
+                $displayPath = if ($PublicArtifactPaths.IsPresent) {
+                    Get-ReleaseBlockerPublicDisplayPath -RepoRoot $RepoRoot -Path $pathValue
+                } else {
+                    Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $pathValue
+                }
+                [void]$Lines.Add("  - $($pathInfo.Label): $displayPath")
             }
         }
 
@@ -1765,6 +1835,9 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text (Get-PdfVisualPreflightDependencyInputSummaryLine -Item $Item)
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text (Get-PdfVisualPreflightReadinessActionEvidenceLine -Item $Item)
         $issueKeys = @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "issue_keys" | ForEach-Object { [string]$_ })
         if ($issueKeys -contains "cmake_cache_exists") {
             Add-ReleaseBlockerActionGuidanceLine `
@@ -1805,6 +1878,9 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text (Get-PdfVisualPreflightDependencyInputSummaryLine -Item $Item)
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text (Get-PdfVisualPreflightReadinessActionEvidenceLine -Item $Item)
         $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
         if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
             $commandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_visual_release_gate_preflight.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputJson .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json'

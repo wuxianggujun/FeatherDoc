@@ -133,8 +133,11 @@ $curatedBundleId = "template-table-cli-selector"
 $curatedBundleLabel = "Template table CLI selector"
 $curatedBundleTaskDir = Join-Path $resolvedWorkingDir "tasks\$curatedBundleId"
 $supersededReviewTasksReportPath = Join-Path $taskOutputRoot "superseded_review_tasks.json"
-$expectedSupersededReviewTasksReportDisplayPath = ".\" + `
-    ($supersededReviewTasksReportPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/') -replace '/', '\')
+$expectedSupersededReviewTasksReportDisplayPath = if ($supersededReviewTasksReportPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    ".\" + ($supersededReviewTasksReportPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/') -replace '/', '\')
+} else {
+    [System.IO.Path]::GetFullPath($supersededReviewTasksReportPath)
+}
 $contentControlCommandTemplateMarker = "command_template: featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
 $contentControlDuplicateActionCommandTemplateMarker = "command_template: featherdoc_cli inspect-content-controls <input.docx> --json"
 
@@ -881,6 +884,10 @@ Assert-Contains -Path $checklistPath -ExpectedText 'source_schema=featherdoc.pdf
 Assert-Contains -Path $checklistPath -ExpectedText 'source_report_display: .\output\pdf-visual-release-gate-preflight-governance\summary.json' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'prepare_pdf_visual_release_gate_build_outputs' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Readiness action evidence' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'provide_pdf_dependency_input/pdf_dependency_inputs_ready -> PDFio source header' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'enable_pdf_build_option/pdf_build_options_enabled -> FEATHERDOC_BUILD_PDF_IMPORT' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'source JSON: .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'cmake_cache_exists' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'CMakeCache.txt' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'pdf_build_options_enabled' -Label 'REVIEWER_CHECKLIST.md'
