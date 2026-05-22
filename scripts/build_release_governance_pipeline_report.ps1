@@ -508,6 +508,8 @@ function New-ReportMarkdown {
     $lines.Add("- Status: ``$($Summary.status)``") | Out-Null
     $lines.Add("- Governance detail source: ``$($Summary.governance_detail_source)``") | Out-Null
     $lines.Add("- Stages: ``$($Summary.completed_stage_count)`` completed / ``$($Summary.stage_count)`` total") | Out-Null
+    $lines.Add("- Failed stages: ``$($Summary.failed_stage_count)``") | Out-Null
+    $lines.Add("- Missing reports: ``$($Summary.missing_report_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
     $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null

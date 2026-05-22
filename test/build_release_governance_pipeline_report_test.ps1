@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("aggregate", "fail_on_blocker")]
+    [ValidateSet("aggregate", "fail_on_blocker", "markdown_counts")]
     [string]$Scenario = "aggregate"
 )
 
@@ -22,6 +22,13 @@ function Assert-ContainsText {
     param([string]$Text, [string]$ExpectedText, [string]$Message)
     if ($Text -notmatch [regex]::Escape($ExpectedText)) {
         throw "$Message Missing='$ExpectedText'."
+    }
+}
+
+function Assert-MatchesText {
+    param([string]$Text, [string]$Pattern, [string]$Message)
+    if ($Text -notmatch $Pattern) {
+        throw "$Message Pattern='$Pattern'."
     }
 }
 
@@ -435,9 +442,33 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $inputRoot = Join-Path $resolvedWorkingDir "input"
 $outputRoot = Join-Path $resolvedWorkingDir "pipeline"
+$scriptPath = Join-Path $resolvedRepoRoot "scripts\build_release_governance_pipeline_report.ps1"
+
+if ($Scenario -eq "markdown_counts") {
+    New-Item -ItemType Directory -Path $inputRoot -Force | Out-Null
+    $result = Invoke-Pipeline -Arguments @(
+        "-InputRoot"
+        $inputRoot
+        "-OutputRoot"
+        $outputRoot
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Pipeline markdown-counts run should finish without fail switches. Output: $($result.Text)"
+
+    $markdownPath = Join-Path $outputRoot "release_governance_pipeline.md"
+    Assert-True -Condition (Test-Path -LiteralPath $markdownPath) `
+        -Message "Pipeline markdown-counts run should write Markdown."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-MatchesText -Text $markdown -Pattern "Failed stages: ``\d+``" `
+        -Message "Pipeline Markdown should include failed stage count."
+    Assert-MatchesText -Text $markdown -Pattern "Missing reports: ``\d+``" `
+        -Message "Pipeline Markdown should include missing report count."
+    Write-Host "Release governance pipeline markdown count regression passed."
+    return
+}
+
 New-InputFixture -Root $inputRoot
 
-$scriptPath = Join-Path $resolvedRepoRoot "scripts\build_release_governance_pipeline_report.ps1"
 $arguments = @(
     "-InputRoot"
     $inputRoot
@@ -617,6 +648,10 @@ Assert-ContainsText -Text $markdown -ExpectedText 'Governance detail source: `re
     -Message "Pipeline Markdown should include the governance detail source."
 Assert-ContainsText -Text $markdown -ExpectedText "release_blocker_rollup" `
     -Message "Pipeline Markdown should include final rollup stage."
+Assert-ContainsText -Text $markdown -ExpectedText "Failed stages: ``0``" `
+    -Message "Pipeline Markdown should include failed stage count."
+Assert-ContainsText -Text $markdown -ExpectedText "Missing reports: ``0``" `
+    -Message "Pipeline Markdown should include missing report count."
 Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
     -Message "Pipeline Markdown should include stage source report displays."
 Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
