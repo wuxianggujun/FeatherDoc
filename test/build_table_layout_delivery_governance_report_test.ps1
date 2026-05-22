@@ -399,6 +399,18 @@ if (Test-Scenario -Name "aggregate") {
     $actionItemsText = ($summary.action_items | ForEach-Object { [string]$_.id }) -join "`n"
     Assert-ContainsText -Text $actionItemsText -ExpectedText "run_table_style_quality_visual_regression" `
         -Message "Release rollup action items should include visual regression action."
+    $visualRegressionActionItem = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "run_table_style_quality_visual_regression" } |
+        Select-Object -First 1)
+    $visualRegressionNextStep = ($summary.next_steps |
+        Where-Object { [string]$_.id -eq "run_table_style_quality_visual_regression" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$visualRegressionActionItem.source_json_display) `
+        -Expected ([string]$visualRegressionAction.source_json_display) `
+        -Message "Release rollup action item mirror should preserve source JSON display."
+    Assert-Equal -Actual ([string]$visualRegressionNextStep.command_template) `
+        -Expected ([string]$visualRegressionAction.command_template) `
+        -Message "Next-step mirror should preserve command template."
     $nextStepRepairText = ($summary.next_steps | ForEach-Object {
             "$($_.id)|$($_.repair_strategy)|$($_.command_template)"
         }) -join "`n"

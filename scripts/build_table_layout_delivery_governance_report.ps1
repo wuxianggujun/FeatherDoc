@@ -788,6 +788,7 @@ foreach ($blocker in @($releaseBlockers.ToArray())) {
 foreach ($item in @($deliveryActions.ToArray())) {
     Set-GovernanceTraceMetadata -Item $item -RepoRoot $repoRoot -SummaryPath $summaryPath -EnsureOpenCommand
 }
+$deliveryActionItems = @($deliveryActions.ToArray())
 
 $sourceFailureCount = @($sourceFiles.ToArray() | Where-Object { $_.status -eq "failed" }).Count
 $readyDocumentCount = @($documents.ToArray() | Where-Object { [bool]$_.ready }).Count
@@ -851,11 +852,11 @@ $summary = [ordered]@{
     release_blocker_count = $releaseBlockers.Count
     release_blockers = @($releaseBlockers.ToArray())
     blocker_id_summary = @(Add-SummaryGroup -Items $releaseBlockers.ToArray() -PropertyName "id" -OutputName "id")
-    action_item_count = $deliveryActions.Count
-    action_items = @($deliveryActions.ToArray())
-    delivery_actions = @($deliveryActions.ToArray())
-    next_steps = @($deliveryActions.ToArray())
-    action_item_summary = @(Add-SummaryGroup -Items $deliveryActions.ToArray() -PropertyName "action" -OutputName "action")
+    action_item_count = $deliveryActionItems.Count
+    action_items = @($deliveryActionItems)
+    delivery_actions = @($deliveryActionItems)
+    next_steps = @($deliveryActionItems)
+    action_item_summary = @(Add-SummaryGroup -Items $deliveryActionItems -PropertyName "action" -OutputName "action")
     warning_count = $warnings.Count
     warnings = @($warnings.ToArray())
 }
