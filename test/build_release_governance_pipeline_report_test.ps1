@@ -463,6 +463,10 @@ if ($Scenario -eq "markdown_counts") {
         -Message "Pipeline Markdown should include failed stage count."
     Assert-MatchesText -Text $markdown -Pattern "Missing reports: ``\d+``" `
         -Message "Pipeline Markdown should include missing report count."
+    Assert-ContainsText -Text $markdown -ExpectedText "status=``failed``" `
+        -Message "Pipeline Markdown should expose failed stage status."
+    Assert-ContainsText -Text $markdown -ExpectedText "error:" `
+        -Message "Pipeline Markdown should include failed stage error details."
     Write-Host "Release governance pipeline markdown count regression passed."
     return
 }
