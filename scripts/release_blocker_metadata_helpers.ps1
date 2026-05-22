@@ -1240,7 +1240,7 @@ function Get-ReleaseGovernanceBlockerSummaryText {
         $summaryText += ('; composite_id: `{0}`' -f $compositeId)
     }
 
-    foreach ($field in @("project_id", "template_name", "candidate_type", "status", "severity", "source_schema", "source_report_display", "source_report", "source_json")) {
+    foreach ($field in @("project_id", "template_name", "candidate_type", "status", "severity", "source_schema", "source_report_display", "source_json_display", "source_report", "source_json")) {
         $value = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name $field
         if (-not [string]::IsNullOrWhiteSpace($value)) {
             $summaryText += ('; {0}: `{1}`' -f $field, $value)

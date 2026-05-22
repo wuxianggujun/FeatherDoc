@@ -207,6 +207,8 @@ Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'source_schema: `fea
     -Message "Governance blocker summary should include source schema."
 Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'source_report_display: `.\output\numbering-catalog-governance\summary.json`' `
     -Message "Governance blocker summary should include source report display."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'source_json_display: `.\output\numbering-catalog-governance\style-numbering-audit.json`' `
+    -Message "Governance blocker summary should include source JSON display."
 Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'message: Style numbering audit reported unresolved issues.' `
     -Message "Governance blocker summary should include message."
 
