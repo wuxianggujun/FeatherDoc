@@ -914,6 +914,9 @@ if (Test-Scenario -Name "malformed") {
         -Message "Malformed count should produce one warning."
     Assert-ContainsText -Text ([string]$summary.warnings[0].message) -ExpectedText "release_blocker_count is 3" `
         -Message "Warning should explain count mismatch."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_blocker_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Source failures: ``0``" `
+        -Message "Malformed-count Markdown should summarize source failure count separately from warnings."
 }
 
 if (Test-Scenario -Name "dedupe") {
