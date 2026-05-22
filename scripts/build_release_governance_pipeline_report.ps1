@@ -517,7 +517,7 @@ function New-ReportMarkdown {
     $lines.Add("## Stages") | Out-Null
     $lines.Add("") | Out-Null
     foreach ($stage in @($Summary.stages)) {
-        $lines.Add("- ``$($stage.id)``: status=``$($stage.status)`` blockers=``$($stage.release_blocker_count)`` actions=``$($stage.action_item_count)`` warnings=``$($stage.warning_count)``") | Out-Null
+        $lines.Add("- ``$($stage.id)``: status=``$($stage.status)`` blockers=``$($stage.release_blocker_count)`` actions=``$($stage.action_item_count)`` warnings=``$($stage.warning_count)`` missing_reports=``$($stage.missing_report_count)`` failed_reports=``$($stage.failed_report_count)`` source_failures=``$($stage.source_failure_count)``") | Out-Null
         $lines.Add("  - summary: ``$($stage.summary_json_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string]$stage.error)) {
             $lines.Add("  - error: ``$($stage.error)``") | Out-Null
