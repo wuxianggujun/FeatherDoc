@@ -574,6 +574,14 @@ function New-ReportMarkdown {
         foreach ($blocker in @($Summary.release_blockers)) {
             $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` status=``$($blocker.status)``") | Out-Null
             $lines.Add("  - message: $($blocker.message)") | Out-Null
+            $blockerSourceReport = Get-JsonString -Object $blocker -Name "source_report"
+            if (-not [string]::IsNullOrWhiteSpace($blockerSourceReport)) {
+                $lines.Add("  - source_report: ``$blockerSourceReport``") | Out-Null
+            }
+            $blockerSourceJson = Get-JsonString -Object $blocker -Name "source_json"
+            if (-not [string]::IsNullOrWhiteSpace($blockerSourceJson)) {
+                $lines.Add("  - source_json: ``$blockerSourceJson``") | Out-Null
+            }
             $lines.Add("  - source_report_display: ``$($blocker.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
@@ -606,6 +614,14 @@ function New-ReportMarkdown {
     } else {
         foreach ($item in @($Summary.action_items)) {
             $lines.Add("- ``$($item.id)``: action=``$($item.action)`` open_command=``$($item.open_command)``") | Out-Null
+            $itemSourceReport = Get-JsonString -Object $item -Name "source_report"
+            if (-not [string]::IsNullOrWhiteSpace($itemSourceReport)) {
+                $lines.Add("  - source_report: ``$itemSourceReport``") | Out-Null
+            }
+            $itemSourceJson = Get-JsonString -Object $item -Name "source_json"
+            if (-not [string]::IsNullOrWhiteSpace($itemSourceJson)) {
+                $lines.Add("  - source_json: ``$itemSourceJson``") | Out-Null
+            }
             $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
             $itemIssueKeys = @(

@@ -821,6 +821,12 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "source_report_display" `
     -Message "Markdown should include source report display details."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "source_report: ``$blockedSummaryPath``" `
+    -Message "Markdown should include the raw blocker source report path."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "source_json: ``$notReadyPreflightPath``" `
+    -Message "Markdown should include the raw blocker source JSON path."
 Assert-ContainsText -Text ([string]$blockedSummary.release_blockers[0].source_report_display) `
     -ExpectedText "blocked-report\summary.json" `
     -Message "Blocker summary should preserve the source report display."
@@ -896,6 +902,12 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "issue_keys" `
     -Message "Markdown should include action item issue keys."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "source_report: ``$([string]$actionItem.source_report)``" `
+    -Message "Markdown should include the raw action item source report path."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "source_json: ``$([string]$actionItem.source_json)``" `
+    -Message "Markdown should include the raw action item source JSON path."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Missing outputs" `
     -Message "Markdown should summarize the missing output count."
