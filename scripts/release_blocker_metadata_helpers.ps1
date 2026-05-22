@@ -1832,6 +1832,7 @@ function Add-ReleaseGovernanceRollupMarkdownSection {
     [void]$Lines.Add("")
     [void]$Lines.Add("- Status: $(Get-ReleaseBlockerDisplayValue -Value $status)")
     [void]$Lines.Add("- Source reports: $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $rollup -Name "source_report_count") -Fallback "0")")
+    [void]$Lines.Add("- Source failures: $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $rollup -Name "source_failure_count") -Fallback "0")")
     [void]$Lines.Add("- Blockers: $($releaseBlockers.Count)")
     [void]$Lines.Add("- Warnings: $($warnings.Count)")
     [void]$Lines.Add("- Action items: $($actionItems.Count)")

@@ -516,6 +516,27 @@ Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "repair_strategy:
 Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "command_template: featherdoc_cli restore-style-merge <input.docx> --rollback-plan <rollback.json> --dry-run --json" `
     -Message "Markdown section should render action item command template."
 
+$rollupDetailLines = New-Object 'System.Collections.Generic.List[string]'
+Add-ReleaseGovernanceRollupMarkdownSection `
+    -Lines $rollupDetailLines `
+    -Summary ([pscustomobject]@{
+        release_blocker_rollup = [pscustomobject]@{
+            requested = $true
+            status = "blocked"
+            source_report_count = 5
+            source_failure_count = 1
+            release_blockers = @($styleNumberingBlocker)
+            warnings = @($warningWithStyleMergeCount)
+            action_items = @($restoreAuditActionItem)
+        }
+    }) `
+    -RepoRoot $resolvedRepoRoot
+$rollupDetailMarkdown = $rollupDetailLines -join "`n"
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- Source reports: 5" `
+    -Message "Rollup detail Markdown should include source report counts."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- Source failures: 1" `
+    -Message "Rollup detail Markdown should include source failure counts."
+
 $handoffDetailLines = New-Object 'System.Collections.Generic.List[string]'
 Add-ReleaseGovernanceHandoffMarkdownSection `
     -Lines $handoffDetailLines `
