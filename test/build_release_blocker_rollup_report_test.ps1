@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "passing", "comma_input", "empty", "malformed", "dedupe")]
+    [ValidateSet("all", "passing", "comma_input", "empty", "malformed", "failed_source", "dedupe")]
     [string]$Scenario = "all"
 )
 
@@ -78,6 +78,7 @@ $pdfPreflightGovernancePath = Join-Path $fixtureRoot "pdf-preflight-governance\s
 $styleGovernancePath = Join-Path $fixtureRoot "style-governance\summary.json"
 $emptyPath = Join-Path $fixtureRoot "empty\summary.json"
 $malformedPath = Join-Path $fixtureRoot "malformed\summary.json"
+$failedSourcePath = Join-Path $fixtureRoot "failed-source\summary.json"
 $dedupePath = Join-Path $fixtureRoot "dedupe\summary.json"
 
 Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
@@ -917,6 +918,33 @@ if (Test-Scenario -Name "malformed") {
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_blocker_rollup.md")
     Assert-ContainsText -Text $markdown -ExpectedText "Source failures: ``0``" `
         -Message "Malformed-count Markdown should summarize source failure count separately from warnings."
+}
+
+if (Test-Scenario -Name "failed_source") {
+    $outputDir = Join-Path $resolvedWorkingDir "failed-source-report"
+    New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($failedSourcePath)) -Force | Out-Null
+    Set-Content -LiteralPath $failedSourcePath -Encoding UTF8 -Value "{ this is not valid json"
+
+    $result = Invoke-RollupScript -Arguments @(
+        "-InputJson", $failedSourcePath,
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 1 `
+        -Message "Unreadable source report should fail the rollup after writing evidence. Output: $($result.Text)"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([int]$summary.source_failure_count) -Expected 1 `
+        -Message "Unreadable source report should count one source failure."
+    Assert-Equal -Actual ([string]$summary.source_reports[0].status) -Expected "failed" `
+        -Message "Unreadable source report should be marked failed."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_blocker_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Source failures: ``1``" `
+        -Message "Failed-source Markdown should summarize source failures."
+    Assert-ContainsText -Text $markdown -ExpectedText "status=``failed``" `
+        -Message "Failed-source Markdown should show the source report status."
+    Assert-ContainsText -Text $markdown -ExpectedText "error:" `
+        -Message "Failed-source Markdown should include the source read error."
+    Assert-ContainsText -Text $markdown -ExpectedText "{ this is not valid json" `
+        -Message "Failed-source Markdown should preserve the unreadable JSON payload preview."
 }
 
 if (Test-Scenario -Name "dedupe") {

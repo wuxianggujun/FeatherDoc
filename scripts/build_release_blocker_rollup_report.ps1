@@ -425,6 +425,9 @@ function New-ReportMarkdown {
             if ($null -ne $preflightReady) {
                 $lines.Add("  - preflight_ready: ``$preflightReady``") | Out-Null
             }
+            if (-not [string]::IsNullOrWhiteSpace([string]$report.error)) {
+                $lines.Add("  - error: ``$($report.error)``") | Out-Null
+            }
             $fullVisualGateRequired = Get-JsonProperty -Object $report -Name "full_visual_gate_required"
             if ($null -ne $fullVisualGateRequired) {
                 $lines.Add("  - full_visual_gate_required: ``$fullVisualGateRequired``") | Out-Null
