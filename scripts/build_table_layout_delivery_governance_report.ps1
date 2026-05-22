@@ -700,6 +700,10 @@ if ($rollupCount -eq 0) {
         id = "table_layout_delivery_rollup_missing"
         action = "rebuild_table_layout_delivery_rollup"
         source_schema = "featherdoc.table_layout_delivery_rollup_report.v1"
+        source_report = $summaryPath
+        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+        source_json = $summaryPath
+        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "No table layout delivery rollup summary was loaded."
     }) | Out-Null
 }

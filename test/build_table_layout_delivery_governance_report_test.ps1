@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "ready", "malformed", "fail_on_blocker")]
+    [ValidateSet("all", "aggregate", "ready", "missing_rollup", "malformed", "fail_on_blocker")]
     [string]$Scenario = "all"
 )
 
@@ -471,6 +471,39 @@ if (Test-Scenario -Name "ready") {
         -Message "Ready evidence should not expose blockers."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
         -Message "Ready evidence should not warn."
+}
+
+if (Test-Scenario -Name "missing_rollup") {
+    $emptyRoot = Join-Path $resolvedWorkingDir "missing-rollup-empty-root"
+    New-Item -ItemType Directory -Path $emptyRoot -Force | Out-Null
+    $outputDir = Join-Path $resolvedWorkingDir "missing-rollup-report"
+    $result = Invoke-GovernanceScript -Arguments @(
+        "-InputRoot", $emptyRoot,
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Missing rollup should write governance evidence without failing. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
+        -Message "Missing rollup should require governance review."
+    Assert-Equal -Actual ([int]$summary.table_layout_delivery_rollup_count) -Expected 0 `
+        -Message "Missing rollup should record zero loaded rollups."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Missing rollup should emit one warning."
+
+    $warning = @($summary.warnings | Where-Object { [string]$_.id -eq "table_layout_delivery_rollup_missing" })[0]
+    Assert-True -Condition ($null -ne $warning) `
+        -Message "Missing rollup should emit table_layout_delivery_rollup_missing."
+    Assert-ContainsText -Text ([string]$warning.source_report) -ExpectedText "missing-rollup-report\summary.json" `
+        -Message "Missing rollup warning should include source_report."
+    Assert-ContainsText -Text ([string]$warning.source_report_display) -ExpectedText "missing-rollup-report\summary.json" `
+        -Message "Missing rollup warning should include source_report_display."
+    Assert-ContainsText -Text ([string]$warning.source_json) -ExpectedText "missing-rollup-report\summary.json" `
+        -Message "Missing rollup warning should include source_json."
+    Assert-ContainsText -Text ([string]$warning.source_json_display) -ExpectedText "missing-rollup-report\summary.json" `
+        -Message "Missing rollup warning should include source_json_display."
 }
 
 if (Test-Scenario -Name "malformed") {

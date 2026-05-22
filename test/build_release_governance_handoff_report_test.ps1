@@ -502,6 +502,17 @@ if (Test-Scenario -Name "missing") {
     Assert-ContainsText -Text (($summary.reports | Where-Object { $_.status -eq "missing" } | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "project_template_delivery_readiness" `
         -Message "Missing handoff should identify the absent project-template report."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Missing reports: ``1``" `
+        -Message "Missing handoff Markdown should summarize the missing report count."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery_readiness" `
+        -Message "Missing handoff Markdown should include the absent project-template report id."
+    Assert-ContainsText -Text $markdown -ExpectedText "status=``missing``" `
+        -Message "Missing handoff Markdown should expose the missing report status."
+    Assert-ContainsText -Text $markdown -ExpectedText "project-template-delivery-readiness\summary.json" `
+        -Message "Missing handoff Markdown should include the expected missing summary path."
+    Assert-ContainsText -Text $markdown -ExpectedText "build_project_template_delivery_readiness_report.ps1" `
+        -Message "Missing handoff Markdown should include the rebuild command for the absent report."
 }
 
 if (Test-Scenario -Name "fail_on_missing") {
