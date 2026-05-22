@@ -1026,6 +1026,7 @@ function Get-NormalizedReleaseGovernanceActionItems {
             title = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "title")
             source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_schema")
             source_report_display = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_report_display")
+            source_json_display = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_json_display")
             command = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "command")
         }
 

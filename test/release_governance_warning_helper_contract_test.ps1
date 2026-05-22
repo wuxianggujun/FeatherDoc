@@ -89,6 +89,7 @@ $restoreAuditActionItem = [pscustomobject]@{
     candidate_type = "rename"
     source_schema = "featherdoc.style_merge_restore_audit.v1"
     source_report_display = ".\output\document-skeleton-governance\style-merge.restore-audit.summary.json"
+    source_json_display = ".\output\document-skeleton-governance\style-merge.restore-audit.json"
     issue_keys = @("word_visual_review_pending", "style_merge_restore_audit_pending")
     command = "pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx -DocumentSourceKind style-merge-restore-audit -Mode review-only"
     open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit -PrintPrompt"
@@ -218,6 +219,8 @@ Assert-Equal -Actual ([string]$normalizedActionItems[0].template_name) -Expected
     -Message "Normalized action item should preserve template name."
 Assert-Equal -Actual ([string]$normalizedActionItems[0].candidate_type) -Expected "rename" `
     -Message "Normalized action item should preserve candidate type."
+Assert-Equal -Actual ([string]$normalizedActionItems[0].source_json_display) -Expected ".\output\document-skeleton-governance\style-merge.restore-audit.json" `
+    -Message "Normalized action item should preserve source JSON display."
 Assert-ContainsText -Text ([string]$normalizedActionItems[0].audit_command) -ExpectedText "restore-style-merge" `
     -Message "Normalized action item should preserve audit commands."
 Assert-Equal -Actual ([string]$normalizedActionItems[0].repair_strategy) -Expected "review_style_merge_restore_audit" `
