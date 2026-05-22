@@ -127,6 +127,19 @@ $styleMergeBlocker = [pscustomobject]@{
     message = "Style merge restore audit has unresolved rollback issues."
 }
 
+$numberingGovernanceMetric = [pscustomobject]@{
+    id = "numbering_catalog_governance.catalog_coverage"
+    report_id = "numbering_catalog_governance"
+    metric = "catalog_coverage"
+    level = "warning"
+    score = 72
+    source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+    source_report = "output/numbering-catalog-governance/summary.json"
+    source_report_display = ".\output\numbering-catalog-governance\summary.json"
+    source_json = "output/numbering-catalog-governance/coverage.json"
+    source_json_display = ".\output\numbering-catalog-governance\coverage.json"
+}
+
 $normalizedBlockers = @(Get-NormalizedReleaseGovernanceBlockers -Blockers @($styleNumberingBlocker, $styleMergeBlocker))
 Assert-Equal -Actual $normalizedBlockers.Count -Expected 2 `
     -Message "Normalized governance blockers should preserve every blocker entry."
@@ -532,6 +545,7 @@ Add-ReleaseGovernanceRollupMarkdownSection `
             status = "blocked"
             source_report_count = 5
             source_failure_count = 1
+            governance_metrics = @($numberingGovernanceMetric)
             release_blockers = @($styleNumberingBlocker)
             warnings = @($warningWithStyleMergeCount)
             action_items = @($restoreAuditActionItem)
@@ -543,6 +557,10 @@ Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- Source reports:
     -Message "Rollup detail Markdown should include source report counts."
 Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- Source failures: 1" `
     -Message "Rollup detail Markdown should include source failure counts."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_report: output/numbering-catalog-governance/summary.json' `
+    -Message "Rollup metric Markdown should render raw source report paths."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_json: output/numbering-catalog-governance/coverage.json' `
+    -Message "Rollup metric Markdown should render raw source JSON paths."
 
 $handoffDetailLines = New-Object 'System.Collections.Generic.List[string]'
 Add-ReleaseGovernanceHandoffMarkdownSection `
@@ -555,6 +573,7 @@ Add-ReleaseGovernanceHandoffMarkdownSection `
             expected_report_count = 5
             missing_report_count = 0
             failed_report_count = 1
+            governance_metrics = @($numberingGovernanceMetric)
             release_blockers = @($styleMergeBlocker)
             warnings = @($warningWithoutStyleMergeCount)
             action_items = @($restoreAuditActionItem)
@@ -568,6 +587,10 @@ Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "- Missing report
     -Message "Handoff detail Markdown should include missing report counts."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "- Failed reports: 1" `
     -Message "Handoff detail Markdown should include failed report counts."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText 'source_report: output/numbering-catalog-governance/summary.json' `
+    -Message "Handoff metric Markdown should render raw source report paths."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText 'source_json: output/numbering-catalog-governance/coverage.json' `
+    -Message "Handoff metric Markdown should render raw source JSON paths."
 
 $actionChecklistItems = @(Get-ReleaseGovernanceActionItemChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{

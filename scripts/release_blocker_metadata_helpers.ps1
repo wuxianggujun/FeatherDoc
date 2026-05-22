@@ -1757,10 +1757,18 @@ function Add-ReleaseGovernanceMetricsMarkdownSection {
         $level = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "level")
         $score = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "score")
         $sourceSchema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "source_schema")
+        $sourceReport = Get-ReleaseBlockerPropertyValue -Object $metric -Name "source_report"
+        $sourceJson = Get-ReleaseBlockerPropertyValue -Object $metric -Name "source_json"
         $sourceReportDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "source_report_display")
         $sourceJsonDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $metric -Name "source_json_display")
 
         [void]$Lines.Add("- ${metricId}: report=$reportId metric=$metricName level=$level score=$score source_schema=$sourceSchema")
+        if (-not [string]::IsNullOrWhiteSpace($sourceReport)) {
+            [void]$Lines.Add("  - source_report: $sourceReport")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+            [void]$Lines.Add("  - source_json: $sourceJson")
+        }
         [void]$Lines.Add("  - source_report_display: $sourceReportDisplay")
         [void]$Lines.Add("  - source_json_display: $sourceJsonDisplay")
         Add-ReleaseGovernanceMetricDetailLines -Lines $Lines -Metric $metric
