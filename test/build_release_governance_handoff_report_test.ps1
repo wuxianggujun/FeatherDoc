@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "missing", "fail_on_missing", "explicit_input", "include_rollup")]
+    [ValidateSet("all", "aggregate", "missing", "failed_report", "fail_on_missing", "explicit_input", "include_rollup")]
     [string]$Scenario = "all"
 )
 
@@ -546,6 +546,39 @@ if (Test-Scenario -Name "missing") {
         -Message "Missing handoff Markdown should include the expected missing summary path."
     Assert-ContainsText -Text $markdown -ExpectedText "build_project_template_delivery_readiness_report.ps1" `
         -Message "Missing handoff Markdown should include the rebuild command for the absent report."
+}
+
+if (Test-Scenario -Name "failed_report") {
+    $inputRoot = Join-Path $resolvedWorkingDir "failed-report-input"
+    $outputDir = Join-Path $resolvedWorkingDir "failed-report"
+    Write-GovernanceFixtures -Root $inputRoot
+    Set-Content -LiteralPath (Join-Path $inputRoot "project-template-delivery-readiness\summary.json") `
+        -Encoding UTF8 `
+        -Value "{ this is not valid json"
+
+    $result = Invoke-HandoffScript -Arguments @(
+        "-InputRoot", $inputRoot,
+        "-OutputDir", $outputDir
+    )
+    if ($result.ExitCode -eq 0) {
+        throw "Failed-report handoff should fail when one summary is unreadable. Output: $($result.Text)"
+    }
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "failed" `
+        -Message "Unreadable handoff source should produce failed status."
+    Assert-Equal -Actual ([int]$summary.failed_report_count) -Expected 1 `
+        -Message "Unreadable handoff source should count one failed report."
+    Assert-ContainsText -Text (($summary.reports | Where-Object { $_.status -eq "failed" } | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "project_template_delivery_readiness" `
+        -Message "Unreadable handoff source should identify the failed project-template report."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Failed reports: ``1``" `
+        -Message "Failed handoff Markdown should summarize the failed report count."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery_readiness" `
+        -Message "Failed handoff Markdown should include the failed report id."
+    Assert-ContainsText -Text $markdown -ExpectedText "status=``failed``" `
+        -Message "Failed handoff Markdown should expose the failed report status."
 }
 
 if (Test-Scenario -Name "fail_on_missing") {

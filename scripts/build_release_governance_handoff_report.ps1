@@ -484,6 +484,7 @@ function New-ReportMarkdown {
     $lines.Add("- Release ready: ``$($Summary.release_ready)``") | Out-Null
     $lines.Add("- Reports loaded: ``$($Summary.loaded_report_count)`` / ``$($Summary.expected_report_count)``") | Out-Null
     $lines.Add("- Missing reports: ``$($Summary.missing_report_count)``") | Out-Null
+    $lines.Add("- Failed reports: ``$($Summary.failed_report_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
     $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null
