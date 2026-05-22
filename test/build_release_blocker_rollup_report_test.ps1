@@ -807,6 +807,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include release candidate blocker."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display" `
         -Message "Markdown should include source JSON display details."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report:" `
+        -Message "Markdown should include raw source report paths for traceability."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json:" `
+        -Message "Markdown should include raw source JSON paths for traceability."
+    Assert-ContainsText -Text $markdown -ExpectedText "origin_source_report_display:" `
+        -Message "Markdown should include origin source report display paths for traceability."
     Assert-ContainsText -Text $markdown -ExpectedText "Governance Metrics" `
         -Message "Markdown should include governance metrics."
     Assert-ContainsText -Text $markdown -ExpectedText "Source Report Contracts" `
