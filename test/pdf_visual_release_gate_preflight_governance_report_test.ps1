@@ -512,6 +512,43 @@ Assert-ContainsText -Text ([string]$missingPreflightSummary.release_blockers[0].
     -ExpectedText "missing-preflight.json" `
     -Message "Missing explicit preflight JSON blocker should point to the missing source path."
 
+$missingHelperRepoRoot = Join-Path $resolvedWorkingDir "missing-helper-repo"
+$missingHelperScriptsDir = Join-Path $missingHelperRepoRoot "scripts"
+New-Item -ItemType Directory -Path $missingHelperScriptsDir -Force | Out-Null
+$missingHelperScriptPath = Join-Path $missingHelperScriptsDir "write_pdf_visual_release_gate_preflight_governance_report.ps1"
+Copy-Item -LiteralPath $scriptPath -Destination $missingHelperScriptPath -Force
+$missingHelperOutputDir = Join-Path $resolvedWorkingDir "missing-helper-report"
+$missingHelperResult = Invoke-PowerShellScript -ScriptPath $missingHelperScriptPath -Arguments @(
+    "-OutputDir", $missingHelperOutputDir,
+    "-BuildDir", ".bpdf-roundtrip-msvc"
+)
+Assert-Equal -Actual $missingHelperResult.ExitCode -Expected 1 `
+    -Message "Missing implicit preflight helper should fail after writing structured governance evidence. Output: $($missingHelperResult.Text)"
+
+$missingHelperSummaryPath = Join-Path $missingHelperOutputDir "summary.json"
+$missingHelperMarkdownPath = Join-Path $missingHelperOutputDir "pdf_visual_release_gate_preflight_governance.md"
+Assert-True -Condition (Test-Path -LiteralPath $missingHelperSummaryPath) `
+    -Message "Missing implicit preflight helper should still write summary.json."
+Assert-True -Condition (Test-Path -LiteralPath $missingHelperMarkdownPath) `
+    -Message "Missing implicit preflight helper should still write Markdown."
+
+$missingHelperSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingHelperSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$missingHelperSummary.status) -Expected "failed" `
+    -Message "Missing implicit preflight helper should produce failed governance status."
+Assert-Equal -Actual ([int]$missingHelperSummary.source_failure_count) -Expected 1 `
+    -Message "Missing implicit preflight helper should count one source failure."
+Assert-Equal -Actual ([int]$missingHelperSummary.release_blocker_count) -Expected 1 `
+    -Message "Missing implicit preflight helper should emit one source failure blocker."
+Assert-Equal -Actual ([string]$missingHelperSummary.release_blockers[0].id) `
+    -Expected "pdf_visual_release_gate_preflight.summary_unavailable" `
+    -Message "Missing implicit preflight helper should emit the summary unavailable blocker."
+Assert-ContainsText -Text ([string]$missingHelperSummary.release_blockers[0].message) `
+    -ExpectedText "preflight script was not found" `
+    -Message "Missing implicit preflight helper blocker should explain the missing helper."
+Assert-ContainsText -Text (($missingHelperSummary.release_blockers[0].issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "preflight_summary_unavailable" `
+    -Message "Missing implicit preflight helper blocker should preserve the issue key."
+
 $blockedOutputDir = Join-Path $resolvedWorkingDir "blocked-report"
 $blockedResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
     "-PreflightJson", $notReadyPreflightPath,

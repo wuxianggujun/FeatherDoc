@@ -646,42 +646,46 @@ $loadFailureMessage = ""
 if ([string]::IsNullOrWhiteSpace($PreflightJson)) {
     $preflightScriptPath = Join-Path $repoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1"
     if (-not (Test-Path -LiteralPath $preflightScriptPath -PathType Leaf)) {
-        throw "PDF visual release gate preflight script was not found: $preflightScriptPath"
-    }
+        $loadFailureMessage = "PDF visual release gate preflight script was not found: $preflightScriptPath"
+    } else {
+        Write-Step "Running lightweight preflight"
+        $preflightArguments = @{
+            BuildDir = $BuildDir
+            OutputJson = $preflightSummaryPath
+            CTestExecutable = $CTestExecutable
+            MinFreeMemoryMB = $MinFreeMemoryMB
+            SkipMemoryGuard = [bool]$SkipMemoryGuard
+        }
+        $preflightOverrideCommandArguments = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($entry in @(
+            @{ Name = "PdfioSourceDir"; Value = $PdfioSourceDir },
+            @{ Name = "PdfiumProvider"; Value = $PdfiumProvider },
+            @{ Name = "PdfiumSourceDir"; Value = $PdfiumSourceDir },
+            @{ Name = "PdfiumPrebuiltRoot"; Value = $PdfiumPrebuiltRoot },
+            @{ Name = "PdfiumLibrary"; Value = $PdfiumLibrary },
+            @{ Name = "PdfiumIncludeDir"; Value = $PdfiumIncludeDir },
+            @{ Name = "PdfiumRuntimeDll"; Value = $PdfiumRuntimeDll },
+            @{ Name = "PdfiumRuntimeDir"; Value = $PdfiumRuntimeDir }
+        )) {
+            Add-OptionalPreflightOverride `
+                -Arguments $preflightArguments `
+                -CommandArguments $preflightOverrideCommandArguments `
+                -Name ([string]$entry.Name) `
+                -Value ([string]$entry.Value)
+        }
 
-    Write-Step "Running lightweight preflight"
-    $preflightArguments = @{
-        BuildDir = $BuildDir
-        OutputJson = $preflightSummaryPath
-        CTestExecutable = $CTestExecutable
-        MinFreeMemoryMB = $MinFreeMemoryMB
-        SkipMemoryGuard = [bool]$SkipMemoryGuard
+        & $preflightScriptPath @preflightArguments | Out-Null
     }
-    $preflightOverrideCommandArguments = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($entry in @(
-        @{ Name = "PdfioSourceDir"; Value = $PdfioSourceDir },
-        @{ Name = "PdfiumProvider"; Value = $PdfiumProvider },
-        @{ Name = "PdfiumSourceDir"; Value = $PdfiumSourceDir },
-        @{ Name = "PdfiumPrebuiltRoot"; Value = $PdfiumPrebuiltRoot },
-        @{ Name = "PdfiumLibrary"; Value = $PdfiumLibrary },
-        @{ Name = "PdfiumIncludeDir"; Value = $PdfiumIncludeDir },
-        @{ Name = "PdfiumRuntimeDll"; Value = $PdfiumRuntimeDll },
-        @{ Name = "PdfiumRuntimeDir"; Value = $PdfiumRuntimeDir }
-    )) {
-        Add-OptionalPreflightOverride `
-            -Arguments $preflightArguments `
-            -CommandArguments $preflightOverrideCommandArguments `
-            -Name ([string]$entry.Name) `
-            -Value ([string]$entry.Value)
-    }
-
-    & $preflightScriptPath @preflightArguments | Out-Null
 }
 
-try {
-    $preflightSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $preflightSummaryPath | ConvertFrom-Json
-} catch {
-    $loadFailureMessage = $_.Exception.Message
+if ([string]::IsNullOrWhiteSpace($loadFailureMessage)) {
+    try {
+        $preflightSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $preflightSummaryPath | ConvertFrom-Json
+    } catch {
+        $loadFailureMessage = $_.Exception.Message
+    }
+}
+if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
     $preflightSummary = [pscustomobject]@{
         status = "unavailable"
         checks = @()
