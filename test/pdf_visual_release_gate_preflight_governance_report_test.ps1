@@ -495,6 +495,11 @@ Assert-True -Condition (Test-Path -LiteralPath $missingPreflightSummaryPath) `
 Assert-True -Condition (Test-Path -LiteralPath $missingPreflightMarkdownPath) `
     -Message "Missing explicit preflight JSON should still write Markdown."
 
+$missingPreflightMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingPreflightMarkdownPath
+Assert-ContainsText -Text $missingPreflightMarkdown `
+    -ExpectedText "Source failures: ``1``" `
+    -Message "Missing explicit preflight JSON Markdown should summarize source failures."
+
 $missingPreflightSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingPreflightSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$missingPreflightSummary.status) -Expected "failed" `
     -Message "Missing explicit preflight JSON should produce failed governance status."
@@ -531,6 +536,11 @@ Assert-True -Condition (Test-Path -LiteralPath $missingHelperSummaryPath) `
     -Message "Missing implicit preflight helper should still write summary.json."
 Assert-True -Condition (Test-Path -LiteralPath $missingHelperMarkdownPath) `
     -Message "Missing implicit preflight helper should still write Markdown."
+
+$missingHelperMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingHelperMarkdownPath
+Assert-ContainsText -Text $missingHelperMarkdown `
+    -ExpectedText "Source failures: ``1``" `
+    -Message "Missing implicit preflight helper Markdown should summarize source failures."
 
 $missingHelperSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingHelperSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$missingHelperSummary.status) -Expected "failed" `
