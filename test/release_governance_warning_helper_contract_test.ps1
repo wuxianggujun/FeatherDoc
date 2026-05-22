@@ -109,6 +109,7 @@ $styleNumberingBlocker = [pscustomobject]@{
     severity = "error"
     source_schema = "featherdoc.numbering_catalog_governance_report.v1"
     source_report_display = ".\output\numbering-catalog-governance\summary.json"
+    source_json_display = ".\output\numbering-catalog-governance\style-numbering-audit.json"
     message = "Style numbering audit reported unresolved issues."
 }
 
@@ -137,6 +138,8 @@ Assert-Equal -Actual ([string]$normalizedBlockers[0].candidate_type) -Expected "
     -Message "Normalized governance blocker should preserve candidate type."
 Assert-Equal -Actual ([string]$normalizedBlockers[0].source_report_display) -Expected ".\output\numbering-catalog-governance\summary.json" `
     -Message "Normalized governance blocker should preserve source report display."
+Assert-Equal -Actual ([string]$normalizedBlockers[0].source_json_display) -Expected ".\output\numbering-catalog-governance\style-numbering-audit.json" `
+    -Message "Normalized governance blocker should preserve source JSON display."
 Assert-Equal -Actual (Get-ReleaseGovernanceBlockerCount -SummaryObject ([pscustomobject]@{ release_blocker_count = 5; release_blockers = @($styleNumberingBlocker) })) -Expected 5 `
     -Message "Declared release_blocker_count should win over materialized governance blockers."
 

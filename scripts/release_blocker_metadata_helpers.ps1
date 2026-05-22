@@ -933,6 +933,7 @@ function Get-NormalizedReleaseGovernanceBlockers {
                 severity = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "severity")
                 source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_schema")
                 source_report_display = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_report_display")
+                source_json_display = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_json_display")
                 message = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "message")
             })
     }
