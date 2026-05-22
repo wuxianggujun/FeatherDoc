@@ -699,6 +699,9 @@ Assert-Equal -Actual ([string]$blocker.source_schema) `
 Assert-ContainsText -Text ([string]$blocker.source_json_display) `
     -ExpectedText "not-ready-preflight.json" `
     -Message "Blocker should point reviewers at the source preflight JSON."
+Assert-ContainsText -Text ([string]$blocker.source_report_display) `
+    -ExpectedText "blocked-report\summary.json" `
+    -Message "Blocker should point reviewers at the source governance summary."
 Assert-ContainsText -Text ([string]$blocker.command_template) `
     -ExpectedText "run_pdf_visual_release_gate.ps1" `
     -Message "Blocker should include the preflight-only command template."
@@ -808,6 +811,9 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "source_report_display" `
     -Message "Markdown should include source report display details."
+Assert-ContainsText -Text ([string]$blockedSummary.release_blockers[0].source_report_display) `
+    -ExpectedText "blocked-report\summary.json" `
+    -Message "Blocker summary should preserve the source report display."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "summary.json" `
     -Message "Markdown should point reviewers at the governance summary."
