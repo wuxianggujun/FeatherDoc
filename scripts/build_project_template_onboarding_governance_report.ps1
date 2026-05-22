@@ -536,7 +536,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.entry_name)`` / ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($blocker.entry_name)`` / ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - message: $($blocker.message)") | Out-Null
             }
@@ -549,7 +549,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.entry_name)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($item.entry_name)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -635,6 +635,7 @@ foreach ($path in @($jsonPaths)) {
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
 $manualReviewRecommendations = New-Object 'System.Collections.Generic.List[object]'
+$summaryDisplayPath = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
 
 foreach ($entry in @($entries.ToArray())) {
     foreach ($blocker in @($entry.release_blockers)) {
@@ -642,6 +643,8 @@ foreach ($entry in @($entries.ToArray())) {
             entry_name = [string]$entry.name
             source_kind = [string]$entry.source_kind
             source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue $onboardingGovernanceSchema
+            source_report = Get-JsonString -Object $blocker -Name "source_report" -DefaultValue $summaryPath
+            source_report_display = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue $summaryDisplayPath
             source_json = Get-JsonString -Object $blocker -Name "source_json" -DefaultValue ([string]$entry.source_json)
             source_json_display = Get-JsonString -Object $blocker -Name "source_json_display" -DefaultValue (Get-DisplayPath -RepoRoot $repoRoot -Path ([string]$entry.source_json))
             id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
@@ -656,6 +659,8 @@ foreach ($entry in @($entries.ToArray())) {
             entry_name = [string]$entry.name
             source_kind = [string]$entry.source_kind
             source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue $onboardingGovernanceSchema
+            source_report = Get-JsonString -Object $item -Name "source_report" -DefaultValue $summaryPath
+            source_report_display = Get-JsonString -Object $item -Name "source_report_display" -DefaultValue $summaryDisplayPath
             source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue ([string]$entry.source_json)
             source_json_display = Get-JsonString -Object $item -Name "source_json_display" -DefaultValue (Get-DisplayPath -RepoRoot $repoRoot -Path ([string]$entry.source_json))
             id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
