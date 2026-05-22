@@ -900,6 +900,66 @@ function Add-ReleaseGovernanceRepairLines {
     }
 }
 
+function Add-ReleaseGovernanceReportIssueLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object[]]$Reports,
+        [string]$Heading,
+        [string]$IdPropertyName,
+        [string]$PathPropertyName,
+        [string]$DisplayPropertyName,
+        [string]$RepoRoot
+    )
+
+    $issueReports = @(
+        foreach ($report in @($Reports)) {
+            $status = Get-ReleaseBlockerPropertyValue -Object $report -Name "status"
+            $errorText = Get-ReleaseBlockerPropertyValue -Object $report -Name "error"
+            $sourceFailureCount = Get-ReleaseBlockerPropertyValue -Object $report -Name "source_failure_count"
+            if ($status -in @("failed", "missing") -or
+                -not [string]::IsNullOrWhiteSpace($errorText) -or
+                ($sourceFailureCount -match '^[0-9]+$' -and [int]$sourceFailureCount -gt 0)) {
+                $report
+            }
+        }
+    )
+    if ($issueReports.Count -eq 0) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add($Heading)
+    [void]$Lines.Add("")
+    foreach ($report in $issueReports) {
+        $id = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name $IdPropertyName) -Fallback "(unknown report)"
+        $status = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "status")
+        $releaseReady = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_ready")
+        $sourceFailureCount = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "source_failure_count") -Fallback "0"
+        $schema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")
+        $sourceReport = Get-ReleaseBlockerPropertyValue -Object $report -Name $PathPropertyName
+        $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $report -Name $DisplayPropertyName
+        if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+            $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $sourceReport
+        }
+
+        [void]$Lines.Add("- ${id}: status=$status ready=$releaseReady source_failures=$sourceFailureCount schema=$schema")
+        if (-not [string]::IsNullOrWhiteSpace($sourceReport)) {
+            [void]$Lines.Add("  - source_report: $sourceReport")
+        }
+        [void]$Lines.Add("  - source_report_display: $(Get-ReleaseBlockerDisplayValue -Value $sourceReportDisplay)")
+
+        $errorText = Get-ReleaseBlockerPropertyValue -Object $report -Name "error"
+        if (-not [string]::IsNullOrWhiteSpace($errorText)) {
+            [void]$Lines.Add("  - error: $errorText")
+        }
+
+        $buildCommand = Get-ReleaseBlockerPropertyValue -Object $report -Name "build_command"
+        if (-not [string]::IsNullOrWhiteSpace($buildCommand)) {
+            [void]$Lines.Add("  - build: $buildCommand")
+        }
+    }
+}
+
 function Get-ReleaseGovernanceChecklistSections {
     param([AllowNull()]$Summary)
 
@@ -1874,6 +1934,15 @@ function Add-ReleaseGovernanceRollupMarkdownSection {
 
     Add-ReleaseGovernanceMetricsMarkdownSection -Lines $Lines -Summary $rollup
 
+    Add-ReleaseGovernanceReportIssueLines `
+        -Lines $Lines `
+        -Reports @(Get-ReleaseBlockerArrayProperty -Object $rollup -Name "source_reports") `
+        -Heading "### Rollup Source Report Issues" `
+        -IdPropertyName "schema" `
+        -PathPropertyName "path" `
+        -DisplayPropertyName "path_display" `
+        -RepoRoot $RepoRoot
+
     if ($releaseBlockers.Count -gt 0) {
         [void]$Lines.Add("")
         [void]$Lines.Add("### Rollup Blockers")
@@ -1957,6 +2026,15 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
     [void]$Lines.Add("- Action items: $($actionItems.Count)")
 
     Add-ReleaseGovernanceMetricsMarkdownSection -Lines $Lines -Summary $handoff
+
+    Add-ReleaseGovernanceReportIssueLines `
+        -Lines $Lines `
+        -Reports @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "reports") `
+        -Heading "### Handoff Report Issues" `
+        -IdPropertyName "id" `
+        -PathPropertyName "expected_summary" `
+        -DisplayPropertyName "expected_summary_display" `
+        -RepoRoot $RepoRoot
 
     if ($releaseBlockers.Count -gt 0) {
         [void]$Lines.Add("")
