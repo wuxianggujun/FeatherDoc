@@ -598,6 +598,8 @@ function New-Recommendations {
 function New-ReleaseBlockers {
     param(
         [object[]]$Entries,
+        [string]$SourceReport,
+        [string]$SourceReportDisplay,
         [string]$SourceJson,
         [string]$SourceJsonDisplay
     )
@@ -620,6 +622,8 @@ function New-ReleaseBlockers {
             candidate_name = Get-JsonString -Object $entry -Name "name"
             schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
             source_schema = $calibrationSchema
+            source_report = $SourceReport
+            source_report_display = $SourceReportDisplay
             source_json = $SourceJson
             source_json_display = $SourceJsonDisplay
         }) | Out-Null
@@ -642,6 +646,8 @@ function New-ReleaseBlockers {
             candidate_name = Get-JsonString -Object $entry -Name "name"
             schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
             source_schema = $calibrationSchema
+            source_report = $SourceReport
+            source_report_display = $SourceReportDisplay
             source_json = $SourceJson
             source_json_display = $SourceJsonDisplay
         }) | Out-Null
@@ -654,6 +660,8 @@ function New-Warnings {
     param(
         [object[]]$Entries,
         [object[]]$InputSummaries,
+        [string]$SourceReport,
+        [string]$SourceReportDisplay,
         [string]$SourceJson,
         [string]$SourceJsonDisplay
     )
@@ -671,6 +679,8 @@ function New-Warnings {
             candidate_name = ""
             schema_update_candidate = ""
             source_schema = $calibrationSchema
+            source_report = $SourceReport
+            source_report_display = $SourceReportDisplay
             source_json = Get-JsonString -Object $inputSummary -Name "path"
             source_json_display = Get-JsonString -Object $inputSummary -Name "path_display"
         }) | Out-Null
@@ -690,6 +700,8 @@ function New-Warnings {
             candidate_name = Get-JsonString -Object $entry -Name "name"
             schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
             source_schema = $calibrationSchema
+            source_report = $SourceReport
+            source_report_display = $SourceReportDisplay
             source_json = $SourceJson
             source_json_display = $SourceJsonDisplay
         }) | Out-Null
@@ -701,6 +713,8 @@ function New-Warnings {
 function New-ActionItems {
     param(
         [object[]]$Recommendations,
+        [string]$SourceReport,
+        [string]$SourceReportDisplay,
         [string]$SourceJson,
         [string]$SourceJsonDisplay
     )
@@ -719,6 +733,8 @@ function New-ActionItems {
                 schema_update_candidate = Get-JsonString -Object $recommendation -Name "schema_update_candidate"
                 open_command = $calibrationOpenCommand
                 source_schema = $calibrationSchema
+                source_report = $SourceReport
+                source_report_display = $SourceReportDisplay
                 source_json = $SourceJson
                 source_json_display = $SourceJsonDisplay
             }
@@ -779,7 +795,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.id)``: project=``$($blocker.project_id)`` template=``$($blocker.template_name)`` candidate=``$($blocker.candidate_type)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($blocker.id)``: project=``$($blocker.project_id)`` template=``$($blocker.template_name)`` candidate=``$($blocker.candidate_type)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - message: $($blocker.message)") | Out-Null
             }
@@ -792,7 +808,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` candidate=``$($warning.candidate_type)`` action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` candidate=``$($warning.candidate_type)`` action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - message: $($warning.message)") | Out-Null
             }
@@ -805,7 +821,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            $lines.Add("- ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -880,9 +896,9 @@ $invalidCount = @($entryArray | Where-Object { $_.calibration_outcome -eq "inval
 $sourceFailureCount = @($inputSummaries.ToArray() | Where-Object { $_.status -eq "failed" }).Count
 $summaryDisplayPath = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
 $recommendations = @(New-Recommendations -Entries $entryArray -RecommendedMinConfidence $recommendedMinConfidence)
-$releaseBlockers = @(New-ReleaseBlockers -Entries $entryArray -SourceJson $summaryPath -SourceJsonDisplay $summaryDisplayPath)
-$warnings = @(New-Warnings -Entries $entryArray -InputSummaries $inputSummaries.ToArray() -SourceJson $summaryPath -SourceJsonDisplay $summaryDisplayPath)
-$actionItems = @(New-ActionItems -Recommendations $recommendations -SourceJson $summaryPath -SourceJsonDisplay $summaryDisplayPath)
+$releaseBlockers = @(New-ReleaseBlockers -Entries $entryArray -SourceReport $summaryPath -SourceReportDisplay $summaryDisplayPath -SourceJson $summaryPath -SourceJsonDisplay $summaryDisplayPath)
+$warnings = @(New-Warnings -Entries $entryArray -InputSummaries $inputSummaries.ToArray() -SourceReport $summaryPath -SourceReportDisplay $summaryDisplayPath -SourceJson $summaryPath -SourceJsonDisplay $summaryDisplayPath)
+$actionItems = @(New-ActionItems -Recommendations $recommendations -SourceReport $summaryPath -SourceReportDisplay $summaryDisplayPath -SourceJson $summaryPath -SourceJsonDisplay $summaryDisplayPath)
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($invalidCount -gt 0) {

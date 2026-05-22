@@ -379,6 +379,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Calibration blockers should expose the source schema."
     Assert-ContainsText -Text ([string]$summary.release_blockers[0].source_json_display) -ExpectedText "aggregate-report\summary.json" `
         -Message "Calibration blockers should expose the report JSON display path."
+    Assert-ContainsText -Text ([string]$summary.release_blockers[0].source_report) -ExpectedText "aggregate-report\summary.json" `
+        -Message "Calibration blockers should expose the report source path."
+    Assert-ContainsText -Text ([string]$summary.release_blockers[0].source_report_display) -ExpectedText "aggregate-report\summary.json" `
+        -Message "Calibration blockers should expose the report display path."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
         -Message "Unscored candidates should produce the only warning for rollup."
     Assert-Equal -Actual ([string]$summary.warnings[0].id) -Expected "schema_patch_confidence_calibration.unscored_candidates" `
@@ -391,6 +395,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Unscored warnings should preserve template name."
     Assert-Equal -Actual ([string]$summary.warnings[0].candidate_type) -Expected "remove" `
         -Message "Unscored warnings should preserve candidate type."
+    Assert-ContainsText -Text ([string]$summary.warnings[0].source_report_display) -ExpectedText "aggregate-report\summary.json" `
+        -Message "Calibration warnings should expose the report display path."
     Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 4 `
         -Message "Recommendations should be mirrored as action items."
     Assert-True -Condition (@($summary.action_items | Where-Object { $_.id -eq "fix_invalid_approval_records" }).Count -eq 1) `
@@ -402,6 +408,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Pending action item should preserve template name."
     Assert-Equal -Actual ([string]$pendingAction.candidate_type) -Expected "remove" `
         -Message "Pending action item should preserve candidate type."
+    Assert-ContainsText -Text ([string]$pendingAction.source_report_display) -ExpectedText "aggregate-report\summary.json" `
+        -Message "Calibration action items should expose the report display path."
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Calibration action items should expose the reviewer open command."
@@ -425,6 +433,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include invalid approval action."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
         -Message "Markdown should include source JSON display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Markdown should include source report display fields."
     Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
         -Message "Markdown should include action item open commands."
 }
