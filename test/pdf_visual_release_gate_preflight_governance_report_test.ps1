@@ -779,6 +779,38 @@ Assert-ContainsText -Text $outputGapPreview `
     -ExpectedText "test\pdf_text_layer_cjk\copy_search\mixed_cjk_text.pdf" `
     -Message "Output gap summary should preserve representative CJK text-layer missing paths."
 
+Assert-Equal -Actual ([int]$blockedSummary.readiness_action_evidence_count) -Expected 5 `
+    -Message "Governance report should expose per-item readiness action evidence."
+$readinessActionEvidence = @($blockedSummary.readiness_action_evidence)
+Assert-Equal -Actual $readinessActionEvidence.Count -Expected 5 `
+    -Message "Governance report should preserve every readiness action evidence item."
+$readinessActionEvidenceText = ($readinessActionEvidence | ForEach-Object {
+        "$($_.id)|$($_.action)|$($_.issue_key)|$($_.item)|$($_.source_json_display)"
+    }) -join "`n"
+Assert-ContainsText -Text $readinessActionEvidenceText `
+    -ExpectedText "provide_pdf_dependency_input|pdf_dependency_inputs_ready|PDFio source header" `
+    -Message "Readiness action evidence should identify PDFio dependency input work."
+Assert-ContainsText -Text $readinessActionEvidenceText `
+    -ExpectedText "PDFium input: provide prebuilt library/include inputs" `
+    -Message "Readiness action evidence should preserve PDFium dependency input guidance."
+Assert-ContainsText -Text $readinessActionEvidenceText `
+    -ExpectedText "enable_pdf_build_option|pdf_build_options_enabled|FEATHERDOC_BUILD_PDF_IMPORT" `
+    -Message "Readiness action evidence should identify disabled PDF import build option work."
+$firstReadinessEvidence = $readinessActionEvidence[0]
+Assert-Equal -Actual ([string]$firstReadinessEvidence.source_report) -Expected $blockedSummaryPath `
+    -Message "Readiness action evidence should point at the governance summary."
+Assert-ContainsText -Text ([string]$firstReadinessEvidence.source_report_display) `
+    -ExpectedText "blocked-report\summary.json" `
+    -Message "Readiness action evidence should expose the governance summary display path."
+Assert-Equal -Actual ([string]$firstReadinessEvidence.source_json) -Expected $notReadyPreflightPath `
+    -Message "Readiness action evidence should point at the source preflight JSON."
+Assert-ContainsText -Text ([string]$firstReadinessEvidence.source_json_display) `
+    -ExpectedText "not-ready-preflight.json" `
+    -Message "Readiness action evidence should expose the source preflight JSON display path."
+Assert-ContainsText -Text ([string]$firstReadinessEvidence.command_template) `
+    -ExpectedText "-PreflightOnly" `
+    -Message "Readiness action evidence should preserve the preflight-only command template."
+
 $blocker = $blockedSummary.release_blockers[0]
 Assert-Equal -Actual ([string]$blocker.id) `
     -Expected "pdf_visual_release_gate_preflight.build_outputs_missing" `
@@ -841,6 +873,14 @@ Assert-Equal -Actual ([string]$blocker.pdf_dependency_inputs.status) -Expected "
 Assert-ContainsText -Text (($blocker.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n") `
     -ExpectedText "cjk_text_layer_manifest_pdfs_exist" `
     -Message "Blocker should preserve output gap summary details."
+Assert-Equal -Actual ([int]$blocker.readiness_action_evidence_count) -Expected 5 `
+    -Message "Blocker should expose per-item readiness action evidence."
+Assert-ContainsText -Text (($blocker.readiness_action_evidence | ForEach-Object { "$($_.action)|$($_.item)" }) -join "`n") `
+    -ExpectedText "provide_pdf_dependency_input|PDFio source header" `
+    -Message "Blocker should preserve dependency readiness action evidence."
+Assert-ContainsText -Text (($blocker.readiness_action_evidence | ForEach-Object { "$($_.action)|$($_.item)" }) -join "`n") `
+    -ExpectedText "enable_pdf_build_option|FEATHERDOC_BUILD_PDF_IMPORT" `
+    -Message "Blocker should preserve PDF build option readiness action evidence."
 
 $actionItem = $blockedSummary.action_items[0]
 Assert-ContainsText -Text (($actionItem.issue_keys | ForEach-Object { [string]$_ }) -join "`n") `
@@ -859,6 +899,11 @@ Assert-Equal -Actual (@($actionItem.build_dir_auto_candidates).Count) -Expected 
     -Message "Action item should carry auto build candidate records."
 Assert-Equal -Actual ([string]$actionItem.pdf_dependency_inputs.status) -Expected "not_ready" `
     -Message "Action item should carry the PDF dependency input summary."
+Assert-Equal -Actual ([int]$actionItem.readiness_action_evidence_count) -Expected 5 `
+    -Message "Action item should expose per-item readiness action evidence."
+Assert-ContainsText -Text (($actionItem.readiness_action_evidence | ForEach-Object { "$($_.action)|$($_.item)" }) -join "`n") `
+    -ExpectedText "enable_pdf_build_option|FEATHERDOC_BUILD_PDF" `
+    -Message "Action item should preserve PDF build option readiness action evidence."
 
 $overrideOutputDir = Join-Path $resolvedWorkingDir "override-report"
 $overridePdfioDir = Join-Path $resolvedWorkingDir "dependency overrides\pdfio"
@@ -995,6 +1040,21 @@ Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "workstation_free_memory_available" `
     -Message "Markdown should list the memory guard blocking check."
 Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Readiness Action Evidence" `
+    -Message "Markdown should include a readiness action evidence section."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "provide_pdf_dependency_input" `
+    -Message "Markdown should expose dependency readiness actions."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "enable_pdf_build_option" `
+    -Message "Markdown should expose PDF build option readiness actions."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "PDFio source header" `
+    -Message "Markdown should include dependency readiness evidence items."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT" `
+    -Message "Markdown should include PDF build option readiness evidence items."
+Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "issue_keys" `
     -Message "Markdown should include action item issue keys."
 Assert-ContainsText -Text $blockedMarkdown `
@@ -1019,7 +1079,7 @@ Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "source_json: ``$notReadyPreflightPath``" `
     -Message "Markdown should include raw output-gap source JSON paths."
 Assert-ContainsText -Text $blockedMarkdown `
-    -ExpectedText "source_json_display: ``.\build\test-pdf-visual-release-gate-preflight-governance\fixtures\not-ready-preflight.json``" `
+    -ExpectedText "source_json_display: ``$([string]$firstOutputGap.source_json_display)``" `
     -Message "Markdown should include output-gap source JSON display paths."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "test\pdf_cli_export\font-map-source.pdf" `

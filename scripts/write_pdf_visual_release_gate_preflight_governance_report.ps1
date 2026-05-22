@@ -437,6 +437,72 @@ function Get-PreflightMissingOutputCount {
     return $count
 }
 
+function Get-PreflightReadinessActionEvidence {
+    param(
+        $PdfDependencyInputs,
+        $PreflightBlockingSummary,
+        [string]$SourceReport,
+        [string]$SourceReportDisplay,
+        [string]$SourceJson,
+        [string]$SourceJsonDisplay,
+        [string]$CommandTemplate
+    )
+
+    $evidence = New-Object 'System.Collections.Generic.List[object]'
+    $dependencyMissingInputs = @(
+        Get-JsonArray -Object $PdfDependencyInputs -Name "missing_inputs" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($dependencyMissingInputs.Count -eq 0) {
+        $dependencyMissingInputs = @(
+            Get-JsonArray -Object $PreflightBlockingSummary -Name "pdf_dependency_missing_inputs_preview" |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+    }
+
+    $index = 1
+    foreach ($input in $dependencyMissingInputs) {
+        $evidence.Add([ordered]@{
+            id = "pdf_dependency_inputs.missing_input.$index"
+            action = "provide_pdf_dependency_input"
+            issue_key = "pdf_dependency_inputs_ready"
+            item = $input
+            source_report = $SourceReport
+            source_report_display = $SourceReportDisplay
+            source_json = $SourceJson
+            source_json_display = $SourceJsonDisplay
+            repair_strategy = "provide_pdfio_pdfium_dependency_inputs"
+            command_template = $CommandTemplate
+        }) | Out-Null
+        $index += 1
+    }
+
+    $disabledPdfBuildOptions = @(
+        Get-JsonArray -Object $PreflightBlockingSummary -Name "disabled_pdf_build_options" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+
+    foreach ($option in $disabledPdfBuildOptions) {
+        $evidence.Add([ordered]@{
+            id = "pdf_build_options.disabled.$option"
+            action = "enable_pdf_build_option"
+            issue_key = "pdf_build_options_enabled"
+            item = $option
+            source_report = $SourceReport
+            source_report_display = $SourceReportDisplay
+            source_json = $SourceJson
+            source_json_display = $SourceJsonDisplay
+            repair_strategy = "enable_pdf_visual_gate_build_options"
+            command_template = $CommandTemplate
+        }) | Out-Null
+    }
+
+    return @($evidence.ToArray())
+}
+
 function Get-PreflightBlockingSummary {
     param($PreflightSummary, $Checks, $BlockingChecks, $BuildDirSnapshot)
 
@@ -729,6 +795,35 @@ function New-ReportMarkdown {
     }
     $lines.Add("") | Out-Null
 
+    $lines.Add("## Readiness Action Evidence") | Out-Null
+    $lines.Add("") | Out-Null
+    $readinessActionEvidence = @(Get-JsonArray -Object $Summary -Name "readiness_action_evidence")
+    if ($readinessActionEvidence.Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($evidence in $readinessActionEvidence) {
+            $lines.Add("- ``$(Get-JsonString -Object $evidence -Name "id")``: action=``$(Get-JsonString -Object $evidence -Name "action")`` issue_key=``$(Get-JsonString -Object $evidence -Name "issue_key")``") | Out-Null
+            $lines.Add("  - item: ``$(Get-JsonString -Object $evidence -Name "item")``") | Out-Null
+            $evidenceSourceReport = Get-JsonString -Object $evidence -Name "source_report"
+            if (-not [string]::IsNullOrWhiteSpace($evidenceSourceReport)) {
+                $lines.Add("  - source_report: ``$evidenceSourceReport``") | Out-Null
+            }
+            $evidenceSourceJson = Get-JsonString -Object $evidence -Name "source_json"
+            if (-not [string]::IsNullOrWhiteSpace($evidenceSourceJson)) {
+                $lines.Add("  - source_json: ``$evidenceSourceJson``") | Out-Null
+            }
+            $evidenceSourceReportDisplay = Get-JsonString -Object $evidence -Name "source_report_display"
+            if (-not [string]::IsNullOrWhiteSpace($evidenceSourceReportDisplay)) {
+                $lines.Add("  - source_report_display: ``$evidenceSourceReportDisplay``") | Out-Null
+            }
+            $evidenceSourceJsonDisplay = Get-JsonString -Object $evidence -Name "source_json_display"
+            if (-not [string]::IsNullOrWhiteSpace($evidenceSourceJsonDisplay)) {
+                $lines.Add("  - source_json_display: ``$evidenceSourceJsonDisplay``") | Out-Null
+            }
+        }
+    }
+    $lines.Add("") | Out-Null
+
     $lines.Add("## Release Blockers") | Out-Null
     $lines.Add("") | Out-Null
     if (@($Summary.release_blockers).Count -eq 0) {
@@ -996,6 +1091,14 @@ if ($syntheticEvidenceIsBlocking) {
     Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "synthetic_evidence_marker_count" -Value $syntheticEvidenceMarkerCount
     Set-JsonPropertyValue -Object $preflightBlockingSummary -Name "synthetic_evidence_markers_preview" -Value @($syntheticEvidenceMarkers | Select-Object -First 5)
 }
+$readinessActionEvidence = @(Get-PreflightReadinessActionEvidence `
+        -PdfDependencyInputs $pdfDependencyInputs `
+        -PreflightBlockingSummary $preflightBlockingSummary `
+        -SourceReport $summaryPath `
+        -SourceReportDisplay $summaryDisplay `
+        -SourceJson $preflightSummaryPath `
+        -SourceJsonDisplay $preflightDisplay `
+        -CommandTemplate $commandTemplate)
 $memoryGuardBlocked = Get-JsonBool -Object $preflightBlockingSummary -Name "memory_guard_blocked"
 $memoryGuardSkipped = Get-JsonBool -Object $preflightBlockingSummary -Name "memory_guard_skipped"
 $freeMemoryMb = Get-JsonValueText -Object $preflightBlockingSummary -Name "free_memory_mb"
@@ -1155,6 +1258,8 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         output_gap_count = $outputGapSummary.Count
         missing_output_count = $missingOutputCount
         output_gap_summary = @($outputGapSummary)
+        readiness_action_evidence_count = $readinessActionEvidence.Count
+        readiness_action_evidence = @($readinessActionEvidence)
     }) | Out-Null
     $actionItems.Add([ordered]@{
         id = "prepare_pdf_visual_release_gate_build_outputs"
@@ -1181,6 +1286,8 @@ if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
         output_gap_count = $outputGapSummary.Count
         missing_output_count = $missingOutputCount
         output_gap_summary = @($outputGapSummary)
+        readiness_action_evidence_count = $readinessActionEvidence.Count
+        readiness_action_evidence = @($readinessActionEvidence)
     }) | Out-Null
 }
 
@@ -1246,6 +1353,8 @@ $summary = [ordered]@{
     output_gap_count = $outputGapSummary.Count
     missing_output_count = $missingOutputCount
     output_gap_summary = @($outputGapSummary)
+    readiness_action_evidence_count = $readinessActionEvidence.Count
+    readiness_action_evidence = @($readinessActionEvidence)
     source_failure_count = $sourceFailureCount
     release_blocker_count = $releaseBlockers.Count
     release_blockers = @($releaseBlockers.ToArray())
