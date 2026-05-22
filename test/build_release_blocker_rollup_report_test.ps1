@@ -367,6 +367,12 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
     preflight_ready = $false
     full_visual_gate_required = $true
     full_visual_gate_status = "not_run_by_preflight_governance"
+    controlled_visual_smoke_available = $true
+    controlled_visual_smoke_status = "pass"
+    controlled_visual_smoke_passed = $true
+    controlled_visual_smoke_case_count = 2
+    controlled_visual_smoke_json = "output/pdf-controlled-visual-smoke/controlled-visual-smoke-check-latest.json"
+    controlled_visual_smoke_json_display = ".\output\pdf-controlled-visual-smoke\controlled-visual-smoke-check-latest.json"
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -761,6 +767,17 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve that PDF preflight still requires the full visual gate."
     Assert-Equal -Actual ([string]$pdfPreflightSourceReport.full_visual_gate_status) -Expected "not_run_by_preflight_governance" `
         -Message "Rollup should preserve the full visual gate status from PDF preflight governance."
+    Assert-Equal -Actual ([bool]$pdfPreflightSourceReport.controlled_visual_smoke_available) -Expected $true `
+        -Message "Rollup should preserve controlled visual smoke availability."
+    Assert-Equal -Actual ([string]$pdfPreflightSourceReport.controlled_visual_smoke_status) -Expected "pass" `
+        -Message "Rollup should preserve controlled visual smoke status."
+    Assert-Equal -Actual ([bool]$pdfPreflightSourceReport.controlled_visual_smoke_passed) -Expected $true `
+        -Message "Rollup should preserve controlled visual smoke pass result."
+    Assert-Equal -Actual ([int]$pdfPreflightSourceReport.controlled_visual_smoke_case_count) -Expected 2 `
+        -Message "Rollup should preserve controlled visual smoke case count."
+    Assert-ContainsText -Text ([string]$pdfPreflightSourceReport.controlled_visual_smoke_json_display) `
+        -ExpectedText "controlled-visual-smoke-check-latest.json" `
+        -Message "Rollup should preserve controlled visual smoke JSON display."
     $skeletonWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "document_skeleton.exemplar_catalog_missing" } |
         Select-Object -First 1)
@@ -829,6 +846,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF full visual gate status from source report contracts."
     Assert-ContainsText -Text $markdown -ExpectedText "not_run_by_preflight_governance" `
         -Message "Markdown should make clear that PDF preflight did not run the full visual gate."
+    Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_status" `
+        -Message "Markdown should include controlled PDF visual smoke status."
+    Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_json_display" `
+        -Message "Markdown should include controlled PDF visual smoke JSON display."
+    Assert-ContainsText -Text $markdown -ExpectedText "controlled-visual-smoke-check-latest.json" `
+        -Message "Markdown should point reviewers at the controlled visual smoke JSON."
     Assert-ContainsText -Text $markdown -ExpectedText "Governance Metric Review Focus" `
         -Message "Markdown should include governance metric review focus."
     Assert-ContainsText -Text $markdown -ExpectedText "Numbering real-corpus confidence" `

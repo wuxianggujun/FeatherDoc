@@ -458,6 +458,26 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace($fullVisualGateStatus)) {
                 $lines.Add("  - full_visual_gate_status: ``$fullVisualGateStatus``") | Out-Null
             }
+            $controlledVisualSmokeAvailable = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_available"
+            if ($null -ne $controlledVisualSmokeAvailable) {
+                $lines.Add("  - controlled_visual_smoke_available: ``$controlledVisualSmokeAvailable``") | Out-Null
+            }
+            $controlledVisualSmokeStatus = Get-JsonString -Object $report -Name "controlled_visual_smoke_status"
+            if (-not [string]::IsNullOrWhiteSpace($controlledVisualSmokeStatus)) {
+                $lines.Add("  - controlled_visual_smoke_status: ``$controlledVisualSmokeStatus``") | Out-Null
+            }
+            $controlledVisualSmokePassed = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_passed"
+            if ($null -ne $controlledVisualSmokePassed) {
+                $lines.Add("  - controlled_visual_smoke_passed: ``$controlledVisualSmokePassed``") | Out-Null
+            }
+            $controlledVisualSmokeCaseCount = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_case_count"
+            if ($null -ne $controlledVisualSmokeCaseCount) {
+                $lines.Add("  - controlled_visual_smoke_case_count: ``$controlledVisualSmokeCaseCount``") | Out-Null
+            }
+            $controlledVisualSmokeJsonDisplay = Get-JsonString -Object $report -Name "controlled_visual_smoke_json_display"
+            if (-not [string]::IsNullOrWhiteSpace($controlledVisualSmokeJsonDisplay)) {
+                $lines.Add("  - controlled_visual_smoke_json_display: ``$controlledVisualSmokeJsonDisplay``") | Out-Null
+            }
             if (-not [string]::IsNullOrWhiteSpace([string]$report.latest_schema_approval_gate_status)) {
                 $lines.Add("  - latest_schema_approval_gate_status: ``$($report.latest_schema_approval_gate_status)``") | Out-Null
             }
@@ -821,7 +841,13 @@ foreach ($path in @($inputPaths)) {
         -Names @(
             "preflight_ready",
             "full_visual_gate_required",
-            "full_visual_gate_status"
+            "full_visual_gate_status",
+            "controlled_visual_smoke_available",
+            "controlled_visual_smoke_status",
+            "controlled_visual_smoke_passed",
+            "controlled_visual_smoke_case_count",
+            "controlled_visual_smoke_json",
+            "controlled_visual_smoke_json_display"
         )
     $sourceReports.Add($sourceReport) | Out-Null
 }
