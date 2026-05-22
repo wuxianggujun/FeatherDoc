@@ -759,11 +759,29 @@ Add-CheckResult `
 
 $visualSamples = @()
 $cjkSamples = @()
+$manifestReadable = $false
+$manifestReadError = ""
 if ($manifestExists) {
-    $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath | ConvertFrom-Json
-    $visualSamples = @($manifest.samples | Where-Object { Test-JsonBooleanProperty -Object $_ -Name "expect_visual_baseline" })
-    $cjkSamples = @($manifest.samples | Where-Object { Test-JsonBooleanProperty -Object $_ -Name "expect_cjk" })
+    try {
+        $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath | ConvertFrom-Json
+        $manifestReadable = $true
+        $visualSamples = @($manifest.samples | Where-Object { Test-JsonBooleanProperty -Object $_ -Name "expect_visual_baseline" })
+        $cjkSamples = @($manifest.samples | Where-Object { Test-JsonBooleanProperty -Object $_ -Name "expect_cjk" })
+    } catch {
+        $manifestReadError = $_.Exception.Message
+    }
 }
+Add-CheckResult `
+    -Checks $checks `
+    -Name "pdf_regression_manifest_readable" `
+    -Status $(if ($manifestReadable) { "pass" } else { "missing" }) `
+    -Required $true `
+    -Message $(if ($manifestReadable) { "PDF regression manifest is readable." } else { "PDF regression manifest could not be read as JSON." }) `
+    -Path $manifestPath `
+    -Details ([ordered]@{
+        manifest_exists = [bool]$manifestExists
+        error_message = $manifestReadError
+    })
 
 $cliExpectedPdfs = @(
     "test\pdf_cli_export\font-map-source.pdf",
@@ -799,9 +817,9 @@ foreach ($sample in $visualSamples) {
 Add-CheckResult `
     -Checks $checks `
     -Name "visual_baseline_manifest_pdfs_exist" `
-    -Status $(if ($manifestExists -and $buildDirExists -and $missingVisualPdfs.Count -eq 0) { "pass" } else { "missing" }) `
+    -Status $(if ($manifestReadable -and $buildDirExists -and $missingVisualPdfs.Count -eq 0) { "pass" } else { "missing" }) `
     -Required $true `
-    -Message $(if ($manifestExists -and $buildDirExists -and $missingVisualPdfs.Count -eq 0) { "All manifest visual baseline PDFs exist." } else { "Manifest visual baseline PDFs are not ready." }) `
+    -Message $(if ($manifestReadable -and $buildDirExists -and $missingVisualPdfs.Count -eq 0) { "All manifest visual baseline PDFs exist." } else { "Manifest visual baseline PDFs are not ready." }) `
     -Details ([ordered]@{
         sample_count = $visualSamples.Count
         missing_count = $missingVisualPdfs.Count
@@ -822,9 +840,9 @@ foreach ($sample in $cjkSamples) {
 Add-CheckResult `
     -Checks $checks `
     -Name "cjk_text_layer_manifest_pdfs_exist" `
-    -Status $(if ($manifestExists -and $buildDirExists -and $missingCjkPdfs.Count -eq 0) { "pass" } else { "missing" }) `
+    -Status $(if ($manifestReadable -and $buildDirExists -and $missingCjkPdfs.Count -eq 0) { "pass" } else { "missing" }) `
     -Required $true `
-    -Message $(if ($manifestExists -and $buildDirExists -and $missingCjkPdfs.Count -eq 0) { "All manifest CJK text-layer PDFs exist." } else { "Manifest CJK text-layer PDFs are not ready." }) `
+    -Message $(if ($manifestReadable -and $buildDirExists -and $missingCjkPdfs.Count -eq 0) { "All manifest CJK text-layer PDFs exist." } else { "Manifest CJK text-layer PDFs are not ready." }) `
     -Details ([ordered]@{
         sample_count = $cjkSamples.Count
         missing_count = $missingCjkPdfs.Count

@@ -49,6 +49,8 @@ $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
 $summaryPath = Join-Path $resolvedWorkingDir "preflight-summary.json"
 $plainBuildRepoRoot = Join-Path $resolvedWorkingDir "plain-build-repo"
 $plainBuildSummaryPath = Join-Path $resolvedWorkingDir "plain-build-summary.json"
+$malformedManifestRepoRoot = Join-Path $resolvedWorkingDir "malformed-manifest-repo"
+$malformedManifestSummaryPath = Join-Path $resolvedWorkingDir "malformed-manifest-summary.json"
 $disabledBuildDir = Join-Path $resolvedWorkingDir "disabled-pdf-build"
 $disabledBuildSummaryPath = Join-Path $resolvedWorkingDir "disabled-pdf-build-summary.json"
 $disabledOverrideSummaryPath = Join-Path $resolvedWorkingDir "disabled-pdf-build-override-summary.json"
@@ -69,6 +71,18 @@ Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $plainBuildRepoRoot
     -MinFreeMemoryMB 1 | Out-Host
 if ($LASTEXITCODE -ne 0) {
     throw "PDF visual release gate preflight should report not_ready for a plain build directory without failing."
+}
+
+New-Item -ItemType Directory -Path (Join-Path $malformedManifestRepoRoot "scripts") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $malformedManifestRepoRoot "test") -Force | Out-Null
+Copy-Item -LiteralPath $scriptPath -Destination (Join-Path $malformedManifestRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1")
+"{ invalid json" | Set-Content -LiteralPath (Join-Path $malformedManifestRepoRoot "test\pdf_regression_manifest.json") -Encoding UTF8
+& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    -File (Join-Path $malformedManifestRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1") `
+    -OutputJson $malformedManifestSummaryPath `
+    -MinFreeMemoryMB 1 | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    throw "PDF visual release gate preflight should report malformed manifest evidence without failing when -Strict is not set."
 }
 
 New-Item -ItemType Directory -Path $disabledBuildDir -Force | Out-Null
@@ -285,6 +299,19 @@ Assert-True -Condition ([int]$plainBuildSummary.output_gap_count -eq 3) `
 Assert-True -Condition ([int]$plainBuildSummary.missing_output_count -gt 0) `
     -Message "Plain build directory preflight should report missing output totals."
 
+$malformedManifestSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $malformedManifestSummaryPath | ConvertFrom-Json
+Assert-True -Condition ($malformedManifestSummary.status -eq "not_ready") `
+    -Message "Malformed manifest preflight should stay not_ready."
+Assert-True -Condition (($malformedManifestSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_regression_manifest_readable") `
+    -Message "Malformed manifest preflight should expose pdf_regression_manifest_readable as a blocker."
+$malformedManifestCheck = @($malformedManifestSummary.checks | Where-Object { [string]$_.name -eq "pdf_regression_manifest_readable" })[0]
+Assert-True -Condition ([string]$malformedManifestCheck.status -eq "missing") `
+    -Message "Malformed manifest readable check should be missing."
+Assert-True -Condition ([bool]$malformedManifestCheck.details.manifest_exists -eq $true) `
+    -Message "Malformed manifest readable check should preserve that the manifest file exists."
+Assert-True -Condition (-not [string]::IsNullOrWhiteSpace([string]$malformedManifestCheck.details.error_message)) `
+    -Message "Malformed manifest readable check should include a parse error message."
+
 $disabledBuildSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $disabledBuildSummaryPath | ConvertFrom-Json
 Assert-True -Condition ($disabledBuildSummary.status -eq "not_ready") `
     -Message "Disabled PDF build preflight should stay not_ready."
@@ -435,6 +462,7 @@ foreach ($name in @(
     "workstation_free_memory_available",
     "pdf_visual_gate_scripts_exist",
     "pdf_regression_manifest_exists",
+    "pdf_regression_manifest_readable",
     "pdf_cli_export_baseline_pdfs_exist",
     "visual_baseline_manifest_pdfs_exist",
     "cjk_text_layer_manifest_pdfs_exist",
