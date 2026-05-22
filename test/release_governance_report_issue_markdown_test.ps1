@@ -39,6 +39,8 @@ Add-ReleaseGovernanceRollupMarkdownSection `
                     release_ready = $false
                     path = "output/table-layout-delivery-governance/summary.json"
                     path_display = ".\output\table-layout-delivery-governance\summary.json"
+                    source_json = "output/table-layout-delivery-governance/evidence.json"
+                    source_json_display = ".\output\table-layout-delivery-governance\evidence.json"
                     source_failure_count = 0
                     error = "Unexpected token while reading table layout governance summary."
                 }
@@ -57,6 +59,10 @@ Assert-ContainsText -Text $rollupMarkdown -ExpectedText "source_report: output/t
     -Message "Rollup Markdown should render failed source report paths."
 Assert-ContainsText -Text $rollupMarkdown -ExpectedText "source_report_display: .\output\table-layout-delivery-governance\summary.json" `
     -Message "Rollup Markdown should render failed source report display paths."
+Assert-ContainsText -Text $rollupMarkdown -ExpectedText "source_json: output/table-layout-delivery-governance/evidence.json" `
+    -Message "Rollup Markdown should render failed source JSON paths."
+Assert-ContainsText -Text $rollupMarkdown -ExpectedText "source_json_display: .\output\table-layout-delivery-governance\evidence.json" `
+    -Message "Rollup Markdown should render failed source JSON display paths."
 Assert-ContainsText -Text $rollupMarkdown -ExpectedText "error: Unexpected token while reading table layout governance summary." `
     -Message "Rollup Markdown should render failed source report errors."
 
@@ -78,6 +84,8 @@ Add-ReleaseGovernanceHandoffMarkdownSection `
                     release_ready = $false
                     expected_summary = "output/table-layout-delivery-governance/summary.json"
                     expected_summary_display = ".\output\table-layout-delivery-governance\summary.json"
+                    source_json = "output/table-layout-delivery-governance/evidence.json"
+                    source_json_display = ".\output\table-layout-delivery-governance\evidence.json"
                     source_failure_count = 1
                     schema = "featherdoc.table_layout_delivery_governance_report.v1"
                     error = "Failed to parse table layout governance summary."
@@ -108,6 +116,10 @@ Assert-ContainsText -Text $handoffMarkdown -ExpectedText "table_layout_delivery_
     -Message "Handoff Markdown should render failed report status."
 Assert-ContainsText -Text $handoffMarkdown -ExpectedText "source_report: output/table-layout-delivery-governance/summary.json" `
     -Message "Handoff Markdown should render failed report source paths."
+Assert-ContainsText -Text $handoffMarkdown -ExpectedText "source_json: output/table-layout-delivery-governance/evidence.json" `
+    -Message "Handoff Markdown should render failed source JSON paths."
+Assert-ContainsText -Text $handoffMarkdown -ExpectedText "source_json_display: .\output\table-layout-delivery-governance\evidence.json" `
+    -Message "Handoff Markdown should render failed source JSON display paths."
 Assert-ContainsText -Text $handoffMarkdown -ExpectedText "error: Failed to parse table layout governance summary." `
     -Message "Handoff Markdown should render failed report errors."
 Assert-ContainsText -Text $handoffMarkdown -ExpectedText "numbering_catalog_governance: status=missing" `

@@ -948,6 +948,19 @@ function Add-ReleaseGovernanceReportIssueLines {
         }
         [void]$Lines.Add("  - source_report_display: $(Get-ReleaseBlockerDisplayValue -Value $sourceReportDisplay)")
 
+        $sourceJson = Get-ReleaseBlockerPropertyValue -Object $report -Name "source_json"
+        if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+            [void]$Lines.Add("  - source_json: $sourceJson")
+        }
+
+        $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $report -Name "source_json_display"
+        if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay) -and -not [string]::IsNullOrWhiteSpace($sourceJson)) {
+            $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $sourceJson
+        }
+        if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+            [void]$Lines.Add("  - source_json_display: $(Get-ReleaseBlockerDisplayValue -Value $sourceJsonDisplay)")
+        }
+
         $errorText = Get-ReleaseBlockerPropertyValue -Object $report -Name "error"
         if (-not [string]::IsNullOrWhiteSpace($errorText)) {
             [void]$Lines.Add("  - error: $errorText")
