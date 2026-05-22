@@ -80,6 +80,7 @@ if ($errors.Count -gt 0) {
 $notReadyPreflightPath = Join-Path $resolvedWorkingDir "fixtures\not-ready-preflight.json"
 $readyPreflightPath = Join-Path $resolvedWorkingDir "fixtures\ready-preflight.json"
 $syntheticReadyPreflightPath = Join-Path $resolvedWorkingDir "fixtures\synthetic-ready-preflight.json"
+$controlledVisualSmokePath = Join-Path $resolvedWorkingDir "fixtures\controlled-visual-smoke.json"
 
 Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
     generated_at = "2026-05-20T00:00:00"
@@ -478,6 +479,52 @@ Write-JsonFile -Path $syntheticReadyPreflightPath -Value ([ordered]@{
     }
 })
 
+Write-JsonFile -Path $controlledVisualSmokePath -Value ([ordered]@{
+    schema = "featherdoc.pdf_controlled_visual_smoke_check.v1"
+    status = "pass"
+    passed = $true
+    root = Join-Path $resolvedWorkingDir "controlled-smoke"
+    case_count = 2
+    cases = @(
+        [ordered]@{
+            case = "minimal"
+            passed = $true
+            png_metrics = @(
+                [ordered]@{
+                    path = Join-Path $resolvedWorkingDir "controlled-smoke\minimal\pages\page-01.png"
+                    width = 816
+                    height = 1056
+                    nonwhite_ratio = 0.00534063
+                },
+                [ordered]@{
+                    path = Join-Path $resolvedWorkingDir "controlled-smoke\minimal\contact-sheet.png"
+                    width = 408
+                    height = 549
+                    nonwhite_ratio = 0.20376621
+                }
+            )
+        },
+        [ordered]@{
+            case = "rerun"
+            passed = $true
+            png_metrics = @(
+                [ordered]@{
+                    path = Join-Path $resolvedWorkingDir "controlled-smoke\rerun\pages\page-01.png"
+                    width = 816
+                    height = 1056
+                    nonwhite_ratio = 0.00534063
+                },
+                [ordered]@{
+                    path = Join-Path $resolvedWorkingDir "controlled-smoke\rerun\contact-sheet.png"
+                    width = 408
+                    height = 549
+                    nonwhite_ratio = 0.20376621
+                }
+            )
+        }
+    )
+})
+
 $missingPreflightPath = Join-Path $resolvedWorkingDir "fixtures\missing-preflight.json"
 $missingPreflightOutputDir = Join-Path $resolvedWorkingDir "missing-preflight-report"
 $missingPreflightResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
@@ -562,6 +609,7 @@ Assert-ContainsText -Text (($missingHelperSummary.release_blockers[0].issue_keys
 $blockedOutputDir = Join-Path $resolvedWorkingDir "blocked-report"
 $blockedResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
     "-PreflightJson", $notReadyPreflightPath,
+    "-ControlledVisualSmokeJson", $controlledVisualSmokePath,
     "-OutputDir", $blockedOutputDir,
     "-BuildDir", ".bpdf-roundtrip-msvc"
 )
@@ -677,6 +725,27 @@ Assert-Equal -Actual ([int]$blockedSummary.output_gap_count) -Expected 3 `
     -Message "Governance report should summarize checks with missing output paths."
 Assert-Equal -Actual ([int]$blockedSummary.missing_output_count) -Expected 87 `
     -Message "Governance report should total missing PDF output counts."
+Assert-Equal -Actual ([bool]$blockedSummary.controlled_visual_smoke_available) -Expected $true `
+    -Message "Governance report should expose controlled visual smoke availability."
+Assert-Equal -Actual ([string]$blockedSummary.controlled_visual_smoke_status) -Expected "pass" `
+    -Message "Governance report should expose controlled visual smoke status."
+Assert-Equal -Actual ([bool]$blockedSummary.controlled_visual_smoke_passed) -Expected $true `
+    -Message "Governance report should expose controlled visual smoke pass state."
+Assert-Equal -Actual ([int]$blockedSummary.controlled_visual_smoke_case_count) -Expected 2 `
+    -Message "Governance report should expose controlled visual smoke case count."
+Assert-ContainsText -Text ([string]$blockedSummary.controlled_visual_smoke_json_display) `
+    -ExpectedText "controlled-visual-smoke.json" `
+    -Message "Governance report should point reviewers at the controlled visual smoke JSON."
+Assert-Equal -Actual ([int]$blockedSummary.controlled_visual_smoke.passed_case_count) -Expected 2 `
+    -Message "Governance report should summarize controlled visual smoke passed cases."
+Assert-Equal -Actual ([int]$blockedSummary.controlled_visual_smoke.failed_case_count) -Expected 0 `
+    -Message "Governance report should summarize controlled visual smoke failed cases."
+Assert-ContainsText -Text (($blockedSummary.controlled_visual_smoke.cases | ForEach-Object { [string]$_.contact_sheet_display }) -join "`n") `
+    -ExpectedText "contact-sheet.png" `
+    -Message "Governance report should expose controlled visual smoke contact sheet paths."
+Assert-ContainsText -Text ([string]$blockedSummary.controlled_visual_smoke.min_nonwhite_ratio) `
+    -ExpectedText "0.00534063" `
+    -Message "Governance report should expose the minimum controlled smoke nonwhite ratio."
 
 $outputGapChecks = ($blockedSummary.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n"
 Assert-ContainsText -Text $outputGapChecks `
@@ -848,6 +917,21 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "not_run_by_preflight_governance" `
     -Message "Markdown should not imply preflight governance ran the full visual gate."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Controlled visual smoke status: ``pass``" `
+    -Message "Markdown should expose controlled visual smoke status."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Controlled Visual Smoke" `
+    -Message "Markdown should include a controlled visual smoke section."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "controlled-visual-smoke.json" `
+    -Message "Markdown should point reviewers at the controlled visual smoke JSON."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "contact-sheet.png" `
+    -Message "Markdown should point reviewers at controlled visual smoke contact sheets."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "min nonwhite ratio" `
+    -Message "Markdown should expose controlled visual smoke nonblank pixel evidence."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Build dir source: ``requested``" `
     -Message "Markdown should preserve the selected build-dir source value."
@@ -1051,6 +1135,8 @@ foreach ($expectedText in @(
     "[string]`$PdfioSourceDir = `"`"",
     "[string]`$PdfiumProvider = `"`"",
     "[string]`$PdfiumPrebuiltRoot = `"`"",
+    "[string]`$ControlledVisualSmokeJson = `"`"",
+    "controlled_visual_smoke",
     "Add-OptionalPreflightOverride",
     "PdfioSourceDir",
     "PdfiumPrebuiltRoot",

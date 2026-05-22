@@ -20,6 +20,7 @@ param(
     [string]$PdfiumIncludeDir = "",
     [string]$PdfiumRuntimeDll = "",
     [string]$PdfiumRuntimeDir = "",
+    [string]$ControlledVisualSmokeJson = "",
     [string]$OutputDir = "output/pdf-visual-release-gate-preflight-governance",
     [string]$SummaryJson = "",
     [string]$ReportMarkdown = "",
@@ -462,6 +463,132 @@ function Get-PreflightBlockingSummary {
     }
 }
 
+function Get-PathDisplayIfAvailable {
+    param([string]$RepoRoot, [string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) { return "" }
+    return Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
+}
+
+function Get-ControlledVisualSmokeEvidence {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return [ordered]@{
+            available = $false
+            status = "not_provided"
+            passed = $false
+            source_json = ""
+            source_json_display = ""
+            root = ""
+            root_display = ""
+            case_count = 0
+            passed_case_count = 0
+            failed_case_count = 0
+            min_nonwhite_ratio = ""
+            cases = @()
+            error_message = ""
+        }
+    }
+
+    $resolvedPath = Resolve-RepoPath -RepoRoot $RepoRoot -Path $Path -AllowMissing
+    $displayPath = Get-DisplayPath -RepoRoot $RepoRoot -Path $resolvedPath
+    if (-not (Test-Path -LiteralPath $resolvedPath -PathType Leaf)) {
+        return [ordered]@{
+            available = $false
+            status = "missing"
+            passed = $false
+            source_json = $resolvedPath
+            source_json_display = $displayPath
+            root = ""
+            root_display = ""
+            case_count = 0
+            passed_case_count = 0
+            failed_case_count = 0
+            min_nonwhite_ratio = ""
+            cases = @()
+            error_message = "Controlled visual smoke JSON was not found."
+        }
+    }
+
+    try {
+        $smoke = Get-Content -Raw -Encoding UTF8 -LiteralPath $resolvedPath | ConvertFrom-Json
+        $cases = New-Object 'System.Collections.Generic.List[object]'
+        $minNonwhiteRatio = $null
+        foreach ($case in @(Get-JsonArray -Object $smoke -Name "cases")) {
+            $metrics = @(Get-JsonArray -Object $case -Name "png_metrics")
+            $contactSheetPath = ""
+            $caseMinNonwhiteRatio = $null
+            foreach ($metric in $metrics) {
+                $metricPath = Get-JsonString -Object $metric -Name "path"
+                if ($metricPath -match 'contact-sheet\.png$') {
+                    $contactSheetPath = $metricPath
+                }
+                $ratioText = Get-JsonValueText -Object $metric -Name "nonwhite_ratio"
+                if (-not [string]::IsNullOrWhiteSpace($ratioText)) {
+                    try {
+                        $ratio = [double]::Parse($ratioText, [System.Globalization.CultureInfo]::InvariantCulture)
+                        if ($null -eq $minNonwhiteRatio -or $ratio -lt $minNonwhiteRatio) {
+                            $minNonwhiteRatio = $ratio
+                        }
+                        if ($null -eq $caseMinNonwhiteRatio -or $ratio -lt $caseMinNonwhiteRatio) {
+                            $caseMinNonwhiteRatio = $ratio
+                        }
+                    } catch {
+                    }
+                }
+            }
+
+            $cases.Add([ordered]@{
+                case = Get-JsonString -Object $case -Name "case"
+                passed = Get-JsonBool -Object $case -Name "passed"
+                png_count = $metrics.Count
+                contact_sheet = $contactSheetPath
+                contact_sheet_display = Get-PathDisplayIfAvailable -RepoRoot $RepoRoot -Path $contactSheetPath
+                min_nonwhite_ratio = if ($null -eq $caseMinNonwhiteRatio) { "" } else { [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $caseMinNonwhiteRatio) }
+            }) | Out-Null
+        }
+
+        $caseItems = @($cases.ToArray())
+        $passedCaseCount = @($caseItems | Where-Object { Get-JsonBool -Object $_ -Name "passed" }).Count
+        $root = Get-JsonString -Object $smoke -Name "root"
+        return [ordered]@{
+            available = $true
+            status = Get-JsonString -Object $smoke -Name "status" -DefaultValue "unknown"
+            passed = Get-JsonBool -Object $smoke -Name "passed"
+            source_json = $resolvedPath
+            source_json_display = $displayPath
+            root = $root
+            root_display = Get-PathDisplayIfAvailable -RepoRoot $RepoRoot -Path $root
+            case_count = Get-JsonInt -Object $smoke -Name "case_count" -DefaultValue $caseItems.Count
+            passed_case_count = $passedCaseCount
+            failed_case_count = [Math]::Max(0, $caseItems.Count - $passedCaseCount)
+            min_nonwhite_ratio = if ($null -eq $minNonwhiteRatio) { "" } else { [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $minNonwhiteRatio) }
+            cases = @($caseItems)
+            error_message = ""
+        }
+    } catch {
+        return [ordered]@{
+            available = $false
+            status = "unreadable"
+            passed = $false
+            source_json = $resolvedPath
+            source_json_display = $displayPath
+            root = ""
+            root_display = ""
+            case_count = 0
+            passed_case_count = 0
+            failed_case_count = 0
+            min_nonwhite_ratio = ""
+            cases = @()
+            error_message = $_.Exception.Message
+        }
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -475,6 +602,10 @@ function New-ReportMarkdown {
     $lines.Add("- Preflight status: ``$($Summary.preflight_status)``") | Out-Null
     $lines.Add("- Full visual gate required: ``$($Summary.full_visual_gate_required)``") | Out-Null
     $lines.Add("- Full visual gate status: ``$($Summary.full_visual_gate_status)``") | Out-Null
+    $controlledVisualSmoke = Get-JsonProperty -Object $Summary -Name "controlled_visual_smoke"
+    $lines.Add("- Controlled visual smoke status: ``$(Get-JsonString -Object $controlledVisualSmoke -Name "status")``") | Out-Null
+    $lines.Add("- Controlled visual smoke passed: ``$(Get-JsonBool -Object $controlledVisualSmoke -Name "passed")``") | Out-Null
+    $lines.Add("- Controlled visual smoke summary: ``$(Get-JsonString -Object $controlledVisualSmoke -Name "source_json_display")``") | Out-Null
     $lines.Add("- Evidence kind: ``$(Get-JsonString -Object $Summary -Name "evidence_kind")``") | Out-Null
     $lines.Add("- Synthetic evidence markers: ``$(Get-JsonInt -Object $Summary -Name "synthetic_evidence_marker_count")``") | Out-Null
     $syntheticEvidenceMarkers = @(Get-JsonArray -Object $Summary -Name "synthetic_evidence_markers")
@@ -553,6 +684,28 @@ function New-ReportMarkdown {
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Output gap checks: ``$($Summary.output_gap_count)``") | Out-Null
     $lines.Add("- Missing outputs: ``$($Summary.missing_output_count)``") | Out-Null
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Controlled Visual Smoke") | Out-Null
+    $lines.Add("") | Out-Null
+    if ($null -eq $controlledVisualSmoke -or -not (Get-JsonBool -Object $controlledVisualSmoke -Name "available")) {
+        $lines.Add("- status: ``$(Get-JsonString -Object $controlledVisualSmoke -Name "status" -DefaultValue "not_provided")``") | Out-Null
+        $errorMessage = Get-JsonString -Object $controlledVisualSmoke -Name "error_message"
+        if (-not [string]::IsNullOrWhiteSpace($errorMessage)) {
+            $lines.Add("- error: $errorMessage") | Out-Null
+        }
+    } else {
+        $lines.Add("- source_json: ``$(Get-JsonString -Object $controlledVisualSmoke -Name "source_json")``") | Out-Null
+        $lines.Add("- source_json_display: ``$(Get-JsonString -Object $controlledVisualSmoke -Name "source_json_display")``") | Out-Null
+        $lines.Add("- root: ``$(Get-JsonString -Object $controlledVisualSmoke -Name "root_display")``") | Out-Null
+        $lines.Add("- cases: ``$(Get-JsonInt -Object $controlledVisualSmoke -Name "case_count")``") | Out-Null
+        $lines.Add("- passed cases: ``$(Get-JsonInt -Object $controlledVisualSmoke -Name "passed_case_count")``") | Out-Null
+        $lines.Add("- failed cases: ``$(Get-JsonInt -Object $controlledVisualSmoke -Name "failed_case_count")``") | Out-Null
+        $lines.Add("- min nonwhite ratio: ``$(Get-JsonValueText -Object $controlledVisualSmoke -Name "min_nonwhite_ratio")``") | Out-Null
+        foreach ($case in @(Get-JsonArray -Object $controlledVisualSmoke -Name "cases")) {
+            $lines.Add("  - ``$(Get-JsonString -Object $case -Name "case")``: passed=``$(Get-JsonBool -Object $case -Name "passed")``; png_count=``$(Get-JsonInt -Object $case -Name "png_count")``; contact_sheet=``$(Get-JsonString -Object $case -Name "contact_sheet_display")``") | Out-Null
+        }
+    }
     $lines.Add("") | Out-Null
 
     $lines.Add("## Blocking Checks") | Out-Null
@@ -816,10 +969,30 @@ $memoryGuardBlocked = Get-JsonBool -Object $preflightBlockingSummary -Name "memo
 $memoryGuardSkipped = Get-JsonBool -Object $preflightBlockingSummary -Name "memory_guard_skipped"
 $freeMemoryMb = Get-JsonValueText -Object $preflightBlockingSummary -Name "free_memory_mb"
 $minFreeMemoryMb = Get-JsonValueText -Object $preflightBlockingSummary -Name "min_free_memory_mb"
+$controlledVisualSmoke = Get-ControlledVisualSmokeEvidence -RepoRoot $repoRoot -Path $ControlledVisualSmokeJson
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
+
+if (-not [string]::IsNullOrWhiteSpace($ControlledVisualSmokeJson) -and
+    (-not (Get-JsonBool -Object $controlledVisualSmoke -Name "available") -or
+        -not (Get-JsonBool -Object $controlledVisualSmoke -Name "passed"))) {
+    $warnings.Add([ordered]@{
+        id = "pdf_controlled_visual_smoke.unavailable_or_failed"
+        source = "pdf_controlled_visual_smoke"
+        severity = "warning"
+        status = Get-JsonString -Object $controlledVisualSmoke -Name "status"
+        action = "rerun_pdf_controlled_visual_smoke_check"
+        message = "Controlled PDF visual smoke evidence was provided but is not passing."
+        source_schema = $reportSchema
+        source_report = $summaryPath
+        source_report_display = $summaryDisplay
+        source_json = Get-JsonString -Object $controlledVisualSmoke -Name "source_json"
+        source_json_display = Get-JsonString -Object $controlledVisualSmoke -Name "source_json_display"
+        error_message = Get-JsonString -Object $controlledVisualSmoke -Name "error_message"
+    }) | Out-Null
+}
 
 if (-not [string]::IsNullOrWhiteSpace($loadFailureMessage)) {
     $message = "PDF visual release gate preflight summary could not be read: $loadFailureMessage"
@@ -997,6 +1170,13 @@ $summary = [ordered]@{
     preflight_ready = ($status -eq "ready")
     full_visual_gate_required = $true
     full_visual_gate_status = "not_run_by_preflight_governance"
+    controlled_visual_smoke_available = Get-JsonBool -Object $controlledVisualSmoke -Name "available"
+    controlled_visual_smoke_status = Get-JsonString -Object $controlledVisualSmoke -Name "status"
+    controlled_visual_smoke_passed = Get-JsonBool -Object $controlledVisualSmoke -Name "passed"
+    controlled_visual_smoke_case_count = Get-JsonInt -Object $controlledVisualSmoke -Name "case_count"
+    controlled_visual_smoke_json = Get-JsonString -Object $controlledVisualSmoke -Name "source_json"
+    controlled_visual_smoke_json_display = Get-JsonString -Object $controlledVisualSmoke -Name "source_json_display"
+    controlled_visual_smoke = $controlledVisualSmoke
     output_dir = $resolvedOutputDir
     output_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedOutputDir
     summary_json = $summaryPath
