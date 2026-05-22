@@ -477,6 +477,20 @@ function Add-NormalizedWarnings {
 function New-ReportMarkdown {
     param($Summary)
 
+    function Add-TraceabilityMarkdownLines {
+        param(
+            [System.Collections.Generic.List[string]]$Lines,
+            [object]$Item
+        )
+
+        foreach ($fieldName in @("source_report", "source_json")) {
+            $fieldValue = Get-JsonString -Object $Item -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+                $Lines.Add("  - ${fieldName}: ``$fieldValue``") | Out-Null
+            }
+        }
+    }
+
     $lines = New-Object 'System.Collections.Generic.List[string]'
     $lines.Add("# Release Governance Handoff") | Out-Null
     $lines.Add("") | Out-Null
@@ -532,7 +546,7 @@ function New-ReportMarkdown {
     $lines.Add("## Report Status") | Out-Null
     $lines.Add("") | Out-Null
     foreach ($report in @($Summary.reports)) {
-        $lines.Add("- ``$($report.id)``: status=``$($report.status)`` ready=``$($report.release_ready)`` blockers=``$($report.release_blocker_count)`` actions=``$($report.action_item_count)`` schema=``$($report.schema)``") | Out-Null
+        $lines.Add("- ``$($report.id)``: status=``$($report.status)`` ready=``$($report.release_ready)`` blockers=``$($report.release_blocker_count)`` actions=``$($report.action_item_count)`` source_failures=``$($report.source_failure_count)`` schema=``$($report.schema)``") | Out-Null
         $lines.Add("  - summary: ``$($report.expected_summary_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string]$report.latest_schema_approval_gate_status)) {
             $lines.Add("  - latest_schema_approval_gate_status: ``$($report.latest_schema_approval_gate_status)``") | Out-Null
@@ -586,6 +600,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
                 $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
             }
+            Add-TraceabilityMarkdownLines -Lines $lines -Item $blocker
             $lines.Add("  - source_report_display: ``$($blocker.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
         }
@@ -611,6 +626,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
             }
+            Add-TraceabilityMarkdownLines -Lines $lines -Item $item
             $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
         }
@@ -627,6 +643,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - $($warning.message)") | Out-Null
             }
+            Add-TraceabilityMarkdownLines -Lines $lines -Item $warning
             $lines.Add("  - source_report_display: ``$($warning.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null
         }

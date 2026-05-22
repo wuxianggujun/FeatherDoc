@@ -477,6 +477,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include warning id."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display" `
         -Message "Markdown should include warning source JSON display."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failures=``0``" `
+        -Message "Markdown should include per-report source failure counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report:" `
+        -Message "Markdown should include raw source report paths for traceability."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json:" `
+        -Message "Markdown should include raw source JSON paths for traceability."
     Assert-ContainsText -Text $markdown -ExpectedText "Governance Metrics" `
         -Message "Markdown should include governance metrics."
     Assert-ContainsText -Text $markdown -ExpectedText "Governance Metric Review Focus" `
