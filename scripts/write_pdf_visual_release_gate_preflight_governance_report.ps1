@@ -573,6 +573,7 @@ function New-ReportMarkdown {
         foreach ($blocker in @($Summary.release_blockers)) {
             $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` status=``$($blocker.status)``") | Out-Null
             $lines.Add("  - message: $($blocker.message)") | Out-Null
+            $lines.Add("  - source_report_display: ``$($blocker.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
                 $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
@@ -604,6 +605,7 @@ function New-ReportMarkdown {
     } else {
         foreach ($item in @($Summary.action_items)) {
             $lines.Add("- ``$($item.id)``: action=``$($item.action)`` open_command=``$($item.open_command)``") | Out-Null
+            $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
             $itemIssueKeys = @(
                 Get-JsonArray -Object $item -Name "issue_keys" |

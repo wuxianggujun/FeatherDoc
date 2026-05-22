@@ -806,6 +806,12 @@ Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "build_outputs_missing" `
     -Message "Markdown should include the blocker id."
 Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "source_report_display" `
+    -Message "Markdown should include source report display details."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "summary.json" `
+    -Message "Markdown should point reviewers at the governance summary."
+Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "ctest_manifest_exists" `
     -Message "Markdown should include blocking checks."
 Assert-ContainsText -Text $blockedMarkdown `
