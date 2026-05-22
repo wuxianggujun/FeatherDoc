@@ -258,7 +258,7 @@ $summary = [ordered]@{
     release_blocker_rollup = [ordered]@{
         requested = $true
         status = "blocked"
-        source_report_count = 5
+        source_report_count = 6
         source_failure_count = 1
         source_reports = @(
             [ordered]@{
@@ -272,6 +272,25 @@ $summary = [ordered]@{
                 source_failure_count = 1
                 error = "Unexpected token while reading table layout governance summary."
                 build_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1"
+            },
+            [ordered]@{
+                schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                status = "blocked"
+                release_ready = $false
+                path = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                path_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                source_json = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                source_failure_count = 0
+                preflight_ready = $false
+                full_visual_gate_required = $true
+                full_visual_gate_status = "not_run_by_preflight_governance"
+                controlled_visual_smoke_available = $true
+                controlled_visual_smoke_status = "pass"
+                controlled_visual_smoke_passed = $true
+                controlled_visual_smoke_case_count = 2
+                controlled_visual_smoke_json = ".\output\pdf-controlled-visual-smoke-20260520\controlled-visual-smoke-check-latest.json"
+                controlled_visual_smoke_json_display = ".\output\pdf-controlled-visual-smoke-20260520\controlled-visual-smoke-check-latest.json"
             }
         )
         release_blocker_count = 5
@@ -705,6 +724,12 @@ $releaseGovernanceReportIssueDocuments = @(
     [pscustomobject]@{ Path = $startHerePath; Label = "START_HERE.md" }
 )
 foreach ($document in $releaseGovernanceReportIssueDocuments) {
+    Assert-Contains -Path $document.Path -ExpectedText 'Rollup Source Report Contracts' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'featherdoc.pdf_visual_release_gate_preflight_governance_report.v1: status=blocked ready=False' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'preflight_ready: False' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'full_visual_gate_status: not_run_by_preflight_governance' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'controlled_visual_smoke_status: pass' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'controlled_visual_smoke_json_display: .\output\pdf-controlled-visual-smoke-20260520\controlled-visual-smoke-check-latest.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'Rollup Source Report Issues' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report: .\output\table-layout-delivery-governance\summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_json: .\output\table-layout-delivery-governance\unreadable-summary.json' -Label $document.Label

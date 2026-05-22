@@ -973,6 +973,78 @@ function Add-ReleaseGovernanceReportIssueLines {
     }
 }
 
+function Add-ReleaseGovernanceSourceReportContractLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object[]]$Reports,
+        [string]$Heading,
+        [string]$IdPropertyName,
+        [string]$PathPropertyName,
+        [string]$DisplayPropertyName,
+        [string]$RepoRoot
+    )
+
+    $contractReports = @($Reports | Where-Object { $null -ne $_ })
+    if ($contractReports.Count -eq 0) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add($Heading)
+    [void]$Lines.Add("")
+    foreach ($report in $contractReports) {
+        $id = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name $IdPropertyName) -Fallback "(unknown report)"
+        $status = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "status")
+        $releaseReady = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_ready")
+        $sourceFailureCount = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "source_failure_count") -Fallback "0"
+        $schema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")
+        $sourceReport = Get-ReleaseBlockerPropertyValue -Object $report -Name $PathPropertyName
+        $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $report -Name $DisplayPropertyName
+        if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+            $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $sourceReport
+        }
+
+        [void]$Lines.Add("- ${id}: status=$status ready=$releaseReady source_failures=$sourceFailureCount schema=$schema")
+        if (-not [string]::IsNullOrWhiteSpace($sourceReport)) {
+            [void]$Lines.Add("  - source_report: $sourceReport")
+        }
+        [void]$Lines.Add("  - source_report_display: $(Get-ReleaseBlockerDisplayValue -Value $sourceReportDisplay)")
+
+        $sourceJson = Get-ReleaseBlockerPropertyValue -Object $report -Name "source_json"
+        if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+            [void]$Lines.Add("  - source_json: $sourceJson")
+        }
+
+        $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $report -Name "source_json_display"
+        if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay) -and -not [string]::IsNullOrWhiteSpace($sourceJson)) {
+            $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $sourceJson
+        }
+        if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+            [void]$Lines.Add("  - source_json_display: $(Get-ReleaseBlockerDisplayValue -Value $sourceJsonDisplay)")
+        }
+
+        foreach ($fieldName in @(
+                "preflight_ready",
+                "full_visual_gate_required",
+                "full_visual_gate_status",
+                "controlled_visual_smoke_available",
+                "controlled_visual_smoke_status",
+                "controlled_visual_smoke_passed",
+                "controlled_visual_smoke_case_count",
+                "controlled_visual_smoke_json",
+                "controlled_visual_smoke_json_display",
+                "error",
+                "build_command"
+            )) {
+            $fieldValue = Get-ReleaseBlockerPropertyValue -Object $report -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+                $label = if ($fieldName -eq "build_command") { "build" } else { $fieldName }
+                [void]$Lines.Add("  - ${label}: $fieldValue")
+            }
+        }
+    }
+}
+
 function Get-ReleaseGovernanceChecklistSections {
     param([AllowNull()]$Summary)
 
@@ -1946,6 +2018,15 @@ function Add-ReleaseGovernanceRollupMarkdownSection {
     [void]$Lines.Add("- Action items: $($actionItems.Count)")
 
     Add-ReleaseGovernanceMetricsMarkdownSection -Lines $Lines -Summary $rollup
+
+    Add-ReleaseGovernanceSourceReportContractLines `
+        -Lines $Lines `
+        -Reports @(Get-ReleaseBlockerArrayProperty -Object $rollup -Name "source_reports") `
+        -Heading "### Rollup Source Report Contracts" `
+        -IdPropertyName "schema" `
+        -PathPropertyName "path" `
+        -DisplayPropertyName "path_display" `
+        -RepoRoot $RepoRoot
 
     Add-ReleaseGovernanceReportIssueLines `
         -Lines $Lines `
