@@ -259,6 +259,7 @@ function New-GovernanceMetrics {
             source_schema = $SourceSchema
             source_report = $SourceReport
             source_report_display = $SourceReportDisplay
+            source_json = $SourceReport
             source_json_display = $SourceReportDisplay
             score = Get-JsonInt -Object $Summary -Name "real_corpus_confidence_score"
             level = Get-JsonString -Object $Summary -Name "real_corpus_confidence_level"
@@ -276,6 +277,7 @@ function New-GovernanceMetrics {
             source_schema = $SourceSchema
             source_report = $SourceReport
             source_report_display = $SourceReportDisplay
+            source_json = $SourceReport
             source_json_display = $SourceReportDisplay
             score = Get-JsonInt -Object $Summary -Name "delivery_quality_score"
             level = Get-JsonString -Object $Summary -Name "delivery_quality_level"
@@ -413,6 +415,7 @@ function New-ReportMarkdown {
         }
 
         $lines.Add("- **$($focusMetric.label)** ``$($metric.id)``: metric=``$($metric.metric)`` level=``$($metric.level)`` score=``$($metric.score)`` report=``$($metric.report_id)`` source_schema=``$($metric.source_schema)``") | Out-Null
+        Add-TraceabilityMarkdownLines -Lines $lines -Item $metric
         $lines.Add("  - source_report_display: ``$($metric.source_report_display)``") | Out-Null
         $lines.Add("  - source_json_display: ``$($metric.source_json_display)``") | Out-Null
         Add-GovernanceMetricDetailLines -Lines $lines -Metric $metric
@@ -426,6 +429,7 @@ function New-ReportMarkdown {
     } else {
         foreach ($metric in @($Summary.governance_metrics)) {
             $lines.Add("- ``$($metric.id)``: report=``$($metric.report_id)`` metric=``$($metric.metric)`` level=``$($metric.level)`` score=``$($metric.score)`` schema=``$($metric.source_schema)`` source_report_display=``$($metric.source_report_display)``") | Out-Null
+            Add-TraceabilityMarkdownLines -Lines $lines -Item $metric
             $lines.Add("  - source_json_display: ``$($metric.source_json_display)``") | Out-Null
             Add-GovernanceMetricDetailLines -Lines $lines -Metric $metric
         }

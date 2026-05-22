@@ -343,6 +343,8 @@ if (Test-Scenario -Name "aggregate") {
     $numberingMetric = ($summary.governance_metrics |
         Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_confidence" } |
         Select-Object -First 1)
+    Assert-ContainsText -Text ([string]$numberingMetric.source_json) -ExpectedText "numbering-catalog-governance\summary.json" `
+        -Message "Aggregate handoff should preserve numbering confidence raw source JSON."
     Assert-ContainsText -Text ([string]$numberingMetric.source_json_display) -ExpectedText "numbering-catalog-governance\summary.json" `
         -Message "Aggregate handoff should preserve numbering confidence source JSON display."
     Assert-Equal -Actual ([int]$numberingMetric.details.catalog_coverage_percent) -Expected 100 `
@@ -499,6 +501,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include numbering confidence source schema."
     Assert-ContainsText -Text $markdown -ExpectedText "numbering-catalog-governance\summary.json" `
         -Message "Markdown should include numbering confidence source JSON display."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report: ``$([string]$numberingMetric.source_report)``" `
+        -Message "Markdown should include raw metric source report paths."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json: ``$([string]$numberingMetric.source_json)``" `
+        -Message "Markdown should include raw metric source JSON paths."
     Assert-ContainsText -Text $markdown -ExpectedText "delivery_quality" `
         -Message "Markdown should include table delivery quality metric."
     Assert-ContainsText -Text $markdown -ExpectedText "table_layout_delivery_governance.delivery_quality" `
