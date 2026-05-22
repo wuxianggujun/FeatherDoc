@@ -109,7 +109,9 @@ $styleNumberingBlocker = [pscustomobject]@{
     status = "blocked"
     severity = "error"
     source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+    source_report = "output/numbering-catalog-governance/summary.json"
     source_report_display = ".\output\numbering-catalog-governance\summary.json"
+    source_json = "output/numbering-catalog-governance/style-numbering-audit.json"
     source_json_display = ".\output\numbering-catalog-governance\style-numbering-audit.json"
     message = "Style numbering audit reported unresolved issues."
 }
@@ -120,6 +122,7 @@ $styleMergeBlocker = [pscustomobject]@{
     status = "blocked"
     severity = "error"
     source_schema = "featherdoc.style_merge_restore_audit.v1"
+    source_report = "output/document-skeleton-governance/style-merge.restore-audit.summary.json"
     source_report_display = ".\output\document-skeleton-governance\style-merge.restore-audit.summary.json"
     message = "Style merge restore audit has unresolved rollback issues."
 }
@@ -437,6 +440,10 @@ Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText 'action: `review
     -Message "Markdown section should render rollup blocker actions."
 Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText 'source_report_display: `.\output\numbering-catalog-governance\summary.json`' `
     -Message "Markdown section should render blocker source report displays."
+Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText 'source_report: `output/numbering-catalog-governance/summary.json`' `
+    -Message "Markdown section should render blocker raw source reports."
+Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText 'source_json: `output/numbering-catalog-governance/style-numbering-audit.json`' `
+    -Message "Markdown section should render blocker raw source JSON paths."
 Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText 'id: `style_merge.restore_audit_issues`' `
     -Message "Markdown section should render handoff blocker ids when composite ids are absent."
 

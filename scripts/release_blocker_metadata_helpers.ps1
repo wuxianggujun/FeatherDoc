@@ -875,6 +875,13 @@ function Add-ReleaseGovernanceRollupSourceLines {
         [void]$Lines.Add("  - candidate_type: $candidateType")
     }
 
+    foreach ($fieldName in @("source_report", "source_json")) {
+        $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+            [void]$Lines.Add("  - ${fieldName}: $fieldValue")
+        }
+    }
+
     [void]$Lines.Add("  - source_report_display: $sourceReportDisplay")
     [void]$Lines.Add("  - source_json_display: $sourceJsonDisplay")
 }
@@ -932,7 +939,9 @@ function Get-NormalizedReleaseGovernanceBlockers {
                 status = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "status")
                 severity = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "severity")
                 source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_schema")
+                source_report = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_report")
                 source_report_display = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_report_display")
+                source_json = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_json")
                 source_json_display = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_json_display")
                 message = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "message")
             })
@@ -974,7 +983,9 @@ function Get-NormalizedReleaseGovernanceWarnings {
             action = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "action")
             message = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "message")
             source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_schema")
+            source_report = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_report")
             source_report_display = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_report_display")
+            source_json = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_json")
             source_json_display = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_json_display")
         }
 
@@ -1025,7 +1036,9 @@ function Get-NormalizedReleaseGovernanceActionItems {
             action = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "action")
             title = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "title")
             source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_schema")
+            source_report = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_report")
             source_report_display = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_report_display")
+            source_json = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_json")
             source_json_display = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_json_display")
             command = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "command")
         }
@@ -1087,6 +1100,13 @@ function Get-ReleaseGovernanceActionItemSummaryText {
         $summaryText += ('; source_report: `{0}`' -f $sourceReportDisplay)
     }
 
+    foreach ($fieldName in @("source_report", "source_json")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $ActionItem -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $summaryText += ('; raw_{0}: `{1}`' -f $fieldName, $value)
+        }
+    }
+
     return $summaryText
 }
 
@@ -1115,6 +1135,13 @@ function Get-ReleaseGovernanceWarningSummaryText {
         $summaryText += ('; source_report: `{0}`' -f $sourceReportDisplay)
     }
 
+    foreach ($fieldName in @("source_report", "source_json")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Warning -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $summaryText += ('; raw_{0}: `{1}`' -f $fieldName, $value)
+        }
+    }
+
     $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_count"
     if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
         $summaryText += ('; style_merge_suggestion_count: `{0}`' -f [string]$styleMergeSuggestionCount)
@@ -1140,7 +1167,7 @@ function Get-ReleaseGovernanceBlockerSummaryText {
         $summaryText += ('; composite_id: `{0}`' -f $compositeId)
     }
 
-    foreach ($field in @("project_id", "template_name", "candidate_type", "status", "severity", "source_schema", "source_report_display")) {
+    foreach ($field in @("project_id", "template_name", "candidate_type", "status", "severity", "source_schema", "source_report_display", "source_report", "source_json")) {
         $value = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name $field
         if (-not [string]::IsNullOrWhiteSpace($value)) {
             $summaryText += ('; {0}: `{1}`' -f $field, $value)
