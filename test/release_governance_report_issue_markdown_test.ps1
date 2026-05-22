@@ -43,6 +43,7 @@ Add-ReleaseGovernanceRollupMarkdownSection `
                     source_json_display = ".\output\table-layout-delivery-governance\evidence.json"
                     source_failure_count = 0
                     error = "Unexpected token while reading table layout governance summary."
+                    build_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1"
                 }
             )
             governance_metrics = @()
@@ -55,6 +56,8 @@ Add-ReleaseGovernanceRollupMarkdownSection `
 $rollupMarkdown = $rollupLines -join "`n"
 Assert-ContainsText -Text $rollupMarkdown -ExpectedText "### Rollup Source Report Issues" `
     -Message "Rollup Markdown should include source report issue details."
+Assert-ContainsText -Text $rollupMarkdown -ExpectedText "source_failures=0" `
+    -Message "Rollup Markdown should render source failure counts for failed source reports."
 Assert-ContainsText -Text $rollupMarkdown -ExpectedText "source_report: output/table-layout-delivery-governance/summary.json" `
     -Message "Rollup Markdown should render failed source report paths."
 Assert-ContainsText -Text $rollupMarkdown -ExpectedText "source_report_display: .\output\table-layout-delivery-governance\summary.json" `
@@ -65,6 +68,8 @@ Assert-ContainsText -Text $rollupMarkdown -ExpectedText "source_json_display: .\
     -Message "Rollup Markdown should render failed source JSON display paths."
 Assert-ContainsText -Text $rollupMarkdown -ExpectedText "error: Unexpected token while reading table layout governance summary." `
     -Message "Rollup Markdown should render failed source report errors."
+Assert-ContainsText -Text $rollupMarkdown -ExpectedText "build: pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1" `
+    -Message "Rollup Markdown should render failed source report rebuild commands."
 
 $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 Add-ReleaseGovernanceHandoffMarkdownSection `
@@ -114,16 +119,24 @@ Assert-ContainsText -Text $handoffMarkdown -ExpectedText "### Handoff Report Iss
     -Message "Handoff Markdown should include missing and failed report details."
 Assert-ContainsText -Text $handoffMarkdown -ExpectedText "table_layout_delivery_governance: status=failed" `
     -Message "Handoff Markdown should render failed report status."
+Assert-ContainsText -Text $handoffMarkdown -ExpectedText "source_failures=1" `
+    -Message "Handoff Markdown should render failed report source failure counts."
 Assert-ContainsText -Text $handoffMarkdown -ExpectedText "source_report: output/table-layout-delivery-governance/summary.json" `
     -Message "Handoff Markdown should render failed report source paths."
+Assert-ContainsText -Text $handoffMarkdown -ExpectedText "source_report_display: .\output\table-layout-delivery-governance\summary.json" `
+    -Message "Handoff Markdown should render failed report display paths."
 Assert-ContainsText -Text $handoffMarkdown -ExpectedText "source_json: output/table-layout-delivery-governance/evidence.json" `
     -Message "Handoff Markdown should render failed source JSON paths."
 Assert-ContainsText -Text $handoffMarkdown -ExpectedText "source_json_display: .\output\table-layout-delivery-governance\evidence.json" `
     -Message "Handoff Markdown should render failed source JSON display paths."
 Assert-ContainsText -Text $handoffMarkdown -ExpectedText "error: Failed to parse table layout governance summary." `
     -Message "Handoff Markdown should render failed report errors."
+Assert-ContainsText -Text $handoffMarkdown -ExpectedText "build: pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1" `
+    -Message "Handoff Markdown should render failed report rebuild commands."
 Assert-ContainsText -Text $handoffMarkdown -ExpectedText "numbering_catalog_governance: status=missing" `
     -Message "Handoff Markdown should render missing report status."
+Assert-ContainsText -Text $handoffMarkdown -ExpectedText "source_report_display: .\output\numbering-catalog-governance\summary.json" `
+    -Message "Handoff Markdown should render missing report display paths."
 Assert-ContainsText -Text $handoffMarkdown -ExpectedText "build: pwsh -ExecutionPolicy Bypass -File .\scripts\build_numbering_catalog_governance_report.ps1" `
     -Message "Handoff Markdown should render missing report build commands."
 
