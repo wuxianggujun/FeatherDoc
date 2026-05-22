@@ -1915,6 +1915,7 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
     [void]$Lines.Add("- Status: $(Get-ReleaseBlockerDisplayValue -Value $status)")
     [void]$Lines.Add("- Reports loaded: $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $handoff -Name "loaded_report_count") -Fallback "0") / $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $handoff -Name "expected_report_count") -Fallback "0")")
     [void]$Lines.Add("- Missing reports: $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $handoff -Name "missing_report_count") -Fallback "0")")
+    [void]$Lines.Add("- Failed reports: $(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $handoff -Name "failed_report_count") -Fallback "0")")
     [void]$Lines.Add("- Blockers: $($releaseBlockers.Count)")
     [void]$Lines.Add("- Warnings: $($warnings.Count)")
     [void]$Lines.Add("- Action items: $($actionItems.Count)")

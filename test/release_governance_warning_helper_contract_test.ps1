@@ -516,6 +516,31 @@ Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "repair_strategy:
 Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "command_template: featherdoc_cli restore-style-merge <input.docx> --rollback-plan <rollback.json> --dry-run --json" `
     -Message "Markdown section should render action item command template."
 
+$handoffDetailLines = New-Object 'System.Collections.Generic.List[string]'
+Add-ReleaseGovernanceHandoffMarkdownSection `
+    -Lines $handoffDetailLines `
+    -Summary ([pscustomobject]@{
+        release_governance_handoff = [pscustomobject]@{
+            requested = $true
+            status = "blocked"
+            loaded_report_count = 4
+            expected_report_count = 5
+            missing_report_count = 0
+            failed_report_count = 1
+            release_blockers = @($styleMergeBlocker)
+            warnings = @($warningWithoutStyleMergeCount)
+            action_items = @($restoreAuditActionItem)
+        }
+    }) `
+    -RepoRoot $resolvedRepoRoot
+$handoffDetailMarkdown = $handoffDetailLines -join "`n"
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "- Reports loaded: 4 / 5" `
+    -Message "Handoff detail Markdown should include report load counts."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "- Missing reports: 0" `
+    -Message "Handoff detail Markdown should include missing report counts."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "- Failed reports: 1" `
+    -Message "Handoff detail Markdown should include failed report counts."
+
 $actionChecklistItems = @(Get-ReleaseGovernanceActionItemChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{
                 action_item_count = 1
