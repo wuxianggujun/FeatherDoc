@@ -380,7 +380,13 @@ function Get-BuildDirectorySnapshotFromChecks {
 }
 
 function Get-PreflightOutputGapSummary {
-    param($Checks)
+    param(
+        $Checks,
+        [string]$SourceReport,
+        [string]$SourceReportDisplay,
+        [string]$SourceJson,
+        [string]$SourceJsonDisplay
+    )
 
     $gaps = New-Object 'System.Collections.Generic.List[object]'
     foreach ($check in @($Checks)) {
@@ -408,6 +414,10 @@ function Get-PreflightOutputGapSummary {
         $gaps.Add([ordered]@{
             check = Get-JsonString -Object $check -Name "name"
             message = Get-JsonString -Object $check -Name "message"
+            source_report = $SourceReport
+            source_report_display = $SourceReportDisplay
+            source_json = $SourceJson
+            source_json_display = $SourceJsonDisplay
             sample_count = $sampleCount
             missing_count = $missingCount
             missing_paths_preview = @($missingPreview | ForEach-Object { [string]$_ })
@@ -752,6 +762,22 @@ function New-ReportMarkdown {
     } else {
         foreach ($gap in $outputGapSummary) {
             $lines.Add("- ``$(Get-JsonString -Object $gap -Name "check")``: missing=``$(Get-JsonInt -Object $gap -Name "missing_count")`` sample_count=``$(Get-JsonInt -Object $gap -Name "sample_count")``") | Out-Null
+            $gapSourceReport = Get-JsonString -Object $gap -Name "source_report"
+            if (-not [string]::IsNullOrWhiteSpace($gapSourceReport)) {
+                $lines.Add("  - source_report: ``$gapSourceReport``") | Out-Null
+            }
+            $gapSourceJson = Get-JsonString -Object $gap -Name "source_json"
+            if (-not [string]::IsNullOrWhiteSpace($gapSourceJson)) {
+                $lines.Add("  - source_json: ``$gapSourceJson``") | Out-Null
+            }
+            $gapSourceReportDisplay = Get-JsonString -Object $gap -Name "source_report_display"
+            if (-not [string]::IsNullOrWhiteSpace($gapSourceReportDisplay)) {
+                $lines.Add("  - source_report_display: ``$gapSourceReportDisplay``") | Out-Null
+            }
+            $gapSourceJsonDisplay = Get-JsonString -Object $gap -Name "source_json_display"
+            if (-not [string]::IsNullOrWhiteSpace($gapSourceJsonDisplay)) {
+                $lines.Add("  - source_json_display: ``$gapSourceJsonDisplay``") | Out-Null
+            }
             $preview = @(Get-JsonArray -Object $gap -Name "missing_paths_preview")
             foreach ($path in @($preview | Select-Object -First 5)) {
                 $lines.Add("  - ``$path``") | Out-Null
@@ -916,7 +942,12 @@ $syntheticEvidenceMarkers = @(
 )
 $syntheticEvidenceIsBlocking = $summaryEvidenceKind -eq "synthetic_fixture"
 $buildDirSnapshot = Get-BuildDirectorySnapshotFromChecks -Checks $checks
-$outputGapSummary = @(Get-PreflightOutputGapSummary -Checks $checks)
+$outputGapSummary = @(Get-PreflightOutputGapSummary `
+        -Checks $checks `
+        -SourceReport $summaryPath `
+        -SourceReportDisplay $summaryDisplay `
+        -SourceJson $preflightSummaryPath `
+        -SourceJsonDisplay $preflightDisplay)
 $missingOutputCount = Get-PreflightMissingOutputCount -OutputGapSummary $outputGapSummary
 $preflightBlockingSummary = Get-PreflightBlockingSummary `
     -PreflightSummary $preflightSummary `

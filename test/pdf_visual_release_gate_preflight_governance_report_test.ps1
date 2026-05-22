@@ -757,6 +757,17 @@ Assert-ContainsText -Text $outputGapChecks `
 Assert-ContainsText -Text $outputGapChecks `
     -ExpectedText "cjk_text_layer_manifest_pdfs_exist" `
     -Message "Output gap summary should include missing CJK text-layer PDFs."
+$firstOutputGap = @($blockedSummary.output_gap_summary | Select-Object -First 1)[0]
+Assert-Equal -Actual ([string]$firstOutputGap.source_report) -Expected $blockedSummaryPath `
+    -Message "Output gap summary entries should point at the governance summary."
+Assert-ContainsText -Text ([string]$firstOutputGap.source_report_display) `
+    -ExpectedText "blocked-report\summary.json" `
+    -Message "Output gap summary entries should expose the governance summary display path."
+Assert-Equal -Actual ([string]$firstOutputGap.source_json) -Expected $notReadyPreflightPath `
+    -Message "Output gap summary entries should point at the source preflight JSON."
+Assert-ContainsText -Text ([string]$firstOutputGap.source_json_display) `
+    -ExpectedText "not-ready-preflight.json" `
+    -Message "Output gap summary entries should expose the source preflight JSON display path."
 $outputGapPreview = ($blockedSummary.output_gap_summary | ForEach-Object { $_.missing_paths_preview } | ForEach-Object { [string]$_ }) -join "`n"
 Assert-ContainsText -Text $outputGapPreview `
     -ExpectedText "test\pdf_cli_export\font-map-source.pdf" `
@@ -1001,6 +1012,15 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "visual_baseline_manifest_pdfs_exist" `
     -Message "Markdown should list output gap checks."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "source_report: ``$blockedSummaryPath``" `
+    -Message "Markdown should include raw output-gap source report paths."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "source_json: ``$notReadyPreflightPath``" `
+    -Message "Markdown should include raw output-gap source JSON paths."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "source_json_display: ``.\build\test-pdf-visual-release-gate-preflight-governance\fixtures\not-ready-preflight.json``" `
+    -Message "Markdown should include output-gap source JSON display paths."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "test\pdf_cli_export\font-map-source.pdf" `
     -Message "Markdown should list representative missing output paths."
