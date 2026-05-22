@@ -449,6 +449,8 @@ Assert-Equal -Actual ([string]$summary.release_blocker_rollup.status) -Expected 
     -Message "Release candidate summary should surface the rollup status."
 Assert-Equal -Actual ([int]$summary.release_blocker_rollup.source_report_count) -Expected 3 `
     -Message "Release candidate summary should surface source report count."
+Assert-Equal -Actual ([int]$summary.release_blocker_rollup.source_failure_count) -Expected 0 `
+    -Message "Release candidate summary should surface rollup source failure count."
 Assert-Equal -Actual ([int]$summary.release_blocker_rollup.release_blocker_count) -Expected 3 `
     -Message "Release candidate summary should surface blocker count."
 Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -Expected 3 `
@@ -457,6 +459,8 @@ Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expec
     -Message "Release candidate summary should surface warning count."
 Assert-Equal -Actual ([string]$summary.steps.release_blocker_rollup.status) -Expected "blocked" `
     -Message "Release candidate step status should mirror rollup status."
+Assert-Equal -Actual ([int]$summary.steps.release_blocker_rollup.source_failure_count) -Expected 0 `
+    -Message "Release candidate step summary should mirror rollup source failure count."
 Assert-ContainsText -Text (($summary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1" `
     -Message "Release candidate summary should carry rollup blocker source schema."
@@ -509,6 +513,20 @@ Assert-True -Condition (Test-Path -LiteralPath $gateSummaryPath) `
 $gateSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $gateSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$gateSummary.release_blocker_rollup.status) -Expected "failed" `
     -Message "Fail-on-blocker run should mark rollup as failed in release summary."
+Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.source_failure_count) -Expected 0 `
+    -Message "Fail-on-blocker summary should preserve rollup source failure count."
+Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.release_blocker_count) -Expected 3 `
+    -Message "Fail-on-blocker summary should preserve rollup blocker count."
+Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.action_item_count) -Expected 3 `
+    -Message "Fail-on-blocker summary should preserve rollup action count."
+Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.warning_count) -Expected 1 `
+    -Message "Fail-on-blocker summary should preserve rollup warning count."
+Assert-ContainsText -Text (($gateSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "document_skeleton.style_numbering_issues" `
+    -Message "Fail-on-blocker summary should keep rollup blockers written before the child failure."
+Assert-ContainsText -Text (($gateSummary.steps.release_blocker_rollup.action_items | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "run_table_style_quality_visual_regression" `
+    -Message "Fail-on-blocker step summary should keep rollup actions written before the child failure."
 
 $autoDiscoverOutputDir = Join-Path $resolvedWorkingDir "release-candidate-auto-discover"
 $autoDiscoverArguments = @(
