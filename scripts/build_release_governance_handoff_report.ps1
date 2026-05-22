@@ -544,6 +544,9 @@ function New-ReportMarkdown {
         foreach ($metric in @($report.governance_metrics)) {
             $lines.Add("  - metric ``$($metric.id)``: name=``$($metric.metric)`` level=``$($metric.level)`` score=``$($metric.score)`` report=``$($metric.report_id)`` schema=``$($metric.source_schema)``") | Out-Null
         }
+        if (-not [string]::IsNullOrWhiteSpace([string]$report.error)) {
+            $lines.Add("  - error: ``$($report.error)``") | Out-Null
+        }
         if ([string]::IsNullOrWhiteSpace([string]$report.schema)) {
             $lines.Add("  - build: ``$($report.build_command)``") | Out-Null
         }
