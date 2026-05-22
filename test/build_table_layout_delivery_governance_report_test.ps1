@@ -524,6 +524,17 @@ if (Test-Scenario -Name "malformed") {
         -Message "Malformed input should produce failed status."
     Assert-Equal -Actual ([int]$summary.source_failure_count) -Expected 1 `
         -Message "Malformed input should count one source failure."
+    $readFailedWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "source_json_read_failed" })[0]
+    Assert-True -Condition ($null -ne $readFailedWarning) `
+        -Message "Malformed input should emit source_json_read_failed."
+    Assert-ContainsText -Text ([string]$readFailedWarning.source_report) -ExpectedText "malformed-evidence\summary.json" `
+        -Message "Read-failed warning should include source_report."
+    Assert-ContainsText -Text ([string]$readFailedWarning.source_report_display) -ExpectedText "malformed-evidence\summary.json" `
+        -Message "Read-failed warning should include source_report_display."
+    Assert-ContainsText -Text ([string]$readFailedWarning.source_json) -ExpectedText "malformed-evidence\summary.json" `
+        -Message "Read-failed warning should include source_json."
+    Assert-ContainsText -Text ([string]$readFailedWarning.source_json_display) -ExpectedText "malformed-evidence\summary.json" `
+        -Message "Read-failed warning should include source_json_display."
 }
 
 if (Test-Scenario -Name "fail_on_blocker") {

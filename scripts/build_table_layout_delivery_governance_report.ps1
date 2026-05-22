@@ -667,6 +667,7 @@ foreach ($path in @($inputPaths)) {
                     source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
                     source_json = $path
                     source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                    source_report = $path
                     source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "Input JSON kind '$kind' is not table layout delivery governance evidence."
                 }) | Out-Null
@@ -681,6 +682,7 @@ foreach ($path in @($inputPaths)) {
             source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_report = $path
             source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage
         }) | Out-Null

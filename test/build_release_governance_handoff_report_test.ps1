@@ -170,7 +170,9 @@ function Write-GovernanceFixtures {
                     repair_strategy = "sync_bound_content_control"
                     repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
                     command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+                    source_report = "output/content-control-data-binding-governance/summary.json"
                     source_report_display = ".\output\content-control-data-binding-governance\summary.json"
+                    source_json = "output/content-control-data-binding/inspect-content-controls.json"
                     source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
                 }
             )
@@ -184,7 +186,9 @@ function Write-GovernanceFixtures {
                     repair_strategy = "deduplicate_or_confirm_shared_binding"
                     repair_hint = "Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths."
                     command_template = "featherdoc_cli inspect-content-controls <input.docx> --tag due_date --json"
+                    source_report = "output/content-control-data-binding-governance/summary.json"
                     source_report_display = ".\output\content-control-data-binding-governance\summary.json"
+                    source_json = "output/content-control-data-binding/inspect-content-controls.json"
                     source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
                 }
             )
@@ -247,6 +251,9 @@ function Write-GovernanceFixtures {
                     template_name = "invoice-template"
                     candidate_type = "rename"
                     source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                    source_report = "output/schema-patch-confidence-calibration/summary.json"
+                    source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                    source_json = "output/schema-patch-confidence-calibration/summary.json"
                     source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 }
             )
@@ -261,6 +268,9 @@ function Write-GovernanceFixtures {
                     template_name = "invoice-template"
                     candidate_type = "rename"
                     source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                    source_report = "output/schema-patch-confidence-calibration/summary.json"
+                    source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                    source_json = "output/schema-patch-confidence-calibration/summary.json"
                     source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 }
             )
@@ -273,6 +283,9 @@ function Write-GovernanceFixtures {
                     template_name = "invoice-template"
                     candidate_type = "rename"
                     source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                    source_report = "output/schema-patch-confidence-calibration/summary.json"
+                    source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                    source_json = "output/schema-patch-confidence-calibration/summary.json"
                     source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 }
             )
@@ -373,6 +386,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve calibration blocker template name."
     Assert-Equal -Actual ([string]$calibrationBlocker.candidate_type) -Expected "rename" `
         -Message "Aggregate handoff should preserve calibration blocker candidate type."
+    Assert-ContainsText -Text ([string]$calibrationBlocker.source_report) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Aggregate handoff should preserve calibration blocker raw source report."
+    Assert-ContainsText -Text ([string]$calibrationBlocker.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Aggregate handoff should preserve calibration blocker raw source JSON."
     $calibrationAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "resolve_pending_schema_approvals" } |
         Select-Object -First 1)
@@ -382,6 +399,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve calibration action template name."
     Assert-Equal -Actual ([string]$calibrationAction.candidate_type) -Expected "rename" `
         -Message "Aggregate handoff should preserve calibration action candidate type."
+    Assert-ContainsText -Text ([string]$calibrationAction.source_report) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Aggregate handoff should preserve calibration action raw source report."
+    Assert-ContainsText -Text ([string]$calibrationAction.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Aggregate handoff should preserve calibration action raw source JSON."
     $calibrationWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.unscored_candidates" } |
         Select-Object -First 1)
@@ -391,6 +412,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve calibration warning template name."
     Assert-Equal -Actual ([string]$calibrationWarning.candidate_type) -Expected "rename" `
         -Message "Aggregate handoff should preserve calibration warning candidate type."
+    Assert-ContainsText -Text ([string]$calibrationWarning.source_report) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Aggregate handoff should preserve calibration warning raw source report."
+    Assert-ContainsText -Text ([string]$calibrationWarning.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Aggregate handoff should preserve calibration warning raw source JSON."
     Assert-ContainsText -Text (($summary.next_commands | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "ReleaseBlockerRollupAutoDiscover" `
         -Message "Aggregate handoff should hand off to release candidate auto-discovery."
@@ -401,8 +426,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve content-control blocker repair strategy."
     Assert-ContainsText -Text ([string]$contentControlBlocker.command_template) -ExpectedText "sync-content-controls-from-custom-xml" `
         -Message "Aggregate handoff should preserve content-control blocker command template."
+    Assert-ContainsText -Text ([string]$contentControlBlocker.source_report) -ExpectedText "content-control-data-binding-governance/summary.json" `
+        -Message "Aggregate handoff should preserve content-control blocker raw source report."
     Assert-ContainsText -Text ([string]$contentControlBlocker.source_report_display) -ExpectedText "content-control-data-binding-governance\summary.json" `
         -Message "Aggregate handoff should preserve content-control blocker source report display."
+    Assert-ContainsText -Text ([string]$contentControlBlocker.source_json) -ExpectedText "content-control-data-binding/inspect-content-controls.json" `
+        -Message "Aggregate handoff should preserve content-control blocker raw source JSON."
     Assert-ContainsText -Text ([string]$contentControlBlocker.source_json_display) -ExpectedText "content-control-data-binding\inspect-content-controls.json" `
         -Message "Aggregate handoff should preserve content-control blocker source JSON display."
     $contentControlAction = ($summary.action_items |
@@ -412,8 +441,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve content-control action repair strategy."
     Assert-ContainsText -Text ([string]$contentControlAction.command_template) -ExpectedText "inspect-content-controls" `
         -Message "Aggregate handoff should preserve content-control action command template."
+    Assert-ContainsText -Text ([string]$contentControlAction.source_report) -ExpectedText "content-control-data-binding-governance/summary.json" `
+        -Message "Aggregate handoff should preserve content-control action raw source report."
     Assert-ContainsText -Text ([string]$contentControlAction.source_report_display) -ExpectedText "content-control-data-binding-governance\summary.json" `
         -Message "Aggregate handoff should preserve content-control action source report display."
+    Assert-ContainsText -Text ([string]$contentControlAction.source_json) -ExpectedText "content-control-data-binding/inspect-content-controls.json" `
+        -Message "Aggregate handoff should preserve content-control action raw source JSON."
     Assert-ContainsText -Text ([string]$contentControlAction.source_json_display) -ExpectedText "content-control-data-binding\inspect-content-controls.json" `
         -Message "Aggregate handoff should preserve content-control action source JSON display."
 

@@ -384,6 +384,10 @@ function Add-NormalizedBlockers {
     )
 
     foreach ($blocker in @($Report.release_blockers)) {
+        $sourceReportDisplay = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
+        $sourceReport = Get-JsonString -Object $blocker -Name "source_report" -DefaultValue ([string]$Report.expected_summary)
+        $sourceJsonDisplay = Get-JsonString -Object $blocker -Name "source_json_display" -DefaultValue $sourceReportDisplay
+        $sourceJson = Get-JsonString -Object $blocker -Name "source_json" -DefaultValue $sourceReport
         $Collection.Add([ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
@@ -396,8 +400,10 @@ function Add-NormalizedBlockers {
             action = Get-JsonString -Object $blocker -Name "action"
             message = Get-JsonString -Object $blocker -Name "message"
             source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue ([string]$Report.schema)
-            source_report_display = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
-            source_json_display = Get-JsonString -Object $blocker -Name "source_json_display" -DefaultValue ([string]$Report.expected_summary_display)
+            source_report = $sourceReport
+            source_report_display = $sourceReportDisplay
+            source_json = $sourceJson
+            source_json_display = $sourceJsonDisplay
             repair_strategy = Get-JsonString -Object $blocker -Name "repair_strategy"
             repair_hint = Get-JsonString -Object $blocker -Name "repair_hint"
             command_template = Get-JsonString -Object $blocker -Name "command_template"
@@ -412,6 +418,10 @@ function Add-NormalizedActions {
     )
 
     foreach ($item in @($Report.action_items)) {
+        $sourceReportDisplay = Get-JsonString -Object $item -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
+        $sourceReport = Get-JsonString -Object $item -Name "source_report" -DefaultValue ([string]$Report.expected_summary)
+        $sourceJsonDisplay = Get-JsonString -Object $item -Name "source_json_display" -DefaultValue $sourceReportDisplay
+        $sourceJson = Get-JsonString -Object $item -Name "source_json" -DefaultValue $sourceReport
         $Collection.Add([ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
@@ -424,8 +434,10 @@ function Add-NormalizedActions {
             command = Get-JsonString -Object $item -Name "command"
             open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command")
             source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue ([string]$Report.schema)
-            source_report_display = Get-JsonString -Object $item -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
-            source_json_display = Get-JsonString -Object $item -Name "source_json_display" -DefaultValue ([string]$Report.expected_summary_display)
+            source_report = $sourceReport
+            source_report_display = $sourceReportDisplay
+            source_json = $sourceJson
+            source_json_display = $sourceJsonDisplay
             repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
             repair_hint = Get-JsonString -Object $item -Name "repair_hint"
             command_template = Get-JsonString -Object $item -Name "command_template"
@@ -440,6 +452,10 @@ function Add-NormalizedWarnings {
     )
 
     foreach ($warning in @($Report.warnings)) {
+        $sourceReportDisplay = Get-JsonString -Object $warning -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
+        $sourceReport = Get-JsonString -Object $warning -Name "source_report" -DefaultValue ([string]$Report.expected_summary)
+        $sourceJsonDisplay = Get-JsonString -Object $warning -Name "source_json_display" -DefaultValue $sourceReportDisplay
+        $sourceJson = Get-JsonString -Object $warning -Name "source_json" -DefaultValue $sourceReport
         $Collection.Add([ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
@@ -450,8 +466,10 @@ function Add-NormalizedWarnings {
             action = Get-JsonString -Object $warning -Name "action" -DefaultValue "review_release_governance_warning"
             message = Get-JsonString -Object $warning -Name "message"
             source_schema = Get-JsonString -Object $warning -Name "source_schema" -DefaultValue ([string]$Report.schema)
-            source_report_display = Get-JsonString -Object $warning -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
-            source_json_display = Get-JsonString -Object $warning -Name "source_json_display" -DefaultValue ([string]$Report.expected_summary_display)
+            source_report = $sourceReport
+            source_report_display = $sourceReportDisplay
+            source_json = $sourceJson
+            source_json_display = $sourceJsonDisplay
         }) | Out-Null
     }
 }
