@@ -408,6 +408,27 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
                     "PDFium input: provide prebuilt library/include inputs or a source checkout with public/fpdfview.h."
                 )
             }
+            readiness_action_evidence_count = 2
+            readiness_action_evidence = @(
+                [ordered]@{
+                    id = "pdf_visual_release_gate_preflight.pdf_dependency_inputs_ready.pdfio_source_header"
+                    action = "provide_pdf_dependency_input"
+                    issue_key = "pdf_dependency_inputs_ready"
+                    item = "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h"
+                    source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                    source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                    source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                },
+                [ordered]@{
+                    id = "pdf_visual_release_gate_preflight.pdf_build_options_enabled.FEATHERDOC_BUILD_PDF_IMPORT"
+                    action = "enable_pdf_build_option"
+                    issue_key = "pdf_build_options_enabled"
+                    item = "FEATHERDOC_BUILD_PDF_IMPORT"
+                    source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                    source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                    source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                }
+            )
             build_dir_auto_candidates = @(
                 [ordered]@{
                     relative_path = "build"
@@ -474,6 +495,27 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
                     "PDFium input: provide prebuilt library/include inputs or a source checkout with public/fpdfview.h."
                 )
             }
+            readiness_action_evidence_count = 2
+            readiness_action_evidence = @(
+                [ordered]@{
+                    id = "pdf_visual_release_gate_preflight.pdf_dependency_inputs_ready.pdfio_source_header"
+                    action = "provide_pdf_dependency_input"
+                    issue_key = "pdf_dependency_inputs_ready"
+                    item = "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h"
+                    source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                    source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                    source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                },
+                [ordered]@{
+                    id = "pdf_visual_release_gate_preflight.pdf_build_options_enabled.FEATHERDOC_BUILD_PDF_IMPORT"
+                    action = "enable_pdf_build_option"
+                    issue_key = "pdf_build_options_enabled"
+                    item = "FEATHERDOC_BUILD_PDF_IMPORT"
+                    source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                    source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                    source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                }
+            )
             build_dir_auto_candidates = @(
                 [ordered]@{
                     relative_path = "build"
@@ -731,6 +773,14 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve PDF preflight selected PDFium provider."
     Assert-Equal -Actual ([int]$pdfPreflightBlocker.pdf_dependency_inputs.missing_input_count) -Expected 3 `
         -Message "Rollup should preserve PDF preflight dependency missing input count."
+    Assert-Equal -Actual ([int]$pdfPreflightBlocker.readiness_action_evidence_count) -Expected 2 `
+        -Message "Rollup should preserve PDF preflight blocker readiness action evidence count."
+    Assert-ContainsText -Text (($pdfPreflightBlocker.readiness_action_evidence | ForEach-Object { "$($_.action)|$($_.issue_key)|$($_.item)|$($_.source_json_display)" }) -join "`n") `
+        -ExpectedText "provide_pdf_dependency_input|pdf_dependency_inputs_ready|PDFio source header" `
+        -Message "Rollup should preserve PDF dependency input readiness evidence."
+    Assert-ContainsText -Text (($pdfPreflightBlocker.readiness_action_evidence | ForEach-Object { "$($_.action)|$($_.issue_key)|$($_.item)|$($_.source_json_display)" }) -join "`n") `
+        -ExpectedText "enable_pdf_build_option|pdf_build_options_enabled|FEATHERDOC_BUILD_PDF_IMPORT|.\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json" `
+        -Message "Rollup should preserve disabled PDF build option readiness evidence."
     Assert-ContainsText -Text (($pdfPreflightBlocker.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n") `
         -ExpectedText "visual_baseline_manifest_pdfs_exist" `
         -Message "Rollup should preserve PDF preflight blocker output gap summary."
@@ -750,6 +800,11 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve PDF preflight action item build candidate PDF option readiness."
     Assert-Equal -Actual ([string]$pdfPreflightAction.pdf_dependency_inputs.status) -Expected "not_ready" `
         -Message "Rollup should preserve PDF preflight action item dependency input readiness."
+    Assert-Equal -Actual ([int]$pdfPreflightAction.readiness_action_evidence_count) -Expected 2 `
+        -Message "Rollup should preserve PDF preflight action readiness action evidence count."
+    Assert-ContainsText -Text (($pdfPreflightAction.readiness_action_evidence | ForEach-Object { "$($_.action)|$($_.issue_key)|$($_.item)" }) -join "`n") `
+        -ExpectedText "enable_pdf_build_option|pdf_build_options_enabled|FEATHERDOC_BUILD_PDF_IMPORT" `
+        -Message "Rollup should preserve PDF preflight action readiness evidence details."
     $projectTemplateSourceReport = ($summary.source_reports |
         Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
         Select-Object -First 1)
@@ -852,6 +907,14 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include controlled PDF visual smoke JSON display."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled-visual-smoke-check-latest.json" `
         -Message "Markdown should point reviewers at the controlled visual smoke JSON."
+    Assert-ContainsText -Text $markdown -ExpectedText "readiness_action_evidence" `
+        -Message "Markdown should include PDF preflight readiness action evidence."
+    Assert-ContainsText -Text $markdown -ExpectedText "provide_pdf_dependency_input" `
+        -Message "Markdown should include dependency input readiness action."
+    Assert-ContainsText -Text $markdown -ExpectedText "enable_pdf_build_option" `
+        -Message "Markdown should include PDF build option readiness action."
+    Assert-ContainsText -Text $markdown -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT" `
+        -Message "Markdown should include the disabled PDF build option name."
     Assert-ContainsText -Text $markdown -ExpectedText "Governance Metric Review Focus" `
         -Message "Markdown should include governance metric review focus."
     Assert-ContainsText -Text $markdown -ExpectedText "Numbering real-corpus confidence" `

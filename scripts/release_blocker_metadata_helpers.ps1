@@ -900,6 +900,46 @@ function Add-ReleaseGovernanceRepairLines {
     }
 }
 
+function Add-ReleaseGovernanceReadinessActionEvidenceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item
+    )
+
+    $evidenceItems = @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "readiness_action_evidence")
+    $evidenceCount = Get-ReleaseBlockerPropertyValue -Object $Item -Name "readiness_action_evidence_count"
+    if ([string]::IsNullOrWhiteSpace($evidenceCount)) {
+        if ($evidenceItems.Count -eq 0) {
+            return
+        }
+
+        $evidenceCount = [string]$evidenceItems.Count
+    }
+
+    [void]$Lines.Add("  - readiness_action_evidence_count: $evidenceCount")
+    if ($evidenceItems.Count -eq 0) {
+        return
+    }
+
+    [void]$Lines.Add("  - readiness_action_evidence:")
+    foreach ($evidence in $evidenceItems) {
+        $id = Get-ReleaseBlockerDisplayValue `
+            -Value (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "id") `
+            -Fallback "(unknown evidence)"
+        $action = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "action")
+        $issueKey = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "issue_key")
+        $item = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "item")
+        [void]$Lines.Add("    - ${id}: action=$action issue_key=$issueKey item=$item")
+
+        foreach ($fieldName in @("source_schema", "source_report", "source_report_display", "source_json", "source_json_display")) {
+            $fieldValue = Get-ReleaseBlockerPropertyValue -Object $evidence -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+                [void]$Lines.Add("      - ${fieldName}: $fieldValue")
+            }
+        }
+    }
+}
+
 function Add-ReleaseGovernanceReportIssueLines {
     param(
         [System.Collections.Generic.List[string]]$Lines,
@@ -2049,6 +2089,7 @@ function Add-ReleaseGovernanceRollupMarkdownSection {
             }
             Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $blocker -RepoRoot $RepoRoot
             Add-ReleaseGovernanceRepairLines -Lines $Lines -Item $blocker
+            Add-ReleaseGovernanceReadinessActionEvidenceLines -Lines $Lines -Item $blocker
         }
     }
 
@@ -2078,6 +2119,7 @@ function Add-ReleaseGovernanceRollupMarkdownSection {
             }
             Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $item -RepoRoot $RepoRoot
             Add-ReleaseGovernanceRepairLines -Lines $Lines -Item $item
+            Add-ReleaseGovernanceReadinessActionEvidenceLines -Lines $Lines -Item $item
         }
     }
 }
@@ -2144,6 +2186,7 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
             }
             Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $blocker -RepoRoot $RepoRoot
             Add-ReleaseGovernanceRepairLines -Lines $Lines -Item $blocker
+            Add-ReleaseGovernanceReadinessActionEvidenceLines -Lines $Lines -Item $blocker
         }
     }
 
@@ -2177,6 +2220,7 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
             }
             Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $item -RepoRoot $RepoRoot
             Add-ReleaseGovernanceRepairLines -Lines $Lines -Item $item
+            Add-ReleaseGovernanceReadinessActionEvidenceLines -Lines $Lines -Item $item
         }
     }
 }

@@ -374,6 +374,27 @@ $summary = [ordered]@{
                     disabled_pdf_build_options = @("FEATHERDOC_BUILD_PDF", "FEATHERDOC_BUILD_PDF_IMPORT")
                     missing_pdf_build_options = @()
                 }
+                readiness_action_evidence_count = 2
+                readiness_action_evidence = @(
+                    [ordered]@{
+                        id = "pdf_visual_release_gate_preflight.pdf_dependency_inputs_ready.pdfio_source_header"
+                        action = "provide_pdf_dependency_input"
+                        issue_key = "pdf_dependency_inputs_ready"
+                        item = "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h"
+                        source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                        source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                        source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                    },
+                    [ordered]@{
+                        id = "pdf_visual_release_gate_preflight.pdf_build_options_enabled.FEATHERDOC_BUILD_PDF_IMPORT"
+                        action = "enable_pdf_build_option"
+                        issue_key = "pdf_build_options_enabled"
+                        item = "FEATHERDOC_BUILD_PDF_IMPORT"
+                        source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                        source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                        source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                    }
+                )
             }
         )
         action_item_count = 5
@@ -440,6 +461,27 @@ $summary = [ordered]@{
                     disabled_pdf_build_options = @("FEATHERDOC_BUILD_PDF", "FEATHERDOC_BUILD_PDF_IMPORT")
                     missing_pdf_build_options = @()
                 }
+                readiness_action_evidence_count = 2
+                readiness_action_evidence = @(
+                    [ordered]@{
+                        id = "pdf_visual_release_gate_preflight.pdf_dependency_inputs_ready.pdfio_source_header"
+                        action = "provide_pdf_dependency_input"
+                        issue_key = "pdf_dependency_inputs_ready"
+                        item = "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h"
+                        source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                        source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                        source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                    },
+                    [ordered]@{
+                        id = "pdf_visual_release_gate_preflight.pdf_build_options_enabled.FEATHERDOC_BUILD_PDF_IMPORT"
+                        action = "enable_pdf_build_option"
+                        issue_key = "pdf_build_options_enabled"
+                        item = "FEATHERDOC_BUILD_PDF_IMPORT"
+                        source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                        source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                        source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
+                    }
+                )
             }
         )
         warning_count = 3
@@ -730,6 +772,14 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'full_visual_gate_status: not_run_by_preflight_governance' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'controlled_visual_smoke_status: pass' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'controlled_visual_smoke_json_display: .\output\pdf-controlled-visual-smoke-20260520\controlled-visual-smoke-check-latest.json' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'readiness_action_evidence_count: 2' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'readiness_action_evidence:' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'provide_pdf_dependency_input' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'pdf_dependency_inputs_ready' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'PDFio source header' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'enable_pdf_build_option' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'FEATHERDOC_BUILD_PDF_IMPORT' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_json_display: .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'Rollup Source Report Issues' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report: .\output\table-layout-delivery-governance\summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_json: .\output\table-layout-delivery-governance\unreadable-summary.json' -Label $document.Label

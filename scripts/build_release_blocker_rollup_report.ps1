@@ -368,6 +368,43 @@ function Add-TraceabilityMarkdownLines {
     }
 }
 
+function Add-ReadinessActionEvidenceMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Item
+    )
+
+    $evidenceItems = @(Get-JsonArray -Object $Item -Name "readiness_action_evidence")
+    $evidenceCount = Get-JsonString -Object $Item -Name "readiness_action_evidence_count"
+    if ([string]::IsNullOrWhiteSpace($evidenceCount)) {
+        if ($evidenceItems.Count -eq 0) {
+            return
+        }
+
+        $evidenceCount = [string]$evidenceItems.Count
+    }
+
+    $Lines.Add("  - readiness_action_evidence_count: ``$evidenceCount``") | Out-Null
+    if ($evidenceItems.Count -eq 0) {
+        return
+    }
+
+    $Lines.Add("  - readiness_action_evidence:") | Out-Null
+    foreach ($evidence in $evidenceItems) {
+        $id = Get-JsonString -Object $evidence -Name "id" -DefaultValue "(unknown evidence)"
+        $action = Get-JsonString -Object $evidence -Name "action"
+        $issueKey = Get-JsonString -Object $evidence -Name "issue_key"
+        $item = Get-JsonString -Object $evidence -Name "item"
+        $Lines.Add("    - ``${id}``: action=``$action`` issue_key=``$issueKey`` item=``$item``") | Out-Null
+        foreach ($fieldName in @("source_schema", "source_report", "source_report_display", "source_json", "source_json_display")) {
+            $fieldValue = Get-JsonString -Object $evidence -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+                $Lines.Add("      - ${fieldName}: ``$fieldValue``") | Out-Null
+            }
+        }
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -522,6 +559,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
                 $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
             }
+            Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $blocker
         }
     }
     $lines.Add("") | Out-Null
@@ -548,6 +586,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
             }
+            Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $item
         }
     }
     $lines.Add("") | Out-Null
@@ -700,7 +739,9 @@ foreach ($path in @($inputPaths)) {
                     "missing_output_count",
                     "output_gap_summary",
                     "build_dir_auto_candidates",
-                    "pdf_dependency_inputs"
+                    "pdf_dependency_inputs",
+                    "readiness_action_evidence_count",
+                    "readiness_action_evidence"
                 )
             $blockers.Add($rollupBlocker) | Out-Null
         }
@@ -759,7 +800,9 @@ foreach ($path in @($inputPaths)) {
                     "missing_output_count",
                     "output_gap_summary",
                     "build_dir_auto_candidates",
-                    "pdf_dependency_inputs"
+                    "pdf_dependency_inputs",
+                    "readiness_action_evidence_count",
+                    "readiness_action_evidence"
                 )
             $actionItems.Add($rollupActionItem) | Out-Null
         }
