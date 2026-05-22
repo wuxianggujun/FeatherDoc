@@ -152,6 +152,20 @@ foreach ($path in @(
 $summaryPath = Join-Path $reportDir "summary.json"
 $gateSummaryPath = Join-Path $gateReportDir "gate_summary.json"
 $gateFinalReviewPath = Join-Path $gateReportDir "gate_final_review.md"
+$governanceMetricSourceJson = "output/numbering-catalog-governance/summary.json"
+$governanceMetricSourceDisplay = ".\output\numbering-catalog-governance\summary.json"
+$governanceMetric = [ordered]@{
+    id = "numbering_catalog_governance.real_corpus_confidence"
+    metric = "real_corpus_confidence"
+    report_id = "numbering_catalog_governance"
+    source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+    source_report = $governanceMetricSourceJson
+    source_report_display = $governanceMetricSourceDisplay
+    source_json = $governanceMetricSourceJson
+    source_json_display = $governanceMetricSourceDisplay
+    level = "ready"
+    score = 0.96
+}
 
 $gateSummary = [ordered]@{
     generated_at = "2026-04-28T12:00:00"
@@ -246,6 +260,34 @@ $summary = [ordered]@{
     task_output_root = $taskOutputRoot
     superseded_review_tasks_report = $supersededReviewTasksReportPath
     install_dir = $installDir
+    release_blocker_rollup = [ordered]@{
+        requested = $true
+        status = "ready"
+        source_report_count = 1
+        source_failure_count = 0
+        release_blocker_count = 0
+        warning_count = 0
+        action_item_count = 0
+        release_blockers = @()
+        warnings = @()
+        action_items = @()
+        governance_metrics = @($governanceMetric)
+    }
+    release_governance_handoff = [ordered]@{
+        requested = $true
+        status = "ready"
+        expected_report_count = 1
+        loaded_report_count = 1
+        missing_report_count = 0
+        failed_report_count = 0
+        release_blocker_count = 0
+        warning_count = 0
+        action_item_count = 0
+        release_blockers = @()
+        warnings = @()
+        action_items = @()
+        governance_metrics = @($governanceMetric)
+    }
     steps = [ordered]@{
         configure = [ordered]@{ status = "completed" }
         build = [ordered]@{ status = "completed" }
@@ -287,6 +329,20 @@ foreach ($assertion in @(
         @{ Path = $startHerePath; Label = "START_HERE.md" }
     )) {
     Assert-Contains -Path $assertion.Path -ExpectedText "Review task count: 5 total (4 standard, 1 curated)" -Label $assertion.Label
+}
+
+foreach ($assertion in @(
+        @{ Path = $handoffPath; Label = "release_handoff.md" },
+        @{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+        @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        @{ Path = $startHerePath; Label = "START_HERE.md" }
+    )) {
+    Assert-Contains -Path $assertion.Path -ExpectedText "Governance Metrics" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "numbering_catalog_governance.real_corpus_confidence" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "source_report: $governanceMetricSourceJson" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "source_json: $governanceMetricSourceJson" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "source_report_display: $governanceMetricSourceDisplay" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "source_json_display: $governanceMetricSourceDisplay" -Label $assertion.Label
 }
 
 foreach ($assertion in @(
