@@ -376,8 +376,36 @@ Assert-ContainsText -Text ([string]$missingSyncWarning.source_json_display) -Exp
     -Message "Missing sync warnings should point source_json_display at the inspect evidence."
 Assert-ContainsText -Text ([string]$missingSyncWarning.source_report_display) -ExpectedText "report\summary.json" `
     -Message "Missing sync warnings should keep source_report_display on the governance summary."
+Assert-ContainsText -Text ([string]$missingSyncWarning.source_report) -ExpectedText "summary.json" `
+    -Message "Missing sync warnings should keep source_report on the governance summary."
 Assert-ContainsText -Text ([string]$missingSyncWarning.source_json) -ExpectedText "inspect-content-controls.json" `
     -Message "Missing sync warnings should preserve the inspect evidence source_json."
+
+$emptyEvidenceDir = Join-Path $resolvedWorkingDir "empty-evidence"
+$emptyEvidenceInputRoot = Join-Path $emptyEvidenceDir "empty-input"
+$emptyEvidenceOutputDir = Join-Path $emptyEvidenceDir "report"
+New-Item -ItemType Directory -Path $emptyEvidenceInputRoot -Force | Out-Null
+$emptyEvidenceResult = Invoke-Report -Arguments @(
+    "-InputRoot"
+    $emptyEvidenceInputRoot
+    "-OutputDir"
+    $emptyEvidenceOutputDir
+)
+Assert-Equal -Actual $emptyEvidenceResult.ExitCode -Expected 0 `
+    -Message "Content-control governance empty-evidence run should pass. Output: $($emptyEvidenceResult.Text)"
+$emptyEvidenceSummaryPath = Join-Path $emptyEvidenceOutputDir "summary.json"
+$emptyEvidenceSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $emptyEvidenceSummaryPath | ConvertFrom-Json
+$emptyEvidenceWarning = @($emptyEvidenceSummary.warnings | Where-Object { [string]$_.id -eq "content_control_binding_evidence_missing" })[0]
+Assert-True -Condition ($null -ne $emptyEvidenceWarning) `
+    -Message "Empty evidence should emit content_control_binding_evidence_missing."
+Assert-ContainsText -Text ([string]$emptyEvidenceWarning.source_report) -ExpectedText "summary.json" `
+    -Message "Empty evidence warnings should keep source_report on the governance summary."
+Assert-ContainsText -Text ([string]$emptyEvidenceWarning.source_report_display) -ExpectedText "report\summary.json" `
+    -Message "Empty evidence warnings should keep source_report_display on the governance summary."
+Assert-ContainsText -Text ([string]$emptyEvidenceWarning.source_json) -ExpectedText "summary.json" `
+    -Message "Empty evidence warnings should keep source_json on the governance summary."
+Assert-ContainsText -Text ([string]$emptyEvidenceWarning.source_json_display) -ExpectedText "report\summary.json" `
+    -Message "Empty evidence warnings should keep source_json_display on the governance summary."
 
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Content Control Data Binding Governance" `

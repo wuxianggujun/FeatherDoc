@@ -773,95 +773,110 @@ $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
 
 foreach ($issue in @($syncIssues.ToArray())) {
+    $issueSourceJson = Get-JsonString -Object $issue -Name "source_json" -DefaultValue $summaryPath
+    $issueSourceJsonDisplay = Get-JsonString -Object $issue -Name "source_json_display" -DefaultValue $summaryDisplay
     $releaseBlockers.Add((New-ReleaseBlocker `
                 -Id "content_control_data_binding.custom_xml_sync_issue" `
-                -SourceJson ([string]$issue.source_json) `
-                -PartEntryName ([string]$issue.part_entry_name) `
-                -ContentControlIndex $issue.content_control_index `
-                -Tag ([string]$issue.tag) `
-                -Alias ([string]$issue.alias) `
-                -StoreItemId ([string]$issue.store_item_id) `
-                -XPath ([string]$issue.xpath) `
-                -Status ([string]$issue.reason) `
+                -SourceJson $issueSourceJson `
+                -PartEntryName (Get-JsonString -Object $issue -Name "part_entry_name") `
+                -ContentControlIndex (Get-JsonProperty -Object $issue -Name "content_control_index") `
+                -Tag (Get-JsonString -Object $issue -Name "tag") `
+                -Alias (Get-JsonString -Object $issue -Name "alias") `
+                -StoreItemId (Get-JsonString -Object $issue -Name "store_item_id") `
+                -XPath (Get-JsonString -Object $issue -Name "xpath") `
+                -Status (Get-JsonString -Object $issue -Name "reason") `
                 -Action "fix_custom_xml_data_binding_source" `
                 -Message "Custom XML sync failed for a bound content control." `
                 -RepairStrategy "fix_custom_xml_source" `
                 -RepairHint "Fix the Custom XML source value or mapping, then rerun sync-content-controls-from-custom-xml." `
                 -CommandTemplate (New-SyncContentControlCommandTemplate) `
-                -SourceJsonDisplay ([string]$issue.source_json_display))) | Out-Null
+                -SourceJsonDisplay $issueSourceJsonDisplay)) | Out-Null
 }
 
 foreach ($control in @($contentControls.ToArray())) {
-    $hasBinding = -not [string]::IsNullOrWhiteSpace([string]$control.binding_key)
-    if ($hasBinding -and [bool]$control.showing_placeholder) {
+    $controlBindingKey = Get-JsonString -Object $control -Name "binding_key"
+    $controlSourceJson = Get-JsonString -Object $control -Name "source_json" -DefaultValue $summaryPath
+    $controlSourceJsonDisplay = Get-JsonString -Object $control -Name "source_json_display" -DefaultValue $summaryDisplay
+    $controlPartEntryName = Get-JsonString -Object $control -Name "part_entry_name"
+    $controlIndex = Get-JsonProperty -Object $control -Name "content_control_index"
+    $controlTag = Get-JsonString -Object $control -Name "tag"
+    $controlAlias = Get-JsonString -Object $control -Name "alias"
+    $controlStoreItemId = Get-JsonString -Object $control -Name "store_item_id"
+    $controlXPath = Get-JsonString -Object $control -Name "xpath"
+    $controlLock = Get-JsonString -Object $control -Name "lock"
+    $controlFormKind = Get-JsonString -Object $control -Name "form_kind"
+    $hasBinding = -not [string]::IsNullOrWhiteSpace($controlBindingKey)
+    if ($hasBinding -and (Get-JsonBool -Object $control -Name "showing_placeholder")) {
         $releaseBlockers.Add((New-ReleaseBlocker `
                     -Id "content_control_data_binding.bound_placeholder" `
-                    -SourceJson ([string]$control.source_json) `
-                    -PartEntryName ([string]$control.part_entry_name) `
-                    -ContentControlIndex $control.content_control_index `
-                    -Tag ([string]$control.tag) `
-                    -Alias ([string]$control.alias) `
-                    -StoreItemId ([string]$control.store_item_id) `
-                    -XPath ([string]$control.xpath) `
+                    -SourceJson $controlSourceJson `
+                    -PartEntryName $controlPartEntryName `
+                    -ContentControlIndex $controlIndex `
+                    -Tag $controlTag `
+                    -Alias $controlAlias `
+                    -StoreItemId $controlStoreItemId `
+                    -XPath $controlXPath `
                     -Status "placeholder_visible" `
                     -Action "sync_or_fill_bound_content_control" `
                     -Message "A data-bound content control is still showing placeholder text." `
                     -RepairStrategy "sync_bound_content_control" `
                     -RepairHint "Rerun Custom XML sync or explicitly fill the bound content control before release." `
                     -CommandTemplate (New-SyncContentControlCommandTemplate) `
-                    -SourceJsonDisplay ([string]$control.source_json_display))) | Out-Null
+                    -SourceJsonDisplay $controlSourceJsonDisplay)) | Out-Null
     }
 
-    if ($hasBinding -and -not [string]::IsNullOrWhiteSpace([string]$control.lock)) {
+    if ($hasBinding -and -not [string]::IsNullOrWhiteSpace($controlLock)) {
         $actionItems.Add((New-ActionItem `
                     -Id "review_content_control_lock_strategy" `
                     -Action "review_content_control_lock_strategy" `
                     -Title "Review lock state for data-bound content control" `
-                    -SourceJson ([string]$control.source_json) `
-                    -PartEntryName ([string]$control.part_entry_name) `
-                    -ContentControlIndex $control.content_control_index `
-                    -Tag ([string]$control.tag) `
-                    -Alias ([string]$control.alias) `
-                    -StoreItemId ([string]$control.store_item_id) `
-                    -XPath ([string]$control.xpath) `
+                    -SourceJson $controlSourceJson `
+                    -PartEntryName $controlPartEntryName `
+                    -ContentControlIndex $controlIndex `
+                    -Tag $controlTag `
+                    -Alias $controlAlias `
+                    -StoreItemId $controlStoreItemId `
+                    -XPath $controlXPath `
                     -RepairStrategy "review_lock_state" `
                     -RepairHint "Confirm whether the lock is intentional; clear it only if template data should overwrite this control." `
-                    -CommandTemplate (New-ClearLockCommandTemplate -Tag ([string]$control.tag) -Alias ([string]$control.alias)) `
-                    -SourceJsonDisplay ([string]$control.source_json_display))) | Out-Null
+                    -CommandTemplate (New-ClearLockCommandTemplate -Tag $controlTag -Alias $controlAlias) `
+                    -SourceJsonDisplay $controlSourceJsonDisplay)) | Out-Null
     }
 
-    if (-not $hasBinding -and [string]$control.form_kind -notin @("", "rich_text", "plain_text")) {
+    if (-not $hasBinding -and $controlFormKind -notin @("", "rich_text", "plain_text")) {
         $actionItems.Add((New-ActionItem `
                     -Id "review_unbound_form_content_control" `
                     -Action "review_unbound_form_content_control" `
                     -Title "Review whether form content control should bind to template data" `
-                    -SourceJson ([string]$control.source_json) `
-                    -PartEntryName ([string]$control.part_entry_name) `
-                    -ContentControlIndex $control.content_control_index `
-                    -Tag ([string]$control.tag) `
-                    -Alias ([string]$control.alias) `
+                    -SourceJson $controlSourceJson `
+                    -PartEntryName $controlPartEntryName `
+                    -ContentControlIndex $controlIndex `
+                    -Tag $controlTag `
+                    -Alias $controlAlias `
                     -StoreItemId "" `
                     -XPath "" `
                     -RepairStrategy "bind_or_exempt_form_control" `
                     -RepairHint "Bind the form control to a Custom XML path, or document why it is intentionally unbound." `
-                    -CommandTemplate (New-BindContentControlCommandTemplate -Tag ([string]$control.tag) -Alias ([string]$control.alias)) `
-                    -SourceJsonDisplay ([string]$control.source_json_display))) | Out-Null
+                    -CommandTemplate (New-BindContentControlCommandTemplate -Tag $controlTag -Alias $controlAlias) `
+                    -SourceJsonDisplay $controlSourceJsonDisplay)) | Out-Null
     }
 }
 
 $bindingGroups = @($contentControls.ToArray() | Where-Object {
-        -not [string]::IsNullOrWhiteSpace([string]$_.binding_key)
-    } | Group-Object { [string]$_.binding_key } | Where-Object { $_.Count -gt 1 })
+        -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "binding_key"))
+    } | Group-Object { Get-JsonString -Object $_ -Name "binding_key" } | Where-Object { $_.Count -gt 1 })
 foreach ($group in @($bindingGroups)) {
     $first = @($group.Group)[0]
+    $firstSourceJson = Get-JsonString -Object $first -Name "source_json" -DefaultValue $summaryPath
+    $firstSourceJsonDisplay = Get-JsonString -Object $first -Name "source_json_display" -DefaultValue $summaryDisplay
     $duplicateMembers = @(
         $group.Group | ForEach-Object {
             [ordered]@{
-                part_entry_name = [string]$_.part_entry_name
-                content_control_index = $_.content_control_index
-                tag = [string]$_.tag
-                alias = [string]$_.alias
-                source_json_display = [string]$_.source_json_display
+                part_entry_name = Get-JsonString -Object $_ -Name "part_entry_name"
+                content_control_index = Get-JsonProperty -Object $_ -Name "content_control_index"
+                tag = Get-JsonString -Object $_ -Name "tag"
+                alias = Get-JsonString -Object $_ -Name "alias"
+                source_json_display = Get-JsonString -Object $_ -Name "source_json_display" -DefaultValue $summaryDisplay
             }
         }
     )
@@ -869,17 +884,17 @@ foreach ($group in @($bindingGroups)) {
                 -Id "review_duplicate_content_control_binding" `
                 -Action "review_duplicate_content_control_binding" `
                 -Title "Review repeated content controls that share one Custom XML binding" `
-                -SourceJson ([string]$first.source_json) `
-                -PartEntryName ([string]$first.part_entry_name) `
-                -ContentControlIndex $first.content_control_index `
-                -Tag ([string]$first.tag) `
-                -Alias ([string]$first.alias) `
-                -StoreItemId ([string]$first.store_item_id) `
-                -XPath ([string]$first.xpath) `
+                -SourceJson $firstSourceJson `
+                -PartEntryName (Get-JsonString -Object $first -Name "part_entry_name") `
+                -ContentControlIndex (Get-JsonProperty -Object $first -Name "content_control_index") `
+                -Tag (Get-JsonString -Object $first -Name "tag") `
+                -Alias (Get-JsonString -Object $first -Name "alias") `
+                -StoreItemId (Get-JsonString -Object $first -Name "store_item_id") `
+                -XPath (Get-JsonString -Object $first -Name "xpath") `
                 -RepairStrategy "deduplicate_or_confirm_shared_binding" `
                 -RepairHint "Review the entire shared-binding group. Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths." `
                 -CommandTemplate "featherdoc_cli inspect-content-controls <input.docx> --json" `
-                -SourceJsonDisplay ([string]$first.source_json_display) `
+                -SourceJsonDisplay $firstSourceJsonDisplay `
                 -DuplicateBindingKey ([string]$group.Name) `
                 -DuplicateMemberCount ([int]$group.Count) `
                 -DuplicateMembers @($duplicateMembers))) | Out-Null
@@ -896,17 +911,18 @@ foreach ($item in @($actionItems.ToArray())) {
 }
 
 $boundControls = @($contentControls.ToArray() | Where-Object {
-        -not [string]::IsNullOrWhiteSpace([string]$_.binding_key)
+        -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "binding_key"))
     })
 $customXmlSyncEvidenceSourceJson = $summaryPath
 $customXmlSyncEvidenceSourceJsonDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
 $boundControlEvidence = @($boundControls | Where-Object {
-        -not [string]::IsNullOrWhiteSpace([string]$_.source_json) -and
-        -not [string]::IsNullOrWhiteSpace([string]$_.source_json_display)
+        -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "source_json")) -and
+        -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "source_json_display"))
     } | Select-Object -First 1)
-if ($null -ne $boundControlEvidence) {
-    $customXmlSyncEvidenceSourceJson = [string]$boundControlEvidence.source_json
-    $customXmlSyncEvidenceSourceJsonDisplay = [string]$boundControlEvidence.source_json_display
+if ($boundControlEvidence.Count -gt 0) {
+    $selectedBoundControlEvidence = $boundControlEvidence[0]
+    $customXmlSyncEvidenceSourceJson = Get-JsonString -Object $selectedBoundControlEvidence -Name "source_json" -DefaultValue $summaryPath
+    $customXmlSyncEvidenceSourceJsonDisplay = Get-JsonString -Object $selectedBoundControlEvidence -Name "source_json_display" -DefaultValue $summaryDisplay
 }
 if ($contentControls.Count -eq 0 -and $syncItems.Count -eq 0 -and $syncIssues.Count -eq 0) {
     $warnings.Add([ordered]@{
@@ -915,6 +931,7 @@ if ($contentControls.Count -eq 0 -and $syncItems.Count -eq 0 -and $syncIssues.Co
         source_schema = $contentControlGovernanceSchema
         source_json = $summaryPath
         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+        source_report = $summaryPath
         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "No content-control inspection or Custom XML sync evidence was loaded."
     }) | Out-Null
@@ -926,6 +943,7 @@ if ($boundControls.Count -gt 0 -and $syncItems.Count -eq 0 -and $syncIssues.Coun
         source_schema = $contentControlGovernanceSchema
         source_json = $customXmlSyncEvidenceSourceJson
         source_json_display = $customXmlSyncEvidenceSourceJsonDisplay
+        source_report = $summaryPath
         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
     }) | Out-Null
