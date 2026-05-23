@@ -239,6 +239,8 @@ Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_bindin
 $firstBlocker = @($summary.release_blockers)[0]
 Assert-Equal -Actual ([string]$firstBlocker.source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
     -Message "Blocker should carry content-control governance source schema."
+Assert-ContainsText -Text ([string]$firstBlocker.source_json) -ExpectedText "sync-content-controls-from-custom-xml.json" `
+    -Message "Blocker should carry raw source JSON."
 Assert-ContainsText -Text ([string]$firstBlocker.source_json_display) -ExpectedText "sync-content-controls-from-custom-xml.json" `
     -Message "Blocker should carry source JSON display."
 Assert-ContainsText -Text ([string]$firstBlocker.source_report) -ExpectedText "summary.json" `
@@ -254,6 +256,8 @@ Assert-ContainsText -Text ([string]$firstBlocker.command_template) -ExpectedText
 $placeholderBlocker = @($summary.release_blockers | Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" })[0]
 Assert-Equal -Actual ([string]$placeholderBlocker.source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
     -Message "Placeholder blockers should carry content-control governance source schema."
+Assert-ContainsText -Text ([string]$placeholderBlocker.source_json) -ExpectedText "inspect-content-controls.json" `
+    -Message "Placeholder blockers should carry raw source JSON."
 Assert-ContainsText -Text ([string]$placeholderBlocker.source_json_display) -ExpectedText "inspect-content-controls.json" `
     -Message "Placeholder blockers should carry source JSON display."
 Assert-ContainsText -Text ([string]$placeholderBlocker.source_report) -ExpectedText "summary.json" `
@@ -287,6 +291,8 @@ Assert-Equal -Actual ([string]$duplicateAction.repair_strategy) -Expected "dedup
     -Message "Duplicate binding actions should carry a repair strategy."
 Assert-ContainsText -Text ([string]$duplicateAction.command_template) -ExpectedText "inspect-content-controls" `
     -Message "Duplicate binding actions should carry an inspection command template."
+Assert-ContainsText -Text ([string]$duplicateAction.source_json) -ExpectedText "inspect-content-controls.json" `
+    -Message "Duplicate binding actions should keep raw source JSON."
 Assert-ContainsText -Text ([string]$duplicateAction.source_json_display) -ExpectedText "inspect-content-controls.json" `
     -Message "Duplicate binding actions should keep source JSON display."
 Assert-ContainsText -Text ([string]$duplicateAction.source_report) -ExpectedText "summary.json" `
@@ -315,6 +321,8 @@ Assert-ContainsText -Text $repairStatuses -ExpectedText "review_only" `
 $syncPlan = @($summary.repair_plan_items | Where-Object { [string]$_.repair_strategy -eq "sync_bound_content_control" })[0]
 Assert-Equal -Actual ([string]$syncPlan.source_id) -Expected "content_control_data_binding.bound_placeholder" `
     -Message "Bound placeholder sync plan should keep the source blocker id."
+Assert-ContainsText -Text ([string]$syncPlan.source_json) -ExpectedText "inspect-content-controls.json" `
+    -Message "Bound placeholder sync plan should keep raw source JSON."
 Assert-ContainsText -Text ([string]$syncPlan.source_json_display) -ExpectedText "inspect-content-controls.json" `
     -Message "Bound placeholder sync plan should keep source JSON display."
 Assert-ContainsText -Text ([string]$syncPlan.source_report) -ExpectedText "summary.json" `
