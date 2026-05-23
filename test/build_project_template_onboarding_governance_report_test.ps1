@@ -280,6 +280,16 @@ if (Test-Scenario -Name "fail_on_blocker") {
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
         -Message "Failing summary should preserve blocked status."
+    $markdownPath = Join-Path $failOutputDir "project_template_onboarding_governance.md"
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "Project Template Onboarding Governance Report" `
+        -Message "Failing governance report Markdown should include the title."
+    Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
+        -Message "Failing governance report Markdown should include the blocker section."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Failing governance report Markdown should include source report display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
+        -Message "Failing governance report Markdown should include action item open commands."
 }
 
 Write-Host "Project template onboarding governance report regression passed."
