@@ -389,6 +389,13 @@ if (Test-Scenario -Name "fail_on_blocker") {
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $failOnBlockerOutputDir "summary.json") | ConvertFrom-Json
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 1 `
         -Message "Fail-on-blocker layout summary should still preserve blockers."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $failOnBlockerOutputDir "table_layout_delivery_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
+        -Message "Fail-on-blocker layout Markdown should include the blocker section."
+    Assert-ContainsText -Text $markdown -ExpectedText "table_layout.positioned_tables_need_review" `
+        -Message "Fail-on-blocker layout Markdown should include the blocker id."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_table_position_plan" `
+        -Message "Fail-on-blocker layout Markdown should include the blocker action."
 }
 
 Write-Host "Table layout delivery rollup regression passed."
