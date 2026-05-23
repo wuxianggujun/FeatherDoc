@@ -553,6 +553,20 @@ if (Test-Scenario -Name "fail_on_blocker") {
         -Message "Failing governance report should preserve needs_review status."
     Assert-True -Condition ([int]$summary.release_blocker_count -gt 0) `
         -Message "Failing governance report should write blockers."
+
+    $markdownPath = Join-Path $outputDir "table_layout_delivery_governance.md"
+    Assert-True -Condition (Test-Path -LiteralPath $markdownPath) `
+        -Message "Failing governance report should write Markdown output."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
+        -Message "Failing governance report should preserve the release blocker section."
+    Assert-ContainsText -Text $markdown -ExpectedText "table_layout_delivery.safe_tblLook_fixes_pending" `
+        -Message "Failing governance report should surface the safe tblLook blocker."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display" `
+        -Message "Failing governance report should surface source report tracing fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display" `
+        -Message "Failing governance report should surface source JSON tracing fields."
 }
 
 Write-Host "Table layout delivery governance report regression passed."
