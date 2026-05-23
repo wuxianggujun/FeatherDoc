@@ -410,6 +410,16 @@ Assert-ContainsText -Text ([string]$emptyEvidenceWarning.source_json_display) -E
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Content Control Data Binding Governance" `
     -Message "Markdown should include title."
+Assert-ContainsText -Text $markdown -ExpectedText "Repair plan schema: ``featherdoc.content_control_data_binding_repair_plan.v1``" `
+    -Message "Markdown should expose repair plan schema."
+Assert-ContainsText -Text $markdown -ExpectedText "Repair plan items: ``5``" `
+    -Message "Markdown should expose repair plan item count."
+Assert-ContainsText -Text $markdown -ExpectedText "Apply-supported repair plans: ``3``" `
+    -Message "Markdown should expose apply-supported repair plan count."
+Assert-ContainsText -Text $markdown -ExpectedText "Repair plans requiring user values: ``1``" `
+    -Message "Markdown should expose repair plans requiring user-provided values."
+Assert-ContainsText -Text $markdown -ExpectedText "Repair plans requiring visual verification: ``4``" `
+    -Message "Markdown should expose repair plans requiring visual verification."
 Assert-ContainsText -Text $markdown -ExpectedText "fix_custom_xml_data_binding_source" `
     -Message "Markdown should include remediation action."
 Assert-ContainsText -Text $markdown -ExpectedText "command_template" `

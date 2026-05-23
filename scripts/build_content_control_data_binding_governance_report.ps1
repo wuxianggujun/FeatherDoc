@@ -523,6 +523,11 @@ function New-ReportMarkdown {
     $lines.Add("- Sync issues: ``$($Summary.sync_issue_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
+    $lines.Add("- Repair plan schema: ``$($Summary.repair_plan_schema)``") | Out-Null
+    $lines.Add("- Repair plan items: ``$($Summary.repair_plan_item_count)``") | Out-Null
+    $lines.Add("- Apply-supported repair plans: ``$($Summary.repair_plan_apply_supported_count)``") | Out-Null
+    $lines.Add("- Repair plans requiring user values: ``$($Summary.repair_plan_requires_user_values_count)``") | Out-Null
+    $lines.Add("- Repair plans requiring visual verification: ``$($Summary.repair_plan_requires_visual_verification_count)``") | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("## Binding Coverage") | Out-Null
     $lines.Add("") | Out-Null
