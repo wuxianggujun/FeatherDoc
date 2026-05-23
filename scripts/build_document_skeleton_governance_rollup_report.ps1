@@ -232,6 +232,7 @@ function New-ReportMarkdown {
     $lines.Add("- Source reports: ``$($Summary.source_report_count)``") | Out-Null
     $lines.Add("- Documents: ``$($Summary.document_count)``") | Out-Null
     $lines.Add("- Source failures: ``$($Summary.source_failure_count)``") | Out-Null
+    $lines.Add("- source_failure_count: ``$($Summary.source_failure_count)``") | Out-Null
     $lines.Add("- Style-numbering issues: ``$($Summary.total_style_numbering_issue_count)``") | Out-Null
     $lines.Add("- Style-merge suggestions: ``$($Summary.total_style_merge_suggestion_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null

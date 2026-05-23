@@ -258,6 +258,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should include source document names."
     Assert-ContainsText -Text $markdown -ExpectedText "missing_numbering_definition" `
         -Message "Markdown report should include issue summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failure_count: ``0``" `
+        -Message "Markdown report should expose a machine-readable source failure count."
     Assert-ContainsText -Text $markdown -ExpectedText "style_merge_suggestions=``2``" `
         -Message "Markdown report should include per-document style merge suggestion counts."
 }
@@ -348,6 +350,9 @@ if (Test-Scenario -Name "malformed") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "source_report_read_failed" `
         -Message "Malformed rollup should include a source read warning."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $malformedOutputDir "document_skeleton_governance_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failure_count: ``1``" `
+        -Message "Malformed rollup Markdown should expose a machine-readable source failure count."
 }
 
 if (Test-Scenario -Name "fail_on_issue") {
