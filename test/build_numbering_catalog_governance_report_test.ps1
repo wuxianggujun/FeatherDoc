@@ -535,6 +535,15 @@ if (Test-Scenario -Name "fail_on_blocker") {
         -Message "Failing governance report should preserve needs_review status."
     Assert-True -Condition ([int]$summary.release_blocker_count -gt 0) `
         -Message "Failing governance report should write blockers."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "numbering_catalog_governance.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
+        -Message "Failing governance report Markdown should include the blocker section."
+    Assert-ContainsText -Text $markdown -ExpectedText "numbering_catalog_governance.dirty_baseline" `
+        -Message "Failing governance report Markdown should include the dirty baseline blocker."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Failing governance report Markdown should include source report display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
+        -Message "Failing governance report Markdown should include source JSON display fields."
 }
 
 Write-Host "Numbering catalog governance report regression passed."
