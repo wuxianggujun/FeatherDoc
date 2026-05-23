@@ -206,7 +206,9 @@ foreach ($marker in @(
     "Assert-ReleaseGovernanceDeclaredCountConsistency",
     "Release governance handoff nested rollup",
     "Get-NormalizedReleaseGovernanceBlockers",
-    "Get-NormalizedReleaseGovernanceActionItems"
+    "Get-NormalizedReleaseGovernanceActionItems",
+    "source_failure_count",
+    "readiness_action_evidence_count"
 )) {
     Assert-ContainsText -Text $metadataHelpersScript -ExpectedText $marker `
         -Message "Release metadata helpers should keep governance helper marker '$marker'."
