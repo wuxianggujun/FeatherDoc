@@ -591,6 +591,8 @@ if (Test-Scenario -Name "failed_report") {
         -Message "Failed handoff Markdown should include the failed report id."
     Assert-ContainsText -Text $markdown -ExpectedText "status=``failed``" `
         -Message "Failed handoff Markdown should expose the failed report status."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failures=``0``" `
+        -Message "Failed handoff Markdown should expose the failed report source failure count."
     Assert-ContainsText -Text $markdown -ExpectedText "error:" `
         -Message "Failed handoff Markdown should include the source failure error."
     Assert-ContainsText -Text $markdown -ExpectedText "{ this is not valid json" `
