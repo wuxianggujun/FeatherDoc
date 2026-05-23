@@ -565,6 +565,10 @@ Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_report: ou
     -Message "Rollup metric Markdown should render raw source report paths."
 Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_json: output/numbering-catalog-governance/coverage.json' `
     -Message "Rollup metric Markdown should render raw source JSON paths."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_report_display: .\output\numbering-catalog-governance\summary.json' `
+    -Message "Rollup metric Markdown should render source report display paths."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_json_display: .\output\numbering-catalog-governance\coverage.json' `
+    -Message "Rollup metric Markdown should render source JSON display paths."
 
 $handoffDetailLines = New-Object 'System.Collections.Generic.List[string]'
 Add-ReleaseGovernanceHandoffMarkdownSection `
@@ -595,6 +599,10 @@ Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText 'source_report: o
     -Message "Handoff metric Markdown should render raw source report paths."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText 'source_json: output/numbering-catalog-governance/coverage.json' `
     -Message "Handoff metric Markdown should render raw source JSON paths."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText 'source_report_display: .\output\numbering-catalog-governance\summary.json' `
+    -Message "Handoff metric Markdown should render source report display paths."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText 'source_json_display: .\output\numbering-catalog-governance\coverage.json' `
+    -Message "Handoff metric Markdown should render source JSON display paths."
 
 $actionChecklistItems = @(Get-ReleaseGovernanceActionItemChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{
