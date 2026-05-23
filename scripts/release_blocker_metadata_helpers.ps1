@@ -1072,6 +1072,7 @@ function Add-ReleaseGovernanceReportIssueLines {
         if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
             [void]$Lines.Add("  - source_json_display: $(Get-ReleaseBlockerDisplayValue -Value $sourceJsonDisplay)")
         }
+        [void]$Lines.Add("  - source_failure_count: $sourceFailureCount")
 
         $errorText = Get-ReleaseBlockerPropertyValue -Object $report -Name "error"
         if (-not [string]::IsNullOrWhiteSpace($errorText)) {
@@ -1134,6 +1135,7 @@ function Add-ReleaseGovernanceSourceReportContractLines {
         if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
             [void]$Lines.Add("  - source_json_display: $(Get-ReleaseBlockerDisplayValue -Value $sourceJsonDisplay)")
         }
+        [void]$Lines.Add("  - source_failure_count: $sourceFailureCount")
 
         foreach ($fieldName in @(
                 "preflight_ready",
