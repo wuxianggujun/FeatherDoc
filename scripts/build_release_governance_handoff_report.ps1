@@ -549,7 +549,7 @@ function New-ReportMarkdown {
     $lines.Add("## Report Status") | Out-Null
     $lines.Add("") | Out-Null
     foreach ($report in @($Summary.reports)) {
-        $lines.Add("- ``$($report.id)``: status=``$($report.status)`` ready=``$($report.release_ready)`` blockers=``$($report.release_blocker_count)`` actions=``$($report.action_item_count)`` source_failures=``$($report.source_failure_count)`` schema=``$($report.schema)``") | Out-Null
+        $lines.Add("- ``$($report.id)``: status=``$($report.status)`` ready=``$($report.release_ready)`` blockers=``$($report.release_blocker_count)`` actions=``$($report.action_item_count)`` source_failures=``$($report.source_failure_count)`` source_failure_count=``$($report.source_failure_count)`` schema=``$($report.schema)``") | Out-Null
         $lines.Add("  - summary: ``$($report.expected_summary_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string]$report.latest_schema_approval_gate_status)) {
             $lines.Add("  - latest_schema_approval_gate_status: ``$($report.latest_schema_approval_gate_status)``") | Out-Null

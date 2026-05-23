@@ -593,6 +593,8 @@ if (Test-Scenario -Name "failed_report") {
         -Message "Failed handoff Markdown should expose the failed report status."
     Assert-ContainsText -Text $markdown -ExpectedText "source_failures=``0``" `
         -Message "Failed handoff Markdown should expose the failed report source failure count."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failure_count=``0``" `
+        -Message "Failed handoff Markdown should expose the failed report source failure count as a machine-readable field."
     Assert-ContainsText -Text $markdown -ExpectedText "error:" `
         -Message "Failed handoff Markdown should include the source failure error."
     Assert-ContainsText -Text $markdown -ExpectedText "{ this is not valid json" `
@@ -623,6 +625,8 @@ if (Test-Scenario -Name "fail_on_missing") {
         -Message "Fail-on-missing handoff Markdown should expose the missing report status."
     Assert-ContainsText -Text $markdown -ExpectedText "source_failures=``0``" `
         -Message "Fail-on-missing handoff Markdown should expose the missing report source failure count."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failure_count=``0``" `
+        -Message "Fail-on-missing handoff Markdown should expose the missing report source failure count as a machine-readable field."
     Assert-ContainsText -Text $markdown -ExpectedText "build_project_template_delivery_readiness_report.ps1" `
         -Message "Fail-on-missing handoff Markdown should include the rebuild command."
 }
