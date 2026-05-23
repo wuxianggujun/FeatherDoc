@@ -6,6 +6,8 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
 function Assert-Contains {
     param(
         [string]$Path,
@@ -68,6 +70,10 @@ $gateReportDir = Join-Path $gateOutputDir "report"
 $smokeEvidenceDir = Join-Path $gateOutputDir "smoke\evidence"
 $fixedGridAggregateDir = Join-Path $gateOutputDir "fixed-grid\aggregate-evidence"
 $sectionPageSetupAggregateDir = Join-Path $gateOutputDir "section-page-setup\aggregate-evidence"
+$pdfGateOutputDir = Join-Path $resolvedWorkingDir "output\pdf-visual-release-gate"
+$pdfGateReportDir = Join-Path $pdfGateOutputDir "report"
+$pdfGateCopySearchDir = Join-Path $pdfGateReportDir "cjk-copy-search"
+$pdfGateUnicodeReportDir = Join-Path $pdfGateOutputDir "unicode-font\report"
 $outputRoot = Join-Path $resolvedWorkingDir "release-assets"
 
 New-Item -ItemType Directory -Path (Join-Path $installPrefix "share\FeatherDoc") -Force | Out-Null
@@ -76,6 +82,9 @@ New-Item -ItemType Directory -Path $gateReportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $smokeEvidenceDir -Force | Out-Null
 New-Item -ItemType Directory -Path $fixedGridAggregateDir -Force | Out-Null
 New-Item -ItemType Directory -Path $sectionPageSetupAggregateDir -Force | Out-Null
+New-Item -ItemType Directory -Path $pdfGateReportDir -Force | Out-Null
+New-Item -ItemType Directory -Path $pdfGateCopySearchDir -Force | Out-Null
+New-Item -ItemType Directory -Path $pdfGateUnicodeReportDir -Force | Out-Null
 
 $startHerePath = Join-Path $summaryOutputDir "START_HERE.md"
 $releaseHandoffPath = Join-Path $reportDir "release_handoff.md"
@@ -89,6 +98,12 @@ $projectTemplateDeliveryReadinessSummaryPath = Join-Path $reportDir "project_tem
 $projectTemplateOnboardingGovernanceSummaryPath = Join-Path $reportDir "project_template_onboarding_governance_summary.json"
 $gateSummaryPath = Join-Path $gateReportDir "gate_summary.json"
 $gateFinalReviewPath = Join-Path $gateReportDir "gate_final_review.md"
+$pdfGateSummaryPath = Join-Path $pdfGateReportDir "summary.json"
+$pdfGateAggregateContactSheetPath = Join-Path $pdfGateReportDir "aggregate-contact-sheet.png"
+$pdfGateCliExportLogPath = Join-Path $pdfGateReportDir "pdf-cli-export-test.log"
+$pdfGateRegressionLogPath = Join-Path $pdfGateReportDir "pdf-regression-test.log"
+$pdfGateUnicodeLogPath = Join-Path $pdfGateReportDir "unicode-font.log"
+$pdfGateUnicodeContactSheetPath = Join-Path $pdfGateUnicodeReportDir "full-contact-sheet.png"
 $summaryPath = Join-Path $reportDir "summary.json"
 $installedReadmePath = Join-Path $installPrefix "share\FeatherDoc\README.md"
 $installedChangelogPath = Join-Path $installPrefix "share\FeatherDoc\CHANGELOG.md"
@@ -102,6 +117,10 @@ Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- PDF visual gate summary: $pdfGateSummaryPath
+- PDF CJK copy/search samples: 2
+- PDF visual baselines: 3
+- PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPath
 "@
 
 Set-Content -LiteralPath $releaseHandoffPath -Encoding UTF8 -Value @"
@@ -142,6 +161,10 @@ Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
 - Project template onboarding governance: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
+- PDF visual gate summary: $pdfGateSummaryPath
+- PDF CJK copy/search samples: 2
+- PDF visual baselines: 3
+- PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPath
 "@
 
 Set-Content -LiteralPath $reviewerChecklistPath -Encoding UTF8 -Value @"
@@ -154,6 +177,8 @@ Set-Content -LiteralPath $reviewerChecklistPath -Encoding UTF8 -Value @"
 - Confirm project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json before release.
 - Check project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json before release.
 - Confirm table_layout_delivery_governance.delivery_quality table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0) before release.
+- Confirm PDF visual gate summary $pdfGateSummaryPath with 2 CJK copy/search samples and 3 visual baselines before release.
+- Confirm PDF visual gate aggregate contact sheet $pdfGateAggregateContactSheetPath before release.
 "@
 
 Set-Content -LiteralPath $gateFinalReviewPath -Encoding UTF8 -Value @"
@@ -214,6 +239,53 @@ $gateSummary = [ordered]@{
     }
 }
 ($gateSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $gateSummaryPath -Encoding UTF8
+
+[System.IO.File]::WriteAllBytes($pdfGateAggregateContactSheetPath, [byte[]](0x89, 0x50, 0x4E, 0x47))
+Set-Content -LiteralPath $pdfGateCliExportLogPath -Encoding UTF8 -Value "PDF CLI export passed from $resolvedRepoRoot"
+Set-Content -LiteralPath $pdfGateRegressionLogPath -Encoding UTF8 -Value "PDF regression passed from $resolvedRepoRoot"
+Set-Content -LiteralPath $pdfGateUnicodeLogPath -Encoding UTF8 -Value "Unicode font smoke passed from $resolvedRepoRoot"
+[System.IO.File]::WriteAllBytes($pdfGateUnicodeContactSheetPath, [byte[]](0x89, 0x50, 0x4E, 0x47))
+
+$pdfVisualGateSummary = [ordered]@{
+    generated_at = "2026-04-12T12:00:00"
+    repo_root = $resolvedRepoRoot
+    output_dir = $pdfGateOutputDir
+    aggregate_contact_sheet = $pdfGateAggregateContactSheetPath
+    logs = [ordered]@{
+        pdf_cli_export = $pdfGateCliExportLogPath
+        pdf_regression = $pdfGateRegressionLogPath
+        cjk_copy_search = $pdfGateCopySearchDir
+        unicode_font = $pdfGateUnicodeLogPath
+    }
+    cjk_copy_search = @(
+        [ordered]@{
+            sample_id = "cjk-text"
+            pdf_path = Join-Path $resolvedWorkingDir "build\cjk-text.pdf"
+            summary_path = Join-Path $pdfGateCopySearchDir "cjk-text-summary.json"
+            text_output_path = Join-Path $pdfGateCopySearchDir "cjk-text.txt"
+            expected_text = @("中文文本路径回归样本")
+            matched_text = @("中文文本路径回归样本")
+            missing_text = @()
+            page_count = 1
+        },
+        [ordered]@{
+            sample_id = "contract-cjk-style"
+            pdf_path = Join-Path $resolvedWorkingDir "build\contract-cjk-style.pdf"
+            summary_path = Join-Path $pdfGateCopySearchDir "contract-cjk-style-summary.json"
+            text_output_path = Join-Path $pdfGateCopySearchDir "contract-cjk-style.txt"
+            expected_text = @("SERVICE AGREEMENT", "中文合同样本")
+            matched_text = @("SERVICE AGREEMENT", "中文合同样本")
+            missing_text = @()
+            page_count = 1
+        }
+    )
+    baselines = @(
+        [ordered]@{ sample_id = "pdf-basic"; baseline_pdf = Join-Path $resolvedWorkingDir "baseline\pdf-basic.pdf" },
+        [ordered]@{ sample_id = "pdf-cjk"; baseline_pdf = Join-Path $resolvedWorkingDir "baseline\pdf-cjk.pdf" },
+        [ordered]@{ sample_id = "pdf-table"; baseline_pdf = Join-Path $resolvedWorkingDir "baseline\pdf-table.pdf" }
+    )
+}
+($pdfVisualGateSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $pdfGateSummaryPath -Encoding UTF8
 
 $contentControlSummary = [ordered]@{
     schema = "featherdoc.content_control_data_binding_governance_report.v1"
@@ -380,6 +452,12 @@ $summary = [ordered]@{
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
+    pdf_visual_gate_summary_json = $pdfGateSummaryPath
+    pdf_visual_gate = [ordered]@{
+        requested = $true
+        status = "available"
+        summary_json = $pdfGateSummaryPath
+    }
     readme_gallery = [ordered]@{
         status = "completed"
         assets_dir = (Join-Path $resolvedRepoRoot "docs\assets\readme")
@@ -396,6 +474,11 @@ $summary = [ordered]@{
             final_review = $gateFinalReviewPath
             visual_verdict = "pass"
         }
+        pdf_visual_gate = [ordered]@{
+            requested = $true
+            status = "available"
+            summary_json = $pdfGateSummaryPath
+        }
     }
 }
 ($summary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
@@ -409,6 +492,9 @@ $packageScript = Join-Path $resolvedRepoRoot "scripts\package_release_assets.ps1
 $stagingRoot = Join-Path $outputRoot "v1.6.4\staging"
 $stagedSummaryPath = Join-Path $stagingRoot "release-candidate-checks\report\summary.json"
 $stagedGateSummaryPath = Join-Path $stagingRoot "word-visual-release-gate\report\gate_summary.json"
+$stagedPdfGateSummaryPath = Join-Path $stagingRoot "pdf-visual-release-gate\report\summary.json"
+$stagedPdfGateAggregateContactSheetPath = Join-Path $stagingRoot "pdf-visual-release-gate\report\aggregate-contact-sheet.png"
+$stagedPdfGateUnicodeContactSheetPath = Join-Path $stagingRoot "pdf-visual-release-gate\unicode-font\report\full-contact-sheet.png"
 $stagedHandoffPath = Join-Path $stagingRoot "release-candidate-checks\report\release_handoff.md"
 $stagedGovernanceHandoffPath = Join-Path $stagingRoot "release-candidate-checks\report\release_governance_handoff.md"
 $stagedStartHerePath = Join-Path $stagingRoot "release-candidate-checks\START_HERE.md"
@@ -425,12 +511,15 @@ $galleryZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-visual-validat
 $evidenceZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-release-evidence.zip"
 $expectedRelativeHandoff = ".\$relativeWorkingDir\output\release-candidate-checks\report\release_handoff.md"
 $expectedRelativeGateReport = ".\$relativeWorkingDir\output\word-visual-release-gate\report"
+$expectedRelativePdfGateSummary = ".\$relativeWorkingDir\output\pdf-visual-release-gate\report\summary.json"
 $stagedSummary = Get-Content -Raw -LiteralPath $stagedSummaryPath | ConvertFrom-Json
 $stagedGateSummary = Get-Content -Raw -LiteralPath $stagedGateSummaryPath | ConvertFrom-Json
+$stagedPdfGateSummary = Get-Content -Raw -LiteralPath $stagedPdfGateSummaryPath | ConvertFrom-Json
 $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
 
 Assert-NotContains -Path $stagedSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged summary.json'
 Assert-NotContains -Path $stagedGateSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged gate_summary.json'
+Assert-NotContains -Path $stagedPdfGateSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged PDF visual gate summary.json'
 Assert-NotContains -Path $stagedHandoffPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_handoff.md'
 Assert-NotContains -Path $stagedGovernanceHandoffPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_governance_handoff.md'
 Assert-NotContains -Path $stagedInstalledReadmePath -UnexpectedText 'C:\path\to\target.docx' -Label 'staged installed README.md'
@@ -475,6 +564,10 @@ Assert-Contains -Path $stagedStartHerePath -ExpectedText 'matched_document_keys=
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'style_numbering_issues(count=4, penalty=20)' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'unresolved_item_count=0' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'floating_table_plans_pending(count=0, penalty=0)' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'PDF visual gate summary:' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'PDF CJK copy/search samples: 2' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'PDF visual baselines: 3' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'aggregate-contact-sheet.png' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'featherdoc.content_control_data_binding_governance_report.v1' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'source_json_display' -Label 'staged ARTIFACT_GUIDE.md'
@@ -504,6 +597,10 @@ Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'unresolved_item_co
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'floating_table_plans_pending(count=0, penalty=0)' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'command_template' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'sync-content-controls-from-custom-xml' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'PDF visual gate summary:' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'PDF CJK copy/search samples: 2' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'PDF visual baselines: 3' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'aggregate-contact-sheet.png' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'featherdoc.content_control_data_binding_governance_report.v1' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'source_json_display' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'repair_strategy' -Label 'staged REVIEWER_CHECKLIST.md'
@@ -527,6 +624,10 @@ Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'matched_docume
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'style_numbering_issues(count=4, penalty=20)' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'unresolved_item_count=0' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'floating_table_plans_pending(count=0, penalty=0)' -Label 'staged REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'Confirm PDF visual gate summary' -Label 'staged REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText '2 CJK copy/search samples' -Label 'staged REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText '3 visual baselines' -Label 'staged REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'aggregate-contact-sheet.png' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'staged content-control summary'
 Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'sync_bound_content_control' -Label 'staged content-control summary'
 Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'command_template' -Label 'staged content-control summary'
@@ -540,6 +641,44 @@ if ($stagedSummary.release_handoff -ne $expectedRelativeHandoff) {
 }
 if ($stagedGateSummary.report_dir -ne $expectedRelativeGateReport) {
     throw "staged gate_summary.json did not rewrite report_dir to the expected relative path."
+}
+if ($stagedSummary.pdf_visual_gate_summary_json -ne $expectedRelativePdfGateSummary) {
+    throw "staged summary.json did not rewrite pdf_visual_gate_summary_json to the expected relative path."
+}
+if ($stagedPdfGateSummary.output_dir -ne ".\$relativeWorkingDir\output\pdf-visual-release-gate") {
+    throw "staged PDF visual gate summary.json did not rewrite output_dir to the expected relative path."
+}
+if ($stagedPdfGateSummary.cjk_copy_search.Count -ne 2) {
+    throw "staged PDF visual gate summary.json lost CJK copy/search entries."
+}
+if ($stagedPdfGateSummary.baselines.Count -ne 3) {
+    throw "staged PDF visual gate summary.json lost visual baseline entries."
+}
+foreach ($pdfEvidencePath in @($stagedPdfGateAggregateContactSheetPath, $stagedPdfGateUnicodeContactSheetPath)) {
+    if (-not (Test-Path -LiteralPath $pdfEvidencePath)) {
+        throw "Expected staged PDF visual gate evidence was not created: $pdfEvidencePath"
+    }
+}
+if ([string]$manifest.pdf_visual_gate_status -ne "loaded") {
+    throw "release_assets_manifest.json did not record pdf_visual_gate_status=loaded."
+}
+if (-not [bool]$manifest.pdf_visual_gate_evidence_included) {
+    throw "release_assets_manifest.json did not record PDF visual gate evidence as included."
+}
+if ([string]$manifest.pdf_visual_gate_evidence.summary_json -ne $expectedRelativePdfGateSummary) {
+    throw "release_assets_manifest.json did not preserve the PDF visual gate summary display path."
+}
+if ([string]$manifest.pdf_visual_gate_evidence.aggregate_contact_sheet -notmatch "aggregate-contact-sheet.png") {
+    throw "release_assets_manifest.json lost the PDF visual gate aggregate contact sheet."
+}
+if ([string]$manifest.pdf_visual_gate_evidence.cjk_copy_search_count -ne "2") {
+    throw "release_assets_manifest.json lost the PDF CJK copy/search sample count."
+}
+if ([string]$manifest.pdf_visual_gate_evidence.cjk_missing_text_count -ne "0") {
+    throw "release_assets_manifest.json lost the PDF CJK missing text count."
+}
+if ([string]$manifest.pdf_visual_gate_evidence.visual_baseline_count -ne "3") {
+    throw "release_assets_manifest.json lost the PDF visual baseline count."
 }
 if ($manifest.governance_metric_count -ne 3) {
     throw "release_assets_manifest.json did not preserve governance_metric_count=3."
@@ -748,6 +887,22 @@ foreach ($zipPath in @($installZipPath, $galleryZipPath, $evidenceZipPath)) {
     if (-not (Test-Path -LiteralPath $zipPath)) {
         throw "Expected ZIP archive was not created: $zipPath"
     }
+}
+
+$evidenceZip = [System.IO.Compression.ZipFile]::OpenRead($evidenceZipPath)
+try {
+    $evidenceZipEntries = @($evidenceZip.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+    foreach ($expectedEntry in @(
+            "pdf-visual-release-gate/report/summary.json",
+            "pdf-visual-release-gate/report/aggregate-contact-sheet.png",
+            "pdf-visual-release-gate/unicode-font/report/full-contact-sheet.png"
+        )) {
+        if (-not ($evidenceZipEntries -contains $expectedEntry)) {
+            throw "Release evidence ZIP did not include expected PDF visual gate entry '$expectedEntry'."
+        }
+    }
+} finally {
+    $evidenceZip.Dispose()
 }
 
 Write-Host "Package release assets safety regression passed."

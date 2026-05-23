@@ -211,6 +211,32 @@ function Resolve-GateRoot {
     return ""
 }
 
+function Resolve-PdfVisualGateSummaryJson {
+    param(
+        [string]$RepoRoot,
+        $Summary
+    )
+
+    $summaryJson = Get-PdfVisualGateSummaryPath -Summary $Summary
+    if ([string]::IsNullOrWhiteSpace($summaryJson)) {
+        return ""
+    }
+
+    return Resolve-FullPath -RepoRoot $RepoRoot -InputPath $summaryJson
+}
+
+function Resolve-PdfVisualGateRoot {
+    param(
+        [string]$SummaryJson
+    )
+
+    if ([string]::IsNullOrWhiteSpace($SummaryJson) -or -not (Test-Path -LiteralPath $SummaryJson)) {
+        return ""
+    }
+
+    return Split-Path -Parent (Split-Path -Parent $SummaryJson)
+}
+
 function Get-GalleryFileNames {
     return @(
         "visual-smoke-contact-sheet.png",
@@ -682,6 +708,14 @@ if ([string]::IsNullOrWhiteSpace($releaseVersion)) {
 $executionStatus = Get-OptionalPropertyValue -Object $summary -Name "execution_status"
 $visualVerdict = Get-VisualVerdict -RepoRoot $repoRoot -Summary $summary
 $visualGateStatus = Get-VisualGateStatus -Summary $summary
+$resolvedPdfVisualGateSummaryPath = Resolve-PdfVisualGateSummaryJson -RepoRoot $repoRoot -Summary $summary
+$resolvedPdfVisualGateRoot = Resolve-PdfVisualGateRoot -SummaryJson $resolvedPdfVisualGateSummaryPath
+$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $resolvedPdfVisualGateSummaryPath
+$pdfVisualGateStatus = Get-OptionalPropertyValue -Object $pdfVisualGateEvidence -Name "status"
+$hasPdfVisualGateEvidence = (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateRoot)) -and
+    (Test-Path -LiteralPath $resolvedPdfVisualGateRoot) -and
+    $pdfVisualGateStatus -eq "loaded"
+$pdfVisualGateManifestEvidence = Convert-StructuredValueToPublic -Value $pdfVisualGateEvidence -RepoRoot $repoRoot
 $governanceMetrics = @(Get-GovernanceMetrics -Summary $summary)
 $numberingCatalogRealCorpusConfidence = Get-NumberingCatalogRealCorpusConfidence -GovernanceMetrics $governanceMetrics
 $tableLayoutDeliveryQuality = Get-TableLayoutDeliveryQuality -GovernanceMetrics $governanceMetrics
@@ -769,6 +803,7 @@ $stageInstallGalleryDir = Join-Path $stageInstallRoot "share\FeatherDoc\visual-v
 $stageGalleryRoot = Join-Path $stagingRoot "visual-validation"
 $stageReleaseCandidateRoot = Join-Path $stagingRoot "release-candidate-checks"
 $stageWordVisualRoot = Join-Path $stagingRoot "word-visual-release-gate"
+$stagePdfVisualRoot = Join-Path $stagingRoot "pdf-visual-release-gate"
 
 Write-Step "Preparing staging directory"
 New-Item -ItemType Directory -Path $versionOutputDir -Force | Out-Null
@@ -812,19 +847,22 @@ if ($hasVisualGateEvidence) {
     throw "Visual gate evidence is unavailable for packaging."
 }
 
-Write-Step "Sanitizing staged release materials"
-Sanitize-StagedReleaseMaterials -RepoRoot $repoRoot -RootPaths @(
-    $stageInstallRoot
-    $stageReleaseCandidateRoot
+$releaseMaterialRoots = @(
+    $stageInstallRoot,
+    $stageReleaseCandidateRoot,
     $stageWordVisualRoot
 )
 
+if ($hasPdfVisualGateEvidence) {
+    Copy-PathTree -Source $resolvedPdfVisualGateRoot -Destination $stagePdfVisualRoot
+    $releaseMaterialRoots += $stagePdfVisualRoot
+}
+
+Write-Step "Sanitizing staged release materials"
+Sanitize-StagedReleaseMaterials -RepoRoot $repoRoot -RootPaths $releaseMaterialRoots
+
 Write-Step "Auditing staged release materials"
-& $releaseMaterialAuditScript -Path @(
-    $stageInstallRoot
-    $stageReleaseCandidateRoot
-    $stageWordVisualRoot
-)
+& $releaseMaterialAuditScript -Path $releaseMaterialRoots
 
 $installZipPath = Join-Path $versionOutputDir ("FeatherDoc-v{0}-msvc-install.zip" -f $releaseVersion)
 $galleryZipPath = Join-Path $versionOutputDir ("FeatherDoc-v{0}-visual-validation-gallery.zip" -f $releaseVersion)
@@ -833,7 +871,11 @@ $evidenceZipPath = Join-Path $versionOutputDir ("FeatherDoc-v{0}-release-evidenc
 Write-Step "Creating ZIP archives"
 New-ZipArchive -SourcePaths @($stageInstallRoot) -ZipPath $installZipPath
 New-ZipArchive -SourcePaths @($stageGalleryRoot) -ZipPath $galleryZipPath
-New-ZipArchive -SourcePaths @($stageReleaseCandidateRoot, $stageWordVisualRoot) -ZipPath $evidenceZipPath
+$releaseEvidenceZipSources = @($stageReleaseCandidateRoot, $stageWordVisualRoot)
+if ($hasPdfVisualGateEvidence) {
+    $releaseEvidenceZipSources += $stagePdfVisualRoot
+}
+New-ZipArchive -SourcePaths $releaseEvidenceZipSources -ZipPath $evidenceZipPath
 
 $releaseView = $null
 if (-not [string]::IsNullOrWhiteSpace($UploadReleaseTag)) {
@@ -929,6 +971,11 @@ $manifest = [ordered]@{
     output_dir = $versionOutputDir
     visual_gate_status = $visualGateStatus
     visual_gate_evidence_included = $hasVisualGateEvidence
+    pdf_visual_gate_status = $pdfVisualGateStatus
+    pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryPath
+    pdf_visual_gate_output_dir = $resolvedPdfVisualGateRoot
+    pdf_visual_gate_evidence_included = $hasPdfVisualGateEvidence
+    pdf_visual_gate_evidence = $pdfVisualGateManifestEvidence
     governance_metric_count = $governanceMetricCount
     governance_metrics = $governanceMetrics
     numbering_catalog_real_corpus_confidence = $numberingCatalogRealCorpusConfidence
