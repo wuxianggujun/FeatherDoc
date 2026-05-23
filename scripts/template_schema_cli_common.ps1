@@ -237,7 +237,7 @@ function Get-TemplateSchemaCommandJsonLine {
         throw "Template schema command name must not be empty."
     }
 
-    $pattern = '^\s*\{"command":"' + [regex]::Escape($Command) + '",'
+    $pattern = '^\s*\{\s*"command"\s*:\s*"' + [regex]::Escape($Command) + '"\s*,'
     $jsonLine = $Lines |
         Where-Object { $_ -match $pattern } |
         Select-Object -Last 1

@@ -57,6 +57,15 @@ $leadingWhitespaceJson = Get-TemplateSchemaCommandJsonObject `
 Assert-Equal -Actual ([bool]$leadingWhitespaceJson.matches) -Expected $true `
     -Message "Command JSON parser should tolerate leading whitespace."
 
+$spacedJson = Get-TemplateSchemaCommandJsonObject `
+    -Command "check-template-schema" `
+    -Lines @(
+        "noise before json",
+        "  { `"command`" : `"check-template-schema`", `"matches`" : true }"
+    )
+Assert-Equal -Actual ([bool]$spacedJson.matches) -Expected $true `
+    -Message "Command JSON parser should tolerate spaces around command JSON separators."
+
 $latestJson = Get-TemplateSchemaCommandJsonObject `
     -Command "check-template-schema" `
     -Lines @(
