@@ -66,6 +66,7 @@ cli_*.png
 cli_*.json
 cli_*.txt
 cli_*_fixture_image.png
+test/pdf_cli_export/
 vc140.pdb
 build_*.log
 ctest_*.log

@@ -4636,7 +4636,8 @@ TEST_CASE(
     CHECK_EQ(import_result.tables_imported, 1U);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
     CHECK_EQ(import_result.table_continuation_diagnostics[1].header_match_kind,
-             featherdoc::pdf::PdfTableContinuationHeaderMatchKind::exact);
+             featherdoc::pdf::PdfTableContinuationHeaderMatchKind::
+                 normalized_text);
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 3U);

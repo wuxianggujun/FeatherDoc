@@ -15,6 +15,7 @@
 #include <vector>
 
 extern "C" {
+#include <fpdf_edit.h>
 #include <fpdf_text.h>
 #include <fpdfview.h>
 }
@@ -143,6 +144,269 @@ void append_utf8(std::string &output, std::uint32_t codepoint) {
     return span;
 }
 
+void append_utf16_to_utf8(std::string &output,
+                          const std::vector<FPDF_WCHAR> &text,
+                          std::size_t char_count) {
+    for (std::size_t index = 0; index < char_count; ++index) {
+        const auto value = static_cast<std::uint32_t>(text[index]);
+        if (value == 0U) {
+            continue;
+        }
+
+        if (value >= 0xD800U && value <= 0xDBFFU &&
+            index + 1U < char_count) {
+            const auto low = static_cast<std::uint32_t>(text[index + 1U]);
+            if (low >= 0xDC00U && low <= 0xDFFFU) {
+                const auto codepoint =
+                    0x10000U + ((value - 0xD800U) << 10U) +
+                    (low - 0xDC00U);
+                append_utf8(output, codepoint);
+                ++index;
+                continue;
+            }
+        }
+
+        append_utf8(output, value);
+    }
+}
+
+[[nodiscard]] std::size_t visible_text_byte_count(std::string_view text) {
+    std::size_t count = 0U;
+    for (const unsigned char ch : text) {
+        if (!std::isspace(ch)) {
+            ++count;
+        }
+    }
+
+    return count;
+}
+
+[[nodiscard]] std::size_t
+visible_text_byte_count(const std::vector<PdfParsedTextSpan> &spans) {
+    std::size_t count = 0U;
+    for (const auto &span : spans) {
+        count += visible_text_byte_count(span.text);
+    }
+
+    return count;
+}
+
+[[nodiscard]] bool should_prefer_text_object_spans(
+    const std::vector<PdfParsedTextSpan> &char_spans,
+    const std::vector<PdfParsedTextSpan> &object_spans) {
+    const auto object_visible = visible_text_byte_count(object_spans);
+    if (object_visible == 0U) {
+        return false;
+    }
+
+    const auto char_visible = visible_text_byte_count(char_spans);
+    if (char_visible == 0U) {
+        return true;
+    }
+
+    return object_visible >= char_visible + 8U &&
+           object_visible >= char_visible * 2U;
+}
+
+[[nodiscard]] std::vector<std::string> split_utf8_characters(
+    std::string_view text) {
+    std::vector<std::string> characters;
+    characters.reserve(text.size());
+
+    for (std::size_t index = 0U; index < text.size();) {
+        const auto lead = static_cast<unsigned char>(text[index]);
+        std::size_t length = 1U;
+        if ((lead & 0xE0U) == 0xC0U) {
+            length = 2U;
+        } else if ((lead & 0xF0U) == 0xE0U) {
+            length = 3U;
+        } else if ((lead & 0xF8U) == 0xF0U) {
+            length = 4U;
+        }
+        if (index + length > text.size()) {
+            length = 1U;
+        }
+
+        characters.emplace_back(text.substr(index, length));
+        index += length;
+    }
+
+    return characters;
+}
+
+[[nodiscard]] std::string read_text_object_text(FPDF_PAGEOBJECT text_object,
+                                                FPDF_TEXTPAGE text_page) {
+    const unsigned long byte_count =
+        FPDFTextObj_GetText(text_object, text_page, nullptr, 0);
+    if (byte_count <= sizeof(FPDF_WCHAR)) {
+        return {};
+    }
+
+    const auto char_capacity =
+        static_cast<std::size_t>((byte_count + sizeof(FPDF_WCHAR) - 1U) /
+                                 sizeof(FPDF_WCHAR));
+    std::vector<FPDF_WCHAR> buffer(char_capacity, 0);
+    const unsigned long copied =
+        FPDFTextObj_GetText(text_object, text_page, buffer.data(), byte_count);
+    if (copied <= sizeof(FPDF_WCHAR)) {
+        return {};
+    }
+
+    const auto copied_chars =
+        static_cast<std::size_t>(copied / sizeof(FPDF_WCHAR));
+    std::string output;
+    output.reserve(copied_chars);
+    append_utf16_to_utf8(output, buffer, copied_chars);
+    return output;
+}
+
+[[nodiscard]] std::string
+read_mark_string_value(FPDF_PAGEOBJECTMARK mark, FPDF_BYTESTRING key) {
+    unsigned long byte_count = 0;
+    if (!FPDFPageObjMark_GetParamStringValue(mark, key, nullptr, 0,
+                                             &byte_count) ||
+        byte_count <= sizeof(FPDF_WCHAR)) {
+        return {};
+    }
+
+    const auto char_capacity =
+        static_cast<std::size_t>((byte_count + sizeof(FPDF_WCHAR) - 1U) /
+                                 sizeof(FPDF_WCHAR));
+    std::vector<FPDF_WCHAR> buffer(char_capacity, 0);
+    unsigned long copied = 0;
+    if (!FPDFPageObjMark_GetParamStringValue(mark, key, buffer.data(),
+                                             byte_count, &copied) ||
+        copied <= sizeof(FPDF_WCHAR)) {
+        return {};
+    }
+
+    const auto copied_chars =
+        static_cast<std::size_t>(copied / sizeof(FPDF_WCHAR));
+    std::string output;
+    output.reserve(copied_chars);
+    append_utf16_to_utf8(output, buffer, copied_chars);
+    return output;
+}
+
+[[nodiscard]] std::string read_text_object_actual_text(
+    FPDF_PAGEOBJECT text_object) {
+    const int mark_count = FPDFPageObj_CountMarks(text_object);
+    for (int mark_index = 0; mark_index < mark_count; ++mark_index) {
+        auto *mark = FPDFPageObj_GetMark(
+            text_object, static_cast<unsigned long>(mark_index));
+        if (mark == nullptr) {
+            continue;
+        }
+
+        auto actual_text = read_mark_string_value(mark, "ActualText");
+        if (!actual_text.empty()) {
+            return actual_text;
+        }
+    }
+
+    return {};
+}
+
+void append_text_object_span(FPDF_PAGEOBJECT text_object,
+                             FPDF_TEXTPAGE text_page,
+                             PdfParsedPage &page,
+                             const PdfParseOptions &options) {
+    auto text = read_text_object_text(text_object, text_page);
+    auto actual_text = read_text_object_actual_text(text_object);
+    if (visible_text_byte_count(actual_text) >
+        visible_text_byte_count(text)) {
+        text = std::move(actual_text);
+    }
+    if (text.empty()) {
+        return;
+    }
+
+    PdfParsedTextSpan span;
+    span.text = std::move(text);
+
+    float font_size = 0.0F;
+    if (FPDFTextObj_GetFontSize(text_object, &font_size)) {
+        span.font_size_points = static_cast<double>(font_size);
+    }
+
+    if (options.extract_geometry) {
+        float left = 0.0F;
+        float right = 0.0F;
+        float bottom = 0.0F;
+        float top = 0.0F;
+        if (FPDFPageObj_GetBounds(text_object, &left, &bottom, &right,
+                                  &top)) {
+            span.bounds =
+                PdfRect{left, bottom, right - left, top - bottom};
+        }
+    }
+
+    if (!options.extract_geometry || span.bounds.width_points <= 0.0 ||
+        span.text.size() <= 1U) {
+        page.text_spans.push_back(std::move(span));
+        return;
+    }
+
+    const auto characters = split_utf8_characters(span.text);
+    if (characters.size() <= 1U) {
+        page.text_spans.push_back(std::move(span));
+        return;
+    }
+
+    const double character_width =
+        span.bounds.width_points / static_cast<double>(characters.size());
+    for (std::size_t index = 0U; index < characters.size(); ++index) {
+        PdfParsedTextSpan character_span;
+        character_span.text = characters[index];
+        character_span.font_size_points = span.font_size_points;
+        character_span.bounds =
+            PdfRect{span.bounds.x_points +
+                        character_width * static_cast<double>(index),
+                    span.bounds.y_points, character_width,
+                    span.bounds.height_points};
+        page.text_spans.push_back(std::move(character_span));
+    }
+}
+
+void append_text_object_spans(FPDF_PAGEOBJECT page_object,
+                              FPDF_TEXTPAGE text_page,
+                              PdfParsedPage &page,
+                              const PdfParseOptions &options,
+                              int depth = 0) {
+    if (page_object == nullptr || depth > 8) {
+        return;
+    }
+
+    const int object_type = FPDFPageObj_GetType(page_object);
+    if (object_type == FPDF_PAGEOBJ_TEXT) {
+        append_text_object_span(page_object, text_page, page, options);
+        return;
+    }
+
+    if (object_type != FPDF_PAGEOBJ_FORM) {
+        return;
+    }
+
+    const int child_count = FPDFFormObj_CountObjects(page_object);
+    for (int child_index = 0; child_index < child_count; ++child_index) {
+        append_text_object_spans(
+            FPDFFormObj_GetObject(
+                page_object, static_cast<unsigned long>(child_index)),
+            text_page, page, options, depth + 1);
+    }
+}
+
+void append_page_object_text_spans(FPDF_PAGE page,
+                                   FPDF_TEXTPAGE text_page,
+                                   PdfParsedPage &parsed_page,
+                                   const PdfParseOptions &options) {
+    const int object_count = FPDFPage_CountObjects(page);
+    for (int object_index = 0; object_index < object_count; ++object_index) {
+        append_text_object_spans(FPDFPage_GetObject(page, object_index),
+                                 text_page, parsed_page, options);
+    }
+}
+
 [[nodiscard]] double rect_bottom(const PdfRect &rect) noexcept {
     return rect.y_points;
 }
@@ -153,6 +417,10 @@ void append_utf8(std::string &output, std::uint32_t codepoint) {
 
 [[nodiscard]] double rect_right(const PdfRect &rect) noexcept {
     return rect.x_points + rect.width_points;
+}
+
+[[nodiscard]] double span_center_y(const PdfParsedTextSpan &span) noexcept {
+    return span.bounds.y_points + span.bounds.height_points / 2.0;
 }
 
 [[nodiscard]] double rect_area(const PdfRect &rect) noexcept {
@@ -216,6 +484,16 @@ void expand_rect(PdfRect &target, const PdfRect &candidate) {
 }
 
 void append_span_to_line(PdfParsedTextLine &line, const PdfParsedTextSpan &span) {
+    if (!line.text.empty() && !span.text.empty() &&
+        !std::isspace(static_cast<unsigned char>(line.text.back())) &&
+        !std::isspace(static_cast<unsigned char>(span.text.front()))) {
+        const double horizontal_gap = span.bounds.x_points - rect_right(line.bounds);
+        const double line_height = (std::max)(line.bounds.height_points, 1.0);
+        const double gap_threshold = (std::max)(3.0, line_height * 0.25);
+        if (horizontal_gap > gap_threshold) {
+            line.text.push_back(' ');
+        }
+    }
     line.text += span.text;
     expand_rect(line.bounds, span.bounds);
     line.text_spans.push_back(span);
@@ -225,6 +503,87 @@ void append_span_to_cluster(TextCluster &cluster,
                             const PdfParsedTextSpan &span) {
     cluster.text += span.text;
     expand_rect(cluster.bounds, span.bounds);
+}
+
+struct VisualTextRow {
+    std::vector<PdfParsedTextSpan> spans;
+    double center_y{0.0};
+    double max_height{0.0};
+};
+
+[[nodiscard]] bool belongs_to_visual_text_row(const VisualTextRow &row,
+                                              const PdfParsedTextSpan &span) {
+    const double tolerance =
+        (std::max)(4.0, (std::max)(row.max_height,
+                                   span.bounds.height_points) *
+                            0.65);
+    return std::abs(span_center_y(span) - row.center_y) <= tolerance;
+}
+
+void append_span_to_visual_text_row(VisualTextRow &row,
+                                    const PdfParsedTextSpan &span) {
+    const auto previous_size = row.spans.size();
+    row.spans.push_back(span);
+    row.center_y =
+        ((row.center_y * static_cast<double>(previous_size)) +
+         span_center_y(span)) /
+        static_cast<double>(previous_size + 1U);
+    row.max_height = (std::max)(row.max_height, span.bounds.height_points);
+}
+
+[[nodiscard]] std::vector<PdfParsedTextSpan>
+order_spans_by_visual_rows(std::vector<PdfParsedTextSpan> spans) {
+    std::stable_sort(spans.begin(), spans.end(),
+                     [](const PdfParsedTextSpan &left,
+                        const PdfParsedTextSpan &right) {
+                         const auto left_center =
+                             std::llround(span_center_y(left) * 100.0);
+                         const auto right_center =
+                             std::llround(span_center_y(right) * 100.0);
+                         if (left_center != right_center) {
+                             return left_center > right_center;
+                         }
+
+                         const auto left_x =
+                             std::llround(left.bounds.x_points * 100.0);
+                         const auto right_x =
+                             std::llround(right.bounds.x_points * 100.0);
+                         if (left_x != right_x) {
+                             return left_x < right_x;
+                         }
+
+                         return false;
+                     });
+
+    std::vector<VisualTextRow> rows;
+    for (const auto &span : spans) {
+        if (rows.empty() ||
+            !belongs_to_visual_text_row(rows.back(), span)) {
+            rows.push_back(VisualTextRow{});
+        }
+        append_span_to_visual_text_row(rows.back(), span);
+    }
+
+    std::vector<PdfParsedTextSpan> ordered;
+    ordered.reserve(spans.size());
+    for (auto &row : rows) {
+        std::stable_sort(row.spans.begin(), row.spans.end(),
+                         [](const PdfParsedTextSpan &left,
+                            const PdfParsedTextSpan &right) {
+                             const auto left_x =
+                                 std::llround(left.bounds.x_points * 100.0);
+                             const auto right_x =
+                                 std::llround(right.bounds.x_points * 100.0);
+                             if (left_x != right_x) {
+                                 return left_x < right_x;
+                             }
+
+                             return span_center_y(left) > span_center_y(right);
+                         });
+        ordered.insert(ordered.end(), row.spans.begin(), row.spans.end());
+    }
+
+    return ordered;
 }
 
 [[nodiscard]] bool should_start_new_line(const PdfParsedTextLine &line,
@@ -249,7 +608,17 @@ void append_span_to_cluster(TextCluster &cluster,
 group_text_spans_into_lines(const std::vector<PdfParsedTextSpan> &spans) {
     std::vector<PdfParsedTextLine> lines;
 
-    for (const auto &span : spans) {
+    std::vector<PdfParsedTextSpan> ordered_spans = spans;
+    const bool has_explicit_line_break = std::any_of(
+        ordered_spans.begin(), ordered_spans.end(),
+        [](const PdfParsedTextSpan &span) {
+            return span.text == "\r" || span.text == "\n";
+        });
+    if (!has_explicit_line_break) {
+        ordered_spans = order_spans_by_visual_rows(std::move(ordered_spans));
+    }
+
+    for (const auto &span : ordered_spans) {
         if (span.text == "\r" || span.text == "\n") {
             if (!lines.empty() && !lines.back().text.empty()) {
                 lines.emplace_back();
@@ -1140,6 +1509,33 @@ PdfParseResult PdfiumParser::parse(const std::filesystem::path &input_path,
                 }
                 parsed_page.text_spans.push_back(
                     parse_text_span(text_page.get(), char_index, options));
+            }
+            if (parsed_page.text_spans.empty() && char_count > 0) {
+                std::vector<unsigned short> page_text(
+                    static_cast<std::size_t>(char_count) + 1U, 0U);
+                const int copied = FPDFText_GetText(
+                    text_page.get(), 0, char_count, page_text.data());
+                if (copied > 1) {
+                    PdfParsedTextSpan span;
+                    for (int text_index = 0; text_index < copied - 1;
+                         ++text_index) {
+                        append_utf8(
+                            span.text,
+                            static_cast<std::uint32_t>(page_text[
+                                static_cast<std::size_t>(text_index)]));
+                    }
+                    if (!span.text.empty()) {
+                        parsed_page.text_spans.push_back(std::move(span));
+                    }
+                }
+            }
+            PdfParsedPage object_text_page;
+            append_page_object_text_spans(page.get(), text_page.get(),
+                                          object_text_page, options);
+            if (should_prefer_text_object_spans(
+                    parsed_page.text_spans, object_text_page.text_spans)) {
+                parsed_page.text_spans =
+                    std::move(object_text_page.text_spans);
             }
             if (options.extract_geometry) {
                 enrich_text_structure(parsed_page);

@@ -252,16 +252,21 @@ if(TARGET FeatherDocPdf)
     if(TARGET FeatherDocPdfImport)
         set(FEATHERDOC_PDF_CLI_IMPORT_FIXTURE_DIR
             "${CMAKE_CURRENT_BINARY_DIR}/pdf-fixtures")
-        configure_file(
-            "${PROJECT_SOURCE_DIR}/featherdoc-adapter-cjk-roundtrip.pdf"
-            "${FEATHERDOC_PDF_CLI_IMPORT_FIXTURE_DIR}/featherdoc-adapter-cjk-roundtrip.pdf"
-            COPYONLY
+        file(MAKE_DIRECTORY "${FEATHERDOC_PDF_CLI_IMPORT_FIXTURE_DIR}")
+        foreach(pdf_cli_import_fixture IN ITEMS
+            featherdoc-adapter-cjk-roundtrip.pdf
+            featherdoc-adapter-table-roundtrip.pdf
         )
-        configure_file(
-            "${PROJECT_SOURCE_DIR}/featherdoc-adapter-table-roundtrip.pdf"
-            "${FEATHERDOC_PDF_CLI_IMPORT_FIXTURE_DIR}/featherdoc-adapter-table-roundtrip.pdf"
-            COPYONLY
-        )
+            set(pdf_cli_import_fixture_source
+                "${PROJECT_SOURCE_DIR}/${pdf_cli_import_fixture}")
+            if(EXISTS "${pdf_cli_import_fixture_source}")
+                configure_file(
+                    "${pdf_cli_import_fixture_source}"
+                    "${FEATHERDOC_PDF_CLI_IMPORT_FIXTURE_DIR}/${pdf_cli_import_fixture}"
+                    COPYONLY
+                )
+            endif()
+        endforeach()
     endif()
 
     if(TARGET featherdoc_cli)
@@ -311,6 +316,10 @@ if(TARGET FeatherDocPdf)
         if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
             set_tests_properties(pdf_cli_import PROPERTIES
                 ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
+        if(TARGET pdf_document_adapter_font_tests)
+            set_tests_properties(pdf_cli_import PROPERTIES
+                DEPENDS pdf_document_adapter_font)
         endif()
     endif()
 endif()
@@ -418,6 +427,12 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
         featherdoc_pdf_regression_sample
         PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
     )
+    if(DEFINED FEATHERDOC_PDFIUM_TARGET AND NOT FEATHERDOC_PDFIUM_TARGET STREQUAL "")
+        target_link_libraries(
+            featherdoc_pdf_regression_sample
+            PRIVATE ${FEATHERDOC_PDFIUM_TARGET}
+        )
+    endif()
     if(DEFINED FEATHERDOC_PDFIUM_SOURCE_DIR AND NOT FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
         target_include_directories(
             featherdoc_pdf_regression_sample
@@ -526,11 +541,15 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
         add_test(NAME ${test_name} COMMAND ${sample_command})
         if(FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
             set_tests_properties(${test_name}
-                PROPERTIES TIMEOUT 60 LABELS "pdf;smoke;regression")
+                PROPERTIES
+                    TIMEOUT 60
+                    SKIP_RETURN_CODE 77
+                    LABELS "pdf;smoke;regression")
         else()
             set_tests_properties(${test_name}
                 PROPERTIES
                     TIMEOUT 60
+                    SKIP_RETURN_CODE 77
                     LABELS "pdf;smoke;regression"
                     ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
         endif()

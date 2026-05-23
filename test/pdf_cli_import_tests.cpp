@@ -12,8 +12,14 @@ namespace {
 namespace fs = std::filesystem;
 
 auto pdf_fixture_path(std::string_view filename) -> fs::path {
-    return test_binary_directory() / "pdf-fixtures" /
-           std::string(filename);
+    const auto fixture_filename = std::string(filename);
+    const auto copied_fixture =
+        test_binary_directory() / "pdf-fixtures" / fixture_filename;
+    if (fs::exists(copied_fixture)) {
+        return copied_fixture;
+    }
+
+    return test_binary_directory() / fixture_filename;
 }
 
 void open_imported_document(const fs::path &path,

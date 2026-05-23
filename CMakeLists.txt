@@ -1087,6 +1087,15 @@ endif()
 if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF_IMPORT)
     add_executable(featherdoc_pdfium_probe samples/pdfium_probe.cpp)
     target_link_libraries(featherdoc_pdfium_probe PRIVATE FeatherDoc::PdfImport)
+    if(DEFINED FEATHERDOC_PDFIUM_TARGET AND NOT FEATHERDOC_PDFIUM_TARGET STREQUAL "")
+        target_link_libraries(featherdoc_pdfium_probe PRIVATE
+            ${FEATHERDOC_PDFIUM_TARGET})
+    endif()
+    if(DEFINED FEATHERDOC_PDFIUM_SOURCE_DIR AND
+       NOT FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
+        target_include_directories(featherdoc_pdfium_probe PRIVATE
+            "${FEATHERDOC_PDFIUM_SOURCE_DIR}/public")
+    endif()
     featherdoc_copy_runtime_dlls(featherdoc_pdfium_probe)
 
     if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING AND TARGET featherdoc_pdfio_probe)

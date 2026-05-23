@@ -12,6 +12,46 @@ set(FEATHERDOC_PDF_THIRD_PARTY_LIBPNG_DIR
 set(FEATHERDOC_PDF_THIRD_PARTY_ZLIB_DIR
     "${FEATHERDOC_PDF_THIRD_PARTY_REPO_ROOT}/tmp/pdfium-workspace/pdfium/third_party/zlib")
 
+function(featherdoc_get_pdf_third_party_hint_roots out_var)
+    set(hint_roots)
+
+    if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET AND
+       NOT "${VCPKG_INSTALLED_DIR}" STREQUAL "" AND
+       NOT "${VCPKG_TARGET_TRIPLET}" STREQUAL "")
+        list(APPEND hint_roots
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug")
+    endif()
+
+    if(DEFINED ENV{VCPKG_ROOT} AND DEFINED VCPKG_TARGET_TRIPLET AND
+       NOT "$ENV{VCPKG_ROOT}" STREQUAL "" AND
+       NOT "${VCPKG_TARGET_TRIPLET}" STREQUAL "")
+        list(APPEND hint_roots
+            "$ENV{VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}"
+            "$ENV{VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/debug")
+    elseif(DEFINED ENV{VCPKG_ROOT} AND NOT "$ENV{VCPKG_ROOT}" STREQUAL "")
+        get_filename_component(vcpkg_root "$ENV{VCPKG_ROOT}" ABSOLUTE)
+        file(GLOB vcpkg_installed_roots LIST_DIRECTORIES true
+            "${vcpkg_root}/installed/*")
+        list(APPEND hint_roots ${vcpkg_installed_roots})
+    endif()
+
+    list(APPEND hint_roots
+        "D:/Programs/vcpkg/installed/x64-windows"
+        "D:/Programs/vcpkg/installed/x64-windows/debug")
+    list(REMOVE_DUPLICATES hint_roots)
+    set(${out_var} ${hint_roots} PARENT_SCOPE)
+endfunction()
+
+function(featherdoc_find_pdf_third_party_package package_name)
+    featherdoc_get_pdf_third_party_hint_roots(third_party_hint_roots)
+    if(third_party_hint_roots)
+        list(PREPEND CMAKE_PREFIX_PATH ${third_party_hint_roots})
+    endif()
+
+    find_package(${package_name} QUIET)
+endfunction()
+
 function(featherdoc_add_harfbuzz_targets)
     set(harfbuzz_hint_roots)
     if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET AND
@@ -131,6 +171,11 @@ function(featherdoc_add_freetype_target)
         return()
     endif()
 
+    featherdoc_find_pdf_third_party_package(Freetype)
+    if(TARGET Freetype::Freetype)
+        return()
+    endif()
+
     if(NOT EXISTS "${FEATHERDOC_PDF_THIRD_PARTY_FREETYPE_DIR}/CMakeLists.txt")
         message(FATAL_ERROR
             "Bundled FreeType source is missing. Expected: "
@@ -175,14 +220,19 @@ function(featherdoc_add_png_target target_name)
         return()
     endif()
 
+    if(NOT TARGET zlibstatic)
+        featherdoc_add_zlib_target()
+    endif()
+
+    featherdoc_find_pdf_third_party_package(PNG)
+    if(TARGET PNG::PNG)
+        return()
+    endif()
+
     if(NOT EXISTS "${FEATHERDOC_PDF_THIRD_PARTY_LIBPNG_DIR}/png.h")
         message(FATAL_ERROR
             "Bundled libpng source is missing. Expected: "
             "${FEATHERDOC_PDF_THIRD_PARTY_LIBPNG_DIR}")
-    endif()
-
-    if(NOT TARGET zlibstatic)
-        featherdoc_add_zlib_target()
     endif()
 
     add_library(${target_name} STATIC
@@ -218,6 +268,13 @@ endfunction()
 
 function(featherdoc_add_zlib_target)
     if(TARGET zlibstatic)
+        return()
+    endif()
+
+    featherdoc_find_pdf_third_party_package(ZLIB)
+    if(TARGET ZLIB::ZLIB)
+        add_library(zlibstatic INTERFACE)
+        target_link_libraries(zlibstatic INTERFACE ZLIB::ZLIB)
         return()
     endif()
 

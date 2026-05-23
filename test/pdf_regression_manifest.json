@@ -1074,7 +1074,10 @@
         "Document CJK bullet list sample",
         "\u9879\u76ee\u7b26\u53f7\u5217\u8868\u5f00\u59cb",
         "BL-101 \u9879\u76ee\u7b26\u53f7\u68c0\u7d22\u952e",
+        "BL-102 \u9879\u76ee\u7b26\u53f7\u5b57\u4f53\u56de\u9000",
         "BL-103 East Asia bullet fallback",
+        "BL-104 \u4e2d\u82f1\u6df7\u6392 bullet ABC 123",
+        "bullet ABC 123",
         "\u9879\u76ee\u7b26\u53f7\u7ed3\u675f"
       ],
       "expect_cjk": true,
@@ -1089,7 +1092,10 @@
         "Document CJK numbered list sample",
         "\u7f16\u53f7\u5217\u8868\u5f00\u59cb",
         "NL-101 \u7f16\u53f7\u68c0\u7d22\u952e",
+        "NL-102 \u7f16\u53f7\u5b57\u4f53\u56de\u9000",
         "NL-103 East Asia numbering fallback",
+        "NL-104 \u4e2d\u82f1\u6df7\u6392 numbering ABC 123",
+        "numbering ABC 123",
         "\u7f16\u53f7\u5217\u8868\u7ed3\u675f"
       ],
       "expect_cjk": true,
