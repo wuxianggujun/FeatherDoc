@@ -77,6 +77,15 @@ Assert-Equal -Actual ([bool]$latestJson.matches) -Expected $true `
     -Message "Command JSON parser should keep using the last matching command result."
 
 Assert-ThrowsMessage `
+    -ExpectedText "did not emit a JSON result" `
+    -Message "Command JSON parser should require command to be the first JSON field." `
+    -ScriptBlock {
+        Get-TemplateSchemaCommandJsonObject `
+            -Command "check-template-schema" `
+            -Lines @("{`"status`":`"ok`",`"command`":`"check-template-schema`",`"matches`":true}") | Out-Null
+    }
+
+Assert-ThrowsMessage `
     -ExpectedText "emitted invalid JSON" `
     -Message "Command JSON parser should explain malformed matching JSON." `
     -ScriptBlock {
