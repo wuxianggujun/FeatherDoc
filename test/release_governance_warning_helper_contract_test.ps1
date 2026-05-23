@@ -559,6 +559,8 @@ Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- Source reports:
     -Message "Rollup detail Markdown should include source report counts."
 Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- Source failures: 1" `
     -Message "Rollup detail Markdown should include source failure counts."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- source_failure_count: 1" `
+    -Message "Rollup detail Markdown should expose a machine-readable source failure count."
 Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_report: output/numbering-catalog-governance/summary.json' `
     -Message "Rollup metric Markdown should render raw source report paths."
 Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_json: output/numbering-catalog-governance/coverage.json' `
