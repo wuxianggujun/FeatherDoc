@@ -219,6 +219,82 @@ function Get-VisualReviewTaskSummaryLine {
     return ""
 }
 
+function Get-PdfVisualGateSummaryPath {
+    param($Summary)
+
+    $steps = Get-OptionalPropertyObject -Object $Summary -Name "steps"
+    $stepSummary = Get-OptionalPropertyObject -Object $steps -Name "pdf_visual_gate"
+    $topLevelSummary = Get-OptionalPropertyObject -Object $Summary -Name "pdf_visual_gate"
+
+    foreach ($candidate in @(
+            (Get-OptionalPropertyValue -Object $stepSummary -Name "summary_json"),
+            (Get-OptionalPropertyValue -Object $topLevelSummary -Name "summary_json"),
+            (Get-OptionalPropertyValue -Object $Summary -Name "pdf_visual_gate_summary_json")
+        )) {
+        if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+            return $candidate
+        }
+    }
+
+    return ""
+}
+
+function Get-PdfVisualGateEvidence {
+    param([string]$SummaryPath)
+
+    $evidence = [ordered]@{
+        summary_json = $SummaryPath
+        status = if ([string]::IsNullOrWhiteSpace($SummaryPath)) { "" } else { "missing" }
+        aggregate_contact_sheet = ""
+        cjk_copy_search_count = ""
+        cjk_missing_text_count = ""
+        visual_baseline_count = ""
+        pdf_cli_export_log = ""
+        pdf_regression_log = ""
+        cjk_copy_search_log_dir = ""
+        unicode_font_log = ""
+        error = ""
+    }
+
+    if ([string]::IsNullOrWhiteSpace($SummaryPath)) {
+        return [pscustomobject]$evidence
+    }
+
+    if (-not (Test-Path -LiteralPath $SummaryPath)) {
+        return [pscustomobject]$evidence
+    }
+
+    try {
+        $summary = Get-Content -Raw -LiteralPath $SummaryPath | ConvertFrom-Json
+    } catch {
+        $evidence.status = "unreadable"
+        $evidence.error = $_.Exception.Message
+        return [pscustomobject]$evidence
+    }
+
+    $evidence.status = "loaded"
+    $evidence.aggregate_contact_sheet = Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet"
+
+    $logs = Get-OptionalPropertyObject -Object $summary -Name "logs"
+    $evidence.pdf_cli_export_log = Get-OptionalPropertyValue -Object $logs -Name "pdf_cli_export"
+    $evidence.pdf_regression_log = Get-OptionalPropertyValue -Object $logs -Name "pdf_regression"
+    $evidence.cjk_copy_search_log_dir = Get-OptionalPropertyValue -Object $logs -Name "cjk_copy_search"
+    $evidence.unicode_font_log = Get-OptionalPropertyValue -Object $logs -Name "unicode_font"
+
+    $copySearchEntries = @(Get-OptionalPropertyArray -Object $summary -Name "cjk_copy_search")
+    $baselineEntries = @(Get-OptionalPropertyArray -Object $summary -Name "baselines")
+    $missingTextCount = 0
+    foreach ($entry in $copySearchEntries) {
+        $missingTextCount += @(Get-OptionalPropertyArray -Object $entry -Name "missing_text").Count
+    }
+
+    $evidence.cjk_copy_search_count = [string]$copySearchEntries.Count
+    $evidence.cjk_missing_text_count = [string]$missingTextCount
+    $evidence.visual_baseline_count = [string]$baselineEntries.Count
+
+    return [pscustomobject]$evidence
+}
+
 function Get-OptionalPropertyArray {
     param(
         $Object,

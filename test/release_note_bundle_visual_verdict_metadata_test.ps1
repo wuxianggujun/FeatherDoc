@@ -134,6 +134,13 @@ $curatedBundleId = "curated-review-verdict-metadata"
 $curatedBundleLabel = "Curated review verdict metadata"
 $curatedBundleTaskDir = Join-Path $taskOutputRoot $curatedBundleId
 $supersededReviewTasksReportPath = Join-Path $taskOutputRoot "superseded_review_tasks.json"
+$pdfVisualGateReportDir = Join-Path $resolvedWorkingDir "pdf-visual-gate\report"
+$pdfVisualGateSummaryPath = Join-Path $pdfVisualGateReportDir "summary.json"
+$pdfVisualGateAggregateContactSheetPath = Join-Path $pdfVisualGateReportDir "aggregate-contact-sheet.png"
+$pdfVisualGateCliExportLogPath = Join-Path $pdfVisualGateReportDir "pdf-cli-export-test.log"
+$pdfVisualGateRegressionLogPath = Join-Path $pdfVisualGateReportDir "pdf-regression-test.log"
+$pdfVisualGateCopySearchLogDir = Join-Path $pdfVisualGateReportDir "cjk-copy-search"
+$pdfVisualGateUnicodeFontLogPath = Join-Path $pdfVisualGateReportDir "unicode-font.log"
 
 foreach ($path in @(
         $reportDir,
@@ -144,7 +151,9 @@ foreach ($path in @(
         $fixedGridTaskDir,
         $sectionPageSetupTaskDir,
         $pageNumberFieldsTaskDir,
-        $curatedBundleTaskDir
+        $curatedBundleTaskDir,
+        $pdfVisualGateReportDir,
+        $pdfVisualGateCopySearchLogDir
     )) {
     New-Item -ItemType Directory -Path $path -Force | Out-Null
 }
@@ -243,6 +252,32 @@ $gateSummary = [ordered]@{
 }
 ($gateSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $gateSummaryPath -Encoding UTF8
 Set-Content -LiteralPath $gateFinalReviewPath -Encoding UTF8 -Value "# Gate Final Review"
+$pdfVisualGateSummary = [ordered]@{
+    generated_at = "2026-05-23T12:00:00"
+    aggregate_contact_sheet = $pdfVisualGateAggregateContactSheetPath
+    logs = [ordered]@{
+        pdf_cli_export = $pdfVisualGateCliExportLogPath
+        pdf_regression = $pdfVisualGateRegressionLogPath
+        cjk_copy_search = $pdfVisualGateCopySearchLogDir
+        unicode_font = $pdfVisualGateUnicodeFontLogPath
+    }
+    cjk_copy_search = @(
+        [ordered]@{
+            sample_id = "cjk-text"
+            missing_text = @()
+        },
+        [ordered]@{
+            sample_id = "cjk-mixed"
+            missing_text = @()
+        }
+    )
+    baselines = @(
+        [ordered]@{ sample = "styled-text" },
+        [ordered]@{ sample = "cjk-text" },
+        [ordered]@{ sample = "unicode-font" }
+    )
+}
+($pdfVisualGateSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $pdfVisualGateSummaryPath -Encoding UTF8
 (@{
     generated_at = "2026-04-28T12:00:00"
     task_output_root = $taskOutputRoot
@@ -308,6 +343,10 @@ $summary = [ordered]@{
             smoke_reviewed_at = "2026-04-28T12:31:00"
             smoke_review_method = "release_summary_override"
         }
+        pdf_visual_gate = [ordered]@{
+            status = "completed"
+            summary_json = $pdfVisualGateSummaryPath
+        }
     }
 }
 ($summary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
@@ -330,6 +369,22 @@ foreach ($assertion in @(
     )) {
     Assert-Contains -Path $assertion.Path -ExpectedText "Review task count: 5 total (4 standard, 1 curated)" -Label $assertion.Label
 }
+
+foreach ($assertion in @(
+        @{ Path = $handoffPath; Label = "release_handoff.md" },
+        @{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+        @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        @{ Path = $startHerePath; Label = "START_HERE.md" }
+    )) {
+    Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual gate summary:" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "pdf-visual-gate\report\summary.json" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual gate evidence status: loaded" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "aggregate-contact-sheet.png" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "PDF CJK copy/search samples: 2" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "PDF CJK missing text count: 0" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual baselines: 3" -Label $assertion.Label
+}
+Assert-Contains -Path $checklistPath -ExpectedText "Confirm the PDF visual gate finalize evidence is signed off" -Label "REVIEWER_CHECKLIST.md"
 
 foreach ($assertion in @(
         @{ Path = $handoffPath; Label = "release_handoff.md" },

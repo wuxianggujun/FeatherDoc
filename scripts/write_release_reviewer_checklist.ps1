@@ -349,6 +349,8 @@ $supersededReviewTasksCount = Get-SupersededReviewTaskCount -ReportPath $superse
 if ([string]::IsNullOrWhiteSpace($visualVerdict)) {
     $visualVerdict = "pending_manual_review"
 }
+$pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
+$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath
 
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
 $syncProjectTemplateSmokeCommand = ""
@@ -414,6 +416,18 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Visual verdict: $visualVerdict")
 if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
     [void]$lines.Add("- $visualReviewTaskSummaryLine")
+}
+if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
+    [void]$lines.Add("- PDF visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json)")
+    [void]$lines.Add("- PDF visual gate evidence status: $(Get-DisplayValue -Value $pdfVisualGateEvidence.status)")
+    if ($pdfVisualGateEvidence.status -eq "loaded") {
+        [void]$lines.Add("- PDF visual aggregate contact sheet: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet)")
+        [void]$lines.Add("- PDF CJK copy/search samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count)")
+        [void]$lines.Add("- PDF CJK missing text count: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_missing_text_count)")
+        [void]$lines.Add("- PDF visual baselines: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_count)")
+    } elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.error)) {
+        [void]$lines.Add("- PDF visual gate evidence error: $($pdfVisualGateEvidence.error)")
+    }
 }
 [void]$lines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
 [void]$lines.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")
@@ -586,6 +600,16 @@ if ($summary.steps.visual_gate.status -eq "skipped") {
     Add-CheckboxLine -Lines $lines -Text ('Confirm the local Word visual evidence is already signed off as `pass`: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath))
 } else {
     Add-CheckboxLine -Lines $lines -Text ('Stop here until the local Word visual review is completed and the visual verdict changes from `{0}`.' -f $visualVerdict)
+}
+if ($pdfVisualGateEvidence.status -eq "loaded") {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the PDF visual gate finalize evidence is signed off: summary {0}, aggregate contact sheet {1}, CJK copy/search samples `{2}`, missing text `{3}`, visual baselines `{4}`.' -f `
+            (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json),
+            (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet),
+            $pdfVisualGateEvidence.cjk_copy_search_count,
+            $pdfVisualGateEvidence.cjk_missing_text_count,
+            $pdfVisualGateEvidence.visual_baseline_count)
+} elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
+    Add-CheckboxLine -Lines $lines -Text ('Stop here until the PDF visual gate evidence summary is readable: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json))
 }
 Add-CheckboxLine -Lines $lines -Text 'For PDF/CJK-facing releases, manually verify a generated Chinese PDF can be copied and searched in at least one common reader, and record the reader/version in the release notes or final review.'
 
