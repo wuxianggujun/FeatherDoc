@@ -444,7 +444,15 @@ Assert-ContainsText -Text $markdown -ExpectedText "requires_visual_verification"
     -Message "Markdown should call out visual verification for apply paths."
 Assert-ContainsText -Text $markdown -ExpectedText "open_command" `
     -Message "Markdown repair plans should include reviewer open commands when available."
+Assert-ContainsText -Text $markdown -ExpectedText "## Release Blockers" `
+    -Message "Markdown should include release blocker details."
+Assert-ContainsText -Text $markdown -ExpectedText "content_control_data_binding.custom_xml_sync_issue" `
+    -Message "Markdown should include Custom XML sync blockers."
+Assert-ContainsText -Text $markdown -ExpectedText "content_control_data_binding.bound_placeholder" `
+    -Message "Markdown should include bound placeholder blockers."
 Assert-ContainsText -Text $markdown -ExpectedText "source_report_display" `
     -Message "Markdown should expose source report display fields."
+Assert-ContainsText -Text $markdown -ExpectedText "source_json_display" `
+    -Message "Markdown should expose source JSON display fields."
 
 Write-Host "Content-control data-binding governance report regression passed."
