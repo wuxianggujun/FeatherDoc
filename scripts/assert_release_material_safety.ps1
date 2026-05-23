@@ -966,6 +966,103 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
     }
 }
 
+function Add-PdfVisualGateManifestContractViolations {
+    param(
+        [string]$File,
+        $Json,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_assets_manifest.json") {
+        return
+    }
+
+    $label = "PDF visual gate manifest contract"
+    $includedValue = Get-JsonPropertyValue -Object $Json -Name "pdf_visual_gate_evidence_included"
+    $status = [string](Get-JsonPropertyValue -Object $Json -Name "pdf_visual_gate_status")
+    $included = $false
+    if ($includedValue -is [bool]) {
+        $included = $includedValue
+    } elseif ($null -ne $includedValue) {
+        $included = ([string]$includedValue).Trim().ToLowerInvariant() -eq "true"
+    }
+
+    if (-not $included) {
+        if ($status -eq "loaded") {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_status=loaded requires pdf_visual_gate_evidence_included=true."
+        }
+        return
+    }
+
+    if ($status -ne "loaded") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence_included=true requires pdf_visual_gate_status=loaded."
+    }
+
+    $topLevelSummary = [string](Get-JsonPropertyValue -Object $Json -Name "pdf_visual_gate_summary_json")
+    if ([string]::IsNullOrWhiteSpace($topLevelSummary)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_summary_json is missing."
+    }
+
+    $topLevelOutputDir = [string](Get-JsonPropertyValue -Object $Json -Name "pdf_visual_gate_output_dir")
+    if ([string]::IsNullOrWhiteSpace($topLevelOutputDir)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_output_dir is missing."
+    }
+
+    $evidence = Get-JsonPropertyValue -Object $Json -Name "pdf_visual_gate_evidence"
+    if ($null -eq $evidence) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence is missing."
+        return
+    }
+
+    $evidenceStatus = [string](Get-JsonPropertyValue -Object $evidence -Name "status")
+    if ($evidenceStatus -ne "loaded") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.status must be loaded."
+    }
+
+    $evidenceSummary = [string](Get-JsonPropertyValue -Object $evidence -Name "summary_json")
+    if ([string]::IsNullOrWhiteSpace($evidenceSummary)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.summary_json is missing."
+    } elseif (-not [string]::IsNullOrWhiteSpace($topLevelSummary) -and $evidenceSummary -ne $topLevelSummary) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.summary_json must match pdf_visual_gate_summary_json."
+    }
+
+    foreach ($fieldName in @(
+            "aggregate_contact_sheet",
+            "pdf_cli_export_log",
+            "pdf_regression_log",
+            "cjk_copy_search_log_dir",
+            "unicode_font_log"
+        )) {
+        $fieldValue = [string](Get-JsonPropertyValue -Object $evidence -Name $fieldName)
+        if ([string]::IsNullOrWhiteSpace($fieldValue)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.$fieldName is missing."
+        }
+    }
+
+    foreach ($countContract in @(
+            @{ Name = "cjk_copy_search_count"; Minimum = 1 },
+            @{ Name = "cjk_missing_text_count"; Minimum = 0 },
+            @{ Name = "visual_baseline_count"; Minimum = 1 }
+        )) {
+        $fieldName = $countContract.Name
+        $fieldValue = Get-JsonPropertyValue -Object $evidence -Name $fieldName
+        if ($null -eq $fieldValue) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.$fieldName is missing."
+            continue
+        }
+
+        try {
+            $integerValue = [int]$fieldValue
+            if ($integerValue -lt [int]$countContract.Minimum) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.$fieldName must be at least $($countContract.Minimum)."
+            }
+        } catch {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.$fieldName must be an integer."
+        }
+    }
+}
+
 $repoRoot = Resolve-RepoRoot
 $scanFiles = @(Get-ScanFiles -RepoRoot $repoRoot -InputPaths $Path)
 if ($scanFiles.Count -eq 0) {
@@ -1015,6 +1112,7 @@ foreach ($file in $scanFiles) {
             Add-ContentControlRepairContractViolations -File $file -Json $json -Violations $violations
             Add-ProjectTemplateDeliveryReadinessContractViolations -File $file -Json $json -Violations $violations
             Add-ProjectTemplateOnboardingGovernanceContractViolations -File $file -Json $json -Violations $violations
+            Add-PdfVisualGateManifestContractViolations -File $file -Json $json -Violations $violations
         } catch {
             if ($leafName -eq "summary.json" -or $leafName -eq "release_assets_manifest.json") {
                 Add-AuditViolation `

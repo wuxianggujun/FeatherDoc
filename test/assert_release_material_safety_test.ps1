@@ -166,6 +166,20 @@ $projectTemplateOnboardingGovernanceContract = [ordered]@{
     source_report_display = ".\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json"
     source_json_display = ".\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json"
 }
+$pdfVisualGateSummaryJson = ".\output\pdf-visual-release-gate-current\report\summary.json"
+$pdfVisualGateEvidence = [ordered]@{
+    summary_json = $pdfVisualGateSummaryJson
+    status = "loaded"
+    aggregate_contact_sheet = ".\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png"
+    cjk_copy_search_count = "43"
+    cjk_missing_text_count = "0"
+    visual_baseline_count = "44"
+    pdf_cli_export_log = ".\output\pdf-visual-release-gate-current\report\pdf-cli-export-test.log"
+    pdf_regression_log = ".\output\pdf-visual-release-gate-current\report\pdf-regression-test.log"
+    cjk_copy_search_log_dir = ".\output\pdf-visual-release-gate-current\report\cjk-copy-search"
+    unicode_font_log = ".\output\pdf-visual-release-gate-current\report\unicode-font.log"
+    error = ""
+}
 
 function New-NumberingCatalogRealCorpusConfidenceMirror {
     param($GovernanceMetrics)
@@ -208,6 +222,11 @@ $passManifest = [ordered]@{
     release_version = "1.6.4"
     execution_status = "pass"
     visual_gate_status = "completed"
+    pdf_visual_gate_status = "loaded"
+    pdf_visual_gate_summary_json = $pdfVisualGateSummaryJson
+    pdf_visual_gate_output_dir = ".\output\pdf-visual-release-gate-current"
+    pdf_visual_gate_evidence_included = $true
+    pdf_visual_gate_evidence = $pdfVisualGateEvidence
     governance_metric_count = $governanceMetricCount
     governance_metrics = $governanceMetrics
     numbering_catalog_real_corpus_confidence = (New-NumberingCatalogRealCorpusConfidenceMirror -GovernanceMetrics $governanceMetrics)
@@ -229,6 +248,61 @@ $passManifest = [ordered]@{
 ($passManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $passManifestPath -Encoding UTF8
 
 & $auditScript -Path @($passSummaryPath, $passManifestPath)
+
+$badManifestMissingPdfEvidenceDir = Join-Path $failDir "manifest-missing-pdf-visual-evidence"
+$badManifestMissingPdfEvidencePath = Join-Path $badManifestMissingPdfEvidenceDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingPdfEvidenceDir -Force | Out-Null
+$badManifestMissingPdfEvidence = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingPdfEvidence.PSObject.Properties.Remove("pdf_visual_gate_evidence")
+($badManifestMissingPdfEvidence | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingPdfEvidencePath -Encoding UTF8
+
+$missingPdfEvidenceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingPdfEvidencePath
+} catch {
+    $missingPdfEvidenceFailedAsExpected = $true
+}
+
+if (-not $missingPdfEvidenceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest without PDF visual gate evidence."
+}
+
+$badManifestMismatchedPdfSummaryDir = Join-Path $failDir "manifest-mismatched-pdf-visual-summary"
+$badManifestMismatchedPdfSummaryPath = Join-Path $badManifestMismatchedPdfSummaryDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMismatchedPdfSummaryDir -Force | Out-Null
+$badManifestMismatchedPdfSummary = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMismatchedPdfSummary.pdf_visual_gate_evidence.summary_json = ".\output\pdf-visual-release-gate-current\report\other-summary.json"
+($badManifestMismatchedPdfSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMismatchedPdfSummaryPath -Encoding UTF8
+
+$mismatchedPdfSummaryFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMismatchedPdfSummaryPath
+} catch {
+    $mismatchedPdfSummaryFailedAsExpected = $true
+}
+
+if (-not $mismatchedPdfSummaryFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with mismatched PDF visual gate summary path."
+}
+
+$badManifestZeroPdfCountsDir = Join-Path $failDir "manifest-zero-pdf-visual-counts"
+$badManifestZeroPdfCountsPath = Join-Path $badManifestZeroPdfCountsDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestZeroPdfCountsDir -Force | Out-Null
+$badManifestZeroPdfCounts = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestZeroPdfCounts.pdf_visual_gate_evidence.cjk_copy_search_count = "0"
+$badManifestZeroPdfCounts.pdf_visual_gate_evidence.visual_baseline_count = "0"
+($badManifestZeroPdfCounts | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestZeroPdfCountsPath -Encoding UTF8
+
+$zeroPdfCountsFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestZeroPdfCountsPath
+} catch {
+    $zeroPdfCountsFailedAsExpected = $true
+}
+
+if (-not $zeroPdfCountsFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with zero PDF visual gate evidence counts."
+}
 
 $badManifestMissingMetricDetailsDir = Join-Path $failDir "manifest-missing-governance-metric-details"
 $badManifestMissingMetricDetailsPath = Join-Path $badManifestMissingMetricDetailsDir "release_assets_manifest.json"
