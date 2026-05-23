@@ -1016,6 +1016,8 @@ if (Test-Scenario -Name "malformed") {
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_blocker_rollup.md")
     Assert-ContainsText -Text $markdown -ExpectedText "Source failures: ``0``" `
         -Message "Malformed-count Markdown should summarize source failure count separately from warnings."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failure_count: ``0``" `
+        -Message "Malformed-count Markdown should expose a machine-readable source failure count."
 }
 
 if (Test-Scenario -Name "failed_source") {
@@ -1037,6 +1039,8 @@ if (Test-Scenario -Name "failed_source") {
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_blocker_rollup.md")
     Assert-ContainsText -Text $markdown -ExpectedText "Source failures: ``1``" `
         -Message "Failed-source Markdown should summarize source failures."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failure_count: ``1``" `
+        -Message "Failed-source Markdown should expose a machine-readable source failure count."
     Assert-ContainsText -Text $markdown -ExpectedText "status=``failed``" `
         -Message "Failed-source Markdown should show the source report status."
     Assert-ContainsText -Text $markdown -ExpectedText "error:" `
