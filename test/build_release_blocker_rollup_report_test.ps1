@@ -672,6 +672,8 @@ if (Test-Scenario -Name "passing") {
     $tableMetric = ($summary.governance_metrics |
         Where-Object { [string]$_.id -eq "table_layout_delivery_governance.delivery_quality" } |
         Select-Object -First 1)
+    Assert-ContainsText -Text ([string]$tableMetric.source_json) -ExpectedText "table-layout\summary.json" `
+        -Message "Rollup should preserve table delivery raw source JSON."
     Assert-ContainsText -Text ([string]$tableMetric.source_json_display) -ExpectedText "table-layout\summary.json" `
         -Message "Rollup should preserve table delivery source JSON display."
     Assert-Equal -Actual ([int]$tableMetric.details.unresolved_item_count) -Expected 10 `
@@ -721,6 +723,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve blocker action."
     Assert-ContainsText -Text ([string]$skeletonBlocker.message) -ExpectedText "Style numbering audit" `
         -Message "Rollup should preserve blocker message."
+    Assert-ContainsText -Text ([string]$skeletonBlocker.source_json) -ExpectedText "style-numbering-audit.json" `
+        -Message "Rollup should preserve blocker raw source JSON."
     Assert-ContainsText -Text ([string]$skeletonBlocker.source_json_display) -ExpectedText "style-numbering-audit.json" `
         -Message "Rollup should preserve blocker source JSON display."
     Assert-ContainsText -Text ([string]$skeletonBlocker.origin_source_report_display) -ExpectedText "document-skeleton-governance-rollup\summary.json" `
@@ -802,9 +806,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve PDF preflight action item dependency input readiness."
     Assert-Equal -Actual ([int]$pdfPreflightAction.readiness_action_evidence_count) -Expected 2 `
         -Message "Rollup should preserve PDF preflight action readiness action evidence count."
-    Assert-ContainsText -Text (($pdfPreflightAction.readiness_action_evidence | ForEach-Object { "$($_.action)|$($_.issue_key)|$($_.item)" }) -join "`n") `
-        -ExpectedText "enable_pdf_build_option|pdf_build_options_enabled|FEATHERDOC_BUILD_PDF_IMPORT" `
-        -Message "Rollup should preserve PDF preflight action readiness evidence details."
+    Assert-ContainsText -Text (($pdfPreflightAction.readiness_action_evidence | ForEach-Object { "$($_.action)|$($_.issue_key)|$($_.item)|$($_.source_json)" }) -join "`n") `
+        -ExpectedText "enable_pdf_build_option|pdf_build_options_enabled|FEATHERDOC_BUILD_PDF_IMPORT|" `
+        -Message "Rollup should preserve PDF preflight action readiness evidence raw source JSON."
+    Assert-ContainsText -Text (($pdfPreflightAction.readiness_action_evidence | ForEach-Object { [string]$_.source_json }) -join "`n") `
+        -ExpectedText "pdf-visual-release-gate-preflight-governance\preflight-summary.json" `
+        -Message "Rollup should resolve PDF preflight action readiness evidence raw source JSON paths."
     $projectTemplateSourceReport = ($summary.source_reports |
         Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
         Select-Object -First 1)
@@ -849,6 +856,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve calibration blocker template name."
     Assert-Equal -Actual ([string]$calibrationBlocker.candidate_type) -Expected "rename" `
         -Message "Rollup should preserve calibration blocker candidate type."
+    Assert-ContainsText -Text ([string]$calibrationBlocker.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Rollup should preserve calibration blocker raw source JSON."
     Assert-ContainsText -Text ([string]$calibrationBlocker.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Rollup should preserve calibration blocker origin source report display."
     $calibrationAction = ($summary.action_items |
@@ -860,6 +869,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve calibration action template name."
     Assert-Equal -Actual ([string]$calibrationAction.candidate_type) -Expected "rename" `
         -Message "Rollup should preserve calibration action candidate type."
+    Assert-ContainsText -Text ([string]$calibrationAction.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Rollup should preserve calibration action raw source JSON."
     Assert-ContainsText -Text ([string]$calibrationAction.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Rollup should preserve calibration action origin source report display."
     $calibrationWarning = ($summary.warnings |
@@ -871,6 +882,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve calibration warning template name."
     Assert-Equal -Actual ([string]$calibrationWarning.candidate_type) -Expected "rename" `
         -Message "Rollup should preserve calibration warning candidate type."
+    Assert-ContainsText -Text ([string]$calibrationWarning.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Rollup should preserve calibration warning raw source JSON."
     Assert-ContainsText -Text ([string]$calibrationWarning.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Rollup should preserve calibration warning origin source report display."
 

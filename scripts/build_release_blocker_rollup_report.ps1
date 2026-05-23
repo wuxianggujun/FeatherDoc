@@ -68,6 +68,25 @@ function Get-DisplayPath {
     return $resolved
 }
 
+function Resolve-RepoPathFromDisplayPath {
+    param([string]$RepoRoot, [string]$DisplayPath)
+
+    if ([string]::IsNullOrWhiteSpace($RepoRoot) -or [string]::IsNullOrWhiteSpace($DisplayPath)) {
+        return ""
+    }
+
+    $normalized = $DisplayPath -replace '/', '\'
+    if ($normalized.StartsWith('.\')) {
+        $normalized = $normalized.Substring(2)
+    }
+
+    if ([System.IO.Path]::IsPathRooted($normalized)) {
+        return [System.IO.Path]::GetFullPath($normalized)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $normalized))
+}
+
 function Get-JsonProperty {
     param($Object, [string]$Name)
 
@@ -151,6 +170,107 @@ function Copy-OptionalJsonProperties {
         $value = Get-JsonProperty -Object $Source -Name $name
         if ($null -ne $value) {
             $Target[$name] = $value
+        }
+    }
+}
+
+function Set-JsonPropertyValue {
+    param(
+        $Object,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -eq $Object) { return }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        $Object[$Name] = $Value
+        return
+    }
+
+    $existing = $Object.PSObject.Properties[$Name]
+    if ($null -ne $existing) {
+        $existing.Value = $Value
+        return
+    }
+
+    Add-Member -InputObject $Object -MemberType NoteProperty -Name $Name -Value $Value
+}
+
+function Normalize-ReadinessActionEvidence {
+    param(
+        $Items,
+        [string]$DefaultSourceSchema,
+        [string]$DefaultSourceReport,
+        [string]$DefaultSourceReportDisplay,
+        [string]$DefaultSourceJson,
+        [string]$DefaultSourceJsonDisplay,
+        [string]$RepoRoot
+    )
+
+    foreach ($evidence in @($Items)) {
+        if ($null -eq $evidence) {
+            continue
+        }
+        if ($evidence -isnot [System.Collections.IDictionary] -and $evidence -isnot [pscustomobject]) {
+            continue
+        }
+
+        $sourceSchema = Get-JsonString -Object $evidence -Name "source_schema"
+        $sourceReport = Get-JsonString -Object $evidence -Name "source_report"
+        $sourceReportDisplay = Get-JsonString -Object $evidence -Name "source_report_display"
+        $sourceJson = Get-JsonString -Object $evidence -Name "source_json"
+        $sourceJsonDisplay = Get-JsonString -Object $evidence -Name "source_json_display"
+
+        if ([string]::IsNullOrWhiteSpace($sourceSchema)) {
+            Set-JsonPropertyValue -Object $evidence -Name "source_schema" -Value $DefaultSourceSchema
+        }
+
+        if ([string]::IsNullOrWhiteSpace($sourceReport)) {
+            if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+                $sourceReport = Resolve-RepoPathFromDisplayPath -RepoRoot $RepoRoot -DisplayPath $sourceReportDisplay
+            } else {
+                $sourceReport = $DefaultSourceReport
+            }
+            Set-JsonPropertyValue -Object $evidence -Name "source_report" -Value $sourceReport
+        }
+
+        if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+            if (-not [string]::IsNullOrWhiteSpace($DefaultSourceReportDisplay)) {
+                $sourceReportDisplay = $DefaultSourceReportDisplay
+            } elseif (-not [string]::IsNullOrWhiteSpace($sourceReport)) {
+                $sourceReportDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $sourceReport
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+                Set-JsonPropertyValue -Object $evidence -Name "source_report_display" -Value $sourceReportDisplay
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($sourceJson)) {
+            if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                $sourceJson = Resolve-RepoPathFromDisplayPath -RepoRoot $RepoRoot -DisplayPath $sourceJsonDisplay
+            } elseif (-not [string]::IsNullOrWhiteSpace($sourceReport)) {
+                $sourceJson = $sourceReport
+            } else {
+                $sourceJson = $DefaultSourceJson
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                Set-JsonPropertyValue -Object $evidence -Name "source_json" -Value $sourceJson
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+            if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                $sourceJsonDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $sourceJson
+            } elseif (-not [string]::IsNullOrWhiteSpace($DefaultSourceJsonDisplay)) {
+                $sourceJsonDisplay = $DefaultSourceJsonDisplay
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                Set-JsonPropertyValue -Object $evidence -Name "source_json_display" -Value $sourceJsonDisplay
+            }
         }
     }
 }
@@ -744,6 +864,14 @@ foreach ($path in @($inputPaths)) {
                     "readiness_action_evidence_count",
                     "readiness_action_evidence"
                 )
+            Normalize-ReadinessActionEvidence `
+                -Items (Get-JsonArray -Object $rollupBlocker -Name "readiness_action_evidence") `
+                -DefaultSourceSchema ([string]$rollupBlocker.source_schema) `
+                -DefaultSourceReport ([string]$rollupBlocker.origin_source_report) `
+                -DefaultSourceReportDisplay ([string]$rollupBlocker.origin_source_report_display) `
+                -DefaultSourceJson ([string]$rollupBlocker.source_json) `
+                -DefaultSourceJsonDisplay ([string]$rollupBlocker.source_json_display) `
+                -RepoRoot $repoRoot
             $blockers.Add($rollupBlocker) | Out-Null
         }
 
@@ -805,6 +933,14 @@ foreach ($path in @($inputPaths)) {
                     "readiness_action_evidence_count",
                     "readiness_action_evidence"
                 )
+            Normalize-ReadinessActionEvidence `
+                -Items (Get-JsonArray -Object $rollupActionItem -Name "readiness_action_evidence") `
+                -DefaultSourceSchema ([string]$rollupActionItem.source_schema) `
+                -DefaultSourceReport ([string]$rollupActionItem.origin_source_report) `
+                -DefaultSourceReportDisplay ([string]$rollupActionItem.origin_source_report_display) `
+                -DefaultSourceJson ([string]$rollupActionItem.source_json) `
+                -DefaultSourceJsonDisplay ([string]$rollupActionItem.source_json_display) `
+                -RepoRoot $repoRoot
             $actionItems.Add($rollupActionItem) | Out-Null
         }
 
