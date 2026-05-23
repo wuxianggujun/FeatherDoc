@@ -122,6 +122,10 @@ Assert-ContainsText -Text $manifestSampleBlock -ExpectedText ('"output_file": "{
     -Message "PDF regression manifest should keep output file '$outputFile'."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expected_pages": 1' `
     -Message "PDF CJK complex layout should stay a one-page lightweight sample."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"text_layer_expected_text": [' `
+    -Message "PDF CJK complex layout manifest should carry PyMuPDF text-layer expectations."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "Complex first footer 1 / 1" `
+    -Message "PDF CJK complex layout text-layer gate should match first-page footer extraction."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "CL-101" `
     -Message "PDF CJK complex layout manifest should include CL-101."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "CL-202" `

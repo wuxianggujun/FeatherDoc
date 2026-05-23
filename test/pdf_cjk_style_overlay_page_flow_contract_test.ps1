@@ -127,6 +127,10 @@ Assert-ContainsText -Text $manifestSampleBlock -ExpectedText ('"output_file": "{
     -Message "PDF regression manifest should keep output file '$outputFile'."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expected_pages": 1' `
     -Message "PDF CJK style overlay page flow should stay a one-page lightweight sample."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"text_layer_expected_text": [' `
+    -Message "PDF CJK style overlay page flow manifest should carry PyMuPDF text-layer expectations."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "Overlay first footer SO-888 \u6837\u5f0f\u68c0\u7d22\u952e 1 / 1" `
+    -Message "PDF CJK style overlay page flow text-layer gate should match first-page footer extraction."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "SO-888" `
     -Message "PDF CJK style overlay page flow manifest should include SO-888."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "SO-101" `

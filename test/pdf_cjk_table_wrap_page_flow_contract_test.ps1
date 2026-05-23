@@ -98,6 +98,12 @@ Assert-ContainsText -Text $manifestSampleBlock -ExpectedText ('"output_file": "{
     -Message "PDF regression manifest should keep output file '$outputFile'."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expected_pages": 1' `
     -Message "PDF CJK table wrap page-flow should stay a one-page lightweight sample."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"text_layer_expected_text": [' `
+    -Message "PDF CJK table wrap page-flow manifest should carry PyMuPDF text-layer expectations."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "TF-A-01" `
+    -Message "PDF CJK table wrap page-flow text-layer gate should match the actual repeated-header extraction key."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "Flow first footer 1 / 1" `
+    -Message "PDF CJK table wrap page-flow text-layer gate should match first-page footer extraction."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_cjk": true' `
     -Message "PDF CJK table wrap page-flow manifest should require CJK handling."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_unicode": true' `

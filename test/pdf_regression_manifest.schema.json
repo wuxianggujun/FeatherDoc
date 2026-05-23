@@ -47,6 +47,13 @@
             "type": "string"
           }
         },
+        "text_layer_expected_text": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
         "expected_image_count": {
           "type": "integer",
           "minimum": 1

@@ -98,6 +98,10 @@ Assert-ContainsText -Text $manifestSampleBlock -ExpectedText ('"output_file": "{
     -Message "PDF regression manifest should keep output file '$outputFile'."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expected_pages": 1' `
     -Message "PDF table CJK vertical merged cant-split should stay a one-page lightweight sample."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"text_layer_expected_text": [' `
+    -Message "PDF table CJK vertical merged cant-split manifest should carry PyMuPDF text-layer expectations."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "CJK vertical merge first footer 1 / 1" `
+    -Message "PDF table CJK vertical merged cant-split text-layer gate should match first-page footer extraction."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_cjk": true' `
     -Message "PDF table CJK vertical merged cant-split manifest should require CJK handling."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"expect_unicode": true' `

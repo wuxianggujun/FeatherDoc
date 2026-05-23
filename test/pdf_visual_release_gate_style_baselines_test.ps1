@@ -71,8 +71,10 @@ Assert-ContainsText -Text $scriptText -ExpectedText "visual_style_focus" `
     -Message "PDF visual release gate should carry manifest style focus metadata."
 Assert-ContainsText -Text $scriptText -ExpectedText "unicode-font.log" `
     -Message "PDF visual release gate should define the unicode font visual regression log path."
-Assert-ContainsText -Text $scriptText -ExpectedText "-ExecutablePath `$unicodeScriptPath" `
+Assert-ContainsText -Text $scriptText -ExpectedText '-ExecutablePath "powershell"' `
     -Message "PDF visual release gate should run unicode visual regression through captured command logging."
+Assert-ContainsText -Text $scriptText -ExpectedText '"-File", $unicodeScriptPath' `
+    -Message "PDF visual release gate should invoke the unicode visual regression script with explicit -File binding."
 Assert-ContainsText -Text $scriptText -ExpectedText "-LogPath `$unicodeLog" `
     -Message "PDF visual release gate should write unicode visual regression output to its declared log."
 Assert-ContainsText -Text $scriptText -ExpectedText "unicode_font = `$unicodeLog" `

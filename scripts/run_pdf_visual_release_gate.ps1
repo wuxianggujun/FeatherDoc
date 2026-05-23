@@ -303,8 +303,8 @@ Invoke-CapturedCommand `
 if (-not $SkipUnicodeBaseline) {
     Write-Step "Running unicode font visual regression"
     Invoke-CapturedCommand `
-        -ExecutablePath $unicodeScriptPath `
-        -Arguments @("-BuildDir", $resolvedBuildDir, "-OutputDir", $unicodeOutputDir, "-Dpi", [string]$Dpi) `
+        -ExecutablePath "powershell" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $unicodeScriptPath, "-BuildDir", $resolvedBuildDir, "-OutputDir", $unicodeOutputDir, "-Dpi", [string]$Dpi) `
         -LogPath $unicodeLog `
         -FailureMessage "Unicode font visual regression failed."
 }
@@ -331,13 +331,17 @@ foreach ($sample in $cjkSamples) {
 
     $sampleSummaryPath = Join-Path $cjkCopySearchDir "$($sample.id)-summary.json"
     $sampleTextPath = Join-Path $cjkCopySearchDir "$($sample.id)-text.txt"
+    $expectedTextLayerText = @($sample.expected_text)
+    if ($null -ne $sample.PSObject.Properties["text_layer_expected_text"]) {
+        $expectedTextLayerText = @($sample.text_layer_expected_text)
+    }
     $textLayerArguments = @(
         $textLayerScriptPath,
         "--input", $samplePdfPath,
         "--output-text", $sampleTextPath,
         "--summary", $sampleSummaryPath
     )
-    foreach ($expectedText in @($sample.expected_text)) {
+    foreach ($expectedText in $expectedTextLayerText) {
         $textLayerArguments += @("--expect-text", $expectedText)
     }
 
@@ -353,7 +357,7 @@ foreach ($sample in $cjkSamples) {
             pdf_path = $samplePdfPath
             summary_path = $sampleSummaryPath
             text_output_path = $sampleTextPath
-            expected_text = @($sample.expected_text)
+            expected_text = $expectedTextLayerText
             matched_text = @($sampleTextSummary.matched_text)
             missing_text = @($sampleTextSummary.missing_text)
             page_count = $sampleTextSummary.page_count

@@ -56,6 +56,8 @@ Assert-ContainsText -Text $scriptText -ExpectedText "cjk-copy-search" `
     -Message "PDF visual release gate should write CJK copy/search evidence."
 Assert-ContainsText -Text $scriptText -ExpectedText "expect_cjk -eq `$true" `
     -Message "PDF visual release gate should select CJK manifest samples."
+Assert-ContainsText -Text $scriptText -ExpectedText "text_layer_expected_text" `
+    -Message "PDF visual release gate should allow manifest samples to override copy/search text-layer expectations."
 Assert-ContainsText -Text $scriptText -ExpectedText "matched_text" `
     -Message "PDF visual release gate should report matched text-layer snippets."
 Assert-ContainsText -Text $scriptText -ExpectedText "missing_text" `

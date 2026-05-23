@@ -116,6 +116,12 @@ Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "Table matrix heade
     -Message "PDF table font matrix manifest should include header stable text."
 Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "Table matrix footer" `
     -Message "PDF table font matrix manifest should include footer stable text."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText '"text_layer_expected_text": [' `
+    -Message "PDF table font matrix manifest should define copy/search text-layer expectations separately."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "中文表格" `
+    -Message "PDF table font matrix text-layer expectations should use real CJK copy/search text."
+Assert-ContainsText -Text $manifestSampleBlock -ExpectedText "单元" `
+    -Message "PDF table font matrix text-layer expectations should keep real CJK table cell text."
 
 Assert-ContainsText -Text $manifestTestText -ExpectedText $sampleId `
     -Message "PDF regression manifest parser test should assert sample '$sampleId'."
