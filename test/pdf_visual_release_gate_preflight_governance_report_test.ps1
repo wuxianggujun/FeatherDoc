@@ -546,6 +546,9 @@ $missingPreflightMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $missin
 Assert-ContainsText -Text $missingPreflightMarkdown `
     -ExpectedText "Source failures: ``1``" `
     -Message "Missing explicit preflight JSON Markdown should summarize source failures."
+Assert-ContainsText -Text $missingPreflightMarkdown `
+    -ExpectedText "source_failure_count: ``1``" `
+    -Message "Missing explicit preflight JSON Markdown should expose a machine-readable source failure count."
 
 $missingPreflightSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingPreflightSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$missingPreflightSummary.status) -Expected "failed" `
@@ -588,6 +591,9 @@ $missingHelperMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingHe
 Assert-ContainsText -Text $missingHelperMarkdown `
     -ExpectedText "Source failures: ``1``" `
     -Message "Missing implicit preflight helper Markdown should summarize source failures."
+Assert-ContainsText -Text $missingHelperMarkdown `
+    -ExpectedText "source_failure_count: ``1``" `
+    -Message "Missing implicit preflight helper Markdown should expose a machine-readable source failure count."
 
 $missingHelperSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingHelperSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$missingHelperSummary.status) -Expected "failed" `

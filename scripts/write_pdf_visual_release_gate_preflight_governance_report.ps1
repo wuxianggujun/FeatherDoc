@@ -674,6 +674,7 @@ function New-ReportMarkdown {
     $lines.Add("- Status: ``$($Summary.status)``") | Out-Null
     $lines.Add("- Release ready: ``$($Summary.release_ready)``") | Out-Null
     $lines.Add("- Source failures: ``$($Summary.source_failure_count)``") | Out-Null
+    $lines.Add("- source_failure_count: ``$($Summary.source_failure_count)``") | Out-Null
     $lines.Add("- Preflight ready: ``$($Summary.preflight_ready)``") | Out-Null
     $lines.Add("- Preflight status: ``$($Summary.preflight_status)``") | Out-Null
     $lines.Add("- Full visual gate required: ``$($Summary.full_visual_gate_required)``") | Out-Null
