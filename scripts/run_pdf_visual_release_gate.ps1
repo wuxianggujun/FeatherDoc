@@ -15,6 +15,7 @@ param(
     [string]$PdfiumRuntimeDir = "",
     [string]$PreflightJson = "",
     [switch]$PreflightOnly,
+    [switch]$FinalizeOnly,
     [switch]$SkipPreflight,
     [switch]$SkipMemoryGuard
 )
@@ -214,6 +215,91 @@ function Render-PdfSample {
     }
 }
 
+function Get-ExpectedTextLayerText {
+    param([object]$Sample)
+
+    if ($null -ne $Sample.PSObject.Properties["text_layer_expected_text"]) {
+        return @($Sample.text_layer_expected_text)
+    }
+
+    return @($Sample.expected_text)
+}
+
+function Read-ExistingCjkCopySearchResult {
+    param(
+        [object]$Sample,
+        [string]$BuildDir,
+        [string]$CjkCopySearchDir
+    )
+
+    $samplePdfPath = Join-Path $BuildDir "test\$($Sample.output_file)"
+    $sampleSummaryPath = Join-Path $CjkCopySearchDir "$($Sample.id)-summary.json"
+    $sampleTextPath = Join-Path $CjkCopySearchDir "$($Sample.id)-text.txt"
+
+    foreach ($requiredPath in @($samplePdfPath, $sampleSummaryPath, $sampleTextPath)) {
+        if (-not (Test-Path $requiredPath)) {
+            throw "Missing existing CJK copy/search evidence for '$($Sample.id)': $requiredPath"
+        }
+    }
+
+    $sampleTextSummary = Get-Content -Path $sampleSummaryPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $missingText = @($sampleTextSummary.missing_text)
+    if ($missingText.Count -gt 0) {
+        throw "Existing CJK copy/search evidence still has missing text for '$($Sample.id)'."
+    }
+
+    return [ordered]@{
+        sample_id = $Sample.id
+        pdf_path = $samplePdfPath
+        summary_path = $sampleSummaryPath
+        text_output_path = $sampleTextPath
+        expected_text = @(Get-ExpectedTextLayerText -Sample $Sample)
+        matched_text = @($sampleTextSummary.matched_text)
+        missing_text = $missingText
+        page_count = $sampleTextSummary.page_count
+    }
+}
+
+function Read-ExistingRenderedSample {
+    param(
+        [object]$Sample
+    )
+
+    $summaryPath = Join-Path $Sample.output "summary.json"
+    $contactSheetPath = Join-Path $Sample.output "contact-sheet.png"
+    $pagesDir = Join-Path $Sample.output "pages"
+    $page1 = Join-Path $pagesDir "page-01.png"
+
+    foreach ($requiredPath in @($Sample.pdf, $summaryPath, $contactSheetPath, $page1)) {
+        if (-not (Test-Path $requiredPath)) {
+            throw "Missing existing rendered visual evidence for '$($Sample.name)': $requiredPath"
+        }
+    }
+
+    $summary = Get-Content -Path $summaryPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($Sample.expected_pages -gt 0 -and $summary.page_count -ne $Sample.expected_pages) {
+        throw "Unexpected existing page count for '$($Sample.name)': $($summary.page_count) (expected $($Sample.expected_pages))."
+    }
+
+    $styleFocus = @()
+    if ($Sample.Contains("style_focus")) {
+        $styleFocus = @($Sample.style_focus)
+    }
+
+    return [ordered]@{
+        sample = $Sample.name
+        pdf_path = $Sample.pdf
+        page_count = $summary.page_count
+        expected_page_count = if ($Sample.expected_pages -gt 0) { $Sample.expected_pages } else { $null }
+        style_focus = $styleFocus
+        bytes = (Get-Item $Sample.pdf).Length
+        pages_dir = $pagesDir
+        first_page = $page1
+        summary_path = $summaryPath
+        contact_sheet_path = $contactSheetPath
+    }
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir
@@ -232,7 +318,11 @@ $unicodeLog = Join-Path $reportDir "unicode-font.log"
 $aggregateContactSheetPath = Join-Path $reportDir "aggregate-contact-sheet.png"
 $summaryPath = Join-Path $reportDir "summary.json"
 
-if (-not $SkipPreflight) {
+if ($FinalizeOnly -and $PreflightOnly) {
+    throw "-FinalizeOnly cannot be used with -PreflightOnly."
+}
+
+if (-not $SkipPreflight -and -not $FinalizeOnly) {
     $preflightScriptPath = Join-Path $repoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1"
     if (-not (Test-Path $preflightScriptPath)) {
         throw "PDF visual release gate preflight script was not found: $preflightScriptPath"
@@ -286,31 +376,6 @@ New-Item -ItemType Directory -Path $baselineDir -Force | Out-Null
 New-Item -ItemType Directory -Path $unicodeOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $cjkCopySearchDir -Force | Out-Null
 
-Write-Step "Running pdf_cli_export regression"
-Invoke-CapturedCommand `
-    -ExecutablePath "ctest" `
-    -Arguments @("--test-dir", $resolvedBuildDir, "-R", "^pdf_cli_export$", "--output-on-failure", "--timeout", "60") `
-    -LogPath $pdfCliExportLog `
-    -FailureMessage "pdf_cli_export regression failed."
-
-Write-Step "Running pdf regression suite"
-Invoke-CapturedCommand `
-    -ExecutablePath "ctest" `
-    -Arguments @("--test-dir", $resolvedBuildDir, "-R", "pdf_regression_", "--output-on-failure", "--timeout", "60") `
-    -LogPath $pdfRegressionLog `
-    -FailureMessage "pdf_regression_ suite failed."
-
-if (-not $SkipUnicodeBaseline) {
-    Write-Step "Running unicode font visual regression"
-    Invoke-CapturedCommand `
-        -ExecutablePath "powershell" `
-        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $unicodeScriptPath, "-BuildDir", $resolvedBuildDir, "-OutputDir", $unicodeOutputDir, "-Dpi", [string]$Dpi) `
-        -LogPath $unicodeLog `
-        -FailureMessage "Unicode font visual regression failed."
-}
-
-$renderPython = Get-RenderPython -RepoRoot $repoRoot
-
 $regressionManifest = Get-Content -Path $pdfRegressionManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $cjkSamples = @($regressionManifest.samples | Where-Object { $_.expect_cjk -eq $true })
 if ($cjkSamples.Count -eq 0) {
@@ -321,48 +386,91 @@ if ($visualManifestSamples.Count -eq 0) {
     throw "No visual baseline samples were found in $pdfRegressionManifestPath."
 }
 
-Write-Step "Checking CJK copy/search text layers"
 $cjkCopySearchResults = New-Object System.Collections.Generic.List[object]
-foreach ($sample in $cjkSamples) {
-    $samplePdfPath = Join-Path $resolvedBuildDir "test\$($sample.output_file)"
-    if (-not (Test-Path $samplePdfPath)) {
-        throw "Expected PDF sample not found: $samplePdfPath"
-    }
 
-    $sampleSummaryPath = Join-Path $cjkCopySearchDir "$($sample.id)-summary.json"
-    $sampleTextPath = Join-Path $cjkCopySearchDir "$($sample.id)-text.txt"
-    $expectedTextLayerText = @($sample.expected_text)
-    if ($null -ne $sample.PSObject.Properties["text_layer_expected_text"]) {
-        $expectedTextLayerText = @($sample.text_layer_expected_text)
-    }
-    $textLayerArguments = @(
-        $textLayerScriptPath,
-        "--input", $samplePdfPath,
-        "--output-text", $sampleTextPath,
-        "--summary", $sampleSummaryPath
-    )
-    foreach ($expectedText in $expectedTextLayerText) {
-        $textLayerArguments += @("--expect-text", $expectedText)
-    }
-
-    & $renderPython @textLayerArguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "CJK copy/search text layer check failed for '$($sample.id)'."
-    }
-
-    $sampleTextSummary = Get-Content -Path $sampleSummaryPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $cjkCopySearchResults.Add(
-        [ordered]@{
-            sample_id = $sample.id
-            pdf_path = $samplePdfPath
-            summary_path = $sampleSummaryPath
-            text_output_path = $sampleTextPath
-            expected_text = $expectedTextLayerText
-            matched_text = @($sampleTextSummary.matched_text)
-            missing_text = @($sampleTextSummary.missing_text)
-            page_count = $sampleTextSummary.page_count
+if ($FinalizeOnly) {
+    Write-Step "Finalizing existing PDF visual release gate output"
+    foreach ($requiredPath in @($pdfCliExportLog, $pdfRegressionLog, $aggregateContactSheetPath)) {
+        if (-not (Test-Path $requiredPath)) {
+            throw "Missing existing PDF visual release gate evidence: $requiredPath"
         }
-    ) | Out-Null
+    }
+    if (-not $SkipUnicodeBaseline -and -not (Test-Path $unicodeLog)) {
+        throw "Missing existing unicode font visual regression log: $unicodeLog"
+    }
+    foreach ($sample in $cjkSamples) {
+        $cjkCopySearchResults.Add(
+            (Read-ExistingCjkCopySearchResult `
+                -Sample $sample `
+                -BuildDir $resolvedBuildDir `
+                -CjkCopySearchDir $cjkCopySearchDir)
+        ) | Out-Null
+    }
+} else {
+    Write-Step "Running pdf_cli_export regression"
+    Invoke-CapturedCommand `
+        -ExecutablePath "ctest" `
+        -Arguments @("--test-dir", $resolvedBuildDir, "-R", "^pdf_cli_export$", "--output-on-failure", "--timeout", "60") `
+        -LogPath $pdfCliExportLog `
+        -FailureMessage "pdf_cli_export regression failed."
+
+    Write-Step "Running pdf regression suite"
+    Invoke-CapturedCommand `
+        -ExecutablePath "ctest" `
+        -Arguments @("--test-dir", $resolvedBuildDir, "-R", "pdf_regression_", "--output-on-failure", "--timeout", "60") `
+        -LogPath $pdfRegressionLog `
+        -FailureMessage "pdf_regression_ suite failed."
+
+    if (-not $SkipUnicodeBaseline) {
+        Write-Step "Running unicode font visual regression"
+        Invoke-CapturedCommand `
+            -ExecutablePath "powershell" `
+            -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $unicodeScriptPath, "-BuildDir", $resolvedBuildDir, "-OutputDir", $unicodeOutputDir, "-Dpi", [string]$Dpi) `
+            -LogPath $unicodeLog `
+            -FailureMessage "Unicode font visual regression failed."
+    }
+
+    $renderPython = Get-RenderPython -RepoRoot $repoRoot
+
+    Write-Step "Checking CJK copy/search text layers"
+    foreach ($sample in $cjkSamples) {
+        $samplePdfPath = Join-Path $resolvedBuildDir "test\$($sample.output_file)"
+        if (-not (Test-Path $samplePdfPath)) {
+            throw "Expected PDF sample not found: $samplePdfPath"
+        }
+
+        $sampleSummaryPath = Join-Path $cjkCopySearchDir "$($sample.id)-summary.json"
+        $sampleTextPath = Join-Path $cjkCopySearchDir "$($sample.id)-text.txt"
+        $expectedTextLayerText = @(Get-ExpectedTextLayerText -Sample $sample)
+        $textLayerArguments = @(
+            $textLayerScriptPath,
+            "--input", $samplePdfPath,
+            "--output-text", $sampleTextPath,
+            "--summary", $sampleSummaryPath
+        )
+        foreach ($expectedText in $expectedTextLayerText) {
+            $textLayerArguments += @("--expect-text", $expectedText)
+        }
+
+        & $renderPython @textLayerArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "CJK copy/search text layer check failed for '$($sample.id)'."
+        }
+
+        $sampleTextSummary = Get-Content -Path $sampleSummaryPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $cjkCopySearchResults.Add(
+            [ordered]@{
+                sample_id = $sample.id
+                pdf_path = $samplePdfPath
+                summary_path = $sampleSummaryPath
+                text_output_path = $sampleTextPath
+                expected_text = $expectedTextLayerText
+                matched_text = @($sampleTextSummary.matched_text)
+                missing_text = @($sampleTextSummary.missing_text)
+                page_count = $sampleTextSummary.page_count
+            }
+        ) | Out-Null
+    }
 }
 
 $samples = @(
@@ -402,16 +510,20 @@ foreach ($sample in $samples) {
     if ($sample.Contains("style_focus")) {
         $styleFocus = @($sample.style_focus)
     }
-    $renderedSamples.Add(
-        (Render-PdfSample `
-            -Python $renderPython `
-            -RenderScript $renderScriptPath `
-            -SampleName $sample.name `
-            -InputPdf $sample.pdf `
-            -SampleOutputDir $sample.output `
-            -ExpectedPageCount $sample.expected_pages `
-            -StyleFocus $styleFocus)
-    ) | Out-Null
+    if ($FinalizeOnly) {
+        $renderedSamples.Add((Read-ExistingRenderedSample -Sample $sample)) | Out-Null
+    } else {
+        $renderedSamples.Add(
+            (Render-PdfSample `
+                -Python $renderPython `
+                -RenderScript $renderScriptPath `
+                -SampleName $sample.name `
+                -InputPdf $sample.pdf `
+                -SampleOutputDir $sample.output `
+                -ExpectedPageCount $sample.expected_pages `
+                -StyleFocus $styleFocus)
+        ) | Out-Null
+    }
 }
 
 $aggregatePagePaths = @()
@@ -421,15 +533,22 @@ foreach ($entry in $renderedSamples) {
     $aggregateLabels += $entry.sample
 }
 
-Write-Step "Building aggregate contact sheet"
-& $renderPython $contactSheetScriptPath `
-    --output $aggregateContactSheetPath `
-    --columns 2 `
-    --thumb-width 420 `
-    --images $aggregatePagePaths `
-    --labels $aggregateLabels
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to build aggregate contact sheet."
+if ($FinalizeOnly) {
+    Write-Step "Reusing existing aggregate contact sheet"
+    if (-not (Test-Path $aggregateContactSheetPath)) {
+        throw "Missing aggregate contact sheet: $aggregateContactSheetPath"
+    }
+} else {
+    Write-Step "Building aggregate contact sheet"
+    & $renderPython $contactSheetScriptPath `
+        --output $aggregateContactSheetPath `
+        --columns 2 `
+        --thumb-width 420 `
+        --images $aggregatePagePaths `
+        --labels $aggregateLabels
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to build aggregate contact sheet."
+    }
 }
 
 $summary = [ordered]@{

@@ -475,6 +475,7 @@ $visualGateText = Get-Content -Raw -Encoding UTF8 -LiteralPath $visualGatePath
 foreach ($expectedText in @(
     "[string]`$PreflightJson",
     "[switch]`$PreflightOnly",
+    "[switch]`$FinalizeOnly",
     "[switch]`$SkipPreflight",
     "[string]`$PdfioSourceDir = `"`"",
     "[string]`$PdfiumPrebuiltRoot = `"`"",
@@ -486,6 +487,7 @@ foreach ($expectedText in @(
     "SkipMemoryGuard = [bool]`$SkipMemoryGuard",
     "Strict = `$true",
     "PDF visual release gate preflight failed",
+    "-FinalizeOnly cannot be used with -PreflightOnly",
     "-PreflightOnly cannot be used with -SkipPreflight"
 )) {
     Assert-True -Condition ($visualGateText -match [regex]::Escape($expectedText)) `
