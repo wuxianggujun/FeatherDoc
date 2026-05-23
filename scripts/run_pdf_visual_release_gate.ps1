@@ -137,8 +137,14 @@ function Invoke-CapturedCommand {
         [string]$FailureMessage
     )
 
-    $output = @(& $ExecutablePath @Arguments 2>&1)
-    $exitCode = $LASTEXITCODE
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = @(& $ExecutablePath @Arguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
     $lines = @($output | ForEach-Object { $_.ToString() })
     if (-not [string]::IsNullOrWhiteSpace($LogPath)) {
         $lines | Set-Content -Path $LogPath -Encoding UTF8

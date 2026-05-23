@@ -77,6 +77,12 @@ Assert-ContainsText -Text $scriptText -ExpectedText "-LogPath `$unicodeLog" `
     -Message "PDF visual release gate should write unicode visual regression output to its declared log."
 Assert-ContainsText -Text $scriptText -ExpectedText "unicode_font = `$unicodeLog" `
     -Message "PDF visual release gate summary should expose the captured unicode visual regression log."
+Assert-ContainsText -Text $scriptText -ExpectedText '$previousErrorActionPreference = $ErrorActionPreference' `
+    -Message "Captured PDF visual gate commands should preserve the caller error action preference."
+Assert-ContainsText -Text $scriptText -ExpectedText '$ErrorActionPreference = "Continue"' `
+    -Message "Captured PDF visual gate commands should keep native stderr capturable on Windows PowerShell."
+Assert-ContainsText -Text $scriptText -ExpectedText '$ErrorActionPreference = $previousErrorActionPreference' `
+    -Message "Captured PDF visual gate commands should restore the caller error action preference."
 Assert-ContainsText -Text $manifestText -ExpectedText '"expect_visual_baseline": true' `
     -Message "PDF regression manifest should mark visual baseline samples."
 
