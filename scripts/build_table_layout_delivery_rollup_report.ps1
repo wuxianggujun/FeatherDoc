@@ -245,6 +245,7 @@ function New-ReportMarkdown {
     $lines.Add("- Source reports: ``$($Summary.source_report_count)``") | Out-Null
     $lines.Add("- Documents: ``$($Summary.document_count)``") | Out-Null
     $lines.Add("- Source read failures: ``$($Summary.source_failure_count)``") | Out-Null
+    $lines.Add("- source_failure_count: ``$($Summary.source_failure_count)``") | Out-Null
     $lines.Add("- Source report failures: ``$($Summary.source_report_failure_count)``") | Out-Null
     $lines.Add("- Table style issues: ``$($Summary.total_table_style_issue_count)``") | Out-Null
     $lines.Add("- Automatic tblLook fixes: ``$($Summary.total_automatic_tblLook_fix_count)``") | Out-Null
