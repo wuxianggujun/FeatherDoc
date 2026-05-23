@@ -776,6 +776,7 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'controlled_visual_smoke_status: pass' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'controlled_visual_smoke_json_display: .\output\pdf-controlled-visual-smoke-20260520\controlled-visual-smoke-check-latest.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'Source failures: 1' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_failure_count: 1' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'readiness_action_evidence_count: 2' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'readiness_action_evidence:' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'provide_pdf_dependency_input' -Label $document.Label
