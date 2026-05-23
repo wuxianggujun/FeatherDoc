@@ -614,6 +614,17 @@ if (Test-Scenario -Name "fail_on_missing") {
     }
     Assert-True -Condition (Test-Path -LiteralPath (Join-Path $outputDir "summary.json")) `
         -Message "Fail-on-missing handoff should still write summary.json."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Missing reports: ``1``" `
+        -Message "Fail-on-missing handoff Markdown should summarize the missing report count."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery_readiness" `
+        -Message "Fail-on-missing handoff Markdown should include the missing report id."
+    Assert-ContainsText -Text $markdown -ExpectedText "status=``missing``" `
+        -Message "Fail-on-missing handoff Markdown should expose the missing report status."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failures=``0``" `
+        -Message "Fail-on-missing handoff Markdown should expose the missing report source failure count."
+    Assert-ContainsText -Text $markdown -ExpectedText "build_project_template_delivery_readiness_report.ps1" `
+        -Message "Fail-on-missing handoff Markdown should include the rebuild command."
 }
 
 if (Test-Scenario -Name "explicit_input") {
