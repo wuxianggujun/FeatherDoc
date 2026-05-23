@@ -343,6 +343,7 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText "source_json: $governanceMetricSourceJson" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "source_report_display: $governanceMetricSourceDisplay" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "source_json_display: $governanceMetricSourceDisplay" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "source_failure_count: 0" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Source failures: 0" -Label $assertion.Label
 }
 
