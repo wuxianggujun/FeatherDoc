@@ -407,6 +407,20 @@ if (Test-Scenario -Name "fail_on_blocker") {
         -Message "Failing readiness report should preserve blocked status."
     Assert-True -Condition ([int]$summary.release_blocker_count -gt 0) `
         -Message "Failing readiness report should write blockers."
+
+    $markdownPath = Join-Path $outputDir "project_template_delivery_readiness.md"
+    Assert-True -Condition (Test-Path -LiteralPath $markdownPath) `
+        -Message "Failing readiness report should write Markdown output."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
+        -Message "Failing readiness report should preserve the release blocker section."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery_readiness.schema_approval_history_gate" `
+        -Message "Failing readiness report should surface the schema approval history blocker."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
+        -Message "Failing readiness report should surface source JSON tracing fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Failing readiness report should surface source report tracing fields."
 }
 
 Write-Host "Project template delivery readiness report regression passed."
