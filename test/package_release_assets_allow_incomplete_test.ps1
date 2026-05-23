@@ -22,6 +22,20 @@ function Convert-TestPathToRepoRelativeDisplay {
     return $normalizedPath
 }
 
+function Assert-NotContains {
+    param(
+        [string]$Path,
+        [string]$UnexpectedText,
+        [string]$Label
+    )
+
+    $content = Get-Content -Raw -LiteralPath $Path
+    if (-not [string]::IsNullOrWhiteSpace($UnexpectedText) -and
+        $content -match [regex]::Escape($UnexpectedText)) {
+        throw "$Label unexpectedly contains '$UnexpectedText': $Path"
+    }
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $installPrefix = Join-Path $resolvedWorkingDir "build-msvc-install"
@@ -272,6 +286,8 @@ $stagedArtifactGuidePath = Join-Path $stagingRoot "release-candidate-checks\repo
 $stagedReviewerChecklistPath = Join-Path $stagingRoot "release-candidate-checks\report\REVIEWER_CHECKLIST.md"
 $manifestPath = Join-Path $outputRoot "v1.6.4\release_assets_manifest.json"
 $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+
+Assert-NotContains -Path $manifestPath -UnexpectedText $resolvedRepoRoot -Label 'release_assets_manifest.json'
 
 if (-not (Test-Path -LiteralPath $placeholderPath)) {
     throw "Expected incomplete visual-gate placeholder note was not created."

@@ -512,6 +512,7 @@ $evidenceZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-release-evide
 $expectedRelativeHandoff = ".\$relativeWorkingDir\output\release-candidate-checks\report\release_handoff.md"
 $expectedRelativeGateReport = ".\$relativeWorkingDir\output\word-visual-release-gate\report"
 $expectedRelativePdfGateSummary = ".\$relativeWorkingDir\output\pdf-visual-release-gate\report\summary.json"
+$expectedRelativePdfGateRoot = ".\$relativeWorkingDir\output\pdf-visual-release-gate"
 $stagedSummary = Get-Content -Raw -LiteralPath $stagedSummaryPath | ConvertFrom-Json
 $stagedGateSummary = Get-Content -Raw -LiteralPath $stagedGateSummaryPath | ConvertFrom-Json
 $stagedPdfGateSummary = Get-Content -Raw -LiteralPath $stagedPdfGateSummaryPath | ConvertFrom-Json
@@ -520,6 +521,7 @@ $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
 Assert-NotContains -Path $stagedSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged summary.json'
 Assert-NotContains -Path $stagedGateSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged gate_summary.json'
 Assert-NotContains -Path $stagedPdfGateSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged PDF visual gate summary.json'
+Assert-NotContains -Path $manifestPath -UnexpectedText $resolvedRepoRoot -Label 'release_assets_manifest.json'
 Assert-NotContains -Path $stagedHandoffPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_handoff.md'
 Assert-NotContains -Path $stagedGovernanceHandoffPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_governance_handoff.md'
 Assert-NotContains -Path $stagedInstalledReadmePath -UnexpectedText 'C:\path\to\target.docx' -Label 'staged installed README.md'
@@ -679,6 +681,18 @@ if ([string]$manifest.pdf_visual_gate_evidence.cjk_missing_text_count -ne "0") {
 }
 if ([string]$manifest.pdf_visual_gate_evidence.visual_baseline_count -ne "3") {
     throw "release_assets_manifest.json lost the PDF visual baseline count."
+}
+if ([string]$manifest.workspace -ne ".") {
+    throw "release_assets_manifest.json did not rewrite workspace to a public relative path."
+}
+if ([string]$manifest.summary_json -ne ".\$relativeWorkingDir\output\release-candidate-checks\report\summary.json") {
+    throw "release_assets_manifest.json did not rewrite summary_json to the expected relative path."
+}
+if ([string]$manifest.pdf_visual_gate_summary_json -ne $expectedRelativePdfGateSummary) {
+    throw "release_assets_manifest.json did not rewrite pdf_visual_gate_summary_json to the expected relative path."
+}
+if ([string]$manifest.pdf_visual_gate_output_dir -ne $expectedRelativePdfGateRoot) {
+    throw "release_assets_manifest.json did not rewrite pdf_visual_gate_output_dir to the expected relative path."
 }
 if ($manifest.governance_metric_count -ne 3) {
     throw "release_assets_manifest.json did not preserve governance_metric_count=3."

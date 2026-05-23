@@ -1013,7 +1013,11 @@ if ($null -ne $releaseView) {
     $manifest.upload.remote_assets = $releaseAssets
 }
 
-($manifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+$publicManifest = Convert-StructuredValueToPublic -Value $manifest -RepoRoot $repoRoot
+($publicManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+
+Write-Step "Auditing release asset manifest"
+& $releaseMaterialAuditScript -Path $manifestPath
 
 if (-not $KeepStaging) {
     Remove-Item -LiteralPath $stagingRoot -Recurse -Force
