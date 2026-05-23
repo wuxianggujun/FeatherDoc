@@ -116,6 +116,21 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'release_blocker_rollup = [o
 Assert-ContainsText -Text $scriptText -ExpectedText '- Release blocker rollup: $($summary.steps.release_blocker_rollup.status)' `
     -Message "Release final review should include release blocker rollup status."
 
+Assert-ContainsText -Text $scriptText -ExpectedText '[string]$PdfVisualGateSummaryJson = ""' `
+    -Message "Release preflight should expose an optional PDF visual gate summary path."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson' `
+    -Message "Release summary should preserve the PDF visual gate summary path."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'pdf_visual_gate = [ordered]@{' `
+    -Message "Release summary should expose PDF visual gate metadata."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate: $($summary.steps.pdf_visual_gate.status)' `
+    -Message "Release final review should include PDF visual gate status."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate summary: $pdfVisualGateSummaryDisplayPath' `
+    -Message "Release final review should link PDF visual gate evidence."
+
 Assert-ContainsText -Text $scriptText -ExpectedText '"-TableStyleQualityBuildDir"' `
     -Message "Release preflight should pass the shared build directory to table style quality visual gate."
 

@@ -95,6 +95,7 @@ param(
     [switch]$ReleaseGovernanceHandoffFailOnMissing,
     [switch]$ReleaseGovernanceHandoffFailOnBlocker,
     [switch]$ReleaseGovernanceHandoffFailOnWarning,
+    [string]$PdfVisualGateSummaryJson = "",
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -1369,6 +1370,15 @@ $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $schemaApprovalHistoryJsonPath = Join-Path $reportDir "project_template_schema_approval_history.json"
 $schemaApprovalHistoryMarkdownPath = Join-Path $reportDir "project_template_schema_approval_history.md"
 $startHerePath = Join-Path $resolvedSummaryOutputDir "START_HERE.md"
+$resolvedPdfVisualGateSummaryJson = ""
+if (-not [string]::IsNullOrWhiteSpace($PdfVisualGateSummaryJson)) {
+    $resolvedPdfVisualGateSummaryJson = Resolve-FullPath -RepoRoot $repoRoot -InputPath $PdfVisualGateSummaryJson
+} else {
+    $autoPdfVisualGateSummaryJson = Join-Path $repoRoot "output\pdf-visual-release-gate-current\report\summary.json"
+    if (Test-Path -LiteralPath $autoPdfVisualGateSummaryJson) {
+        $resolvedPdfVisualGateSummaryJson = $autoPdfVisualGateSummaryJson
+    }
+}
 $installSmokeScript = Join-Path $repoRoot "scripts\run_install_find_package_smoke.ps1"
 $templateSchemaCheckScript = Join-Path $repoRoot "scripts\check_template_schema_baseline.ps1"
 $templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_schema_manifest.ps1"
@@ -1555,6 +1565,12 @@ $summary = [ordered]@{
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
+    pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson
+    pdf_visual_gate = [ordered]@{
+        requested = -not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)
+        status = if ([string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $resolvedPdfVisualGateSummaryJson) { "available" } else { "missing" }
+        summary_json = $resolvedPdfVisualGateSummaryJson
+    }
     release_blocker_rollup = [ordered]@{
         requested = $releaseBlockerRollupRequested
         status = if ($releaseBlockerRollupRequested) { "pending" } else { "not_requested" }
@@ -1718,6 +1734,11 @@ $summary = [ordered]@{
             warning_count = 0
             warnings = @()
             error = ""
+        }
+        pdf_visual_gate = [ordered]@{
+            requested = -not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)
+            status = if ([string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $resolvedPdfVisualGateSummaryJson) { "available" } else { "missing" }
+            summary_json = $resolvedPdfVisualGateSummaryJson
         }
     }
 }
@@ -2566,6 +2587,7 @@ try {
     $schemaApprovalHistoryJsonDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.schema_patch_approval_history_json
     $schemaApprovalHistoryMarkdownDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.schema_patch_approval_history_markdown
     $startHereDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $startHerePath
+    $pdfVisualGateSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate.summary_json
 
     $readmeGalleryStatusLine = switch ($summary.readme_gallery.status) {
         "completed" {
@@ -2630,6 +2652,7 @@ try {
 - Project template smoke: $($summary.steps.project_template_smoke.status)
 - Install smoke: $($summary.steps.install_smoke.status)
 - Visual gate: $($summary.steps.visual_gate.status)
+- PDF visual gate: $($summary.steps.pdf_visual_gate.status)
 - Release blocker rollup: $($summary.steps.release_blocker_rollup.status)
 - Release governance handoff: $($summary.steps.release_governance_handoff.status)
 $visualGateReviewTaskSummaryLine
@@ -2672,6 +2695,7 @@ $releaseGovernanceHandoffMarkdown
 - Artifact guide: $artifactGuideDisplayPath
 - Reviewer checklist: $reviewerChecklistDisplayPath
 - Start here: $startHereDisplayPath
+- PDF visual gate summary: $pdfVisualGateSummaryDisplayPath
 "@
     $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 
@@ -2709,6 +2733,9 @@ Write-Host "Release body output: $releaseBodyZhCnPath"
 Write-Host "Release summary output: $releaseSummaryZhCnPath"
 Write-Host "Artifact guide: $artifactGuidePath"
 Write-Host "Reviewer checklist: $reviewerChecklistPath"
+if (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)) {
+    Write-Host "PDF visual gate summary: $resolvedPdfVisualGateSummaryJson"
+}
 if ($projectTemplateSmokeRequested) {
     Write-Host "Project template schema approval history JSON: $schemaApprovalHistoryJsonPath"
     Write-Host "Project template schema approval history Markdown: $schemaApprovalHistoryMarkdownPath"
