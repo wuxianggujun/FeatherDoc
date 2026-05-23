@@ -1061,6 +1061,15 @@ Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT" `
     -Message "Markdown should include PDF build option readiness evidence items."
 Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "source_report: ``$([string]$firstReadinessEvidence.source_report)``" `
+    -Message "Markdown should include raw readiness evidence source report paths."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "source_json: ``$([string]$firstReadinessEvidence.source_json)``" `
+    -Message "Markdown should include raw readiness evidence source JSON paths."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "source_json_display: ``$([string]$firstReadinessEvidence.source_json_display)``" `
+    -Message "Markdown should include readiness evidence source JSON display paths."
+Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "issue_keys" `
     -Message "Markdown should include action item issue keys."
 Assert-ContainsText -Text $blockedMarkdown `
