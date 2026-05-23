@@ -385,7 +385,9 @@ $summary = [ordered]@{
                         issue_key = "pdf_dependency_inputs_ready"
                         item = "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h"
                         source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                        source_report = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
                         source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                        source_json = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                         source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                     },
                     [ordered]@{
@@ -394,7 +396,9 @@ $summary = [ordered]@{
                         issue_key = "pdf_build_options_enabled"
                         item = "FEATHERDOC_BUILD_PDF_IMPORT"
                         source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                        source_report = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
                         source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                        source_json = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                         source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                     }
                 )
@@ -472,7 +476,9 @@ $summary = [ordered]@{
                         issue_key = "pdf_dependency_inputs_ready"
                         item = "PDFio source header: C:\repo\tmp\pdfio-src\pdfio.h"
                         source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                        source_report = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
                         source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                        source_json = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                         source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                     },
                     [ordered]@{
@@ -481,7 +487,9 @@ $summary = [ordered]@{
                         issue_key = "pdf_build_options_enabled"
                         item = "FEATHERDOC_BUILD_PDF_IMPORT"
                         source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                        source_report = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
                         source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+                        source_json = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                         source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json"
                     }
                 )
@@ -784,6 +792,8 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'PDFio source header' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'enable_pdf_build_option' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'FEATHERDOC_BUILD_PDF_IMPORT' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_report: .\output\pdf-visual-release-gate-preflight-governance\summary.json' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_json: .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_json_display: .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'Rollup Source Report Issues' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report: .\output\table-layout-delivery-governance\summary.json' -Label $document.Label
