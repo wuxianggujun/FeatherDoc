@@ -9,6 +9,20 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "template_render_test_fixture_helpers.ps1")
 
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $BuildDir) {
+    $BuildDir = Join-Path $RepoRoot "build\validate_render_data_mapping_test"
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = $BuildDir
+}
+
+New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
+
 function Assert-True {
     param(
         [bool]$Condition,
@@ -224,7 +238,6 @@ Assert-Equal -Actual $visibilitySummaryObject.patch_counts.bookmark_block_visibi
 Assert-Equal -Actual $visibilitySummaryObject.steps[2].status -Expected "completed" `
     -Message "Visibility patch validation step did not complete."
 
-
 $partTemplateDir = Join-Path $resolvedWorkingDir "part_template_validation_fixture"
 $partTemplateDocx = Join-Path $partTemplateDir "part_template_validation.docx"
 $partTemplateDataPath = Join-Path $resolvedWorkingDir "part_template.validation.render_data.json"
@@ -300,7 +313,7 @@ Assert-Equal -Actual $partTemplateSummaryObject.remaining_placeholder_count -Exp
 Assert-Equal -Actual $partTemplatePatchObject.bookmark_text[0].part -Expected "section-header" `
     -Message "Section validation generated patch did not preserve section-header selectors."
 Assert-ContainsText -Text $partTemplateReportText `
-    -ExpectedText 'export_target_mode：`resolved-section-targets`' `
+    -ExpectedText 'export_target_mode: `resolved-section-targets`' `
     -Label "Section validation report"
 
 Write-Host "Render-data mapping validation regression passed."
