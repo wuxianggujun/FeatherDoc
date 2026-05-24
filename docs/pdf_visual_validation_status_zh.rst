@@ -27,7 +27,11 @@ PDF 可视化验证状态
    * ``memory_guard_skipped = false``
    * ``free_memory_mb`` 高于 ``min_free_memory_mb = 2048``
    * 现有 ``output/pdf-visual-release-gate-current/report/summary.json`` 已包含
-     ``verdict = pass``、``baselines_count = 44`` 与 ``cjk_copy_search_count = 43``
+     ``verdict = pass``、``visual_baseline_manifest_count = 42``、
+     ``baselines_count = 44``、``cjk_manifest_count = 43`` 与
+     ``cjk_copy_search_count = 43``；其中 ``visual_baseline_manifest_count`` 是
+     regression manifest 中标记 ``expect_visual_baseline=true`` 的样本数，
+     ``baselines_count`` 是 full gate 当前渲染并汇总的 baseline 产物数
    * 现有 full gate 产物目录已包含 ``pdf-cli-export-test.log``、
      ``pdf-regression-test.log``、``aggregate-contact-sheet.png``、
      ``report/cjk-copy-search/*``、``report/unicode-font.log`` 以及各 baseline
@@ -175,8 +179,9 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
   成功。
 * 刷新后的 ``report/summary.json`` 写回时间为 ``2026-05-24T18:24:52``。
 * 现有 evidence 仍保持：
-  ``verdict = pass``、``baselines_count = 44``、``cjk_copy_search_count = 43``，
-  且 ``aggregate-contact-sheet.png`` 非空。
+  ``verdict = pass``、``visual_baseline_manifest_count = 42``、
+  ``baselines_count = 44``、``cjk_manifest_count = 43``、
+  ``cjk_copy_search_count = 43``，且 ``aggregate-contact-sheet.png`` 非空。
 
 因此当前更准确的结论是：
 
