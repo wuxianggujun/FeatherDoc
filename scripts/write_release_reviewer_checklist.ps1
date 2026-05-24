@@ -423,8 +423,10 @@ if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
     if ($pdfVisualGateEvidence.status -eq "loaded") {
         [void]$lines.Add("- PDF visual gate verdict: $(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
         [void]$lines.Add("- PDF visual aggregate contact sheet: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet)")
+        [void]$lines.Add("- PDF CJK manifest samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_manifest_count)")
         [void]$lines.Add("- PDF CJK copy/search samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count)")
         [void]$lines.Add("- PDF CJK missing text count: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_missing_text_count)")
+        [void]$lines.Add("- PDF visual baseline manifest samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_manifest_count)")
         [void]$lines.Add("- PDF visual baselines: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_count)")
     } elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.error)) {
         [void]$lines.Add("- PDF visual gate evidence error: $($pdfVisualGateEvidence.error)")
@@ -603,12 +605,14 @@ if ($summary.steps.visual_gate.status -eq "skipped") {
     Add-CheckboxLine -Lines $lines -Text ('Stop here until the local Word visual review is completed and the visual verdict changes from `{0}`.' -f $visualVerdict)
 }
 if ($pdfVisualGateEvidence.status -eq "loaded") {
-    Add-CheckboxLine -Lines $lines -Text ('Confirm the PDF visual gate finalize evidence is signed off: verdict `{0}`, summary {1}, aggregate contact sheet {2}, CJK copy/search samples `{3}`, missing text `{4}`, visual baselines `{5}`.' -f `
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the PDF visual gate finalize evidence is signed off: verdict `{0}`, summary {1}, aggregate contact sheet {2}, CJK manifest samples `{3}`, CJK copy/search samples `{4}`, missing text `{5}`, visual baseline manifest samples `{6}`, visual baselines `{7}`.' -f `
             (Get-DisplayValue -Value $pdfVisualGateEvidence.verdict),
             (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json),
             (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet),
+            $pdfVisualGateEvidence.cjk_manifest_count,
             $pdfVisualGateEvidence.cjk_copy_search_count,
             $pdfVisualGateEvidence.cjk_missing_text_count,
+            $pdfVisualGateEvidence.visual_baseline_manifest_count,
             $pdfVisualGateEvidence.visual_baseline_count)
 } elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
     Add-CheckboxLine -Lines $lines -Text ('Stop here until the PDF visual gate evidence summary is readable: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json))

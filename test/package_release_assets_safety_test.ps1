@@ -119,7 +119,9 @@ Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 - PDF visual gate summary: $pdfGateSummaryPath
+- PDF CJK manifest samples: 43
 - PDF CJK copy/search samples: 2
+- PDF visual baseline manifest samples: 42
 - PDF visual baselines: 3
 - PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPath
 "@
@@ -164,7 +166,9 @@ Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
 - Content-control provenance: input_docx=samples/invoice.docx input_docx_display=.\samples\invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
 - PDF visual gate summary: $pdfGateSummaryPath
+- PDF CJK manifest samples: 43
 - PDF CJK copy/search samples: 2
+- PDF visual baseline manifest samples: 42
 - PDF visual baselines: 3
 - PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPath
 "@
@@ -255,6 +259,8 @@ $pdfVisualGateSummary = [ordered]@{
     repo_root = $resolvedRepoRoot
     output_dir = $pdfGateOutputDir
     aggregate_contact_sheet = $pdfGateAggregateContactSheetPath
+    cjk_manifest_count = 43
+    visual_baseline_manifest_count = 42
     logs = [ordered]@{
         pdf_cli_export = $pdfGateCliExportLogPath
         pdf_regression = $pdfGateRegressionLogPath
@@ -581,7 +587,9 @@ Assert-Contains -Path $stagedStartHerePath -ExpectedText 'style_numbering_issues
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'unresolved_item_count=0' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'floating_table_plans_pending(count=0, penalty=0)' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'PDF visual gate summary:' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'PDF CJK manifest samples: 43' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'PDF CJK copy/search samples: 2' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'PDF visual baseline manifest samples: 42' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'PDF visual baselines: 3' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'aggregate-contact-sheet.png' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'staged ARTIFACT_GUIDE.md'
@@ -619,7 +627,9 @@ Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'floating_table_pla
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'command_template' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'sync-content-controls-from-custom-xml' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'PDF visual gate summary:' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'PDF CJK manifest samples: 43' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'PDF CJK copy/search samples: 2' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'PDF visual baseline manifest samples: 42' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'PDF visual baselines: 3' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'aggregate-contact-sheet.png' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'featherdoc.content_control_data_binding_governance_report.v1' -Label 'staged REVIEWER_CHECKLIST.md'
@@ -703,6 +713,9 @@ if ([string]$manifest.pdf_visual_gate_evidence.verdict -ne "pass") {
 if ([string]$manifest.pdf_visual_gate_evidence.aggregate_contact_sheet -notmatch "aggregate-contact-sheet.png") {
     throw "release_assets_manifest.json lost the PDF visual gate aggregate contact sheet."
 }
+if ([string]$manifest.pdf_visual_gate_evidence.cjk_manifest_count -ne "43") {
+    throw "release_assets_manifest.json lost the PDF CJK manifest sample count."
+}
 if ([string]$manifest.pdf_visual_gate_evidence.cjk_copy_search_count -ne "2") {
     throw "release_assets_manifest.json lost the PDF CJK copy/search sample count."
 }
@@ -711,6 +724,9 @@ if ([string]$manifest.pdf_visual_gate_evidence.cjk_missing_text_count -ne "0") {
 }
 if ([string]$manifest.pdf_visual_gate_evidence.visual_baseline_count -ne "3") {
     throw "release_assets_manifest.json lost the PDF visual baseline count."
+}
+if ([string]$manifest.pdf_visual_gate_evidence.visual_baseline_manifest_count -ne "42") {
+    throw "release_assets_manifest.json lost the PDF visual baseline manifest sample count."
 }
 if ([string]$manifest.workspace -ne ".") {
     throw "release_assets_manifest.json did not rewrite workspace to a public relative path."

@@ -273,6 +273,8 @@ $pdfVisualGateSummary = [ordered]@{
     generated_at = "2026-05-23T12:00:00"
     verdict = "pass"
     aggregate_contact_sheet = $pdfVisualGateAggregateContactSheetPath
+    cjk_manifest_count = 43
+    visual_baseline_manifest_count = 42
     logs = [ordered]@{
         pdf_cli_export = $pdfVisualGateCliExportLogPath
         pdf_regression = $pdfVisualGateRegressionLogPath
@@ -399,11 +401,15 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual gate evidence status: loaded" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual gate verdict: pass" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "aggregate-contact-sheet.png" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "PDF CJK manifest samples: 43" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF CJK copy/search samples: 2" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF CJK missing text count: 0" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual baseline manifest samples: 42" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual baselines: 3" -Label $assertion.Label
 }
 Assert-Contains -Path $checklistPath -ExpectedText 'Confirm the PDF visual gate finalize evidence is signed off: verdict `pass`' -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath -ExpectedText 'CJK manifest samples `43`' -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath -ExpectedText 'visual baseline manifest samples `42`' -Label "REVIEWER_CHECKLIST.md"
 
 foreach ($assertion in @(
         @{ Path = $handoffPath; Label = "release_handoff.md" },

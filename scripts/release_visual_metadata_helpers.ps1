@@ -247,8 +247,10 @@ function Get-PdfVisualGateEvidence {
         status = if ([string]::IsNullOrWhiteSpace($SummaryPath)) { "" } else { "missing" }
         verdict = ""
         aggregate_contact_sheet = ""
+        cjk_manifest_count = ""
         cjk_copy_search_count = ""
         cjk_missing_text_count = ""
+        visual_baseline_manifest_count = ""
         visual_baseline_count = ""
         pdf_cli_export_log = ""
         pdf_regression_log = ""
@@ -276,6 +278,8 @@ function Get-PdfVisualGateEvidence {
     $evidence.status = "loaded"
     $evidence.verdict = Get-OptionalPropertyValue -Object $summary -Name "verdict"
     $evidence.aggregate_contact_sheet = Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet"
+    $evidence.cjk_manifest_count = Get-OptionalPropertyValue -Object $summary -Name "cjk_manifest_count"
+    $evidence.visual_baseline_manifest_count = Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_manifest_count"
 
     $logs = Get-OptionalPropertyObject -Object $summary -Name "logs"
     $evidence.pdf_cli_export_log = Get-OptionalPropertyValue -Object $logs -Name "pdf_cli_export"
