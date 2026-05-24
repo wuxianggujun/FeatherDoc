@@ -62,9 +62,10 @@ Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 # START_HERE
 
 - CI summary root: $resolvedRepoRoot\output\release-candidate-checks-ci\report
+- Content-control provenance: input_docx=samples/invoice.docx input_docx_display=.\samples\invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks-ci\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
-- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json
-- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
@@ -75,9 +76,22 @@ foreach ($filePath in @($releaseHandoffPath, $releaseBodyPath, $releaseSummaryPa
 
 - Repo path: $resolvedRepoRoot\output\release-candidate-checks-ci\report
 - Visual gate: skipped
+- Content-control provenance: input_docx=samples/invoice.docx input_docx_display=.\samples\invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks-ci\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
-- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json
-- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
+  - project_template_delivery_readiness_contract:
+    - source_schema: featherdoc.project_template_delivery_readiness_report.v1
+    - status: ready
+    - release_ready: True
+    - latest_schema_approval_gate_status: passed
+    - source_report_display: .\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json
+    - source_json_display: .\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
+    - source_json_display: .\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
@@ -105,6 +119,11 @@ $contentControlSummary = [ordered]@{
             action = "sync_or_fill_bound_content_control"
             source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            template_name = "invoice-template"
+            schema_target = "invoice"
+            target_mode = "resolved-section-targets"
             repair_strategy = "sync_bound_content_control"
             repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
             command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
@@ -424,6 +443,21 @@ if ($normalizedContentControlSummaryPath.StartsWith($normalizedRepoRoot, [System
 if ([string]$contentControlContract.source_json_display -ne $expectedContentControlSummaryDisplay) {
     throw "Release assets manifest lost content-control repair contract source_json_display in AllowIncomplete mode."
 }
+if ([string]$contentControlContract.input_docx -ne "samples/invoice.docx") {
+    throw "Release assets manifest lost content-control input_docx provenance in AllowIncomplete mode."
+}
+if ([string]$contentControlContract.input_docx_display -ne ".\samples\invoice.docx") {
+    throw "Release assets manifest lost content-control input_docx_display provenance in AllowIncomplete mode."
+}
+if ([string]$contentControlContract.template_name -ne "invoice-template") {
+    throw "Release assets manifest lost content-control template_name provenance in AllowIncomplete mode."
+}
+if ([string]$contentControlContract.schema_target -ne "invoice") {
+    throw "Release assets manifest lost content-control schema_target provenance in AllowIncomplete mode."
+}
+if ([string]$contentControlContract.target_mode -ne "resolved-section-targets") {
+    throw "Release assets manifest lost content-control target_mode provenance in AllowIncomplete mode."
+}
 if ([string]$contentControlContract.repair_strategy -ne "sync_bound_content_control") {
     throw "Release assets manifest lost sync_bound_content_control repair strategy in AllowIncomplete mode."
 }
@@ -493,6 +527,10 @@ foreach ($expectedText in @(
     "content_control_data_binding.bound_placeholder",
     "featherdoc.content_control_data_binding_governance_report.v1",
     "source_json_display",
+    "input_docx=samples/invoice.docx",
+    "template_name=invoice-template",
+    "schema_target=invoice",
+    "target_mode=resolved-section-targets",
     "repair_strategy",
     "repair_hint",
     "sync_bound_content_control",
@@ -502,10 +540,14 @@ foreach ($expectedText in @(
     "project_template_delivery_readiness_contract",
     "featherdoc.project_template_delivery_readiness_report.v1",
     "latest_schema_approval_gate_status",
+    "source_report_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json",
+    "source_json_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json",
     "project_template_onboarding.schema_approval",
     "project_template_onboarding_governance_contract",
     "featherdoc.project_template_onboarding_governance_report.v1",
     "schema_approval_status_summary",
+    "source_report_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
+    "source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
     "numbering_catalog_governance.real_corpus_confidence",
     "table_layout_delivery_governance.delivery_quality",
     "catalog_coverage_percent=100",
@@ -526,6 +568,10 @@ foreach ($expectedText in @(
     "content_control_data_binding.bound_placeholder",
     "featherdoc.content_control_data_binding_governance_report.v1",
     "source_json_display",
+    "input_docx=samples/invoice.docx",
+    "template_name=invoice-template",
+    "schema_target=invoice",
+    "target_mode=resolved-section-targets",
     "repair_strategy",
     "repair_hint",
     "sync_bound_content_control",
@@ -535,10 +581,14 @@ foreach ($expectedText in @(
     "project_template_delivery_readiness_contract",
     "featherdoc.project_template_delivery_readiness_report.v1",
     "latest_schema_approval_gate_status",
+    "source_report_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json",
+    "source_json_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json",
     "project_template_onboarding.schema_approval",
     "project_template_onboarding_governance_contract",
     "featherdoc.project_template_onboarding_governance_report.v1",
     "schema_approval_status_summary",
+    "source_report_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
+    "source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
     "numbering_catalog_governance.real_corpus_confidence",
     "featherdoc.numbering_catalog_governance_report.v1",
     "table_layout_delivery_governance.delivery_quality",
@@ -560,6 +610,10 @@ foreach ($expectedText in @(
     "content_control_data_binding.bound_placeholder",
     "featherdoc.content_control_data_binding_governance_report.v1",
     "source_json_display",
+    "input_docx=samples/invoice.docx",
+    "template_name=invoice-template",
+    "schema_target=invoice",
+    "target_mode=resolved-section-targets",
     "repair_strategy",
     "repair_hint",
     "sync_bound_content_control",
@@ -569,10 +623,14 @@ foreach ($expectedText in @(
     "project_template_delivery_readiness_contract",
     "featherdoc.project_template_delivery_readiness_report.v1",
     "latest_schema_approval_gate_status",
+    "source_report_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json",
+    "source_json_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json",
     "project_template_onboarding.schema_approval",
     "project_template_onboarding_governance_contract",
     "featherdoc.project_template_onboarding_governance_report.v1",
     "schema_approval_status_summary",
+    "source_report_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
+    "source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
     "numbering_catalog_governance.real_corpus_confidence",
     "table_layout_delivery_governance.delivery_quality",
     "catalog_coverage_percent=100",
