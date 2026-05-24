@@ -39,6 +39,12 @@ OCR 或任意视觉精确还原。
         -OutputJson .\output\pdf-visual-release-gate-preflight\summary.json
 
    预期 ``blocking_checks = 0`` 且 ``preflight_ready = true``。
+   当前 ``dev`` 最近一次轻量复核还必须能解释为真实构建证据：
+   ``status = ready``、``evidence_kind = real_build``、``output_gap_count = 0``、
+   ``missing_output_count = 0``、``pdf_dependency_inputs_status = ready``、
+   ``pdf_build_options_enabled = true``、``pdfio_dependency_ready = true``、
+   ``pdfium_dependency_ready = true``、``selected_pdfium_provider = prebuilt``，并且
+   ``ctest_list_contains_pdf_gate_tests = pass``。
 
 5. 完整 visual gate 有可复核证据：
 
@@ -58,7 +64,8 @@ OCR 或任意视觉精确还原。
         -FinalizeOnly `
         -SkipPreflight
 
-   ``report/summary.json`` 必须包含 ``verdict = pass``、
+   ``report/summary.json`` 必须包含 ``status = pass``、``verdict = pass``、
+   ``finalize_only = true``、``skip_preflight = true``、
    ``visual_baseline_manifest_count = 42``、``baselines_count = 44``、
    ``cjk_manifest_count = 43``、``cjk_copy_search_count = 43`` 和
    ``aggregate_contact_sheet``。其中 ``visual_baseline_manifest_count`` 对应
@@ -72,6 +79,10 @@ OCR 或任意视觉精确还原。
      和 contact sheet 路径。
    * ``full_visual_gate_status`` 不能停留在“governance 未消化”的唯一结论；
      release reviewer 应同时看到 full gate summary verdict。
+   * preflight governance 中的 ``not_run_by_preflight_governance`` 只能解释
+     preflight-governance 报告自身没有重跑 full gate；如果同轮
+     ``FinalizeOnly`` summary 已给出 ``verdict = pass``，发布结论应以
+     full gate summary 和 contact sheet 证据为准。
 
 7. 可视化证据非空：
 
@@ -79,6 +90,9 @@ OCR 或任意视觉精确还原。
      必须存在且非空。
    * 若本轮没有重跑渲染，必须说明使用了 ``-FinalizeOnly -SkipPreflight``
      复核现有产物。
+   * 最近一次复核的 contact sheet 参考尺寸为 ``912x14566``，大小为
+     ``1822428`` bytes；后续 release 可接受尺寸变化，但必须记录非空、
+     可读和未丢失路径的证据。
 
 8. 轻量验证已跑：
 

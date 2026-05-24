@@ -9,7 +9,8 @@ PDF 可视化验证状态
 1. ``dev`` 与 ``origin/dev`` 已对齐。
 2. 2026-05-20 复核时仓库工作区干净；后续轮次需以
    ``git status --short`` 为准。
-3. 2026-05-24 复核时，最新 PDF preflight / governance 证据已经对齐到 ``ready``：
+3. 2026-05-25 复核时，最新 PDF preflight / visual gate 证据已经对齐到
+   ``ready`` / ``pass``：
 
    * ``evidence_kind = real_build``
    * ``synthetic_markers = 0``
@@ -17,21 +18,35 @@ PDF 可视化验证状态
    * ``preflight_ready = true``
    * ``release_ready = true``
    * ``full_visual_gate_required = true``
-   * ``full_visual_gate_status = not_run_by_preflight_governance``
+   * preflight governance summary 中的
+     ``full_visual_gate_status = not_run_by_preflight_governance`` 只表示
+     该 preflight-governance 报告自身没有重跑 full gate；发布结论已由
+     full gate summary 的 ``verdict = pass`` 和 contact sheet 证据消化
    * ``controlled_visual_smoke_status = pass``
    * ``controlled_visual_smoke_passed = true``
    * ``blocking_check_count = 0``
+   * ``output_gap_count = 0``
+   * ``missing_output_count = 0``
    * ``release_blocker_count = 0``
    * ``action_item_count = 0``
+   * ``pdf_dependency_inputs_status = ready``
+   * ``pdf_build_options_enabled = true``
+   * ``pdfio_dependency_ready = true``
+   * ``pdfium_dependency_ready = true``
+   * ``ctest_list_contains_pdf_gate_tests = pass``
    * ``memory_guard_blocked = false``
    * ``memory_guard_skipped = false``
    * ``free_memory_mb`` 高于 ``min_free_memory_mb = 2048``
+   * preflight summary ``generated_at = 2026-05-25T07:13:30``，并记录
+     ``selected_pdfium_provider = prebuilt``
    * 现有 ``output/pdf-visual-release-gate-current/report/summary.json`` 已包含
-     ``verdict = pass``、``visual_baseline_manifest_count = 42``、
+     ``status = pass``、``verdict = pass``、``finalize_only = true``、
+     ``skip_preflight = true``、``visual_baseline_manifest_count = 42``、
      ``baselines_count = 44``、``cjk_manifest_count = 43`` 与
      ``cjk_copy_search_count = 43``；其中 ``visual_baseline_manifest_count`` 是
      regression manifest 中标记 ``expect_visual_baseline=true`` 的样本数，
      ``baselines_count`` 是 full gate 当前渲染并汇总的 baseline 产物数
+   * full gate summary ``generated_at = 2026-05-25T07:15:13``
    * 现有 full gate 产物目录已包含 ``pdf-cli-export-test.log``、
      ``pdf-regression-test.log``、``aggregate-contact-sheet.png``、
      ``report/cjk-copy-search/*``、``report/unicode-font.log`` 以及各 baseline
@@ -188,6 +203,29 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 * PDF preflight / governance 已处于 ``ready``。
 * 现有 full gate 产物链完整且可复核。
 * 当前剩余动作不是“补齐证据”，而是“是否值得在资源窗口里重跑一次新的重型 full gate”。
+
+2026-05-25 preflight / finalize-only 复核结论
+---------------------------------------------
+
+本轮先执行轻量 preflight，再用 ``FinalizeOnly`` 复用现有 full gate 产物刷新 summary：
+
+* ``scripts/check_pdf_visual_release_gate_preflight.ps1 -OutputJson .\build\pdf_visual_release_gate_preflight_current\summary.json``
+  在 60 秒 PowerShell Job 内通过。
+* preflight summary 写回时间为 ``2026-05-25T07:13:30``，结果为
+  ``status = ready``、``evidence_kind = real_build``、``blocking_check_count = 0``、
+  ``output_gap_count = 0``、``missing_output_count = 0``。
+* 同一份 preflight 证据确认 ``pdf_dependency_inputs_status = ready``、
+  ``pdf_build_options_enabled = true``、``pdfio_dependency_ready = true``、
+  ``pdfium_dependency_ready = true``、``selected_pdfium_provider = prebuilt``，并且
+  ``ctest_list_contains_pdf_gate_tests = pass``。
+* ``scripts/run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputDir .\output\pdf-visual-release-gate-current -FinalizeOnly -SkipPreflight``
+  在 60 秒 PowerShell Job 内通过。
+* 刷新后的 ``report/summary.json`` 写回时间为 ``2026-05-25T07:15:13``，结果为
+  ``status = pass``、``verdict = pass``、``finalize_only = true``、
+  ``skip_preflight = true``。
+* 可视化非空复核继续通过：
+  ``output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png`` 为
+  ``912x14566``，大小 ``1822428`` bytes。
 
 下一步
 ------
