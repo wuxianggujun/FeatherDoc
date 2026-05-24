@@ -404,6 +404,20 @@ function Get-ReleaseBlockerPublicDisplayPath {
     return Split-Path -Leaf $displayPath
 }
 
+function Convert-ReleaseBlockerLocalPathsForPublicText {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return ""
+    }
+
+    return [regex]::Replace(
+        $Text,
+        '(?i)\b[a-z]:(?:\\\\|\\)[^\s"''`<>|;,)]+|(?<!\w)/(?:Users|home)/[^\s"''`<>|;,)]+',
+        '<local-path>'
+    )
+}
+
 function Join-ReleaseBlockerValues {
     param([object[]]$Values)
 
@@ -665,7 +679,12 @@ function Get-PdfVisualPreflightDependencyInputSummaryLine {
         $parts += "missing inputs=$missingInputCount"
     }
     if ($missingInputs.Count -gt 0) {
-        $parts += "missing input preview=$(@($missingInputs | Select-Object -First 5) -join '; ')"
+        $publicMissingInputs = @(
+            $missingInputs |
+                Select-Object -First 5 |
+                ForEach-Object { Convert-ReleaseBlockerLocalPathsForPublicText -Text ([string]$_) }
+        )
+        $parts += "missing input preview=$($publicMissingInputs -join '; ')"
     }
 
     if ($parts.Count -eq 0) {
@@ -691,7 +710,8 @@ function Get-PdfVisualPreflightReadinessActionEvidenceLine {
         $issueKey = Get-ReleaseBlockerDisplayValue `
             -Value (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "issue_key") `
             -Fallback "(unknown issue)"
-        $item = Get-ReleaseBlockerPropertyValue -Object $evidence -Name "item"
+        $item = Convert-ReleaseBlockerLocalPathsForPublicText `
+            -Text (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "item")
 
         $part = "$action/$issueKey"
         if (-not [string]::IsNullOrWhiteSpace($item)) {
@@ -956,7 +976,44 @@ function Add-ReleaseGovernanceRollupSourceLines {
 
     [void]$Lines.Add("  - source_report_display: $sourceReportDisplay")
     [void]$Lines.Add("  - source_json_display: $sourceJsonDisplay")
+    Add-ProjectTemplateOnboardingGovernanceContractLines `
+        -Lines $Lines `
+        -Item $Item `
+        -SourceReportDisplay $sourceReportDisplay `
+        -SourceJsonDisplay $sourceJsonDisplay
     Add-ReleaseGovernanceProvenanceLines -Lines $Lines -Item $Item
+}
+
+function Add-ProjectTemplateOnboardingGovernanceContractLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item,
+        [string]$SourceReportDisplay,
+        [string]$SourceJsonDisplay
+    )
+
+    $sourceSchema = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_schema"
+    if (-not [string]::Equals($sourceSchema, "featherdoc.project_template_onboarding_governance_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return
+    }
+
+    $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $Item -Name "schema_approval_status_summary"
+    if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+        $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $Item -Name "status"
+    }
+    if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+        $schemaApprovalSummary = "unknown"
+    }
+
+    [void]$Lines.Add("  - project_template_onboarding_governance_contract:")
+    [void]$Lines.Add("    - source_schema: featherdoc.project_template_onboarding_governance_report.v1")
+    [void]$Lines.Add("    - schema_approval_status_summary: $schemaApprovalSummary")
+    if (-not [string]::IsNullOrWhiteSpace($SourceReportDisplay)) {
+        [void]$Lines.Add("    - source_report_display: $SourceReportDisplay")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($SourceJsonDisplay)) {
+        [void]$Lines.Add("    - source_json_display: $SourceJsonDisplay")
+    }
 }
 
 function Add-ReleaseGovernanceProvenanceLines {
@@ -980,7 +1037,8 @@ function Add-ReleaseGovernanceRepairLines {
     )
 
     foreach ($fieldName in @("repair_strategy", "repair_hint", "command_template")) {
-        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        $value = Convert-ReleaseBlockerLocalPathsForPublicText `
+            -Text (Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName)
         if (-not [string]::IsNullOrWhiteSpace($value)) {
             [void]$Lines.Add("  - ${fieldName}: $value")
         }
@@ -1015,11 +1073,13 @@ function Add-ReleaseGovernanceReadinessActionEvidenceLines {
             -Fallback "(unknown evidence)"
         $action = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "action")
         $issueKey = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "issue_key")
-        $item = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "item")
+        $item = Get-ReleaseBlockerDisplayValue `
+            -Value (Convert-ReleaseBlockerLocalPathsForPublicText -Text (Get-ReleaseBlockerPropertyValue -Object $evidence -Name "item"))
         [void]$Lines.Add("    - ${id}: action=$action issue_key=$issueKey item=$item")
 
         foreach ($fieldName in @("source_schema", "source_report", "source_report_display", "source_json", "source_json_display")) {
-            $fieldValue = Get-ReleaseBlockerPropertyValue -Object $evidence -Name $fieldName
+            $fieldValue = Convert-ReleaseBlockerLocalPathsForPublicText `
+                -Text (Get-ReleaseBlockerPropertyValue -Object $evidence -Name $fieldName)
             if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
                 [void]$Lines.Add("      - ${fieldName}: $fieldValue")
             }
@@ -2169,6 +2229,17 @@ function Add-ReleaseGovernanceMetricDetailLines {
     }
     if ($detailParts.Count -gt 0) {
         [void]$Lines.Add("  - details: $($detailParts -join ', ')")
+    }
+
+    foreach ($fieldName in @("catalog_document_keys", "baseline_document_keys", "matched_document_keys")) {
+        $values = @(
+            Get-ReleaseBlockerArrayProperty -Object $details -Name $fieldName |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        if ($values.Count -gt 0) {
+            [void]$Lines.Add("  - ${fieldName}: $($values -join ',')")
+        }
     }
 
     $penaltyParts = New-Object 'System.Collections.Generic.List[string]'

@@ -95,6 +95,9 @@ function New-NumberingGovernanceMetricFixture {
             catalog_coverage_percent = 100
             baseline_coverage_percent = 100
             coverage_score = 100
+            catalog_document_keys = @("contract-template", "invoice-template", "report-template", "long-doc-template")
+            baseline_document_keys = @("contract-template", "invoice-template", "report-template", "long-doc-template")
+            matched_document_keys = @("contract-template", "invoice-template", "report-template", "long-doc-template")
             penalty_summary = @(
                 [ordered]@{ factor = "style_numbering_issues"; count = 4; penalty = 20 }
             )
@@ -806,6 +809,15 @@ Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\RELEASE_ARTIFACT
 Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\visual-validation' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'Release blockers: 1' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'project_template_smoke.schema_approval' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'Project template governance contracts' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'project_template_delivery_readiness project_template_delivery_readiness_contract' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'source_schema=featherdoc.project_template_delivery_readiness_report.v1' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'latest_schema_approval_gate_status=pending_review' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'source_schema=featherdoc.project_template_onboarding_governance_report.v1' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'schema_approval_status_summary=pending_review' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'Readiness action evidence:' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'provide_pdf_dependency_input/pdf_dependency_inputs_ready -> PDFio source header' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'enable_pdf_build_option/pdf_build_options_enabled -> FEATHERDOC_BUILD_PDF_IMPORT' -Label 'release_body.zh-CN.md'
@@ -856,6 +868,11 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'PDFio source header' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'enable_pdf_build_option' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'FEATHERDOC_BUILD_PDF_IMPORT' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'project_template_onboarding_governance_contract:' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'schema_approval_status_summary: pending_review' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'catalog_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'baseline_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'matched_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report: .\output\pdf-visual-release-gate-preflight-governance\summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_json: .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_json_display: .\output\pdf-visual-release-gate-preflight-governance\preflight-summary.json' -Label $document.Label
@@ -876,7 +893,11 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'source_json_display: .\output\project-template-delivery-readiness\summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'error: Failed to parse project template delivery readiness summary.' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'build: pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText '<local-path>' -Label $document.Label
+    Assert-NotContains -Path $document.Path -UnexpectedText 'C:\repo\tmp\pdfio-src\pdfio.h' -Label $document.Label
 }
+Assert-Contains -Path $bodyPath -ExpectedText '<local-path>' -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText 'C:\repo\tmp\pdfio-src\pdfio.h' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $guidePath -ExpectedText 'publish_github_release.ps1' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'publish_github_release.ps1' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'publish_github_release.ps1' -Label 'START_HERE.md'

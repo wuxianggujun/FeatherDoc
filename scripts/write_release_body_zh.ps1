@@ -335,6 +335,155 @@ function Add-UniqueLine {
     }
 }
 
+function Get-FirstGovernanceReport {
+    param(
+        [AllowNull()]$Summary,
+        [string]$Id,
+        [string]$Schema
+    )
+
+    $rollup = Get-ReleaseGovernanceRollup -Summary $Summary
+    $handoff = Get-ReleaseGovernanceHandoff -Summary $Summary
+    foreach ($report in @(
+            Get-ReleaseBlockerArrayProperty -Object $rollup -Name "source_reports"
+            Get-ReleaseBlockerArrayProperty -Object $handoff -Name "reports"
+        )) {
+        $reportId = Get-ReleaseBlockerPropertyValue -Object $report -Name "id"
+        $reportSchema = Get-ReleaseBlockerPropertyValue -Object $report -Name "schema"
+        if ((-not [string]::IsNullOrWhiteSpace($Id) -and [string]::Equals($reportId, $Id, [System.StringComparison]::OrdinalIgnoreCase)) -or
+            (-not [string]::IsNullOrWhiteSpace($Schema) -and [string]::Equals($reportSchema, $Schema, [System.StringComparison]::OrdinalIgnoreCase))) {
+            return $report
+        }
+    }
+
+    return $null
+}
+
+function Get-FirstGovernanceItemBySourceSchema {
+    param(
+        [AllowNull()]$Summary,
+        [string]$SourceSchema
+    )
+
+    $rollup = Get-ReleaseGovernanceRollup -Summary $Summary
+    $handoff = Get-ReleaseGovernanceHandoff -Summary $Summary
+    foreach ($container in @($rollup, $handoff)) {
+        foreach ($propertyName in @("release_blockers", "action_items", "warnings")) {
+            foreach ($item in @(Get-ReleaseBlockerArrayProperty -Object $container -Name $propertyName)) {
+                $itemSourceSchema = Get-ReleaseBlockerPropertyValue -Object $item -Name "source_schema"
+                if ([string]::Equals($itemSourceSchema, $SourceSchema, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    return $item
+                }
+            }
+        }
+    }
+
+    return $null
+}
+
+function Get-GovernanceSourceReportDisplay {
+    param([AllowNull()]$Item)
+
+    foreach ($propertyName in @("source_report_display", "path_display", "expected_summary_display", "source_report", "path", "expected_summary")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $propertyName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+
+    return ""
+}
+
+function Get-GovernanceSourceJsonDisplay {
+    param([AllowNull()]$Item)
+
+    foreach ($propertyName in @("source_json_display", "source_json", "path_display", "expected_summary_display", "path", "expected_summary")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $propertyName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+
+    return ""
+}
+
+function Add-ProjectTemplateGovernanceContractSummaryLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary
+    )
+
+    $readinessReport = Get-FirstGovernanceReport `
+        -Summary $Summary `
+        -Id "project_template_delivery_readiness" `
+        -Schema "featherdoc.project_template_delivery_readiness_report.v1"
+    $onboardingItem = Get-FirstGovernanceItemBySourceSchema `
+        -Summary $Summary `
+        -SourceSchema "featherdoc.project_template_onboarding_governance_report.v1"
+
+    if ($null -eq $readinessReport -and $null -eq $onboardingItem) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add("## Project template governance contracts")
+
+    if ($null -ne $readinessReport) {
+        $readinessParts = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($part in @(
+                "project_template_delivery_readiness",
+                "project_template_delivery_readiness_contract",
+                "source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "schema") -Fallback "featherdoc.project_template_delivery_readiness_report.v1")"
+            )) {
+            [void]$readinessParts.Add($part)
+        }
+        foreach ($fieldName in @(
+                "status",
+                "release_ready",
+                "latest_schema_approval_gate_status",
+                "schema_history_blocked_run_count",
+                "schema_history_pending_run_count",
+                "schema_history_passed_run_count",
+                "template_count",
+                "ready_template_count",
+                "blocked_template_count",
+                "release_blocker_count",
+                "action_item_count",
+                "warning_count",
+                "source_failure_count"
+            )) {
+            $fieldValue = Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+                [void]$readinessParts.Add("${fieldName}=$fieldValue")
+            }
+        }
+        [void]$readinessParts.Add("source_report_display=$(Get-GovernanceSourceReportDisplay -Item $readinessReport)")
+        [void]$readinessParts.Add("source_json_display=$(Get-GovernanceSourceJsonDisplay -Item $readinessReport)")
+        [void]$Lines.Add("- Project template readiness: $($readinessParts -join ' ')")
+    }
+
+    if ($null -ne $onboardingItem) {
+        $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $onboardingItem -Name "schema_approval_status_summary"
+        if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+            $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $onboardingItem -Name "status"
+        }
+        if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+            $schemaApprovalSummary = "unknown"
+        }
+
+        $onboardingParts = @(
+            "project_template_onboarding.schema_approval",
+            "project_template_onboarding_governance",
+            "project_template_onboarding_governance_contract",
+            "source_schema=featherdoc.project_template_onboarding_governance_report.v1",
+            "schema_approval_status_summary=$schemaApprovalSummary",
+            "source_report_display=$(Get-GovernanceSourceReportDisplay -Item $onboardingItem)",
+            "source_json_display=$(Get-GovernanceSourceJsonDisplay -Item $onboardingItem)"
+        )
+        [void]$Lines.Add("- Project template onboarding: $($onboardingParts -join ' ')")
+    }
+}
+
 function Normalize-ReleaseFacingText {
     param([string]$Text)
 
@@ -961,6 +1110,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$lines.Add("- README 展示图刷新：$(if ($readmeGalleryStatus) { $readmeGalleryStatus } else { 'unknown' })")
 [void]$lines.Add("- 说明：$validationNote")
 Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot -Heading "## 发布阻断项" -PublicArtifactPaths
+Add-ProjectTemplateGovernanceContractSummaryLines -Lines $lines -Summary $summary
 [void]$lines.Add("")
 [void]$lines.Add("## 安装包入口")
 [void]$lines.Add("- 以下路径使用安装树相对位置，不包含本机绝对目录。")
