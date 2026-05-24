@@ -178,13 +178,27 @@ foreach ($marker in $buildingPdfFixtureMarkers) {
 }
 
 foreach ($marker in @(
+    "check_pdf_visual_release_gate_preflight.ps1",
+    "-OutputJson .\output\pdf-visual-release-gate-preflight\summary.json",
+    "blocking_checks = 0",
+    "preflight_ready = true",
     "verdict = pass",
     "visual_baseline_manifest_count = 42",
     "baselines_count = 44",
     "cjk_manifest_count = 43",
     "cjk_copy_search_count = 43",
     "run_release_candidate_checks.ps1",
+    "run_pdf_visual_release_gate.ps1",
+    "-OutputDir .\output\pdf-visual-release-gate-current",
+    "-FinalizeOnly",
+    "-SkipPreflight",
+    "full_visual_gate_status",
+    "full gate summary verdict",
     "aggregate-contact-sheet.png",
+    "pdf_visual_validation_status_docs_contract_test.ps1",
+    "release_candidate_visual_verdict_test.ps1",
+    "pdf_real_business_sample_manifest_contract_test.ps1",
+    'ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_" --output-on-failure --timeout 60',
     "text-first",
     "opt-in",
     "PDF"
