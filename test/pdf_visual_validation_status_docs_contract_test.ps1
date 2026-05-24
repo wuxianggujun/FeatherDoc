@@ -179,8 +179,10 @@ foreach ($marker in $buildingPdfFixtureMarkers) {
 
 foreach ($marker in @(
     "verdict = pass",
-    "baselines_count > 0",
-    "cjk_copy_search_count > 0",
+    "visual_baseline_manifest_count = 42",
+    "baselines_count = 44",
+    "cjk_manifest_count = 43",
+    "cjk_copy_search_count = 43",
     "run_release_candidate_checks.ps1",
     "aggregate-contact-sheet.png",
     "text-first",

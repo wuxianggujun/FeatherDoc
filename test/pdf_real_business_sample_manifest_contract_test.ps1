@@ -94,8 +94,10 @@ $buildingPdfText = Get-Content -Raw -Encoding UTF8 -LiteralPath $buildingPdfPath
 foreach ($expectedText in @(
         "verdict = pass",
         "90",
-        "42",
-        "43",
+        "visual_baseline_manifest_count = 42",
+        "baselines_count = 44",
+        "cjk_manifest_count = 43",
+        "cjk_copy_search_count = 43",
         "text-first",
         "opt-in",
         "OCR",

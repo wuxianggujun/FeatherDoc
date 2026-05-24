@@ -59,8 +59,11 @@ OCR 或任意视觉精确还原。
         -SkipPreflight
 
    ``report/summary.json`` 必须包含 ``verdict = pass``、
-   ``baselines_count > 0``、``cjk_copy_search_count > 0`` 和
-   ``aggregate_contact_sheet``。
+   ``visual_baseline_manifest_count = 42``、``baselines_count = 44``、
+   ``cjk_manifest_count = 43``、``cjk_copy_search_count = 43`` 和
+   ``aggregate_contact_sheet``。其中 ``visual_baseline_manifest_count`` 对应
+   manifest 中 ``expect_visual_baseline=true`` 的样本数，``baselines_count``
+   对应 full gate 当前渲染并汇总的 baseline 产物数。
 
 6. 发布治理已消费 PDF 结论：
 
