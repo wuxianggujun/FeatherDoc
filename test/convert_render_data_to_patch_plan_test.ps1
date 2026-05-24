@@ -1,10 +1,18 @@
-param(
+﻿param(
     [string]$RepoRoot,
     [string]$WorkingDir
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = Join-Path $RepoRoot "build\convert_render_data_to_patch_plan_test"
+}
 
 function Assert-True {
     param(
@@ -75,7 +83,7 @@ Assert-Equal -Actual $samplePatch.bookmark_text[0].text -Expected "上海羽文�
 Assert-Equal -Actual $samplePatch.bookmark_text[1].text -Expected "报价单-2026-0410" `
     -Message "Invoice render patch did not resolve invoice_number."
 Assert-Equal -Actual $samplePatch.bookmark_paragraphs[0].paragraphs[2] `
-    -Expected "3. 后续如需扩展审批意见、页眉页脚或附加说明，可以继续沿用同一份渲染计划。" `
+    -Expected '3. 后续如需扩展审批意见、页眉页脚或附加说明，可以继续沿用同一份渲染计划。' `
     -Message "Invoice render patch did not resolve note_lines."
 Assert-Equal -Actual $samplePatch.bookmark_table_rows[0].rows[1][0] -Expected "文档生成" `
     -Message "Invoice render patch did not resolve the second line-item row."
@@ -131,3 +139,4 @@ Assert-True -Condition ([bool]$keepEntry.visible) -Message "keep_block should re
 Assert-True -Condition (-not [bool]$hideEntry.visible) -Message "hide_block should resolve to visible=false."
 
 Write-Host "Render-data to patch conversion regression passed."
+
