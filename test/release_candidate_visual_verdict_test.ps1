@@ -134,6 +134,9 @@ Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate verdict: 
 Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate counts: $($summary.steps.pdf_visual_gate.visual_baseline_count) visual baselines, $($summary.steps.pdf_visual_gate.cjk_copy_search_count) CJK copy/search' `
     -Message "Release final review should include PDF visual gate evidence counts."
 
+Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate manifest counts: $($summary.steps.pdf_visual_gate.visual_baseline_manifest_count) visual baseline manifest samples, $($summary.steps.pdf_visual_gate.cjk_manifest_count) CJK manifest samples' `
+    -Message "Release final review should include PDF visual gate manifest counts."
+
 Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate finalizable: $($summary.steps.pdf_visual_gate.finalizable)' `
     -Message "Release final review should include PDF visual gate finalizable status."
 
@@ -279,14 +282,18 @@ $pdfSummaryPath = Join-Path $pdfSummaryDir "summary.json"
 ([ordered]@{
         verdict = "pass"
         aggregate_contact_sheet = $pdfContactSheetPath
+        cjk_manifest_count = 43
         cjk_copy_search_count = 43
+        visual_baseline_manifest_count = 42
         baselines_count = 44
     } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $pdfSummaryPath -Encoding UTF8
 
 $pdfVisualGateInfo = Get-PdfVisualGateSummaryInfo -SummaryJson $pdfSummaryPath
 if ($pdfVisualGateInfo.status -ne "loaded" -or
     $pdfVisualGateInfo.verdict -ne "pass" -or
+    [int]$pdfVisualGateInfo.cjk_manifest_count -ne 43 -or
     [int]$pdfVisualGateInfo.cjk_copy_search_count -ne 43 -or
+    [int]$pdfVisualGateInfo.visual_baseline_manifest_count -ne 42 -or
     [int]$pdfVisualGateInfo.visual_baseline_count -ne 44 -or
     -not [bool]$pdfVisualGateInfo.finalizable) {
     throw "PDF visual gate summary metadata was not loaded into a finalizable release summary object."

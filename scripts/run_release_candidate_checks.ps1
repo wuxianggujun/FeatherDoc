@@ -418,7 +418,9 @@ function Get-PdfVisualGateSummaryInfo {
         summary_json = $SummaryJson
         verdict = ""
         aggregate_contact_sheet = ""
+        cjk_manifest_count = 0
         cjk_copy_search_count = 0
+        visual_baseline_manifest_count = 0
         visual_baseline_count = 0
         finalizable = $false
         error = ""
@@ -433,7 +435,9 @@ function Get-PdfVisualGateSummaryInfo {
         $info.status = "loaded"
         $info.verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "verdict")
         $info.aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet")
+        $info.cjk_manifest_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_manifest_count")
         $info.cjk_copy_search_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_count")
+        $info.visual_baseline_manifest_count = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_manifest_count")
         $info.visual_baseline_count = [int](Get-OptionalPropertyValue -Object $summary -Name "baselines_count")
         $info.finalizable = -not [string]::IsNullOrWhiteSpace([string]$info.verdict) -and
             [int]$info.cjk_copy_search_count -gt 0 -and
@@ -2704,6 +2708,7 @@ try {
 - PDF visual gate: $($summary.steps.pdf_visual_gate.status)
 - PDF visual gate verdict: $($summary.steps.pdf_visual_gate.verdict)
 - PDF visual gate counts: $($summary.steps.pdf_visual_gate.visual_baseline_count) visual baselines, $($summary.steps.pdf_visual_gate.cjk_copy_search_count) CJK copy/search
+- PDF visual gate manifest counts: $($summary.steps.pdf_visual_gate.visual_baseline_manifest_count) visual baseline manifest samples, $($summary.steps.pdf_visual_gate.cjk_manifest_count) CJK manifest samples
 - PDF visual gate finalizable: $($summary.steps.pdf_visual_gate.finalizable)
 - Release blocker rollup: $($summary.steps.release_blocker_rollup.status)
 - Release governance handoff: $($summary.steps.release_governance_handoff.status)
