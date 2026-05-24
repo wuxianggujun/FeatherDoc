@@ -497,4 +497,105 @@ if ($expandedRollupPaths.Count -ne 3 -or
     throw "Release blocker rollup path expansion should support comma-delimited and repeated arguments."
 }
 
+$candidateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-pdf-visual-gate-consumption"
+$candidateBuildDir = Join-Path $resolvedWorkingDir "build"
+$candidateInstallDir = Join-Path $resolvedWorkingDir "install"
+$candidateConsumerBuildDir = Join-Path $resolvedWorkingDir "consumer-build"
+$candidateGateOutputDir = Join-Path $resolvedWorkingDir "word-visual-gate"
+$candidateTaskOutputRoot = Join-Path $resolvedWorkingDir "visual-tasks"
+
+& $scriptPath `
+    -SkipConfigure `
+    -SkipBuild `
+    -SkipTests `
+    -SkipInstallSmoke `
+    -SkipVisualGate `
+    -SkipReviewTasks `
+    -BuildDir $candidateBuildDir `
+    -InstallDir $candidateInstallDir `
+    -ConsumerBuildDir $candidateConsumerBuildDir `
+    -GateOutputDir $candidateGateOutputDir `
+    -TaskOutputRoot $candidateTaskOutputRoot `
+    -SummaryOutputDir $candidateOutputDir `
+    -PdfVisualGateSummaryJson $pdfSummaryPath
+if ($LASTEXITCODE -ne 0) {
+    throw "Release candidate dry run with PDF visual gate summary failed with exit code $LASTEXITCODE."
+}
+
+$candidateSummaryPath = Join-Path $candidateOutputDir "report\summary.json"
+if (-not (Test-Path -LiteralPath $candidateSummaryPath)) {
+    throw "Release candidate dry run did not write summary.json."
+}
+
+$candidateSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateSummaryPath | ConvertFrom-Json
+if ($candidateSummary.execution_status -ne "pass") {
+    throw "Release candidate dry run should pass when all heavy flows are skipped."
+}
+if ($candidateSummary.steps.pdf_visual_gate.status -ne "loaded" -or
+    $candidateSummary.steps.pdf_visual_gate.verdict -ne "pass" -or
+    -not [bool]$candidateSummary.steps.pdf_visual_gate.finalizable) {
+    throw "Release candidate summary did not consume the PDF visual gate pass verdict as finalizable evidence."
+}
+if ([int]$candidateSummary.steps.pdf_visual_gate.cjk_manifest_count -ne 43 -or
+    [int]$candidateSummary.steps.pdf_visual_gate.cjk_copy_search_count -ne 43 -or
+    [int]$candidateSummary.steps.pdf_visual_gate.visual_baseline_manifest_count -ne 42 -or
+    [int]$candidateSummary.steps.pdf_visual_gate.visual_baseline_count -ne 44) {
+    throw "Release candidate summary did not preserve PDF visual gate sample counts."
+}
+if ([string]$candidateSummary.steps.pdf_visual_gate.summary_json -ne $pdfSummaryPath -or
+    [string]$candidateSummary.steps.pdf_visual_gate.aggregate_contact_sheet -ne $pdfContactSheetPath) {
+    throw "Release candidate summary did not preserve PDF visual gate evidence paths."
+}
+
+$candidateFinalReviewPath = Join-Path $candidateOutputDir "report\final_review.md"
+$candidateReleaseBodyPath = Join-Path $candidateOutputDir "report\release_body.zh-CN.md"
+$candidateReleaseSummaryPath = Join-Path $candidateOutputDir "report\release_summary.zh-CN.md"
+$candidateReleaseHandoffPath = Join-Path $candidateOutputDir "report\release_handoff.md"
+$candidateArtifactGuidePath = Join-Path $candidateOutputDir "report\ARTIFACT_GUIDE.md"
+$candidateReviewerChecklistPath = Join-Path $candidateOutputDir "report\REVIEWER_CHECKLIST.md"
+$candidateStartHerePath = Join-Path $candidateOutputDir "START_HERE.md"
+
+foreach ($assertion in @(
+        @{ Path = $candidateFinalReviewPath; Label = "final_review.md" },
+        @{ Path = $candidateReleaseHandoffPath; Label = "release_handoff.md" },
+        @{ Path = $candidateArtifactGuidePath; Label = "ARTIFACT_GUIDE.md" },
+        @{ Path = $candidateReviewerChecklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        @{ Path = $candidateStartHerePath; Label = "START_HERE.md" }
+    )) {
+    $content = Get-Content -Raw -Encoding UTF8 -LiteralPath $assertion.Path
+    Assert-ContainsText -Text $content -ExpectedText "PDF visual gate verdict: pass" `
+        -Message ("{0} should expose the PDF visual gate verdict." -f $assertion.Label)
+    Assert-ContainsText -Text $content -ExpectedText "44" `
+        -Message ("{0} should expose the PDF visual baseline count." -f $assertion.Label)
+    Assert-ContainsText -Text $content -ExpectedText "43" `
+        -Message ("{0} should expose the PDF CJK count." -f $assertion.Label)
+    Assert-ContainsText -Text $content -ExpectedText "aggregate-contact-sheet.png" `
+        -Message ("{0} should expose the PDF visual contact sheet." -f $assertion.Label)
+}
+
+$candidateReleaseBody = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseBodyPath
+foreach ($fragments in @(
+        @("PDF visual gate verdict", "pass"),
+        @("PDF visual aggregate contact sheet", "aggregate-contact-sheet.png"),
+        @("PDF CJK copy/search samples", "43"),
+        @("PDF visual baselines", "44")
+    )) {
+    foreach ($fragment in $fragments) {
+        Assert-ContainsText -Text $candidateReleaseBody -ExpectedText $fragment `
+            -Message ("release_body.zh-CN.md should expose PDF visual gate fragment '{0}'." -f $fragment)
+    }
+}
+
+$candidateReleaseSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseSummaryPath
+foreach ($fragment in @(
+        "PDF visual gate",
+        "verdict=pass",
+        "aggregate-contact-sheet.png",
+        "cjk_copy_search_count=43",
+        "visual_baseline_count=44"
+    )) {
+    Assert-ContainsText -Text $candidateReleaseSummary -ExpectedText $fragment `
+        -Message ("release_summary.zh-CN.md should expose PDF visual gate fragment '{0}'." -f $fragment)
+}
+
 Write-Host "Release candidate visual verdict passthrough regression passed."

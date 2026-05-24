@@ -294,9 +294,20 @@ function Get-PdfVisualGateEvidence {
         $missingTextCount += @(Get-OptionalPropertyArray -Object $entry -Name "missing_text").Count
     }
 
-    $evidence.cjk_copy_search_count = [string]$copySearchEntries.Count
+    $copySearchCount = if ($copySearchEntries.Count -gt 0) {
+        [string]$copySearchEntries.Count
+    } else {
+        Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_count"
+    }
+    $baselineCount = if ($baselineEntries.Count -gt 0) {
+        [string]$baselineEntries.Count
+    } else {
+        Get-OptionalPropertyValue -Object $summary -Name "baselines_count"
+    }
+
+    $evidence.cjk_copy_search_count = [string]$copySearchCount
     $evidence.cjk_missing_text_count = [string]$missingTextCount
-    $evidence.visual_baseline_count = [string]$baselineEntries.Count
+    $evidence.visual_baseline_count = [string]$baselineCount
 
     return [pscustomobject]$evidence
 }
