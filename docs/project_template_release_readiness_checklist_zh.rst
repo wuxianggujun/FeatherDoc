@@ -90,7 +90,12 @@ approval、content-control 和 release governance 报告之间手工拼结论。
    * ``scripts/build_release_governance_handoff_report.ps1`` 必须把同一批
      blocker / warning / action item 明细继续写入 handoff。
    * ``scripts/run_release_candidate_checks.ps1`` 生成的 summary / final review
-     不能只显示计数，必须保留可打开的 source JSON / report 路径。
+     不能只显示计数，必须保留可打开的 ``source_report_display`` /
+     ``source_json_display``。其中 ``steps.release_governance_handoff`` 和
+     ``final_review.md`` 必须能从 ``project_template_delivery_readiness`` 追溯到
+     ``project-template-delivery-readiness`` 汇总，并能从
+     ``project_template_onboarding_governance`` 回到
+     ``project-template-onboarding-governance`` 原始 JSON。
    * release blocker rollup、handoff、START_HERE、ARTIFACT_GUIDE 和
      REVIEWER_CHECKLIST 必须继续显示 content-control provenance，不得只保留
      ``source_json_display`` 与修复命令。

@@ -88,7 +88,12 @@ foreach ($marker in @(
     "build_release_governance_handoff_report.ps1",
     "run_release_candidate_checks.ps1",
     "assert_release_material_safety.ps1",
+    "steps.release_governance_handoff",
+    "final_review.md",
     "project_template_delivery_readiness_contract",
+    "project_template_onboarding_governance",
+    "project-template-delivery-readiness",
+    "project-template-onboarding-governance",
     "content-control provenance",
     "START_HERE.md",
     "ARTIFACT_GUIDE.md",
@@ -118,7 +123,14 @@ foreach ($marker in @(
     "input_docx",
     "template_name",
     "schema_target",
-    "target_mode"
+    "target_mode",
+    "steps.release_governance_handoff",
+    "final_review.md",
+    "Release governance handoff details",
+    "source_report_display",
+    "source_json_display",
+    "project-template-delivery-readiness",
+    "project-template-onboarding-governance"
 )) {
     Assert-ContainsText -Text $releasePipelineDoc -ExpectedText $marker `
         -Message "Release metadata pipeline docs should keep governance marker '$marker'."
