@@ -6,6 +6,14 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = Join-Path $RepoRoot "build\sync_github_release_notes_test"
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $summaryOutputDir = Join-Path $resolvedWorkingDir "output\release-candidate-checks"
@@ -95,7 +103,7 @@ switch ($Args[1]) {
             switch ($Args[$index]) {
                 "--notes-file" {
                     $index++
-                    $state.body = Get-Content -Raw -LiteralPath $Args[$index]
+                    $state.body = [string](Get-Content -Raw -LiteralPath $Args[$index])
                 }
                 "--title" {
                     $index++
