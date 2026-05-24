@@ -73,6 +73,7 @@ foreach ($field in $detailFields) {
 
 $testCommonDetailFields = @(
     "source_schema",
+    "source_report_display",
     "source_json_display"
 )
 

@@ -614,9 +614,15 @@ $projectStage = Get-StageById -Summary $summary -Id "project_template_delivery_r
 Assert-ContainsText -Text (($projectStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
     -Message "Pipeline project stage should expose onboarding blocker source schema."
+Assert-ContainsText -Text (($projectStage.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+    -ExpectedText "project-template-onboarding-governance\summary.json" `
+    -Message "Pipeline project stage should expose onboarding blocker source report display."
 Assert-ContainsText -Text (($projectStage.action_items | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "project-template-onboarding-governance\summary.json" `
     -Message "Pipeline project stage should expose onboarding action source JSON display."
+Assert-ContainsText -Text (($projectStage.action_items | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+    -ExpectedText "project-template-onboarding-governance\summary.json" `
+    -Message "Pipeline project stage should expose onboarding action source report display."
 Assert-ContainsText -Text (($projectStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "build_project_template_delivery_readiness_report.ps1" `
     -Message "Pipeline project stage should expose reviewer open command."
