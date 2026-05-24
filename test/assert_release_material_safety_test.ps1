@@ -774,6 +774,24 @@ if (-not $badManifestProjectTemplateReadinessSourceSchemaFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness contract missing source_schema."
 }
 
+$badManifestProjectTemplateReadinessSourceJsonDir = Join-Path $failDir "manifest-project-template-readiness-missing-source-json"
+$badManifestProjectTemplateReadinessSourceJsonPath = Join-Path $badManifestProjectTemplateReadinessSourceJsonDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessSourceJsonDir -Force | Out-Null
+$badManifestProjectTemplateReadinessSourceJson = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateReadinessSourceJson.project_template_delivery_readiness_contract.PSObject.Properties.Remove("source_json_display")
+($badManifestProjectTemplateReadinessSourceJson | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateReadinessSourceJsonPath -Encoding UTF8
+
+$badManifestProjectTemplateReadinessSourceJsonFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateReadinessSourceJsonPath
+} catch {
+    $badManifestProjectTemplateReadinessSourceJsonFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateReadinessSourceJsonFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness contract missing source_json_display."
+}
+
 $badManifestProjectTemplateReadinessSourceReportDir = Join-Path $failDir "manifest-project-template-readiness-missing-source-report"
 $badManifestProjectTemplateReadinessSourceReportPath = Join-Path $badManifestProjectTemplateReadinessSourceReportDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessSourceReportDir -Force | Out-Null
@@ -808,6 +826,24 @@ try {
 
 if (-not $badManifestProjectTemplateOnboardingSourceSchemaFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template onboarding contract missing source_schema."
+}
+
+$badManifestProjectTemplateOnboardingSourceJsonDir = Join-Path $failDir "manifest-project-template-onboarding-missing-source-json"
+$badManifestProjectTemplateOnboardingSourceJsonPath = Join-Path $badManifestProjectTemplateOnboardingSourceJsonDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateOnboardingSourceJsonDir -Force | Out-Null
+$badManifestProjectTemplateOnboardingSourceJson = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateOnboardingSourceJson.project_template_onboarding_governance_contract.PSObject.Properties.Remove("source_json_display")
+($badManifestProjectTemplateOnboardingSourceJson | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateOnboardingSourceJsonPath -Encoding UTF8
+
+$badManifestProjectTemplateOnboardingSourceJsonFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateOnboardingSourceJsonPath
+} catch {
+    $badManifestProjectTemplateOnboardingSourceJsonFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateOnboardingSourceJsonFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template onboarding contract missing source_json_display."
 }
 
 $badManifestProjectTemplateOnboardingSourceReportDir = Join-Path $failDir "manifest-project-template-onboarding-missing-source-report"
