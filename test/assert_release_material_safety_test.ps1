@@ -483,6 +483,18 @@ Set-Content -LiteralPath $passReleaseSummaryTracePath -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passReleaseSummaryTracePath
 
+$passReleaseBodyTraceDir = Join-Path $passDir "release-body-project-template-trace"
+$passReleaseBodyTracePath = Join-Path $passReleaseBodyTraceDir "release_body.zh-CN.md"
+New-Item -ItemType Directory -Path $passReleaseBodyTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseBodyTracePath -Encoding UTF8 -Value @"
+# Release body
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+& $auditScript -Path $passReleaseBodyTracePath
+
 $badEntryMissingGovernanceMetricDetailsDir = Join-Path $failDir "entry-missing-governance-metric-details"
 $badEntryMissingGovernanceMetricDetailsPath = Join-Path $badEntryMissingGovernanceMetricDetailsDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryMissingGovernanceMetricDetailsDir -Force | Out-Null
@@ -1394,6 +1406,26 @@ try {
 
 if (-not $badReleaseSummaryTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md without project-template source_json_display."
+}
+
+$badReleaseBodyTraceDir = Join-Path $failDir "release-body-missing-project-template-source-json"
+$badReleaseBodyTracePath = Join-Path $badReleaseBodyTraceDir "release_body.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseBodyTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBodyTracePath -Encoding UTF8 -Value @"
+# Release body
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+"@
+
+$badReleaseBodyTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBodyTracePath
+} catch {
+    $badReleaseBodyTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseBodyTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md without project-template source_json_display."
 }
 
 $badEntryGovernanceTracePath = Join-Path $failDir "ARTIFACT_GUIDE.md"

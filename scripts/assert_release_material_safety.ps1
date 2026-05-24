@@ -419,6 +419,62 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
     }
 }
 
+function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_body.zh-cn.md") {
+        return
+    }
+
+    $label = "release body project template governance trace"
+
+    if (Test-TextContainsAny -Text $Content -Needles @("project_template_delivery_readiness", "project_template_delivery_readiness_contract")) {
+        foreach ($needle in @(
+            "project_template_delivery_readiness",
+            "project_template_delivery_readiness_contract",
+            "source_schema=featherdoc.project_template_delivery_readiness_report.v1",
+            "status=",
+            "release_ready=",
+            "latest_schema_approval_gate_status=",
+            "source_report_display=",
+            "source_json_display="
+        )) {
+            if (-not $Content.Contains($needle)) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Release body lost project template readiness trace marker '$needle'."
+            }
+        }
+    }
+
+    if (Test-TextContainsAny -Text $Content -Needles @("project_template_onboarding.schema_approval", "project_template_onboarding_governance")) {
+        foreach ($needle in @(
+            "project_template_onboarding.schema_approval",
+            "project_template_onboarding_governance",
+            "project_template_onboarding_governance_contract",
+            "source_schema=featherdoc.project_template_onboarding_governance_report.v1",
+            "schema_approval_status_summary=",
+            "source_report_display=",
+            "source_json_display="
+        )) {
+            if (-not $Content.Contains($needle)) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Release body lost project template onboarding trace marker '$needle'."
+            }
+        }
+    }
+}
+
 function Add-ContentControlRepairContractViolations {
     param(
         [string]$File,
@@ -1178,6 +1234,7 @@ foreach ($file in $scanFiles) {
         $content = Get-Content -Raw -LiteralPath $file
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseBodyProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
     }
 
     if ([System.IO.Path]::GetExtension($file).ToLowerInvariant() -eq ".json") {
