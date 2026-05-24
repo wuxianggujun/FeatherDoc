@@ -569,6 +569,49 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
     }
 }
 
+function Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_governance_handoff.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "PDF visual gate evidence source reports",
+        "pdf_visual_gate_verdict",
+        "pdf_visual_gate_summary_json_display"
+    ))) {
+        return
+    }
+
+    $label = "release governance handoff PDF visual gate trace"
+    foreach ($needle in @(
+        "PDF visual gate evidence source reports:",
+        "source_report:",
+        "pdf_visual_gate_status:",
+        "pdf_visual_gate_verdict:",
+        "pdf_visual_gate_finalizable:",
+        "pdf_visual_gate_summary_json_display:",
+        "pdf_visual_gate_aggregate_contact_sheet_display:",
+        "aggregate-contact-sheet.png",
+        "pdf_visual_gate_cjk_copy_search_count:",
+        "pdf_visual_gate_visual_baseline_count:"
+    )) {
+        if (-not $Content.Contains($needle)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release governance handoff lost PDF visual gate trace marker '$needle'."
+        }
+    }
+}
+
 function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
     param(
         [string]$File,
@@ -1374,6 +1417,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseBodyProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
     }
 

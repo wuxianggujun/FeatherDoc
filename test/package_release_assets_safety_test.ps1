@@ -168,6 +168,19 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
 
 - numbering_catalog_governance.real_corpus_confidence: report=numbering_catalog_governance metric=real_corpus_confidence level=low score=56 source_schema=featherdoc.numbering_catalog_governance_report.v1
 - table_layout_delivery_governance.delivery_quality: report=table_layout_delivery_governance metric=delivery_quality level=release_ready score=100 source_schema=featherdoc.table_layout_delivery_governance_report.v1
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- PDF visual gate evidence source reports: ``1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - pdf_visual_gate_status: ``loaded``
+    - pdf_visual_gate_verdict: ``pass``
+    - pdf_visual_gate_finalizable: ``True``
+    - pdf_visual_gate_summary_json_display: ``$pdfGateSummaryPath``
+    - pdf_visual_gate_aggregate_contact_sheet_display: ``$pdfGateAggregateContactSheetPath``
+    - pdf_visual_gate_cjk_copy_search_count: ``2``
+    - pdf_visual_gate_visual_baseline_count: ``3``
 "@
 
 Set-Content -LiteralPath $releaseBodyPath -Encoding UTF8 -Value @"
@@ -620,6 +633,14 @@ Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'source_json_di
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'latest_schema_approval_gate_status' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'schema_approval_status_summary' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText '.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'PDF visual gate evidence source reports: `1`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_verdict: `pass`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_finalizable: `True`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_summary_json_display' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_aggregate_contact_sheet_display' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'aggregate-contact-sheet.png' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_cjk_copy_search_count: `2`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_visual_baseline_count: `3`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness_contract:' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'source_schema: featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_handoff.md'
