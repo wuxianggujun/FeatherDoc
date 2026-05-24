@@ -407,6 +407,19 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual baseline manifest samples: 42" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual baselines: 3" -Label $assertion.Label
 }
+foreach ($fragments in @(
+        @("PDF visual gate summary", "pdf-visual-gate\report\summary.json"),
+        @("PDF visual gate evidence status", "loaded"),
+        @("PDF visual gate verdict", "pass"),
+        @("PDF visual aggregate contact sheet", "aggregate-contact-sheet.png"),
+        @("PDF CJK manifest samples", "43"),
+        @("PDF CJK copy/search samples", "2"),
+        @("PDF CJK missing text count", "0"),
+        @("PDF visual baseline manifest samples", "42"),
+        @("PDF visual baselines", "3")
+    )) {
+    Assert-LineContainsAll -Path $bodyPath -Fragments $fragments -Label "release_body.zh-CN.md"
+}
 Assert-Contains -Path $checklistPath -ExpectedText 'Confirm the PDF visual gate finalize evidence is signed off: verdict `pass`' -Label "REVIEWER_CHECKLIST.md"
 Assert-Contains -Path $checklistPath -ExpectedText 'CJK manifest samples `43`' -Label "REVIEWER_CHECKLIST.md"
 Assert-Contains -Path $checklistPath -ExpectedText 'visual baseline manifest samples `42`' -Label "REVIEWER_CHECKLIST.md"
@@ -507,7 +520,16 @@ foreach ($fragment in @(
         'fixed-grid=`fail`',
         'section page setup=`undetermined`',
         'page number fields=`pending_manual_review`',
-        'Curated review verdict metadata=`pass`'
+        'Curated review verdict metadata=`pass`',
+        'PDF visual gate',
+        'verdict=pass',
+        'summary=',
+        'pdf-visual-gate\report\summary.json',
+        'aggregate-contact-sheet.png',
+        'cjk_manifest_count=43',
+        'cjk_copy_search_count=2',
+        'visual_baseline_manifest_count=42',
+        'visual_baseline_count=3'
     )) {
     Assert-Contains -Path $shortPath -ExpectedText $fragment -Label "release_summary.zh-CN.md"
 }

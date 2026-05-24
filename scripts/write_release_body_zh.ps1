@@ -524,6 +524,34 @@ function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
     }
 }
 
+function Add-PdfVisualGateEvidenceShortSummaryBullets {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$PdfVisualGateEvidence,
+        [string]$RepoRoot
+    )
+
+    if ($null -eq $PdfVisualGateEvidence) {
+        return
+    }
+
+    $status = Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "status"
+    if ($status -ne "loaded") {
+        return
+    }
+
+    Add-UniqueLine -Lines $Lines -Line (
+        'PDF visual gate 已进入短摘要：verdict={0} summary={1} aggregate_contact_sheet={2} cjk_manifest_count={3} cjk_copy_search_count={4} visual_baseline_manifest_count={5} visual_baseline_count={6}。' -f `
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "verdict")),
+            (Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $RepoRoot -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "summary_json"))),
+            (Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $RepoRoot -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "aggregate_contact_sheet"))),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "cjk_manifest_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "cjk_copy_search_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "visual_baseline_manifest_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "visual_baseline_count"))
+    )
+}
+
 function Normalize-ReleaseFacingText {
     param([string]$Text)
 
@@ -1029,6 +1057,8 @@ $fixedGridReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $summary.
 $sectionPageSetupReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary)
+$pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
+$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath
 
 $installedDataDir = ""
 $installedQuickstartZh = ""
@@ -1102,6 +1132,7 @@ foreach ($shortSummaryBullet in $shortSummaryBulletResults) {
     Add-UniqueLine -Lines $shortSummaryBullets -Line ([string]$shortSummaryBullet)
 }
 Add-ProjectTemplateGovernanceContractShortSummaryBullets -Lines $shortSummaryBullets -Summary $summary
+Add-PdfVisualGateEvidenceShortSummaryBullets -Lines $shortSummaryBullets -PdfVisualGateEvidence $pdfVisualGateEvidence -RepoRoot $repoRoot
 
 $releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1"
 $releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
@@ -1139,6 +1170,21 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- install + find_package smoke：$($summary.steps.install_smoke.status)")
 [void]$lines.Add("- Word visual release gate：$($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict：$(if ($visualVerdict) { $visualVerdict } else { 'pending_manual_review' })")
+if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.status)) {
+    [void]$lines.Add("- PDF visual gate summary：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $pdfVisualGateEvidence.summary_json))")
+    [void]$lines.Add("- PDF visual gate evidence status：$(Get-DisplayValue -Value $pdfVisualGateEvidence.status)")
+    if ($pdfVisualGateEvidence.status -eq "loaded") {
+        [void]$lines.Add("- PDF visual gate verdict：$(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
+        [void]$lines.Add("- PDF visual aggregate contact sheet：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $pdfVisualGateEvidence.aggregate_contact_sheet))")
+        [void]$lines.Add("- PDF CJK manifest samples：$(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_manifest_count)")
+        [void]$lines.Add("- PDF CJK copy/search samples：$(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count)")
+        [void]$lines.Add("- PDF CJK missing text count：$(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_missing_text_count)")
+        [void]$lines.Add("- PDF visual baseline manifest samples：$(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_manifest_count)")
+        [void]$lines.Add("- PDF visual baselines：$(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_count)")
+    } elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.error)) {
+        [void]$lines.Add("- PDF visual gate evidence error：$($pdfVisualGateEvidence.error)")
+    }
+}
 [void]$lines.Add("- Smoke verdict：$(Get-DisplayValue -Value $smokeVerdict)")
 [void]$lines.Add("- Smoke review status：$(Get-DisplayValue -Value $smokeReviewStatus)")
 [void]$lines.Add("- Fixed-grid verdict：$(Get-DisplayValue -Value $fixedGridVerdict)")
