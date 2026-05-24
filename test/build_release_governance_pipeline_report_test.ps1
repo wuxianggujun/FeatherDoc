@@ -637,12 +637,21 @@ $calibrationStage = Get-StageById -Summary $summary -Id "schema_patch_confidence
 Assert-ContainsText -Text (($calibrationStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
     -Message "Pipeline calibration stage should expose blocker source schema."
+Assert-ContainsText -Text (($calibrationStage.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+    -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+    -Message "Pipeline calibration stage should expose blocker source report display."
 Assert-ContainsText -Text (($calibrationStage.warnings | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "schema-patch-confidence-calibration\summary.json" `
     -Message "Pipeline calibration stage should expose warning source JSON display."
+Assert-ContainsText -Text (($calibrationStage.warnings | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+    -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+    -Message "Pipeline calibration stage should expose warning source report display."
 Assert-ContainsText -Text (($calibrationStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
     -Message "Pipeline calibration stage should expose reviewer open command."
+Assert-ContainsText -Text (($calibrationStage.action_items | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+    -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+    -Message "Pipeline calibration stage should expose action source report display."
 Assert-ContainsText -Text (($calibrationStage.release_blockers | ForEach-Object { [string]$_.project_id }) -join "`n") `
     -ExpectedText "project-finance" `
     -Message "Pipeline calibration stage should preserve blocker project id."
