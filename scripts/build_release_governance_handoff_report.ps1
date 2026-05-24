@@ -129,6 +129,49 @@ function Get-JsonArray {
     return @($value)
 }
 
+function Get-FirstJsonProperty {
+    param($Object, [string[]]$Names)
+
+    foreach ($name in @($Names)) {
+        $value = Get-JsonProperty -Object $Object -Name $name
+        if ($null -eq $value) { continue }
+        if ($value -is [string] -and [string]::IsNullOrWhiteSpace($value)) { continue }
+        return $value
+    }
+
+    return $null
+}
+
+function Get-PdfVisualGateRollupEvidence {
+    param($RollupSummary)
+
+    return @(
+        foreach ($sourceReport in @(Get-JsonArray -Object $RollupSummary -Name "source_reports")) {
+            $verdict = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_verdict"
+            $status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_status"
+            if ([string]::IsNullOrWhiteSpace($verdict) -and [string]::IsNullOrWhiteSpace($status)) {
+                continue
+            }
+
+            [ordered]@{
+                schema = Get-JsonString -Object $sourceReport -Name "schema"
+                path_display = Get-JsonString -Object $sourceReport -Name "path_display"
+                full_visual_gate_status = Get-JsonString -Object $sourceReport -Name "full_visual_gate_status"
+                pdf_visual_gate_status = $status
+                pdf_visual_gate_verdict = $verdict
+                pdf_visual_gate_finalizable = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_finalizable")
+                pdf_visual_gate_summary_json_display = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_summary_json_display"
+                pdf_visual_gate_aggregate_contact_sheet_display = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_aggregate_contact_sheet_display"
+                pdf_visual_gate_cjk_manifest_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_cjk_manifest_count")
+                pdf_visual_gate_cjk_copy_search_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_cjk_copy_search_count")
+                pdf_visual_gate_cjk_missing_text_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_cjk_missing_text_count")
+                pdf_visual_gate_visual_baseline_manifest_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_visual_baseline_manifest_count")
+                pdf_visual_gate_visual_baseline_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_visual_baseline_count")
+            }
+        }
+    )
+}
+
 function Get-GovernanceMetricByContract {
     param(
         $Metrics,
@@ -527,6 +570,34 @@ function New-ReportMarkdown {
     $lines.Add("- Governance metrics: ``$($Summary.governance_metric_count)``") | Out-Null
     $lines.Add("") | Out-Null
 
+    if ([bool]$Summary.release_blocker_rollup.included) {
+        $rollup = $Summary.release_blocker_rollup
+        $lines.Add("## Release Blocker Rollup") | Out-Null
+        $lines.Add("") | Out-Null
+        $lines.Add("- Status: ``$($rollup.status)``") | Out-Null
+        $lines.Add("- Summary: ``$($rollup.summary_json_display)``") | Out-Null
+        $lines.Add("- Report: ``$($rollup.report_markdown_display)``") | Out-Null
+        $lines.Add("- Source reports: ``$($rollup.source_report_count)``") | Out-Null
+        $lines.Add("- Release blockers: ``$($rollup.release_blocker_count)``") | Out-Null
+        $lines.Add("- Action items: ``$($rollup.action_item_count)``") | Out-Null
+        $lines.Add("- Warnings: ``$($rollup.warning_count)``") | Out-Null
+        $lines.Add("- PDF visual gate evidence source reports: ``$($rollup.pdf_visual_gate_evidence_source_report_count)``") | Out-Null
+        foreach ($evidence in @($rollup.pdf_visual_gate_evidence_source_reports)) {
+            $lines.Add("  - source_report: ``$($evidence.path_display)`` schema=``$($evidence.schema)``") | Out-Null
+            $lines.Add("    - pdf_visual_gate_status: ``$($evidence.pdf_visual_gate_status)``") | Out-Null
+            $lines.Add("    - pdf_visual_gate_verdict: ``$($evidence.pdf_visual_gate_verdict)``") | Out-Null
+            $lines.Add("    - pdf_visual_gate_finalizable: ``$($evidence.pdf_visual_gate_finalizable)``") | Out-Null
+            $lines.Add("    - pdf_visual_gate_summary_json_display: ``$($evidence.pdf_visual_gate_summary_json_display)``") | Out-Null
+            $lines.Add("    - pdf_visual_gate_aggregate_contact_sheet_display: ``$($evidence.pdf_visual_gate_aggregate_contact_sheet_display)``") | Out-Null
+            $lines.Add("    - pdf_visual_gate_cjk_copy_search_count: ``$($evidence.pdf_visual_gate_cjk_copy_search_count)``") | Out-Null
+            $lines.Add("    - pdf_visual_gate_visual_baseline_count: ``$($evidence.pdf_visual_gate_visual_baseline_count)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$evidence.full_visual_gate_status)) {
+                $lines.Add("    - full_visual_gate_status: ``$($evidence.full_visual_gate_status)``") | Out-Null
+            }
+        }
+        $lines.Add("") | Out-Null
+    }
+
     $lines.Add("## Governance Metric Review Focus") | Out-Null
     $lines.Add("") | Out-Null
     $focusMetrics = @(
@@ -867,12 +938,20 @@ $summary = [ordered]@{
     report_markdown_display = Get-DisplayPath -RepoRoot $repoRoot -Path $markdownPath
     release_blocker_rollup = [ordered]@{
         included = [bool]$IncludeReleaseBlockerRollup
+        status = if ($IncludeReleaseBlockerRollup) { "pending" } else { "not_requested" }
         output_dir = $releaseBlockerRollupOutputDir
         output_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBlockerRollupOutputDir
         summary_json = $releaseBlockerRollupSummaryPath
         summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBlockerRollupSummaryPath
         report_markdown = $releaseBlockerRollupMarkdownPath
         report_markdown_display = Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBlockerRollupMarkdownPath
+        source_report_count = 0
+        source_failure_count = 0
+        release_blocker_count = 0
+        action_item_count = 0
+        warning_count = 0
+        pdf_visual_gate_evidence_source_report_count = 0
+        pdf_visual_gate_evidence_source_reports = @()
     }
     expected_report_count = $expectedReports.Count
     loaded_report_count = $loadedReportCount
@@ -900,6 +979,12 @@ if ($IncludeReleaseBlockerRollup) {
         foreach ($report in $loadedReports) {
             [string]$report.expected_summary
         }
+        foreach ($input in @(Expand-InputPathList -Paths $InputJson)) {
+            $path = Resolve-RepoPath -RepoRoot $repoRoot -Path $input -AllowMissing
+            if (Test-Path -LiteralPath $path) {
+                $path
+            }
+        }
     )
     Invoke-ReleaseBlockerRollup `
         -RepoRoot $repoRoot `
@@ -911,6 +996,19 @@ if ($IncludeReleaseBlockerRollup) {
     if (-not (Test-Path -LiteralPath $releaseBlockerRollupMarkdownPath)) {
         throw "Release blocker rollup Markdown was not written: $releaseBlockerRollupMarkdownPath"
     }
+
+    $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseBlockerRollupSummaryPath | ConvertFrom-Json
+    $pdfVisualGateEvidence = @(Get-PdfVisualGateRollupEvidence -RollupSummary $rollupSummary)
+    $summary.release_blocker_rollup.status = [string]$rollupSummary.status
+    $summary.release_blocker_rollup.source_report_count = [int]$rollupSummary.source_report_count
+    $summary.release_blocker_rollup.source_failure_count = [int]$rollupSummary.source_failure_count
+    $summary.release_blocker_rollup.release_blocker_count = [int]$rollupSummary.release_blocker_count
+    $summary.release_blocker_rollup.action_item_count = [int]$rollupSummary.action_item_count
+    $summary.release_blocker_rollup.warning_count = [int]$rollupSummary.warning_count
+    $summary.release_blocker_rollup.pdf_visual_gate_evidence_source_report_count = @($pdfVisualGateEvidence).Count
+    $summary.release_blocker_rollup.pdf_visual_gate_evidence_source_reports = @($pdfVisualGateEvidence)
+    ($summary | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
+    (New-ReportMarkdown -Summary $summary) | Set-Content -LiteralPath $markdownPath -Encoding UTF8
 }
 
 Write-Step "Summary JSON: $summaryPath"

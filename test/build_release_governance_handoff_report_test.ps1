@@ -743,11 +743,42 @@ if (Test-Scenario -Name "explicit_input") {
 
 if (Test-Scenario -Name "include_rollup") {
     $inputRoot = Join-Path $resolvedWorkingDir "include-rollup-input"
+    $explicitRoot = Join-Path $resolvedWorkingDir "include-rollup-explicit"
     $outputDir = Join-Path $resolvedWorkingDir "include-rollup-report"
+    $releaseCandidateSummaryPath = Join-Path $explicitRoot "release-candidate-summary.json"
     Write-GovernanceFixtures -Root $inputRoot
+    Write-JsonFile -Path $releaseCandidateSummaryPath -Value ([ordered]@{
+        project_template_smoke = [ordered]@{
+            status = "ready"
+        }
+        status = "ready"
+        release_ready = $true
+        pdf_visual_gate_summary_json = "output/pdf-visual-release-gate-current/report/summary.json"
+        release_blocker_count = 0
+        release_blockers = @()
+        action_item_count = 0
+        action_items = @()
+        warning_count = 0
+        warnings = @()
+        steps = [ordered]@{
+            pdf_visual_gate = [ordered]@{
+                status = "loaded"
+                verdict = "pass"
+                finalizable = $true
+                summary_json = "output/pdf-visual-release-gate-current/report/summary.json"
+                aggregate_contact_sheet = "output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png"
+                cjk_manifest_count = 43
+                cjk_copy_search_count = 43
+                cjk_missing_text_count = 0
+                visual_baseline_manifest_count = 42
+                visual_baseline_count = 44
+            }
+        }
+    })
 
     $result = Invoke-HandoffScript -Arguments @(
         "-InputRoot", $inputRoot,
+        "-InputJson", $releaseCandidateSummaryPath,
         "-OutputDir", $outputDir,
         "-IncludeReleaseBlockerRollup"
     )
@@ -767,12 +798,43 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should record the included rollup."
     Assert-Equal -Actual ([string]$summary.release_blocker_rollup.summary_json) -Expected $rollupSummaryPath `
         -Message "Handoff summary should expose nested rollup summary path."
+    Assert-Equal -Actual ([string]$summary.release_blocker_rollup.status) -Expected "blocked" `
+        -Message "Handoff summary should consume nested rollup status."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.source_report_count) -Expected 6 `
+        -Message "Handoff summary should consume nested rollup source report count."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.release_blocker_count) -Expected 4 `
+        -Message "Handoff summary should consume nested rollup blocker count."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -Expected 5 `
+        -Message "Handoff summary should consume nested rollup action item count."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 2 `
+        -Message "Handoff summary should consume nested rollup warning count."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.pdf_visual_gate_evidence_source_report_count) -Expected 1 `
+        -Message "Handoff summary should consume nested PDF visual gate evidence count."
+    $pdfEvidence = $summary.release_blocker_rollup.pdf_visual_gate_evidence_source_reports | Select-Object -First 1
+    Assert-True -Condition ($null -ne $pdfEvidence) `
+        -Message "Handoff summary should expose at least one PDF visual gate evidence source report."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_status) -Expected "loaded" `
+        -Message "Handoff summary should expose PDF visual gate status from the nested rollup."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_verdict) -Expected "pass" `
+        -Message "Handoff summary should expose PDF visual gate verdict from the nested rollup."
+    Assert-Equal -Actual ([bool]$pdfEvidence.pdf_visual_gate_finalizable) -Expected $true `
+        -Message "Handoff summary should expose PDF visual gate finalizable state from the nested rollup."
+    Assert-ContainsText -Text ([string]$pdfEvidence.pdf_visual_gate_summary_json_display) `
+        -ExpectedText "pdf-visual-release-gate-current\report\summary.json" `
+        -Message "Handoff summary should expose PDF visual gate summary display path from the nested rollup."
+    Assert-ContainsText -Text ([string]$pdfEvidence.pdf_visual_gate_aggregate_contact_sheet_display) `
+        -ExpectedText "pdf-visual-release-gate-current\report\aggregate-contact-sheet.png" `
+        -Message "Handoff summary should expose PDF visual gate contact-sheet display path from the nested rollup."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_cjk_copy_search_count) -Expected 43 `
+        -Message "Handoff summary should expose PDF CJK copy/search count from the nested rollup."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_visual_baseline_count) -Expected 44 `
+        -Message "Handoff summary should expose PDF visual baseline count from the nested rollup."
 
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
         -Message "Nested rollup should expose release blocker rollup schema."
-    Assert-Equal -Actual ([int]$rollupSummary.source_report_count) -Expected 5 `
-        -Message "Nested rollup should consume all loaded governance reports."
+    Assert-Equal -Actual ([int]$rollupSummary.source_report_count) -Expected 6 `
+        -Message "Nested rollup should consume all loaded governance reports and explicit release-candidate evidence."
     Assert-Equal -Actual ([int]$rollupSummary.release_blocker_count) -Expected 4 `
         -Message "Nested rollup should preserve blocker count."
     Assert-Equal -Actual ([int]$rollupSummary.action_item_count) -Expected 5 `
@@ -800,6 +862,20 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (($rollupSummary.warnings | ForEach-Object { [string]$_.candidate_type }) -join "`n") `
         -ExpectedText "rename" `
         -Message "Nested rollup should preserve calibration candidate type."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "PDF visual gate evidence source reports: ``1``" `
+        -Message "Handoff Markdown should expose the PDF visual gate evidence count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict: ``pass``" `
+        -Message "Handoff Markdown should expose the PDF visual gate verdict."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_summary_json_display" `
+        -Message "Handoff Markdown should expose the PDF visual gate summary display field."
+    Assert-ContainsText -Text $markdown -ExpectedText "aggregate-contact-sheet.png" `
+        -Message "Handoff Markdown should expose the PDF visual gate contact sheet."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_cjk_copy_search_count: ``43``" `
+        -Message "Handoff Markdown should expose the PDF CJK copy/search count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_visual_baseline_count: ``44``" `
+        -Message "Handoff Markdown should expose the PDF visual baseline count."
 }
 
 Write-Host "Release governance handoff report regression passed."
