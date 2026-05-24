@@ -279,6 +279,7 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "project_template_delivery_readiness_contract",
             "featherdoc.project_template_delivery_readiness_report.v1",
             "latest_schema_approval_gate_status",
+            "source_report_display",
             "source_json_display"
         )) {
             if (-not $Content.Contains($needle)) {
@@ -295,6 +296,7 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "project_template_onboarding_governance_contract",
             "featherdoc.project_template_onboarding_governance_report.v1",
             "schema_approval_status_summary",
+            "source_report_display",
             "source_json_display"
         )) {
             if (-not $Content.Contains($needle)) {
