@@ -18,6 +18,28 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $auditScript = Join-Path $resolvedRepoRoot "scripts\assert_release_material_safety.ps1"
 
+$contentControlInputDocx = "samples/invoice.docx"
+$contentControlInputDocxDisplay = ".\samples\invoice.docx"
+$contentControlTemplateName = "invoice-template"
+$contentControlSchemaTarget = "invoice"
+$contentControlTargetMode = "resolved-section-targets"
+
+function New-TestContentControlRepairContract {
+    return [ordered]@{
+        id = "content_control_data_binding.bound_placeholder"
+        source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+        source_json_display = ".\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json"
+        input_docx = $script:contentControlInputDocx
+        input_docx_display = $script:contentControlInputDocxDisplay
+        template_name = $script:contentControlTemplateName
+        schema_target = $script:contentControlSchemaTarget
+        target_mode = $script:contentControlTargetMode
+        repair_strategy = "sync_bound_content_control"
+        repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
+        command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+    }
+}
+
 $passDir = Join-Path $resolvedWorkingDir "pass"
 $failDir = Join-Path $resolvedWorkingDir "fail"
 New-Item -ItemType Directory -Path $passDir -Force | Out-Null
@@ -241,14 +263,7 @@ $passManifest = [ordered]@{
     table_layout_delivery_quality = (New-TableLayoutDeliveryQualityMirror -GovernanceMetrics $governanceMetrics)
     content_control_repair_contract_count = 1
     content_control_repair_contracts = @(
-        [ordered]@{
-            id = "content_control_data_binding.bound_placeholder"
-            source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
-            source_json_display = ".\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json"
-            repair_strategy = "sync_bound_content_control"
-            repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
-            command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
-        }
+        (New-TestContentControlRepairContract)
     )
     project_template_delivery_readiness_contract = $projectTemplateDeliveryReadinessContract
     project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
@@ -391,6 +406,11 @@ $passContentControlSummary = [ordered]@{
             severity = "blocker"
             source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            input_docx = $contentControlInputDocx
+            input_docx_display = $contentControlInputDocxDisplay
+            template_name = $contentControlTemplateName
+            schema_target = $contentControlSchemaTarget
+            target_mode = $contentControlTargetMode
             repair_strategy = "sync_bound_content_control"
             repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
             command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
@@ -406,6 +426,7 @@ Set-Content -LiteralPath $passEntryGovernanceTracePath -Encoding UTF8 -Value @"
 # START_HERE
 
 - Content-control repair: content_control_data_binding.bound_placeholder -> sync_bound_content_control
+- Content-control provenance: input_docx=samples/invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control contract: source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json

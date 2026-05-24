@@ -112,6 +112,7 @@ Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 # START_HERE
 
 - Evidence root: $resolvedRepoRoot\output\release-candidate-checks\report
+- Content-control provenance: input_docx=samples/invoice.docx input_docx_display=.\samples\invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
@@ -160,6 +161,7 @@ Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - Project template onboarding governance: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- Content-control provenance: input_docx=samples/invoice.docx input_docx_display=.\samples\invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
 - PDF visual gate summary: $pdfGateSummaryPath
 - PDF CJK copy/search samples: 2
@@ -173,6 +175,7 @@ Set-Content -LiteralPath $reviewerChecklistPath -Encoding UTF8 -Value @"
 - Review root: $resolvedRepoRoot\output\word-visual-release-gate\report
 - Confirm governance_metrics before publishing release assets.
 - Confirm numbering_catalog_governance.real_corpus_confidence catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20) before publishing release assets.
+- Confirm content-control provenance input_docx=samples/invoice.docx input_docx_display=.\samples\invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets before release.
 - Check content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json before release.
 - Confirm project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json before release.
 - Check project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json before release.
@@ -303,6 +306,11 @@ $contentControlSummary = [ordered]@{
             repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
             command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            template_name = "invoice-template"
+            schema_target = "invoice"
+            target_mode = "resolved-section-targets"
         }
     )
 }
@@ -544,6 +552,10 @@ Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'table_layout_d
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'featherdoc.content_control_data_binding_governance_report.v1' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'source_json_display' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'input_docx=samples/invoice.docx' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'template_name=invoice-template' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'schema_target=invoice' -Label 'staged START_HERE.md'
+Assert-Contains -Path $stagedStartHerePath -ExpectedText 'target_mode=resolved-section-targets' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'repair_strategy' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'repair_hint' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'sync_bound_content_control' -Label 'staged START_HERE.md'
@@ -573,6 +585,10 @@ Assert-Contains -Path $stagedStartHerePath -ExpectedText 'aggregate-contact-shee
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'featherdoc.content_control_data_binding_governance_report.v1' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'source_json_display' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'input_docx=samples/invoice.docx' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'template_name=invoice-template' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'schema_target=invoice' -Label 'staged ARTIFACT_GUIDE.md'
+Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'target_mode=resolved-section-targets' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'repair_strategy' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'repair_hint' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'sync_bound_content_control' -Label 'staged ARTIFACT_GUIDE.md'
@@ -605,6 +621,10 @@ Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'PDF visual baselin
 Assert-Contains -Path $stagedArtifactGuidePath -ExpectedText 'aggregate-contact-sheet.png' -Label 'staged ARTIFACT_GUIDE.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'featherdoc.content_control_data_binding_governance_report.v1' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'source_json_display' -Label 'staged REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'input_docx=samples/invoice.docx' -Label 'staged REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'template_name=invoice-template' -Label 'staged REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'schema_target=invoice' -Label 'staged REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'target_mode=resolved-section-targets' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'repair_strategy' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'repair_hint' -Label 'staged REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $stagedReviewerChecklistPath -ExpectedText 'command_template' -Label 'staged REVIEWER_CHECKLIST.md'
@@ -634,6 +654,9 @@ Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'content_co
 Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'sync_bound_content_control' -Label 'staged content-control summary'
 Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'command_template' -Label 'staged content-control summary'
 Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'sync-content-controls-from-custom-xml' -Label 'staged content-control summary'
+Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'samples/invoice.docx' -Label 'staged content-control summary'
+Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'invoice-template' -Label 'staged content-control summary'
+Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'resolved-section-targets' -Label 'staged content-control summary'
 Assert-Contains -Path $stagedProjectTemplateDeliveryReadinessSummaryPath -ExpectedText 'featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged project-template readiness summary'
 Assert-Contains -Path $stagedProjectTemplateDeliveryReadinessSummaryPath -ExpectedText 'latest_schema_approval_gate_status' -Label 'staged project-template readiness summary'
 Assert-Contains -Path $stagedProjectTemplateOnboardingGovernanceSummaryPath -ExpectedText 'featherdoc.project_template_onboarding_governance_report.v1' -Label 'staged project-template onboarding governance summary'
@@ -806,6 +829,21 @@ if ($null -eq $manifestContentControlContract) {
 }
 if ([string]$manifestContentControlContract.source_schema -ne "featherdoc.content_control_data_binding_governance_report.v1") {
     throw "release_assets_manifest.json lost the content-control governance source schema."
+}
+if ([string]$manifestContentControlContract.input_docx -ne "samples/invoice.docx") {
+    throw "release_assets_manifest.json lost content-control input_docx provenance."
+}
+if ([string]$manifestContentControlContract.input_docx_display -ne ".\samples\invoice.docx") {
+    throw "release_assets_manifest.json lost content-control input_docx_display provenance."
+}
+if ([string]$manifestContentControlContract.template_name -ne "invoice-template") {
+    throw "release_assets_manifest.json lost content-control template_name provenance."
+}
+if ([string]$manifestContentControlContract.schema_target -ne "invoice") {
+    throw "release_assets_manifest.json lost content-control schema_target provenance."
+}
+if ([string]$manifestContentControlContract.target_mode -ne "resolved-section-targets") {
+    throw "release_assets_manifest.json lost content-control target_mode provenance."
 }
 if ([string]$manifestContentControlContract.repair_strategy -ne "sync_bound_content_control") {
     throw "release_assets_manifest.json lost sync_bound_content_control repair strategy."

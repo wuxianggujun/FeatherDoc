@@ -55,6 +55,11 @@ function Assert-ContentControlGovernanceTrace {
         'source_schema=featherdoc.content_control_data_binding_governance_report.v1',
         'source_report_display: .\output\content-control-data-binding-governance\summary.json',
         'source_json_display: .\output\content-control-data-binding\inspect-content-controls.json',
+        'input_docx_display: .\samples\invoice.docx',
+        'input_docx: samples/invoice.docx',
+        'template_name=invoice-template',
+        'schema_target: invoice',
+        'target_mode: resolved-section-targets',
         'repair_strategy: sync_bound_content_control',
         'repair_hint: Rerun Custom XML sync or explicitly fill the bound content control before release.',
         $contentControlCommandTemplateMarker,
@@ -328,6 +333,11 @@ $summary = [ordered]@{
                 source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
                 source_report_display = ".\output\content-control-data-binding-governance\summary.json"
                 source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+                input_docx = "samples/invoice.docx"
+                input_docx_display = ".\samples\invoice.docx"
+                template_name = "invoice-template"
+                schema_target = "invoice"
+                target_mode = "resolved-section-targets"
                 repair_strategy = "sync_bound_content_control"
                 repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
                 command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
@@ -429,6 +439,11 @@ $summary = [ordered]@{
                 source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
                 source_report_display = ".\output\content-control-data-binding-governance\summary.json"
                 source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+                input_docx = "samples/invoice.docx"
+                input_docx_display = ".\samples\invoice.docx"
+                template_name = "invoice-template"
+                schema_target = "invoice"
+                target_mode = "resolved-section-targets"
                 open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
                 repair_strategy = "deduplicate_or_confirm_shared_binding"
                 repair_hint = "Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths."
@@ -521,6 +536,11 @@ $summary = [ordered]@{
                 source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
                 source_report_display = ".\output\content-control-data-binding-governance\summary.json"
                 source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+                input_docx = "samples/invoice.docx"
+                input_docx_display = ".\samples\invoice.docx"
+                template_name = "invoice-template"
+                schema_target = "invoice"
+                target_mode = "resolved-section-targets"
             },
             [ordered]@{
                 id = "schema_patch_confidence_calibration.unscored_candidates"

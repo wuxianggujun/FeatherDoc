@@ -406,6 +406,10 @@ function Add-NormalizedBlockers {
             source_report_display = $sourceReportDisplay
             source_json = $sourceJson
             source_json_display = $sourceJsonDisplay
+            input_docx = Get-JsonString -Object $blocker -Name "input_docx"
+            input_docx_display = Get-JsonString -Object $blocker -Name "input_docx_display"
+            schema_target = Get-JsonString -Object $blocker -Name "schema_target"
+            target_mode = Get-JsonString -Object $blocker -Name "target_mode"
             repair_strategy = Get-JsonString -Object $blocker -Name "repair_strategy"
             repair_hint = Get-JsonString -Object $blocker -Name "repair_hint"
             command_template = Get-JsonString -Object $blocker -Name "command_template"
@@ -444,6 +448,10 @@ function Add-NormalizedActions {
             source_report_display = $sourceReportDisplay
             source_json = $sourceJson
             source_json_display = $sourceJsonDisplay
+            input_docx = Get-JsonString -Object $item -Name "input_docx"
+            input_docx_display = Get-JsonString -Object $item -Name "input_docx_display"
+            schema_target = Get-JsonString -Object $item -Name "schema_target"
+            target_mode = Get-JsonString -Object $item -Name "target_mode"
             repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
             repair_hint = Get-JsonString -Object $item -Name "repair_hint"
             command_template = Get-JsonString -Object $item -Name "command_template"
@@ -476,6 +484,10 @@ function Add-NormalizedWarnings {
             source_report_display = $sourceReportDisplay
             source_json = $sourceJson
             source_json_display = $sourceJsonDisplay
+            input_docx = Get-JsonString -Object $warning -Name "input_docx"
+            input_docx_display = Get-JsonString -Object $warning -Name "input_docx_display"
+            schema_target = Get-JsonString -Object $warning -Name "schema_target"
+            target_mode = Get-JsonString -Object $warning -Name "target_mode"
         }) | Out-Null
     }
 }

@@ -252,6 +252,10 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
         foreach ($needle in @(
             "featherdoc.content_control_data_binding_governance_report.v1",
             "source_json_display",
+            "input_docx",
+            "template_name",
+            "schema_target",
+            "target_mode",
             "repair_strategy",
             "repair_hint",
             "Rerun Custom XML sync",
@@ -423,6 +427,17 @@ function Add-ContentControlRepairContractViolations {
                 -File $File `
                 -Label $label `
                 -Text "content_control_data_binding.bound_placeholder must carry source_json_display."
+        }
+
+        foreach ($fieldName in @("input_docx", "template_name", "schema_target", "target_mode")) {
+            $fieldValue = [string](Get-JsonPropertyValue -Object $blocker -Name $fieldName)
+            if ([string]::IsNullOrWhiteSpace($fieldValue)) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "content_control_data_binding.bound_placeholder must carry $fieldName provenance."
+            }
         }
 
         $repairStrategy = [string](Get-JsonPropertyValue -Object $blocker -Name "repair_strategy")

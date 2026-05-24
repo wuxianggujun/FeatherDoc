@@ -956,6 +956,21 @@ function Add-ReleaseGovernanceRollupSourceLines {
 
     [void]$Lines.Add("  - source_report_display: $sourceReportDisplay")
     [void]$Lines.Add("  - source_json_display: $sourceJsonDisplay")
+    Add-ReleaseGovernanceProvenanceLines -Lines $Lines -Item $Item
+}
+
+function Add-ReleaseGovernanceProvenanceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item
+    )
+
+    foreach ($fieldName in @("input_docx_display", "input_docx", "schema_target", "target_mode")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            [void]$Lines.Add("  - ${fieldName}: $value")
+        }
+    }
 }
 
 function Add-ReleaseGovernanceRepairLines {

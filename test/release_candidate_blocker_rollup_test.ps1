@@ -139,6 +139,11 @@ Write-JsonFile -Path $contentControlSummaryPath -Value ([ordered]@{
             action = "sync_or_fill_bound_content_control"
             source_json = "output/content-control-data-binding/inspect-content-controls.json"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            template_name = "invoice-template"
+            schema_target = "invoice"
+            target_mode = "resolved-section-targets"
         }
     )
     action_items = @(
@@ -149,6 +154,11 @@ Write-JsonFile -Path $contentControlSummaryPath -Value ([ordered]@{
             open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
             source_json = "output/content-control-data-binding/inspect-content-controls.json"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            template_name = "invoice-template"
+            schema_target = "invoice"
+            target_mode = "resolved-section-targets"
         }
     )
 })
@@ -210,6 +220,11 @@ Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
             action = "sync_or_fill_bound_content_control"
             source_json = "output/content-control-data-binding/inspect-content-controls.json"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            template_name = "invoice-template"
+            schema_target = "invoice"
+            target_mode = "resolved-section-targets"
         }
     )
     action_items = @(
@@ -220,6 +235,11 @@ Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
             open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
             source_json = "output/content-control-data-binding/inspect-content-controls.json"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            template_name = "invoice-template"
+            schema_target = "invoice"
+            target_mode = "resolved-section-targets"
         }
     )
     warning_count = 1
@@ -230,6 +250,11 @@ Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
             message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
             source_json = "output/content-control-data-binding-governance/summary.json"
             source_json_display = ".\output\content-control-data-binding-governance\summary.json"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            template_name = "invoice-template"
+            schema_target = "invoice"
+            target_mode = "resolved-section-targets"
         }
     )
 })
@@ -639,6 +664,18 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "content-control-data-binding\inspect-content-controls.json" `
     -Message "Auto-discovered rollup should carry content-control source JSON display."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.input_docx }) -join "`n") `
+    -ExpectedText "samples/invoice.docx" `
+    -Message "Auto-discovered rollup should carry content-control input_docx provenance."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.template_name }) -join "`n") `
+    -ExpectedText "invoice-template" `
+    -Message "Auto-discovered rollup should carry content-control template_name provenance."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.schema_target }) -join "`n") `
+    -ExpectedText "invoice" `
+    -Message "Auto-discovered rollup should carry content-control schema_target provenance."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.target_mode }) -join "`n") `
+    -ExpectedText "resolved-section-targets" `
+    -Message "Auto-discovered rollup should carry content-control target_mode provenance."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "project-template-onboarding-governance\summary.json" `
     -Message "Auto-discovered rollup should carry onboarding governance source JSON display."
@@ -648,6 +685,12 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
     -Message "Auto-discovered rollup should carry content-control action open command."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.input_docx }) -join "`n") `
+    -ExpectedText "samples/invoice.docx" `
+    -Message "Auto-discovered rollup should carry content-control action input_docx provenance."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.target_mode }) -join "`n") `
+    -ExpectedText "resolved-section-targets" `
+    -Message "Auto-discovered rollup should carry content-control action target_mode provenance."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "sync_project_template_schema_approval.ps1" `
     -Message "Auto-discovered rollup should carry onboarding governance action open command."

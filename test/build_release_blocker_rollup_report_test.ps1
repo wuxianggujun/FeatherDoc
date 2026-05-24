@@ -237,6 +237,11 @@ Write-JsonFile -Path $contentControlPath -Value ([ordered]@{
             command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
             source_json = "output/content-control-data-binding/inspect-content-controls.json"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            template_name = "invoice-template"
+            schema_target = "invoice"
+            target_mode = "resolved-section-targets"
         }
     )
     action_items = @(
@@ -250,6 +255,11 @@ Write-JsonFile -Path $contentControlPath -Value ([ordered]@{
             command_template = "featherdoc_cli set-content-control-form-state <input.docx> --tag due_date --clear-lock --output <reviewed.docx> --json"
             source_json = "output/content-control-data-binding/inspect-content-controls.json"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            template_name = "invoice-template"
+            schema_target = "invoice"
+            target_mode = "resolved-section-targets"
         }
     )
 })
@@ -749,6 +759,16 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve content-control repair strategy."
     Assert-ContainsText -Text ([string]$contentControlBlocker.command_template) -ExpectedText "sync-content-controls-from-custom-xml" `
         -Message "Rollup should preserve content-control blocker command template."
+    Assert-Equal -Actual ([string]$contentControlBlocker.input_docx) -Expected "samples/invoice.docx" `
+        -Message "Rollup should preserve content-control blocker input_docx provenance."
+    Assert-Equal -Actual ([string]$contentControlBlocker.input_docx_display) -Expected ".\samples\invoice.docx" `
+        -Message "Rollup should preserve content-control blocker input_docx_display provenance."
+    Assert-Equal -Actual ([string]$contentControlBlocker.template_name) -Expected "invoice-template" `
+        -Message "Rollup should preserve content-control blocker template_name provenance."
+    Assert-Equal -Actual ([string]$contentControlBlocker.schema_target) -Expected "invoice" `
+        -Message "Rollup should preserve content-control blocker schema_target provenance."
+    Assert-Equal -Actual ([string]$contentControlBlocker.target_mode) -Expected "resolved-section-targets" `
+        -Message "Rollup should preserve content-control blocker target_mode provenance."
     $contentControlAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "review_content_control_lock_strategy" } |
         Select-Object -First 1)
@@ -756,6 +776,16 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve content-control action repair strategy."
     Assert-ContainsText -Text ([string]$contentControlAction.command_template) -ExpectedText "--clear-lock" `
         -Message "Rollup should preserve content-control action command template."
+    Assert-Equal -Actual ([string]$contentControlAction.input_docx) -Expected "samples/invoice.docx" `
+        -Message "Rollup should preserve content-control action input_docx provenance."
+    Assert-Equal -Actual ([string]$contentControlAction.input_docx_display) -Expected ".\samples\invoice.docx" `
+        -Message "Rollup should preserve content-control action input_docx_display provenance."
+    Assert-Equal -Actual ([string]$contentControlAction.template_name) -Expected "invoice-template" `
+        -Message "Rollup should preserve content-control action template_name provenance."
+    Assert-Equal -Actual ([string]$contentControlAction.schema_target) -Expected "invoice" `
+        -Message "Rollup should preserve content-control action schema_target provenance."
+    Assert-Equal -Actual ([string]$contentControlAction.target_mode) -Expected "resolved-section-targets" `
+        -Message "Rollup should preserve content-control action target_mode provenance."
     $pdfPreflightBlocker = ($summary.release_blockers |
         Where-Object { [string]$_.id -eq "pdf_visual_release_gate_preflight.build_outputs_missing" } |
         Select-Object -First 1)

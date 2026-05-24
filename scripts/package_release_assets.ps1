@@ -416,6 +416,11 @@ function Get-ContentControlRepairContracts {
             id = $blockerId
             source_schema = $schema
             source_json_display = Convert-RepoPathToRelative -Value $resolvedContentControlSummaryPath -RepoRoot $RepoRoot
+            input_docx = Get-OptionalPropertyValue -Object $blocker -Name "input_docx"
+            input_docx_display = Get-OptionalPropertyValue -Object $blocker -Name "input_docx_display"
+            template_name = Get-OptionalPropertyValue -Object $blocker -Name "template_name"
+            schema_target = Get-OptionalPropertyValue -Object $blocker -Name "schema_target"
+            target_mode = Get-OptionalPropertyValue -Object $blocker -Name "target_mode"
             repair_strategy = Get-OptionalPropertyValue -Object $blocker -Name "repair_strategy"
             repair_hint = Get-OptionalPropertyValue -Object $blocker -Name "repair_hint"
             command_template = Get-OptionalPropertyValue -Object $blocker -Name "command_template"

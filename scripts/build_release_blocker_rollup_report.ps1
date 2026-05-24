@@ -847,6 +847,10 @@ foreach ($path in @($inputPaths)) {
                 status = Get-JsonString -Object $blocker -Name "status"
                 action = Get-JsonString -Object $blocker -Name "action"
                 message = Get-JsonString -Object $blocker -Name "message"
+                input_docx = Get-JsonString -Object $blocker -Name "input_docx"
+                input_docx_display = Get-JsonString -Object $blocker -Name "input_docx_display"
+                schema_target = Get-JsonString -Object $blocker -Name "schema_target"
+                target_mode = Get-JsonString -Object $blocker -Name "target_mode"
                 repair_strategy = Get-JsonString -Object $blocker -Name "repair_strategy"
                 repair_hint = Get-JsonString -Object $blocker -Name "repair_hint"
                 command_template = Get-JsonString -Object $blocker -Name "command_template"
@@ -916,6 +920,10 @@ foreach ($path in @($inputPaths)) {
                 title = Get-JsonString -Object $item -Name "title"
                 command = Get-JsonString -Object $item -Name "command"
                 open_command = Get-FirstJsonString -Object $item -Names @("open_command", "command")
+                input_docx = Get-JsonString -Object $item -Name "input_docx"
+                input_docx_display = Get-JsonString -Object $item -Name "input_docx_display"
+                schema_target = Get-JsonString -Object $item -Name "schema_target"
+                target_mode = Get-JsonString -Object $item -Name "target_mode"
                 repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
                 repair_hint = Get-JsonString -Object $item -Name "repair_hint"
                 command_template = Get-JsonString -Object $item -Name "command_template"
@@ -982,6 +990,10 @@ foreach ($path in @($inputPaths)) {
                     Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 }
                 source_schema = Get-FirstJsonString -Object $warning -Names @("source_schema") -DefaultValue $kind
+                input_docx = Get-JsonString -Object $warning -Name "input_docx"
+                input_docx_display = Get-JsonString -Object $warning -Name "input_docx_display"
+                schema_target = Get-JsonString -Object $warning -Name "schema_target"
+                target_mode = Get-JsonString -Object $warning -Name "target_mode"
                 message = Get-JsonString -Object $warning -Name "message"
             }) | Out-Null
         }

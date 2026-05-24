@@ -182,6 +182,11 @@ function Write-GovernanceFixtures {
                     source_report_display = ".\output\content-control-data-binding-governance\summary.json"
                     source_json = "output/content-control-data-binding/inspect-content-controls.json"
                     source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+                    input_docx = "samples/invoice.docx"
+                    input_docx_display = ".\samples\invoice.docx"
+                    template_name = "invoice-template"
+                    schema_target = "invoice"
+                    target_mode = "resolved-section-targets"
                 }
             )
             action_item_count = 1
@@ -198,6 +203,11 @@ function Write-GovernanceFixtures {
                     source_report_display = ".\output\content-control-data-binding-governance\summary.json"
                     source_json = "output/content-control-data-binding/inspect-content-controls.json"
                     source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+                    input_docx = "samples/invoice.docx"
+                    input_docx_display = ".\samples\invoice.docx"
+                    template_name = "invoice-template"
+                    schema_target = "invoice"
+                    target_mode = "resolved-section-targets"
                 }
             )
         })
@@ -454,6 +464,16 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve content-control blocker raw source JSON."
     Assert-ContainsText -Text ([string]$contentControlBlocker.source_json_display) -ExpectedText "content-control-data-binding\inspect-content-controls.json" `
         -Message "Aggregate handoff should preserve content-control blocker source JSON display."
+    Assert-Equal -Actual ([string]$contentControlBlocker.input_docx) -Expected "samples/invoice.docx" `
+        -Message "Aggregate handoff should preserve content-control blocker input_docx provenance."
+    Assert-Equal -Actual ([string]$contentControlBlocker.input_docx_display) -Expected ".\samples\invoice.docx" `
+        -Message "Aggregate handoff should preserve content-control blocker input_docx_display provenance."
+    Assert-Equal -Actual ([string]$contentControlBlocker.template_name) -Expected "invoice-template" `
+        -Message "Aggregate handoff should preserve content-control blocker template_name provenance."
+    Assert-Equal -Actual ([string]$contentControlBlocker.schema_target) -Expected "invoice" `
+        -Message "Aggregate handoff should preserve content-control blocker schema_target provenance."
+    Assert-Equal -Actual ([string]$contentControlBlocker.target_mode) -Expected "resolved-section-targets" `
+        -Message "Aggregate handoff should preserve content-control blocker target_mode provenance."
     $contentControlAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "review_duplicate_content_control_binding" } |
         Select-Object -First 1)
@@ -469,6 +489,16 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve content-control action raw source JSON."
     Assert-ContainsText -Text ([string]$contentControlAction.source_json_display) -ExpectedText "content-control-data-binding\inspect-content-controls.json" `
         -Message "Aggregate handoff should preserve content-control action source JSON display."
+    Assert-Equal -Actual ([string]$contentControlAction.input_docx) -Expected "samples/invoice.docx" `
+        -Message "Aggregate handoff should preserve content-control action input_docx provenance."
+    Assert-Equal -Actual ([string]$contentControlAction.input_docx_display) -Expected ".\samples\invoice.docx" `
+        -Message "Aggregate handoff should preserve content-control action input_docx_display provenance."
+    Assert-Equal -Actual ([string]$contentControlAction.template_name) -Expected "invoice-template" `
+        -Message "Aggregate handoff should preserve content-control action template_name provenance."
+    Assert-Equal -Actual ([string]$contentControlAction.schema_target) -Expected "invoice" `
+        -Message "Aggregate handoff should preserve content-control action schema_target provenance."
+    Assert-Equal -Actual ([string]$contentControlAction.target_mode) -Expected "resolved-section-targets" `
+        -Message "Aggregate handoff should preserve content-control action target_mode provenance."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Release Governance Handoff" `
