@@ -409,6 +409,7 @@ if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
     [void]$handoffLines.Add("- PDF visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json)")
     [void]$handoffLines.Add("- PDF visual gate evidence status: $(Get-DisplayValue -Value $pdfVisualGateEvidence.status)")
     if ($pdfVisualGateEvidence.status -eq "loaded") {
+        [void]$handoffLines.Add("- PDF visual gate verdict: $(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
         [void]$handoffLines.Add("- PDF visual aggregate contact sheet: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet)")
         [void]$handoffLines.Add("- PDF CJK copy/search samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count)")
         [void]$handoffLines.Add("- PDF CJK missing text count: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_missing_text_count)")
@@ -454,6 +455,7 @@ if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
 [void]$handoffLines.Add("- Visual gate: $($summary.steps.visual_gate.status)")
 [void]$handoffLines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$handoffLines.Add("- PDF visual gate evidence: $(Get-DisplayValue -Value $pdfVisualGateEvidence.status)")
+[void]$handoffLines.Add("- PDF visual gate verdict: $(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
 [void]$handoffLines.Add("- PDF CJK copy/search samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count)")
 [void]$handoffLines.Add("- PDF CJK missing text count: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_missing_text_count)")
 [void]$handoffLines.Add("- PDF visual baselines: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_count)")
@@ -489,6 +491,7 @@ Add-ReleaseGovernanceHandoffMarkdownSection -Lines $handoffLines -Summary $summa
 [void]$handoffLines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$handoffLines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
 [void]$handoffLines.Add("- PDF visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json)")
+[void]$handoffLines.Add("- PDF visual gate verdict: $(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
 [void]$handoffLines.Add("- PDF visual aggregate contact sheet: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet)")
 [void]$handoffLines.Add("- PDF visual gate CLI export log: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.pdf_cli_export_log)")
 [void]$handoffLines.Add("- PDF visual gate regression log: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.pdf_regression_log)")

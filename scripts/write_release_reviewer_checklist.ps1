@@ -421,6 +421,7 @@ if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
     [void]$lines.Add("- PDF visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json)")
     [void]$lines.Add("- PDF visual gate evidence status: $(Get-DisplayValue -Value $pdfVisualGateEvidence.status)")
     if ($pdfVisualGateEvidence.status -eq "loaded") {
+        [void]$lines.Add("- PDF visual gate verdict: $(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
         [void]$lines.Add("- PDF visual aggregate contact sheet: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet)")
         [void]$lines.Add("- PDF CJK copy/search samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count)")
         [void]$lines.Add("- PDF CJK missing text count: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_missing_text_count)")
@@ -602,7 +603,8 @@ if ($summary.steps.visual_gate.status -eq "skipped") {
     Add-CheckboxLine -Lines $lines -Text ('Stop here until the local Word visual review is completed and the visual verdict changes from `{0}`.' -f $visualVerdict)
 }
 if ($pdfVisualGateEvidence.status -eq "loaded") {
-    Add-CheckboxLine -Lines $lines -Text ('Confirm the PDF visual gate finalize evidence is signed off: summary {0}, aggregate contact sheet {1}, CJK copy/search samples `{2}`, missing text `{3}`, visual baselines `{4}`.' -f `
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the PDF visual gate finalize evidence is signed off: verdict `{0}`, summary {1}, aggregate contact sheet {2}, CJK copy/search samples `{3}`, missing text `{4}`, visual baselines `{5}`.' -f `
+            (Get-DisplayValue -Value $pdfVisualGateEvidence.verdict),
             (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json),
             (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet),
             $pdfVisualGateEvidence.cjk_copy_search_count,

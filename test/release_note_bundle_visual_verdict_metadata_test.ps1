@@ -174,6 +174,23 @@ $governanceMetric = [ordered]@{
     source_json_display = $governanceMetricSourceDisplay
     level = "ready"
     score = 0.96
+    details = [ordered]@{
+        score = 96
+        level = "ready"
+        matched_document_count = 4
+        unmatched_catalog_document_count = 0
+        unmatched_baseline_document_count = 0
+        alignment_gap_count = 0
+        catalog_coverage_percent = 100
+        baseline_coverage_percent = 100
+        coverage_score = 100
+        catalog_document_keys = @("contract-template", "invoice-template", "report-template", "long-doc-template")
+        baseline_document_keys = @("contract-template", "invoice-template", "report-template", "long-doc-template")
+        matched_document_keys = @("contract-template", "invoice-template", "report-template", "long-doc-template")
+        penalty_summary = @(
+            [ordered]@{ factor = "style_numbering_issues"; count = 1; penalty = 4 }
+        )
+    }
 }
 
 $gateSummary = [ordered]@{
@@ -254,6 +271,7 @@ $gateSummary = [ordered]@{
 Set-Content -LiteralPath $gateFinalReviewPath -Encoding UTF8 -Value "# Gate Final Review"
 $pdfVisualGateSummary = [ordered]@{
     generated_at = "2026-05-23T12:00:00"
+    verdict = "pass"
     aggregate_contact_sheet = $pdfVisualGateAggregateContactSheetPath
     logs = [ordered]@{
         pdf_cli_export = $pdfVisualGateCliExportLogPath
@@ -379,12 +397,13 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual gate summary:" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "pdf-visual-gate\report\summary.json" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual gate evidence status: loaded" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual gate verdict: pass" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "aggregate-contact-sheet.png" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF CJK copy/search samples: 2" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF CJK missing text count: 0" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual baselines: 3" -Label $assertion.Label
 }
-Assert-Contains -Path $checklistPath -ExpectedText "Confirm the PDF visual gate finalize evidence is signed off" -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath -ExpectedText 'Confirm the PDF visual gate finalize evidence is signed off: verdict `pass`' -Label "REVIEWER_CHECKLIST.md"
 
 foreach ($assertion in @(
         @{ Path = $handoffPath; Label = "release_handoff.md" },
