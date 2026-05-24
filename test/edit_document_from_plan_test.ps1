@@ -7,6 +7,20 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $BuildDir) {
+    $BuildDir = Join-Path $RepoRoot "build\edit_document_from_plan_test"
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = $BuildDir
+}
+
+New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
+
 function Assert-True {
     param(
         [bool]$Condition,
@@ -1257,6 +1271,21 @@ function New-ReviewFixtureDocx {
     } finally {
         $fileStream.Dispose()
     }
+}
+
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [string]$Content
+    )
+
+    $parent = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
 }
 
 function New-SectionPartsFixtureDocx {
@@ -5408,7 +5437,7 @@ $reviewPlanFileEditedDocx = Join-Path $resolvedWorkingDir "review.plan_file.edit
 $reviewPlanFileSummaryPath = Join-Path $resolvedWorkingDir "review.plan_file.summary.json"
 
 New-ReviewFixtureDocx -Path $reviewPlanFileSourceDocx
-Set-Content -LiteralPath $reviewPlanFilePath -Encoding UTF8 -Value @'
+Write-Utf8NoBomFile -Path $reviewPlanFilePath -Content @'
 {
   "operations": [
     {
