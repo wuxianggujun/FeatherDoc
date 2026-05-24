@@ -417,9 +417,13 @@ $requiredPdfImportJsonDiagnosticsDocsTerms = @(
 $requiredPdfImportScopeDocsTerms = @(
     "PDF Import Supported Scope And Limits",
     "PDF import supported scope and limits",
+    "text-first",
+    "not a general PDF-to-Word converter",
+    "arbitrary visual fidelity",
     "Paragraph import from extractable PDF text",
     "Conservative table-candidate detection",
     "Opt-in table promotion",
+    '--import-table-candidates-as-tables',
     "Cross-page table continuation",
     "Repeated-header detection",
     "Conservative subtotal / total summary-row handling",
@@ -430,7 +434,11 @@ $requiredPdfImportScopeDocsTerms = @(
     "OCR",
     "image-only",
     "arbitrary nested table semantics",
-    "arbitrary local column drift"
+    "complex vector reconstruction",
+    "rotated or floating content recovery",
+    "exact visual reconstruction",
+    "arbitrary local column drift",
+    "Unsupported cases must fail or remain paragraphs"
 )
 
 $scopeCoverageAnchors = @(

@@ -19,6 +19,21 @@ function Get-OptionalPropertyValue {
     return $property.Value
 }
 
+function New-TextFromCodePoints {
+    param([object[]]$CodePoints)
+
+    $builder = [System.Text.StringBuilder]::new()
+    foreach ($codePoint in $CodePoints) {
+        if ($codePoint -is [string]) {
+            [void]$builder.Append($codePoint)
+        } else {
+            [void]$builder.Append([char][int]$codePoint)
+        }
+    }
+
+    return $builder.ToString()
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     throw "RepoRoot is required."
 }
@@ -95,7 +110,18 @@ foreach ($expectedText in @(
         "support matrix",
         "release checklist",
         "text-first importer",
-        "general PDF-to-Word"
+        "general PDF-to-Word",
+        "ToUnicode",
+        (New-TextFromCodePoints @("43 ", 0x4E2A, " CJK text-layer ", 0x6837, 0x672C)),
+        (New-TextFromCodePoints @(0x6BB5, 0x843D, 0xFF1A)),
+        (New-TextFromCodePoints @(0x8868, 0x683C, 0xFF1A)),
+        (New-TextFromCodePoints @(0x56FE, 0x7247, 0xFF1A)),
+        (New-TextFromCodePoints @(0x9875, 0x7709, 0x9875, 0x811A, 0xFF1A)),
+        (New-TextFromCodePoints @(0x5B57, 0x4F53, 0xFF1A)),
+        (New-TextFromCodePoints @("CJK", 0xFF1A)),
+        (New-TextFromCodePoints @("RTL / Bidi", 0xFF1A)),
+        (New-TextFromCodePoints @(0x5B57, 0x6BB5, 0xFF1A)),
+        (New-TextFromCodePoints @("Word ", 0x5B57, 0x6BB5, 0x8BED, 0x4E49))
     )) {
     Assert-True -Condition ($buildingPdfText -match [regex]::Escape($expectedText)) `
         -Message "BUILDING_PDF.md should contain '$expectedText'."
