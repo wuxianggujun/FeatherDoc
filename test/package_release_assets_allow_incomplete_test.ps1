@@ -51,6 +51,7 @@ $releaseHandoffPath = Join-Path $reportDir "release_handoff.md"
 $releaseGovernanceHandoffPath = Join-Path $reportDir "release_governance_handoff.md"
 $releaseBodyPath = Join-Path $reportDir "release_body.zh-CN.md"
 $releaseSummaryPath = Join-Path $reportDir "release_summary.zh-CN.md"
+$finalReviewPath = Join-Path $reportDir "final_review.md"
 $artifactGuidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $contentControlSummaryPath = Join-Path $reportDir "content_control_data_binding_governance_summary.json"
@@ -96,6 +97,25 @@ foreach ($filePath in @($releaseHandoffPath, $releaseBodyPath, $releaseSummaryPa
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 }
+
+Set-Content -LiteralPath $finalReviewPath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+- Final review root: $resolvedRepoRoot\output\release-candidate-checks-ci\report
+
+## Release governance handoff details
+
+### Handoff Blockers
+
+- project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+  - source_json_display: .\output\project-template-onboarding-governance\summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+    - source_json_display: .\output\project-template-onboarding-governance\summary.json
+"@
 
 Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
 # Release Governance Handoff
@@ -271,6 +291,7 @@ $summary = [ordered]@{
     release_governance_handoff = $releaseGovernanceHandoffPath
     release_body_zh_cn = $releaseBodyPath
     release_summary_zh_cn = $releaseSummaryPath
+    final_review = $finalReviewPath
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     readme_gallery = [ordered]@{
@@ -301,6 +322,7 @@ $placeholderPath = Join-Path $stagingRoot "word-visual-release-gate\README.md"
 $stagedStartHerePath = Join-Path $stagingRoot "release-candidate-checks\START_HERE.md"
 $stagedSummaryPath = Join-Path $stagingRoot "release-candidate-checks\report\summary.json"
 $stagedGovernanceHandoffPath = Join-Path $stagingRoot "release-candidate-checks\report\release_governance_handoff.md"
+$stagedFinalReviewPath = Join-Path $stagingRoot "release-candidate-checks\report\final_review.md"
 $stagedArtifactGuidePath = Join-Path $stagingRoot "release-candidate-checks\report\ARTIFACT_GUIDE.md"
 $stagedReviewerChecklistPath = Join-Path $stagingRoot "release-candidate-checks\report\REVIEWER_CHECKLIST.md"
 $manifestPath = Join-Path $outputRoot "v1.6.4\release_assets_manifest.json"
@@ -519,6 +541,22 @@ $stagedGovernanceHandoffContent = Get-Content -Raw -LiteralPath $stagedGovernanc
 foreach ($expectedText in @("Governance Metrics", "real_corpus_confidence", "numbering_catalog_governance.real_corpus_confidence", "featherdoc.numbering_catalog_governance_report.v1", "delivery_quality", "table_layout_delivery_governance.delivery_quality")) {
     if ($stagedGovernanceHandoffContent -notmatch [regex]::Escape($expectedText)) {
         throw "Staged allow-incomplete governance handoff lost '$expectedText'."
+    }
+}
+
+$stagedFinalReviewContent = Get-Content -Raw -LiteralPath $stagedFinalReviewPath
+foreach ($expectedText in @(
+    "Release governance handoff details",
+    "project_template_delivery_readiness",
+    "project_template_onboarding.schema_approval",
+    "featherdoc.project_template_onboarding_governance_report.v1",
+    "project_template_onboarding_governance_contract",
+    "schema_approval_status_summary: approved",
+    "source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json",
+    "source_json_display: .\output\project-template-onboarding-governance\summary.json"
+)) {
+    if ($stagedFinalReviewContent -notmatch [regex]::Escape($expectedText)) {
+        throw "Staged allow-incomplete final_review.md lost '$expectedText'."
     }
 }
 
