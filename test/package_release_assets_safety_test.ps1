@@ -91,6 +91,7 @@ $releaseHandoffPath = Join-Path $reportDir "release_handoff.md"
 $releaseGovernanceHandoffPath = Join-Path $reportDir "release_governance_handoff.md"
 $releaseBodyPath = Join-Path $reportDir "release_body.zh-CN.md"
 $releaseSummaryPath = Join-Path $reportDir "release_summary.zh-CN.md"
+$finalReviewPath = Join-Path $reportDir "final_review.md"
 $artifactGuidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $contentControlSummaryPath = Join-Path $reportDir "content_control_data_binding_governance_summary.json"
@@ -183,6 +184,25 @@ Set-Content -LiteralPath $releaseSummaryPath -Encoding UTF8 -Value @"
 - 鎽樿璺緞锛?resolvedRepoRoot\output\release-candidate-checks\report\release_summary.zh-CN.md
 - project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - project-template onboarding governance contract: schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+Set-Content -LiteralPath $finalReviewPath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+- Final review root: $resolvedRepoRoot\output\release-candidate-checks\report
+
+## Release governance handoff details
+
+### Handoff Blockers
+
+- project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+  - source_json_display: .\output\project-template-onboarding-governance\summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+    - source_json_display: .\output\project-template-onboarding-governance\summary.json
 "@
 
 Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
@@ -545,6 +565,7 @@ $stagedHandoffPath = Join-Path $stagingRoot "release-candidate-checks\report\rel
 $stagedGovernanceHandoffPath = Join-Path $stagingRoot "release-candidate-checks\report\release_governance_handoff.md"
 $stagedReleaseBodyPath = Join-Path $stagingRoot "release-candidate-checks\report\release_body.zh-CN.md"
 $stagedReleaseSummaryPath = Join-Path $stagingRoot "release-candidate-checks\report\release_summary.zh-CN.md"
+$stagedFinalReviewPath = Join-Path $stagingRoot "release-candidate-checks\report\final_review.md"
 $stagedStartHerePath = Join-Path $stagingRoot "release-candidate-checks\START_HERE.md"
 $stagedArtifactGuidePath = Join-Path $stagingRoot "release-candidate-checks\report\ARTIFACT_GUIDE.md"
 $stagedReviewerChecklistPath = Join-Path $stagingRoot "release-candidate-checks\report\REVIEWER_CHECKLIST.md"
@@ -574,6 +595,7 @@ Assert-NotContains -Path $stagedHandoffPath -UnexpectedText $resolvedRepoRoot -L
 Assert-NotContains -Path $stagedGovernanceHandoffPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_governance_handoff.md'
 Assert-NotContains -Path $stagedReleaseBodyPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_body.zh-CN.md'
 Assert-NotContains -Path $stagedReleaseSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_summary.zh-CN.md'
+Assert-NotContains -Path $stagedFinalReviewPath -UnexpectedText $resolvedRepoRoot -Label 'staged final_review.md'
 Assert-NotContains -Path $stagedInstalledReadmePath -UnexpectedText 'C:\path\to\target.docx' -Label 'staged installed README.md'
 Assert-NotContains -Path $stagedInstalledChangelogPath -UnexpectedText 'draft' -Label 'staged installed CHANGELOG.md'
 Assert-NotContains -Path $stagedInstalledChangelogPath -UnexpectedText 'C:\Users\someone\workspace' -Label 'staged installed CHANGELOG.md'
@@ -616,6 +638,14 @@ Assert-Contains -Path $stagedReleaseSummaryPath -ExpectedText 'project-template 
 Assert-Contains -Path $stagedReleaseSummaryPath -ExpectedText 'status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json' -Label 'staged release_summary.zh-CN.md'
 Assert-Contains -Path $stagedReleaseSummaryPath -ExpectedText 'project-template onboarding governance contract' -Label 'staged release_summary.zh-CN.md'
 Assert-Contains -Path $stagedReleaseSummaryPath -ExpectedText 'schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json' -Label 'staged release_summary.zh-CN.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'Release governance handoff details' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'project_template_delivery_readiness' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'project_template_onboarding.schema_approval' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'featherdoc.project_template_onboarding_governance_report.v1' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'project_template_onboarding_governance_contract' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'schema_approval_status_summary: approved' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'source_json_display: .\output\project-template-onboarding-governance\summary.json' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'featherdoc.content_control_data_binding_governance_report.v1' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'source_report_display' -Label 'staged START_HERE.md'
@@ -1028,6 +1058,7 @@ $evidenceZip = [System.IO.Compression.ZipFile]::OpenRead($evidenceZipPath)
 try {
     $evidenceZipEntries = @($evidenceZip.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
     foreach ($expectedEntry in @(
+            "release-candidate-checks/report/final_review.md",
             "pdf-visual-release-gate/report/summary.json",
             "pdf-visual-release-gate/report/aggregate-contact-sheet.png",
             "pdf-visual-release-gate/unicode-font/report/full-contact-sheet.png"
