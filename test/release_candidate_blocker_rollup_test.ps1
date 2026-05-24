@@ -388,12 +388,24 @@ if ($Scenario -eq "handoff") {
     Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
         -Message "Release candidate summary should carry handoff blocker source schema."
+    Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+        -ExpectedText "project-template-delivery-readiness\summary.json" `
+        -Message "Release candidate summary should carry handoff project-template source report display."
+    Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "project-template-onboarding-governance\summary.json" `
+        -Message "Release candidate summary should carry handoff project-template source JSON display."
     Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
         -Message "Release candidate summary should carry handoff warning ids."
     Assert-ContainsText -Text (($handoffReleaseSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Release candidate step summary should carry handoff action open command."
+    Assert-ContainsText -Text (($handoffReleaseSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+        -ExpectedText "project-template-delivery-readiness\summary.json" `
+        -Message "Release candidate step summary should carry handoff project-template source report display."
+    Assert-ContainsText -Text (($handoffReleaseSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "project-template-onboarding-governance\summary.json" `
+        -Message "Release candidate step summary should carry handoff project-template source JSON display."
     Assert-Equal -Actual ([string]$handoffReleaseSummary.steps.release_governance_handoff.status) -Expected "blocked" `
         -Message "Release candidate step status should mirror governance handoff status."
 
@@ -416,6 +428,12 @@ if ($Scenario -eq "handoff") {
         -Message "Final review should include handoff warning id."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1" `
         -Message "Final review should include handoff source schema."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "source_report_display:" `
+        -Message "Final review should include handoff source report display labels."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "project-template-delivery-readiness\summary.json" `
+        -Message "Final review should include handoff project-template source report display."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "source_json_display: .\output\project-template-onboarding-governance\summary.json" `
+        -Message "Final review should include handoff project-template source JSON display."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Final review should include handoff action item open command."
 
@@ -466,6 +484,12 @@ if ($Scenario -eq "handoff") {
     Assert-ContainsText -Text (($handoffFailOnSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "project_template_onboarding.schema_approval" `
         -Message "Fail-on-blocker handoff summary should keep blockers written before child failure."
+    Assert-ContainsText -Text (($handoffFailOnSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+        -ExpectedText "project-template-delivery-readiness\summary.json" `
+        -Message "Fail-on-blocker handoff summary should keep project-template source report display."
+    Assert-ContainsText -Text (($handoffFailOnSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "project-template-onboarding-governance\summary.json" `
+        -Message "Fail-on-blocker handoff summary should keep project-template source JSON display."
     Assert-ContainsText -Text (($handoffFailOnSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
         -Message "Fail-on-blocker handoff summary should keep warnings written before child failure."
