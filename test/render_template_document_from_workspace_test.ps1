@@ -7,6 +7,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "template_render_test_fixture_helpers.ps1")
+
 function Assert-True {
     param(
         [bool]$Condition,
@@ -79,24 +81,6 @@ function Read-DocxEntryText {
     }
 }
 
-function Find-ExecutableByName {
-    param(
-        [string]$SearchRoot,
-        [string]$TargetName
-    )
-
-    $candidate = Get-ChildItem -Path $SearchRoot -Recurse -File |
-        Where-Object { $_.Name -ieq $TargetName -or $_.Name -ieq ($TargetName + ".exe") } |
-        Sort-Object LastWriteTimeUtc -Descending |
-        Select-Object -First 1
-
-    if ($null -eq $candidate) {
-        throw "Could not find executable '$TargetName' under $SearchRoot."
-    }
-
-    return $candidate.FullName
-}
-
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedBuildDir = (Resolve-Path $BuildDir).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
@@ -104,9 +88,6 @@ $prepareScriptPath = Join-Path $resolvedRepoRoot "scripts\prepare_template_rende
 $validateWorkspaceScriptPath = Join-Path $resolvedRepoRoot "scripts\validate_render_data_mapping.ps1"
 $renderWorkspaceScriptPath = Join-Path $resolvedRepoRoot "scripts\render_template_document_from_workspace.ps1"
 $sampleDocx = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.docx"
-$partTemplateSampleExecutable = Find-ExecutableByName `
-    -SearchRoot $resolvedBuildDir `
-    -TargetName "featherdoc_sample_part_template_validation"
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
@@ -307,10 +288,7 @@ $sectionValidationReport = Join-Path $sectionWorkspaceDir "part_template.validat
 $sectionRenderedDocx = Join-Path $sectionWorkspaceDir "part_template.workspace.rendered.docx"
 $sectionRenderSummary = Join-Path $sectionWorkspaceDir "part_template.workspace.rendered.summary.json"
 
-& $partTemplateSampleExecutable $partTemplateDir
-if ($LASTEXITCODE -ne 0) {
-    throw "featherdoc_sample_part_template_validation failed."
-}
+New-PartTemplateValidationFixtureDocx -Path $partTemplateDocx
 
 & $prepareScriptPath `
     -InputDocx $partTemplateDocx `

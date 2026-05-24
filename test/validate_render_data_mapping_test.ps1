@@ -7,6 +7,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "template_render_test_fixture_helpers.ps1")
+
 function Assert-True {
     param(
         [bool]$Condition,
@@ -42,24 +44,6 @@ function Assert-ContainsText {
     }
 }
 
-function Find-ExecutableByName {
-    param(
-        [string]$SearchRoot,
-        [string]$TargetName
-    )
-
-    $candidate = Get-ChildItem -Path $SearchRoot -Recurse -File |
-        Where-Object { $_.Name -ieq $TargetName -or $_.Name -ieq ($TargetName + ".exe") } |
-        Sort-Object LastWriteTimeUtc -Descending |
-        Select-Object -First 1
-
-    if ($null -eq $candidate) {
-        throw "Could not find executable '$TargetName' under $SearchRoot."
-    }
-
-    return $candidate.FullName
-}
-
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedBuildDir = (Resolve-Path $BuildDir).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
@@ -67,12 +51,6 @@ $scriptPath = Join-Path $resolvedRepoRoot "scripts\validate_render_data_mapping.
 $sampleDocx = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.docx"
 $sampleDataPath = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.render_data.json"
 $sampleMappingPath = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.render_data_mapping.json"
-$blockVisibilitySampleExecutable = Find-ExecutableByName `
-    -SearchRoot $resolvedBuildDir `
-    -TargetName "featherdoc_sample_bookmark_block_visibility_visual"
-$partTemplateSampleExecutable = Find-ExecutableByName `
-    -SearchRoot $resolvedBuildDir `
-    -TargetName "featherdoc_sample_part_template_validation"
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
@@ -200,10 +178,7 @@ $visibilityDataPath = Join-Path $resolvedWorkingDir "block_visibility.validation
 $visibilityMappingPath = Join-Path $resolvedWorkingDir "block_visibility.validation.render_data_mapping.json"
 $visibilitySummary = Join-Path $resolvedWorkingDir "block_visibility.validation.summary.json"
 
-& $blockVisibilitySampleExecutable $visibilityFixtureDocx
-if ($LASTEXITCODE -ne 0) {
-    throw "featherdoc_sample_bookmark_block_visibility_visual failed."
-}
+New-BookmarkBlockVisibilityFixtureDocx -Path $visibilityFixtureDocx
 
 Set-Content -LiteralPath $visibilityDataPath -Encoding UTF8 -Value @'
 {
@@ -260,10 +235,7 @@ $partTemplatePatchedPlan = Join-Path $resolvedWorkingDir "part_template.validati
 $partTemplateSummary = Join-Path $resolvedWorkingDir "part_template.validation.summary.json"
 $partTemplateReport = Join-Path $resolvedWorkingDir "part_template.validation.report.md"
 
-& $partTemplateSampleExecutable $partTemplateDir
-if ($LASTEXITCODE -ne 0) {
-    throw "featherdoc_sample_part_template_validation failed."
-}
+New-PartTemplateValidationFixtureDocx -Path $partTemplateDocx
 
 $partTemplateData = [ordered]@{
     header = [ordered]@{
