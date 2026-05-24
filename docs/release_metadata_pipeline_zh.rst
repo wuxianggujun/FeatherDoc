@@ -218,11 +218,12 @@ project-template onboarding governance 会先写出
 ``featherdoc.project_template_onboarding_governance_report.v1``，再由
 ``featherdoc.project_template_delivery_readiness_report.v1`` 汇总到默认发布阻断输入。
 delivery readiness 在透传 onboarding-derived blocker / action item 时保留原始
-``source_schema`` 与 ``source_json_display``，同时把 reviewer 可执行的
+``source_schema``、``source_report_display`` 与 ``source_json_display``，同时把 reviewer 可执行的
 ``open_command`` 带入 final rollup。reviewer 在 ``START_HERE.md``、
 ``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 或 ``release_handoff.md`` 中看到
-``project_template_onboarding.*`` 阻断项时，应先打开 ``source_json_display`` 对应的
-onboarding governance 证据，再按 ``open_command`` 同步或复核 schema approval 记录。
+``project_template_onboarding.*`` 阻断项时，应先打开 ``source_report_display`` 查看
+governance/report 摘要，再用 ``source_json_display`` 回到 onboarding governance
+原始证据，最后按 ``open_command`` 同步或复核 schema approval 记录。
 
 schema confidence calibration 会写出
 ``featherdoc.schema_patch_confidence_calibration_report.v1``。当 calibration 里仍有

@@ -17,6 +17,24 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-TextOrder {
+    param(
+        [string]$Text,
+        [string[]]$ExpectedTexts,
+        [string]$Message
+    )
+
+    $offset = 0
+    foreach ($expectedText in $ExpectedTexts) {
+        $index = $Text.IndexOf($expectedText, $offset, [System.StringComparison]::Ordinal)
+        if ($index -lt 0) {
+            throw "$Message Missing expected text after offset $offset. Missing='$expectedText'."
+        }
+
+        $offset = $index + $expectedText.Length
+    }
+}
+
 function Get-RepoFileText {
     param(
         [string]$Root,
@@ -138,6 +156,59 @@ foreach ($marker in @(
     Assert-ContainsText -Text $releasePipelineDoc -ExpectedText $marker `
         -Message "Release metadata pipeline docs should keep governance marker '$marker'."
 }
+
+$onboardingGuidanceStart = $releasePipelineDoc.IndexOf(
+    "onboarding-derived blocker / action item",
+    [System.StringComparison]::Ordinal)
+if ($onboardingGuidanceStart -lt 0) {
+    throw "Release metadata pipeline docs should describe project-template onboarding-derived blocker/action-item guidance."
+}
+
+$onboardingGuidanceEnd = $releasePipelineDoc.IndexOf(
+    "schema confidence calibration",
+    $onboardingGuidanceStart,
+    [System.StringComparison]::Ordinal)
+if ($onboardingGuidanceEnd -lt 0) {
+    throw "Release metadata pipeline docs should keep schema confidence calibration after onboarding guidance."
+}
+
+$onboardingGuidance = $releasePipelineDoc.Substring(
+    $onboardingGuidanceStart,
+    $onboardingGuidanceEnd - $onboardingGuidanceStart)
+
+foreach ($marker in @(
+    "onboarding-derived blocker / action item",
+    "``source_schema``",
+    "``source_report_display``",
+    "``source_json_display``",
+    "``open_command``",
+    "START_HERE.md",
+    "ARTIFACT_GUIDE.md",
+    "REVIEWER_CHECKLIST.md",
+    "release_handoff.md",
+    "project_template_onboarding.*",
+    "governance/report",
+    "onboarding governance",
+    "schema approval"
+)) {
+    Assert-ContainsText -Text $onboardingGuidance -ExpectedText $marker `
+        -Message "Release metadata pipeline docs should keep project-template onboarding source evidence guidance '$marker'."
+}
+
+Assert-TextOrder -Text $onboardingGuidance -ExpectedTexts @(
+    "``source_schema``",
+    "``source_report_display``",
+    "``source_json_display``"
+) -Message "Release metadata pipeline onboarding guidance should list source report display between schema and source JSON."
+
+Assert-TextOrder -Text $onboardingGuidance -ExpectedTexts @(
+    "``source_report_display``",
+    "governance/report",
+    "``source_json_display``",
+    "onboarding governance",
+    "``open_command``",
+    "schema approval"
+) -Message "Release metadata pipeline onboarding guidance should tell reviewers to open report, then source JSON, then command."
 
 Assert-ContainsText -Text $releasePolicyDoc -ExpectedText "schema_patch_approval_gate_status" `
     -Message "Release policy should keep project-template schema approval as a release criterion."
