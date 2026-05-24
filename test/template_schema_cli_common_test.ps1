@@ -76,6 +76,14 @@ $latestJson = Get-TemplateSchemaCommandJsonObject `
 Assert-Equal -Actual ([bool]$latestJson.matches) -Expected $true `
     -Message "Command JSON parser should keep using the last matching command result."
 
+$utf8Json = Get-TemplateSchemaCommandJsonObject `
+    -Command "fill-bookmarks" `
+    -Lines @(
+        '{"command":"fill-bookmarks","ok":true,"bindings":[{"bookmark_name":"customer_name","text":"上海羽文档科技有限公司"}]}'
+    )
+Assert-Equal -Actual ([string]$utf8Json.bindings[0].text) -Expected "上海羽文档科技有限公司" `
+    -Message "Command JSON parser should preserve UTF-8 bookmark binding text."
+
 Assert-ThrowsMessage `
     -ExpectedText "did not emit a JSON result" `
     -Message "Command JSON parser should require command to be the first JSON field." `

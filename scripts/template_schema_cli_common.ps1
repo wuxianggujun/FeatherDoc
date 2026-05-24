@@ -76,6 +76,33 @@ function ConvertTo-TemplateSchemaCommandLine {
     return ($escaped -join ' ')
 }
 
+function ConvertTo-TemplateSchemaProcessArgumentString {
+    param([object[]]$Arguments)
+
+    $escaped = foreach ($argument in @($Arguments)) {
+        if ($null -eq $argument) {
+            continue
+        }
+
+        $text = [string]$argument
+        if ($text.Length -eq 0) {
+            '""'
+            continue
+        }
+
+        if ($text -notmatch '[\s"]') {
+            $text
+            continue
+        }
+
+        $quoted = $text -replace '(\\*)"', '$1$1\"'
+        $quoted = $quoted -replace '(\\+)$', '$1$1'
+        '"' + $quoted + '"'
+    }
+
+    return ($escaped -join ' ')
+}
+
 function Expand-TemplateSchemaArgumentList {
     param([string[]]$Values)
 
@@ -216,9 +243,36 @@ function Invoke-TemplateSchemaCli {
         [string[]]$Arguments
     )
 
-    $commandOutput = @(& $ExecutablePath @Arguments 2>&1)
-    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
-    $lines = @($commandOutput | ForEach-Object { $_.ToString() })
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $ExecutablePath
+    $startInfo.Arguments = ConvertTo-TemplateSchemaProcessArgumentString -Arguments $Arguments
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $startInfo.StandardOutputEncoding = $utf8NoBom
+    $startInfo.StandardErrorEncoding = $utf8NoBom
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+
+    [void]$process.Start()
+    $standardOutput = $process.StandardOutput.ReadToEnd()
+    $standardError = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+
+    $exitCode = $process.ExitCode
+    $lines = @()
+    foreach ($streamText in @($standardOutput, $standardError)) {
+        if ([string]::IsNullOrEmpty($streamText)) {
+            continue
+        }
+
+        $lines += @(
+            $streamText -split "`r`n|`n|`r" |
+                Where-Object { $_ -ne "" }
+        )
+    }
 
     return [pscustomobject]@{
         ExitCode = $exitCode
