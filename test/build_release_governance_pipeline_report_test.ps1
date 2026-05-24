@@ -585,6 +585,9 @@ Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Obje
 Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "sync-content-controls-from-custom-xml.json" `
     -Message "Pipeline content-control stage should expose sync evidence JSON display."
+Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+    -ExpectedText "content-control-data-binding-governance\summary.json" `
+    -Message "Pipeline content-control stage should expose governance blocker source report display."
 $placeholderBlockers = @($contentControlStage.release_blockers | Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" })
 Assert-Equal -Actual $placeholderBlockers.Count -Expected 1 `
     -Message "Pipeline content-control stage should include one bound-placeholder blocker."
@@ -600,6 +603,9 @@ Assert-ContainsText -Text ([string]$placeholderBlocker.command_template) `
 Assert-ContainsText -Text (($contentControlStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
     -Message "Pipeline content-control stage should expose reviewer open command."
+Assert-ContainsText -Text (($contentControlStage.action_items | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+    -ExpectedText "content-control-data-binding-governance\summary.json" `
+    -Message "Pipeline content-control stage should expose action source report display."
 $lockActions = @($contentControlStage.action_items | Where-Object { [string]$_.id -eq "review_content_control_lock_strategy" })
 Assert-Equal -Actual $lockActions.Count -Expected 1 `
     -Message "Pipeline content-control stage should include one lock review action."
