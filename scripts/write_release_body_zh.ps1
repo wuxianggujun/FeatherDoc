@@ -456,6 +456,14 @@ function Add-ProjectTemplateGovernanceContractSummaryLines {
             if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
                 [void]$readinessParts.Add("${fieldName}=$fieldValue")
             }
+
+            if ($fieldName -eq "latest_schema_approval_gate_status") {
+                $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+                    -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "schema_approval_status_summary")
+                if (-not [string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+                    [void]$readinessParts.Add("schema_approval_status_summary=$schemaApprovalSummary")
+                }
+            }
         }
         [void]$readinessParts.Add("source_report_display=$(Get-GovernanceSourceReportDisplay -Item $readinessReport)")
         [void]$readinessParts.Add("source_json_display=$(Get-GovernanceSourceJsonDisplay -Item $readinessReport)")
@@ -463,10 +471,9 @@ function Add-ProjectTemplateGovernanceContractSummaryLines {
     }
 
     if ($null -ne $onboardingItem) {
-        $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $onboardingItem -Name "schema_approval_status_summary"
-        if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
-            $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $onboardingItem -Name "status"
-        }
+        $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingItem -Name "schema_approval_status_summary") `
+            -Fallback (Get-ReleaseBlockerPropertyValue -Object $onboardingItem -Name "status")
         if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
             $schemaApprovalSummary = "unknown"
         }
@@ -499,21 +506,23 @@ function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
         -SourceSchema "featherdoc.project_template_onboarding_governance_report.v1"
 
     if ($null -ne $readinessReport) {
+        $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "schema_approval_status_summary")
         Add-UniqueLine -Lines $Lines -Line (
-            'project-template readiness governance contract 已进入短摘要：status={0} release_ready={1} latest_schema_approval_gate_status={2} source_report_display={3} source_json_display={4}。' -f `
+            'project-template readiness governance contract 已进入短摘要：status={0} release_ready={1} latest_schema_approval_gate_status={2} schema_approval_status_summary={3} source_report_display={4} source_json_display={5}。' -f `
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "status")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "release_ready")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "latest_schema_approval_gate_status")),
+                (Get-DisplayValue -Value $schemaApprovalSummary),
                 (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $readinessReport)),
                 (Get-DisplayValue -Value (Get-GovernanceSourceJsonDisplay -Item $readinessReport))
         )
     }
 
     if ($null -ne $onboardingItem) {
-        $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $onboardingItem -Name "schema_approval_status_summary"
-        if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
-            $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $onboardingItem -Name "status"
-        }
+        $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingItem -Name "schema_approval_status_summary") `
+            -Fallback (Get-ReleaseBlockerPropertyValue -Object $onboardingItem -Name "status")
 
         Add-UniqueLine -Lines $Lines -Line (
             'project-template onboarding governance contract 已进入短摘要：schema_approval_status_summary={0} source_report_display={1} source_json_display={2}。' -f `

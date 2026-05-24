@@ -432,6 +432,64 @@ function Join-ReleaseBlockerValues {
     return ($normalizedValues -join ",")
 }
 
+function Format-ProjectTemplateSchemaApprovalStatusSummary {
+    param(
+        [AllowNull()]$Value,
+        [string]$Fallback = ""
+    )
+
+    if ($null -eq $Value) {
+        return $Fallback
+    }
+
+    if ($Value -is [string]) {
+        if ([string]::IsNullOrWhiteSpace($Value)) {
+            return $Fallback
+        }
+
+        return $Value
+    }
+
+    $items = if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [System.Collections.IDictionary])) {
+        @($Value | Where-Object { $null -ne $_ })
+    } else {
+        @($Value)
+    }
+
+    $parts = @(
+        foreach ($item in $items) {
+            if ($null -eq $item) {
+                continue
+            }
+
+            if ($item -is [string]) {
+                if (-not [string]::IsNullOrWhiteSpace($item)) {
+                    [string]$item
+                }
+                continue
+            }
+
+            $status = Get-ReleaseBlockerPropertyValue -Object $item -Name "status"
+            $count = Get-ReleaseBlockerPropertyValue -Object $item -Name "count"
+            if (-not [string]::IsNullOrWhiteSpace($status) -and -not [string]::IsNullOrWhiteSpace($count)) {
+                "${status}=${count}"
+            } elseif (-not [string]::IsNullOrWhiteSpace($status)) {
+                $status
+            } elseif (-not [string]::IsNullOrWhiteSpace($count)) {
+                "count=${count}"
+            } elseif (-not [string]::IsNullOrWhiteSpace([string]$item)) {
+                [string]$item
+            }
+        }
+    )
+
+    if ($parts.Count -eq 0) {
+        return $Fallback
+    }
+
+    return ($parts -join ", ")
+}
+
 function Get-ReleaseBlockerSummaryText {
     param([AllowNull()]$Blocker)
 
@@ -997,10 +1055,9 @@ function Add-ProjectTemplateOnboardingGovernanceContractLines {
         return
     }
 
-    $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $Item -Name "schema_approval_status_summary"
-    if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
-        $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $Item -Name "status"
-    }
+    $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+        -Value (Get-ReleaseBlockerPropertyObject -Object $Item -Name "schema_approval_status_summary") `
+        -Fallback (Get-ReleaseBlockerPropertyValue -Object $Item -Name "status")
     if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
         $schemaApprovalSummary = "unknown"
     }
@@ -1216,6 +1273,14 @@ function Add-ProjectTemplateDeliveryReadinessContractLines {
         $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Report -Name $fieldName
         if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
             [void]$Lines.Add("    - ${fieldName}: $fieldValue")
+        }
+
+        if ($fieldName -eq "latest_schema_approval_gate_status") {
+            $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+                -Value (Get-ReleaseBlockerPropertyObject -Object $Report -Name "schema_approval_status_summary")
+            if (-not [string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+                [void]$Lines.Add("    - schema_approval_status_summary: $schemaApprovalSummary")
+            }
         }
     }
 

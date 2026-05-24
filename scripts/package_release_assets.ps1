@@ -452,6 +452,7 @@ function Get-ProjectTemplateDeliveryReadinessContract {
         status = Get-OptionalPropertyValue -Object $readinessSummary -Name "status"
         release_ready = Get-OptionalPropertyObject -Object $readinessSummary -Name "release_ready"
         latest_schema_approval_gate_status = Get-OptionalPropertyValue -Object $readinessSummary -Name "latest_schema_approval_gate_status"
+        schema_approval_status_summary = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_approval_status_summary"
         schema_history_blocked_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_blocked_run_count"
         schema_history_pending_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_pending_run_count"
         schema_history_passed_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_passed_run_count"

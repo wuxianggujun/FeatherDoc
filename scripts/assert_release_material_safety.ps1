@@ -388,6 +388,7 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
             "status=",
             "release_ready=",
             "latest_schema_approval_gate_status=",
+            "schema_approval_status_summary=",
             "source_report_display=",
             "source_json_display="
         )) {
@@ -441,6 +442,7 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
             "status=",
             "release_ready=",
             "latest_schema_approval_gate_status=",
+            "schema_approval_status_summary=",
             "source_report_display=",
             "source_json_display="
         )) {
@@ -497,6 +499,7 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
             "status:",
             "release_ready:",
             "latest_schema_approval_gate_status:",
+            "schema_approval_status_summary:",
             "source_report_display:",
             "source_json_display:"
         )) {
@@ -1132,6 +1135,13 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
     $latestGateStatus = Get-JsonPropertyValue -Object $contract -Name "latest_schema_approval_gate_status"
     if ([string]::IsNullOrWhiteSpace([string]$latestGateStatus)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.latest_schema_approval_gate_status is missing."
+    }
+
+    $statusSummary = Get-JsonPropertyValue -Object $contract -Name "schema_approval_status_summary"
+    if ($null -eq $statusSummary -or
+        ($statusSummary -is [string] -and [string]::IsNullOrWhiteSpace($statusSummary)) -or
+        @($statusSummary).Count -eq 0) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.schema_approval_status_summary is missing."
     }
 
     $sourceJsonDisplay = Get-JsonPropertyValue -Object $contract -Name "source_json_display"

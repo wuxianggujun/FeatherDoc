@@ -322,6 +322,7 @@ $summary = [ordered]@{
                 source_json_display = ".\output\project-template-delivery-readiness\summary.json"
                 source_failure_count = 0
                 latest_schema_approval_gate_status = "pending_review"
+                schema_approval_status_summary = "pending_review"
                 schema_history_blocked_run_count = 0
                 schema_history_pending_run_count = 1
                 schema_history_passed_run_count = 2
@@ -600,6 +601,7 @@ $summary = [ordered]@{
                 source_json_display = ".\output\project-template-delivery-readiness\summary.json"
                 source_failure_count = 1
                 latest_schema_approval_gate_status = "pending_review"
+                schema_approval_status_summary = "pending_review"
                 schema_history_blocked_run_count = 0
                 schema_history_pending_run_count = 1
                 schema_history_passed_run_count = 2
@@ -814,7 +816,7 @@ Assert-Contains -Path $bodyPath -ExpectedText 'project_template_delivery_readine
 Assert-Contains -Path $bodyPath -ExpectedText 'source_schema=featherdoc.project_template_delivery_readiness_report.v1' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'latest_schema_approval_gate_status=pending_review' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'latest_schema_approval_gate_status=pending_review schema_history_blocked_run_count=0 schema_history_pending_run_count=1 schema_history_passed_run_count=2 template_count=3 ready_template_count=2 blocked_template_count=1 release_blocker_count=1 action_item_count=1 warning_count=0 source_failure_count=0 source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'latest_schema_approval_gate_status=pending_review schema_approval_status_summary=pending_review schema_history_blocked_run_count=0 schema_history_pending_run_count=1 schema_history_passed_run_count=2 template_count=3 ready_template_count=2 blocked_template_count=1 release_blocker_count=1 action_item_count=1 warning_count=0 source_failure_count=0 source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'source_schema=featherdoc.project_template_onboarding_governance_report.v1' -Label 'release_body.zh-CN.md'
@@ -836,7 +838,7 @@ Assert-Contains -Path $shortPath -ExpectedText 'section page setup=`pass`' -Labe
 Assert-Contains -Path $shortPath -ExpectedText 'page number fields=`pending_manual_review`' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'Template table CLI selector=`pass`' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'project-template readiness governance contract' -Label 'release_summary.zh-CN.md'
-Assert-Contains -Path $shortPath -ExpectedText 'status=blocked release_ready=False latest_schema_approval_gate_status=pending_review source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_summary.zh-CN.md'
+Assert-Contains -Path $shortPath -ExpectedText 'status=blocked release_ready=False latest_schema_approval_gate_status=pending_review schema_approval_status_summary=pending_review source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'project-template onboarding governance contract' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'schema_approval_status_summary=pending_review source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_summary.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText $installDir -Label 'release_body.zh-CN.md'
@@ -894,6 +896,7 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'project_template_delivery_readiness_contract:' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_schema: featherdoc.project_template_delivery_readiness_report.v1' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'latest_schema_approval_gate_status: pending_review' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'schema_approval_status_summary: pending_review' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'template_count: 3' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'release_blocker_count: 1' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report_display: .\output\project-template-delivery-readiness\summary.json' -Label $document.Label

@@ -155,6 +155,12 @@ $projectTemplateDeliveryReadinessContract = [ordered]@{
     status = "ready"
     release_ready = $true
     latest_schema_approval_gate_status = "passed"
+    schema_approval_status_summary = @(
+        [ordered]@{
+            status = "approved"
+            count = 4
+        }
+    )
     schema_history_blocked_run_count = 0
     schema_history_pending_run_count = 0
     schema_history_passed_run_count = 3
@@ -465,7 +471,7 @@ Set-Content -LiteralPath $passEntryGovernanceTracePath -Encoding UTF8 -Value @"
 - Content-control repair: content_control_data_binding.bound_placeholder -> sync_bound_content_control
 - Content-control provenance: input_docx=samples/invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control contract: source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
-- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence level=low score=56 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
@@ -477,7 +483,7 @@ $passReleaseSummaryTracePath = Join-Path $passDir "release_summary.zh-CN.md"
 Set-Content -LiteralPath $passReleaseSummaryTracePath -Encoding UTF8 -Value @"
 # Release summary
 
-- project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - project-template onboarding governance contract: schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 "@
 
@@ -489,7 +495,7 @@ New-Item -ItemType Directory -Path $passReleaseBodyTraceDir -Force | Out-Null
 Set-Content -LiteralPath $passReleaseBodyTracePath -Encoding UTF8 -Value @"
 # Release body
 
-- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 "@
 
@@ -509,6 +515,7 @@ Set-Content -LiteralPath $passReleaseHandoffTracePath -Encoding UTF8 -Value @"
     - status: ready
     - release_ready: True
     - latest_schema_approval_gate_status: passed
+    - schema_approval_status_summary: approved=4
     - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
     - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
@@ -607,7 +614,7 @@ Set-Content -LiteralPath $badEntryMissingGovernanceMetricDetailsPath -Encoding U
 # START_HERE
 
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
-- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0
@@ -631,7 +638,7 @@ Set-Content -LiteralPath $badEntryMissingRepairDetailsPath -Encoding UTF8 -Value
 # START_HERE
 
 - Content-control repair: content_control_data_binding.bound_placeholder -> sync_bound_content_control
-- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 "@
 
@@ -935,6 +942,24 @@ try {
 
 if (-not $badManifestProjectTemplateReadinessSourceReportFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness contract missing source_report_display."
+}
+
+$badManifestProjectTemplateReadinessSchemaSummaryDir = Join-Path $failDir "manifest-project-template-readiness-missing-schema-summary"
+$badManifestProjectTemplateReadinessSchemaSummaryPath = Join-Path $badManifestProjectTemplateReadinessSchemaSummaryDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessSchemaSummaryDir -Force | Out-Null
+$badManifestProjectTemplateReadinessSchemaSummary = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateReadinessSchemaSummary.project_template_delivery_readiness_contract.PSObject.Properties.Remove("schema_approval_status_summary")
+($badManifestProjectTemplateReadinessSchemaSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateReadinessSchemaSummaryPath -Encoding UTF8
+
+$badManifestProjectTemplateReadinessSchemaSummaryFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateReadinessSchemaSummaryPath
+} catch {
+    $badManifestProjectTemplateReadinessSchemaSummaryFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateReadinessSchemaSummaryFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness contract missing schema_approval_status_summary."
 }
 
 $badManifestProjectTemplateOnboardingSourceSchemaDir = Join-Path $failDir "manifest-project-template-onboarding-missing-source-schema"
@@ -1256,6 +1281,12 @@ $badManifestBlockedProjectTemplateReadiness = [ordered]@{
         status = "blocked"
         release_ready = $false
         latest_schema_approval_gate_status = "blocked"
+        schema_approval_status_summary = @(
+            [ordered]@{
+                status = "blocked"
+                count = 1
+            }
+        )
         schema_history_blocked_run_count = 1
         schema_history_pending_run_count = 0
         schema_history_passed_run_count = 2
@@ -1499,7 +1530,7 @@ $badReleaseSummaryTracePath = Join-Path $failDir "release_summary.zh-CN.md"
 Set-Content -LiteralPath $badReleaseSummaryTracePath -Encoding UTF8 -Value @"
 # Release summary
 
-- project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 "@
 
 $badReleaseSummaryTraceFailedAsExpected = $false
@@ -1519,7 +1550,7 @@ New-Item -ItemType Directory -Path $badReleaseBodyTraceDir -Force | Out-Null
 Set-Content -LiteralPath $badReleaseBodyTracePath -Encoding UTF8 -Value @"
 # Release body
 
-- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 "@
 
 $badReleaseBodyTraceFailedAsExpected = $false
@@ -1546,6 +1577,7 @@ Set-Content -LiteralPath $badReleaseHandoffTracePath -Encoding UTF8 -Value @"
     - status: ready
     - release_ready: True
     - latest_schema_approval_gate_status: passed
+    - schema_approval_status_summary: approved=4
     - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 "@
 
