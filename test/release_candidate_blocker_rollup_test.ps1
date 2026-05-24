@@ -622,8 +622,9 @@ Assert-Equal -Actual $autoDiscoverExitCode -Expected 0 `
     -Message "Release candidate auto-discovered rollup run should pass. Output: $autoDiscoverText"
 
 $autoDiscoverSummaryPath = Join-Path $autoDiscoverOutputDir "report\summary.json"
+$autoDiscoverFinalReviewPath = Join-Path $autoDiscoverOutputDir "report\final_review.md"
 $autoDiscoverRollupSummaryPath = Join-Path $autoDiscoverOutputDir "report\release-blocker-rollup\summary.json"
-foreach ($path in @($autoDiscoverSummaryPath, $autoDiscoverRollupSummaryPath)) {
+foreach ($path in @($autoDiscoverSummaryPath, $autoDiscoverFinalReviewPath, $autoDiscoverRollupSummaryPath)) {
     Assert-True -Condition (Test-Path -LiteralPath $path) `
         -Message "Expected auto-discovered release candidate artifact to exist: $path"
 }
@@ -679,6 +680,9 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "project-template-onboarding-governance\summary.json" `
     -Message "Auto-discovered rollup should carry onboarding governance source JSON display."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+    -ExpectedText "project-template-delivery-readiness\summary.json" `
+    -Message "Auto-discovered rollup should carry project-template delivery readiness source report display."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "schema-patch-confidence-calibration\summary.json" `
     -Message "Auto-discovered rollup should carry calibration source JSON display."
@@ -694,9 +698,27 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_i
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "sync_project_template_schema_approval.ps1" `
     -Message "Auto-discovered rollup should carry onboarding governance action open command."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+    -ExpectedText "project-template-delivery-readiness\summary.json" `
+    -Message "Auto-discovered rollup should carry project-template action source report display."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+    -ExpectedText "project-template-onboarding-governance\summary.json" `
+    -Message "Auto-discovered rollup should carry project-template action source JSON display."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
     -Message "Auto-discovered rollup should carry calibration action open command."
+
+$autoDiscoverFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverFinalReviewPath
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "Release blocker rollup details" `
+    -Message "Auto-discovered final review should include release blocker rollup details."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "project_template_onboarding.schema_approval" `
+    -Message "Auto-discovered final review should include project-template blocker id."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "source_report_display:" `
+    -Message "Auto-discovered final review should include project-template source report display labels."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "project-template-delivery-readiness\summary.json" `
+    -Message "Auto-discovered final review should include project-template delivery readiness source report display."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "source_json_display: .\output\project-template-onboarding-governance\summary.json" `
+    -Message "Auto-discovered final review should include project-template onboarding source JSON display."
 
 $autoDiscoverRollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverRollupSummaryPath | ConvertFrom-Json
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
