@@ -1035,6 +1035,13 @@ function Add-PdfVisualGateManifestContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.status must be loaded."
     }
 
+    $evidenceVerdict = ([string](Get-JsonPropertyValue -Object $evidence -Name "verdict")).Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($evidenceVerdict)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.verdict is missing."
+    } elseif ($evidenceVerdict -notin @("pass", "fail")) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.verdict must be pass or fail."
+    }
+
     $evidenceSummary = [string](Get-JsonPropertyValue -Object $evidence -Name "summary_json")
     if ([string]::IsNullOrWhiteSpace($evidenceSummary)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.summary_json is missing."

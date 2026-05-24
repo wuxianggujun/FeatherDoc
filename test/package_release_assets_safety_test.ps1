@@ -251,6 +251,7 @@ Set-Content -LiteralPath $pdfGateUnicodeLogPath -Encoding UTF8 -Value "Unicode f
 
 $pdfVisualGateSummary = [ordered]@{
     generated_at = "2026-04-12T12:00:00"
+    verdict = "pass"
     repo_root = $resolvedRepoRoot
     output_dir = $pdfGateOutputDir
     aggregate_contact_sheet = $pdfGateAggregateContactSheetPath
@@ -692,6 +693,9 @@ if (-not [bool]$manifest.pdf_visual_gate_evidence_included) {
 }
 if ([string]$manifest.pdf_visual_gate_evidence.summary_json -ne $expectedRelativePdfGateSummary) {
     throw "release_assets_manifest.json did not preserve the PDF visual gate summary display path."
+}
+if ([string]$manifest.pdf_visual_gate_evidence.verdict -ne "pass") {
+    throw "release_assets_manifest.json lost the PDF visual gate verdict."
 }
 if ([string]$manifest.pdf_visual_gate_evidence.aggregate_contact_sheet -notmatch "aggregate-contact-sheet.png") {
     throw "release_assets_manifest.json lost the PDF visual gate aggregate contact sheet."

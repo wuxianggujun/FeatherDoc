@@ -200,6 +200,7 @@ $pdfVisualGateSummaryJson = ".\output\pdf-visual-release-gate-current\report\sum
 $pdfVisualGateEvidence = [ordered]@{
     summary_json = $pdfVisualGateSummaryJson
     status = "loaded"
+    verdict = "pass"
     aggregate_contact_sheet = ".\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png"
     cjk_copy_search_count = "43"
     cjk_missing_text_count = "0"
@@ -288,6 +289,42 @@ try {
 
 if (-not $missingPdfEvidenceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest without PDF visual gate evidence."
+}
+
+$badManifestMissingPdfVerdictDir = Join-Path $failDir "manifest-missing-pdf-visual-verdict"
+$badManifestMissingPdfVerdictPath = Join-Path $badManifestMissingPdfVerdictDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingPdfVerdictDir -Force | Out-Null
+$badManifestMissingPdfVerdict = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingPdfVerdict.pdf_visual_gate_evidence.PSObject.Properties.Remove("verdict")
+($badManifestMissingPdfVerdict | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingPdfVerdictPath -Encoding UTF8
+
+$missingPdfVerdictFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingPdfVerdictPath
+} catch {
+    $missingPdfVerdictFailedAsExpected = $true
+}
+
+if (-not $missingPdfVerdictFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest without PDF visual gate verdict."
+}
+
+$badManifestInvalidPdfVerdictDir = Join-Path $failDir "manifest-invalid-pdf-visual-verdict"
+$badManifestInvalidPdfVerdictPath = Join-Path $badManifestInvalidPdfVerdictDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestInvalidPdfVerdictDir -Force | Out-Null
+$badManifestInvalidPdfVerdict = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestInvalidPdfVerdict.pdf_visual_gate_evidence.verdict = "blocked"
+($badManifestInvalidPdfVerdict | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestInvalidPdfVerdictPath -Encoding UTF8
+
+$invalidPdfVerdictFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestInvalidPdfVerdictPath
+} catch {
+    $invalidPdfVerdictFailedAsExpected = $true
+}
+
+if (-not $invalidPdfVerdictFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with invalid PDF visual gate verdict."
 }
 
 $badManifestMismatchedPdfSummaryDir = Join-Path $failDir "manifest-mismatched-pdf-visual-summary"
