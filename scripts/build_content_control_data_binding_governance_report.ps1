@@ -135,6 +135,169 @@ function Get-JsonArray {
     return @($value)
 }
 
+function Get-FirstJsonString {
+    param(
+        $Object,
+        [string[]]$Names,
+        [string]$DefaultValue = ""
+    )
+
+    foreach ($name in @($Names)) {
+        $value = Get-JsonString -Object $Object -Name $name
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+
+    return $DefaultValue
+}
+
+function New-ContentControlEvidenceProvenance {
+    param(
+        [string]$RepoRoot,
+        [string]$Path,
+        $Json
+    )
+
+    $inputDocx = Get-FirstJsonString -Object $Json -Names @("input_docx", "input_docx_path", "docx_path", "document_path")
+    $inputDocxDisplay = Get-FirstJsonString -Object $Json -Names @("input_docx_display", "input_docx_path_display", "docx_path_display", "document_path_display")
+    if ([string]::IsNullOrWhiteSpace($inputDocxDisplay) -and -not [string]::IsNullOrWhiteSpace($inputDocx)) {
+        $inputDocxDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $inputDocx
+    }
+
+    return [ordered]@{
+        source_json = $Path
+        source_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
+        input_docx = $inputDocx
+        input_docx_display = $inputDocxDisplay
+        template_name = Get-FirstJsonString -Object $Json -Names @("template_name", "project_template_name")
+        schema_target = Get-FirstJsonString -Object $Json -Names @("schema_target", "target", "schema_baseline_target")
+        target_mode = Get-FirstJsonString -Object $Json -Names @("target_mode", "schema_target_mode", "export_target_mode")
+    }
+}
+
+function Get-ProvenanceString {
+    param(
+        $Object,
+        $Fallback,
+        [string[]]$Names,
+        [string]$DefaultValue = ""
+    )
+
+    $value = Get-FirstJsonString -Object $Object -Names $Names
+    if (-not [string]::IsNullOrWhiteSpace($value)) {
+        return $value
+    }
+
+    return Get-FirstJsonString -Object $Fallback -Names $Names -DefaultValue $DefaultValue
+}
+
+function Get-UniqueProvenanceValue {
+    param(
+        [object[]]$Items,
+        [string]$Name
+    )
+
+    $values = @(@(
+            foreach ($item in @($Items)) {
+                $value = Get-JsonString -Object $item -Name $Name
+                if (-not [string]::IsNullOrWhiteSpace($value)) {
+                    $value
+                }
+            }
+        ) | Sort-Object -Unique)
+    if ($values.Count -eq 1) {
+        return [string]$values[0]
+    }
+
+    return ""
+}
+
+function New-ProvenanceSummary {
+    param([object[]]$Items)
+
+    $groups = @(
+        $Items |
+            Where-Object {
+                -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "source_json")) -or
+                -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "input_docx")) -or
+                -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "template_name")) -or
+                -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "schema_target")) -or
+                -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "target_mode"))
+            } |
+            Group-Object {
+                $item = $_
+                $keyParts = @(
+                    (Get-JsonString -Object $item -Name "source_json")
+                    (Get-JsonString -Object $item -Name "input_docx")
+                    (Get-JsonString -Object $item -Name "template_name")
+                    (Get-JsonString -Object $item -Name "schema_target")
+                    (Get-JsonString -Object $item -Name "target_mode")
+                )
+                $keyParts -join "|||"
+            }
+    )
+
+    return @(
+        foreach ($group in @($groups)) {
+            $item = @($group.Group)[0]
+            [ordered]@{
+                source_json = Get-JsonString -Object $item -Name "source_json"
+                source_json_display = Get-JsonString -Object $item -Name "source_json_display"
+                input_docx = Get-JsonString -Object $item -Name "input_docx"
+                input_docx_display = Get-JsonString -Object $item -Name "input_docx_display"
+                template_name = Get-JsonString -Object $item -Name "template_name"
+                schema_target = Get-JsonString -Object $item -Name "schema_target"
+                target_mode = Get-JsonString -Object $item -Name "target_mode"
+                evidence_count = [int]$group.Count
+            }
+        }
+    )
+}
+
+function Add-MarkdownProvenanceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        $Item,
+        [string]$Indent = "  "
+    )
+
+    $fields = @(
+        @("input_docx_display", "input_docx_display"),
+        @("input_docx", "input_docx"),
+        @("template_name", "template_name"),
+        @("schema_target", "schema_target"),
+        @("target_mode", "target_mode")
+    )
+    foreach ($field in $fields) {
+        $name = [string]$field[0]
+        $label = [string]$field[1]
+        $value = Get-JsonString -Object $Item -Name $name
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $Lines.Add("$Indent- ${label}: ``$value``") | Out-Null
+        }
+    }
+}
+
+function Get-ProvenanceSummaryField {
+    param($Item)
+
+    $values = @(
+        "source_json_display",
+        "input_docx_display",
+        "template_name",
+        "schema_target",
+        "target_mode"
+    ) | ForEach-Object {
+        $value = Get-JsonString -Object $Item -Name $_
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            "$_=$value"
+        }
+    }
+
+    return ($values -join " ")
+}
+
 function Get-InputJsonPaths {
     param([string]$RepoRoot, [string[]]$ExplicitPaths, [string[]]$Roots)
 
@@ -246,7 +409,12 @@ function New-ReleaseBlocker {
         [string]$RepairStrategy = "",
         [string]$RepairHint = "",
         [string]$CommandTemplate = "",
-        [string]$SourceJsonDisplay = ""
+        [string]$SourceJsonDisplay = "",
+        [string]$InputDocx = "",
+        [string]$InputDocxDisplay = "",
+        [string]$TemplateName = "",
+        [string]$SchemaTarget = "",
+        [string]$TargetMode = ""
     )
 
     return [ordered]@{
@@ -263,6 +431,11 @@ function New-ReleaseBlocker {
         source_report_display = $summaryDisplay
         source_json = $SourceJson
         source_json_display = $SourceJsonDisplay
+        input_docx = $InputDocx
+        input_docx_display = $InputDocxDisplay
+        template_name = $TemplateName
+        schema_target = $SchemaTarget
+        target_mode = $TargetMode
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
@@ -291,7 +464,12 @@ function New-ActionItem {
         [string]$OpenCommand = $contentControlGovernanceOpenCommand,
         [string]$DuplicateBindingKey = "",
         [int]$DuplicateMemberCount = 0,
-        [object[]]$DuplicateMembers = @()
+        [object[]]$DuplicateMembers = @(),
+        [string]$InputDocx = "",
+        [string]$InputDocxDisplay = "",
+        [string]$TemplateName = "",
+        [string]$SchemaTarget = "",
+        [string]$TargetMode = ""
     )
 
     return [ordered]@{
@@ -307,6 +485,11 @@ function New-ActionItem {
         source_report_display = $summaryDisplay
         source_json = $SourceJson
         source_json_display = $SourceJsonDisplay
+        input_docx = $InputDocx
+        input_docx_display = $InputDocxDisplay
+        template_name = $TemplateName
+        schema_target = $SchemaTarget
+        target_mode = $TargetMode
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
@@ -360,6 +543,11 @@ function New-RepairPlanItem {
         source_report_display = Get-JsonString -Object $Item -Name "source_report_display" -DefaultValue (Get-JsonString -Object $Item -Name "source_json_display")
         source_json = Get-JsonString -Object $Item -Name "source_json"
         source_json_display = Get-JsonString -Object $Item -Name "source_json_display"
+        input_docx = Get-JsonString -Object $Item -Name "input_docx"
+        input_docx_display = Get-JsonString -Object $Item -Name "input_docx_display"
+        template_name = Get-JsonString -Object $Item -Name "template_name"
+        schema_target = Get-JsonString -Object $Item -Name "schema_target"
+        target_mode = Get-JsonString -Object $Item -Name "target_mode"
         part_entry_name = Get-JsonString -Object $Item -Name "part_entry_name"
         content_control_index = Get-JsonProperty -Object $Item -Name "content_control_index"
         tag = Get-JsonString -Object $Item -Name "tag"
@@ -439,7 +627,7 @@ function New-BindingCoverageSummary {
 }
 
 function Convert-InspectContentControls {
-    param([string]$RepoRoot, [string]$Path, $Json)
+    param([string]$RepoRoot, [string]$Path, $Json, $Provenance)
 
     $part = Get-JsonString -Object $Json -Name "part"
     $entryName = Get-JsonString -Object $Json -Name "entry_name"
@@ -450,6 +638,11 @@ function Convert-InspectContentControls {
         $items.Add([ordered]@{
             source_json = $Path
             source_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
+            input_docx = Get-ProvenanceString -Object $control -Fallback $Provenance -Names @("input_docx", "input_docx_path", "docx_path", "document_path")
+            input_docx_display = Get-ProvenanceString -Object $control -Fallback $Provenance -Names @("input_docx_display", "input_docx_path_display", "docx_path_display", "document_path_display")
+            template_name = Get-ProvenanceString -Object $control -Fallback $Provenance -Names @("template_name", "project_template_name")
+            schema_target = Get-ProvenanceString -Object $control -Fallback $Provenance -Names @("schema_target", "target", "schema_baseline_target")
+            target_mode = Get-ProvenanceString -Object $control -Fallback $Provenance -Names @("target_mode", "schema_target_mode", "export_target_mode")
             part = $part
             part_entry_name = $entryName
             content_control_index = Get-JsonInt -Object $control -Name "index"
@@ -470,13 +663,18 @@ function Convert-InspectContentControls {
 }
 
 function Convert-SyncItems {
-    param([string]$RepoRoot, [string]$Path, $Json)
+    param([string]$RepoRoot, [string]$Path, $Json, $Provenance)
 
     return @(
         foreach ($item in @(Get-JsonArray -Object $Json -Name "synced_items")) {
             [ordered]@{
                 source_json = $Path
                 source_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
+                input_docx = Get-ProvenanceString -Object $item -Fallback $Provenance -Names @("input_docx", "input_docx_path", "docx_path", "document_path")
+                input_docx_display = Get-ProvenanceString -Object $item -Fallback $Provenance -Names @("input_docx_display", "input_docx_path_display", "docx_path_display", "document_path_display")
+                template_name = Get-ProvenanceString -Object $item -Fallback $Provenance -Names @("template_name", "project_template_name")
+                schema_target = Get-ProvenanceString -Object $item -Fallback $Provenance -Names @("schema_target", "target", "schema_baseline_target")
+                target_mode = Get-ProvenanceString -Object $item -Fallback $Provenance -Names @("target_mode", "schema_target_mode", "export_target_mode")
                 part_entry_name = Get-JsonString -Object $item -Name "part_entry_name"
                 content_control_index = Get-JsonInt -Object $item -Name "content_control_index"
                 tag = Get-JsonString -Object $item -Name "tag"
@@ -491,13 +689,18 @@ function Convert-SyncItems {
 }
 
 function Convert-SyncIssues {
-    param([string]$RepoRoot, [string]$Path, $Json)
+    param([string]$RepoRoot, [string]$Path, $Json, $Provenance)
 
     return @(
         foreach ($issue in @(Get-JsonArray -Object $Json -Name "issues")) {
             [ordered]@{
                 source_json = $Path
                 source_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
+                input_docx = Get-ProvenanceString -Object $issue -Fallback $Provenance -Names @("input_docx", "input_docx_path", "docx_path", "document_path")
+                input_docx_display = Get-ProvenanceString -Object $issue -Fallback $Provenance -Names @("input_docx_display", "input_docx_path_display", "docx_path_display", "document_path_display")
+                template_name = Get-ProvenanceString -Object $issue -Fallback $Provenance -Names @("template_name", "project_template_name")
+                schema_target = Get-ProvenanceString -Object $issue -Fallback $Provenance -Names @("schema_target", "target", "schema_baseline_target")
+                target_mode = Get-ProvenanceString -Object $issue -Fallback $Provenance -Names @("target_mode", "schema_target_mode", "export_target_mode")
                 part_entry_name = Get-JsonString -Object $issue -Name "part_entry_name"
                 content_control_index = Get-JsonProperty -Object $issue -Name "content_control_index"
                 tag = Get-JsonString -Object $issue -Name "tag"
@@ -528,6 +731,36 @@ function New-ReportMarkdown {
     $lines.Add("- Apply-supported repair plans: ``$($Summary.repair_plan_apply_supported_count)``") | Out-Null
     $lines.Add("- Repair plans requiring user values: ``$($Summary.repair_plan_requires_user_values_count)``") | Out-Null
     $lines.Add("- Repair plans requiring visual verification: ``$($Summary.repair_plan_requires_visual_verification_count)``") | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace([string]$Summary.input_docx_display)) {
+        $lines.Add("- Input DOCX: ``$($Summary.input_docx_display)``") | Out-Null
+    } elseif (-not [string]::IsNullOrWhiteSpace([string]$Summary.input_docx)) {
+        $lines.Add("- Input DOCX: ``$($Summary.input_docx)``") | Out-Null
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$Summary.template_name)) {
+        $lines.Add("- Template name: ``$($Summary.template_name)``") | Out-Null
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$Summary.schema_target)) {
+        $lines.Add("- Schema target: ``$($Summary.schema_target)``") | Out-Null
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$Summary.target_mode)) {
+        $lines.Add("- Target mode: ``$($Summary.target_mode)``") | Out-Null
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Provenance") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.provenance_summary).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($entry in @($Summary.provenance_summary)) {
+            $fieldSummary = Get-ProvenanceSummaryField -Item $entry
+            if ([string]::IsNullOrWhiteSpace($fieldSummary)) {
+                $fieldSummary = "evidence_count=$($entry.evidence_count)"
+            } else {
+                $fieldSummary = "$fieldSummary evidence_count=$($entry.evidence_count)"
+            }
+            $lines.Add("- $fieldSummary") | Out-Null
+        }
+    }
     $lines.Add("") | Out-Null
     $lines.Add("## Binding Coverage") | Out-Null
     $lines.Add("") | Out-Null
@@ -558,6 +791,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
                 $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
             }
+            Add-MarkdownProvenanceLines -Lines $lines -Item $blocker
         }
     }
     $lines.Add("") | Out-Null
@@ -589,10 +823,16 @@ function New-ReportMarkdown {
             if (($null -ne $item.duplicate_member_count) -and ([int]$item.duplicate_member_count -gt 0)) {
                 $lines.Add("  - duplicate_member_count: ``$($item.duplicate_member_count)``") | Out-Null
             }
+            Add-MarkdownProvenanceLines -Lines $lines -Item $item
             if (@($item.duplicate_members).Count -gt 0) {
                 $lines.Add("  - duplicate_members:") | Out-Null
                 foreach ($member in @($item.duplicate_members)) {
-                    $lines.Add("    - part_entry_name=``$([string]$member.part_entry_name)`` index=``$([string]$member.content_control_index)`` tag=``$([string]$member.tag)`` alias=``$([string]$member.alias)``") | Out-Null
+                    $memberProvenance = Get-ProvenanceSummaryField -Item $member
+                    if ([string]::IsNullOrWhiteSpace($memberProvenance)) {
+                        $lines.Add("    - part_entry_name=``$([string]$member.part_entry_name)`` index=``$([string]$member.content_control_index)`` tag=``$([string]$member.tag)`` alias=``$([string]$member.alias)``") | Out-Null
+                    } else {
+                        $lines.Add("    - part_entry_name=``$([string]$member.part_entry_name)`` index=``$([string]$member.content_control_index)`` tag=``$([string]$member.tag)`` alias=``$([string]$member.alias)`` $memberProvenance") | Out-Null
+                    }
                 }
             }
         }
@@ -621,10 +861,16 @@ function New-ReportMarkdown {
             if (($null -ne $item.duplicate_member_count) -and ([int]$item.duplicate_member_count -gt 0)) {
                 $lines.Add("  - duplicate_member_count: ``$($item.duplicate_member_count)``") | Out-Null
             }
+            Add-MarkdownProvenanceLines -Lines $lines -Item $item
             if (@($item.duplicate_members).Count -gt 0) {
                 $lines.Add("  - duplicate_members:") | Out-Null
                 foreach ($member in @($item.duplicate_members)) {
-                    $lines.Add("    - part_entry_name=``$([string]$member.part_entry_name)`` index=``$([string]$member.content_control_index)`` tag=``$([string]$member.tag)`` alias=``$([string]$member.alias)``") | Out-Null
+                    $memberProvenance = Get-ProvenanceSummaryField -Item $member
+                    if ([string]::IsNullOrWhiteSpace($memberProvenance)) {
+                        $lines.Add("    - part_entry_name=``$([string]$member.part_entry_name)`` index=``$([string]$member.content_control_index)`` tag=``$([string]$member.tag)`` alias=``$([string]$member.alias)``") | Out-Null
+                    } else {
+                        $lines.Add("    - part_entry_name=``$([string]$member.part_entry_name)`` index=``$([string]$member.content_control_index)`` tag=``$([string]$member.tag)`` alias=``$([string]$member.alias)`` $memberProvenance") | Out-Null
+                    }
                 }
             }
             $requiredUserValues = @(Get-JsonArray -Object $item -Name "required_user_values")
@@ -654,6 +900,7 @@ function New-ReportMarkdown {
     } else {
         foreach ($source in @($Summary.source_files)) {
             $lines.Add("- ``$($source.path_display)``: kind=``$($source.kind)`` status=``$($source.status)``") | Out-Null
+            Add-MarkdownProvenanceLines -Lines $lines -Item $source
         }
     }
     return @($lines)
@@ -690,6 +937,8 @@ foreach ($path in @($inputPaths)) {
     $kind = "unknown"
     $status = "ignored"
     $errorMessage = ""
+    $json = $null
+    $provenance = $null
     if (-not (Test-Path -LiteralPath $path)) {
         $kind = "missing"
         $status = "missing"
@@ -706,19 +955,20 @@ foreach ($path in @($inputPaths)) {
     } else {
         try {
             $json = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
+            $provenance = New-ContentControlEvidenceProvenance -RepoRoot $repoRoot -Path $path -Json $json
             $kind = Get-EvidenceKind -Json $json
             switch ($kind) {
                 "inspect_content_controls" {
-                    foreach ($item in @(Convert-InspectContentControls -RepoRoot $repoRoot -Path $path -Json $json)) {
+                    foreach ($item in @(Convert-InspectContentControls -RepoRoot $repoRoot -Path $path -Json $json -Provenance $provenance)) {
                         $contentControls.Add($item) | Out-Null
                     }
                     $status = "loaded"
                 }
                 "custom_xml_sync_result" {
-                    foreach ($item in @(Convert-SyncItems -RepoRoot $repoRoot -Path $path -Json $json)) {
+                    foreach ($item in @(Convert-SyncItems -RepoRoot $repoRoot -Path $path -Json $json -Provenance $provenance)) {
                         $syncItems.Add($item) | Out-Null
                     }
-                    foreach ($issue in @(Convert-SyncIssues -RepoRoot $repoRoot -Path $path -Json $json)) {
+                    foreach ($issue in @(Convert-SyncIssues -RepoRoot $repoRoot -Path $path -Json $json -Provenance $provenance)) {
                         $syncIssues.Add($issue) | Out-Null
                     }
                     $status = "loaded"
@@ -771,6 +1021,11 @@ foreach ($path in @($inputPaths)) {
         kind = $kind
         status = $status
         error = $errorMessage
+        input_docx = if ($null -eq $json) { "" } else { Get-JsonString -Object $provenance -Name "input_docx" }
+        input_docx_display = if ($null -eq $json) { "" } else { Get-JsonString -Object $provenance -Name "input_docx_display" }
+        template_name = if ($null -eq $json) { "" } else { Get-JsonString -Object $provenance -Name "template_name" }
+        schema_target = if ($null -eq $json) { "" } else { Get-JsonString -Object $provenance -Name "schema_target" }
+        target_mode = if ($null -eq $json) { "" } else { Get-JsonString -Object $provenance -Name "target_mode" }
     }) | Out-Null
 }
 
@@ -780,6 +1035,11 @@ $actionItems = New-Object 'System.Collections.Generic.List[object]'
 foreach ($issue in @($syncIssues.ToArray())) {
     $issueSourceJson = Get-JsonString -Object $issue -Name "source_json" -DefaultValue $summaryPath
     $issueSourceJsonDisplay = Get-JsonString -Object $issue -Name "source_json_display" -DefaultValue $summaryDisplay
+    $issueInputDocx = Get-JsonString -Object $issue -Name "input_docx"
+    $issueInputDocxDisplay = Get-JsonString -Object $issue -Name "input_docx_display"
+    $issueTemplateName = Get-JsonString -Object $issue -Name "template_name"
+    $issueSchemaTarget = Get-JsonString -Object $issue -Name "schema_target"
+    $issueTargetMode = Get-JsonString -Object $issue -Name "target_mode"
     $releaseBlockers.Add((New-ReleaseBlocker `
                 -Id "content_control_data_binding.custom_xml_sync_issue" `
                 -SourceJson $issueSourceJson `
@@ -795,7 +1055,12 @@ foreach ($issue in @($syncIssues.ToArray())) {
                 -RepairStrategy "fix_custom_xml_source" `
                 -RepairHint "Fix the Custom XML source value or mapping, then rerun sync-content-controls-from-custom-xml." `
                 -CommandTemplate (New-SyncContentControlCommandTemplate) `
-                -SourceJsonDisplay $issueSourceJsonDisplay)) | Out-Null
+                -SourceJsonDisplay $issueSourceJsonDisplay `
+                -InputDocx $issueInputDocx `
+                -InputDocxDisplay $issueInputDocxDisplay `
+                -TemplateName $issueTemplateName `
+                -SchemaTarget $issueSchemaTarget `
+                -TargetMode $issueTargetMode)) | Out-Null
 }
 
 foreach ($control in @($contentControls.ToArray())) {
@@ -810,6 +1075,11 @@ foreach ($control in @($contentControls.ToArray())) {
     $controlXPath = Get-JsonString -Object $control -Name "xpath"
     $controlLock = Get-JsonString -Object $control -Name "lock"
     $controlFormKind = Get-JsonString -Object $control -Name "form_kind"
+    $controlInputDocx = Get-JsonString -Object $control -Name "input_docx"
+    $controlInputDocxDisplay = Get-JsonString -Object $control -Name "input_docx_display"
+    $controlTemplateName = Get-JsonString -Object $control -Name "template_name"
+    $controlSchemaTarget = Get-JsonString -Object $control -Name "schema_target"
+    $controlTargetMode = Get-JsonString -Object $control -Name "target_mode"
     $hasBinding = -not [string]::IsNullOrWhiteSpace($controlBindingKey)
     if ($hasBinding -and (Get-JsonBool -Object $control -Name "showing_placeholder")) {
         $releaseBlockers.Add((New-ReleaseBlocker `
@@ -827,7 +1097,12 @@ foreach ($control in @($contentControls.ToArray())) {
                     -RepairStrategy "sync_bound_content_control" `
                     -RepairHint "Rerun Custom XML sync or explicitly fill the bound content control before release." `
                     -CommandTemplate (New-SyncContentControlCommandTemplate) `
-                    -SourceJsonDisplay $controlSourceJsonDisplay)) | Out-Null
+                    -SourceJsonDisplay $controlSourceJsonDisplay `
+                    -InputDocx $controlInputDocx `
+                    -InputDocxDisplay $controlInputDocxDisplay `
+                    -TemplateName $controlTemplateName `
+                    -SchemaTarget $controlSchemaTarget `
+                    -TargetMode $controlTargetMode)) | Out-Null
     }
 
     if ($hasBinding -and -not [string]::IsNullOrWhiteSpace($controlLock)) {
@@ -845,7 +1120,12 @@ foreach ($control in @($contentControls.ToArray())) {
                     -RepairStrategy "review_lock_state" `
                     -RepairHint "Confirm whether the lock is intentional; clear it only if template data should overwrite this control." `
                     -CommandTemplate (New-ClearLockCommandTemplate -Tag $controlTag -Alias $controlAlias) `
-                    -SourceJsonDisplay $controlSourceJsonDisplay)) | Out-Null
+                    -SourceJsonDisplay $controlSourceJsonDisplay `
+                    -InputDocx $controlInputDocx `
+                    -InputDocxDisplay $controlInputDocxDisplay `
+                    -TemplateName $controlTemplateName `
+                    -SchemaTarget $controlSchemaTarget `
+                    -TargetMode $controlTargetMode)) | Out-Null
     }
 
     if (-not $hasBinding -and $controlFormKind -notin @("", "rich_text", "plain_text")) {
@@ -863,7 +1143,12 @@ foreach ($control in @($contentControls.ToArray())) {
                     -RepairStrategy "bind_or_exempt_form_control" `
                     -RepairHint "Bind the form control to a Custom XML path, or document why it is intentionally unbound." `
                     -CommandTemplate (New-BindContentControlCommandTemplate -Tag $controlTag -Alias $controlAlias) `
-                    -SourceJsonDisplay $controlSourceJsonDisplay)) | Out-Null
+                    -SourceJsonDisplay $controlSourceJsonDisplay `
+                    -InputDocx $controlInputDocx `
+                    -InputDocxDisplay $controlInputDocxDisplay `
+                    -TemplateName $controlTemplateName `
+                    -SchemaTarget $controlSchemaTarget `
+                    -TargetMode $controlTargetMode)) | Out-Null
     }
 }
 
@@ -874,6 +1159,11 @@ foreach ($group in @($bindingGroups)) {
     $first = @($group.Group)[0]
     $firstSourceJson = Get-JsonString -Object $first -Name "source_json" -DefaultValue $summaryPath
     $firstSourceJsonDisplay = Get-JsonString -Object $first -Name "source_json_display" -DefaultValue $summaryDisplay
+    $firstInputDocx = Get-JsonString -Object $first -Name "input_docx"
+    $firstInputDocxDisplay = Get-JsonString -Object $first -Name "input_docx_display"
+    $firstTemplateName = Get-JsonString -Object $first -Name "template_name"
+    $firstSchemaTarget = Get-JsonString -Object $first -Name "schema_target"
+    $firstTargetMode = Get-JsonString -Object $first -Name "target_mode"
     $duplicateMembers = @(
         $group.Group | ForEach-Object {
             [ordered]@{
@@ -881,6 +1171,11 @@ foreach ($group in @($bindingGroups)) {
                 content_control_index = Get-JsonProperty -Object $_ -Name "content_control_index"
                 tag = Get-JsonString -Object $_ -Name "tag"
                 alias = Get-JsonString -Object $_ -Name "alias"
+                input_docx = Get-JsonString -Object $_ -Name "input_docx"
+                input_docx_display = Get-JsonString -Object $_ -Name "input_docx_display"
+                template_name = Get-JsonString -Object $_ -Name "template_name"
+                schema_target = Get-JsonString -Object $_ -Name "schema_target"
+                target_mode = Get-JsonString -Object $_ -Name "target_mode"
                 source_json_display = Get-JsonString -Object $_ -Name "source_json_display" -DefaultValue $summaryDisplay
             }
         }
@@ -902,7 +1197,12 @@ foreach ($group in @($bindingGroups)) {
                 -SourceJsonDisplay $firstSourceJsonDisplay `
                 -DuplicateBindingKey ([string]$group.Name) `
                 -DuplicateMemberCount ([int]$group.Count) `
-                -DuplicateMembers @($duplicateMembers))) | Out-Null
+                -DuplicateMembers @($duplicateMembers) `
+                -InputDocx $firstInputDocx `
+                -InputDocxDisplay $firstInputDocxDisplay `
+                -TemplateName $firstTemplateName `
+                -SchemaTarget $firstSchemaTarget `
+                -TargetMode $firstTargetMode)) | Out-Null
 }
 
 $repairPlanItems = New-Object 'System.Collections.Generic.List[object]'
@@ -966,6 +1266,8 @@ $status = if ($sourceFailureCount -gt 0) {
     "ready"
 }
 
+$allEvidenceItems = @($contentControls.ToArray() + $syncItems.ToArray() + $syncIssues.ToArray())
+
 $summary = [ordered]@{
     schema = $contentControlGovernanceSchema
     generated_at = (Get-Date).ToString("s")
@@ -981,6 +1283,12 @@ $summary = [ordered]@{
     source_failure_count = $sourceFailureCount
     missing_input_count = $missingInputCount
     source_files = @($sourceFiles.ToArray())
+    input_docx = Get-UniqueProvenanceValue -Items $allEvidenceItems -Name "input_docx"
+    input_docx_display = Get-UniqueProvenanceValue -Items $allEvidenceItems -Name "input_docx_display"
+    template_name = Get-UniqueProvenanceValue -Items $allEvidenceItems -Name "template_name"
+    schema_target = Get-UniqueProvenanceValue -Items $allEvidenceItems -Name "schema_target"
+    target_mode = Get-UniqueProvenanceValue -Items $allEvidenceItems -Name "target_mode"
+    provenance_summary = @(New-ProvenanceSummary -Items $allEvidenceItems)
     inspection_file_count = @($sourceFiles.ToArray() | Where-Object { $_.kind -eq "inspect_content_controls" -and $_.status -eq "loaded" }).Count
     sync_file_count = @($sourceFiles.ToArray() | Where-Object { $_.kind -eq "custom_xml_sync_result" -and $_.status -eq "loaded" }).Count
     content_control_count = $contentControls.Count

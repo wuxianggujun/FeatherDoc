@@ -66,6 +66,11 @@ $skippedPath = Join-Path $inputDir "unrelated.json"
 Write-JsonFile -Path $inspectPath -Value ([ordered]@{
         part = "body"
         entry_name = "word/document.xml"
+        input_docx = "samples/invoice.docx"
+        input_docx_display = ".\samples\invoice.docx"
+        template_name = "invoice-template"
+        schema_target = "invoice"
+        target_mode = "resolved-section-targets"
         count = 3
         content_controls = @(
             [ordered]@{
@@ -129,6 +134,11 @@ Write-JsonFile -Path $inspectPath -Value ([ordered]@{
     })
 
 Write-JsonFile -Path $syncPath -Value ([ordered]@{
+        input_docx = "samples/invoice.docx"
+        input_docx_display = ".\samples\invoice.docx"
+        template_name = "invoice-template"
+        schema_target = "invoice"
+        target_mode = "resolved-section-targets"
         scanned_content_controls = 3
         bound_content_controls = 2
         synced_content_controls = 1
@@ -223,6 +233,25 @@ Assert-Equal -Actual ([int]$summary.repair_plan_requires_user_values_count) -Exp
     -Message "Summary should count repair paths that need user-provided binding values."
 Assert-Equal -Actual ([int]$summary.repair_plan_requires_visual_verification_count) -Expected 4 `
     -Message "Summary should count apply paths that require visual verification."
+Assert-Equal -Actual ([string]$summary.input_docx) -Expected "samples/invoice.docx" `
+    -Message "Summary should expose the unique input DOCX provenance."
+Assert-Equal -Actual ([string]$summary.input_docx_display) -Expected ".\samples\invoice.docx" `
+    -Message "Summary should expose display input DOCX provenance."
+Assert-Equal -Actual ([string]$summary.template_name) -Expected "invoice-template" `
+    -Message "Summary should expose template provenance."
+Assert-Equal -Actual ([string]$summary.schema_target) -Expected "invoice" `
+    -Message "Summary should expose schema target provenance."
+Assert-Equal -Actual ([string]$summary.target_mode) -Expected "resolved-section-targets" `
+    -Message "Summary should expose target mode provenance."
+$provenanceEntry = @($summary.provenance_summary | Where-Object { [string]$_.template_name -eq "invoice-template" })[0]
+Assert-True -Condition ($null -ne $provenanceEntry) `
+    -Message "Summary should emit provenance_summary entries."
+Assert-ContainsText -Text ([string]$provenanceEntry.source_json_display) -ExpectedText "inspect-content-controls.json" `
+    -Message "Provenance summary should keep source JSON display."
+Assert-Equal -Actual ([string]$provenanceEntry.input_docx_display) -Expected ".\samples\invoice.docx" `
+    -Message "Provenance summary should keep input DOCX display."
+Assert-Equal -Actual ([string]$provenanceEntry.schema_target) -Expected "invoice" `
+    -Message "Provenance summary should keep schema target."
 
 $bindingCoverage = @{}
 foreach ($entry in @($summary.binding_coverage_summary)) {
@@ -278,6 +307,14 @@ Assert-ContainsText -Text ([string]$placeholderBlocker.repair_hint) -ExpectedTex
     -Message "Placeholder blockers should carry sync repair hint."
 Assert-ContainsText -Text ([string]$placeholderBlocker.command_template) -ExpectedText "sync-content-controls-from-custom-xml" `
     -Message "Placeholder blockers should carry sync command template."
+Assert-Equal -Actual ([string]$placeholderBlocker.input_docx) -Expected "samples/invoice.docx" `
+    -Message "Placeholder blockers should carry input DOCX provenance."
+Assert-Equal -Actual ([string]$placeholderBlocker.template_name) -Expected "invoice-template" `
+    -Message "Placeholder blockers should carry template provenance."
+Assert-Equal -Actual ([string]$placeholderBlocker.schema_target) -Expected "invoice" `
+    -Message "Placeholder blockers should carry schema target provenance."
+Assert-Equal -Actual ([string]$placeholderBlocker.target_mode) -Expected "resolved-section-targets" `
+    -Message "Placeholder blockers should carry target mode provenance."
 
 $actionOpenCommands = @($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n"
 Assert-ContainsText -Text $actionOpenCommands -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
@@ -317,6 +354,16 @@ Assert-ContainsText -Text ((@($duplicateAction.duplicate_members) | ForEach-Obje
     -Message "Duplicate binding actions should include the second shared-binding member."
 Assert-ContainsText -Text ([string]$duplicateAction.command_template) -ExpectedText "inspect-content-controls <input.docx> --json" `
     -Message "Duplicate binding actions should inspect the whole document."
+Assert-Equal -Actual ([string]$duplicateAction.input_docx_display) -Expected ".\samples\invoice.docx" `
+    -Message "Duplicate binding actions should carry input DOCX display provenance."
+Assert-Equal -Actual ([string]$duplicateAction.template_name) -Expected "invoice-template" `
+    -Message "Duplicate binding actions should carry template provenance."
+Assert-Equal -Actual ([string]$duplicateAction.schema_target) -Expected "invoice" `
+    -Message "Duplicate binding actions should carry schema target provenance."
+Assert-Equal -Actual ([string]$duplicateAction.target_mode) -Expected "resolved-section-targets" `
+    -Message "Duplicate binding actions should carry target mode provenance."
+Assert-ContainsText -Text ((@($duplicateAction.duplicate_members) | ForEach-Object { [string]$_.input_docx_display }) -join "`n") -ExpectedText ".\samples\invoice.docx" `
+    -Message "Duplicate binding members should keep input DOCX display provenance."
 $repairStatuses = @($summary.repair_plan_status_summary | ForEach-Object { [string]$_.plan_status }) -join "`n"
 Assert-ContainsText -Text $repairStatuses -ExpectedText "source_fix_required" `
     -Message "Repair plan should flag Custom XML source fixes."
@@ -345,6 +392,10 @@ Assert-ContainsText -Text ([string]$syncPlan.repair_hint) -ExpectedText "Rerun C
     -Message "Bound placeholder sync plan should carry repair hint."
 Assert-Equal -Actual ([string]$syncPlan.plan_status) -Expected "review_then_apply" `
     -Message "Bound placeholder sync should be review-then-apply."
+Assert-Equal -Actual ([string]$syncPlan.input_docx_display) -Expected ".\samples\invoice.docx" `
+    -Message "Bound placeholder sync plan should carry input DOCX display provenance."
+Assert-Equal -Actual ([string]$syncPlan.template_name) -Expected "invoice-template" `
+    -Message "Bound placeholder sync plan should carry template provenance."
 $unboundPlan = @($summary.repair_plan_items | Where-Object { [string]$_.repair_strategy -eq "bind_or_exempt_form_control" })[0]
 Assert-Equal -Actual ([string]$unboundPlan.plan_status) -Expected "requires_user_values" `
     -Message "Unbound form repair should require user-provided binding values."
@@ -363,6 +414,10 @@ Assert-Equal -Actual ([int]$duplicatePlan.duplicate_member_count) -Expected 2 `
     -Message "Duplicate binding repair plan should keep the member count."
 Assert-Equal -Actual (@($duplicatePlan.duplicate_members).Count) -Expected 2 `
     -Message "Duplicate binding repair plan should keep the full duplicate member list."
+Assert-Equal -Actual ([string]$duplicatePlan.input_docx_display) -Expected ".\samples\invoice.docx" `
+    -Message "Duplicate binding repair plan should carry input DOCX display provenance."
+Assert-Equal -Actual ([string]$duplicatePlan.template_name) -Expected "invoice-template" `
+    -Message "Duplicate binding repair plan should carry template provenance."
 $warning = @($summary.warnings)[0]
 Assert-Equal -Actual ([string]$warning.source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
     -Message "Warnings should carry content-control governance source schema."
@@ -423,6 +478,97 @@ Assert-ContainsText -Text ([string]$emptyEvidenceWarning.source_json) -ExpectedT
 Assert-ContainsText -Text ([string]$emptyEvidenceWarning.source_json_display) -ExpectedText "report\summary.json" `
     -Message "Empty evidence warnings should keep source_json_display on the governance summary."
 
+$readyDir = Join-Path $resolvedWorkingDir "ready"
+$readyInputDir = Join-Path $readyDir "input"
+$readyOutputDir = Join-Path $readyDir "report"
+$readyInspectPath = Join-Path $readyInputDir "inspect-content-controls-ready.json"
+$readySyncPath = Join-Path $readyInputDir "sync-content-controls-ready.json"
+Write-JsonFile -Path $readyInspectPath -Value ([ordered]@{
+        part = "body"
+        entry_name = "word/document.xml"
+        input_docx = "samples/contract.docx"
+        input_docx_display = ".\samples\contract.docx"
+        template_name = "contract-template"
+        schema_target = "contract"
+        target_mode = "text-first"
+        count = 1
+        content_controls = @(
+            [ordered]@{
+                index = 0
+                kind = "block"
+                form_kind = "plain_text"
+                tag = "contract_total"
+                alias = "Contract Total"
+                id = "20"
+                lock = ""
+                data_binding_store_item_id = "{66666666-6666-6666-6666-666666666666}"
+                data_binding_xpath = "/contract/total"
+                data_binding_prefix_mappings = ""
+                checked = $null
+                date_format = ""
+                date_locale = ""
+                selected_list_item = $null
+                list_items = @()
+                showing_placeholder = $false
+                text = "CNY 1000"
+            }
+        )
+    })
+Write-JsonFile -Path $readySyncPath -Value ([ordered]@{
+        input_docx = "samples/contract.docx"
+        input_docx_display = ".\samples\contract.docx"
+        template_name = "contract-template"
+        schema_target = "contract"
+        target_mode = "text-first"
+        scanned_content_controls = 1
+        bound_content_controls = 1
+        synced_content_controls = 1
+        issue_count = 0
+        synced_items = @(
+            [ordered]@{
+                part_entry_name = "word/document.xml"
+                content_control_index = 0
+                tag = "contract_total"
+                alias = "Contract Total"
+                store_item_id = "{66666666-6666-6666-6666-666666666666}"
+                xpath = "/contract/total"
+                previous_text = "old"
+                value = "CNY 1000"
+            }
+        )
+        issues = @()
+    })
+$readyResult = Invoke-Report -Arguments @(
+    "-InputJson"
+    "$readyInspectPath,$readySyncPath"
+    "-OutputDir"
+    $readyOutputDir
+)
+Assert-Equal -Actual $readyResult.ExitCode -Expected 0 `
+    -Message "Content-control governance ready run should pass. Output: $($readyResult.Text)"
+$readySummaryPath = Join-Path $readyOutputDir "summary.json"
+$readySummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $readySummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$readySummary.status) -Expected "ready" `
+    -Message "Ready evidence should produce ready status."
+Assert-Equal -Actual ([bool]$readySummary.release_ready) -Expected $true `
+    -Message "Ready evidence should be release-ready."
+Assert-Equal -Actual ([int]$readySummary.release_blocker_count) -Expected 0 `
+    -Message "Ready evidence should not create blockers."
+Assert-Equal -Actual ([int]$readySummary.action_item_count) -Expected 0 `
+    -Message "Ready evidence should not create action items."
+Assert-Equal -Actual ([int]$readySummary.warning_count) -Expected 0 `
+    -Message "Ready evidence should not create warnings."
+Assert-Equal -Actual ([string]$readySummary.input_docx_display) -Expected ".\samples\contract.docx" `
+    -Message "Ready summary should retain input DOCX provenance."
+Assert-Equal -Actual ([string]$readySummary.template_name) -Expected "contract-template" `
+    -Message "Ready summary should retain template provenance."
+Assert-Equal -Actual ([string]$readySummary.schema_target) -Expected "contract" `
+    -Message "Ready summary should retain schema target provenance."
+Assert-Equal -Actual ([string]$readySummary.target_mode) -Expected "text-first" `
+    -Message "Ready summary should retain target mode provenance."
+Assert-True -Condition (@($readySummary.provenance_summary).Count -ge 1) `
+    -Message "Ready summary should keep provenance summary entries."
+
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Content Control Data Binding Governance" `
     -Message "Markdown should include title."
@@ -470,5 +616,15 @@ Assert-ContainsText -Text $markdown -ExpectedText "source_report_display" `
     -Message "Markdown should expose source report display fields."
 Assert-ContainsText -Text $markdown -ExpectedText "source_json_display" `
     -Message "Markdown should expose source JSON display fields."
+Assert-ContainsText -Text $markdown -ExpectedText "Input DOCX" `
+    -Message "Markdown should expose input DOCX provenance."
+Assert-ContainsText -Text $markdown -ExpectedText "invoice-template" `
+    -Message "Markdown should expose template provenance."
+Assert-ContainsText -Text $markdown -ExpectedText "resolved-section-targets" `
+    -Message "Markdown should expose target mode provenance."
+Assert-ContainsText -Text $markdown -ExpectedText "## Provenance" `
+    -Message "Markdown should include provenance summary."
+Assert-ContainsText -Text $markdown -ExpectedText "evidence_count" `
+    -Message "Markdown provenance summary should include evidence counts."
 
 Write-Host "Content-control data-binding governance report regression passed."
