@@ -990,6 +990,29 @@ Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $rep
 [void]$lines.Add("- Visual gate final review：$(Get-DisplayValue -Value $publicGateFinalReviewPath)")
 [void]$lines.Add("- README 展示图目录：$(Get-DisplayValue -Value $publicReadmeGalleryAssetsDir)")
 [void]$lines.Add("- install smoke consumer docx：$(Get-DisplayValue -Value $publicConsumerDocument)")
+
+$pdfReleaseBlockerRollup = Get-ReleaseGovernanceRollup -Summary $summary
+$pdfPreflightEvidenceBlocker = @(
+    Get-ReleaseBlockerArrayProperty -Object $pdfReleaseBlockerRollup -Name "action_items" |
+        Where-Object {
+            $actionName = Get-ReleaseBlockerPropertyValue -Object $_ -Name "action"
+            $actionName -in @(
+                "prepare_pdf_visual_release_gate_build_outputs",
+                "rerun_pdf_visual_release_gate_preflight"
+            )
+        } |
+        Select-Object -First 1
+)
+if ($pdfPreflightEvidenceBlocker.Count -gt 0) {
+    $pdfPreflightEvidenceLine = Get-PdfVisualPreflightReadinessActionEvidenceLine -Item $pdfPreflightEvidenceBlocker[0]
+    if (-not [string]::IsNullOrWhiteSpace($pdfPreflightEvidenceLine)) {
+        [void]$lines.Add("")
+        [void]$lines.Add("## PDF 预检行动证据")
+        [void]$lines.Add("")
+        [void]$lines.Add("- $pdfPreflightEvidenceLine")
+    }
+}
+
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedShortOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8
