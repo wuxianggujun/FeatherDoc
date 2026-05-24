@@ -122,6 +122,19 @@ function Get-FirstJsonString {
     return $DefaultValue
 }
 
+function Get-FirstJsonProperty {
+    param($Object, [string[]]$Names)
+
+    foreach ($name in @($Names)) {
+        $value = Get-JsonProperty -Object $Object -Name $name
+        if ($null -eq $value) { continue }
+        if ($value -is [string] -and [string]::IsNullOrWhiteSpace($value)) { continue }
+        return $value
+    }
+
+    return $null
+}
+
 function Get-JsonInt {
     param($Object, [string]$Name, [int]$DefaultValue = 0)
 
@@ -172,6 +185,18 @@ function Copy-OptionalJsonProperties {
             $Target[$name] = $value
         }
     }
+}
+
+function Set-OptionalSourceReportField {
+    param(
+        [System.Collections.IDictionary]$Target,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -eq $Value) { return }
+    if ($Value -is [string] -and [string]::IsNullOrWhiteSpace($Value)) { return }
+    $Target[$Name] = $Value
 }
 
 function Set-JsonPropertyValue {
@@ -456,6 +481,70 @@ function Get-ReportKind {
     return "unknown"
 }
 
+function Get-PdfVisualGateEvidenceObject {
+    param($Summary)
+
+    $pdfVisualGate = Get-JsonProperty -Object $Summary -Name "pdf_visual_gate"
+    if ($null -ne $pdfVisualGate) {
+        return $pdfVisualGate
+    }
+
+    $steps = Get-JsonProperty -Object $Summary -Name "steps"
+    if ($null -eq $steps) {
+        return $null
+    }
+
+    return (Get-JsonProperty -Object $steps -Name "pdf_visual_gate")
+}
+
+function Add-PdfVisualGateEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary,
+        [string]$RepoRoot
+    )
+
+    $pdfVisualGate = Get-PdfVisualGateEvidenceObject -Summary $Summary
+    if ($null -eq $pdfVisualGate) {
+        return
+    }
+
+    $summaryJson = Get-FirstJsonString -Object $pdfVisualGate -Names @("summary_json")
+    if ([string]::IsNullOrWhiteSpace($summaryJson)) {
+        $summaryJson = Get-FirstJsonString -Object $Summary -Names @("pdf_visual_gate_summary_json")
+    }
+    $aggregateContactSheet = Get-FirstJsonString -Object $pdfVisualGate -Names @("aggregate_contact_sheet")
+
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_status" `
+        -Value (Get-FirstJsonString -Object $pdfVisualGate -Names @("status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_verdict" `
+        -Value (Get-FirstJsonString -Object $pdfVisualGate -Names @("verdict"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_finalizable" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("finalizable"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_summary_json" `
+        -Value $summaryJson
+    if (-not [string]::IsNullOrWhiteSpace($summaryJson)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_summary_json_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson)
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_aggregate_contact_sheet" `
+        -Value $aggregateContactSheet
+    if (-not [string]::IsNullOrWhiteSpace($aggregateContactSheet)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_aggregate_contact_sheet_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $aggregateContactSheet)
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_cjk_manifest_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("cjk_manifest_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_cjk_copy_search_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("cjk_copy_search_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_cjk_missing_text_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("cjk_missing_text_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_visual_baseline_manifest_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("visual_baseline_manifest_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_visual_baseline_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("visual_baseline_count", "baselines_count"))
+}
+
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
@@ -615,6 +704,23 @@ function New-ReportMarkdown {
             $fullVisualGateStatus = Get-JsonString -Object $report -Name "full_visual_gate_status"
             if (-not [string]::IsNullOrWhiteSpace($fullVisualGateStatus)) {
                 $lines.Add("  - full_visual_gate_status: ``$fullVisualGateStatus``") | Out-Null
+            }
+            foreach ($fieldName in @(
+                    "pdf_visual_gate_status",
+                    "pdf_visual_gate_verdict",
+                    "pdf_visual_gate_finalizable",
+                    "pdf_visual_gate_summary_json_display",
+                    "pdf_visual_gate_aggregate_contact_sheet_display",
+                    "pdf_visual_gate_cjk_manifest_count",
+                    "pdf_visual_gate_cjk_copy_search_count",
+                    "pdf_visual_gate_cjk_missing_text_count",
+                    "pdf_visual_gate_visual_baseline_manifest_count",
+                    "pdf_visual_gate_visual_baseline_count"
+                )) {
+                $fieldValue = Get-JsonProperty -Object $report -Name $fieldName
+                if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace([string]$fieldValue)) {
+                    $lines.Add("  - ${fieldName}: ``$fieldValue``") | Out-Null
+                }
             }
             $controlledVisualSmokeAvailable = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_available"
             if ($null -ne $controlledVisualSmokeAvailable) {
@@ -1041,6 +1147,7 @@ foreach ($path in @($inputPaths)) {
             "controlled_visual_smoke_json",
             "controlled_visual_smoke_json_display"
         )
+    Add-PdfVisualGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     $sourceReports.Add($sourceReport) | Out-Null
 }
 

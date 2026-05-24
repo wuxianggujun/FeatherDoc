@@ -362,6 +362,7 @@ Write-JsonFile -Path $schemaCalibrationPath -Value ([ordered]@{
 })
 
 Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
+    pdf_visual_gate_summary_json = "output/pdf-visual-release-gate-current/report/summary.json"
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -376,6 +377,20 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
         }
     )
     action_items = @()
+    steps = [ordered]@{
+        pdf_visual_gate = [ordered]@{
+            status = "loaded"
+            verdict = "pass"
+            finalizable = $true
+            summary_json = "output/pdf-visual-release-gate-current/report/summary.json"
+            aggregate_contact_sheet = "output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png"
+            cjk_manifest_count = 43
+            cjk_copy_search_count = 43
+            cjk_missing_text_count = 0
+            visual_baseline_manifest_count = 42
+            visual_baseline_count = 44
+        }
+    }
 })
 
 Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
@@ -878,6 +893,31 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text ([string]$pdfPreflightSourceReport.controlled_visual_smoke_json_display) `
         -ExpectedText "controlled-visual-smoke-check-latest.json" `
         -Message "Rollup should preserve controlled visual smoke JSON display."
+    $releaseCandidateSourceReport = ($summary.source_reports |
+        Where-Object { [string]$_.path_display -match [regex]::Escape("release-candidate") } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_status) -Expected "loaded" `
+        -Message "Rollup should preserve loaded PDF visual gate evidence status from release candidate summaries."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_verdict) -Expected "pass" `
+        -Message "Rollup should preserve PDF visual gate verdict from release candidate summaries."
+    Assert-Equal -Actual ([bool]$releaseCandidateSourceReport.pdf_visual_gate_finalizable) -Expected $true `
+        -Message "Rollup should preserve PDF visual gate finalizable status from release candidate summaries."
+    Assert-ContainsText -Text ([string]$releaseCandidateSourceReport.pdf_visual_gate_summary_json_display) `
+        -ExpectedText "pdf-visual-release-gate-current\report\summary.json" `
+        -Message "Rollup should preserve reviewer-openable PDF visual gate summary display path."
+    Assert-ContainsText -Text ([string]$releaseCandidateSourceReport.pdf_visual_gate_aggregate_contact_sheet_display) `
+        -ExpectedText "aggregate-contact-sheet.png" `
+        -Message "Rollup should preserve reviewer-openable PDF visual gate contact-sheet display path."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_cjk_manifest_count) -Expected 43 `
+        -Message "Rollup should preserve PDF visual gate CJK manifest count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_cjk_copy_search_count) -Expected 43 `
+        -Message "Rollup should preserve PDF visual gate CJK copy/search count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_cjk_missing_text_count) -Expected 0 `
+        -Message "Rollup should preserve PDF visual gate CJK missing text count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_visual_baseline_manifest_count) -Expected 42 `
+        -Message "Rollup should preserve PDF visual gate visual baseline manifest count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_visual_baseline_count) -Expected 44 `
+        -Message "Rollup should preserve PDF visual gate rendered visual baseline count."
     $skeletonWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "document_skeleton.exemplar_catalog_missing" } |
         Select-Object -First 1)
@@ -952,6 +992,18 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF full visual gate status from source report contracts."
     Assert-ContainsText -Text $markdown -ExpectedText "not_run_by_preflight_governance" `
         -Message "Markdown should make clear that PDF preflight did not run the full visual gate."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict" `
+        -Message "Markdown should include PDF visual gate verdict evidence from release candidate summaries."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict: ``pass``" `
+        -Message "Markdown should make the PDF visual gate pass verdict explicit."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_summary_json_display" `
+        -Message "Markdown should include PDF visual gate summary display evidence."
+    Assert-ContainsText -Text $markdown -ExpectedText "aggregate-contact-sheet.png" `
+        -Message "Markdown should include PDF visual gate aggregate contact-sheet evidence."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_cjk_copy_search_count: ``43``" `
+        -Message "Markdown should include PDF visual gate CJK copy/search count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_visual_baseline_count: ``44``" `
+        -Message "Markdown should include PDF visual gate visual baseline count."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_status" `
         -Message "Markdown should include controlled PDF visual smoke status."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_json_display" `
