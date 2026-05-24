@@ -99,7 +99,10 @@ foreach ($marker in @(
     "ARTIFACT_GUIDE.md",
     "REVIEWER_CHECKLIST.md",
     "release_handoff.md",
-    "release_body.zh-CN.md"
+    "release_body.zh-CN.md",
+    "release_summary.zh-CN.md",
+    "release_governance_handoff.md",
+    "release_assets_manifest.json"
 )) {
     Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `
         -Message "Project-template release readiness checklist should preserve marker '$marker'."
@@ -190,9 +193,17 @@ foreach ($marker in @(
 
 foreach ($marker in @(
     "project_template_delivery_readiness_contract",
+    "project_template_onboarding_governance_contract",
     "content_control_data_binding.bound_placeholder",
+    "Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations",
+    "Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations",
+    "Add-FinalReviewProjectTemplateGovernanceTraceViolations",
+    "Add-ProjectTemplateDeliveryReadinessContractViolations",
+    "Add-ProjectTemplateOnboardingGovernanceContractViolations",
     "repair_strategy",
-    "command_template"
+    "command_template",
+    "source_report_display",
+    "source_json_display"
 )) {
     Assert-ContainsText -Text $materialSafetyScript -ExpectedText $marker `
         -Message "Material safety audit should keep public governance safety marker '$marker'."
