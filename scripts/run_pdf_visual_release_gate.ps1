@@ -17,7 +17,8 @@ param(
     [switch]$PreflightOnly,
     [switch]$FinalizeOnly,
     [switch]$SkipPreflight,
-    [switch]$SkipMemoryGuard
+    [switch]$SkipMemoryGuard,
+    [string]$CtestExecutable = "ctest"
 )
 
 $ErrorActionPreference = "Stop"
@@ -84,6 +85,26 @@ function Get-BasePython {
     }
 
     throw "Python was not found in PATH."
+}
+
+function Resolve-CtestExecutable {
+    param([string]$Executable)
+
+    if (-not [string]::IsNullOrWhiteSpace($Executable)) {
+        if ([System.IO.Path]::IsPathRooted($Executable)) {
+            if (Test-Path -LiteralPath $Executable) {
+                return (Resolve-Path -LiteralPath $Executable).Path
+            }
+            throw "CTest executable was not found: $Executable"
+        }
+
+        $resolved = Get-Command $Executable -ErrorAction SilentlyContinue
+        if ($resolved) {
+            return $resolved.Source
+        }
+    }
+
+    throw "CTest executable was not found. Pass -CtestExecutable or ensure ctest is in PATH."
 }
 
 function Get-RenderPython {
@@ -303,6 +324,7 @@ function Read-ExistingRenderedSample {
 $repoRoot = Resolve-RepoRoot
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir
+$resolvedCtestExecutable = Resolve-CtestExecutable -Executable $CtestExecutable
 $reportDir = Join-Path $resolvedOutputDir "report"
 $baselineDir = Join-Path $resolvedOutputDir "baseline"
 $unicodeOutputDir = Join-Path $resolvedOutputDir "unicode-font"
@@ -409,14 +431,14 @@ if ($FinalizeOnly) {
 } else {
     Write-Step "Running pdf_cli_export regression"
     Invoke-CapturedCommand `
-        -ExecutablePath "ctest" `
+        -ExecutablePath $resolvedCtestExecutable `
         -Arguments @("--test-dir", $resolvedBuildDir, "-R", "^pdf_cli_export$", "--output-on-failure", "--timeout", "60") `
         -LogPath $pdfCliExportLog `
         -FailureMessage "pdf_cli_export regression failed."
 
     Write-Step "Running pdf regression suite"
     Invoke-CapturedCommand `
-        -ExecutablePath "ctest" `
+        -ExecutablePath $resolvedCtestExecutable `
         -Arguments @("--test-dir", $resolvedBuildDir, "-R", "pdf_regression_", "--output-on-failure", "--timeout", "60") `
         -LogPath $pdfRegressionLog `
         -FailureMessage "pdf_regression_ suite failed."
@@ -425,7 +447,7 @@ if ($FinalizeOnly) {
         Write-Step "Running unicode font visual regression"
         Invoke-CapturedCommand `
             -ExecutablePath "powershell" `
-            -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $unicodeScriptPath, "-BuildDir", $resolvedBuildDir, "-OutputDir", $unicodeOutputDir, "-Dpi", [string]$Dpi) `
+            -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $unicodeScriptPath, "-BuildDir", $resolvedBuildDir, "-OutputDir", $unicodeOutputDir, "-Dpi", [string]$Dpi, "-CtestExecutable", $resolvedCtestExecutable) `
             -LogPath $unicodeLog `
             -FailureMessage "Unicode font visual regression failed."
     }

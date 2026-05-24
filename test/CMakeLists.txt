@@ -1324,6 +1324,8 @@ if(WIN32)
                 ${CMAKE_BINARY_DIR}
                 -OutputDir
                 ${CMAKE_BINARY_DIR}/pdf_unicode_font_visual_regression
+                -CtestExecutable
+                ${CMAKE_CTEST_COMMAND}
             )
             if(FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
                 set_tests_properties(pdf_unicode_font_roundtrip_visual

@@ -1,7 +1,8 @@
 param(
     [string]$BuildDir = "build-pdf-unicode-font-visual-regression",
     [string]$OutputDir = "output/pdf-unicode-font-visual-regression",
-    [int]$Dpi = 144
+    [int]$Dpi = 144,
+    [string]$CtestExecutable = "ctest"
 )
 
 $ErrorActionPreference = "Stop"
@@ -196,9 +197,30 @@ function Find-CjkFont {
     return ""
 }
 
+function Resolve-CtestExecutable {
+    param([string]$Executable)
+
+    if (-not [string]::IsNullOrWhiteSpace($Executable)) {
+        if ([System.IO.Path]::IsPathRooted($Executable)) {
+            if (Test-Path -LiteralPath $Executable) {
+                return (Resolve-Path -LiteralPath $Executable).Path
+            }
+            throw "CTest executable was not found: $Executable"
+        }
+
+        $resolved = Get-Command $Executable -ErrorAction SilentlyContinue
+        if ($resolved) {
+            return $resolved.Source
+        }
+    }
+
+    throw "CTest executable was not found. Pass -CtestExecutable from CMake or ensure ctest is in PATH."
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir
+$resolvedCtestExecutable = Resolve-CtestExecutable -Executable $CtestExecutable
 $reportDir = Join-Path $resolvedOutputDir "report"
 $evidenceDir = Join-Path $resolvedOutputDir "evidence"
 $fullPagesDir = Join-Path $evidenceDir "full\pages"
@@ -228,7 +250,7 @@ $env:FEATHERDOC_TEST_CJK_FONT = $fontPath
 try {
     Write-Step "Running pdf_unicode_font_roundtrip via ctest with $fontPath"
     Invoke-CommandCapture `
-        -ExecutablePath "ctest" `
+        -ExecutablePath $resolvedCtestExecutable `
         -Arguments @("--test-dir", $resolvedBuildDir, "-R", "^pdf_unicode_font_roundtrip$", "--output-on-failure", "--timeout", "60") `
         -OutputPath $testLogPath `
         -FailureMessage "PDF unicode font roundtrip tests failed."

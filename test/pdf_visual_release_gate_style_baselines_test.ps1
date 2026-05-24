@@ -71,6 +71,16 @@ Assert-ContainsText -Text $scriptText -ExpectedText "visual_style_focus" `
     -Message "PDF visual release gate should carry manifest style focus metadata."
 Assert-ContainsText -Text $scriptText -ExpectedText "unicode-font.log" `
     -Message "PDF visual release gate should define the unicode font visual regression log path."
+Assert-ContainsText -Text $scriptText -ExpectedText '[string]$CtestExecutable = "ctest"' `
+    -Message "PDF visual release gate should allow CTest to be passed explicitly."
+Assert-ContainsText -Text $scriptText -ExpectedText "Resolve-CtestExecutable -Executable `$CtestExecutable" `
+    -Message "PDF visual release gate should resolve CTest before nested invocations."
+Assert-ContainsText -Text $scriptText -ExpectedText '"-CtestExecutable", $resolvedCtestExecutable' `
+    -Message "PDF visual release gate should pass explicit CTest into the nested unicode visual regression."
+Assert-ContainsText -Text (Get-Content -Raw -LiteralPath (Join-Path $resolvedRepoRoot "scripts\run_pdf_unicode_font_roundtrip_visual_regression.ps1")) -ExpectedText '[string]$CtestExecutable = "ctest"' `
+    -Message "Unicode font visual regression should allow CTest to be passed explicitly."
+Assert-ContainsText -Text (Get-Content -Raw -LiteralPath (Join-Path $resolvedRepoRoot "test\CMakeLists.txt")) -ExpectedText '${CMAKE_CTEST_COMMAND}' `
+    -Message "CTest registration should pass an absolute CTest executable into the unicode visual regression."
 Assert-ContainsText -Text $scriptText -ExpectedText '-ExecutablePath "powershell"' `
     -Message "PDF visual release gate should run unicode visual regression through captured command logging."
 Assert-ContainsText -Text $scriptText -ExpectedText '"-File", $unicodeScriptPath' `
