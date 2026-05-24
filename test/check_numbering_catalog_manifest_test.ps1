@@ -7,6 +7,20 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $BuildDir) {
+    $BuildDir = Join-Path $RepoRoot "build\check_numbering_catalog_manifest_test"
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = $BuildDir
+}
+
+New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
+
 function Assert-True {
     param(
         [bool]$Condition,
@@ -16,6 +30,21 @@ function Assert-True {
     if (-not $Condition) {
         throw $Message
     }
+}
+
+function Get-RepoRelativePath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    $repoRootFull = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $pathFull = [System.IO.Path]::GetFullPath($Path)
+    if ($pathFull.StartsWith($repoRootFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $pathFull.Substring($repoRootFull.Length).TrimStart('\', '/').Replace('\', '/')
+    }
+
+    return $pathFull.Replace('\', '/')
 }
 
 function Assert-Equal {
@@ -80,9 +109,9 @@ Set-Content -LiteralPath $dirtyCatalog -Encoding UTF8 -Value `
     '{"definitions":[{"name":"","levels":[],"instances":[]}]}'
 
 $sampleDocxRelative = "test/my_test.docx"
-$baselineCatalogRelative = [System.IO.Path]::GetRelativePath($resolvedRepoRoot, $baselineCatalog).Replace('\\', '/')
-$driftCatalogRelative = [System.IO.Path]::GetRelativePath($resolvedRepoRoot, $driftCatalog).Replace('\\', '/')
-$dirtyCatalogRelative = [System.IO.Path]::GetRelativePath($resolvedRepoRoot, $dirtyCatalog).Replace('\\', '/')
+$baselineCatalogRelative = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $baselineCatalog
+$driftCatalogRelative = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $driftCatalog
+$dirtyCatalogRelative = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $dirtyCatalog
 
 $passManifestObject = [ordered]@{
     entries = @(

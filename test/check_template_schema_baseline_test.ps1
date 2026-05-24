@@ -7,6 +7,20 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $BuildDir) {
+    $BuildDir = Join-Path $RepoRoot "build\check_template_schema_baseline_test"
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = $BuildDir
+}
+
+New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
+
 function Assert-True {
     param(
         [bool]$Condition,
