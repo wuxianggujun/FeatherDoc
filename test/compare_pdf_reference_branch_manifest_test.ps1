@@ -91,7 +91,8 @@ if ([string]::IsNullOrWhiteSpace($WorkingDir)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
-$fakeRepo = Join-Path $resolvedWorkingDir "fake-repo"
+$runId = "{0}-{1}" -f ([System.DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()), ([System.Guid]::NewGuid().ToString("N"))
+$fakeRepo = Join-Path $resolvedWorkingDir ("fake-repo-{0}" -f $runId)
 $summaryPath = Join-Path $resolvedWorkingDir "summary.json"
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\compare_pdf_reference_branch_manifest.ps1"
 $manifestPath = Join-Path $fakeRepo "test\pdf_regression_manifest.json"
