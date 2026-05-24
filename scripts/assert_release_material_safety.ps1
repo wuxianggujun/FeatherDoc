@@ -433,7 +433,7 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
 
     $label = "release body project template governance trace"
 
-    if (Test-TextContainsAny -Text $Content -Needles @("project_template_delivery_readiness:", "project_template_delivery_readiness_contract")) {
+    if (Test-TextContainsAny -Text $Content -Needles @("project_template_delivery_readiness", "project_template_delivery_readiness_contract")) {
         foreach ($needle in @(
             "project_template_delivery_readiness",
             "project_template_delivery_readiness_contract",
@@ -489,7 +489,7 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
 
     $label = "release handoff project template governance trace"
 
-    if (Test-TextContainsAny -Text $Content -Needles @("project_template_delivery_readiness", "project_template_delivery_readiness_contract")) {
+    if (Test-TextContainsAny -Text $Content -Needles @("project_template_delivery_readiness:", "project_template_delivery_readiness_contract")) {
         foreach ($needle in @(
             "project_template_delivery_readiness",
             "project_template_delivery_readiness_contract",
@@ -510,7 +510,7 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
         }
     }
 
-    if (Test-TextContainsAny -Text $Content -Needles @("project_template_onboarding.schema_approval", "project_template_onboarding_governance")) {
+    if (Test-TextContainsAny -Text $Content -Needles @("project_template_onboarding.schema_approval", "project_template_onboarding_governance_contract")) {
         foreach ($needle in @(
             "project_template_onboarding.schema_approval",
             "project_template_onboarding_governance_contract",
@@ -526,6 +526,45 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
                     -Label $label `
                     -Text "Release handoff lost project template onboarding trace marker '$needle'."
             }
+        }
+    }
+}
+
+function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_governance_handoff.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "featherdoc.project_template_delivery_readiness_report.v1",
+        "latest_schema_approval_gate_status",
+        "schema_approval_status_summary"
+    ))) {
+        return
+    }
+
+    $label = "release governance handoff project template trace"
+    foreach ($needle in @(
+        "project_template_delivery_readiness",
+        "featherdoc.project_template_delivery_readiness_report.v1",
+        "latest_schema_approval_gate_status",
+        "schema_approval_status_summary",
+        "source_report_display",
+        "source_json_display"
+    )) {
+        if (-not $Content.Contains($needle)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release governance handoff lost project template trace marker '$needle'."
         }
     }
 }
@@ -1291,6 +1330,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseBodyProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
     }
 
     if ([System.IO.Path]::GetExtension($file).ToLowerInvariant() -eq ".json") {

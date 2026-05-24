@@ -353,6 +353,13 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve warning counts."
     Assert-Equal -Actual ([int]$summary.governance_metric_count) -Expected 2 `
         -Message "Aggregate handoff should preserve governance metric count."
+    $projectTemplateReport = ($summary.reports |
+        Where-Object { [string]$_.id -eq "project_template_delivery_readiness" } |
+        Select-Object -First 1)
+    Assert-ContainsText -Text ([string]$projectTemplateReport.source_report_display) -ExpectedText "project-template-delivery-readiness\summary.json" `
+        -Message "Aggregate handoff should preserve project-template report source_report_display."
+    Assert-ContainsText -Text ([string]$projectTemplateReport.source_json_display) -ExpectedText "project-template-delivery-readiness\summary.json" `
+        -Message "Aggregate handoff should preserve project-template report source_json_display."
     $metricText = ($summary.governance_metrics | ForEach-Object { "$($_.report_id):$($_.metric):$($_.level):$($_.score)" }) -join "`n"
     Assert-ContainsText -Text $metricText -ExpectedText "numbering_catalog_governance:real_corpus_confidence:low:56" `
         -Message "Aggregate handoff should preserve numbering real-corpus confidence metric."
@@ -507,6 +514,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include project-template delivery readiness."
     Assert-ContainsText -Text $markdown -ExpectedText "featherdoc.project_template_delivery_readiness_report.v1" `
         -Message "Markdown should include project-template delivery readiness schema."
+    Assert-ContainsText -Text $markdown -ExpectedText "project-template-delivery-readiness\summary.json" `
+        -Message "Markdown should include project-template source display path."
     Assert-ContainsText -Text $markdown -ExpectedText "latest_schema_approval_gate_status" `
         -Message "Markdown should include project-template schema approval gate status."
     Assert-ContainsText -Text $markdown -ExpectedText "schema_approval_status_summary" `

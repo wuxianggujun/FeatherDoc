@@ -358,6 +358,10 @@ function New-ReportEntry {
         source = $Source
         expected_summary = $ExpectedSummaryPath
         expected_summary_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $ExpectedSummaryPath
+        source_report = $ExpectedSummaryPath
+        source_report_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $ExpectedSummaryPath
+        source_json = $ExpectedSummaryPath
+        source_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $ExpectedSummaryPath
         build_command = $BuildCommand
         schema = $schema
         status = if ($null -eq $Json) { $Status } else { Get-JsonString -Object $Json -Name "status" -DefaultValue $Status }
@@ -567,6 +571,8 @@ function New-ReportMarkdown {
     foreach ($report in @($Summary.reports)) {
         $lines.Add("- ``$($report.id)``: status=``$($report.status)`` ready=``$($report.release_ready)`` blockers=``$($report.release_blocker_count)`` actions=``$($report.action_item_count)`` source_failures=``$($report.source_failure_count)`` source_failure_count=``$($report.source_failure_count)`` schema=``$($report.schema)``") | Out-Null
         $lines.Add("  - summary: ``$($report.expected_summary_display)``") | Out-Null
+        $lines.Add("  - source_report_display: ``$($report.source_report_display)``") | Out-Null
+        $lines.Add("  - source_json_display: ``$($report.source_json_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string]$report.latest_schema_approval_gate_status)) {
             $lines.Add("  - latest_schema_approval_gate_status: ``$($report.latest_schema_approval_gate_status)``") | Out-Null
         }

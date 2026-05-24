@@ -523,6 +523,24 @@ Set-Content -LiteralPath $passReleaseHandoffTracePath -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passReleaseHandoffTracePath
 
+$passReleaseGovernanceHandoffTraceDir = Join-Path $passDir "release-governance-handoff-project-template-trace"
+$passReleaseGovernanceHandoffTracePath = Join-Path $passReleaseGovernanceHandoffTraceDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $passReleaseGovernanceHandoffTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseGovernanceHandoffTracePath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Report Status
+
+- ``project_template_delivery_readiness``: status=``ready`` ready=``True`` blockers=``0`` actions=``0`` source_failures=``0`` source_failure_count=``0`` schema=``featherdoc.project_template_delivery_readiness_report.v1``
+  - summary: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - source_report_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - source_json_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - latest_schema_approval_gate_status: ``passed``
+  - schema_approval_status_summary: ``approved=4``
+"@
+
+& $auditScript -Path $passReleaseGovernanceHandoffTracePath
+
 $badEntryMissingGovernanceMetricDetailsDir = Join-Path $failDir "entry-missing-governance-metric-details"
 $badEntryMissingGovernanceMetricDetailsPath = Join-Path $badEntryMissingGovernanceMetricDetailsDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryMissingGovernanceMetricDetailsDir -Force | Out-Null
@@ -1481,6 +1499,32 @@ try {
 
 if (-not $badReleaseHandoffTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md without project-template source_json_display."
+}
+
+$badReleaseGovernanceHandoffTraceDir = Join-Path $failDir "release-governance-handoff-missing-project-template-source-json"
+$badReleaseGovernanceHandoffTracePath = Join-Path $badReleaseGovernanceHandoffTraceDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffTracePath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Report Status
+
+- ``project_template_delivery_readiness``: status=``ready`` ready=``True`` blockers=``0`` actions=``0`` source_failures=``0`` source_failure_count=``0`` schema=``featherdoc.project_template_delivery_readiness_report.v1``
+  - summary: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - source_report_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - latest_schema_approval_gate_status: ``passed``
+  - schema_approval_status_summary: ``approved=4``
+"@
+
+$badReleaseGovernanceHandoffTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffTracePath
+} catch {
+    $badReleaseGovernanceHandoffTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md without project-template source_json_display."
 }
 
 $badEntryGovernanceTracePath = Join-Path $failDir "ARTIFACT_GUIDE.md"

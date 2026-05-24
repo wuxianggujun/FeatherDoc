@@ -154,6 +154,15 @@ Set-Content -LiteralPath $releaseHandoffPath -Encoding UTF8 -Value @"
 Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
 # Release Governance Handoff
 
+## Report Status
+
+- ``project_template_delivery_readiness``: status=``ready`` ready=``True`` blockers=``0`` actions=``0`` source_failures=``0`` source_failure_count=``0`` schema=``featherdoc.project_template_delivery_readiness_report.v1``
+  - summary: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - source_report_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - source_json_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - latest_schema_approval_gate_status: ``passed``
+  - schema_approval_status_summary: ``approved=4``
+
 ## Governance Metrics
 
 - numbering_catalog_governance.real_corpus_confidence: report=numbering_catalog_governance metric=real_corpus_confidence level=low score=56 source_schema=featherdoc.numbering_catalog_governance_report.v1
@@ -582,6 +591,13 @@ Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'numbering_cata
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'featherdoc.numbering_catalog_governance_report.v1' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'delivery_quality' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'table_layout_delivery_governance.delivery_quality' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'project_template_delivery_readiness' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'source_report_display' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'source_json_display' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'latest_schema_approval_gate_status' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'schema_approval_status_summary' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText '.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness_contract:' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'source_schema: featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_handoff.md'
