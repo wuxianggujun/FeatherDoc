@@ -484,6 +484,46 @@ function Add-ProjectTemplateGovernanceContractSummaryLines {
     }
 }
 
+function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary
+    )
+
+    $readinessReport = Get-FirstGovernanceReport `
+        -Summary $Summary `
+        -Id "project_template_delivery_readiness" `
+        -Schema "featherdoc.project_template_delivery_readiness_report.v1"
+    $onboardingItem = Get-FirstGovernanceItemBySourceSchema `
+        -Summary $Summary `
+        -SourceSchema "featherdoc.project_template_onboarding_governance_report.v1"
+
+    if ($null -ne $readinessReport) {
+        Add-UniqueLine -Lines $Lines -Line (
+            'project-template readiness governance contract 已进入短摘要：status={0} release_ready={1} latest_schema_approval_gate_status={2} source_report_display={3} source_json_display={4}。' -f `
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "status")),
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "release_ready")),
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "latest_schema_approval_gate_status")),
+                (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $readinessReport)),
+                (Get-DisplayValue -Value (Get-GovernanceSourceJsonDisplay -Item $readinessReport))
+        )
+    }
+
+    if ($null -ne $onboardingItem) {
+        $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $onboardingItem -Name "schema_approval_status_summary"
+        if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+            $schemaApprovalSummary = Get-ReleaseBlockerPropertyValue -Object $onboardingItem -Name "status"
+        }
+
+        Add-UniqueLine -Lines $Lines -Line (
+            'project-template onboarding governance contract 已进入短摘要：schema_approval_status_summary={0} source_report_display={1} source_json_display={2}。' -f `
+                (Get-DisplayValue -Value $schemaApprovalSummary),
+                (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $onboardingItem)),
+                (Get-DisplayValue -Value (Get-GovernanceSourceJsonDisplay -Item $onboardingItem))
+        )
+    }
+}
+
 function Normalize-ReleaseFacingText {
     param([string]$Text)
 
@@ -1036,7 +1076,7 @@ $validationNote = Get-ValidationNote `
 $changelogSelection = Resolve-ChangelogSelection -RepoRoot $repoRoot -ReleaseVersion $resolvedReleaseVersion
 $changelogSections = $changelogSelection.Sections
 $changelogSourceLabel = $changelogSelection.SourceLabel
-$shortSummaryBullets = Get-ShortSummaryBullets `
+$shortSummaryBulletResults = @(Get-ShortSummaryBullets `
     -Sections $changelogSections `
     -ChangelogSourceLabel $changelogSourceLabel `
     -ExecutionStatus $summary.execution_status `
@@ -1056,7 +1096,12 @@ $shortSummaryBullets = Get-ShortSummaryBullets `
     -FixedGridVerdict $fixedGridVerdict `
     -SectionPageSetupVerdict $sectionPageSetupVerdict `
     -PageNumberFieldsVerdict $pageNumberFieldsVerdict `
-    -CuratedVisualReviewEntries $curatedVisualReviewEntries
+    -CuratedVisualReviewEntries $curatedVisualReviewEntries)
+$shortSummaryBullets = New-Object 'System.Collections.Generic.List[string]'
+foreach ($shortSummaryBullet in $shortSummaryBulletResults) {
+    Add-UniqueLine -Lines $shortSummaryBullets -Line ([string]$shortSummaryBullet)
+}
+Add-ProjectTemplateGovernanceContractShortSummaryBullets -Lines $shortSummaryBullets -Summary $summary
 
 $releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1"
 $releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
