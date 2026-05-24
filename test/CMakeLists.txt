@@ -1453,6 +1453,23 @@ if(WIN32)
                 TIMEOUT 60
                 LABELS "pdf;smoke;docs")
 
+        add_test(
+            NAME
+            pdf_real_business_sample_manifest_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_real_business_sample_manifest_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_real_business_sample_manifest_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;docs")
+
         set(FEATHERDOC_CONTROLLED_VISUAL_SMOKE_PYTHON_ARGS)
         if(FEATHERDOC_PYTHON_EXECUTABLE)
             list(APPEND FEATHERDOC_CONTROLLED_VISUAL_SMOKE_PYTHON_ARGS

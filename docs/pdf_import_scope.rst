@@ -4,6 +4,11 @@ PDF Import Supported Scope And Limits
 This page records the PDF import supported scope and limits. The reliable scope
 is intentionally narrow:
 
+The importer is text-first. It reconstructs a conservative ``Document`` from
+extractable PDF text and character geometry, then optionally promotes selected
+table candidates. It is not a general PDF-to-Word converter and it does not
+promise arbitrary visual fidelity.
+
 - Paragraph import from extractable PDF text.
 - Conservative table-candidate detection for simple aligned grids, simple
   key-value tables, and selected borderless aligned tables.
@@ -35,3 +40,12 @@ rotated or floating content recovery, or exact visual reconstruction of an
 arbitrary PDF. Sparse rows are supported only in controlled cases where the
 surrounding table geometry is still compatible; arbitrary local column drift
 remains a split-table condition.
+
+In practical terms:
+
+- Text extraction is the primary contract; layout reconstruction is best-effort
+  and intentionally conservative.
+- Table import is opt-in through ``--import-table-candidates-as-tables``.
+- Unsupported cases must fail or remain paragraphs rather than silently
+  producing misleading Word structure.
+- OCR, scanned pages, and visual-perfect recreation remain out of scope.

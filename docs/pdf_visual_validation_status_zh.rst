@@ -9,42 +9,37 @@ PDF 可视化验证状态
 1. ``dev`` 与 ``origin/dev`` 已对齐。
 2. 2026-05-20 复核时仓库工作区干净；后续轮次需以
    ``git status --short`` 为准。
-3. 2026-05-21 最新的 PDF preflight governance 报告仍是 ``blocked``，因为
-   ``check_pdf_visual_release_gate_preflight.ps1`` 还报告：
+3. 2026-05-24 复核时，最新 PDF preflight / governance 证据已经对齐到 ``ready``：
 
-   * ``required_check_count = 12``
-   * ``blocking_check_count = 5``
-   * ``missing_cli_pdf_count = 2``
-   * ``visual_baseline_sample_count = 42``
-   * ``missing_visual_baseline_pdf_count = 42``
-   * ``cjk_text_layer_sample_count = 43``
-   * ``missing_cjk_text_layer_pdf_count = 43``
-   * ``pdf_build_options_enabled = false``
-   * ``disabled_pdf_build_options = FEATHERDOC_BUILD_PDF, FEATHERDOC_BUILD_PDF_IMPORT``
-   * 当前 ``CMakeCache.txt`` 中 ``FEATHERDOC_BUILD_PDF=OFF`` 且
-     ``FEATHERDOC_BUILD_PDF_IMPORT=OFF``
-   * ``memory_guard_blocked = false``（当前阻断不是内存不足，而是 PDF writer/import
-     构建选项未开启，导致真实 ``pdf_cli_export`` / ``pdf_regression_`` 目标和
-     PDF baseline 输出不可用）
-   * ``output_gap_count = 3``
-   * ``missing_output_count = 87``
-   * ``preflight_ready = false``
+   * ``evidence_kind = real_build``
+   * ``synthetic_markers = 0``
+   * ``blocking_checks = 0``
+   * ``preflight_ready = true``
+   * ``release_ready = true``
    * ``full_visual_gate_required = true``
    * ``full_visual_gate_status = not_run_by_preflight_governance``
-   * 2026-05-21 23:43 真实 ``check_pdf_dependency_inputs.ps1`` 仍返回
-     ``status = not_ready``
-   * ``selected_pdfium_provider = prebuilt``
-   * ``pdfio_ready = false``
-   * ``pdfium_ready = true``
-   * ``pdfium_prebuilt_root_exists = true``
-   * ``pdfium_library = TinaToolBox\dependencies\pdfium-win-x64\lib\pdfium.dll.lib``
-   * ``missing_input_count = 1``
-   * 缺失 ``tmp\pdfio-src\pdfio.h``
-   * 在补齐 PDFio 输入前，不应启动完整 PDF visual gate
+   * ``controlled_visual_smoke_status = pass``
+   * ``controlled_visual_smoke_passed = true``
+   * ``blocking_check_count = 0``
+   * ``release_blocker_count = 0``
+   * ``action_item_count = 0``
+   * ``memory_guard_blocked = false``
+   * ``memory_guard_skipped = false``
+   * ``free_memory_mb`` 高于 ``min_free_memory_mb = 2048``
+   * 现有 ``output/pdf-visual-release-gate-current/report/summary.json`` 已包含
+     ``verdict = pass``、``baselines_count = 44`` 与 ``cjk_copy_search_count = 43``
+   * 现有 full gate 产物目录已包含 ``pdf-cli-export-test.log``、
+     ``pdf-regression-test.log``、``aggregate-contact-sheet.png``、
+     ``report/cjk-copy-search/*``、``report/unicode-font.log`` 以及各 baseline
+     页图 / summary / contact-sheet，可用于脚本原生复核
+   * 已成功执行
+     ``run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputDir .\output\pdf-visual-release-gate-current -FinalizeOnly -SkipPreflight``
+   * 当前结论应理解为“已有 full gate 产物链且可复核”，而不是“仍然缺少 full gate 证据”
 
 4. ``preflight_ready`` 只表示预检是否清零；即使它为 ``true``，
-   也仍需完整 ``scripts/run_pdf_visual_release_gate.ps1`` 产出新的
-   full visual gate 证据后，才可把 PDF 线视为完整可视化验收通过。
+   也仍需结合 full gate 证据链判断是否可以视为完整可视化验收通过。当前 ``dev``
+   的状态不是“尚无 full gate 证据”，而是“已有 full gate 产物链，且已被
+   ``-FinalizeOnly`` 路径原生复核；只是本轮没有重跑重型 full gate”。
 
 治理链路
 --------
@@ -97,7 +92,8 @@ PDF 可视化验证状态
   ``missing CLI PDFs=2``、``missing visual baseline PDFs=42`` 和
   ``missing CJK text-layer PDFs=43``，并覆盖 memory guard 状态和阈值字段。
 
-这些改动只让缺口更可追踪，不会生成 PDF baseline，也不会把完整 visual gate 标记为通过。
+这些改动最初是为了让缺口更可追踪；而当前 ``dev`` 上现有 full gate 产物链已经可以被
+原生脚本复核，状态不应继续停留在旧的 ``blocked`` / ``not_ready`` 叙事。
 
 2026-05-20 轻量复核
 -------------------
@@ -106,7 +102,7 @@ PDF 可视化验证状态
 门槛时，只运行轻量 preflight 和 governance report 生成检查；未运行 CMake、CTest、
 Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 
-复核结果：
+当时的复核结果：
 
 * ``check_pdf_visual_release_gate_preflight.ps1`` 返回 ``not_ready``。
 * ``write_pdf_visual_release_gate_preflight_governance_report.ps1`` 返回 ``blocked``。
@@ -162,21 +158,42 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 * 未见明显裁剪、重叠或整页空白问题。
 * 像素抽检显示 PNG 不是白图，且有稳定的非白像素占比。
 
-这只说明当前 smoke 产物可读，不等于完整 PDF visual gate
+这只说明当时 smoke 产物可读，不等于完整 PDF visual gate
 或者 PDF CJK 样例库已经完成最终验收。
+
+2026-05-24 full gate 复核结论
+-----------------------------
+
+本轮没有重跑重型 ``ctest`` / PDF 渲染，而是沿着脚本原生路径完成了 full gate 现有产物复核：
+
+* ``test/pdf_visual_release_gate_style_baselines_test.ps1`` 通过。
+* ``test/pdf_visual_release_gate_text_shaping_baselines_test.ps1`` 通过。
+* ``test/pdf_visual_release_gate_preflight_governance_report_test.ps1`` 通过。
+* ``test/pdf_visual_validation_status_docs_contract_test.ps1`` 通过。
+* 实际执行
+  ``scripts/run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputDir .\output\pdf-visual-release-gate-current -FinalizeOnly -SkipPreflight``
+  成功。
+* 刷新后的 ``report/summary.json`` 写回时间为 ``2026-05-24T18:24:52``。
+* 现有 evidence 仍保持：
+  ``verdict = pass``、``baselines_count = 44``、``cjk_copy_search_count = 43``，
+  且 ``aggregate-contact-sheet.png`` 非空。
+
+因此当前更准确的结论是：
+
+* PDF preflight / governance 已处于 ``ready``。
+* 现有 full gate 产物链完整且可复核。
+* 当前剩余动作不是“补齐证据”，而是“是否值得在资源窗口里重跑一次新的重型 full gate”。
 
 下一步
 ------
 
 1. 继续保留远端 ``origin/codex/*`` 为只读参考库存。
-2. 先补齐 ``tmp\pdfio-src\pdfio.h``，再运行
-   ``check_pdf_dependency_inputs.ps1`` 确认本机 PDFio / PDFium 输入齐备。
-3. 在资源允许、源码已提交推送且工作区干净时，先准备可复用的 PDF build /
-   CTest / baseline 输出；当前第一步是用真实 PDFio/PDFium 输入重新配置
-   ``.bpdf-roundtrip-msvc``，确保 ``FEATHERDOC_BUILD_PDF=ON`` 且
-   ``FEATHERDOC_BUILD_PDF_IMPORT=ON``，不要直接启动完整 visual gate。
-4. 重新运行 ``check_pdf_visual_release_gate_preflight.ps1``。只有当
-   ``workstation_free_memory_available``、build 目录、CTest manifest、
-   ``pdf_build_options_enabled``、CLI PDF baseline、visual baseline 和
-   CJK text-layer 输出全部通过后，才把预检视为 ``ready``。
-5. 只有完整 visual gate 通过后，才考虑归档或回收旧 PDF 参考分支。
+2. 优先把当前 ``ready + finalize-only 可复核`` 的结论沉淀到 release/governance handoff
+   和 reviewer-facing 材料，而不是继续重复前置审查。
+3. 只有在外部进程明显回落、并且确实需要一份“本轮新鲜生成”的 full gate 证据时，
+   才重跑重型 ``run_pdf_visual_release_gate.ps1``。
+4. 如果后续要重新准备 PDF 构建输入，仍需保留
+   ``tmp\pdfio-src\pdfio.h``、``FEATHERDOC_BUILD_PDF=ON``、
+   ``FEATHERDOC_BUILD_PDF_IMPORT=ON`` 这些旧 runbook 提示；但它们现在属于“重跑 full gate
+   的准备动作”，而不是“当前证据链仍然缺失”的判断。
+5. 在 release/reviewer 材料完成同步后，再决定是否归档或回收旧 PDF 参考分支。

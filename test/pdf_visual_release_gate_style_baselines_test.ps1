@@ -79,6 +79,16 @@ Assert-ContainsText -Text $scriptText -ExpectedText "-LogPath `$unicodeLog" `
     -Message "PDF visual release gate should write unicode visual regression output to its declared log."
 Assert-ContainsText -Text $scriptText -ExpectedText "unicode_font = `$unicodeLog" `
     -Message "PDF visual release gate summary should expose the captured unicode visual regression log."
+Assert-ContainsText -Text $scriptText -ExpectedText 'verdict = "pass"' `
+    -Message "PDF visual release gate summary should expose an explicit pass/fail verdict."
+Assert-ContainsText -Text $scriptText -ExpectedText 'status = "pass"' `
+    -Message "PDF visual release gate summary should expose a machine-readable status."
+Assert-ContainsText -Text $scriptText -ExpectedText "cjk_copy_search_count = `$cjkCopySearchResults.Count" `
+    -Message "PDF visual release gate summary should expose CJK copy/search evidence count."
+Assert-ContainsText -Text $scriptText -ExpectedText "visual_baseline_manifest_count = `$visualManifestSamples.Count" `
+    -Message "PDF visual release gate summary should expose manifest visual baseline count."
+Assert-ContainsText -Text $scriptText -ExpectedText "baselines_count = `$renderedSamples.Count" `
+    -Message "PDF visual release gate summary should expose rendered baseline evidence count."
 Assert-ContainsText -Text $scriptText -ExpectedText "[switch]`$FinalizeOnly" `
     -Message "PDF visual release gate should expose a finalize-only mode for already rendered outputs."
 Assert-ContainsText -Text $scriptText -ExpectedText "Finalizing existing PDF visual release gate output" `

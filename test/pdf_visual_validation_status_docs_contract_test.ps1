@@ -39,6 +39,7 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
 $statusDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_visual_validation_status_zh.rst"
 $buildingPdfDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "BUILDING_PDF.md"
+$releaseChecklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_release_readiness_checklist_zh.rst"
 $dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
 $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
 $governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
@@ -58,40 +59,42 @@ $doNotRunFullVisualGateMarker = [string]::Concat(@(
 $statusMarkers = @(
     "check_pdf_dependency_inputs.ps1",
     "featherdoc.pdf_dependency_inputs_check.v1",
-    "required_check_count = 12",
+    "blocking_checks = 0",
     "memory_guard_blocked = false",
-    "blocking_check_count = 5",
-    "pdf_build_options_enabled = false",
-    "disabled_pdf_build_options = FEATHERDOC_BUILD_PDF, FEATHERDOC_BUILD_PDF_IMPORT",
-    "FEATHERDOC_BUILD_PDF=OFF",
-    "FEATHERDOC_BUILD_PDF_IMPORT=OFF",
+    "memory_guard_skipped = false",
     "workstation_free_memory_available",
     "git status --short",
     "free_memory_mb",
     "min_free_memory_mb",
-    "memory_guard_skipped",
     "memory guard blocked=false",
     "memory guard skipped=false",
     "free memory MB",
     "minimum free memory MB",
     "2026-05-20",
-    "release_blocker_count = 1",
-    "action_item_count = 1",
+    "2026-05-24",
+    "FinalizeOnly",
+    "release_blocker_count = 0",
+    "action_item_count = 0",
     "build_dir_source = requested",
     "build_dir_auto_candidates",
     "pdf_build_options",
     "looks_reusable",
-    "preflight_ready = false",
+    "preflight_ready = true",
     "full_visual_gate_required = true",
     "full_visual_gate_status = not_run_by_preflight_governance",
     "evidence_kind",
     "synthetic_fixture",
     "synthetic_preflight_evidence",
-    "release_ready = false",
+    "release_ready = true",
     "not_run_by_preflight_governance",
-    "status = not_ready",
+    "evidence_kind = real_build",
+    "controlled_visual_smoke_status = pass",
+    "controlled_visual_smoke_passed = true",
+    "verdict = pass",
+    "baselines_count = 44",
+    "cjk_copy_search_count = 43",
+    "-FinalizeOnly -SkipPreflight",
     "selected_pdfium_provider = prebuilt",
-    "pdfio_ready = false",
     "pdfium_ready = true",
     "pdfium_prebuilt_root_exists = true",
     "TinaToolBox\dependencies\pdfium-win-x64",
@@ -111,6 +114,7 @@ $statusMarkers = @(
     "-MinFreeMemoryMB",
     "-SkipMemoryGuard",
     "missing_output_count = 87",
+    "aggregate-contact-sheet.png",
     "fake-pdf-build",
     "fake ctest",
     "fake python",
@@ -122,7 +126,7 @@ $statusMarkers = @(
     "pdf_dependency_missing_input_count",
     "pdfio_dependency_ready",
     "pdfium_dependency_ready",
-    $doNotRunFullVisualGateMarker
+    "run_pdf_visual_release_gate.ps1"
 )
 
 foreach ($marker in $statusMarkers) {
@@ -158,12 +162,31 @@ $buildingPdfFixtureMarkers = @(
     "ctest -N",
     "skipped",
     "visual baseline PDF",
-    "CJK text-layer PDF"
+    "CJK text-layer PDF",
+    "90",
+    "expect_visual_baseline=true",
+    "expect_cjk=true",
+    "pdf_release_readiness_checklist_zh",
+    "visual baseline manifest"
 )
 
 foreach ($marker in $buildingPdfFixtureMarkers) {
     Assert-ContainsText -Text $buildingPdfDoc -ExpectedText $marker `
         -Message "BUILDING_PDF.md should preserve the PDF preflight fixture boundary marker."
+}
+
+foreach ($marker in @(
+    "verdict = pass",
+    "baselines_count > 0",
+    "cjk_copy_search_count > 0",
+    "run_release_candidate_checks.ps1",
+    "aggregate-contact-sheet.png",
+    "text-first",
+    "opt-in",
+    "PDF"
+)) {
+    Assert-ContainsText -Text $releaseChecklistDoc -ExpectedText $marker `
+        -Message "PDF release readiness checklist should preserve marker '$marker'."
 }
 
 $scriptMarkers = @(
@@ -223,6 +246,8 @@ foreach ($marker in @(
     "pdf_dependency_inputs_check_test.ps1",
     "pdf_visual_validation_status_docs_contract",
     "pdf_visual_validation_status_docs_contract_test.ps1",
+    "pdf_real_business_sample_manifest_contract",
+    "pdf_real_business_sample_manifest_contract_test.ps1",
     "TIMEOUT 60"
 )) {
     Assert-ContainsText -Text $cmakeLists -ExpectedText $marker `

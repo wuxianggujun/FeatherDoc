@@ -407,6 +407,46 @@ function Set-OptionalSummaryValue {
     }
 }
 
+function Get-PdfVisualGateSummaryInfo {
+    param(
+        [string]$SummaryJson
+    )
+
+    $info = [ordered]@{
+        requested = -not [string]::IsNullOrWhiteSpace($SummaryJson)
+        status = if ([string]::IsNullOrWhiteSpace($SummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $SummaryJson) { "available" } else { "missing" }
+        summary_json = $SummaryJson
+        verdict = ""
+        aggregate_contact_sheet = ""
+        cjk_copy_search_count = 0
+        visual_baseline_count = 0
+        finalizable = $false
+        error = ""
+    }
+
+    if (-not [bool]$info.requested -or -not (Test-Path -LiteralPath $SummaryJson)) {
+        return $info
+    }
+
+    try {
+        $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $SummaryJson | ConvertFrom-Json
+        $info.status = "loaded"
+        $info.verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "verdict")
+        $info.aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet")
+        $info.cjk_copy_search_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_count")
+        $info.visual_baseline_count = [int](Get-OptionalPropertyValue -Object $summary -Name "baselines_count")
+        $info.finalizable = -not [string]::IsNullOrWhiteSpace([string]$info.verdict) -and
+            [int]$info.cjk_copy_search_count -gt 0 -and
+            [int]$info.visual_baseline_count -gt 0 -and
+            -not [string]::IsNullOrWhiteSpace([string]$info.aggregate_contact_sheet)
+    } catch {
+        $info.status = "unreadable"
+        $info.error = $_.Exception.Message
+    }
+
+    return $info
+}
+
 function Convert-ReviewTimestamp {
     param([AllowNull()]$Value)
 
@@ -1379,6 +1419,7 @@ if (-not [string]::IsNullOrWhiteSpace($PdfVisualGateSummaryJson)) {
         $resolvedPdfVisualGateSummaryJson = $autoPdfVisualGateSummaryJson
     }
 }
+$pdfVisualGateSummaryInfo = Get-PdfVisualGateSummaryInfo -SummaryJson $resolvedPdfVisualGateSummaryJson
 $installSmokeScript = Join-Path $repoRoot "scripts\run_install_find_package_smoke.ps1"
 $templateSchemaCheckScript = Join-Path $repoRoot "scripts\check_template_schema_baseline.ps1"
 $templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_schema_manifest.ps1"
@@ -1566,11 +1607,7 @@ $summary = [ordered]@{
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
     pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson
-    pdf_visual_gate = [ordered]@{
-        requested = -not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)
-        status = if ([string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $resolvedPdfVisualGateSummaryJson) { "available" } else { "missing" }
-        summary_json = $resolvedPdfVisualGateSummaryJson
-    }
+    pdf_visual_gate = $pdfVisualGateSummaryInfo
     release_blocker_rollup = [ordered]@{
         requested = $releaseBlockerRollupRequested
         status = if ($releaseBlockerRollupRequested) { "pending" } else { "not_requested" }
@@ -1735,11 +1772,7 @@ $summary = [ordered]@{
             warnings = @()
             error = ""
         }
-        pdf_visual_gate = [ordered]@{
-            requested = -not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)
-            status = if ([string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $resolvedPdfVisualGateSummaryJson) { "available" } else { "missing" }
-            summary_json = $resolvedPdfVisualGateSummaryJson
-        }
+        pdf_visual_gate = $pdfVisualGateSummaryInfo
     }
 }
 
@@ -2588,6 +2621,7 @@ try {
     $schemaApprovalHistoryMarkdownDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.schema_patch_approval_history_markdown
     $startHereDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $startHerePath
     $pdfVisualGateSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate.summary_json
+    $pdfVisualGateContactSheetDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate.aggregate_contact_sheet
 
     $readmeGalleryStatusLine = switch ($summary.readme_gallery.status) {
         "completed" {
@@ -2653,6 +2687,9 @@ try {
 - Install smoke: $($summary.steps.install_smoke.status)
 - Visual gate: $($summary.steps.visual_gate.status)
 - PDF visual gate: $($summary.steps.pdf_visual_gate.status)
+- PDF visual gate verdict: $($summary.steps.pdf_visual_gate.verdict)
+- PDF visual gate counts: $($summary.steps.pdf_visual_gate.visual_baseline_count) visual baselines, $($summary.steps.pdf_visual_gate.cjk_copy_search_count) CJK copy/search
+- PDF visual gate finalizable: $($summary.steps.pdf_visual_gate.finalizable)
 - Release blocker rollup: $($summary.steps.release_blocker_rollup.status)
 - Release governance handoff: $($summary.steps.release_governance_handoff.status)
 $visualGateReviewTaskSummaryLine
@@ -2696,6 +2733,7 @@ $releaseGovernanceHandoffMarkdown
 - Reviewer checklist: $reviewerChecklistDisplayPath
 - Start here: $startHereDisplayPath
 - PDF visual gate summary: $pdfVisualGateSummaryDisplayPath
+- PDF visual gate contact sheet: $pdfVisualGateContactSheetDisplayPath
 "@
     $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 

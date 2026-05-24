@@ -553,6 +553,11 @@ if ($FinalizeOnly) {
 
 $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
+    status = "pass"
+    verdict = "pass"
+    finalize_only = [bool]$FinalizeOnly
+    skip_preflight = [bool]$SkipPreflight
+    skip_unicode_baseline = [bool]$SkipUnicodeBaseline
     repo_root = $repoRoot
     build_dir = $resolvedBuildDir
     output_dir = $resolvedOutputDir
@@ -564,6 +569,10 @@ $summary = [ordered]@{
         cjk_copy_search = $cjkCopySearchDir
         unicode_font = $unicodeLog
     }
+    cjk_manifest_count = $cjkSamples.Count
+    cjk_copy_search_count = $cjkCopySearchResults.Count
+    visual_baseline_manifest_count = $visualManifestSamples.Count
+    baselines_count = $renderedSamples.Count
     cjk_copy_search = $cjkCopySearchResults
     baselines = $renderedSamples
 }

@@ -122,14 +122,29 @@ Assert-ContainsText -Text $scriptText -ExpectedText '[string]$PdfVisualGateSumma
 Assert-ContainsText -Text $scriptText -ExpectedText 'pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson' `
     -Message "Release summary should preserve the PDF visual gate summary path."
 
-Assert-ContainsText -Text $scriptText -ExpectedText 'pdf_visual_gate = [ordered]@{' `
+Assert-ContainsText -Text $scriptText -ExpectedText 'pdf_visual_gate = $pdfVisualGateSummaryInfo' `
     -Message "Release summary should expose PDF visual gate metadata."
 
 Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate: $($summary.steps.pdf_visual_gate.status)' `
     -Message "Release final review should include PDF visual gate status."
 
+Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate verdict: $($summary.steps.pdf_visual_gate.verdict)' `
+    -Message "Release final review should include PDF visual gate verdict."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate counts: $($summary.steps.pdf_visual_gate.visual_baseline_count) visual baselines, $($summary.steps.pdf_visual_gate.cjk_copy_search_count) CJK copy/search' `
+    -Message "Release final review should include PDF visual gate evidence counts."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate finalizable: $($summary.steps.pdf_visual_gate.finalizable)' `
+    -Message "Release final review should include PDF visual gate finalizable status."
+
 Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate summary: $pdfVisualGateSummaryDisplayPath' `
     -Message "Release final review should link PDF visual gate evidence."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate contact sheet: $pdfVisualGateContactSheetDisplayPath' `
+    -Message "Release final review should link PDF visual gate contact sheet evidence."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'Get-PdfVisualGateSummaryInfo -SummaryJson $resolvedPdfVisualGateSummaryJson' `
+    -Message "Release preflight should load machine-readable PDF visual gate verdict metadata."
 
 Assert-ContainsText -Text $scriptText -ExpectedText '"-TableStyleQualityBuildDir"' `
     -Message "Release preflight should pass the shared build directory to table style quality visual gate."
@@ -234,6 +249,7 @@ $functionNames = @(
     "Get-ReleaseBlockerRollupInputList",
     "Get-RepoRelativePath",
     "Get-OptionalPropertyValue",
+    "Get-PdfVisualGateSummaryInfo",
     "Convert-ReviewTimestamp",
     "Get-ReleaseCandidateDisplayValue",
     "Read-ReleaseBlockerRollupSummary",
@@ -253,6 +269,32 @@ foreach ($functionName in $functionNames) {
     }
 
     Invoke-Expression $functionAst.Extent.Text
+}
+
+$pdfSummaryDir = Join-Path $resolvedWorkingDir "pdf-summary"
+New-Item -ItemType Directory -Path $pdfSummaryDir -Force | Out-Null
+$pdfContactSheetPath = Join-Path $pdfSummaryDir "aggregate-contact-sheet.png"
+Set-Content -LiteralPath $pdfContactSheetPath -Encoding UTF8 -Value "not-empty"
+$pdfSummaryPath = Join-Path $pdfSummaryDir "summary.json"
+([ordered]@{
+        verdict = "pass"
+        aggregate_contact_sheet = $pdfContactSheetPath
+        cjk_copy_search_count = 43
+        baselines_count = 44
+    } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $pdfSummaryPath -Encoding UTF8
+
+$pdfVisualGateInfo = Get-PdfVisualGateSummaryInfo -SummaryJson $pdfSummaryPath
+if ($pdfVisualGateInfo.status -ne "loaded" -or
+    $pdfVisualGateInfo.verdict -ne "pass" -or
+    [int]$pdfVisualGateInfo.cjk_copy_search_count -ne 43 -or
+    [int]$pdfVisualGateInfo.visual_baseline_count -ne 44 -or
+    -not [bool]$pdfVisualGateInfo.finalizable) {
+    throw "PDF visual gate summary metadata was not loaded into a finalizable release summary object."
+}
+
+$missingPdfVisualGateInfo = Get-PdfVisualGateSummaryInfo -SummaryJson (Join-Path $resolvedWorkingDir "missing-summary.json")
+if ($missingPdfVisualGateInfo.status -ne "missing" -or [bool]$missingPdfVisualGateInfo.finalizable) {
+    throw "Missing PDF visual gate summary should not be marked finalizable."
 }
 
 $completeReviewTaskSummary = Get-CompleteVisualGateReviewTaskSummary -Summary ([ordered]@{
