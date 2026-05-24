@@ -1,5 +1,6 @@
 param(
     [string]$RepoRoot,
+    [string]$BuildDir = "",
     [string]$WorkingDir,
     [ValidateSet("all", "aggregate", "empty", "failed_source_report", "malformed", "fail_on_issue", "fail_on_blocker")]
     [string]$Scenario = "all"
@@ -7,6 +8,18 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $BuildDir) {
+    $BuildDir = Join-Path $RepoRoot "build\build_table_layout_delivery_rollup_report_test"
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = $BuildDir
+}
 
 function Assert-True {
     param([bool]$Condition, [string]$Message)
