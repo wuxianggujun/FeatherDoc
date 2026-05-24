@@ -569,6 +569,49 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
     }
 }
 
+function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "final_review.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "Release governance handoff details",
+        "project_template_onboarding.schema_approval",
+        "project_template_onboarding_governance_contract"
+    ))) {
+        return
+    }
+
+    $label = "final review project template governance trace"
+    foreach ($needle in @(
+        "Release governance handoff details",
+        "project_template_delivery_readiness",
+        "project_template_onboarding.schema_approval",
+        "featherdoc.project_template_onboarding_governance_report.v1",
+        "project_template_onboarding_governance_contract",
+        "schema_approval_status_summary",
+        "source_report_display:",
+        "project-template-delivery-readiness",
+        "source_json_display:",
+        "project-template-onboarding-governance"
+    )) {
+        if (-not $Content.Contains($needle)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Final review lost project template governance trace marker '$needle'."
+        }
+    }
+}
+
 function Add-ContentControlRepairContractViolations {
     param(
         [string]$File,
@@ -1331,6 +1374,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseBodyProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-FinalReviewProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
     }
 
     if ([System.IO.Path]::GetExtension($file).ToLowerInvariant() -eq ".json") {

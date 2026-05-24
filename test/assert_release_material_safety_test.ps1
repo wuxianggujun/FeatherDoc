@@ -541,6 +541,28 @@ Set-Content -LiteralPath $passReleaseGovernanceHandoffTracePath -Encoding UTF8 -
 
 & $auditScript -Path $passReleaseGovernanceHandoffTracePath
 
+$passFinalReviewTraceDir = Join-Path $passDir "final-review-project-template-trace"
+$passFinalReviewTracePath = Join-Path $passFinalReviewTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $passFinalReviewTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passFinalReviewTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Release governance handoff details
+
+### Handoff Blockers
+
+- project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+  - source_json_display: .\output\project-template-onboarding-governance\summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+    - source_json_display: .\output\project-template-onboarding-governance\summary.json
+"@
+
+& $auditScript -Path $passFinalReviewTracePath
+
 $badEntryMissingGovernanceMetricDetailsDir = Join-Path $failDir "entry-missing-governance-metric-details"
 $badEntryMissingGovernanceMetricDetailsPath = Join-Path $badEntryMissingGovernanceMetricDetailsDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryMissingGovernanceMetricDetailsDir -Force | Out-Null
@@ -1525,6 +1547,35 @@ try {
 
 if (-not $badReleaseGovernanceHandoffTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md without project-template source_json_display."
+}
+
+$badFinalReviewTraceDir = Join-Path $failDir "final-review-missing-project-template-source-json"
+$badFinalReviewTracePath = Join-Path $badFinalReviewTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Release governance handoff details
+
+### Handoff Blockers
+
+- project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+"@
+
+$badFinalReviewTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewTracePath
+} catch {
+    $badFinalReviewTraceFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md without project-template source_json_display."
 }
 
 $badEntryGovernanceTracePath = Join-Path $failDir "ARTIFACT_GUIDE.md"
