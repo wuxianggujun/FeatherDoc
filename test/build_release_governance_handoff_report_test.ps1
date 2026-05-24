@@ -825,8 +825,12 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text ([string]$pdfEvidence.pdf_visual_gate_aggregate_contact_sheet_display) `
         -ExpectedText "pdf-visual-release-gate-current\report\aggregate-contact-sheet.png" `
         -Message "Handoff summary should expose PDF visual gate contact-sheet display path from the nested rollup."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_cjk_manifest_count) -Expected 43 `
+        -Message "Handoff summary should expose PDF CJK manifest count from the nested rollup."
     Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_cjk_copy_search_count) -Expected 43 `
         -Message "Handoff summary should expose PDF CJK copy/search count from the nested rollup."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_visual_baseline_manifest_count) -Expected 42 `
+        -Message "Handoff summary should expose PDF visual baseline manifest count from the nested rollup."
     Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_visual_baseline_count) -Expected 44 `
         -Message "Handoff summary should expose PDF visual baseline count from the nested rollup."
 
@@ -872,8 +876,12 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should expose the PDF visual gate summary display field."
     Assert-ContainsText -Text $markdown -ExpectedText "aggregate-contact-sheet.png" `
         -Message "Handoff Markdown should expose the PDF visual gate contact sheet."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_cjk_manifest_count: ``43``" `
+        -Message "Handoff Markdown should expose the PDF CJK manifest count."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_cjk_copy_search_count: ``43``" `
         -Message "Handoff Markdown should expose the PDF CJK copy/search count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_visual_baseline_manifest_count: ``42``" `
+        -Message "Handoff Markdown should expose the PDF visual baseline manifest count."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_visual_baseline_count: ``44``" `
         -Message "Handoff Markdown should expose the PDF visual baseline count."
 }

@@ -599,7 +599,9 @@ function Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations {
         "pdf_visual_gate_summary_json_display:",
         "pdf_visual_gate_aggregate_contact_sheet_display:",
         "aggregate-contact-sheet.png",
+        "pdf_visual_gate_cjk_manifest_count:",
         "pdf_visual_gate_cjk_copy_search_count:",
+        "pdf_visual_gate_visual_baseline_manifest_count:",
         "pdf_visual_gate_visual_baseline_count:"
     )) {
         if (-not $Content.Contains($needle)) {

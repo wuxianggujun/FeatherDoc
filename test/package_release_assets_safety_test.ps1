@@ -179,7 +179,9 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
     - pdf_visual_gate_finalizable: ``True``
     - pdf_visual_gate_summary_json_display: ``$pdfGateSummaryPath``
     - pdf_visual_gate_aggregate_contact_sheet_display: ``$pdfGateAggregateContactSheetPath``
+    - pdf_visual_gate_cjk_manifest_count: ``43``
     - pdf_visual_gate_cjk_copy_search_count: ``2``
+    - pdf_visual_gate_visual_baseline_manifest_count: ``42``
     - pdf_visual_gate_visual_baseline_count: ``3``
 "@
 
@@ -652,7 +654,9 @@ Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gat
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_summary_json_display' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_aggregate_contact_sheet_display' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'aggregate-contact-sheet.png' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_cjk_manifest_count: `43`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_cjk_copy_search_count: `2`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_visual_baseline_manifest_count: `42`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_visual_baseline_count: `3`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness_contract:' -Label 'staged release_handoff.md'

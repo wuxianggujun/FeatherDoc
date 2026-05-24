@@ -557,7 +557,9 @@ Set-Content -LiteralPath $passReleaseGovernanceHandoffPdfTracePath -Encoding UTF
     - pdf_visual_gate_finalizable: ``True``
     - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
     - pdf_visual_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+    - pdf_visual_gate_cjk_manifest_count: ``43``
     - pdf_visual_gate_cjk_copy_search_count: ``43``
+    - pdf_visual_gate_visual_baseline_manifest_count: ``42``
     - pdf_visual_gate_visual_baseline_count: ``44``
 "@
 
@@ -1599,7 +1601,9 @@ Set-Content -LiteralPath $badReleaseGovernanceHandoffPdfTracePath -Encoding UTF8
     - pdf_visual_gate_verdict: ``pass``
     - pdf_visual_gate_finalizable: ``True``
     - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
+    - pdf_visual_gate_cjk_manifest_count: ``43``
     - pdf_visual_gate_cjk_copy_search_count: ``43``
+    - pdf_visual_gate_visual_baseline_manifest_count: ``42``
     - pdf_visual_gate_visual_baseline_count: ``44``
 "@
 
@@ -1612,6 +1616,37 @@ try {
 
 if (-not $badReleaseGovernanceHandoffPdfTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md without PDF visual gate contact-sheet trace."
+}
+
+$badReleaseGovernanceHandoffPdfManifestTraceDir = Join-Path $failDir "release-governance-handoff-missing-pdf-visual-manifest-count"
+$badReleaseGovernanceHandoffPdfManifestTracePath = Join-Path $badReleaseGovernanceHandoffPdfManifestTraceDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffPdfManifestTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffPdfManifestTracePath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- PDF visual gate evidence source reports: ``1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - pdf_visual_gate_status: ``loaded``
+    - pdf_visual_gate_verdict: ``pass``
+    - pdf_visual_gate_finalizable: ``True``
+    - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
+    - pdf_visual_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+    - pdf_visual_gate_cjk_copy_search_count: ``43``
+    - pdf_visual_gate_visual_baseline_count: ``44``
+"@
+
+$badReleaseGovernanceHandoffPdfManifestTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffPdfManifestTracePath
+} catch {
+    $badReleaseGovernanceHandoffPdfManifestTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffPdfManifestTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md without PDF visual gate manifest-count trace."
 }
 
 $badFinalReviewTraceDir = Join-Path $failDir "final-review-missing-project-template-source-json"

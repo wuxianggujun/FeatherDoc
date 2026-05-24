@@ -589,7 +589,9 @@ function New-ReportMarkdown {
             $lines.Add("    - pdf_visual_gate_finalizable: ``$($evidence.pdf_visual_gate_finalizable)``") | Out-Null
             $lines.Add("    - pdf_visual_gate_summary_json_display: ``$($evidence.pdf_visual_gate_summary_json_display)``") | Out-Null
             $lines.Add("    - pdf_visual_gate_aggregate_contact_sheet_display: ``$($evidence.pdf_visual_gate_aggregate_contact_sheet_display)``") | Out-Null
+            $lines.Add("    - pdf_visual_gate_cjk_manifest_count: ``$($evidence.pdf_visual_gate_cjk_manifest_count)``") | Out-Null
             $lines.Add("    - pdf_visual_gate_cjk_copy_search_count: ``$($evidence.pdf_visual_gate_cjk_copy_search_count)``") | Out-Null
+            $lines.Add("    - pdf_visual_gate_visual_baseline_manifest_count: ``$($evidence.pdf_visual_gate_visual_baseline_manifest_count)``") | Out-Null
             $lines.Add("    - pdf_visual_gate_visual_baseline_count: ``$($evidence.pdf_visual_gate_visual_baseline_count)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$evidence.full_visual_gate_status)) {
                 $lines.Add("    - full_visual_gate_status: ``$($evidence.full_visual_gate_status)``") | Out-Null
