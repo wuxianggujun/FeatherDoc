@@ -473,6 +473,16 @@ Set-Content -LiteralPath $passEntryGovernanceTracePath -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passEntryGovernanceTracePath
 
+$passReleaseSummaryTracePath = Join-Path $passDir "release_summary.zh-CN.md"
+Set-Content -LiteralPath $passReleaseSummaryTracePath -Encoding UTF8 -Value @"
+# Release summary
+
+- project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- project-template onboarding governance contract: schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+& $auditScript -Path $passReleaseSummaryTracePath
+
 $badEntryMissingGovernanceMetricDetailsDir = Join-Path $failDir "entry-missing-governance-metric-details"
 $badEntryMissingGovernanceMetricDetailsPath = Join-Path $badEntryMissingGovernanceMetricDetailsDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryMissingGovernanceMetricDetailsDir -Force | Out-Null
@@ -1366,6 +1376,24 @@ try {
 
 if (-not $badContentControlCommandFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed content-control blocker without sync command_template."
+}
+
+$badReleaseSummaryTracePath = Join-Path $failDir "release_summary.zh-CN.md"
+Set-Content -LiteralPath $badReleaseSummaryTracePath -Encoding UTF8 -Value @"
+# Release summary
+
+- project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+"@
+
+$badReleaseSummaryTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseSummaryTracePath
+} catch {
+    $badReleaseSummaryTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseSummaryTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md without project-template source_json_display."
 }
 
 $badEntryGovernanceTracePath = Join-Path $failDir "ARTIFACT_GUIDE.md"

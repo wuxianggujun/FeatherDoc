@@ -368,6 +368,57 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     }
 }
 
+function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_summary.zh-cn.md") {
+        return
+    }
+
+    $label = "release summary project template governance trace"
+
+    if ($Content.Contains("project-template readiness governance contract")) {
+        foreach ($needle in @(
+            "project-template readiness governance contract",
+            "status=",
+            "release_ready=",
+            "latest_schema_approval_gate_status=",
+            "source_report_display=",
+            "source_json_display="
+        )) {
+            if (-not $Content.Contains($needle)) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Release summary lost project template readiness trace marker '$needle'."
+            }
+        }
+    }
+
+    if ($Content.Contains("project-template onboarding governance contract")) {
+        foreach ($needle in @(
+            "project-template onboarding governance contract",
+            "schema_approval_status_summary=",
+            "source_report_display=",
+            "source_json_display="
+        )) {
+            if (-not $Content.Contains($needle)) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Release summary lost project template onboarding trace marker '$needle'."
+            }
+        }
+    }
+}
+
 function Add-ContentControlRepairContractViolations {
     param(
         [string]$File,
@@ -1126,6 +1177,7 @@ foreach ($file in $scanFiles) {
     if ([System.IO.Path]::GetExtension($file).ToLowerInvariant() -eq ".md") {
         $content = Get-Content -Raw -LiteralPath $file
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
     }
 
     if ([System.IO.Path]::GetExtension($file).ToLowerInvariant() -eq ".json") {
