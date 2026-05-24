@@ -429,6 +429,16 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.next_commands | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "ReleaseBlockerRollupAutoDiscover" `
         -Message "Aggregate handoff should hand off to release candidate auto-discovery."
+    $numberingAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "preview_style_numbering_repair" } |
+        Select-Object -First 1)
+    Assert-ContainsText -Text ([string]$numberingAction.open_command) -ExpectedText "build_numbering_catalog_governance_report.ps1" `
+        -Message "Aggregate handoff should provide a reviewer open command when numbering action input omits one."
+    $tableVisualAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "run_table_style_quality_visual_regression" } |
+        Select-Object -First 1)
+    Assert-ContainsText -Text ([string]$tableVisualAction.open_command) -ExpectedText "build_table_layout_delivery_governance_report.ps1" `
+        -Message "Aggregate handoff should provide a reviewer open command when table action input omits one."
     $contentControlBlocker = ($summary.release_blockers |
         Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" } |
         Select-Object -First 1)

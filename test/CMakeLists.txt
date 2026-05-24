@@ -2991,6 +2991,23 @@ if(WIN32)
 
             add_test(
                 NAME
+                project_template_release_readiness_checklist_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/project_template_release_readiness_checklist_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(project_template_release_readiness_checklist_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "project_template;smoke;docs;release")
+
+            add_test(
+                NAME
                 build_release_blocker_rollup_report_passing
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

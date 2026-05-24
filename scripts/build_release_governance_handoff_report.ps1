@@ -424,6 +424,10 @@ function Add-NormalizedActions {
         $sourceReport = Get-JsonString -Object $item -Name "source_report" -DefaultValue ([string]$Report.expected_summary)
         $sourceJsonDisplay = Get-JsonString -Object $item -Name "source_json_display" -DefaultValue $sourceReportDisplay
         $sourceJson = Get-JsonString -Object $item -Name "source_json" -DefaultValue $sourceReport
+        $openCommand = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command")
+        if ([string]::IsNullOrWhiteSpace($openCommand)) {
+            $openCommand = [string]$Report.build_command
+        }
         $Collection.Add([ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
@@ -434,7 +438,7 @@ function Add-NormalizedActions {
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
             command = Get-JsonString -Object $item -Name "command"
-            open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command")
+            open_command = $openCommand
             source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue ([string]$Report.schema)
             source_report = $sourceReport
             source_report_display = $sourceReportDisplay

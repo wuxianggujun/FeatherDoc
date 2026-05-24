@@ -1,0 +1,168 @@
+param(
+    [string]$RepoRoot
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+function Assert-ContainsText {
+    param(
+        [string]$Text,
+        [string]$ExpectedText,
+        [string]$Message
+    )
+
+    if ($Text -notmatch [regex]::Escape($ExpectedText)) {
+        throw "$Message Missing='$ExpectedText'."
+    }
+}
+
+function Get-RepoFileText {
+    param(
+        [string]$Root,
+        [string]$RelativePath
+    )
+
+    $path = Join-Path $Root $RelativePath
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "Expected contract file was not found: $RelativePath"
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $path
+}
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    throw "RepoRoot is required."
+}
+
+$resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+
+$checklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\project_template_release_readiness_checklist_zh.rst"
+$indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
+$templateSchemaDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\template_schema_mutation_zh.rst"
+$releasePipelineDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_metadata_pipeline_zh.rst"
+$releasePolicyDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_policy_zh.rst"
+$deliveryScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_project_template_delivery_readiness_report.ps1"
+$contentControlScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
+$releaseChecksScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_release_candidate_checks.ps1"
+$materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
+$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+
+foreach ($marker in @(
+    "project_template_release_readiness_checklist_zh",
+    "template_schema_mutation_zh",
+    "release_metadata_pipeline_zh"
+)) {
+    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
+        -Message "Docs index should expose the project-template release readiness entry."
+}
+
+foreach ($marker in @(
+    "project-template governance",
+    "onboard_project_template.ps1",
+    "build_project_template_onboarding_governance_report.ps1",
+    "run_project_template_smoke.ps1",
+    "sync_project_template_schema_approval.ps1",
+    "write_project_template_schema_approval_history.ps1",
+    "featherdoc.project_template_schema_approval_history.v1",
+    "build_project_template_delivery_readiness_report.ps1",
+    "featherdoc.project_template_delivery_readiness_report.v1",
+    "release_ready",
+    "latest_schema_approval_gate_status",
+    "release_blocker_count",
+    "source_json_display",
+    "source_report_display",
+    "open_command",
+    "build_content_control_data_binding_governance_report.ps1",
+    "featherdoc.content_control_data_binding_governance_report.v1",
+    "content_control_data_binding.bound_placeholder",
+    "sync_bound_content_control",
+    "sync-content-controls-from-custom-xml",
+    "featherdoc.content_control_data_binding_repair_plan.v1",
+    "build_release_blocker_rollup_report.ps1",
+    "build_release_governance_pipeline_report.ps1",
+    "build_release_governance_handoff_report.ps1",
+    "run_release_candidate_checks.ps1",
+    "assert_release_material_safety.ps1",
+    "project_template_delivery_readiness_contract",
+    "START_HERE.md",
+    "ARTIFACT_GUIDE.md",
+    "REVIEWER_CHECKLIST.md",
+    "release_handoff.md",
+    "release_body.zh-CN.md"
+)) {
+    Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `
+        -Message "Project-template release readiness checklist should preserve marker '$marker'."
+}
+
+foreach ($marker in @(
+    "schema_patch_approval_gate_status",
+    "schema_patch_approval_invalid_result_count",
+    "project_template_smoke.schema_approval",
+    "write_project_template_schema_approval_history.ps1"
+)) {
+    Assert-ContainsText -Text $templateSchemaDoc -ExpectedText $marker `
+        -Message "Template schema mutation docs should keep schema approval governance marker '$marker'."
+}
+
+foreach ($marker in @(
+    "featherdoc.project_template_delivery_readiness_report.v1",
+    "featherdoc.content_control_data_binding_governance_report.v1",
+    "content_control_data_binding.bound_placeholder"
+)) {
+    Assert-ContainsText -Text $releasePipelineDoc -ExpectedText $marker `
+        -Message "Release metadata pipeline docs should keep governance marker '$marker'."
+}
+
+Assert-ContainsText -Text $releasePolicyDoc -ExpectedText "schema_patch_approval_gate_status" `
+    -Message "Release policy should keep project-template schema approval as a release criterion."
+
+foreach ($marker in @(
+    "featherdoc.project_template_delivery_readiness_report.v1",
+    "project_template_delivery_readiness.schema_approval_history_gate",
+    "source_json_display",
+    "source_report_display",
+    "release_ready",
+    "latest_schema_approval_gate_status"
+)) {
+    Assert-ContainsText -Text $deliveryScript -ExpectedText $marker `
+        -Message "Delivery readiness script should keep contract marker '$marker'."
+}
+
+foreach ($marker in @(
+    "featherdoc.content_control_data_binding_governance_report.v1",
+    "content_control_data_binding.bound_placeholder",
+    "sync_bound_content_control",
+    "sync-content-controls-from-custom-xml",
+    "featherdoc.content_control_data_binding_repair_plan.v1"
+)) {
+    Assert-ContainsText -Text $contentControlScript -ExpectedText $marker `
+        -Message "Content-control governance script should keep contract marker '$marker'."
+}
+
+foreach ($marker in @(
+    "Project template smoke schema approval history:",
+    "project_template_schema_approval_history",
+    "ProjectTemplateSmokeManifestPath",
+    "project_template_smoke",
+    "ReleaseBlockerRollupInputJson",
+    "ReleaseGovernanceHandoffInputJson"
+)) {
+    Assert-ContainsText -Text $releaseChecksScript -ExpectedText $marker `
+        -Message "Release candidate checks should keep governance handoff marker '$marker'."
+}
+
+foreach ($marker in @(
+    "project_template_delivery_readiness_contract",
+    "content_control_data_binding.bound_placeholder",
+    "repair_strategy",
+    "command_template"
+)) {
+    Assert-ContainsText -Text $materialSafetyScript -ExpectedText $marker `
+        -Message "Material safety audit should keep public governance safety marker '$marker'."
+}
+
+Assert-ContainsText -Text $cmakeLists -ExpectedText "project_template_release_readiness_checklist_docs_contract" `
+    -Message "CTest should register the project-template readiness checklist contract."
+
+Write-Host "Project template release readiness checklist docs contract passed."

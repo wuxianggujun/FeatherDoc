@@ -2574,16 +2574,31 @@ try {
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
         } catch {
             $handoffError = $_.Exception.Message
+            $handoffSummary = Read-ReleaseGovernanceHandoffSummary -Path $releaseGovernanceHandoffSummaryPath
             $summary.release_governance_handoff.status = "failed"
+            $summary.release_governance_handoff.expected_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.expected_report_count }
+            $summary.release_governance_handoff.loaded_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.loaded_report_count }
+            $summary.release_governance_handoff.missing_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.missing_report_count }
+            $summary.release_governance_handoff.failed_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.failed_report_count }
+            $summary.release_governance_handoff.release_blocker_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.release_blocker_count }
+            $summary.release_governance_handoff.release_blockers = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "release_blockers") }
+            $summary.release_governance_handoff.action_item_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.action_item_count }
+            $summary.release_governance_handoff.action_items = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "action_items") }
+            $summary.release_governance_handoff.warning_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.warning_count }
+            $summary.release_governance_handoff.warnings = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "warnings") }
             $summary.release_governance_handoff.error = $handoffError
             $summary.steps.release_governance_handoff.status = "failed"
+            $summary.steps.release_governance_handoff.expected_report_count = $summary.release_governance_handoff.expected_report_count
+            $summary.steps.release_governance_handoff.loaded_report_count = $summary.release_governance_handoff.loaded_report_count
+            $summary.steps.release_governance_handoff.missing_report_count = $summary.release_governance_handoff.missing_report_count
+            $summary.steps.release_governance_handoff.failed_report_count = $summary.release_governance_handoff.failed_report_count
+            $summary.steps.release_governance_handoff.release_blocker_count = $summary.release_governance_handoff.release_blocker_count
+            $summary.steps.release_governance_handoff.release_blockers = @($summary.release_governance_handoff.release_blockers)
+            $summary.steps.release_governance_handoff.action_item_count = $summary.release_governance_handoff.action_item_count
+            $summary.steps.release_governance_handoff.action_items = @($summary.release_governance_handoff.action_items)
+            $summary.steps.release_governance_handoff.warning_count = $summary.release_governance_handoff.warning_count
+            $summary.steps.release_governance_handoff.warnings = @($summary.release_governance_handoff.warnings)
             $summary.steps.release_governance_handoff.error = $handoffError
-            $summary.release_governance_handoff.release_blockers = @()
-            $summary.release_governance_handoff.action_items = @()
-            $summary.release_governance_handoff.warnings = @()
-            $summary.steps.release_governance_handoff.release_blockers = @()
-            $summary.steps.release_governance_handoff.action_items = @()
-            $summary.steps.release_governance_handoff.warnings = @()
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
             Write-Step "Release governance handoff failed: $handoffError"
             if ($ReleaseGovernanceHandoffFailOnMissing -or

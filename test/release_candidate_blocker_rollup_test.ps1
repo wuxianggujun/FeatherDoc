@@ -405,6 +405,49 @@ if ($Scenario -eq "handoff") {
     Assert-ContainsText -Text $handoffChecklist -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Reviewer checklist should include handoff open command."
 
+    $handoffFailOnOutputDir = Join-Path $resolvedWorkingDir "release-candidate-governance-handoff-fail-on-blocker"
+    $handoffFailOnArguments = @($handoffArguments)
+    $handoffSummaryOutputIndex = [Array]::IndexOf($handoffFailOnArguments, "-SummaryOutputDir")
+    $handoffFailOnArguments[$handoffSummaryOutputIndex + 1] = $handoffFailOnOutputDir
+    $handoffFailOnArguments += "-ReleaseGovernanceHandoffFailOnBlocker"
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $handoffFailOnResult = @(& (Get-Process -Id $PID).Path @handoffFailOnArguments 2>&1)
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    $handoffFailOnExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+    if ($handoffFailOnExitCode -eq 0) {
+        $handoffFailOnText = (@($handoffFailOnResult | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
+        throw "Release governance handoff fail-on-blocker run should fail. Output: $handoffFailOnText"
+    }
+    $handoffFailOnSummaryPath = Join-Path $handoffFailOnOutputDir "report\summary.json"
+    Assert-True -Condition (Test-Path -LiteralPath $handoffFailOnSummaryPath) `
+        -Message "Fail-on-blocker handoff run should still write release candidate summary."
+    $handoffFailOnSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffFailOnSummaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$handoffFailOnSummary.release_governance_handoff.status) -Expected "failed" `
+        -Message "Fail-on-blocker handoff run should mark handoff as failed in release summary."
+    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.expected_report_count) -Expected 5 `
+        -Message "Fail-on-blocker handoff summary should preserve expected report count."
+    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.loaded_report_count) -Expected 5 `
+        -Message "Fail-on-blocker handoff summary should preserve loaded report count."
+    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.release_blocker_count) -Expected 5 `
+        -Message "Fail-on-blocker handoff summary should preserve blocker count."
+    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.action_item_count) -Expected 5 `
+        -Message "Fail-on-blocker handoff summary should preserve action count."
+    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.warning_count) -Expected 2 `
+        -Message "Fail-on-blocker handoff summary should preserve warning count."
+    Assert-ContainsText -Text (($handoffFailOnSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "project_template_onboarding.schema_approval" `
+        -Message "Fail-on-blocker handoff summary should keep blockers written before child failure."
+    Assert-ContainsText -Text (($handoffFailOnSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
+        -Message "Fail-on-blocker handoff summary should keep warnings written before child failure."
+    Assert-ContainsText -Text (($handoffFailOnSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+        -Message "Fail-on-blocker handoff step summary should keep action open commands."
+
     Write-Host "Release candidate governance handoff regression passed."
     exit 0
 }

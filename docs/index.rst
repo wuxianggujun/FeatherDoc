@@ -18,6 +18,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    current_direction_zh
    feature_gap_analysis_zh
    template_schema_mutation_zh
+   project_template_release_readiness_checklist_zh
    table_style_definition_zh
    document_governance_acceptance_zh
    document_api_mainline_status_zh
@@ -26,6 +27,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    stale_codex_branch_inventory_zh
    project_score_assessment_zh
    release_policy_zh
+   release_metadata_pipeline_zh
    pdf_visual_validation_status_zh
    pdf_release_readiness_checklist_zh
    v1_7_roadmap_zh
