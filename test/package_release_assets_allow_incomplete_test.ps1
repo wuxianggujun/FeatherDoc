@@ -120,6 +120,15 @@ Set-Content -LiteralPath $finalReviewPath -Encoding UTF8 -Value @"
 Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
 # Release Governance Handoff
 
+## Report Status
+
+- ``project_template_delivery_readiness``: status=``ready`` ready=``True`` blockers=``0`` actions=``0`` source_failures=``0`` source_failure_count=``0`` schema=``featherdoc.project_template_delivery_readiness_report.v1``
+  - summary: ``.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json``
+  - source_report_display: ``.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json``
+  - source_json_display: ``.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json``
+  - latest_schema_approval_gate_status: ``passed``
+  - schema_approval_status_summary: ``approved=4``
+
 ## Governance Metrics
 
 - numbering_catalog_governance.real_corpus_confidence: report=numbering_catalog_governance metric=real_corpus_confidence level=low score=56 source_schema=featherdoc.numbering_catalog_governance_report.v1
@@ -538,7 +547,22 @@ foreach ($expectedText in @("governance_metrics", "real_corpus_confidence", "del
 }
 
 $stagedGovernanceHandoffContent = Get-Content -Raw -LiteralPath $stagedGovernanceHandoffPath
-foreach ($expectedText in @("Governance Metrics", "real_corpus_confidence", "numbering_catalog_governance.real_corpus_confidence", "featherdoc.numbering_catalog_governance_report.v1", "delivery_quality", "table_layout_delivery_governance.delivery_quality")) {
+foreach ($expectedText in @(
+    "Report Status",
+    "project_template_delivery_readiness",
+    "featherdoc.project_template_delivery_readiness_report.v1",
+    "latest_schema_approval_gate_status",
+    "schema_approval_status_summary",
+    "source_report_display",
+    "source_json_display",
+    ".\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json",
+    "Governance Metrics",
+    "real_corpus_confidence",
+    "numbering_catalog_governance.real_corpus_confidence",
+    "featherdoc.numbering_catalog_governance_report.v1",
+    "delivery_quality",
+    "table_layout_delivery_governance.delivery_quality"
+)) {
     if ($stagedGovernanceHandoffContent -notmatch [regex]::Escape($expectedText)) {
         throw "Staged allow-incomplete governance handoff lost '$expectedText'."
     }
