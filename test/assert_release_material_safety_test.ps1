@@ -581,6 +581,19 @@ Set-Content -LiteralPath $passFinalReviewTracePath -Encoding UTF8 -Value @"
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
     - source_json_display: .\output\project-template-onboarding-governance\summary.json
+
+## Step status
+
+- PDF visual gate: loaded
+- PDF visual gate verdict: pass
+- PDF visual gate counts: 44 visual baselines, 43 CJK copy/search
+- PDF visual gate manifest counts: 42 visual baseline manifest samples, 43 CJK manifest samples
+- PDF visual gate finalizable: True
+
+## Key outputs
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
 "@
 
 & $auditScript -Path $passFinalReviewTracePath
@@ -1628,6 +1641,36 @@ try {
 
 if (-not $badFinalReviewTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md without project-template source_json_display."
+}
+
+$badFinalReviewPdfTraceDir = Join-Path $failDir "final-review-missing-pdf-visual-contact-sheet"
+$badFinalReviewPdfTracePath = Join-Path $badFinalReviewPdfTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewPdfTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewPdfTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Step status
+
+- PDF visual gate: loaded
+- PDF visual gate verdict: pass
+- PDF visual gate counts: 44 visual baselines, 43 CJK copy/search
+- PDF visual gate manifest counts: 42 visual baseline manifest samples, 43 CJK manifest samples
+- PDF visual gate finalizable: True
+
+## Key outputs
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+"@
+
+$badFinalReviewPdfTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewPdfTracePath
+} catch {
+    $badFinalReviewPdfTraceFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewPdfTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md without PDF visual gate contact-sheet trace."
 }
 
 $badEntryGovernanceTracePath = Join-Path $failDir "ARTIFACT_GUIDE.md"

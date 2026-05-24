@@ -655,6 +655,47 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
     }
 }
 
+function Add-FinalReviewPdfVisualGateTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "final_review.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "PDF visual gate verdict",
+        "PDF visual gate counts",
+        "PDF visual gate summary"
+    ))) {
+        return
+    }
+
+    $label = "final review PDF visual gate trace"
+    foreach ($needle in @(
+        "PDF visual gate:",
+        "PDF visual gate verdict:",
+        "PDF visual gate counts:",
+        "PDF visual gate manifest counts:",
+        "PDF visual gate finalizable:",
+        "PDF visual gate summary:",
+        "PDF visual gate contact sheet:",
+        "aggregate-contact-sheet.png"
+    )) {
+        if (-not $Content.Contains($needle)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Final review lost PDF visual gate trace marker '$needle'."
+        }
+    }
+}
+
 function Add-ContentControlRepairContractViolations {
     param(
         [string]$File,
@@ -1419,6 +1460,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-FinalReviewPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
     }
 
     if ([System.IO.Path]::GetExtension($file).ToLowerInvariant() -eq ".json") {

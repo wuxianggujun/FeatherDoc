@@ -216,6 +216,19 @@ Set-Content -LiteralPath $finalReviewPath -Encoding UTF8 -Value @"
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
     - source_json_display: .\output\project-template-onboarding-governance\summary.json
+
+## Step status
+
+- PDF visual gate: loaded
+- PDF visual gate verdict: pass
+- PDF visual gate counts: 3 visual baselines, 2 CJK copy/search
+- PDF visual gate manifest counts: 42 visual baseline manifest samples, 43 CJK manifest samples
+- PDF visual gate finalizable: True
+
+## Key outputs
+
+- PDF visual gate summary: $pdfGateSummaryPath
+- PDF visual gate contact sheet: $pdfGateAggregateContactSheetPath
 "@
 
 Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
@@ -667,6 +680,14 @@ Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'project_template_onb
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'schema_approval_status_summary: approved' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'source_json_display: .\output\project-template-onboarding-governance\summary.json' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'PDF visual gate: loaded' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'PDF visual gate verdict: pass' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'PDF visual gate counts: 3 visual baselines, 2 CJK copy/search' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'PDF visual gate manifest counts: 42 visual baseline manifest samples, 43 CJK manifest samples' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'PDF visual gate finalizable: True' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'PDF visual gate summary:' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'PDF visual gate contact sheet:' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'aggregate-contact-sheet.png' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'featherdoc.content_control_data_binding_governance_report.v1' -Label 'staged START_HERE.md'
 Assert-Contains -Path $stagedStartHerePath -ExpectedText 'source_report_display' -Label 'staged START_HERE.md'
