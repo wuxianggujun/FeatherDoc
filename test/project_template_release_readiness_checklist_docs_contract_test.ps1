@@ -113,7 +113,12 @@ foreach ($marker in @(
 foreach ($marker in @(
     "featherdoc.project_template_delivery_readiness_report.v1",
     "featherdoc.content_control_data_binding_governance_report.v1",
-    "content_control_data_binding.bound_placeholder"
+    "content_control_data_binding.bound_placeholder",
+    "sync_bound_content_control",
+    "input_docx",
+    "template_name",
+    "schema_target",
+    "target_mode"
 )) {
     Assert-ContainsText -Text $releasePipelineDoc -ExpectedText $marker `
         -Message "Release metadata pipeline docs should keep governance marker '$marker'."
@@ -121,6 +126,20 @@ foreach ($marker in @(
 
 Assert-ContainsText -Text $releasePolicyDoc -ExpectedText "schema_patch_approval_gate_status" `
     -Message "Release policy should keep project-template schema approval as a release criterion."
+
+foreach ($marker in @(
+    "content_control_data_binding.bound_placeholder",
+    "source_json_display",
+    "repair_strategy",
+    "command_template",
+    "input_docx",
+    "template_name",
+    "schema_target",
+    "target_mode"
+)) {
+    Assert-ContainsText -Text $releasePolicyDoc -ExpectedText $marker `
+        -Message "Release policy should keep content-control provenance release criterion '$marker'."
+}
 
 foreach ($marker in @(
     "featherdoc.project_template_delivery_readiness_report.v1",

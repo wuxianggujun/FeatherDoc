@@ -210,6 +210,9 @@ schema confidence calibration 和 content-control data-binding governance 的治
 reviewer 可先沿着 ``source_report_display`` 打开源报告，再用 ``source_json_display`` 回到证据 JSON。
 占位符阻断项会继续保留 ``content_control_data_binding.bound_placeholder``，修复策略固定为
 ``sync_bound_content_control``，避免 content-control 修复流程只在聊天记录或人工备注中存在。
+这些 release-facing 明细还必须保留 ``input_docx``、``template_name``、
+``schema_target`` 与 ``target_mode`` provenance；否则 reviewer 只能看到修复命令，
+无法确认该 blocker 属于哪个模板、哪个输入 DOCX 和哪个 schema 目标。
 
 project-template onboarding governance 会先写出
 ``featherdoc.project_template_onboarding_governance_report.v1``，再由
@@ -264,6 +267,10 @@ summary、bundle 和 reviewer checklist 继续展示。reviewer 若在 pipeline 
 - ``release_governance_handoff.action_items[]``：展示 ``id``、``action``、
   ``open_command``、``source_schema``、``source_report_display`` 与
   ``source_json_display``。
+
+其中 content-control handoff 条目还必须展示 ``input_docx``、``template_name``、
+``schema_target`` 与 ``target_mode``，与 release blocker rollup、START_HERE、
+ARTIFACT_GUIDE 和 REVIEWER_CHECKLIST 中的同一组 provenance 保持一致。
 
 ``build_release_governance_handoff_report.ps1`` 会从已加载的治理报告中归一化 blocker、
 warning 与 action item；``run_release_candidate_checks.ps1`` 会把这些数组同步到
