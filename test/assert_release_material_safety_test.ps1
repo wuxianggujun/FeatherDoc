@@ -495,6 +495,34 @@ Set-Content -LiteralPath $passReleaseBodyTracePath -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passReleaseBodyTracePath
 
+$passReleaseHandoffTraceDir = Join-Path $passDir "release-handoff-project-template-trace"
+$passReleaseHandoffTracePath = Join-Path $passReleaseHandoffTraceDir "release_handoff.md"
+New-Item -ItemType Directory -Path $passReleaseHandoffTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseHandoffTracePath -Encoding UTF8 -Value @"
+# Release handoff
+
+- project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+  - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+  - project_template_delivery_readiness_contract:
+    - source_schema: featherdoc.project_template_delivery_readiness_report.v1
+    - status: ready
+    - release_ready: True
+    - latest_schema_approval_gate_status: passed
+    - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+    - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+  - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+    - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+& $auditScript -Path $passReleaseHandoffTracePath
+
 $badEntryMissingGovernanceMetricDetailsDir = Join-Path $failDir "entry-missing-governance-metric-details"
 $badEntryMissingGovernanceMetricDetailsPath = Join-Path $badEntryMissingGovernanceMetricDetailsDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryMissingGovernanceMetricDetailsDir -Force | Out-Null
@@ -1426,6 +1454,33 @@ try {
 
 if (-not $badReleaseBodyTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md without project-template source_json_display."
+}
+
+$badReleaseHandoffTraceDir = Join-Path $failDir "release-handoff-missing-project-template-source-json"
+$badReleaseHandoffTracePath = Join-Path $badReleaseHandoffTraceDir "release_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseHandoffTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseHandoffTracePath -Encoding UTF8 -Value @"
+# Release handoff
+
+- project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+  - project_template_delivery_readiness_contract:
+    - source_schema: featherdoc.project_template_delivery_readiness_report.v1
+    - status: ready
+    - release_ready: True
+    - latest_schema_approval_gate_status: passed
+    - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+"@
+
+$badReleaseHandoffTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseHandoffTracePath
+} catch {
+    $badReleaseHandoffTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseHandoffTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md without project-template source_json_display."
 }
 
 $badEntryGovernanceTracePath = Join-Path $failDir "ARTIFACT_GUIDE.md"
