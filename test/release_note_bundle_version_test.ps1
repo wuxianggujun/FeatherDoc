@@ -308,6 +308,27 @@ $summary = [ordered]@{
                 controlled_visual_smoke_case_count = 2
                 controlled_visual_smoke_json = ".\output\pdf-controlled-visual-smoke-20260520\controlled-visual-smoke-check-latest.json"
                 controlled_visual_smoke_json_display = ".\output\pdf-controlled-visual-smoke-20260520\controlled-visual-smoke-check-latest.json"
+            },
+            [ordered]@{
+                schema = "featherdoc.project_template_delivery_readiness_report.v1"
+                status = "blocked"
+                release_ready = $false
+                path = ".\output\project-template-delivery-readiness\summary.json"
+                path_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_json = ".\output\project-template-delivery-readiness\summary.json"
+                source_json_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_failure_count = 0
+                latest_schema_approval_gate_status = "pending_review"
+                schema_history_blocked_run_count = 0
+                schema_history_pending_run_count = 1
+                schema_history_passed_run_count = 2
+                template_count = 3
+                ready_template_count = 2
+                blocked_template_count = 1
+                release_blocker_count = 1
+                action_item_count = 1
+                warning_count = 0
+                build_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
             }
         )
         release_blocker_count = 5
@@ -575,6 +596,16 @@ $summary = [ordered]@{
                 source_json = ".\output\project-template-delivery-readiness\summary.json"
                 source_json_display = ".\output\project-template-delivery-readiness\summary.json"
                 source_failure_count = 1
+                latest_schema_approval_gate_status = "pending_review"
+                schema_history_blocked_run_count = 0
+                schema_history_pending_run_count = 1
+                schema_history_passed_run_count = 2
+                template_count = 3
+                ready_template_count = 2
+                blocked_template_count = 1
+                release_blocker_count = 1
+                action_item_count = 1
+                warning_count = 0
                 error = "Failed to parse project template delivery readiness summary."
                 build_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
             }
@@ -836,6 +867,13 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'Handoff Report Issues' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report: .\output\project-template-delivery-readiness\summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_json: .\output\project-template-delivery-readiness\summary.json' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'project_template_delivery_readiness_contract:' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_schema: featherdoc.project_template_delivery_readiness_report.v1' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'latest_schema_approval_gate_status: pending_review' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'template_count: 3' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'release_blocker_count: 1' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_report_display: .\output\project-template-delivery-readiness\summary.json' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_json_display: .\output\project-template-delivery-readiness\summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'error: Failed to parse project template delivery readiness summary.' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'build: pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1' -Label $document.Label
 }

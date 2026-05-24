@@ -1088,6 +1088,11 @@ function Add-ReleaseGovernanceReportIssueLines {
             [void]$Lines.Add("  - source_json_display: $(Get-ReleaseBlockerDisplayValue -Value $sourceJsonDisplay)")
         }
         [void]$Lines.Add("  - source_failure_count: $sourceFailureCount")
+        Add-ProjectTemplateDeliveryReadinessContractLines `
+            -Lines $Lines `
+            -Report $report `
+            -SourceReportDisplay $sourceReportDisplay `
+            -SourceJsonDisplay $sourceJsonDisplay
 
         $errorText = Get-ReleaseBlockerPropertyValue -Object $report -Name "error"
         if (-not [string]::IsNullOrWhiteSpace($errorText)) {
@@ -1098,6 +1103,67 @@ function Add-ReleaseGovernanceReportIssueLines {
         if (-not [string]::IsNullOrWhiteSpace($buildCommand)) {
             [void]$Lines.Add("  - build: $buildCommand")
         }
+    }
+}
+
+function Test-ProjectTemplateDeliveryReadinessReport {
+    param([AllowNull()]$Report)
+
+    $id = Get-ReleaseBlockerPropertyValue -Object $Report -Name "id"
+    $schema = Get-ReleaseBlockerPropertyValue -Object $Report -Name "schema"
+
+    return (
+        [string]::Equals($id, "project_template_delivery_readiness", [System.StringComparison]::OrdinalIgnoreCase) -or
+        [string]::Equals($schema, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)
+    )
+}
+
+function Add-ProjectTemplateDeliveryReadinessContractLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Report,
+        [string]$SourceReportDisplay,
+        [string]$SourceJsonDisplay
+    )
+
+    if (-not (Test-ProjectTemplateDeliveryReadinessReport -Report $Report)) {
+        return
+    }
+
+    $sourceSchema = Get-ReleaseBlockerPropertyValue -Object $Report -Name "schema"
+    if ([string]::IsNullOrWhiteSpace($sourceSchema)) {
+        $sourceSchema = "featherdoc.project_template_delivery_readiness_report.v1"
+    }
+
+    [void]$Lines.Add("  - project_template_delivery_readiness_contract:")
+    [void]$Lines.Add("    - source_schema: $sourceSchema")
+
+    foreach ($fieldName in @(
+            "status",
+            "release_ready",
+            "latest_schema_approval_gate_status",
+            "schema_history_blocked_run_count",
+            "schema_history_pending_run_count",
+            "schema_history_passed_run_count",
+            "template_count",
+            "ready_template_count",
+            "blocked_template_count",
+            "release_blocker_count",
+            "action_item_count",
+            "warning_count",
+            "source_failure_count"
+        )) {
+        $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Report -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+            [void]$Lines.Add("    - ${fieldName}: $fieldValue")
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($SourceReportDisplay)) {
+        [void]$Lines.Add("    - source_report_display: $SourceReportDisplay")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($SourceJsonDisplay)) {
+        [void]$Lines.Add("    - source_json_display: $SourceJsonDisplay")
     }
 }
 
@@ -1151,6 +1217,11 @@ function Add-ReleaseGovernanceSourceReportContractLines {
             [void]$Lines.Add("  - source_json_display: $(Get-ReleaseBlockerDisplayValue -Value $sourceJsonDisplay)")
         }
         [void]$Lines.Add("  - source_failure_count: $sourceFailureCount")
+        Add-ProjectTemplateDeliveryReadinessContractLines `
+            -Lines $Lines `
+            -Report $report `
+            -SourceReportDisplay $sourceReportDisplay `
+            -SourceJsonDisplay $sourceJsonDisplay
 
         foreach ($fieldName in @(
                 "preflight_ready",
