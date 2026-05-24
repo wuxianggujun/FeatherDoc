@@ -6,6 +6,16 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = (Join-Path $PSScriptRoot "..")
+}
+
+$resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+
+if ([string]::IsNullOrWhiteSpace($WorkingDir)) {
+    $WorkingDir = Join-Path $resolvedRepoRoot "output\test\release-note-bundle-version"
+}
+
 function Assert-Contains {
     param(
         [string]$Path,
@@ -119,7 +129,6 @@ function New-TableLayoutDeliveryMetricFixture {
     }
 }
 
-$resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $reportDir = Join-Path $resolvedWorkingDir "report"
 $installDir = Join-Path $resolvedWorkingDir "install"
