@@ -9,6 +9,18 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $BuildDir) {
+    $BuildDir = Join-Path $RepoRoot "build\build_document_skeleton_governance_report_test"
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = $BuildDir
+}
+
 function Assert-True {
     param(
         [bool]$Condition,
