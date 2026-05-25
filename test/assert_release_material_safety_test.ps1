@@ -738,6 +738,27 @@ if (-not $missingEntryReadinessForOnboardingFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed entry document with onboarding governance but without delivery readiness contract."
 }
 
+$badEntryProjectTemplateOnboardingSourceJsonDir = Join-Path $failDir "entry-onboarding-source-json-supplied-by-readiness"
+$badEntryProjectTemplateOnboardingSourceJsonPath = Join-Path $badEntryProjectTemplateOnboardingSourceJsonDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateOnboardingSourceJsonDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateOnboardingSourceJsonPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$missingEntryProjectTemplateOnboardingSourceJsonFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateOnboardingSourceJsonPath
+} catch {
+    $missingEntryProjectTemplateOnboardingSourceJsonFailedAsExpected = $true
+}
+
+if (-not $missingEntryProjectTemplateOnboardingSourceJsonFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document where readiness source_json_display satisfied onboarding."
+}
+
 $badDraftFile = Join-Path $failDir "bad_draft.md"
 Set-Content -LiteralPath $badDraftFile -Encoding UTF8 -Value @"
 # FeatherDoc v1.6.4 鍙戝竷璇存槑鑽夌

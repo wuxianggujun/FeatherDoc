@@ -118,6 +118,7 @@ foreach ($marker in @(
     "START_HERE.md",
     "ARTIFACT_GUIDE.md",
     "REVIEWER_CHECKLIST.md",
+    "block_scoped_entry_trace",
     "release_handoff.md",
     "release_body.zh-CN.md",
     "release_summary.zh-CN.md",
