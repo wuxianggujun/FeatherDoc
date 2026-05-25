@@ -689,8 +689,15 @@ function Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations {
     }
 
     $label = "release governance handoff PDF visual gate trace"
-    foreach ($needle in @(
-        "PDF visual gate evidence source reports:",
+    if (-not $Content.Contains("PDF visual gate evidence source reports:")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release governance handoff lost PDF visual gate trace marker 'PDF visual gate evidence source reports:'."
+    }
+
+    $sourceReportBlockNeedles = @(
         "source_report:",
         "pdf_visual_gate_status:",
         "pdf_visual_gate_verdict:",
@@ -702,14 +709,13 @@ function Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations {
         "pdf_visual_gate_cjk_copy_search_count:",
         "pdf_visual_gate_visual_baseline_manifest_count:",
         "pdf_visual_gate_visual_baseline_count:"
-    )) {
-        if (-not $Content.Contains($needle)) {
-            Add-AuditViolation `
-                -Violations $Violations `
-                -File $File `
-                -Label $label `
-                -Text "Release governance handoff lost PDF visual gate trace marker '$needle'."
-        }
+    )
+    if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release governance handoff must keep PDF visual gate source report, verdict, counts, and contact-sheet path in the same source_report block."
     }
 }
 

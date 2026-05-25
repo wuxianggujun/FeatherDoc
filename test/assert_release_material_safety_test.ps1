@@ -1812,6 +1812,43 @@ if (-not $badReleaseGovernanceHandoffPdfTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md without PDF visual gate contact-sheet trace."
 }
 
+$badReleaseGovernanceHandoffPdfSplitTraceDir = Join-Path $failDir "release-governance-handoff-split-pdf-visual-contact-sheet"
+$badReleaseGovernanceHandoffPdfSplitTracePath = Join-Path $badReleaseGovernanceHandoffPdfSplitTraceDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffPdfSplitTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffPdfSplitTracePath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- PDF visual gate evidence source reports: ``1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - pdf_visual_gate_status: ``loaded``
+    - pdf_visual_gate_verdict: ``pass``
+    - pdf_visual_gate_finalizable: ``True``
+    - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
+    - pdf_visual_gate_aggregate_contact_sheet_display: ````
+    - pdf_visual_gate_cjk_manifest_count: ``43``
+    - pdf_visual_gate_cjk_copy_search_count: ``43``
+    - pdf_visual_gate_visual_baseline_manifest_count: ``42``
+    - pdf_visual_gate_visual_baseline_count: ``44``
+
+## Detached notes
+
+- archived_contact_sheet: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+"@
+
+$badReleaseGovernanceHandoffPdfSplitTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffPdfSplitTracePath
+} catch {
+    $badReleaseGovernanceHandoffPdfSplitTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffPdfSplitTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md with a PDF visual gate contact-sheet path outside the source_report block."
+}
+
 $badReleaseGovernanceHandoffPdfManifestTraceDir = Join-Path $failDir "release-governance-handoff-missing-pdf-visual-manifest-count"
 $badReleaseGovernanceHandoffPdfManifestTracePath = Join-Path $badReleaseGovernanceHandoffPdfManifestTraceDir "release_governance_handoff.md"
 New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffPdfManifestTraceDir -Force | Out-Null
