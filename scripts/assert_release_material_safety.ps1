@@ -243,7 +243,7 @@ function Add-SourceDisplayIdentityViolations {
     }
 }
 
-function Test-TextLineContainsAll {
+function Get-TextLineContainingAll {
     param(
         [string]$Text,
         [string[]]$Needles
@@ -259,8 +259,22 @@ function Test-TextLineContainsAll {
         }
 
         if ($containsAllNeedles) {
-            return $true
+            return $line
         }
+    }
+
+    return $null
+}
+
+function Test-TextLineContainsAll {
+    param(
+        [string]$Text,
+        [string[]]$Needles
+    )
+
+    $line = Get-TextLineContainingAll -Text $Text -Needles $Needles
+    if ($null -ne $line) {
+        return $true
     }
 
     return $false
@@ -274,6 +288,46 @@ function Test-ReleaseNoteProjectTemplateTraceLineContainsAll {
     )
 
     return Test-TextLineContainsAll -Text $Text -Needles (@($Anchor) + $Needles)
+}
+
+function Get-ReleaseNoteProjectTemplateTraceFieldValue {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string]$FieldName
+    )
+
+    $fieldPrefix = "$FieldName="
+    $line = Get-TextLineContainingAll -Text $Text -Needles @($Anchor, $fieldPrefix)
+    if ($null -eq $line) {
+        return $null
+    }
+
+    $escapedFieldPrefix = [regex]::Escape($fieldPrefix)
+    if ($line -match "(?:^|\s)$escapedFieldPrefix(?<value>\S+)") {
+        return $Matches["value"]
+    }
+
+    return $null
+}
+
+function Test-ReleaseNoteProjectTemplateTraceFieldIdentifies {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string]$FieldName,
+        [string[]]$Needles
+    )
+
+    $fieldValue = Get-ReleaseNoteProjectTemplateTraceFieldValue `
+        -Text $Text `
+        -Anchor $Anchor `
+        -FieldName $FieldName
+    if ([string]::IsNullOrWhiteSpace([string]$fieldValue)) {
+        return $false
+    }
+
+    return Test-TextContainsAny -Text ([string]$fieldValue) -Needles $Needles
 }
 
 function Test-MarkdownListBlockContainsAll {
@@ -889,6 +943,20 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
                     -Text "Release summary lost project template readiness trace marker '$needle'."
             }
         }
+
+        foreach ($fieldName in @("source_report_display", "source_json_display")) {
+            if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
+                -Text $Content `
+                -Anchor "project-template readiness governance contract" `
+                -FieldName $fieldName `
+                -Needles @("project_template_delivery_readiness", "project-template-delivery-readiness"))) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Release summary project template readiness $fieldName must identify the delivery readiness evidence source."
+            }
+        }
     }
 
     if ($Content.Contains("project-template onboarding governance contract")) {
@@ -905,6 +973,35 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
                     -Label $label `
                     -Text "Release summary lost project template onboarding trace marker '$needle'."
             }
+        }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
+            -Text $Content `
+            -Anchor "project-template onboarding governance contract" `
+            -FieldName "source_report_display" `
+            -Needles @(
+                "project_template_delivery_readiness",
+                "project-template-delivery-readiness",
+                "project_template_onboarding_governance",
+                "project-template-onboarding-governance"
+            ))) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release summary project template onboarding source_report_display must identify a project-template governance evidence source."
+        }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
+            -Text $Content `
+            -Anchor "project-template onboarding governance contract" `
+            -FieldName "source_json_display" `
+            -Needles @("project_template_onboarding_governance", "project-template-onboarding-governance"))) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release summary project template onboarding source_json_display must identify the onboarding governance evidence source."
         }
     }
 }
@@ -992,6 +1089,20 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
                     -Text "Release body lost project template readiness trace marker '$needle'."
             }
         }
+
+        foreach ($fieldName in @("source_report_display", "source_json_display")) {
+            if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
+                -Text $Content `
+                -Anchor "Project template readiness:" `
+                -FieldName $fieldName `
+                -Needles @("project_template_delivery_readiness", "project-template-delivery-readiness"))) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Release body project template readiness $fieldName must identify the delivery readiness evidence source."
+            }
+        }
     }
 
     if (Test-TextContainsAny -Text $Content -Needles @("project_template_onboarding.schema_approval", "project_template_onboarding_governance_contract")) {
@@ -1011,6 +1122,35 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
                     -Label $label `
                     -Text "Release body lost project template onboarding trace marker '$needle'."
             }
+        }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
+            -Text $Content `
+            -Anchor "Project template onboarding:" `
+            -FieldName "source_report_display" `
+            -Needles @(
+                "project_template_delivery_readiness",
+                "project-template-delivery-readiness",
+                "project_template_onboarding_governance",
+                "project-template-onboarding-governance"
+            ))) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release body project template onboarding source_report_display must identify a project-template governance evidence source."
+        }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
+            -Text $Content `
+            -Anchor "Project template onboarding:" `
+            -FieldName "source_json_display" `
+            -Needles @("project_template_onboarding_governance", "project-template-onboarding-governance"))) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release body project template onboarding source_json_display must identify the onboarding governance evidence source."
         }
     }
 }

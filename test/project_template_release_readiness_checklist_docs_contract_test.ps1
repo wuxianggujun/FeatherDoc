@@ -323,6 +323,7 @@ foreach ($marker in @(
     "manifest_source_display_identity_trace",
     "manifest_status_release_ready_consistency_trace",
     "line_scoped_release_note_project_template_trace",
+    "line_scoped_release_note_source_identity_trace",
     "block_scoped_release_handoff_trace",
     "single_block_release_handoff_project_template_trace",
     "block_scoped_governance_handoff_trace",

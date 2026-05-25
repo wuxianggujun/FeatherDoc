@@ -172,7 +172,15 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``schema_approval_status_summary``、``source_report_display``、
      ``source_json_display`` 保持在同一行；不能让 detached notes 或另一条短摘要
      补齐当前 release note。固定标记：
-     ``line_scoped_release_note_project_template_trace``。
+     ``line_scoped_release_note_project_template_trace``。其中
+     ``release_summary.zh-CN.md`` / ``release_body.zh-CN.md`` 里的字段值还必须能识别
+     证据源：delivery readiness 的 ``source_report_display`` /
+     ``source_json_display`` 必须指向 ``project_template_delivery_readiness`` /
+     ``project-template-delivery-readiness``；onboarding governance 的
+     ``source_report_display`` 可以指向 delivery-readiness 汇总或 onboarding 原始报告，
+     但 ``source_json_display`` 必须回到 ``project_template_onboarding_governance`` /
+     ``project-template-onboarding-governance`` 原始证据，不能由同一行其它 token 冒充。
+     固定标记：``line_scoped_release_note_source_identity_trace``。
    * ``release_assets_manifest.json`` 必须保留
      ``project_template_delivery_readiness_contract`` 与
      ``project_template_onboarding_governance_contract``，并继续带出

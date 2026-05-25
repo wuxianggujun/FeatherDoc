@@ -2030,6 +2030,47 @@ if (-not $badReleaseSummaryOnboardingTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with onboarding source_json_display supplied only by readiness."
 }
 
+$badReleaseSummaryReadinessSourceIdentityDir = Join-Path $failDir "release-summary-readiness-source-identity-impersonated"
+$badReleaseSummaryReadinessSourceIdentityPath = Join-Path $badReleaseSummaryReadinessSourceIdentityDir "release_summary.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseSummaryReadinessSourceIdentityDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseSummaryReadinessSourceIdentityPath -Encoding UTF8 -Value @"
+# Release summary
+
+- project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseSummaryReadinessSourceIdentityFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseSummaryReadinessSourceIdentityPath
+} catch {
+    $badReleaseSummaryReadinessSourceIdentityFailedAsExpected = $true
+}
+
+if (-not $badReleaseSummaryReadinessSourceIdentityFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with readiness source displays pointing at onboarding governance evidence."
+}
+
+$badReleaseSummaryOnboardingSourceJsonIdentityDir = Join-Path $failDir "release-summary-onboarding-source-json-identity-impersonated"
+$badReleaseSummaryOnboardingSourceJsonIdentityPath = Join-Path $badReleaseSummaryOnboardingSourceJsonIdentityDir "release_summary.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseSummaryOnboardingSourceJsonIdentityDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseSummaryOnboardingSourceJsonIdentityPath -Encoding UTF8 -Value @"
+# Release summary
+
+- project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- project-template onboarding governance contract: schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+"@
+
+$badReleaseSummaryOnboardingSourceJsonIdentityFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseSummaryOnboardingSourceJsonIdentityPath
+} catch {
+    $badReleaseSummaryOnboardingSourceJsonIdentityFailedAsExpected = $true
+}
+
+if (-not $badReleaseSummaryOnboardingSourceJsonIdentityFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with onboarding source_json_display pointing at delivery readiness evidence."
+}
+
 $badReleaseSummaryPdfSplitTraceDir = Join-Path $failDir "release-summary-split-pdf-visual-contact-sheet"
 $badReleaseSummaryPdfSplitTracePath = Join-Path $badReleaseSummaryPdfSplitTraceDir "release_summary.zh-CN.md"
 New-Item -ItemType Directory -Path $badReleaseSummaryPdfSplitTraceDir -Force | Out-Null
@@ -2220,6 +2261,47 @@ try {
 
 if (-not $badReleaseBodyOnboardingTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with onboarding source_json_display supplied only by readiness."
+}
+
+$badReleaseBodyReadinessSourceIdentityDir = Join-Path $failDir "release-body-readiness-source-identity-impersonated"
+$badReleaseBodyReadinessSourceIdentityPath = Join-Path $badReleaseBodyReadinessSourceIdentityDir "release_body.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseBodyReadinessSourceIdentityDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBodyReadinessSourceIdentityPath -Encoding UTF8 -Value @"
+# Release body
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseBodyReadinessSourceIdentityFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBodyReadinessSourceIdentityPath
+} catch {
+    $badReleaseBodyReadinessSourceIdentityFailedAsExpected = $true
+}
+
+if (-not $badReleaseBodyReadinessSourceIdentityFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with readiness source displays pointing at onboarding governance evidence."
+}
+
+$badReleaseBodyOnboardingSourceIdentityDir = Join-Path $failDir "release-body-onboarding-source-identity-impersonated"
+$badReleaseBodyOnboardingSourceIdentityPath = Join-Path $badReleaseBodyOnboardingSourceIdentityDir "release_body.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseBodyOnboardingSourceIdentityDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBodyOnboardingSourceIdentityPath -Encoding UTF8 -Value @"
+# Release body
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+"@
+
+$badReleaseBodyOnboardingSourceIdentityFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBodyOnboardingSourceIdentityPath
+} catch {
+    $badReleaseBodyOnboardingSourceIdentityFailedAsExpected = $true
+}
+
+if (-not $badReleaseBodyOnboardingSourceIdentityFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with onboarding source_json_display pointing at delivery readiness evidence."
 }
 
 $badReleaseBodyPdfSplitTraceDir = Join-Path $failDir "release-body-split-pdf-visual-contact-sheet"
