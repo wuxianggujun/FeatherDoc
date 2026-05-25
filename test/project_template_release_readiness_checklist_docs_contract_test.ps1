@@ -326,11 +326,14 @@ foreach ($marker in @(
     "line_scoped_release_note_source_identity_trace",
     "block_scoped_release_handoff_trace",
     "single_block_release_handoff_project_template_trace",
+    "block_scoped_release_handoff_source_identity_trace",
     "block_scoped_governance_handoff_trace",
     "block_scoped_governance_handoff_project_template_status_trace",
     "single_block_governance_handoff_project_template_trace",
+    "block_scoped_governance_handoff_source_identity_trace",
     "block_scoped_final_review_project_template_trace",
     "single_block_final_review_project_template_trace",
+    "block_scoped_final_review_source_identity_trace",
     "onboarding governance block"
 )) {
     Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `

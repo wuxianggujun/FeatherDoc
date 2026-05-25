@@ -337,6 +337,28 @@ function Test-MarkdownListBlockContainsAll {
         [string[]]$Needles
     )
 
+    $block = Get-MarkdownListBlockText -Text $Text -Anchor $Anchor
+    if ($null -eq $block) {
+        return $false
+    }
+
+    $containsAllNeedles = $true
+    foreach ($needle in $Needles) {
+        if ([string]::IsNullOrWhiteSpace($needle) -or -not $block.Contains($needle)) {
+            $containsAllNeedles = $false
+            break
+        }
+    }
+
+    return $containsAllNeedles
+}
+
+function Get-MarkdownListBlockText {
+    param(
+        [string]$Text,
+        [string]$Anchor
+    )
+
     $lines = $Text -split "\r?\n"
     for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
         if (-not $lines[$lineIndex].Contains($Anchor)) {
@@ -353,21 +375,62 @@ function Test-MarkdownListBlockContainsAll {
             $blockLines.Add($nextLine)
         }
 
-        $block = $blockLines -join "`n"
-        $containsAllNeedles = $true
-        foreach ($needle in $Needles) {
-            if ([string]::IsNullOrWhiteSpace($needle) -or -not $block.Contains($needle)) {
-                $containsAllNeedles = $false
-                break
-            }
-        }
+        return ($blockLines -join "`n")
+    }
 
-        if ($containsAllNeedles) {
-            return $true
+    return $null
+}
+
+function Get-MarkdownListBlockFieldValues {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string]$FieldName
+    )
+
+    $block = Get-MarkdownListBlockText -Text $Text -Anchor $Anchor
+    if ($null -eq $block) {
+        return @()
+    }
+
+    $values = [System.Collections.Generic.List[string]]::new()
+    $escapedFieldName = [regex]::Escape($FieldName)
+    foreach ($line in ($block -split "\r?\n")) {
+        if ($line -match "$escapedFieldName\s*[:=]\s*(?<value>.+)$") {
+            $value = $Matches["value"].Trim()
+            $value = $value -replace '^[`\s]+|[`\s]+$', ''
+            [void]$values.Add($value)
         }
     }
 
-    return $false
+    return @($values)
+}
+
+function Test-MarkdownListBlockFieldValuesIdentify {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string]$FieldName,
+        [string[]]$Needles,
+        [string[]]$ForbiddenNeedles = @()
+    )
+
+    $values = @(Get-MarkdownListBlockFieldValues -Text $Text -Anchor $Anchor -FieldName $FieldName)
+    if ($values.Count -eq 0) {
+        return $false
+    }
+
+    foreach ($value in $values) {
+        if (-not (Test-TextContainsAny -Text ([string]$value) -Needles $Needles)) {
+            return $false
+        }
+
+        if ($ForbiddenNeedles.Count -gt 0 -and (Test-TextContainsAny -Text ([string]$value) -Needles $ForbiddenNeedles)) {
+            return $false
+        }
+    }
+
+    return $true
 }
 
 function Test-MarkdownListRunContainsAll {
@@ -647,6 +710,15 @@ function Test-FinalReviewProjectTemplateTraceBlockContainsAll {
 
     return Test-MarkdownListBlockContainsAll -Text $Text -Anchor $Anchor -Needles (@($Anchor) + $Needles)
 }
+
+$ProjectTemplateDeliveryReadinessSourceNeedles = @("project_template_delivery_readiness", "project-template-delivery-readiness")
+$ProjectTemplateOnboardingGovernanceSourceNeedles = @("project_template_onboarding_governance", "project-template-onboarding-governance")
+$ProjectTemplateGovernanceReportSourceNeedles = @(
+    "project_template_delivery_readiness",
+    "project-template-delivery-readiness",
+    "project_template_onboarding_governance",
+    "project-template-onboarding-governance"
+)
 
 function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     param(
@@ -1267,6 +1339,21 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
                 -Label $label `
                 -Text "Release handoff must keep project template readiness schema, contract, status, and source displays in the same list block."
         }
+
+        foreach ($fieldName in @("source_report_display", "source_json_display")) {
+            if (-not (Test-MarkdownListBlockFieldValuesIdentify `
+                -Text $Content `
+                -Anchor $readinessAnchor `
+                -FieldName $fieldName `
+                -Needles $ProjectTemplateDeliveryReadinessSourceNeedles `
+                -ForbiddenNeedles $ProjectTemplateOnboardingGovernanceSourceNeedles)) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Release handoff project template readiness $fieldName must identify the delivery readiness evidence source."
+            }
+        }
     }
 
     if (Test-TextContainsAny -Text $Content -Needles @("project_template_onboarding.schema_approval", "project_template_onboarding_governance_contract")) {
@@ -1285,6 +1372,31 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
                 -File $File `
                 -Label $label `
                 -Text "Release handoff must keep project template onboarding schema approval, contract, and source displays in the same list block."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesIdentify `
+            -Text $Content `
+            -Anchor $onboardingAnchor `
+            -FieldName "source_report_display" `
+            -Needles $ProjectTemplateGovernanceReportSourceNeedles)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release handoff project template onboarding source_report_display must identify a project-template governance evidence source."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesIdentify `
+            -Text $Content `
+            -Anchor $onboardingAnchor `
+            -FieldName "source_json_display" `
+            -Needles $ProjectTemplateOnboardingGovernanceSourceNeedles `
+            -ForbiddenNeedles $ProjectTemplateDeliveryReadinessSourceNeedles)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release handoff project template onboarding source_json_display must identify the onboarding governance evidence source."
         }
     }
 }
@@ -1404,6 +1516,21 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
                 -Label $label `
                 -Text "Release governance handoff must keep project template readiness schema, status, and source displays in the same report-status block."
         }
+
+        foreach ($fieldName in @("source_report_display", "source_json_display")) {
+            if (-not (Test-MarkdownListBlockFieldValuesIdentify `
+                -Text $Content `
+                -Anchor $readinessAnchor `
+                -FieldName $fieldName `
+                -Needles $ProjectTemplateDeliveryReadinessSourceNeedles `
+                -ForbiddenNeedles $ProjectTemplateOnboardingGovernanceSourceNeedles)) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Release governance handoff project template readiness $fieldName must identify the delivery readiness evidence source."
+            }
+        }
     }
 
     if (Test-TextContainsAny -Text $Content -Needles @(
@@ -1426,6 +1553,31 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
                 -File $File `
                 -Label $label `
                 -Text "Release governance handoff must keep project template onboarding schema approval, contract, and source displays in the same blocker block."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesIdentify `
+            -Text $Content `
+            -Anchor $onboardingAnchor `
+            -FieldName "source_report_display" `
+            -Needles $ProjectTemplateGovernanceReportSourceNeedles)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release governance handoff project template onboarding source_report_display must identify a project-template governance evidence source."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesIdentify `
+            -Text $Content `
+            -Anchor $onboardingAnchor `
+            -FieldName "source_json_display" `
+            -Needles $ProjectTemplateOnboardingGovernanceSourceNeedles `
+            -ForbiddenNeedles $ProjectTemplateDeliveryReadinessSourceNeedles)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release governance handoff project template onboarding source_json_display must identify the onboarding governance evidence source."
         }
     }
 }
@@ -1523,6 +1675,31 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
     )
 
     if (Test-FinalReviewProjectTemplateTraceBlockContainsAll -Text $Content -Anchor $anchor -Needles $blockNeedles) {
+        if (-not (Test-MarkdownListBlockFieldValuesIdentify `
+            -Text $Content `
+            -Anchor $anchor `
+            -FieldName "source_report_display" `
+            -Needles $ProjectTemplateGovernanceReportSourceNeedles)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Final review project template source_report_display must identify a project-template governance evidence source."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesIdentify `
+            -Text $Content `
+            -Anchor $anchor `
+            -FieldName "source_json_display" `
+            -Needles $ProjectTemplateOnboardingGovernanceSourceNeedles `
+            -ForbiddenNeedles $ProjectTemplateDeliveryReadinessSourceNeedles)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Final review project template source_json_display must identify the onboarding governance evidence source."
+        }
+
         return
     }
 
