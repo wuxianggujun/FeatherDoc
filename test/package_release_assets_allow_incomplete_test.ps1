@@ -91,6 +91,8 @@ foreach ($filePath in @($releaseBodyPath, $releaseSummaryPath)) {
     - source_json_display: .\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
     - source_json_display: .\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
@@ -137,6 +139,8 @@ Set-Content -LiteralPath $releaseHandoffPath -Encoding UTF8 -Value @"
   - source_json_display: .\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
     - source_json_display: .\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
@@ -160,6 +164,8 @@ Set-Content -LiteralPath $finalReviewPath -Encoding UTF8 -Value @"
   - readiness_release_ready: True
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
     - source_json_display: .\output\project-template-onboarding-governance\summary.json
@@ -181,6 +187,8 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
   - source_json_display: ``.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json``
   - project_template_onboarding_governance_contract:
     - source_schema: ``featherdoc.project_template_onboarding_governance_report.v1``
+    - status: ``ready``
+    - release_ready: ``True``
     - schema_approval_status_summary: ``approved``
     - source_report_display: ``.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json``
     - source_json_display: ``.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json``
@@ -600,6 +608,12 @@ if ([string]$projectTemplateOnboardingGovernanceContract.schema -ne "featherdoc.
 if ([string]$projectTemplateOnboardingGovernanceContract.source_schema -ne "featherdoc.project_template_onboarding_governance_report.v1") {
     throw "Release assets manifest lost project template onboarding governance source_schema in AllowIncomplete mode."
 }
+if ([string]$projectTemplateOnboardingGovernanceContract.status -ne "ready") {
+    throw "Release assets manifest lost project template onboarding governance status in AllowIncomplete mode."
+}
+if (-not [bool]$projectTemplateOnboardingGovernanceContract.release_ready) {
+    throw "Release assets manifest lost project template onboarding governance release_ready=true in AllowIncomplete mode."
+}
 if ([string]$projectTemplateOnboardingGovernanceContract.source_report_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
     throw "Release assets manifest lost project template onboarding governance source_report_display in AllowIncomplete mode."
 }
@@ -627,6 +641,8 @@ foreach ($expectedText in @(
     "project_template_onboarding.schema_approval",
     "project_template_onboarding_governance_contract",
     "featherdoc.project_template_onboarding_governance_report.v1",
+    'status: `ready`',
+    'release_ready: `True`',
     ".\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
     "Governance Metrics",
     "real_corpus_confidence",
@@ -647,6 +663,8 @@ foreach ($expectedText in @(
     "project_template_onboarding.schema_approval",
     "featherdoc.project_template_onboarding_governance_report.v1",
     "project_template_onboarding_governance_contract",
+    "status: ready",
+    "release_ready: True",
     "schema_approval_status_summary: approved",
     "source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json",
     "source_json_display: .\output\project-template-onboarding-governance\summary.json",

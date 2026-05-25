@@ -337,6 +337,7 @@ foreach ($marker in @(
     "single_block_governance_handoff_project_template_trace",
     "block_scoped_governance_handoff_source_identity_trace",
     "governance_handoff_readiness_value_set_trace",
+    "onboarding_contract_status_release_ready_value_set_trace",
     "block_scoped_final_review_project_template_trace",
     "block_scoped_final_review_project_template_status_trace",
     "readiness_status",

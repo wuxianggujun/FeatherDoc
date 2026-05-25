@@ -1063,15 +1063,35 @@ function Add-ProjectTemplateOnboardingGovernanceContractLines {
         return
     }
 
+    $schemaApprovalSummaryValue = Get-ReleaseBlockerPropertyObject -Object $Item -Name "onboarding_governance_schema_approval_status_summary"
+    if ($null -eq $schemaApprovalSummaryValue) {
+        $schemaApprovalSummaryValue = Get-ReleaseBlockerPropertyObject -Object $Item -Name "schema_approval_status_summary"
+    }
     $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
-        -Value (Get-ReleaseBlockerPropertyObject -Object $Item -Name "schema_approval_status_summary") `
-        -Fallback (Get-ReleaseBlockerPropertyValue -Object $Item -Name "status")
+        -Value $schemaApprovalSummaryValue `
+        -Fallback (Get-ReleaseBlockerPropertyValue -Object $Item -Name "onboarding_governance_status")
     if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
         $schemaApprovalSummary = "unknown"
+    }
+    $status = Get-ReleaseBlockerPropertyValue -Object $Item -Name "onboarding_governance_status"
+    $releaseReady = Get-ReleaseBlockerPropertyValue -Object $Item -Name "onboarding_governance_release_ready"
+    $onboardingSourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "onboarding_governance_source_report_display"
+    if (-not [string]::IsNullOrWhiteSpace($onboardingSourceReportDisplay)) {
+        $SourceReportDisplay = $onboardingSourceReportDisplay
+    }
+    $onboardingSourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "onboarding_governance_source_json_display"
+    if (-not [string]::IsNullOrWhiteSpace($onboardingSourceJsonDisplay)) {
+        $SourceJsonDisplay = $onboardingSourceJsonDisplay
     }
 
     [void]$Lines.Add("  - project_template_onboarding_governance_contract:")
     [void]$Lines.Add("    - source_schema: featherdoc.project_template_onboarding_governance_report.v1")
+    if (-not [string]::IsNullOrWhiteSpace($status)) {
+        [void]$Lines.Add("    - status: $status")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($releaseReady)) {
+        [void]$Lines.Add("    - release_ready: $releaseReady")
+    }
     [void]$Lines.Add("    - schema_approval_status_summary: $schemaApprovalSummary")
     if (-not [string]::IsNullOrWhiteSpace($SourceReportDisplay)) {
         [void]$Lines.Add("    - source_report_display: $SourceReportDisplay")

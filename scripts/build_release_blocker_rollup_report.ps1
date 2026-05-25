@@ -877,13 +877,19 @@ foreach ($path in @($inputPaths)) {
     $errorMessage = ""
     $sourceMetrics = @()
     $releaseReady = $false
+    $sourceReportStatus = ""
+    $sourceReportReleaseReady = ""
     $latestSchemaApprovalGateStatus = ""
     $schemaApprovalStatusSummary = @()
     $summaryObject = $null
     try {
         $summaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
         $kind = Get-ReportKind -Summary $summaryObject
+        $sourceReportStatus = Get-JsonString -Object $summaryObject -Name "status"
         $releaseReady = Get-JsonBool -Object $summaryObject -Name "release_ready"
+        if ($null -ne (Get-JsonProperty -Object $summaryObject -Name "release_ready")) {
+            $sourceReportReleaseReady = [string]$releaseReady
+        }
         $latestSchemaApprovalGateStatus = Get-JsonString -Object $summaryObject -Name "latest_schema_approval_gate_status"
         $schemaApprovalStatusSummary = @(Get-JsonArray -Object $summaryObject -Name "schema_approval_status_summary")
         $sourceMetrics = @(New-GovernanceMetrics `
@@ -968,10 +974,28 @@ foreach ($path in @($inputPaths)) {
                 repair_hint = Get-JsonString -Object $blocker -Name "repair_hint"
                 command_template = Get-JsonString -Object $blocker -Name "command_template"
             }
+            if ([string]::Equals($kind, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
+                if (-not [string]::IsNullOrWhiteSpace($sourceReportStatus)) {
+                    $rollupBlocker["readiness_status"] = $sourceReportStatus
+                }
+                if (-not [string]::IsNullOrWhiteSpace($sourceReportReleaseReady)) {
+                    $rollupBlocker["readiness_release_ready"] = $sourceReportReleaseReady
+                }
+            }
             Copy-OptionalJsonProperties `
                 -Target $rollupBlocker `
                 -Source $blocker `
                 -Names @(
+                    "readiness_status",
+                    "readiness_release_ready",
+                    "schema_approval_status_summary",
+                    "onboarding_governance_status",
+                    "onboarding_governance_release_ready",
+                    "onboarding_governance_schema_approval_status_summary",
+                    "onboarding_governance_source_report",
+                    "onboarding_governance_source_report_display",
+                    "onboarding_governance_source_json",
+                    "onboarding_governance_source_json_display",
                     "blocking_summary",
                     "output_gap_count",
                     "missing_output_count",
@@ -1041,10 +1065,28 @@ foreach ($path in @($inputPaths)) {
                 repair_hint = Get-JsonString -Object $item -Name "repair_hint"
                 command_template = Get-JsonString -Object $item -Name "command_template"
             }
+            if ([string]::Equals($kind, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
+                if (-not [string]::IsNullOrWhiteSpace($sourceReportStatus)) {
+                    $rollupActionItem["readiness_status"] = $sourceReportStatus
+                }
+                if (-not [string]::IsNullOrWhiteSpace($sourceReportReleaseReady)) {
+                    $rollupActionItem["readiness_release_ready"] = $sourceReportReleaseReady
+                }
+            }
             Copy-OptionalJsonProperties `
                 -Target $rollupActionItem `
                 -Source $item `
                 -Names @(
+                    "readiness_status",
+                    "readiness_release_ready",
+                    "schema_approval_status_summary",
+                    "onboarding_governance_status",
+                    "onboarding_governance_release_ready",
+                    "onboarding_governance_schema_approval_status_summary",
+                    "onboarding_governance_source_report",
+                    "onboarding_governance_source_report_display",
+                    "onboarding_governance_source_json",
+                    "onboarding_governance_source_json_display",
                     "blocking_summary",
                     "output_gap_count",
                     "missing_output_count",

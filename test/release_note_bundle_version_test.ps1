@@ -744,6 +744,11 @@ $summary = [ordered]@{
                 source_json_display = ".\output\project-template-onboarding-governance\summary.json"
                 readiness_status = "failed"
                 readiness_release_ready = "False"
+                onboarding_governance_status = "pending_review"
+                onboarding_governance_release_ready = "False"
+                onboarding_governance_schema_approval_status_summary = "pending_review"
+                onboarding_governance_source_report_display = ".\output\project-template-onboarding-governance\summary.json"
+                onboarding_governance_source_json_display = ".\output\project-template-onboarding-governance\summary.json"
             },
             [ordered]@{
                 report_id = "schema_patch_confidence_calibration"
@@ -769,6 +774,11 @@ $summary = [ordered]@{
                 open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
                 readiness_status = "failed"
                 readiness_release_ready = "False"
+                onboarding_governance_status = "pending_review"
+                onboarding_governance_release_ready = "False"
+                onboarding_governance_schema_approval_status_summary = "pending_review"
+                onboarding_governance_source_report_display = ".\output\project-template-onboarding-governance\summary.json"
+                onboarding_governance_source_json_display = ".\output\project-template-onboarding-governance\summary.json"
             },
             [ordered]@{
                 report_id = "schema_patch_confidence_calibration"
@@ -1031,6 +1041,8 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
         'readiness_status: failed',
         'readiness_release_ready: False',
         'project_template_onboarding_governance_contract:',
+        'status: pending_review',
+        'release_ready: False',
         'schema_approval_status_summary: pending_review'
     ) -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'catalog_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label

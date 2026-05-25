@@ -148,6 +148,8 @@ Set-Content -LiteralPath $releaseHandoffPath -Encoding UTF8 -Value @"
   - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
     - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
@@ -169,6 +171,8 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
   - source_json_display: ``.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json``
   - project_template_onboarding_governance_contract:
     - source_schema: ``featherdoc.project_template_onboarding_governance_report.v1``
+    - status: ``ready``
+    - release_ready: ``True``
     - schema_approval_status_summary: ``approved``
     - source_report_display: ``.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json``
     - source_json_display: ``.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json``
@@ -227,6 +231,8 @@ Set-Content -LiteralPath $finalReviewPath -Encoding UTF8 -Value @"
   - readiness_release_ready: True
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
     - source_json_display: .\output\project-template-onboarding-governance\summary.json
@@ -669,6 +675,8 @@ Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText '.\output\relea
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'project_template_onboarding.schema_approval' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'project_template_onboarding_governance_contract' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'featherdoc.project_template_onboarding_governance_report.v1' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'status: `ready`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'release_ready: `True`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText '.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'PDF visual gate evidence source reports: `1`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'full_visual_gate_status: `pass`' -Label 'staged release_governance_handoff.md'
@@ -691,6 +699,8 @@ Assert-Contains -Path $stagedHandoffPath -ExpectedText 'source_json_display: .\o
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_onboarding.schema_approval' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_onboarding_governance_contract:' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'source_schema: featherdoc.project_template_onboarding_governance_report.v1' -Label 'staged release_handoff.md'
+Assert-Contains -Path $stagedHandoffPath -ExpectedText 'status: ready' -Label 'staged release_handoff.md'
+Assert-Contains -Path $stagedHandoffPath -ExpectedText 'release_ready: True' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'schema_approval_status_summary: approved' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json' -Label 'staged release_handoff.md'
@@ -705,6 +715,8 @@ Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'project_template_del
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'project_template_onboarding.schema_approval' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'featherdoc.project_template_onboarding_governance_report.v1' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'project_template_onboarding_governance_contract' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'status: ready' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'release_ready: True' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'schema_approval_status_summary: approved' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'source_json_display: .\output\project-template-onboarding-governance\summary.json' -Label 'staged final_review.md'

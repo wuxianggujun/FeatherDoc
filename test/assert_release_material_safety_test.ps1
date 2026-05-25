@@ -657,6 +657,8 @@ Set-Content -LiteralPath $passReleaseHandoffTracePath -Encoding UTF8 -Value @"
   - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
     - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
@@ -715,6 +717,8 @@ Set-Content -LiteralPath $passReleaseGovernanceHandoffOnboardingTracePath -Encod
   - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
     - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
@@ -764,6 +768,8 @@ Set-Content -LiteralPath $passFinalReviewTracePath -Encoding UTF8 -Value @"
   - readiness_release_ready: True
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
     - source_json_display: .\output\project-template-onboarding-governance\summary.json
@@ -2751,6 +2757,8 @@ Set-Content -LiteralPath $badReleaseHandoffReadinessSplitTracePath -Encoding UTF
   - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
     - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
@@ -2788,6 +2796,8 @@ Set-Content -LiteralPath $badReleaseHandoffOnboardingSplitTracePath -Encoding UT
   - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 
@@ -2859,6 +2869,8 @@ Set-Content -LiteralPath $badReleaseHandoffOnboardingSourceJsonIdentityPath -Enc
   - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
     - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
@@ -2873,6 +2885,64 @@ try {
 
 if (-not $badReleaseHandoffOnboardingSourceJsonIdentityFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with onboarding source_json_display pointing at delivery readiness evidence."
+}
+
+$badReleaseHandoffInvalidOnboardingStatusDir = Join-Path $failDir "release-handoff-invalid-project-template-onboarding-status"
+$badReleaseHandoffInvalidOnboardingStatusPath = Join-Path $badReleaseHandoffInvalidOnboardingStatusDir "release_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseHandoffInvalidOnboardingStatusDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseHandoffInvalidOnboardingStatusPath -Encoding UTF8 -Value @"
+# Release handoff
+
+- project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready-ish
+    - release_ready: True
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+    - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseHandoffInvalidOnboardingStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseHandoffInvalidOnboardingStatusPath
+} catch {
+    $badReleaseHandoffInvalidOnboardingStatusFailedAsExpected = $true
+}
+
+if (-not $badReleaseHandoffInvalidOnboardingStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with an invalid nested onboarding status value."
+}
+
+$badReleaseHandoffInvalidOnboardingReadyDir = Join-Path $failDir "release-handoff-invalid-project-template-onboarding-release-ready"
+$badReleaseHandoffInvalidOnboardingReadyPath = Join-Path $badReleaseHandoffInvalidOnboardingReadyDir "release_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseHandoffInvalidOnboardingReadyDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseHandoffInvalidOnboardingReadyPath -Encoding UTF8 -Value @"
+# Release handoff
+
+- project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: maybe
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+    - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseHandoffInvalidOnboardingReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseHandoffInvalidOnboardingReadyPath
+} catch {
+    $badReleaseHandoffInvalidOnboardingReadyFailedAsExpected = $true
+}
+
+if (-not $badReleaseHandoffInvalidOnboardingReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with an invalid nested onboarding release_ready value."
 }
 
 $badReleaseHandoffInvalidReadinessStatusDir = Join-Path $failDir "release-handoff-invalid-project-template-readiness-status"
@@ -3161,6 +3231,8 @@ Set-Content -LiteralPath $badReleaseGovernanceHandoffOnboardingTracePath -Encodi
   - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 
@@ -3220,6 +3292,8 @@ Set-Content -LiteralPath $badReleaseGovernanceHandoffOnboardingSourceJsonIdentit
   - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
     - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
@@ -3234,6 +3308,68 @@ try {
 
 if (-not $badReleaseGovernanceHandoffOnboardingSourceJsonIdentityFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md with onboarding source_json_display pointing at delivery readiness evidence."
+}
+
+$badReleaseGovernanceHandoffInvalidOnboardingStatusDir = Join-Path $failDir "release-governance-handoff-invalid-project-template-onboarding-status"
+$badReleaseGovernanceHandoffInvalidOnboardingStatusPath = Join-Path $badReleaseGovernanceHandoffInvalidOnboardingStatusDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffInvalidOnboardingStatusDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffInvalidOnboardingStatusPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blockers
+
+- project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready-ish
+    - release_ready: True
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+    - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseGovernanceHandoffInvalidOnboardingStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffInvalidOnboardingStatusPath
+} catch {
+    $badReleaseGovernanceHandoffInvalidOnboardingStatusFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffInvalidOnboardingStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md with an invalid nested onboarding status value."
+}
+
+$badReleaseGovernanceHandoffInvalidOnboardingReadyDir = Join-Path $failDir "release-governance-handoff-invalid-project-template-onboarding-release-ready"
+$badReleaseGovernanceHandoffInvalidOnboardingReadyPath = Join-Path $badReleaseGovernanceHandoffInvalidOnboardingReadyDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffInvalidOnboardingReadyDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffInvalidOnboardingReadyPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blockers
+
+- project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: maybe
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+    - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseGovernanceHandoffInvalidOnboardingReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffInvalidOnboardingReadyPath
+} catch {
+    $badReleaseGovernanceHandoffInvalidOnboardingReadyFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffInvalidOnboardingReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md with an invalid nested onboarding release_ready value."
 }
 
 $badReleaseGovernanceHandoffPdfTraceDir = Join-Path $failDir "release-governance-handoff-missing-pdf-visual-contact-sheet"
@@ -3351,6 +3487,8 @@ Set-Content -LiteralPath $badFinalReviewStatusTracePath -Encoding UTF8 -Value @"
   - source_json_display: .\output\project-template-onboarding-governance\summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
     - source_json_display: .\output\project-template-onboarding-governance\summary.json
@@ -3384,6 +3522,8 @@ Set-Content -LiteralPath $badFinalReviewInvalidReadinessStatusPath -Encoding UTF
   - readiness_release_ready: True
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
     - source_json_display: .\output\project-template-onboarding-governance\summary.json
@@ -3417,6 +3557,8 @@ Set-Content -LiteralPath $badFinalReviewInvalidReadinessReadyPath -Encoding UTF8
   - readiness_release_ready: maybe
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
     - source_json_display: .\output\project-template-onboarding-governance\summary.json
@@ -3447,6 +3589,8 @@ Set-Content -LiteralPath $badFinalReviewTracePath -Encoding UTF8 -Value @"
   - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
 "@
@@ -3476,6 +3620,8 @@ Set-Content -LiteralPath $badFinalReviewSplitTracePath -Encoding UTF8 -Value @"
   - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
 
@@ -3510,6 +3656,8 @@ Set-Content -LiteralPath $badFinalReviewSourceJsonIdentityPath -Encoding UTF8 -V
   - source_json_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: True
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
     - source_json_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
@@ -3524,6 +3672,76 @@ try {
 
 if (-not $badFinalReviewSourceJsonIdentityFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with project-template source_json_display pointing at delivery readiness evidence."
+}
+
+$badFinalReviewInvalidOnboardingStatusDir = Join-Path $failDir "final-review-invalid-project-template-onboarding-status"
+$badFinalReviewInvalidOnboardingStatusPath = Join-Path $badFinalReviewInvalidOnboardingStatusDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewInvalidOnboardingStatusDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewInvalidOnboardingStatusPath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Release governance handoff details
+
+### Handoff Blockers
+
+- project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+  - source_json_display: .\output\project-template-onboarding-governance\summary.json
+  - readiness_status: ready
+  - readiness_release_ready: True
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready-ish
+    - release_ready: True
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+    - source_json_display: .\output\project-template-onboarding-governance\summary.json
+"@
+
+$badFinalReviewInvalidOnboardingStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewInvalidOnboardingStatusPath
+} catch {
+    $badFinalReviewInvalidOnboardingStatusFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewInvalidOnboardingStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with an invalid nested onboarding status value."
+}
+
+$badFinalReviewInvalidOnboardingReadyDir = Join-Path $failDir "final-review-invalid-project-template-onboarding-release-ready"
+$badFinalReviewInvalidOnboardingReadyPath = Join-Path $badFinalReviewInvalidOnboardingReadyDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewInvalidOnboardingReadyDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewInvalidOnboardingReadyPath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Release governance handoff details
+
+### Handoff Blockers
+
+- project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+  - source_json_display: .\output\project-template-onboarding-governance\summary.json
+  - readiness_status: ready
+  - readiness_release_ready: True
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - status: ready
+    - release_ready: maybe
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+    - source_json_display: .\output\project-template-onboarding-governance\summary.json
+"@
+
+$badFinalReviewInvalidOnboardingReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewInvalidOnboardingReadyPath
+} catch {
+    $badFinalReviewInvalidOnboardingReadyFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewInvalidOnboardingReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with an invalid nested onboarding release_ready value."
 }
 
 $badFinalReviewPdfTraceDir = Join-Path $failDir "final-review-missing-pdf-visual-contact-sheet"

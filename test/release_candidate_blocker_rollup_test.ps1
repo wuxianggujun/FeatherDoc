@@ -25,6 +25,52 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-MarkdownListBlockContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$ExpectedFragments,
+        [string]$Message
+    )
+
+    $lines = $Text -split "\r?\n"
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if ($lines[$lineIndex] -notmatch [regex]::Escape($Anchor)) {
+            continue
+        }
+        if ($lines[$lineIndex] -notmatch '^\s*-\s*') {
+            continue
+        }
+
+        $blockLines = @($lines[$lineIndex])
+        for ($nextLineIndex = $lineIndex + 1; $nextLineIndex -lt $lines.Count; $nextLineIndex++) {
+            $nextLine = $lines[$nextLineIndex]
+            if ([string]::IsNullOrWhiteSpace($nextLine) -or
+                $nextLine -match '^#{1,6}\s' -or
+                ($nextLine -match '^\s*-\s*' -and $nextLine -notmatch '^\s{2,}-\s*')) {
+                break
+            }
+
+            $blockLines += $nextLine
+        }
+
+        $block = $blockLines -join "`n"
+        $hasAllFragments = $true
+        foreach ($fragment in $ExpectedFragments) {
+            if ($block -notmatch [regex]::Escape($fragment)) {
+                $hasAllFragments = $false
+                break
+            }
+        }
+
+        if ($hasAllFragments) {
+            return
+        }
+    }
+
+    throw $Message
+}
+
 function Write-JsonFile {
     param([string]$Path, $Value)
 
@@ -274,6 +320,11 @@ Write-JsonFile -Path $autoDiscoverProjectSummaryPath -Value ([ordered]@{
             source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
             source_json = "output/project-template-onboarding-governance/summary.json"
             source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+            onboarding_governance_status = "pending_review"
+            onboarding_governance_release_ready = "False"
+            onboarding_governance_schema_approval_status_summary = "pending_review"
+            onboarding_governance_source_report_display = ".\output\project-template-onboarding-governance\summary.json"
+            onboarding_governance_source_json_display = ".\output\project-template-onboarding-governance\summary.json"
         }
     )
     action_items = @(
@@ -285,6 +336,11 @@ Write-JsonFile -Path $autoDiscoverProjectSummaryPath -Value ([ordered]@{
             source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
             source_json = "output/project-template-onboarding-governance/summary.json"
             source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+            onboarding_governance_status = "pending_review"
+            onboarding_governance_release_ready = "False"
+            onboarding_governance_schema_approval_status_summary = "pending_review"
+            onboarding_governance_source_report_display = ".\output\project-template-onboarding-governance\summary.json"
+            onboarding_governance_source_json_display = ".\output\project-template-onboarding-governance\summary.json"
         }
     )
 })
@@ -440,6 +496,11 @@ if ($Scenario -eq "handoff") {
         -Message "Final review should include handoff project-template readiness status."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "readiness_release_ready: False" `
         -Message "Final review should include handoff project-template release_ready state."
+    Assert-MarkdownListBlockContainsAll -Text $handoffFinalReview -Anchor "project_template_onboarding.schema_approval: action=review_schema_update_candidate" -ExpectedFragments @(
+        "project_template_onboarding_governance_contract:",
+        "status: pending_review",
+        "release_ready: False"
+    ) -Message "Final review should keep handoff project-template onboarding status inside the onboarding governance contract block."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Final review should include handoff action item open command."
 
@@ -753,6 +814,11 @@ Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "readiness_stat
     -Message "Auto-discovered final review should include project-template readiness status."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "readiness_release_ready: False" `
     -Message "Auto-discovered final review should include project-template release_ready state."
+Assert-MarkdownListBlockContainsAll -Text $autoDiscoverFinalReview -Anchor "project_template_onboarding.schema_approval: action=review_schema_update_candidate" -ExpectedFragments @(
+    "project_template_onboarding_governance_contract:",
+    "status: pending_review",
+    "release_ready: False"
+) -Message "Auto-discovered final review should keep project-template onboarding status inside the onboarding governance contract block."
 
 $autoDiscoverRollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverRollupSummaryPath | ConvertFrom-Json
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `

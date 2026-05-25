@@ -256,6 +256,20 @@ function Write-GovernanceFixtures {
     }
 
     if ($IncludeProjectTemplate) {
+        Write-JsonFile -Path (Join-Path $Root "project-template-onboarding-governance\summary.json") -Value ([ordered]@{
+            schema = "featherdoc.project_template_onboarding_governance_report.v1"
+            status = "pending_review"
+            release_ready = $false
+            schema_approval_status_summary = @(
+                [ordered]@{
+                    status = "pending_review"
+                    count = 1
+                }
+            )
+            release_blocker_count = 1
+            action_item_count = 1
+        })
+
         Write-JsonFile -Path (Join-Path $Root "project-template-delivery-readiness\summary.json") -Value ([ordered]@{
             schema = "featherdoc.project_template_delivery_readiness_report.v1"
             status = "blocked"
@@ -280,6 +294,17 @@ function Write-GovernanceFixtures {
                     status = "blocked"
                     action = "approve_project_template_schema"
                     message = "Schema approval is still pending."
+                    source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+                    source_report = "output/project-template-delivery-readiness/summary.json"
+                    source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                    source_json = "output/project-template-onboarding-governance/summary.json"
+                    source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                    schema_approval_status_summary = @(
+                        [ordered]@{
+                            status = "pending_review"
+                            count = 1
+                        }
+                    )
                 }
             )
             action_item_count = 1
@@ -288,6 +313,17 @@ function Write-GovernanceFixtures {
                     id = "approve_project_template_schema"
                     action = "approve_project_template_schema"
                     title = "Approve project template schema before release"
+                    source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+                    source_report = "output/project-template-delivery-readiness/summary.json"
+                    source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                    source_json = "output/project-template-onboarding-governance/summary.json"
+                    source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                    schema_approval_status_summary = @(
+                        [ordered]@{
+                            status = "pending_review"
+                            count = 1
+                        }
+                    )
                 }
             )
         })
@@ -409,6 +445,16 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should propagate project-template readiness status to blockers."
     Assert-Equal -Actual ([string]$projectTemplateBlocker.readiness_release_ready) -Expected "False" `
         -Message "Aggregate handoff should propagate project-template release_ready to blockers."
+    Assert-Equal -Actual ([string]$projectTemplateBlocker.source_schema) -Expected "featherdoc.project_template_onboarding_governance_report.v1" `
+        -Message "Aggregate handoff should preserve project-template onboarding source schema on blockers."
+    Assert-ContainsText -Text ([string]$projectTemplateBlocker.source_json_display) -ExpectedText "project-template-onboarding-governance\summary.json" `
+        -Message "Aggregate handoff should preserve project-template onboarding source_json_display on blockers."
+    Assert-Equal -Actual ([string]$projectTemplateBlocker.onboarding_governance_status) -Expected "pending_review" `
+        -Message "Aggregate handoff should carry onboarding governance report status separately from delivery readiness."
+    Assert-Equal -Actual ([string]$projectTemplateBlocker.onboarding_governance_release_ready) -Expected "False" `
+        -Message "Aggregate handoff should carry onboarding governance report release_ready separately from delivery readiness."
+    Assert-ContainsText -Text ([string]$projectTemplateBlocker.onboarding_governance_source_json_display) -ExpectedText "project-template-onboarding-governance\summary.json" `
+        -Message "Aggregate handoff should point onboarding governance contract at onboarding summary JSON."
     $projectTemplateAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "approve_project_template_schema" } |
         Select-Object -First 1)
@@ -416,6 +462,16 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should propagate project-template readiness status to action items."
     Assert-Equal -Actual ([string]$projectTemplateAction.readiness_release_ready) -Expected "False" `
         -Message "Aggregate handoff should propagate project-template release_ready to action items."
+    Assert-Equal -Actual ([string]$projectTemplateAction.source_schema) -Expected "featherdoc.project_template_onboarding_governance_report.v1" `
+        -Message "Aggregate handoff should preserve project-template onboarding source schema on action items."
+    Assert-ContainsText -Text ([string]$projectTemplateAction.source_json_display) -ExpectedText "project-template-onboarding-governance\summary.json" `
+        -Message "Aggregate handoff should preserve project-template onboarding source_json_display on action items."
+    Assert-Equal -Actual ([string]$projectTemplateAction.onboarding_governance_status) -Expected "pending_review" `
+        -Message "Aggregate handoff should carry onboarding governance report status separately from action readiness."
+    Assert-Equal -Actual ([string]$projectTemplateAction.onboarding_governance_release_ready) -Expected "False" `
+        -Message "Aggregate handoff should carry onboarding governance report release_ready separately from action readiness."
+    Assert-ContainsText -Text ([string]$projectTemplateAction.onboarding_governance_source_json_display) -ExpectedText "project-template-onboarding-governance\summary.json" `
+        -Message "Aggregate handoff should point action onboarding governance contract at onboarding summary JSON."
     $metricText = ($summary.governance_metrics | ForEach-Object { "$($_.report_id):$($_.metric):$($_.level):$($_.score)" }) -join "`n"
     Assert-ContainsText -Text $metricText -ExpectedText "numbering_catalog_governance:real_corpus_confidence:low:56" `
         -Message "Aggregate handoff should preserve numbering real-corpus confidence metric."
@@ -588,8 +644,22 @@ if (Test-Scenario -Name "aggregate") {
         'source_report_display:',
         'source_json_display:',
         'readiness_status:',
-        'readiness_release_ready:'
+        'readiness_release_ready:',
+        'project_template_onboarding_governance_contract:',
+        'status: `pending_review`',
+        'release_ready: `False`',
+        'schema_approval_status_summary: `pending_review=1`'
     ) -Message "Markdown should keep project-template readiness status with the handoff blocker evidence block."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor '`project_template_delivery_readiness` / `approve_project_template_schema`' -ExpectedFragments @(
+        'source_report_display:',
+        'source_json_display:',
+        'readiness_status:',
+        'readiness_release_ready:',
+        'project_template_onboarding_governance_contract:',
+        'status: `pending_review`',
+        'release_ready: `False`',
+        'schema_approval_status_summary: `pending_review=1`'
+    ) -Message "Markdown should keep project-template onboarding contract status with the handoff action item evidence block."
     Assert-ContainsText -Text $markdown -ExpectedText "content_control_data_binding_governance" `
         -Message "Markdown should include content-control data-binding governance."
     Assert-ContainsText -Text $markdown -ExpectedText "content-control-data-binding-governance\summary.json" `

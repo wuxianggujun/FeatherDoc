@@ -1583,6 +1583,8 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
             "project_template_onboarding.schema_approval",
             "project_template_onboarding_governance_contract",
             "source_schema: featherdoc.project_template_onboarding_governance_report.v1",
+            "status:",
+            "release_ready:",
             "schema_approval_status_summary:",
             "source_report_display:",
             "source_json_display:"
@@ -1618,6 +1620,30 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
                 -File $File `
                 -Label $label `
                 -Text "Release handoff project template onboarding source_json_display must identify the onboarding governance evidence source."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $onboardingAnchor `
+            -FieldName "status" `
+            -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release handoff project template onboarding status must be a recognized readiness state."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $onboardingAnchor `
+            -FieldName "release_ready" `
+            -AllowedValues $ProjectTemplateBooleanValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release handoff project template onboarding release_ready must be true or false."
         }
     }
 }
@@ -1788,6 +1814,8 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
             "project_template_onboarding.schema_approval",
             "project_template_onboarding_governance_contract",
             "featherdoc.project_template_onboarding_governance_report.v1",
+            "status:",
+            "release_ready:",
             "schema_approval_status_summary",
             "source_report_display",
             "source_json_display"
@@ -1823,6 +1851,30 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
                 -File $File `
                 -Label $label `
                 -Text "Release governance handoff project template onboarding source_json_display must identify the onboarding governance evidence source."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $onboardingAnchor `
+            -FieldName "status" `
+            -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release governance handoff project template onboarding status must be a recognized readiness state."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $onboardingAnchor `
+            -FieldName "release_ready" `
+            -AllowedValues $ProjectTemplateBooleanValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release governance handoff project template onboarding release_ready must be true or false."
         }
     }
 }
@@ -1913,6 +1965,8 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
         "featherdoc.project_template_onboarding_governance_report.v1",
         "project_template_onboarding_governance_contract",
         "schema_approval_status_summary",
+        "status:",
+        "release_ready:",
         "source_report_display:",
         "project-template-delivery-readiness",
         "source_json_display:",
@@ -1969,6 +2023,30 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
                 -File $File `
                 -Label $label `
                 -Text "Final review project template readiness_release_ready must be true or false."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $anchor `
+            -FieldName "status" `
+            -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Final review project template onboarding status must be a recognized readiness state."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $anchor `
+            -FieldName "release_ready" `
+            -AllowedValues $ProjectTemplateBooleanValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Final review project template onboarding release_ready must be true or false."
         }
 
         return

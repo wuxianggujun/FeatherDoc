@@ -340,6 +340,69 @@ function Test-ProjectTemplateDeliveryReadinessReportEntry {
     )
 }
 
+function New-ProjectTemplateOnboardingGovernanceContract {
+    param(
+        [string]$RepoRoot,
+        [string]$Path,
+        [object]$Json
+    )
+
+    if ($null -eq $Json) {
+        return $null
+    }
+
+    $schema = Get-JsonString -Object $Json -Name "schema"
+    if (-not [string]::Equals($schema, "featherdoc.project_template_onboarding_governance_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $null
+    }
+
+    return [ordered]@{
+        schema = "featherdoc.project_template_onboarding_governance_report.v1"
+        source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+        status = Get-JsonString -Object $Json -Name "status"
+        release_ready = if ($null -ne (Get-JsonProperty -Object $Json -Name "release_ready")) { [string](Get-JsonBool -Object $Json -Name "release_ready") } else { "" }
+        schema_approval_status_summary = @(Get-JsonArray -Object $Json -Name "schema_approval_status_summary")
+        source_report = $Path
+        source_report_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
+        source_json = $Path
+        source_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
+    }
+}
+
+function Get-ProjectTemplateOnboardingGovernanceContract {
+    param(
+        [string]$RepoRoot,
+        [string]$InputRoot,
+        [string[]]$InputJson
+    )
+
+    $candidatePaths = New-Object 'System.Collections.Generic.List[string]'
+    $candidatePaths.Add((Join-Path $InputRoot "project-template-onboarding-governance\summary.json")) | Out-Null
+    foreach ($input in @(Expand-InputPathList -Paths $InputJson)) {
+        if ([string]::IsNullOrWhiteSpace($input)) {
+            continue
+        }
+        $candidatePaths.Add((Resolve-RepoPath -RepoRoot $RepoRoot -Path $input -AllowMissing)) | Out-Null
+    }
+
+    foreach ($candidatePath in @($candidatePaths.ToArray())) {
+        if (-not (Test-Path -LiteralPath $candidatePath)) {
+            continue
+        }
+        try {
+            $json = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidatePath | ConvertFrom-Json
+            $contract = New-ProjectTemplateOnboardingGovernanceContract -RepoRoot $RepoRoot -Path $candidatePath -Json $json
+            if ($null -ne $contract) {
+                return $contract
+            }
+        } catch {
+            continue
+        }
+    }
+
+    return $null
+}
+
 function New-ExpectedReport {
     param(
         [string]$Id,
@@ -442,7 +505,8 @@ function New-ReportEntry {
 function Add-NormalizedBlockers {
     param(
         [System.Collections.Generic.List[object]]$Collection,
-        [object]$Report
+        [object]$Report,
+        [AllowNull()]$ProjectTemplateOnboardingGovernanceContract
     )
 
     $isProjectTemplateDeliveryReadiness = Test-ProjectTemplateDeliveryReadinessReportEntry -Report $Report
@@ -462,6 +526,29 @@ function Add-NormalizedBlockers {
         $sourceReport = Get-JsonString -Object $blocker -Name "source_report" -DefaultValue ([string]$Report.expected_summary)
         $sourceJsonDisplay = Get-JsonString -Object $blocker -Name "source_json_display" -DefaultValue $sourceReportDisplay
         $sourceJson = Get-JsonString -Object $blocker -Name "source_json" -DefaultValue $sourceReport
+        $sourceSchema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue ([string]$Report.schema)
+        $onboardingStatus = Get-JsonString -Object $blocker -Name "onboarding_governance_status"
+        $onboardingReleaseReady = Get-JsonString -Object $blocker -Name "onboarding_governance_release_ready"
+        $onboardingSchemaApprovalSummary = @(Get-JsonArray -Object $blocker -Name "onboarding_governance_schema_approval_status_summary")
+        $onboardingSourceReportDisplay = Get-JsonString -Object $blocker -Name "onboarding_governance_source_report_display"
+        $onboardingSourceJsonDisplay = Get-JsonString -Object $blocker -Name "onboarding_governance_source_json_display"
+        if ([string]::Equals($sourceSchema, "featherdoc.project_template_onboarding_governance_report.v1", [System.StringComparison]::OrdinalIgnoreCase) -and $null -ne $ProjectTemplateOnboardingGovernanceContract) {
+            if ([string]::IsNullOrWhiteSpace($onboardingStatus)) {
+                $onboardingStatus = Get-JsonString -Object $ProjectTemplateOnboardingGovernanceContract -Name "status"
+            }
+            if ([string]::IsNullOrWhiteSpace($onboardingReleaseReady)) {
+                $onboardingReleaseReady = Get-JsonString -Object $ProjectTemplateOnboardingGovernanceContract -Name "release_ready"
+            }
+            if ($onboardingSchemaApprovalSummary.Count -eq 0) {
+                $onboardingSchemaApprovalSummary = @(Get-JsonArray -Object $ProjectTemplateOnboardingGovernanceContract -Name "schema_approval_status_summary")
+            }
+            if ([string]::IsNullOrWhiteSpace($onboardingSourceReportDisplay)) {
+                $onboardingSourceReportDisplay = Get-JsonString -Object $ProjectTemplateOnboardingGovernanceContract -Name "source_report_display"
+            }
+            if ([string]::IsNullOrWhiteSpace($onboardingSourceJsonDisplay)) {
+                $onboardingSourceJsonDisplay = Get-JsonString -Object $ProjectTemplateOnboardingGovernanceContract -Name "source_json_display"
+            }
+        }
         $Collection.Add([ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
@@ -473,13 +560,19 @@ function Add-NormalizedBlockers {
             status = Get-JsonString -Object $blocker -Name "status"
             action = Get-JsonString -Object $blocker -Name "action"
             message = Get-JsonString -Object $blocker -Name "message"
-            source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue ([string]$Report.schema)
+            source_schema = $sourceSchema
             source_report = $sourceReport
             source_report_display = $sourceReportDisplay
             source_json = $sourceJson
             source_json_display = $sourceJsonDisplay
             readiness_status = $readinessStatus
             readiness_release_ready = $readinessReleaseReady
+            schema_approval_status_summary = @(Get-JsonArray -Object $blocker -Name "schema_approval_status_summary")
+            onboarding_governance_status = $onboardingStatus
+            onboarding_governance_release_ready = $onboardingReleaseReady
+            onboarding_governance_schema_approval_status_summary = @($onboardingSchemaApprovalSummary)
+            onboarding_governance_source_report_display = $onboardingSourceReportDisplay
+            onboarding_governance_source_json_display = $onboardingSourceJsonDisplay
             input_docx = Get-JsonString -Object $blocker -Name "input_docx"
             input_docx_display = Get-JsonString -Object $blocker -Name "input_docx_display"
             schema_target = Get-JsonString -Object $blocker -Name "schema_target"
@@ -494,7 +587,8 @@ function Add-NormalizedBlockers {
 function Add-NormalizedActions {
     param(
         [System.Collections.Generic.List[object]]$Collection,
-        [object]$Report
+        [object]$Report,
+        [AllowNull()]$ProjectTemplateOnboardingGovernanceContract
     )
 
     $isProjectTemplateDeliveryReadiness = Test-ProjectTemplateDeliveryReadinessReportEntry -Report $Report
@@ -518,6 +612,29 @@ function Add-NormalizedActions {
         if ([string]::IsNullOrWhiteSpace($openCommand)) {
             $openCommand = [string]$Report.build_command
         }
+        $sourceSchema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue ([string]$Report.schema)
+        $onboardingStatus = Get-JsonString -Object $item -Name "onboarding_governance_status"
+        $onboardingReleaseReady = Get-JsonString -Object $item -Name "onboarding_governance_release_ready"
+        $onboardingSchemaApprovalSummary = @(Get-JsonArray -Object $item -Name "onboarding_governance_schema_approval_status_summary")
+        $onboardingSourceReportDisplay = Get-JsonString -Object $item -Name "onboarding_governance_source_report_display"
+        $onboardingSourceJsonDisplay = Get-JsonString -Object $item -Name "onboarding_governance_source_json_display"
+        if ([string]::Equals($sourceSchema, "featherdoc.project_template_onboarding_governance_report.v1", [System.StringComparison]::OrdinalIgnoreCase) -and $null -ne $ProjectTemplateOnboardingGovernanceContract) {
+            if ([string]::IsNullOrWhiteSpace($onboardingStatus)) {
+                $onboardingStatus = Get-JsonString -Object $ProjectTemplateOnboardingGovernanceContract -Name "status"
+            }
+            if ([string]::IsNullOrWhiteSpace($onboardingReleaseReady)) {
+                $onboardingReleaseReady = Get-JsonString -Object $ProjectTemplateOnboardingGovernanceContract -Name "release_ready"
+            }
+            if ($onboardingSchemaApprovalSummary.Count -eq 0) {
+                $onboardingSchemaApprovalSummary = @(Get-JsonArray -Object $ProjectTemplateOnboardingGovernanceContract -Name "schema_approval_status_summary")
+            }
+            if ([string]::IsNullOrWhiteSpace($onboardingSourceReportDisplay)) {
+                $onboardingSourceReportDisplay = Get-JsonString -Object $ProjectTemplateOnboardingGovernanceContract -Name "source_report_display"
+            }
+            if ([string]::IsNullOrWhiteSpace($onboardingSourceJsonDisplay)) {
+                $onboardingSourceJsonDisplay = Get-JsonString -Object $ProjectTemplateOnboardingGovernanceContract -Name "source_json_display"
+            }
+        }
         $Collection.Add([ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
@@ -529,13 +646,19 @@ function Add-NormalizedActions {
             title = Get-JsonString -Object $item -Name "title"
             command = Get-JsonString -Object $item -Name "command"
             open_command = $openCommand
-            source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue ([string]$Report.schema)
+            source_schema = $sourceSchema
             source_report = $sourceReport
             source_report_display = $sourceReportDisplay
             source_json = $sourceJson
             source_json_display = $sourceJsonDisplay
             readiness_status = $readinessStatus
             readiness_release_ready = $readinessReleaseReady
+            schema_approval_status_summary = @(Get-JsonArray -Object $item -Name "schema_approval_status_summary")
+            onboarding_governance_status = $onboardingStatus
+            onboarding_governance_release_ready = $onboardingReleaseReady
+            onboarding_governance_schema_approval_status_summary = @($onboardingSchemaApprovalSummary)
+            onboarding_governance_source_report_display = $onboardingSourceReportDisplay
+            onboarding_governance_source_json_display = $onboardingSourceJsonDisplay
             input_docx = Get-JsonString -Object $item -Name "input_docx"
             input_docx_display = Get-JsonString -Object $item -Name "input_docx_display"
             schema_target = Get-JsonString -Object $item -Name "schema_target"
@@ -594,6 +717,96 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
                 $Lines.Add("  - ${fieldName}: ``$fieldValue``") | Out-Null
             }
+        }
+    }
+
+    function Format-OnboardingSchemaApprovalStatusSummary {
+        param(
+            [object[]]$Values,
+            [string]$Fallback = ""
+        )
+
+        $parts = @(
+            foreach ($value in @($Values)) {
+                if ($null -eq $value) {
+                    continue
+                }
+                if ($value -is [string]) {
+                    if (-not [string]::IsNullOrWhiteSpace($value)) {
+                        [string]$value
+                    }
+                    continue
+                }
+
+                $status = Get-JsonString -Object $value -Name "status"
+                $count = Get-JsonString -Object $value -Name "count"
+                if (-not [string]::IsNullOrWhiteSpace($status) -and -not [string]::IsNullOrWhiteSpace($count)) {
+                    "${status}=${count}"
+                } elseif (-not [string]::IsNullOrWhiteSpace($status)) {
+                    $status
+                } elseif (-not [string]::IsNullOrWhiteSpace($count)) {
+                    "count=${count}"
+                } elseif (-not [string]::IsNullOrWhiteSpace([string]$value)) {
+                    [string]$value
+                }
+            }
+        )
+
+        if ($parts.Count -eq 0) {
+            return $Fallback
+        }
+
+        return ($parts -join ", ")
+    }
+
+    function Add-ProjectTemplateOnboardingContractMarkdownLines {
+        param(
+            [System.Collections.Generic.List[string]]$Lines,
+            [object]$Item
+        )
+
+        $sourceSchema = Get-JsonString -Object $Item -Name "source_schema"
+        if (-not [string]::Equals($sourceSchema, "featherdoc.project_template_onboarding_governance_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
+            return
+        }
+
+        $schemaApprovalValues = @(Get-JsonArray -Object $Item -Name "onboarding_governance_schema_approval_status_summary")
+        if ($schemaApprovalValues.Count -eq 0) {
+            $schemaApprovalValues = @(Get-JsonArray -Object $Item -Name "schema_approval_status_summary")
+        }
+        $schemaApprovalSummary = Format-OnboardingSchemaApprovalStatusSummary `
+            -Values $schemaApprovalValues `
+            -Fallback (Get-JsonString -Object $Item -Name "onboarding_governance_status")
+        if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+            $schemaApprovalSummary = "unknown"
+        }
+
+        $status = Get-JsonString -Object $Item -Name "onboarding_governance_status"
+        $releaseReady = Get-JsonString -Object $Item -Name "onboarding_governance_release_ready"
+
+        $sourceReportDisplay = Get-JsonString -Object $Item -Name "onboarding_governance_source_report_display"
+        if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+            $sourceReportDisplay = Get-JsonString -Object $Item -Name "source_report_display"
+        }
+        $sourceJsonDisplay = Get-JsonString -Object $Item -Name "onboarding_governance_source_json_display"
+        if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+            $sourceJsonDisplay = Get-JsonString -Object $Item -Name "source_json_display"
+        }
+
+        $Lines.Add("  - project_template_onboarding_governance_contract:") | Out-Null
+        $Lines.Add("    - source_schema: ``featherdoc.project_template_onboarding_governance_report.v1``") | Out-Null
+        if (-not [string]::IsNullOrWhiteSpace($status)) {
+            $Lines.Add("    - status: ``$status``") | Out-Null
+        }
+        if (-not [string]::IsNullOrWhiteSpace($releaseReady)) {
+            $Lines.Add("    - release_ready: ``$releaseReady``") | Out-Null
+        }
+        $Lines.Add("    - schema_approval_status_summary: ``$schemaApprovalSummary``") | Out-Null
+        if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+            $Lines.Add("    - source_report_display: ``$sourceReportDisplay``") | Out-Null
+        }
+        if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+            $Lines.Add("    - source_json_display: ``$sourceJsonDisplay``") | Out-Null
         }
     }
 
@@ -749,6 +962,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.readiness_release_ready)) {
                 $lines.Add("  - readiness_release_ready: ``$($blocker.readiness_release_ready)``") | Out-Null
             }
+            Add-ProjectTemplateOnboardingContractMarkdownLines -Lines $lines -Item $blocker
         }
     }
     $lines.Add("") | Out-Null
@@ -781,6 +995,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.readiness_release_ready)) {
                 $lines.Add("  - readiness_release_ready: ``$($item.readiness_release_ready)``") | Out-Null
             }
+            Add-ProjectTemplateOnboardingContractMarkdownLines -Lines $lines -Item $item
         }
     }
     $lines.Add("") | Out-Null
@@ -938,12 +1153,23 @@ foreach ($input in @(Expand-InputPathList -Paths $InputJson)) {
     }
 }
 
+$projectTemplateOnboardingGovernanceContract = Get-ProjectTemplateOnboardingGovernanceContract `
+    -RepoRoot $repoRoot `
+    -InputRoot $resolvedInputRoot `
+    -InputJson $InputJson
+
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
 foreach ($report in @($reports.ToArray())) {
-    Add-NormalizedBlockers -Collection $releaseBlockers -Report $report
-    Add-NormalizedActions -Collection $actionItems -Report $report
+    Add-NormalizedBlockers `
+        -Collection $releaseBlockers `
+        -Report $report `
+        -ProjectTemplateOnboardingGovernanceContract $projectTemplateOnboardingGovernanceContract
+    Add-NormalizedActions `
+        -Collection $actionItems `
+        -Report $report `
+        -ProjectTemplateOnboardingGovernanceContract $projectTemplateOnboardingGovernanceContract
     Add-NormalizedWarnings -Collection $warnings -Report $report
 }
 
@@ -1012,9 +1238,10 @@ $summary = [ordered]@{
     loaded_report_count = $loadedReportCount
     missing_report_count = $missingReportCount
     failed_report_count = $failedReportCount
-        reports = @($reports.ToArray())
-        project_template_delivery_readiness_contract = ($reports.ToArray() | Where-Object { [string]$_.id -eq "project_template_delivery_readiness" } | Select-Object -First 1)
-        governance_metric_count = $governanceMetrics.Count
+    reports = @($reports.ToArray())
+    project_template_delivery_readiness_contract = ($reports.ToArray() | Where-Object { [string]$_.id -eq "project_template_delivery_readiness" } | Select-Object -First 1)
+    project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
+    governance_metric_count = $governanceMetrics.Count
     governance_metrics = @($governanceMetrics.ToArray())
     release_blocker_count = $releaseBlockers.Count
     release_blockers = @($releaseBlockers.ToArray())
