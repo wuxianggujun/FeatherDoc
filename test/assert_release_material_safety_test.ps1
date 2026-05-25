@@ -1776,6 +1776,10 @@ Set-Content -LiteralPath $badReleaseSummaryTracePath -Encoding UTF8 -Value @"
 # Release summary
 
 - project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+
+## Detached notes
+
+- source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 "@
 
 $badReleaseSummaryTraceFailedAsExpected = $false
@@ -1786,7 +1790,7 @@ try {
 }
 
 if (-not $badReleaseSummaryTraceFailedAsExpected) {
-    throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md without project-template source_json_display."
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with project-template source_json_display outside the readiness summary line."
 }
 
 $badReleaseSummaryOnboardingTraceDir = Join-Path $failDir "release-summary-onboarding-missing-project-template-source-json"
@@ -1841,6 +1845,10 @@ Set-Content -LiteralPath $badReleaseBodyTracePath -Encoding UTF8 -Value @"
 # Release body
 
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+
+## Detached notes
+
+- source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 "@
 
 $badReleaseBodyTraceFailedAsExpected = $false
@@ -1851,7 +1859,7 @@ try {
 }
 
 if (-not $badReleaseBodyTraceFailedAsExpected) {
-    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md without project-template source_json_display."
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with project-template source_json_display outside the readiness summary line."
 }
 
 $badReleaseBodyOnboardingTraceDir = Join-Path $failDir "release-body-onboarding-missing-project-template-source-json"

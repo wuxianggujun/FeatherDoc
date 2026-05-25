@@ -156,6 +156,12 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``source_json_display``、``schema_approval_status_summary`` 和 onboarding
      governance contract；不能让 detached notes 或其它段落补齐当前块。
      固定标记：``block_scoped_final_review_project_template_trace``。
+   * ``release_summary.zh-CN.md`` 与 ``release_body.zh-CN.md`` 的
+     project-template 短摘要必须把 readiness / onboarding anchor 与
+     ``schema_approval_status_summary``、``source_report_display``、
+     ``source_json_display`` 保持在同一行；不能让 detached notes 或另一条短摘要
+     补齐当前 release note。固定标记：
+     ``line_scoped_release_note_project_template_trace``。
    * ``release_assets_manifest.json`` 必须保留
      ``project_template_delivery_readiness_contract`` 与
      ``project_template_onboarding_governance_contract``，并继续带出

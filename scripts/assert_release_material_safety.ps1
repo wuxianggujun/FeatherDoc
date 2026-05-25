@@ -242,6 +242,16 @@ function Test-TextLineContainsAll {
     return $false
 }
 
+function Test-ReleaseNoteProjectTemplateTraceLineContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$Needles
+    )
+
+    return Test-TextLineContainsAll -Text $Text -Needles (@($Anchor) + $Needles)
+}
+
 function Test-MarkdownListBlockContainsAll {
     param(
         [string]$Text,
@@ -639,7 +649,7 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
             "source_report_display=",
             "source_json_display="
         )) {
-            if (-not (Test-TextLineContainsAll -Text $Content -Needles @("project-template readiness governance contract", $needle))) {
+            if (-not (Test-ReleaseNoteProjectTemplateTraceLineContainsAll -Text $Content -Anchor "project-template readiness governance contract" -Needles @($needle))) {
                 Add-AuditViolation `
                     -Violations $Violations `
                     -File $File `
@@ -656,7 +666,7 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
             "source_report_display=",
             "source_json_display="
         )) {
-            if (-not (Test-TextLineContainsAll -Text $Content -Needles @("project-template onboarding governance contract", $needle))) {
+            if (-not (Test-ReleaseNoteProjectTemplateTraceLineContainsAll -Text $Content -Anchor "project-template onboarding governance contract" -Needles @($needle))) {
                 Add-AuditViolation `
                     -Violations $Violations `
                     -File $File `
@@ -731,7 +741,7 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
             "source_report_display=",
             "source_json_display="
         )) {
-            if (-not (Test-TextLineContainsAll -Text $Content -Needles @("project_template_delivery_readiness", $needle))) {
+            if (-not (Test-ReleaseNoteProjectTemplateTraceLineContainsAll -Text $Content -Anchor "Project template readiness:" -Needles @($needle))) {
                 Add-AuditViolation `
                     -Violations $Violations `
                     -File $File `
@@ -751,7 +761,7 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
             "source_report_display=",
             "source_json_display="
         )) {
-            if (-not (Test-TextLineContainsAll -Text $Content -Needles @("project_template_onboarding.schema_approval", $needle))) {
+            if (-not (Test-ReleaseNoteProjectTemplateTraceLineContainsAll -Text $Content -Anchor "Project template onboarding:" -Needles @($needle))) {
                 Add-AuditViolation `
                     -Violations $Violations `
                     -File $File `
