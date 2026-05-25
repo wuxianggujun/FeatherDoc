@@ -171,7 +171,8 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``project_template_delivery_readiness_contract`` 与
      ``project_template_onboarding_governance_contract``，并继续带出
      ``schema_approval_status_summary``、``source_report_display`` 和
-     ``source_json_display``。
+     ``source_json_display``。固定标记：
+     ``manifest_scoped_project_template_trace``。
 
 
 推荐轻量验证

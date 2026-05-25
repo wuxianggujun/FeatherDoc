@@ -2011,7 +2011,9 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
     }
 
     $statusSummary = Get-JsonPropertyValue -Object $contract -Name "schema_approval_status_summary"
-    if ($null -eq $statusSummary) {
+    if ($null -eq $statusSummary -or
+        ($statusSummary -is [string] -and [string]::IsNullOrWhiteSpace($statusSummary)) -or
+        @($statusSummary).Count -eq 0) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.schema_approval_status_summary is missing."
     }
 

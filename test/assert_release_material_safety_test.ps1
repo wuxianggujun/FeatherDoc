@@ -1306,6 +1306,24 @@ if (-not $badManifestProjectTemplateOnboardingSourceReportFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template onboarding contract missing source_report_display."
 }
 
+$badManifestProjectTemplateOnboardingSchemaSummaryDir = Join-Path $failDir "manifest-project-template-onboarding-empty-schema-summary"
+$badManifestProjectTemplateOnboardingSchemaSummaryPath = Join-Path $badManifestProjectTemplateOnboardingSchemaSummaryDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateOnboardingSchemaSummaryDir -Force | Out-Null
+$badManifestProjectTemplateOnboardingSchemaSummary = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateOnboardingSchemaSummary.project_template_onboarding_governance_contract.schema_approval_status_summary = @()
+($badManifestProjectTemplateOnboardingSchemaSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateOnboardingSchemaSummaryPath -Encoding UTF8
+
+$badManifestProjectTemplateOnboardingSchemaSummaryFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateOnboardingSchemaSummaryPath
+} catch {
+    $badManifestProjectTemplateOnboardingSchemaSummaryFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateOnboardingSchemaSummaryFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with empty project template onboarding schema_approval_status_summary."
+}
+
 $badManifestMissingNumberingConfidenceDir = Join-Path $failDir "manifest-missing-numbering-confidence"
 $badManifestMissingNumberingConfidencePath = Join-Path $badManifestMissingNumberingConfidenceDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestMissingNumberingConfidenceDir -Force | Out-Null
