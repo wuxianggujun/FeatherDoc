@@ -423,6 +423,19 @@ foreach ($fragments in @(
 Assert-Contains -Path $checklistPath -ExpectedText 'Confirm the PDF visual gate finalize evidence is signed off: verdict `pass`' -Label "REVIEWER_CHECKLIST.md"
 Assert-Contains -Path $checklistPath -ExpectedText 'CJK manifest samples `43`' -Label "REVIEWER_CHECKLIST.md"
 Assert-Contains -Path $checklistPath -ExpectedText 'visual baseline manifest samples `42`' -Label "REVIEWER_CHECKLIST.md"
+Assert-LineContainsAll -Path $checklistPath -Fragments @(
+    'Confirm the PDF visual gate finalize evidence is signed off',
+    'verdict `pass`',
+    'summary',
+    'pdf-visual-gate\report\summary.json',
+    'aggregate contact sheet',
+    'aggregate-contact-sheet.png',
+    'CJK manifest samples `43`',
+    'CJK copy/search samples `2`',
+    'missing text `0`',
+    'visual baseline manifest samples `42`',
+    'visual baselines `3`'
+) -Label "REVIEWER_CHECKLIST.md"
 
 foreach ($assertion in @(
         @{ Path = $handoffPath; Label = "release_handoff.md" },

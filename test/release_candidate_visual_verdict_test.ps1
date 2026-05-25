@@ -18,6 +18,30 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-LineContainsAll {
+    param(
+        [string]$Text,
+        [string[]]$Fragments,
+        [string]$Message
+    )
+
+    foreach ($line in ($Text -split "\r?\n")) {
+        $lineMatches = $true
+        foreach ($fragment in $Fragments) {
+            if ($line -notmatch [regex]::Escape($fragment)) {
+                $lineMatches = $false
+                break
+            }
+        }
+
+        if ($lineMatches) {
+            return
+        }
+    }
+
+    throw $Message
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
@@ -597,5 +621,20 @@ foreach ($fragment in @(
     Assert-ContainsText -Text $candidateReleaseSummary -ExpectedText $fragment `
         -Message ("release_summary.zh-CN.md should expose PDF visual gate fragment '{0}'." -f $fragment)
 }
+
+$candidateReviewerChecklist = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReviewerChecklistPath
+Assert-LineContainsAll -Text $candidateReviewerChecklist -Fragments @(
+    'Confirm the PDF visual gate finalize evidence is signed off',
+    'verdict `pass`',
+    'summary',
+    'summary.json',
+    'aggregate contact sheet',
+    'aggregate-contact-sheet.png',
+    'CJK manifest samples `43`',
+    'CJK copy/search samples `43`',
+    'missing text `0`',
+    'visual baseline manifest samples `42`',
+    'visual baselines `44`'
+) -Message "REVIEWER_CHECKLIST.md should keep PDF visual finalize verdict, paths, and counts on one reviewer signoff line."
 
 Write-Host "Release candidate visual verdict passthrough regression passed."

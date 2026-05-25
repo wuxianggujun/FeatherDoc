@@ -110,8 +110,8 @@ OCR 或任意视觉精确还原。
      ``line_scoped_release_note_pdf_visual_verdict``、
      ``block_scoped_release_body_pdf_visual_evidence``。
    * ``START_HERE.md`` 和 ``ARTIFACT_GUIDE.md`` 的 PDF visual gate summary、
-     CJK count、visual baseline count 和 aggregate contact sheet 必须保留在
-     同一个 Markdown list run；``REVIEWER_CHECKLIST.md`` 的 summary 确认行
+     CJK count、visual baseline count 和 ``PDF visual gate aggregate contact sheet:``
+     必须保留在同一个 Markdown list run；``REVIEWER_CHECKLIST.md`` 的 summary 确认行
      必须直接携带 ``summary.json`` 与 count，contact-sheet 确认行必须直接携带
      ``aggregate-contact-sheet.png``。固定标记：
      ``block_scoped_entry_pdf_visual_evidence``、

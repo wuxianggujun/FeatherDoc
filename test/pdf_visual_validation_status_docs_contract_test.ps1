@@ -240,6 +240,7 @@ foreach ($marker in @(
     "line_scoped_release_note_pdf_visual_verdict",
     "block_scoped_release_body_pdf_visual_evidence",
     "block_scoped_entry_pdf_visual_evidence",
+    "PDF visual gate aggregate contact sheet:",
     "line_scoped_reviewer_checklist_pdf_visual_evidence",
     "block_scoped_pdf_visual_gate_handoff_trace",
     "not_run_by_preflight_governance",
