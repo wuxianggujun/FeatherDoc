@@ -682,6 +682,28 @@ foreach ($assertion in @(
         -Message ("{0} should expose the PDF visual contact sheet." -f $assertion.Label)
 }
 
+foreach ($assertion in @(
+        @{ Path = $candidateReleaseHandoffPath; Label = "release_handoff.md" },
+        @{ Path = $candidateArtifactGuidePath; Label = "ARTIFACT_GUIDE.md" },
+        @{ Path = $candidateReviewerChecklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        @{ Path = $candidateStartHerePath; Label = "START_HERE.md" }
+    )) {
+    $content = Get-Content -Raw -Encoding UTF8 -LiteralPath $assertion.Path
+    Assert-MarkdownListRunContainsAll -Text $content -Anchor "PDF visual gate summary:" -Fragments @(
+        "PDF visual gate summary:",
+        "summary.json",
+        "PDF visual gate evidence status: loaded",
+        "PDF visual gate verdict: pass",
+        "PDF visual gate aggregate contact sheet",
+        "aggregate-contact-sheet.png",
+        "PDF CJK manifest samples: 43",
+        "PDF CJK copy/search samples: 43",
+        "PDF CJK missing text count: 0",
+        "PDF visual baseline manifest samples: 42",
+        "PDF visual baselines: 44"
+    ) -Message ("{0} should keep PDF visual status, verdict, paths, and counts in one Markdown list run." -f $assertion.Label)
+}
+
 $candidateFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateFinalReviewPath
 Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Key outputs" -Fragments @(
     "PDF visual gate summary:",
