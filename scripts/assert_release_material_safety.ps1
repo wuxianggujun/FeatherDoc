@@ -1964,6 +1964,10 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.status must be ready when release_ready is true."
     }
 
+    if ($releaseReadyIsFalse -and [string]$status -eq "ready") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.status must not be ready when release_ready is false."
+    }
+
     if ($releaseReadyIsFalse -and $integerValues.ContainsKey("release_blocker_count") -and $integerValues["release_blocker_count"] -le 0) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.release_blocker_count must be greater than 0 when release_ready is false."
     }
@@ -2065,6 +2069,10 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
 
     if ($releaseReadyIsTrue -and [string]$status -ne "ready") {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.status must be ready when release_ready is true."
+    }
+
+    if ($releaseReadyIsFalse -and [string]$status -eq "ready") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.status must not be ready when release_ready is false."
     }
 
     if ($integerValues.ContainsKey("entry_count")) {

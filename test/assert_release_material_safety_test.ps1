@@ -1270,6 +1270,25 @@ if (-not $badManifestProjectTemplateReadinessStatusFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with release_ready=true but project template readiness status not ready."
 }
 
+$badManifestProjectTemplateReadinessReleaseReadyDir = Join-Path $failDir "manifest-project-template-readiness-release-ready-status-mismatch"
+$badManifestProjectTemplateReadinessReleaseReadyPath = Join-Path $badManifestProjectTemplateReadinessReleaseReadyDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessReleaseReadyDir -Force | Out-Null
+$badManifestProjectTemplateReadinessReleaseReady = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateReadinessReleaseReady.project_template_delivery_readiness_contract.release_ready = $false
+$badManifestProjectTemplateReadinessReleaseReady.project_template_delivery_readiness_contract.release_blocker_count = 1
+($badManifestProjectTemplateReadinessReleaseReady | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateReadinessReleaseReadyPath -Encoding UTF8
+
+$badManifestProjectTemplateReadinessReleaseReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateReadinessReleaseReadyPath
+} catch {
+    $badManifestProjectTemplateReadinessReleaseReadyFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateReadinessReleaseReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness status=ready but release_ready=false."
+}
+
 $badManifestProjectTemplateOnboardingSourceSchemaDir = Join-Path $failDir "manifest-project-template-onboarding-missing-source-schema"
 $badManifestProjectTemplateOnboardingSourceSchemaPath = Join-Path $badManifestProjectTemplateOnboardingSourceSchemaDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestProjectTemplateOnboardingSourceSchemaDir -Force | Out-Null
@@ -1340,6 +1359,25 @@ try {
 
 if (-not $badManifestProjectTemplateOnboardingSchemaSummaryFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with empty project template onboarding schema_approval_status_summary."
+}
+
+$badManifestProjectTemplateOnboardingReleaseReadyDir = Join-Path $failDir "manifest-project-template-onboarding-release-ready-status-mismatch"
+$badManifestProjectTemplateOnboardingReleaseReadyPath = Join-Path $badManifestProjectTemplateOnboardingReleaseReadyDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateOnboardingReleaseReadyDir -Force | Out-Null
+$badManifestProjectTemplateOnboardingReleaseReady = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateOnboardingReleaseReady.project_template_onboarding_governance_contract.release_ready = $false
+$badManifestProjectTemplateOnboardingReleaseReady.project_template_onboarding_governance_contract.release_blocker_count = 1
+($badManifestProjectTemplateOnboardingReleaseReady | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateOnboardingReleaseReadyPath -Encoding UTF8
+
+$badManifestProjectTemplateOnboardingReleaseReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateOnboardingReleaseReadyPath
+} catch {
+    $badManifestProjectTemplateOnboardingReleaseReadyFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateOnboardingReleaseReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template onboarding status=ready but release_ready=false."
 }
 
 $badManifestMissingNumberingConfidenceDir = Join-Path $failDir "manifest-missing-numbering-confidence"
