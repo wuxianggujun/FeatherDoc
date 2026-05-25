@@ -219,6 +219,30 @@ function Test-TextContainsAny {
     return $false
 }
 
+function Add-SourceDisplayIdentityViolations {
+    param(
+        [string]$File,
+        $Violations,
+        [string]$Label,
+        [string]$FieldName,
+        $Value,
+        [string[]]$Needles,
+        [string]$EvidenceDescription
+    )
+
+    if ([string]::IsNullOrWhiteSpace([string]$Value)) {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text ([string]$Value) -Needles $Needles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $Label `
+            -Text "$FieldName must identify the $EvidenceDescription evidence source."
+    }
+}
+
 function Test-TextLineContainsAll {
     param(
         [string]$Text,
@@ -1924,6 +1948,24 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.source_report_display is missing."
     }
 
+    $deliveryReadinessSourceNeedles = @("project_template_delivery_readiness", "project-template-delivery-readiness")
+    Add-SourceDisplayIdentityViolations `
+        -File $File `
+        -Violations $Violations `
+        -Label $label `
+        -FieldName "project_template_delivery_readiness_contract.source_json_display" `
+        -Value $sourceJsonDisplay `
+        -Needles $deliveryReadinessSourceNeedles `
+        -EvidenceDescription "project template delivery readiness"
+    Add-SourceDisplayIdentityViolations `
+        -File $File `
+        -Violations $Violations `
+        -Label $label `
+        -FieldName "project_template_delivery_readiness_contract.source_report_display" `
+        -Value $sourceReportDisplay `
+        -Needles $deliveryReadinessSourceNeedles `
+        -EvidenceDescription "project template delivery readiness"
+
     $releaseReady = Get-JsonPropertyValue -Object $contract -Name "release_ready"
     if ($null -eq $releaseReady) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.release_ready is missing."
@@ -2021,6 +2063,24 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
     if ([string]::IsNullOrWhiteSpace([string]$sourceReportDisplay)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.source_report_display is missing."
     }
+
+    $onboardingGovernanceSourceNeedles = @("project_template_onboarding_governance", "project-template-onboarding-governance")
+    Add-SourceDisplayIdentityViolations `
+        -File $File `
+        -Violations $Violations `
+        -Label $label `
+        -FieldName "project_template_onboarding_governance_contract.source_json_display" `
+        -Value $sourceJsonDisplay `
+        -Needles $onboardingGovernanceSourceNeedles `
+        -EvidenceDescription "project template onboarding governance"
+    Add-SourceDisplayIdentityViolations `
+        -File $File `
+        -Violations $Violations `
+        -Label $label `
+        -FieldName "project_template_onboarding_governance_contract.source_report_display" `
+        -Value $sourceReportDisplay `
+        -Needles $onboardingGovernanceSourceNeedles `
+        -EvidenceDescription "project template onboarding governance"
 
     $releaseReady = Get-JsonPropertyValue -Object $contract -Name "release_ready"
     if ($null -eq $releaseReady) {

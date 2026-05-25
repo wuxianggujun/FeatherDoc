@@ -177,10 +177,15 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``project_template_delivery_readiness_contract`` 与
      ``project_template_onboarding_governance_contract``，并继续带出
      ``schema_approval_status_summary``、``source_report_display`` 和
-     ``source_json_display``。两条契约的 ``status`` 与 ``release_ready`` 必须
-     双向一致：``status = ready`` 等价于 ``release_ready = true``，不能留下互相
-     矛盾的发布结论。固定标记：
+     ``source_json_display``。两条契约的 source display 必须能识别自身证据源：
+     delivery readiness 只能指向 ``project_template_delivery_readiness`` /
+     ``project-template-delivery-readiness``，onboarding governance 只能指向
+     ``project_template_onboarding_governance`` /
+     ``project-template-onboarding-governance``，不能互相冒充。两条契约的
+     ``status`` 与 ``release_ready`` 必须双向一致：``status = ready`` 等价于
+     ``release_ready = true``，不能留下互相矛盾的发布结论。固定标记：
      ``manifest_scoped_project_template_trace``、
+     ``manifest_source_display_identity_trace``、
      ``manifest_status_release_ready_consistency_trace``。
 
 

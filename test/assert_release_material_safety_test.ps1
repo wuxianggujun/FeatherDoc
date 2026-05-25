@@ -1293,6 +1293,25 @@ if (-not $badManifestProjectTemplateReadinessSourceReportFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness contract missing source_report_display."
 }
 
+$badManifestProjectTemplateReadinessSourceIdentityDir = Join-Path $failDir "manifest-project-template-readiness-wrong-source-identity"
+$badManifestProjectTemplateReadinessSourceIdentityPath = Join-Path $badManifestProjectTemplateReadinessSourceIdentityDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessSourceIdentityDir -Force | Out-Null
+$badManifestProjectTemplateReadinessSourceIdentity = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateReadinessSourceIdentity.project_template_delivery_readiness_contract.source_report_display = ".\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json"
+$badManifestProjectTemplateReadinessSourceIdentity.project_template_delivery_readiness_contract.source_json_display = ".\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json"
+($badManifestProjectTemplateReadinessSourceIdentity | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateReadinessSourceIdentityPath -Encoding UTF8
+
+$badManifestProjectTemplateReadinessSourceIdentityFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateReadinessSourceIdentityPath
+} catch {
+    $badManifestProjectTemplateReadinessSourceIdentityFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateReadinessSourceIdentityFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness source displays pointing at onboarding governance evidence."
+}
+
 $badManifestProjectTemplateReadinessSchemaSummaryDir = Join-Path $failDir "manifest-project-template-readiness-missing-schema-summary"
 $badManifestProjectTemplateReadinessSchemaSummaryPath = Join-Path $badManifestProjectTemplateReadinessSchemaSummaryDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessSchemaSummaryDir -Force | Out-Null
@@ -1400,6 +1419,25 @@ try {
 
 if (-not $badManifestProjectTemplateOnboardingSourceReportFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template onboarding contract missing source_report_display."
+}
+
+$badManifestProjectTemplateOnboardingSourceIdentityDir = Join-Path $failDir "manifest-project-template-onboarding-wrong-source-identity"
+$badManifestProjectTemplateOnboardingSourceIdentityPath = Join-Path $badManifestProjectTemplateOnboardingSourceIdentityDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateOnboardingSourceIdentityDir -Force | Out-Null
+$badManifestProjectTemplateOnboardingSourceIdentity = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateOnboardingSourceIdentity.project_template_onboarding_governance_contract.source_report_display = ".\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json"
+$badManifestProjectTemplateOnboardingSourceIdentity.project_template_onboarding_governance_contract.source_json_display = ".\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json"
+($badManifestProjectTemplateOnboardingSourceIdentity | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateOnboardingSourceIdentityPath -Encoding UTF8
+
+$badManifestProjectTemplateOnboardingSourceIdentityFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateOnboardingSourceIdentityPath
+} catch {
+    $badManifestProjectTemplateOnboardingSourceIdentityFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateOnboardingSourceIdentityFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template onboarding source displays pointing at delivery readiness evidence."
 }
 
 $badManifestProjectTemplateOnboardingSchemaSummaryDir = Join-Path $failDir "manifest-project-template-onboarding-empty-schema-summary"
