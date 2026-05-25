@@ -2062,6 +2062,10 @@ Set-Content -LiteralPath $badReleaseGovernanceHandoffTracePath -Encoding UTF8 -V
   - source_report_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
   - latest_schema_approval_gate_status: ``passed``
   - schema_approval_status_summary: ``approved=4``
+
+## Detached notes
+
+- source_json_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
 "@
 
 $badReleaseGovernanceHandoffTraceFailedAsExpected = $false
@@ -2072,7 +2076,7 @@ try {
 }
 
 if (-not $badReleaseGovernanceHandoffTraceFailedAsExpected) {
-    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md without project-template source_json_display."
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md with project-template source_json_display outside the readiness report-status block."
 }
 
 $badReleaseGovernanceHandoffOnboardingTraceDir = Join-Path $failDir "release-governance-handoff-missing-project-template-onboarding-source-json"
@@ -2098,6 +2102,10 @@ Set-Content -LiteralPath $badReleaseGovernanceHandoffOnboardingTracePath -Encodi
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+
+## Detached notes
+
+- project_template_onboarding.schema_approval source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 "@
 
 $badReleaseGovernanceHandoffOnboardingTraceFailedAsExpected = $false
@@ -2108,7 +2116,7 @@ try {
 }
 
 if (-not $badReleaseGovernanceHandoffOnboardingTraceFailedAsExpected) {
-    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md without project-template onboarding source_json_display."
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md with project-template onboarding source_json_display outside the onboarding blocker block."
 }
 
 $badReleaseGovernanceHandoffPdfTraceDir = Join-Path $failDir "release-governance-handoff-missing-pdf-visual-contact-sheet"

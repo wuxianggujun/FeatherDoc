@@ -454,6 +454,16 @@ function Test-ReleaseEntryProjectTemplateTraceBlockContainsAll {
     return (Test-MarkdownListBlockContainsAll -Text $Text -Anchor $Anchor -Needles $Needles)
 }
 
+function Test-ReleaseGovernanceHandoffProjectTemplateTraceBlockContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$Needles
+    )
+
+    return Test-MarkdownListBlockContainsAll -Text $Text -Anchor $Anchor -Needles (@($Anchor) + $Needles)
+}
+
 function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     param(
         [string]$File,
@@ -959,21 +969,21 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
         "featherdoc.project_template_delivery_readiness_report.v1",
         "latest_schema_approval_gate_status"
     )) {
-        foreach ($needle in @(
+        $readinessAnchor = '`project_template_delivery_readiness`:'
+        $readinessBlockNeedles = @(
             "project_template_delivery_readiness",
             "featherdoc.project_template_delivery_readiness_report.v1",
             "latest_schema_approval_gate_status",
             "schema_approval_status_summary",
             "source_report_display",
             "source_json_display"
-        )) {
-            if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor "project_template_delivery_readiness" -Needles @($needle))) {
-                Add-AuditViolation `
-                    -Violations $Violations `
-                    -File $File `
-                    -Label $label `
-                    -Text "Release governance handoff lost project template readiness trace marker '$needle'."
-            }
+        )
+        if (-not (Test-ReleaseGovernanceHandoffProjectTemplateTraceBlockContainsAll -Text $Content -Anchor $readinessAnchor -Needles $readinessBlockNeedles)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release governance handoff must keep project template readiness schema, status, and source displays in the same report-status block."
         }
     }
 
@@ -982,21 +992,21 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
         "project_template_onboarding_governance_contract",
         "featherdoc.project_template_onboarding_governance_report.v1"
     )) {
-        foreach ($needle in @(
+        $onboardingAnchor = "project_template_onboarding.schema_approval"
+        $onboardingBlockNeedles = @(
             "project_template_onboarding.schema_approval",
             "project_template_onboarding_governance_contract",
             "featherdoc.project_template_onboarding_governance_report.v1",
             "schema_approval_status_summary",
             "source_report_display",
             "source_json_display"
-        )) {
-            if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor "project_template_onboarding.schema_approval" -Needles @($needle))) {
-                Add-AuditViolation `
-                    -Violations $Violations `
-                    -File $File `
-                    -Label $label `
-                    -Text "Release governance handoff lost project template onboarding trace marker '$needle'."
-            }
+        )
+        if (-not (Test-ReleaseGovernanceHandoffProjectTemplateTraceBlockContainsAll -Text $Content -Anchor $onboardingAnchor -Needles $onboardingBlockNeedles)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release governance handoff must keep project template onboarding schema approval, contract, and source displays in the same blocker block."
         }
     }
 }

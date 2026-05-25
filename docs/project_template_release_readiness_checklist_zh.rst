@@ -142,8 +142,9 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``project_template_onboarding.schema_approval`` 必须分别在自己的
      Markdown list block 内保留 ``schema_approval_status_summary``、
      ``source_report_display`` 和 ``source_json_display``；不能让 readiness
-     block 的 source display 代替 onboarding governance block。
-     固定标记：``block_scoped_governance_handoff_trace``。
+     block、detached notes 或 source path 里的同名片段补齐 onboarding governance block。
+     固定标记：``block_scoped_governance_handoff_trace``、
+     ``single_block_governance_handoff_project_template_trace``。
    * ``release_handoff.md`` 中的
      ``project_template_delivery_readiness`` 与
      ``project_template_onboarding.schema_approval`` 也必须分别在自己的
