@@ -54,6 +54,52 @@ function Assert-LineContainsAll {
     throw ("{0} does not contain one line with all expected fragments: {1}" -f $Label, ($ExpectedFragments -join ", "))
 }
 
+function Assert-MarkdownListBlockContainsAll {
+    param(
+        [string]$Path,
+        [string]$Anchor,
+        [string[]]$ExpectedFragments,
+        [string]$Label
+    )
+
+    $lines = Get-Content -LiteralPath $Path
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if ($lines[$lineIndex] -notmatch [regex]::Escape($Anchor)) {
+            continue
+        }
+        if ($lines[$lineIndex] -notmatch '^\s*-\s*') {
+            continue
+        }
+
+        $blockLines = @($lines[$lineIndex])
+        for ($nextLineIndex = $lineIndex + 1; $nextLineIndex -lt $lines.Count; $nextLineIndex++) {
+            $nextLine = $lines[$nextLineIndex]
+            if ([string]::IsNullOrWhiteSpace($nextLine) -or
+                $nextLine -match '^#{1,6}\s' -or
+                ($nextLine -match '^\s*-\s*' -and $nextLine -notmatch '^\s{2,}-\s*')) {
+                break
+            }
+
+            $blockLines += $nextLine
+        }
+
+        $block = $blockLines -join "`n"
+        $matchesAllFragments = $true
+        foreach ($fragment in $ExpectedFragments) {
+            if ($block -notmatch [regex]::Escape($fragment)) {
+                $matchesAllFragments = $false
+                break
+            }
+        }
+
+        if ($matchesAllFragments) {
+            return
+        }
+    }
+
+    throw ("{0} does not contain one Markdown list block anchored by '{1}' with all expected fragments: {2}" -f $Label, $Anchor, ($ExpectedFragments -join ", "))
+}
+
 function Assert-NotContains {
     param(
         [string]$Path,
@@ -919,6 +965,22 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'FEATHERDOC_BUILD_PDF_IMPORT' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'project_template_onboarding_governance_contract:' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'schema_approval_status_summary: pending_review' -Label $document.Label
+    Assert-MarkdownListBlockContainsAll -Path $document.Path -Anchor 'featherdoc.project_template_delivery_readiness_report.v1: status=blocked' -ExpectedFragments @(
+        'source_report_display: .\output\project-template-delivery-readiness\summary.json',
+        'source_json_display: .\output\project-template-delivery-readiness\summary.json',
+        'project_template_delivery_readiness_contract:',
+        'source_schema: featherdoc.project_template_delivery_readiness_report.v1',
+        'status: blocked',
+        'release_ready: False',
+        'schema_approval_status_summary: pending_review'
+    ) -Label $document.Label
+    Assert-MarkdownListBlockContainsAll -Path $document.Path -Anchor 'project_template_onboarding.schema_approval: action=review_schema_update_candidate' -ExpectedFragments @(
+        'source_schema=featherdoc.project_template_onboarding_governance_report.v1',
+        'source_report_display: .\output\project-template-delivery-readiness\summary.json',
+        'source_json_display: .\output\project-template-onboarding-governance\summary.json',
+        'project_template_onboarding_governance_contract:',
+        'schema_approval_status_summary: pending_review'
+    ) -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'catalog_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'baseline_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'matched_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label
