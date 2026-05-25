@@ -293,7 +293,9 @@ handoff 计数和 release blocker rollup 之间手工拼路径。
 ``block_scoped_governance_handoff_trace``：``project_template_delivery_readiness`` 与
 ``project_template_onboarding.schema_approval`` 各自的 Markdown list block 必须分别保留
 ``schema_approval_status_summary``、``source_report_display`` 和
-``source_json_display``，不能让 readiness block 的 source display 代替 onboarding
+``source_json_display``，其中 readiness report-status block 还必须保留 ``status`` 与
+``ready``。固定标记：``block_scoped_governance_handoff_project_template_status_trace``。
+不能让 readiness block 的 source display 或 schema approval 状态代替 onboarding
 governance block。
 
 内部 handoff 文件可以展示更完整的 reviewer metadata，例如：

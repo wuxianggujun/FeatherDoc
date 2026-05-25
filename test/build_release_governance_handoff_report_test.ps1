@@ -562,6 +562,14 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include project-template schema approval gate status."
     Assert-ContainsText -Text $markdown -ExpectedText "schema_approval_status_summary" `
         -Message "Markdown should include project-template schema approval status summary."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor '`project_template_delivery_readiness`' -ExpectedFragments @(
+        'status=',
+        'ready=',
+        'source_report_display:',
+        'source_json_display:',
+        'latest_schema_approval_gate_status:',
+        'schema_approval_status_summary:'
+    ) -Message "Markdown should keep project-template readiness status, ready flag, schema approval summary, and source displays in one report-status block."
     Assert-ContainsText -Text $markdown -ExpectedText "content_control_data_binding_governance" `
         -Message "Markdown should include content-control data-binding governance."
     Assert-ContainsText -Text $markdown -ExpectedText "content-control-data-binding-governance\summary.json" `

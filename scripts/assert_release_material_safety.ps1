@@ -1226,6 +1226,8 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
         $readinessBlockNeedles = @(
             "project_template_delivery_readiness",
             "featherdoc.project_template_delivery_readiness_report.v1",
+            "status=",
+            "ready=",
             "latest_schema_approval_gate_status",
             "schema_approval_status_summary",
             "source_report_display",

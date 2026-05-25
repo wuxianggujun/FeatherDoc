@@ -2492,6 +2492,33 @@ if (-not $badReleaseGovernanceHandoffTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md with project-template source_json_display outside the readiness report-status block."
 }
 
+$badReleaseGovernanceHandoffStatusTraceDir = Join-Path $failDir "release-governance-handoff-missing-project-template-status-ready"
+$badReleaseGovernanceHandoffStatusTracePath = Join-Path $badReleaseGovernanceHandoffStatusTraceDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffStatusTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffStatusTracePath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Report Status
+
+- ``project_template_delivery_readiness``: blockers=``0`` actions=``0`` source_failures=``0`` source_failure_count=``0`` schema=``featherdoc.project_template_delivery_readiness_report.v1``
+  - summary: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - source_report_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - source_json_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - latest_schema_approval_gate_status: ``passed``
+  - schema_approval_status_summary: ``approved=4``
+"@
+
+$badReleaseGovernanceHandoffStatusTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffStatusTracePath
+} catch {
+    $badReleaseGovernanceHandoffStatusTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffStatusTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md without project-template status/ready in the readiness report-status block."
+}
+
 $badReleaseGovernanceHandoffOnboardingTraceDir = Join-Path $failDir "release-governance-handoff-missing-project-template-onboarding-source-json"
 $badReleaseGovernanceHandoffOnboardingTracePath = Join-Path $badReleaseGovernanceHandoffOnboardingTraceDir "release_governance_handoff.md"
 New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffOnboardingTraceDir -Force | Out-Null
