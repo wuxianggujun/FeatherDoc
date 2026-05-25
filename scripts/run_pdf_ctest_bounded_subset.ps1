@@ -2,7 +2,7 @@ param(
     [string]$BuildDir = ".bpdf-roundtrip-msvc",
     [string]$OutputJson = "",
     [string]$CtestExecutable = "ctest",
-    [ValidateSet("smoke-import", "contract-static", "cjk-flow-static", "regression-basic-text")]
+    [ValidateSet("smoke-import", "contract-static", "cjk-flow-static", "regression-basic-text", "regression-styled-document")]
     [string]$Subset = "smoke-import"
 )
 
@@ -142,6 +142,21 @@ $subsets = [ordered]@{
             "pdf_regression_title-body-text",
             "pdf_regression_dense-text",
             "pdf_regression_four-page-text"
+        )
+    }
+    "regression-styled-document" = [ordered]@{
+        description = "PDF styled/document regression subset"
+        tests = @(
+            "pdf_regression_styled-text",
+            "pdf_regression_mixed-style-text",
+            "pdf_regression_contract-cjk-style",
+            "pdf_regression_document-contract-cjk-style",
+            "pdf_regression_underline-text",
+            "pdf_regression_strikethrough-text",
+            "pdf_regression_superscript-subscript-text",
+            "pdf_regression_style-superscript-subscript-text",
+            "pdf_regression_document-style-gallery-text",
+            "pdf_regression_document-font-matrix-text"
         )
     }
 }

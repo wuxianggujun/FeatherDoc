@@ -836,6 +836,27 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.
 `selected_test_count = 10` 和 `ctest_timeout_seconds = 60`。固定标记：
 `pdf_ctest_bounded_regression_basic_text_release_trace`。
 
+第五条低资源证据可运行样式/文档 regression 子集：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+  -Subset regression-styled-document `
+  -BuildDir .\.bpdf-roundtrip-msvc `
+  -OutputJson .\build\pdf-ctest-bounded-regression-styled-document-current\summary.json
+```
+
+`regression-styled-document` 固定覆盖 10 个真实 `pdf_regression_` 样式/文档样本测试，包括
+`pdf_regression_styled-text`、`pdf_regression_mixed-style-text`、
+`pdf_regression_contract-cjk-style`、`pdf_regression_document-contract-cjk-style`、
+`pdf_regression_underline-text`、`pdf_regression_strikethrough-text`、
+`pdf_regression_superscript-subscript-text`、
+`pdf_regression_style-superscript-subscript-text`、
+`pdf_regression_document-style-gallery-text` 和
+`pdf_regression_document-font-matrix-text`。summary 仍必须写出 `status = pass`、
+`verdict = pass`、`subset = regression-styled-document`、`selected_test_count = 10`
+和 `ctest_timeout_seconds = 60`。固定标记：
+`pdf_ctest_bounded_regression_styled_document_release_trace`。
+
 边界外不承诺：
 
 - 不承诺 general PDF-to-Word，也不承诺 OCR / 扫描件或任意视觉精确还原。
