@@ -59,7 +59,8 @@ $doNotRunFullVisualGateMarker = [string]::Concat(@(
 $statusMarkers = @(
     "check_pdf_dependency_inputs.ps1",
     "featherdoc.pdf_dependency_inputs_check.v1",
-    "blocking_checks = 0",
+    "blocking_checks = []",
+    "blocking_summary.blocking_check_count = 0",
     "memory_guard_blocked = false",
     "memory_guard_skipped = false",
     "workstation_free_memory_available",
@@ -81,6 +82,8 @@ $statusMarkers = @(
     "pdf_build_options",
     "looks_reusable",
     "preflight_ready = true",
+    "preflight governance report",
+    "raw summary",
     "full_visual_gate_required = true",
     "full_visual_gate_status = not_run_by_preflight_governance",
     "preflight-governance",
@@ -199,7 +202,8 @@ foreach ($marker in $buildingPdfFixtureMarkers) {
 foreach ($marker in @(
     "check_pdf_visual_release_gate_preflight.ps1",
     "-OutputJson .\output\pdf-visual-release-gate-preflight\summary.json",
-    "blocking_checks = 0",
+    "blocking_checks = []",
+    "blocking_summary.blocking_check_count = 0",
     "preflight_ready = true",
     "status = ready",
     "evidence_kind = real_build",

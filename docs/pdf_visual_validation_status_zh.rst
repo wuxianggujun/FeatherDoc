@@ -14,8 +14,9 @@ PDF 可视化验证状态
 
    * ``evidence_kind = real_build``
    * ``synthetic_markers = 0``
-   * ``blocking_checks = 0``
-   * ``preflight_ready = true``
+   * raw preflight summary 中 ``blocking_checks = []``
+   * ``blocking_summary.blocking_check_count = 0``
+   * preflight governance summary 中 ``preflight_ready = true``
    * ``release_ready = true``
    * ``full_visual_gate_required = true``
    * preflight governance summary 中的
@@ -55,10 +56,12 @@ PDF 可视化验证状态
      ``run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputDir .\output\pdf-visual-release-gate-current -FinalizeOnly -SkipPreflight``
    * 当前结论应理解为“已有 full gate 产物链且可复核”，而不是“仍然缺少 full gate 证据”
 
-4. ``preflight_ready`` 只表示预检是否清零；即使它为 ``true``，
-   也仍需结合 full gate 证据链判断是否可以视为完整可视化验收通过。当前 ``dev``
-   的状态不是“尚无 full gate 证据”，而是“已有 full gate 产物链，且已被
-   ``-FinalizeOnly`` 路径原生复核；只是本轮没有重跑重型 full gate”。
+4. ``preflight_ready`` 是 preflight governance report 写出的治理字段，不是
+   ``check_pdf_visual_release_gate_preflight.ps1`` raw summary 的顶层字段。它只表示
+   预检是否清零；即使它为 ``true``，也仍需结合 full gate 证据链判断是否可以
+   视为完整可视化验收通过。当前 ``dev`` 的状态不是“尚无 full gate 证据”，而是
+   “已有 full gate 产物链，且已被 ``-FinalizeOnly`` 路径原生复核；只是本轮没有
+   重跑重型 full gate”。
 
 治理链路
 --------

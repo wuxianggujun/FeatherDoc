@@ -38,7 +38,10 @@ OCR 或任意视觉精确还原。
         -BuildDir .\.bpdf-roundtrip-msvc `
         -OutputJson .\output\pdf-visual-release-gate-preflight\summary.json
 
-   预期 ``blocking_checks = 0`` 且 ``preflight_ready = true``。
+   预期 raw summary 表达为 ``blocking_checks = []``，且
+   ``blocking_summary.blocking_check_count = 0``；如果同时生成 preflight
+   governance report，才应在 governance summary 中看到
+   ``preflight_ready = true``。
    当前 ``dev`` 最近一次轻量复核还必须能解释为真实构建证据：
    ``status = ready``、``evidence_kind = real_build``、``output_gap_count = 0``、
    ``missing_output_count = 0``、``pdf_dependency_inputs_status = ready``、

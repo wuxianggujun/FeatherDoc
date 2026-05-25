@@ -747,7 +747,9 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
    full gate evidence 状态，不能停留在旧的 blocked 叙事。
 2. 样本计数：`test/pdf_regression_manifest.json` 统计必须与本文 90 / 42 / 43 保持一致。
 3. 预检：运行 `scripts/check_pdf_visual_release_gate_preflight.ps1`，确认
-   `blocking_checks = 0`、`preflight_ready = true`。
+   raw summary 为 `blocking_checks = []`、
+   `blocking_summary.blocking_check_count = 0`；只有生成 preflight governance report
+   时才用 `preflight_ready = true` 表示治理层预检通过。
 4. 完整门禁：运行 `scripts/run_pdf_visual_release_gate.ps1`，或在资源受限时用
    `-FinalizeOnly -SkipPreflight` 复核现有 full gate 产物。
 5. 机器结论：`output/pdf-visual-release-gate-current/report/summary.json` 必须包含
