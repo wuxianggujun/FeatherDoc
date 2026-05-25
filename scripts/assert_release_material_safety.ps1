@@ -219,6 +219,29 @@ function Test-TextContainsAny {
     return $false
 }
 
+function Test-TextLineContainsAll {
+    param(
+        [string]$Text,
+        [string[]]$Needles
+    )
+
+    foreach ($line in ($Text -split "\r?\n")) {
+        $containsAllNeedles = $true
+        foreach ($needle in $Needles) {
+            if ([string]::IsNullOrWhiteSpace($needle) -or -not $line.Contains($needle)) {
+                $containsAllNeedles = $false
+                break
+            }
+        }
+
+        if ($containsAllNeedles) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     param(
         [string]$File,
@@ -289,6 +312,17 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
                     -Label $label `
                     -Text "Entry document lost project template delivery readiness marker '$needle'."
             }
+        }
+
+        if (-not (Test-TextLineContainsAll -Text $Content -Needles @(
+            "project_template_delivery_readiness",
+            "schema_approval_status_summary="
+        ))) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Entry document lost project template delivery readiness schema approval summary marker 'schema_approval_status_summary='."
         }
 
         foreach ($needle in @(

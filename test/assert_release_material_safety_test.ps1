@@ -675,6 +675,29 @@ if (-not $missingEntryProjectTemplateContractsFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed entry document without full project template contract details."
 }
 
+$badEntryMissingReadinessSchemaSummaryDir = Join-Path $failDir "entry-missing-readiness-schema-summary"
+$badEntryMissingReadinessSchemaSummaryPath = Join-Path $badEntryMissingReadinessSchemaSummaryDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryMissingReadinessSchemaSummaryDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryMissingReadinessSchemaSummaryPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
+- Content-control provenance: input_docx=samples/invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$missingEntryReadinessSchemaSummaryFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryMissingReadinessSchemaSummaryPath
+} catch {
+    $missingEntryReadinessSchemaSummaryFailedAsExpected = $true
+}
+
+if (-not $missingEntryReadinessSchemaSummaryFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document where only onboarding carried schema_approval_status_summary."
+}
+
 $badDraftFile = Join-Path $failDir "bad_draft.md"
 Set-Content -LiteralPath $badDraftFile -Encoding UTF8 -Value @"
 # FeatherDoc v1.6.4 鍙戝竷璇存槑鑽夌

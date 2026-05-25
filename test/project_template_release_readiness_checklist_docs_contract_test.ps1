@@ -87,6 +87,7 @@ foreach ($marker in @(
     "featherdoc.project_template_delivery_readiness_report.v1",
     "release_ready",
     "latest_schema_approval_gate_status",
+    "schema_approval_status_summary",
     "release_blocker_count",
     "source_json_display",
     "source_report_display",
@@ -233,7 +234,8 @@ foreach ($marker in @(
     "source_json_display",
     "source_report_display",
     "release_ready",
-    "latest_schema_approval_gate_status"
+    "latest_schema_approval_gate_status",
+    "schema_approval_status_summary"
 )) {
     Assert-ContainsText -Text $deliveryScript -ExpectedText $marker `
         -Message "Delivery readiness script should keep contract marker '$marker'."
@@ -271,6 +273,8 @@ foreach ($marker in @(
     "Add-FinalReviewProjectTemplateGovernanceTraceViolations",
     "Add-ProjectTemplateDeliveryReadinessContractViolations",
     "Add-ProjectTemplateOnboardingGovernanceContractViolations",
+    "Test-TextLineContainsAll",
+    "schema_approval_status_summary=",
     "repair_strategy",
     "command_template",
     "source_report_display",
