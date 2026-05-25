@@ -2975,6 +2975,72 @@ if (-not $badFinalReviewStatusTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md without project-template readiness_status/readiness_release_ready in the handoff blocker block."
 }
 
+$badFinalReviewInvalidReadinessStatusDir = Join-Path $failDir "final-review-invalid-project-template-readiness-status"
+$badFinalReviewInvalidReadinessStatusPath = Join-Path $badFinalReviewInvalidReadinessStatusDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewInvalidReadinessStatusDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewInvalidReadinessStatusPath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Release governance handoff details
+
+### Handoff Blockers
+
+- project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+  - source_json_display: .\output\project-template-onboarding-governance\summary.json
+  - readiness_status: ready-ish
+  - readiness_release_ready: True
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+    - source_json_display: .\output\project-template-onboarding-governance\summary.json
+"@
+
+$badFinalReviewInvalidReadinessStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewInvalidReadinessStatusPath
+} catch {
+    $badFinalReviewInvalidReadinessStatusFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewInvalidReadinessStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with an invalid project-template readiness_status value."
+}
+
+$badFinalReviewInvalidReadinessReadyDir = Join-Path $failDir "final-review-invalid-project-template-readiness-release-ready"
+$badFinalReviewInvalidReadinessReadyPath = Join-Path $badFinalReviewInvalidReadinessReadyDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewInvalidReadinessReadyDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewInvalidReadinessReadyPath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Release governance handoff details
+
+### Handoff Blockers
+
+- project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+  - source_json_display: .\output\project-template-onboarding-governance\summary.json
+  - readiness_status: ready
+  - readiness_release_ready: maybe
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+    - source_json_display: .\output\project-template-onboarding-governance\summary.json
+"@
+
+$badFinalReviewInvalidReadinessReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewInvalidReadinessReadyPath
+} catch {
+    $badFinalReviewInvalidReadinessReadyFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewInvalidReadinessReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with an invalid project-template readiness_release_ready value."
+}
+
 $badFinalReviewTraceDir = Join-Path $failDir "final-review-missing-project-template-source-json"
 $badFinalReviewTracePath = Join-Path $badFinalReviewTraceDir "final_review.md"
 New-Item -ItemType Directory -Path $badFinalReviewTraceDir -Force | Out-Null

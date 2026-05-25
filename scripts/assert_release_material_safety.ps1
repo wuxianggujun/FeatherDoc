@@ -433,6 +433,36 @@ function Test-MarkdownListBlockFieldValuesIdentify {
     return $true
 }
 
+function Test-MarkdownListBlockFieldValuesInSet {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string]$FieldName,
+        [string[]]$AllowedValues
+    )
+
+    $values = @(Get-MarkdownListBlockFieldValues -Text $Text -Anchor $Anchor -FieldName $FieldName)
+    if ($values.Count -eq 0) {
+        return $false
+    }
+
+    $allowed = @{}
+    foreach ($allowedValue in @($AllowedValues)) {
+        if (-not [string]::IsNullOrWhiteSpace($allowedValue)) {
+            $allowed[[string]$allowedValue.ToLowerInvariant()] = $true
+        }
+    }
+
+    foreach ($value in $values) {
+        $normalized = ([string]$value).Trim().ToLowerInvariant()
+        if (-not $allowed.ContainsKey($normalized)) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
 function Test-MarkdownListRunContainsAll {
     param(
         [string]$Text,
@@ -1700,6 +1730,30 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
                 -File $File `
                 -Label $label `
                 -Text "Final review project template source_json_display must identify the onboarding governance evidence source."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $anchor `
+            -FieldName "readiness_status" `
+            -AllowedValues @("ready", "blocked", "failed", "pending_review", "needs_review"))) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Final review project template readiness_status must be a recognized readiness state."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $anchor `
+            -FieldName "readiness_release_ready" `
+            -AllowedValues @("true", "false"))) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Final review project template readiness_release_ready must be true or false."
         }
 
         return

@@ -173,7 +173,9 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``readiness_release_ready``、``schema_approval_status_summary`` 和
      onboarding governance contract；不能让 detached notes、重复 anchor、source path
      或其它段落补齐当前块；``source_json_display`` 字段值必须回到 onboarding
-     governance 原始证据。固定标记：
+     governance 原始证据；``readiness_status`` 只能使用可解释枚举状态，
+     ``readiness_release_ready`` 只能使用布尔值。固定标记：
+     ``final_review_readiness_value_set_trace``、
      ``block_scoped_final_review_project_template_status_trace``、
      ``block_scoped_final_review_project_template_trace``、
      ``single_block_final_review_project_template_trace``、
