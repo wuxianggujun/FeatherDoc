@@ -315,6 +315,7 @@ foreach ($marker in @(
     "block_scoped_entry_content_control_trace",
     "block_scoped_entry_governance_metric_trace",
     "block_scoped_entry_project_template_trace",
+    "block_scoped_release_bundle_project_template_trace",
     "line_scoped_release_note_project_template_trace",
     "block_scoped_release_handoff_trace",
     "single_block_release_handoff_project_template_trace",
