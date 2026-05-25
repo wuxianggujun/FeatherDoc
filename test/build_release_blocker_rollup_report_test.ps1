@@ -33,6 +33,48 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-MarkdownListBlockContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$ExpectedFragments,
+        [string]$Message
+    )
+
+    $lines = $Text -split "\r?\n"
+    for ($index = 0; $index -lt $lines.Count; $index++) {
+        if ($lines[$index] -notmatch [regex]::Escape($Anchor)) {
+            continue
+        }
+
+        $blockLines = @($lines[$index])
+        for ($next = $index + 1; $next -lt $lines.Count; $next++) {
+            if ([string]::IsNullOrWhiteSpace($lines[$next])) {
+                break
+            }
+            if ($lines[$next] -notmatch '^\s+-\s') {
+                break
+            }
+            $blockLines += $lines[$next]
+        }
+
+        $blockText = $blockLines -join "`n"
+        $hasAllFragments = $true
+        foreach ($fragment in $ExpectedFragments) {
+            if ($blockText -notmatch [regex]::Escape($fragment)) {
+                $hasAllFragments = $false
+                break
+            }
+        }
+
+        if ($hasAllFragments) {
+            return
+        }
+    }
+
+    throw $Message
+}
+
 function Test-Scenario {
     param([string]$Name)
     return ($Scenario -eq "all" -or $Scenario -eq $Name)
@@ -362,6 +404,7 @@ Write-JsonFile -Path $schemaCalibrationPath -Value ([ordered]@{
 })
 
 Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
+    schema = "featherdoc.release_candidate_summary"
     pdf_visual_gate_summary_json = "output/pdf-visual-release-gate-current/report/summary.json"
     release_blocker_count = 1
     release_blockers = @(
@@ -1004,6 +1047,20 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF visual gate CJK copy/search count."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_visual_baseline_count: ``44``" `
         -Message "Markdown should include PDF visual gate visual baseline count."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "featherdoc.release_candidate_summary" -ExpectedFragments @(
+        "pdf_visual_gate_status: ``loaded``",
+        "pdf_visual_gate_verdict: ``pass``",
+        "pdf_visual_gate_finalizable: ``True``",
+        "pdf_visual_gate_summary_json_display:",
+        "summary.json",
+        "pdf_visual_gate_aggregate_contact_sheet_display:",
+        "aggregate-contact-sheet.png",
+        "pdf_visual_gate_cjk_manifest_count: ``43``",
+        "pdf_visual_gate_cjk_copy_search_count: ``43``",
+        "pdf_visual_gate_cjk_missing_text_count: ``0``",
+        "pdf_visual_gate_visual_baseline_manifest_count: ``42``",
+        "pdf_visual_gate_visual_baseline_count: ``44``"
+    ) -Message "Markdown should keep release-candidate PDF visual source-report evidence in one Source Report Contracts block."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_status" `
         -Message "Markdown should include controlled PDF visual smoke status."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_json_display" `
