@@ -317,6 +317,7 @@ foreach ($marker in @(
     "block_scoped_entry_project_template_trace",
     "block_scoped_release_bundle_project_template_trace",
     "manifest_scoped_project_template_trace",
+    "manifest_status_release_ready_consistency_trace",
     "line_scoped_release_note_project_template_trace",
     "block_scoped_release_handoff_trace",
     "single_block_release_handoff_project_template_trace",

@@ -1949,11 +1949,19 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
         }
     }
 
+    $releaseReadyIsTrue = $false
     $releaseReadyIsFalse = $false
     if ($releaseReady -is [bool]) {
+        $releaseReadyIsTrue = $releaseReady
         $releaseReadyIsFalse = -not $releaseReady
     } elseif ($null -ne $releaseReady) {
-        $releaseReadyIsFalse = ([string]$releaseReady).Trim().ToLowerInvariant() -eq "false"
+        $normalizedReleaseReady = ([string]$releaseReady).Trim().ToLowerInvariant()
+        $releaseReadyIsTrue = ($normalizedReleaseReady -eq "true")
+        $releaseReadyIsFalse = ($normalizedReleaseReady -eq "false")
+    }
+
+    if ($releaseReadyIsTrue -and [string]$status -ne "ready") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.status must be ready when release_ready is true."
     }
 
     if ($releaseReadyIsFalse -and $integerValues.ContainsKey("release_blocker_count") -and $integerValues["release_blocker_count"] -le 0) {
