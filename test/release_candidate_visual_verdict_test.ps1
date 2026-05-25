@@ -42,6 +42,47 @@ function Assert-LineContainsAll {
     throw $Message
 }
 
+function Assert-MarkdownSectionContainsAll {
+    param(
+        [string]$Text,
+        [string]$Heading,
+        [string[]]$Fragments,
+        [string]$Message
+    )
+
+    $lines = $Text -split "\r?\n"
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        $line = $lines[$lineIndex].Trim()
+        if ($line -ne $Heading -or $line -notmatch '^(#+)\s+') {
+            continue
+        }
+
+        $headingLevel = $Matches[1].Length
+        $sectionEnd = $lines.Count - 1
+        for ($nextLineIndex = $lineIndex + 1; $nextLineIndex -lt $lines.Count; $nextLineIndex++) {
+            if ($lines[$nextLineIndex] -match '^(#+)\s+' -and $Matches[1].Length -le $headingLevel) {
+                $sectionEnd = $nextLineIndex - 1
+                break
+            }
+        }
+
+        $section = ($lines[$lineIndex..$sectionEnd]) -join "`n"
+        $sectionMatches = $true
+        foreach ($fragment in $Fragments) {
+            if ($section -notmatch [regex]::Escape($fragment)) {
+                $sectionMatches = $false
+                break
+            }
+        }
+
+        if ($sectionMatches) {
+            return
+        }
+    }
+
+    throw $Message
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
@@ -596,6 +637,14 @@ foreach ($assertion in @(
     Assert-ContainsText -Text $content -ExpectedText "aggregate-contact-sheet.png" `
         -Message ("{0} should expose the PDF visual contact sheet." -f $assertion.Label)
 }
+
+$candidateFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateFinalReviewPath
+Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Key outputs" -Fragments @(
+    "PDF visual gate summary:",
+    "summary.json",
+    "PDF visual gate contact sheet:",
+    "aggregate-contact-sheet.png"
+) -Message "final_review.md should keep PDF visual summary and aggregate contact sheet inside the Key outputs section."
 
 $candidateReleaseBody = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseBodyPath
 foreach ($fragments in @(
