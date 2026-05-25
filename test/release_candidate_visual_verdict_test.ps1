@@ -670,6 +670,18 @@ foreach ($fragment in @(
     Assert-ContainsText -Text $candidateReleaseSummary -ExpectedText $fragment `
         -Message ("release_summary.zh-CN.md should expose PDF visual gate fragment '{0}'." -f $fragment)
 }
+Assert-LineContainsAll -Text $candidateReleaseSummary -Fragments @(
+    "PDF visual gate",
+    "verdict=pass",
+    "summary=",
+    "summary.json",
+    "aggregate_contact_sheet=",
+    "aggregate-contact-sheet.png",
+    "cjk_manifest_count=43",
+    "cjk_copy_search_count=43",
+    "visual_baseline_manifest_count=42",
+    "visual_baseline_count=44"
+) -Message "release_summary.zh-CN.md should keep the PDF visual verdict, paths, and counts on one summary line."
 
 $candidateReviewerChecklist = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReviewerChecklistPath
 Assert-LineContainsAll -Text $candidateReviewerChecklist -Fragments @(
