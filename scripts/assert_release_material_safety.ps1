@@ -292,6 +292,49 @@ function Test-MarkdownListBlockContainsAll {
     return $false
 }
 
+function Test-MarkdownListRunContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$Needles
+    )
+
+    $lines = $Text -split "\r?\n"
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if (-not $lines[$lineIndex].Contains($Anchor)) {
+            continue
+        }
+        if ($lines[$lineIndex] -notmatch '^\s*-\s*') {
+            continue
+        }
+
+        $runStart = $lineIndex
+        while ($runStart -gt 0 -and $lines[$runStart - 1] -match '^\s*-\s*') {
+            $runStart--
+        }
+
+        $runEnd = $lineIndex
+        while ($runEnd + 1 -lt $lines.Count -and $lines[$runEnd + 1] -match '^\s*-\s*') {
+            $runEnd++
+        }
+
+        $run = ($lines[$runStart..$runEnd]) -join "`n"
+        $containsAllNeedles = $true
+        foreach ($needle in $Needles) {
+            if ([string]::IsNullOrWhiteSpace($needle) -or -not $run.Contains($needle)) {
+                $containsAllNeedles = $false
+                break
+            }
+        }
+
+        if ($containsAllNeedles) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Test-ReleaseEntryContentControlBulletRunContainsAll {
     param(
         [string]$Text,
@@ -834,15 +877,18 @@ function Add-ReleaseBodyPdfVisualGateTraceViolations {
     }
 
     $label = "release body PDF visual gate trace"
-    foreach ($needle in @(
+    $evidenceNeedles = @(
         "PDF visual gate summary",
         "PDF visual gate evidence status",
         "PDF visual gate verdict",
+        "PDF visual aggregate contact sheet",
+        "aggregate-contact-sheet.png",
         "PDF CJK manifest samples",
         "PDF CJK copy/search samples",
         "PDF visual baseline manifest samples",
         "PDF visual baselines"
-    )) {
+    )
+    foreach ($needle in $evidenceNeedles) {
         if (-not $Content.Contains($needle)) {
             Add-AuditViolation `
                 -Violations $Violations `
@@ -850,6 +896,14 @@ function Add-ReleaseBodyPdfVisualGateTraceViolations {
                 -Label $label `
                 -Text "Release body lost PDF visual gate trace marker '$needle'."
         }
+    }
+
+    if (-not (Test-MarkdownListRunContainsAll -Text $Content -Anchor "PDF visual gate summary" -Needles $evidenceNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release body must keep PDF visual gate status, verdict, counts, and contact-sheet evidence in the same Markdown list run."
     }
 
     if (-not (
@@ -957,15 +1011,18 @@ function Add-ReleaseHandoffPdfVisualGateTraceViolations {
     }
 
     $label = "release handoff PDF visual gate trace"
-    foreach ($needle in @(
+    $evidenceNeedles = @(
         "PDF visual gate summary:",
         "PDF visual gate evidence status:",
         "PDF visual gate verdict:",
+        "PDF visual aggregate contact sheet:",
+        "aggregate-contact-sheet.png",
         "PDF CJK manifest samples:",
         "PDF CJK copy/search samples:",
         "PDF visual baseline manifest samples:",
         "PDF visual baselines:"
-    )) {
+    )
+    foreach ($needle in $evidenceNeedles) {
         if (-not $Content.Contains($needle)) {
             Add-AuditViolation `
                 -Violations $Violations `
@@ -973,6 +1030,14 @@ function Add-ReleaseHandoffPdfVisualGateTraceViolations {
                 -Label $label `
                 -Text "Release handoff lost PDF visual gate trace marker '$needle'."
         }
+    }
+
+    if (-not (Test-MarkdownListRunContainsAll -Text $Content -Anchor "PDF visual gate summary:" -Needles $evidenceNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release handoff must keep PDF visual gate status, verdict, counts, and contact-sheet evidence in the same Markdown list run."
     }
 
     if (-not (
@@ -1201,13 +1266,14 @@ function Add-FinalReviewPdfVisualGateTraceViolations {
     }
 
     $label = "final review PDF visual gate trace"
-    foreach ($needle in @(
+    $stepStatusNeedles = @(
         "PDF visual gate:",
         "PDF visual gate verdict:",
         "PDF visual gate counts:",
         "PDF visual gate manifest counts:",
         "PDF visual gate finalizable:"
-    )) {
+    )
+    foreach ($needle in $stepStatusNeedles) {
         if (-not $Content.Contains($needle)) {
             Add-AuditViolation `
                 -Violations $Violations `
@@ -1215,6 +1281,14 @@ function Add-FinalReviewPdfVisualGateTraceViolations {
                 -Label $label `
                 -Text "Final review lost PDF visual gate trace marker '$needle'."
         }
+    }
+
+    if (-not (Test-MarkdownListRunContainsAll -Text $Content -Anchor "PDF visual gate:" -Needles $stepStatusNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep PDF visual gate status, verdict, counts, and finalizable evidence in the same step-status Markdown list run."
     }
 
     if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate summary:", "summary.json"))) {
