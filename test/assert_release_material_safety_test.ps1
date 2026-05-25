@@ -489,6 +489,17 @@ Set-Content -LiteralPath $passReleaseSummaryTracePath -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passReleaseSummaryTracePath
 
+$passReleaseSummaryPdfTraceDir = Join-Path $passDir "release-summary-pdf-visual-gate-trace"
+$passReleaseSummaryPdfTracePath = Join-Path $passReleaseSummaryPdfTraceDir "release_summary.zh-CN.md"
+New-Item -ItemType Directory -Path $passReleaseSummaryPdfTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseSummaryPdfTracePath -Encoding UTF8 -Value @"
+# Release summary
+
+- PDF visual gate：verdict=pass summary=.\output\pdf-visual-release-gate-current\report\summary.json aggregate_contact_sheet=.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png cjk_manifest_count=43 cjk_copy_search_count=43 visual_baseline_manifest_count=42 visual_baseline_count=44
+"@
+
+& $auditScript -Path $passReleaseSummaryPdfTracePath
+
 $passReleaseBodyTraceDir = Join-Path $passDir "release-body-project-template-trace"
 $passReleaseBodyTracePath = Join-Path $passReleaseBodyTraceDir "release_body.zh-CN.md"
 New-Item -ItemType Directory -Path $passReleaseBodyTraceDir -Force | Out-Null
@@ -500,6 +511,26 @@ Set-Content -LiteralPath $passReleaseBodyTracePath -Encoding UTF8 -Value @"
 "@
 
 & $auditScript -Path $passReleaseBodyTracePath
+
+$passReleaseBodyPdfTraceDir = Join-Path $passDir "release-body-pdf-visual-gate-trace"
+$passReleaseBodyPdfTracePath = Join-Path $passReleaseBodyPdfTraceDir "release_body.zh-CN.md"
+New-Item -ItemType Directory -Path $passReleaseBodyPdfTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseBodyPdfTracePath -Encoding UTF8 -Value @"
+# Release body
+
+## Validation
+
+- PDF visual gate summary：.\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate evidence status：loaded
+- PDF visual gate verdict：pass
+- PDF visual aggregate contact sheet：.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF CJK manifest samples：43
+- PDF CJK copy/search samples：43
+- PDF visual baseline manifest samples：42
+- PDF visual baselines：44
+"@
+
+& $auditScript -Path $passReleaseBodyPdfTracePath
 
 $passReleaseHandoffTraceDir = Join-Path $passDir "release-handoff-project-template-trace"
 $passReleaseHandoffTracePath = Join-Path $passReleaseHandoffTraceDir "release_handoff.md"
@@ -1669,6 +1700,30 @@ if (-not $badReleaseSummaryOnboardingTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with onboarding source_json_display supplied only by readiness."
 }
 
+$badReleaseSummaryPdfSplitTraceDir = Join-Path $failDir "release-summary-split-pdf-visual-contact-sheet"
+$badReleaseSummaryPdfSplitTracePath = Join-Path $badReleaseSummaryPdfSplitTraceDir "release_summary.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseSummaryPdfSplitTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseSummaryPdfSplitTracePath -Encoding UTF8 -Value @"
+# Release summary
+
+- PDF visual gate：verdict=pass summary=.\output\pdf-visual-release-gate-current\report\summary.json cjk_manifest_count=43 cjk_copy_search_count=43 visual_baseline_manifest_count=42 visual_baseline_count=44
+
+## Detached notes
+
+- aggregate_contact_sheet=.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+$badReleaseSummaryPdfSplitTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseSummaryPdfSplitTracePath
+} catch {
+    $badReleaseSummaryPdfSplitTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseSummaryPdfSplitTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with a PDF visual contact-sheet path outside the PDF visual gate summary line."
+}
+
 $badReleaseBodyTraceDir = Join-Path $failDir "release-body-missing-project-template-source-json"
 $badReleaseBodyTracePath = Join-Path $badReleaseBodyTraceDir "release_body.zh-CN.md"
 New-Item -ItemType Directory -Path $badReleaseBodyTraceDir -Force | Out-Null
@@ -1708,6 +1763,39 @@ try {
 
 if (-not $badReleaseBodyOnboardingTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with onboarding source_json_display supplied only by readiness."
+}
+
+$badReleaseBodyPdfSplitTraceDir = Join-Path $failDir "release-body-split-pdf-visual-contact-sheet"
+$badReleaseBodyPdfSplitTracePath = Join-Path $badReleaseBodyPdfSplitTraceDir "release_body.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseBodyPdfSplitTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBodyPdfSplitTracePath -Encoding UTF8 -Value @"
+# Release body
+
+## Validation
+
+- PDF visual gate summary：.\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate evidence status：loaded
+- PDF visual gate verdict：pass
+- PDF visual aggregate contact sheet：
+- PDF CJK manifest samples：43
+- PDF CJK copy/search samples：43
+- PDF visual baseline manifest samples：42
+- PDF visual baselines：44
+
+## Detached notes
+
+- aggregate_contact_sheet=.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+$badReleaseBodyPdfSplitTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBodyPdfSplitTracePath
+} catch {
+    $badReleaseBodyPdfSplitTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseBodyPdfSplitTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with a PDF visual contact-sheet path outside the PDF visual aggregate contact sheet line."
 }
 
 $badReleaseHandoffTraceDir = Join-Path $failDir "release-handoff-missing-project-template-source-json"

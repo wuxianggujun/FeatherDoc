@@ -494,6 +494,44 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
     }
 }
 
+function Add-ReleaseSummaryPdfVisualGateTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_summary.zh-cn.md") {
+        return
+    }
+
+    if (-not $Content.Contains("PDF visual gate")) {
+        return
+    }
+
+    $label = "release summary PDF visual gate trace"
+    foreach ($needle in @(
+        "PDF visual gate",
+        "verdict=",
+        "summary=",
+        "summary.json",
+        "aggregate-contact-sheet.png",
+        "cjk_manifest_count=",
+        "cjk_copy_search_count=",
+        "visual_baseline_manifest_count=",
+        "visual_baseline_count="
+    )) {
+        if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate", $needle))) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release summary must keep PDF visual gate marker '$needle' on the PDF visual gate summary line."
+        }
+    }
+}
+
 function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
     param(
         [string]$File,
@@ -548,6 +586,62 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
                     -Text "Release body lost project template onboarding trace marker '$needle'."
             }
         }
+    }
+}
+
+function Add-ReleaseBodyPdfVisualGateTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_body.zh-cn.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "PDF visual gate summary",
+        "PDF visual gate verdict",
+        "PDF visual aggregate contact sheet"
+    ))) {
+        return
+    }
+
+    $label = "release body PDF visual gate trace"
+    foreach ($needle in @(
+        "PDF visual gate summary",
+        "PDF visual gate evidence status",
+        "PDF visual gate verdict",
+        "PDF CJK manifest samples",
+        "PDF CJK copy/search samples",
+        "PDF visual baseline manifest samples",
+        "PDF visual baselines"
+    )) {
+        if (-not $Content.Contains($needle)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release body lost PDF visual gate trace marker '$needle'."
+        }
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate summary", "summary.json"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release body must keep the PDF visual gate summary path on the PDF visual gate summary line."
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual aggregate contact sheet", "aggregate-contact-sheet.png"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release body must keep the PDF visual aggregate contact-sheet path on the PDF visual aggregate contact sheet line."
     }
 }
 
@@ -1646,7 +1740,9 @@ foreach ($file in $scanFiles) {
         $content = Get-Content -Raw -LiteralPath $file
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseSummaryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseBodyProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseBodyPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
