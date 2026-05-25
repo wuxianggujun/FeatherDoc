@@ -743,6 +743,17 @@ function Add-ReleaseSummaryPdfVisualGateTraceViolations {
                 -Text "Release summary must keep PDF visual gate marker '$needle' on the PDF visual gate summary line."
         }
     }
+
+    if (-not (
+        (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate", "verdict=pass")) -or
+        (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate", "verdict=fail"))
+    )) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release summary must keep a pass/fail PDF visual gate verdict on the PDF visual gate summary line."
+    }
 }
 
 function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
@@ -839,6 +850,17 @@ function Add-ReleaseBodyPdfVisualGateTraceViolations {
                 -Label $label `
                 -Text "Release body lost PDF visual gate trace marker '$needle'."
         }
+    }
+
+    if (-not (
+        (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate verdict", "pass")) -or
+        (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate verdict", "fail"))
+    )) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release body must keep a pass/fail PDF visual gate verdict on the PDF visual gate verdict line."
     }
 
     if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate summary", "summary.json"))) {
@@ -951,6 +973,17 @@ function Add-ReleaseHandoffPdfVisualGateTraceViolations {
                 -Label $label `
                 -Text "Release handoff lost PDF visual gate trace marker '$needle'."
         }
+    }
+
+    if (-not (
+        (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate verdict:", "pass")) -or
+        (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate verdict:", "fail"))
+    )) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release handoff must keep a pass/fail PDF visual gate verdict on the PDF visual gate verdict line."
     }
 
     if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate summary:", "summary.json"))) {
