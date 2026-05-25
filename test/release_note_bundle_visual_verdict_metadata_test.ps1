@@ -612,5 +612,17 @@ foreach ($fragment in @(
     )) {
     Assert-Contains -Path $shortPath -ExpectedText $fragment -Label "release_summary.zh-CN.md"
 }
+Assert-LineContainsAll -Path $shortPath -Fragments @(
+    'PDF visual gate',
+    'verdict=pass',
+    'summary=',
+    'pdf-visual-gate\report\summary.json',
+    'aggregate_contact_sheet=',
+    'aggregate-contact-sheet.png',
+    'cjk_manifest_count=43',
+    'cjk_copy_search_count=2',
+    'visual_baseline_manifest_count=42',
+    'visual_baseline_count=3'
+) -Label "release_summary.zh-CN.md"
 
 Write-Host "Release note bundle visual verdict metadata regression passed."
