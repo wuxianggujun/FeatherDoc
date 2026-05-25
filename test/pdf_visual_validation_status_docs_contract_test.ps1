@@ -233,6 +233,7 @@ foreach ($marker in @(
     "line_scoped_final_review_pdf_visual_trace",
     "line_scoped_final_review_pdf_visual_verdict",
     "block_scoped_final_review_pdf_visual_step_status",
+    "section_scoped_final_review_pdf_visual_key_outputs",
     "line_scoped_release_handoff_pdf_visual_trace",
     "line_scoped_release_handoff_pdf_visual_verdict",
     "block_scoped_release_handoff_pdf_visual_evidence",

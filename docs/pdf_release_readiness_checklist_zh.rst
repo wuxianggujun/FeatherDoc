@@ -84,11 +84,14 @@ OCR 或任意视觉精确还原。
      ``pass`` 或 ``fail``，``PDF visual gate summary:`` 行必须直接携带
      ``summary.json`` 路径，``PDF visual gate contact sheet:`` 行必须直接携带
      ``aggregate-contact-sheet.png`` 路径；不能让其它段落里的同名路径替代。
+     summary/contact-sheet 两条 evidence 还必须保留在 ``## Key outputs`` 区段内，
+     不能让 detached notes 补齐发布入口输出证据。
      ``PDF visual gate:``、verdict、counts、manifest counts 和 finalizable
      必须保留在同一个 step-status Markdown list run。
      固定标记：``line_scoped_final_review_pdf_visual_trace``、
      ``line_scoped_final_review_pdf_visual_verdict``、
-     ``block_scoped_final_review_pdf_visual_step_status``。
+     ``block_scoped_final_review_pdf_visual_step_status``、
+     ``section_scoped_final_review_pdf_visual_key_outputs``。
    * ``release_handoff.md`` 中 ``PDF visual gate verdict:`` 行必须直接携带
      ``pass`` 或 ``fail``，``PDF visual gate summary:`` 行必须直接携带
      ``summary.json`` 路径，``PDF visual gate aggregate contact sheet:`` 行必须

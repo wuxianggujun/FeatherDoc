@@ -2678,6 +2678,42 @@ if (-not $badFinalReviewPdfDetachedStepTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with PDF visual step-status markers supplied only by detached notes."
 }
 
+$badFinalReviewPdfDetachedOutputTraceDir = Join-Path $failDir "final-review-pdf-visual-key-outputs-supplied-by-detached-notes"
+$badFinalReviewPdfDetachedOutputTracePath = Join-Path $badFinalReviewPdfDetachedOutputTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewPdfDetachedOutputTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewPdfDetachedOutputTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Step status
+
+- PDF visual gate: loaded
+- PDF visual gate verdict: pass
+- PDF visual gate counts: 44 visual baselines, 43 CJK copy/search
+- PDF visual gate manifest counts: 42 visual baseline manifest samples, 43 CJK manifest samples
+- PDF visual gate finalizable: True
+
+## Key outputs
+
+- PDF visual gate summary:
+- PDF visual gate contact sheet:
+
+## Detached notes
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+$badFinalReviewPdfDetachedOutputTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewPdfDetachedOutputTracePath
+} catch {
+    $badFinalReviewPdfDetachedOutputTraceFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewPdfDetachedOutputTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with PDF visual Key outputs evidence supplied only by detached notes."
+}
+
 $badFinalReviewPdfVerdictTraceDir = Join-Path $failDir "final-review-invalid-pdf-visual-verdict"
 $badFinalReviewPdfVerdictTracePath = Join-Path $badFinalReviewPdfVerdictTraceDir "final_review.md"
 New-Item -ItemType Directory -Path $badFinalReviewPdfVerdictTraceDir -Force | Out-Null

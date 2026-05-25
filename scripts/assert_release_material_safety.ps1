@@ -335,6 +335,49 @@ function Test-MarkdownListRunContainsAll {
     return $false
 }
 
+function Test-MarkdownSectionContainsAll {
+    param(
+        [string]$Text,
+        [string]$Heading,
+        [string[]]$Needles
+    )
+
+    $lines = $Text -split "\r?\n"
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        $line = $lines[$lineIndex].Trim()
+        if ($line -ne $Heading) {
+            continue
+        }
+        if ($line -notmatch '^(#+)\s+') {
+            continue
+        }
+
+        $headingLevel = $Matches[1].Length
+        $sectionEnd = $lines.Count - 1
+        for ($nextLineIndex = $lineIndex + 1; $nextLineIndex -lt $lines.Count; $nextLineIndex++) {
+            if ($lines[$nextLineIndex] -match '^(#+)\s+' -and $Matches[1].Length -le $headingLevel) {
+                $sectionEnd = $nextLineIndex - 1
+                break
+            }
+        }
+
+        $section = ($lines[$lineIndex..$sectionEnd]) -join "`n"
+        $containsAllNeedles = $true
+        foreach ($needle in $Needles) {
+            if ([string]::IsNullOrWhiteSpace($needle) -or -not $section.Contains($needle)) {
+                $containsAllNeedles = $false
+                break
+            }
+        }
+
+        if ($containsAllNeedles) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Test-ReleaseEntryContentControlBulletRunContainsAll {
     param(
         [string]$Text,
@@ -1379,6 +1422,20 @@ function Add-FinalReviewPdfVisualGateTraceViolations {
             -File $File `
             -Label $label `
             -Text "Final review must keep PDF visual gate status, verdict, counts, and finalizable evidence in the same step-status Markdown list run."
+    }
+
+    $keyOutputNeedles = @(
+        "PDF visual gate summary:",
+        "summary.json",
+        "PDF visual gate contact sheet:",
+        "aggregate-contact-sheet.png"
+    )
+    if (-not (Test-MarkdownSectionContainsAll -Text $Content -Heading "## Key outputs" -Needles $keyOutputNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep PDF visual gate summary and contact-sheet evidence inside the Key outputs section."
     }
 
     if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate summary:", "summary.json"))) {
