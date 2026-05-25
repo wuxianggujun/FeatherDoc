@@ -252,6 +252,7 @@ foreach ($marker in @(
     "1822428",
     "pdf_visual_validation_status_docs_contract_test.ps1",
     "release_candidate_visual_verdict_test.ps1",
+    "release_note_bundle_visual_verdict_metadata_test.ps1",
     "pdf_real_business_sample_manifest_contract_test.ps1",
     'ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_" --output-on-failure --timeout 60',
     "text-first",
@@ -319,6 +320,8 @@ foreach ($marker in @(
     "pdf_dependency_inputs_check_test.ps1",
     "pdf_visual_validation_status_docs_contract",
     "pdf_visual_validation_status_docs_contract_test.ps1",
+    "release_note_bundle_visual_verdict_metadata",
+    "release_note_bundle_visual_verdict_metadata_test.ps1",
     "pdf_real_business_sample_manifest_contract",
     "pdf_real_business_sample_manifest_contract_test.ps1",
     "TIMEOUT 60"

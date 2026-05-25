@@ -148,6 +148,7 @@ OCR 或任意视觉精确还原。
 
       powershell -NoProfile -ExecutionPolicy Bypass -File .\test\pdf_visual_validation_status_docs_contract_test.ps1 -RepoRoot .
       powershell -NoProfile -ExecutionPolicy Bypass -File .\test\release_candidate_visual_verdict_test.ps1 -RepoRoot . -WorkingDir .\tmp\release_candidate_visual_verdict
+      powershell -NoProfile -ExecutionPolicy Bypass -File .\test\release_note_bundle_visual_verdict_metadata_test.ps1 -RepoRoot . -WorkingDir .\tmp\release_note_bundle_visual_verdict_metadata
       powershell -NoProfile -ExecutionPolicy Bypass -File .\test\pdf_real_business_sample_manifest_contract_test.ps1 -RepoRoot .
 
    资源窗口允许时再运行：
