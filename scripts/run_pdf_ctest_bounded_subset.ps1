@@ -2,7 +2,7 @@ param(
     [string]$BuildDir = ".bpdf-roundtrip-msvc",
     [string]$OutputJson = "",
     [string]$CtestExecutable = "ctest",
-    [ValidateSet("smoke-import", "contract-static", "cjk-flow-static", "regression-basic-text", "regression-styled-document", "regression-business-samples")]
+    [ValidateSet("smoke-import", "contract-static", "cjk-flow-static", "regression-basic-text", "regression-styled-document", "regression-business-samples", "regression-table-layout")]
     [string]$Subset = "smoke-import"
 )
 
@@ -174,6 +174,21 @@ $subsets = [ordered]@{
             "pdf_regression_sectioned-report-text"
         )
     }
+    "regression-table-layout" = [ordered]@{
+        description = "PDF table layout regression subset"
+        tests = @(
+            "pdf_regression_table-like-grid-text",
+            "pdf_regression_invoice-grid-text",
+            "pdf_regression_document-table-semantics-text",
+            "pdf_regression_document-invoice-table-text",
+            "pdf_regression_document-table-header-footer-variants-text",
+            "pdf_regression_document-table-wrap-flow-text",
+            "pdf_regression_document-table-cant-split-text",
+            "pdf_regression_document-table-merged-cells-text",
+            "pdf_regression_document-table-merged-header-repeat-text",
+            "pdf_regression_document-table-merged-header-footer-variants-text"
+        )
+    }
 }
 
 $subsetConfig = $subsets[$Subset]
@@ -209,7 +224,15 @@ foreach ($line in $runResult.lines) {
     Write-Host $line
 }
 
-$status = if ($runResult.exit_code -eq 0) { "pass" } else { "fail" }
+$skippedTests = @(
+    $runResult.lines | ForEach-Object {
+        if ($_ -match "^\s*\d+/\d+\s+Test\s+#\d+:\s+(.+?)\s+\.{3,}\*\*\*Skipped\b") {
+            $Matches[1]
+        }
+    }
+)
+
+$status = if ($runResult.exit_code -eq 0 -and $skippedTests.Count -eq 0) { "pass" } else { "fail" }
 $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
     status = $status
@@ -221,7 +244,9 @@ $summary = [ordered]@{
     ctest_executable = $resolvedCtestExecutable
     ctest_timeout_seconds = 60
     selected_test_count = $selectedTests.Count
+    skipped_test_count = $skippedTests.Count
     selected_tests = $selectedTests
+    skipped_tests = $skippedTests
     regex = $regex
     missing_tests = $missingTests
     listed_tests = $listedTests
@@ -238,6 +263,6 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedOutputJson)) {
     Write-Host "[pdf-ctest-bounded-subset] Summary written to $resolvedOutputJson"
 }
 
-if ($runResult.exit_code -ne 0) {
+if ($runResult.exit_code -ne 0 -or $skippedTests.Count -gt 0) {
     throw "Bounded PDF CTest subset failed."
 }

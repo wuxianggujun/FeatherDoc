@@ -878,6 +878,34 @@ summary 仍必须写出 `status = pass`、`verdict = pass`、
 `ctest_timeout_seconds = 60`。固定标记：
 `pdf_ctest_bounded_regression_business_samples_release_trace`。
 
+第七条低资源证据可运行表格布局 regression 子集：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+  -Subset regression-table-layout `
+  -BuildDir .\.bpdf-roundtrip-msvc `
+  -OutputJson .\build\pdf-ctest-bounded-regression-table-layout-current\summary.json
+```
+
+`regression-table-layout` 固定覆盖 10 个真实 `pdf_regression_` 表格布局样本测试：
+`pdf_regression_table-like-grid-text`、`pdf_regression_invoice-grid-text`、
+`pdf_regression_document-table-semantics-text`、
+`pdf_regression_document-invoice-table-text`、
+`pdf_regression_document-table-header-footer-variants-text`、
+`pdf_regression_document-table-wrap-flow-text`、
+`pdf_regression_document-table-cant-split-text`、
+`pdf_regression_document-table-merged-cells-text`、
+`pdf_regression_document-table-merged-header-repeat-text` 和
+`pdf_regression_document-table-merged-header-footer-variants-text`。summary 仍必须写出
+`status = pass`、`verdict = pass`、`subset = regression-table-layout`、
+`selected_test_count = 10` 和 `ctest_timeout_seconds = 60`。固定标记：
+`pdf_ctest_bounded_regression_table_layout_release_trace`。该子集只声明已实际运行的
+非 skipped 表格样本，不覆盖当前环境会 skip 的 CJK 表格变体。
+
+所有 bounded subset summary 都必须同时写出 `skipped_test_count = 0`；
+`scripts/run_pdf_ctest_bounded_subset.ps1` 遇到任何 `***Skipped` CTest 项时会把
+`status` / `verdict` 标记为 `fail` 并返回失败，避免 skipped 测试被误当作发布证据。
+
 边界外不承诺：
 
 - 不承诺 general PDF-to-Word，也不承诺 OCR / 扫描件或任意视觉精确还原。

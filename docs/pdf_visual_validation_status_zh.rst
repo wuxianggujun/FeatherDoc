@@ -288,22 +288,39 @@ bounded PDF CTest 路径：
   ``pdf_regression_document-cjk-image-wrap-stress-text``、
   ``pdf_regression_long-report-text``、``pdf_regression_document-long-flow-text`` 和
   ``pdf_regression_sectioned-report-text``。
+* ``regression-table-layout`` 固定覆盖 10 个真实 ``pdf_regression_``
+  表格布局样本测试：``pdf_regression_table-like-grid-text``、
+  ``pdf_regression_invoice-grid-text``、
+  ``pdf_regression_document-table-semantics-text``、
+  ``pdf_regression_document-invoice-table-text``、
+  ``pdf_regression_document-table-header-footer-variants-text``、
+  ``pdf_regression_document-table-wrap-flow-text``、
+  ``pdf_regression_document-table-cant-split-text``、
+  ``pdf_regression_document-table-merged-cells-text``、
+  ``pdf_regression_document-table-merged-header-repeat-text`` 和
+  ``pdf_regression_document-table-merged-header-footer-variants-text``。该子集只声明已实际运行的
+  非 skipped 表格样本，不覆盖当前环境会 skip 的 CJK 表格变体。
 * summary 必须写出 ``status = pass``、``verdict = pass``、
   ``subset = smoke-import``、``subset = contract-static`` 或
   ``subset = cjk-flow-static``、``subset = regression-basic-text``、
   ``subset = regression-styled-document``、``subset = regression-business-samples``、
-  ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
+  ``subset = regression-table-layout``、
+  ``selected_test_count = 10``、``skipped_test_count = 0`` 和
+  ``ctest_timeout_seconds = 60``。``scripts/run_pdf_ctest_bounded_subset.ps1`` 遇到任何
+  ``***Skipped`` CTest 项时会把 ``status`` / ``verdict`` 标记为 ``fail`` 并返回失败。
 * 固定标记：``pdf_ctest_bounded_subset_release_trace``、
   ``pdf_ctest_bounded_contract_static_release_trace``、
   ``pdf_ctest_bounded_cjk_flow_static_release_trace``、
   ``pdf_ctest_bounded_regression_basic_text_release_trace``、
   ``pdf_ctest_bounded_regression_styled_document_release_trace``、
-  ``pdf_ctest_bounded_regression_business_samples_release_trace``。
+  ``pdf_ctest_bounded_regression_business_samples_release_trace``、
+  ``pdf_ctest_bounded_regression_table_layout_release_trace``。
 
 这些路径只补足资源受限时的 CTest smoke/import、静态契约、CJK / RTL flow
 静态契约、基础文本 regression、样式/文档 regression 与真实业务样本 regression
-证据；它们不替代完整 PDF visual gate、不替代 ``pdf_regression_`` 全量样本链，
-也不把被 60 秒外层保护截断的完整 ``pdf_`` 套件标记为通过。
+证据，以及非 skipped 表格布局 regression 证据；它们不替代完整 PDF visual gate、
+不替代 ``pdf_regression_`` 全量样本链，也不把被 60 秒外层保护截断的完整
+``pdf_`` 套件标记为通过。
 
 下一步
 ------
