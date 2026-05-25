@@ -264,16 +264,23 @@ bounded PDF CTest 路径：
   ``pdf_cjk_extreme_page_breaks_contract``、
   ``pdf_cjk_vertical_merge_wrap_cant_split_contract``、
   ``pdf_rtl_bidi_light_contract`` 和 ``pdf_cjk_list_page_flow_contract``。
+* ``regression-basic-text`` 固定覆盖 10 个真实 ``pdf_regression_`` 基础文本样本测试：
+  ``pdf_regression_manifest``、``pdf_regression_single-text``、
+  ``pdf_regression_multi-page-text``、``pdf_regression_font-size-text``、
+  ``pdf_regression_color-text``、``pdf_regression_three-page-text``、
+  ``pdf_regression_landscape-text``、``pdf_regression_title-body-text``、
+  ``pdf_regression_dense-text`` 和 ``pdf_regression_four-page-text``。
 * summary 必须写出 ``status = pass``、``verdict = pass``、
   ``subset = smoke-import``、``subset = contract-static`` 或
-  ``subset = cjk-flow-static``、
+  ``subset = cjk-flow-static``、``subset = regression-basic-text``、
   ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
 * 固定标记：``pdf_ctest_bounded_subset_release_trace``、
   ``pdf_ctest_bounded_contract_static_release_trace``、
-  ``pdf_ctest_bounded_cjk_flow_static_release_trace``。
+  ``pdf_ctest_bounded_cjk_flow_static_release_trace``、
+  ``pdf_ctest_bounded_regression_basic_text_release_trace``。
 
-这些路径只补足资源受限时的 CTest smoke/import、静态契约与 CJK / RTL flow
-静态契约证据；它们不替代完整 PDF visual gate、不替代 ``pdf_regression_``
+这些路径只补足资源受限时的 CTest smoke/import、静态契约、CJK / RTL flow
+静态契约与基础文本 regression 证据；它们不替代完整 PDF visual gate、不替代 ``pdf_regression_``
 全量样本链，也不把被 60 秒外层保护截断的完整 ``pdf_`` 套件标记为通过。
 
 下一步

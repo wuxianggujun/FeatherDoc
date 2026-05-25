@@ -221,6 +221,26 @@ OCR 或任意视觉精确还原。
    ``ctest_timeout_seconds = 60``。固定标记：
    ``pdf_ctest_bounded_cjk_flow_static_release_trace``。
 
+   资源受限时还可以补跑基础文本 regression 子集：
+
+   .. code-block:: powershell
+
+      powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+        -Subset regression-basic-text `
+        -BuildDir .\.bpdf-roundtrip-msvc `
+        -OutputJson .\build\pdf-ctest-bounded-regression-basic-text-current\summary.json
+
+   ``regression-basic-text`` 固定覆盖 10 个真实 ``pdf_regression_`` 基础文本样本测试：
+   ``pdf_regression_manifest``、``pdf_regression_single-text``、
+   ``pdf_regression_multi-page-text``、``pdf_regression_font-size-text``、
+   ``pdf_regression_color-text``、``pdf_regression_three-page-text``、
+   ``pdf_regression_landscape-text``、``pdf_regression_title-body-text``、
+   ``pdf_regression_dense-text`` 和 ``pdf_regression_four-page-text``。
+   summary 必须写出 ``status = pass``、``verdict = pass``、
+   ``subset = regression-basic-text``、``selected_test_count = 10`` 和
+   ``ctest_timeout_seconds = 60``。固定标记：
+   ``pdf_ctest_bounded_regression_basic_text_release_trace``。
+
    资源窗口允许时再运行：
 
    .. code-block:: powershell
