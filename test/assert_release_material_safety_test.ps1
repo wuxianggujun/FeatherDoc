@@ -535,7 +535,7 @@ Set-Content -LiteralPath $passReviewerChecklistFinalizePdfTracePath -Encoding UT
 # Reviewer Checklist
 
 - PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
-- PDF visual aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual gate aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
 - PDF CJK manifest samples: 43
 - PDF CJK copy/search samples: 43
 - PDF visual baseline manifest samples: 42
@@ -568,7 +568,7 @@ Set-Content -LiteralPath $passReleaseBodyPdfTracePath -Encoding UTF8 -Value @"
 - PDF visual gate summary：.\output\pdf-visual-release-gate-current\report\summary.json
 - PDF visual gate evidence status：loaded
 - PDF visual gate verdict：pass
-- PDF visual aggregate contact sheet：.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual gate aggregate contact sheet：.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
 - PDF CJK manifest samples：43
 - PDF CJK copy/search samples：43
 - PDF visual baseline manifest samples：42
@@ -621,7 +621,7 @@ Set-Content -LiteralPath $passReleaseHandoffPdfTracePath -Encoding UTF8 -Value @
 - PDF CJK copy/search samples: 43
 - PDF visual baseline manifest samples: 42
 - PDF visual baselines: 44
-- PDF visual aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual gate aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
 "@
 
 & $auditScript -Path $passReleaseHandoffPdfTracePath
@@ -1991,7 +1991,7 @@ Set-Content -LiteralPath $badReviewerChecklistPdfFinalizeTracePath -Encoding UTF
 # Reviewer Checklist
 
 - PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
-- PDF visual aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual gate aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
 - [ ] Confirm the PDF visual gate finalize evidence is signed off: verdict ``pass``, summary .\output\pdf-visual-release-gate-current\report\summary.json, aggregate contact sheet, CJK manifest samples ``43``, CJK copy/search samples ``43``, missing text ``0``, visual baseline manifest samples ``42``, visual baselines ``44``.
 "@
 
@@ -2062,7 +2062,7 @@ Set-Content -LiteralPath $badReleaseBodyPdfSplitTracePath -Encoding UTF8 -Value 
 - PDF visual gate summary：.\output\pdf-visual-release-gate-current\report\summary.json
 - PDF visual gate evidence status：loaded
 - PDF visual gate verdict：pass
-- PDF visual aggregate contact sheet：
+- PDF visual gate aggregate contact sheet：
 - PDF CJK manifest samples：43
 - PDF CJK copy/search samples：43
 - PDF visual baseline manifest samples：42
@@ -2081,7 +2081,7 @@ try {
 }
 
 if (-not $badReleaseBodyPdfSplitTraceFailedAsExpected) {
-    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with a PDF visual contact-sheet path outside the PDF visual aggregate contact sheet line."
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with a PDF visual contact-sheet path outside the PDF visual gate aggregate contact sheet line."
 }
 
 $badReleaseBodyPdfDetachedCountTraceDir = Join-Path $failDir "release-body-pdf-visual-count-supplied-by-detached-notes"
@@ -2095,7 +2095,7 @@ Set-Content -LiteralPath $badReleaseBodyPdfDetachedCountTracePath -Encoding UTF8
 - PDF visual gate summary：.\output\pdf-visual-release-gate-current\report\summary.json
 - PDF visual gate evidence status：loaded
 - PDF visual gate verdict：pass
-- PDF visual aggregate contact sheet：.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual gate aggregate contact sheet：.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
 - PDF CJK manifest samples：43
 - PDF CJK copy/search samples：43
 - PDF visual baselines：44
@@ -2127,7 +2127,7 @@ Set-Content -LiteralPath $badReleaseBodyPdfVerdictTracePath -Encoding UTF8 -Valu
 - PDF visual gate summary：.\output\pdf-visual-release-gate-current\report\summary.json
 - PDF visual gate evidence status：loaded
 - PDF visual gate verdict：blocked
-- PDF visual aggregate contact sheet：.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual gate aggregate contact sheet：.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
 - PDF CJK manifest samples：43
 - PDF CJK copy/search samples：43
 - PDF visual baseline manifest samples：42
@@ -2268,7 +2268,7 @@ Set-Content -LiteralPath $badReleaseHandoffPdfSplitTracePath -Encoding UTF8 -Val
 - PDF CJK copy/search samples: 43
 - PDF visual baseline manifest samples: 42
 - PDF visual baselines: 44
-- PDF visual aggregate contact sheet:
+- PDF visual gate aggregate contact sheet:
 
 ## Detached notes
 
@@ -2300,7 +2300,7 @@ Set-Content -LiteralPath $badReleaseHandoffPdfDetachedCountTracePath -Encoding U
 - PDF CJK manifest samples: 43
 - PDF CJK copy/search samples: 43
 - PDF visual baselines: 44
-- PDF visual aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual gate aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
 
 ## Detached notes
 
@@ -2333,7 +2333,7 @@ Set-Content -LiteralPath $badReleaseHandoffPdfVerdictTracePath -Encoding UTF8 -V
 - PDF CJK copy/search samples: 43
 - PDF visual baseline manifest samples: 42
 - PDF visual baselines: 44
-- PDF visual aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual gate aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
 "@
 
 $badReleaseHandoffPdfVerdictTraceFailedAsExpected = $false

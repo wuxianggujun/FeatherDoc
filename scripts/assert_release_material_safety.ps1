@@ -961,7 +961,7 @@ function Add-ReleaseBodyPdfVisualGateTraceViolations {
     if (-not (Test-TextContainsAny -Text $Content -Needles @(
         "PDF visual gate summary",
         "PDF visual gate verdict",
-        "PDF visual aggregate contact sheet"
+        "PDF visual gate aggregate contact sheet"
     ))) {
         return
     }
@@ -971,7 +971,7 @@ function Add-ReleaseBodyPdfVisualGateTraceViolations {
         "PDF visual gate summary",
         "PDF visual gate evidence status",
         "PDF visual gate verdict",
-        "PDF visual aggregate contact sheet",
+        "PDF visual gate aggregate contact sheet",
         "aggregate-contact-sheet.png",
         "PDF CJK manifest samples",
         "PDF CJK copy/search samples",
@@ -1015,12 +1015,12 @@ function Add-ReleaseBodyPdfVisualGateTraceViolations {
             -Text "Release body must keep the PDF visual gate summary path on the PDF visual gate summary line."
     }
 
-    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual aggregate contact sheet", "aggregate-contact-sheet.png"))) {
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate aggregate contact sheet", "aggregate-contact-sheet.png"))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release body must keep the PDF visual aggregate contact-sheet path on the PDF visual aggregate contact sheet line."
+            -Text "Release body must keep the PDF visual gate aggregate contact-sheet path on the PDF visual gate aggregate contact sheet line."
     }
 }
 
@@ -1095,7 +1095,7 @@ function Add-ReleaseHandoffPdfVisualGateTraceViolations {
     if (-not (Test-TextContainsAny -Text $Content -Needles @(
         "PDF visual gate summary:",
         "PDF visual gate verdict:",
-        "PDF visual aggregate contact sheet:"
+        "PDF visual gate aggregate contact sheet:"
     ))) {
         return
     }
@@ -1105,7 +1105,7 @@ function Add-ReleaseHandoffPdfVisualGateTraceViolations {
         "PDF visual gate summary:",
         "PDF visual gate evidence status:",
         "PDF visual gate verdict:",
-        "PDF visual aggregate contact sheet:",
+        "PDF visual gate aggregate contact sheet:",
         "aggregate-contact-sheet.png",
         "PDF CJK manifest samples:",
         "PDF CJK copy/search samples:",
@@ -1149,12 +1149,12 @@ function Add-ReleaseHandoffPdfVisualGateTraceViolations {
             -Text "Release handoff must keep the PDF visual gate summary path on the PDF visual gate summary line."
     }
 
-    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual aggregate contact sheet:", "aggregate-contact-sheet.png"))) {
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate aggregate contact sheet:", "aggregate-contact-sheet.png"))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release handoff must keep the PDF visual gate contact-sheet path on the PDF visual aggregate contact sheet line."
+            -Text "Release handoff must keep the PDF visual gate contact-sheet path on the PDF visual gate aggregate contact sheet line."
     }
 }
 

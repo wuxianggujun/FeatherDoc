@@ -411,7 +411,7 @@ foreach ($fragments in @(
         @("PDF visual gate summary", "pdf-visual-gate\report\summary.json"),
         @("PDF visual gate evidence status", "loaded"),
         @("PDF visual gate verdict", "pass"),
-        @("PDF visual aggregate contact sheet", "aggregate-contact-sheet.png"),
+        @("PDF visual gate aggregate contact sheet", "aggregate-contact-sheet.png"),
         @("PDF CJK manifest samples", "43"),
         @("PDF CJK copy/search samples", "2"),
         @("PDF CJK missing text count", "0"),

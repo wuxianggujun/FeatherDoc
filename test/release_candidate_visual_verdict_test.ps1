@@ -600,7 +600,7 @@ foreach ($assertion in @(
 $candidateReleaseBody = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseBodyPath
 foreach ($fragments in @(
         @("PDF visual gate verdict", "pass"),
-        @("PDF visual aggregate contact sheet", "aggregate-contact-sheet.png"),
+        @("PDF visual gate aggregate contact sheet", "aggregate-contact-sheet.png"),
         @("PDF CJK copy/search samples", "43"),
         @("PDF visual baselines", "44")
     )) {

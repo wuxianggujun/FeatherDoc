@@ -91,7 +91,7 @@ OCR 或任意视觉精确还原。
      ``block_scoped_final_review_pdf_visual_step_status``。
    * ``release_handoff.md`` 中 ``PDF visual gate verdict:`` 行必须直接携带
      ``pass`` 或 ``fail``，``PDF visual gate summary:`` 行必须直接携带
-     ``summary.json`` 路径，``PDF visual aggregate contact sheet:`` 行必须
+     ``summary.json`` 路径，``PDF visual gate aggregate contact sheet:`` 行必须
      直接携带 ``aggregate-contact-sheet.png`` 路径；不能让 detached notes
      或其它段落替代当前 handoff 证据；status、verdict、counts 和 contact sheet
      必须保留在同一个 PDF visual gate Markdown list run。
