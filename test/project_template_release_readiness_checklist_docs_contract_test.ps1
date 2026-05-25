@@ -152,6 +152,9 @@ foreach ($marker in @(
     "Release governance handoff details",
     "source_report_display",
     "source_json_display",
+    "block_scoped_governance_handoff_trace",
+    "project_template_onboarding.schema_approval",
+    "Markdown list block",
     "project-template-delivery-readiness",
     "project-template-onboarding-governance"
 )) {
