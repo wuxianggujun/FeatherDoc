@@ -157,6 +157,24 @@ OCR 或任意视觉精确还原。
       powershell -NoProfile -ExecutionPolicy Bypass -File .\test\release_note_bundle_visual_verdict_metadata_test.ps1 -RepoRoot . -WorkingDir .\tmp\release_note_bundle_visual_verdict_metadata
       powershell -NoProfile -ExecutionPolicy Bypass -File .\test\pdf_real_business_sample_manifest_contract_test.ps1 -RepoRoot .
 
+   资源受限时先运行 bounded PDF CTest 子集，而不是把完整 ``pdf_`` 套件塞进
+   单个 60 秒外层保护里：
+
+   .. code-block:: powershell
+
+      powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+        -BuildDir .\.bpdf-roundtrip-msvc `
+        -OutputJson .\build\pdf-ctest-bounded-subset-current\summary.json
+
+   该 helper 固定覆盖 10 个 smoke/import 测试：
+   ``pdf_document_generator_probe``、``pdf_font_resolver``、
+   ``pdf_text_metrics``、``pdf_text_shaper``、``pdf_document_adapter_font``、
+   ``pdf_cli_export``、``pdf_cli_import``、``pdf_import_structure``、
+   ``pdf_import_failure`` 和 ``pdf_import_table_heuristic``。summary 必须写出
+   ``status = pass``、``verdict = pass``、``selected_test_count = 10`` 和
+   ``ctest_timeout_seconds = 60``。固定标记：
+   ``pdf_ctest_bounded_subset_release_trace``。
+
    资源窗口允许时再运行：
 
    .. code-block:: powershell

@@ -759,7 +759,23 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
    必须消费 PDF visual gate verdict、计数和 contact sheet 路径。
 7. 视觉证据：复用或生成的 `aggregate-contact-sheet.png` 必须非空，且抽检不是白图。
 8. 轻量验证：至少运行相关 PowerShell 契约测试；资源窗口允许时再运行
-  `ctest -R "pdf_" --output-on-failure --timeout 60`。
+   `ctest -R "pdf_" --output-on-failure --timeout 60`。
+
+资源受限时，先使用 bounded PDF CTest helper 记录 smoke/import 证据，避免完整
+`pdf_` 套件在单个 60 秒外层保护里被截断后被误记为通过：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+  -BuildDir .\.bpdf-roundtrip-msvc `
+  -OutputJson .\build\pdf-ctest-bounded-subset-current\summary.json
+```
+
+该 helper 固定覆盖 10 个测试：`pdf_document_generator_probe`、`pdf_font_resolver`、
+`pdf_text_metrics`、`pdf_text_shaper`、`pdf_document_adapter_font`、`pdf_cli_export`、
+`pdf_cli_import`、`pdf_import_structure`、`pdf_import_failure` 和
+`pdf_import_table_heuristic`。summary 中的 `status = pass`、`verdict = pass`、
+`selected_test_count = 10` 和 `ctest_timeout_seconds = 60` 只能证明这条 bounded
+子集通过，不替代完整 visual gate 或 `pdf_regression_` 全量样本链。
 
 边界外不承诺：
 

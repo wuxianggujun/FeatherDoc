@@ -74,6 +74,7 @@ $statusMarkers = @(
     "2026-05-20",
     "2026-05-24",
     "2026-05-25",
+    "2026-05-26",
     "FinalizeOnly",
     "release_blocker_count = 0",
     "action_item_count = 0",
@@ -117,6 +118,10 @@ $statusMarkers = @(
     "pdfio_dependency_ready = true",
     "pdfium_dependency_ready = true",
     "ctest_list_contains_pdf_gate_tests = pass",
+    "run_pdf_ctest_bounded_subset.ps1",
+    "pdf_ctest_bounded_subset_release_trace",
+    "selected_test_count = 10",
+    "ctest_timeout_seconds = 60",
     "912x14566",
     "1822428",
     "pdfium_ready = true",
@@ -191,7 +196,10 @@ $buildingPdfFixtureMarkers = @(
     "expect_visual_baseline=true",
     "expect_cjk=true",
     "pdf_release_readiness_checklist_zh",
-    "visual baseline manifest"
+    "visual baseline manifest",
+    "run_pdf_ctest_bounded_subset.ps1",
+    "selected_test_count = 10",
+    "ctest_timeout_seconds = 60"
 )
 
 foreach ($marker in $buildingPdfFixtureMarkers) {
@@ -255,6 +263,12 @@ foreach ($marker in @(
     "release_candidate_visual_verdict_test.ps1",
     "release_note_bundle_visual_verdict_metadata_test.ps1",
     "pdf_real_business_sample_manifest_contract_test.ps1",
+    "run_pdf_ctest_bounded_subset.ps1",
+    "pdf_ctest_bounded_subset_release_trace",
+    "selected_test_count = 10",
+    "ctest_timeout_seconds = 60",
+    "pdf_document_generator_probe",
+    "pdf_import_table_heuristic",
     'ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_" --output-on-failure --timeout 60',
     "text-first",
     "opt-in",

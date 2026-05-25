@@ -230,6 +230,29 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
   ``output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png`` 为
   ``912x14566``，大小 ``1822428`` bytes。
 
+2026-05-26 bounded CTest 复核结论
+---------------------------------
+
+完整 ``ctest -R "pdf_" --output-on-failure --timeout 60`` 在单个 60 秒外层
+PowerShell 保护内曾推进到 128/139 个测试但被保护截断，因此不能作为完整通过证据。
+当前低资源窗口下改用 ``scripts/run_pdf_ctest_bounded_subset.ps1`` 固化一条可复核的
+bounded PDF CTest 路径：
+
+* 该 helper 仍通过 ``ctest --test-dir .bpdf-roundtrip-msvc`` 执行真实测试，不使用
+  fake ctest 或 synthetic fixture。
+* 固定覆盖 10 个 smoke/import 测试：``pdf_document_generator_probe``、
+  ``pdf_font_resolver``、``pdf_text_metrics``、``pdf_text_shaper``、
+  ``pdf_document_adapter_font``、``pdf_cli_export``、``pdf_cli_import``、
+  ``pdf_import_structure``、``pdf_import_failure`` 和
+  ``pdf_import_table_heuristic``。
+* summary 必须写出 ``status = pass``、``verdict = pass``、
+  ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
+* 固定标记：``pdf_ctest_bounded_subset_release_trace``。
+
+这条路径只补足资源受限时的 CTest smoke/import 证据；它不替代完整 PDF visual gate、
+不替代 ``pdf_regression_`` 全量样本链，也不把被 60 秒外层保护截断的完整
+``pdf_`` 套件标记为通过。
+
 下一步
 ------
 
