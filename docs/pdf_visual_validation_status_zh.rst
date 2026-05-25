@@ -254,15 +254,27 @@ bounded PDF CTest 路径：
   ``pdf_cjk_copy_search_matrix_contract``、
   ``pdf_cjk_font_embed_matrix_contract`` 和
   ``pdf_cjk_anchor_font_matrix_boundary_contract``。
+* ``cjk-flow-static`` 固定覆盖 10 个 CJK / RTL flow 静态契约测试：
+  ``pdf_cjk_font_search_density_flow_contract``、
+  ``pdf_cjk_font_embed_wrap_mix_contract``、
+  ``pdf_cjk_repeated_key_boundary_flow_contract``、
+  ``pdf_cjk_style_overlay_page_flow_contract``、
+  ``pdf_cjk_complex_layout_contract``、
+  ``pdf_cjk_image_wrap_stress_contract``、
+  ``pdf_cjk_extreme_page_breaks_contract``、
+  ``pdf_cjk_vertical_merge_wrap_cant_split_contract``、
+  ``pdf_rtl_bidi_light_contract`` 和 ``pdf_cjk_list_page_flow_contract``。
 * summary 必须写出 ``status = pass``、``verdict = pass``、
-  ``subset = smoke-import`` 或 ``subset = contract-static``、
+  ``subset = smoke-import``、``subset = contract-static`` 或
+  ``subset = cjk-flow-static``、
   ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
 * 固定标记：``pdf_ctest_bounded_subset_release_trace``、
-  ``pdf_ctest_bounded_contract_static_release_trace``。
+  ``pdf_ctest_bounded_contract_static_release_trace``、
+  ``pdf_ctest_bounded_cjk_flow_static_release_trace``。
 
-这两条路径只补足资源受限时的 CTest smoke/import 与静态契约证据；它们不替代完整
-PDF visual gate、不替代 ``pdf_regression_`` 全量样本链，也不把被 60 秒外层保护截断的
-完整 ``pdf_`` 套件标记为通过。
+这些路径只补足资源受限时的 CTest smoke/import、静态契约与 CJK / RTL flow
+静态契约证据；它们不替代完整 PDF visual gate、不替代 ``pdf_regression_``
+全量样本链，也不把被 60 秒外层保护截断的完整 ``pdf_`` 套件标记为通过。
 
 下一步
 ------

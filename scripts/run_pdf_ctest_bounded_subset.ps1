@@ -2,7 +2,7 @@ param(
     [string]$BuildDir = ".bpdf-roundtrip-msvc",
     [string]$OutputJson = "",
     [string]$CtestExecutable = "ctest",
-    [ValidateSet("smoke-import", "contract-static")]
+    [ValidateSet("smoke-import", "contract-static", "cjk-flow-static")]
     [string]$Subset = "smoke-import"
 )
 
@@ -112,6 +112,21 @@ $subsets = [ordered]@{
             "pdf_cjk_copy_search_matrix_contract",
             "pdf_cjk_font_embed_matrix_contract",
             "pdf_cjk_anchor_font_matrix_boundary_contract"
+        )
+    }
+    "cjk-flow-static" = [ordered]@{
+        description = "PDF CJK/RTL flow static contract subset"
+        tests = @(
+            "pdf_cjk_font_search_density_flow_contract",
+            "pdf_cjk_font_embed_wrap_mix_contract",
+            "pdf_cjk_repeated_key_boundary_flow_contract",
+            "pdf_cjk_style_overlay_page_flow_contract",
+            "pdf_cjk_complex_layout_contract",
+            "pdf_cjk_image_wrap_stress_contract",
+            "pdf_cjk_extreme_page_breaks_contract",
+            "pdf_cjk_vertical_merge_wrap_cant_split_contract",
+            "pdf_rtl_bidi_light_contract",
+            "pdf_cjk_list_page_flow_contract"
         )
     }
 }

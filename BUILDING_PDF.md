@@ -797,6 +797,26 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.
 `status = pass`、`verdict = pass`、`subset = contract-static`、
 `selected_test_count = 10` 和 `ctest_timeout_seconds = 60`。
 
+第三条低资源证据可运行 CJK / RTL flow 静态契约子集：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+  -Subset cjk-flow-static `
+  -BuildDir .\.bpdf-roundtrip-msvc `
+  -OutputJson .\build\pdf-ctest-bounded-cjk-flow-static-current\summary.json
+```
+
+`cjk-flow-static` 固定覆盖 10 个 CJK / RTL flow 静态契约测试，包括
+`pdf_cjk_font_search_density_flow_contract`、
+`pdf_cjk_font_embed_wrap_mix_contract`、
+`pdf_cjk_repeated_key_boundary_flow_contract`、
+`pdf_cjk_style_overlay_page_flow_contract`、`pdf_cjk_complex_layout_contract`、
+`pdf_cjk_image_wrap_stress_contract`、`pdf_cjk_extreme_page_breaks_contract`、
+`pdf_cjk_vertical_merge_wrap_cant_split_contract`、`pdf_rtl_bidi_light_contract`
+和 `pdf_cjk_list_page_flow_contract`。summary 仍必须写出 `status = pass`、
+`verdict = pass`、`subset = cjk-flow-static`、`selected_test_count = 10` 和
+`ctest_timeout_seconds = 60`。固定标记：`pdf_ctest_bounded_cjk_flow_static_release_trace`。
+
 边界外不承诺：
 
 - 不承诺 general PDF-to-Word，也不承诺 OCR / 扫描件或任意视觉精确还原。

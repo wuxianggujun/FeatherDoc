@@ -197,6 +197,30 @@ OCR 或任意视觉精确还原。
    固定标记：``pdf_ctest_bounded_subset_release_trace``、
    ``pdf_ctest_bounded_contract_static_release_trace``。
 
+   资源受限时还可以补跑 CJK / RTL flow 静态契约子集：
+
+   .. code-block:: powershell
+
+      powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+        -Subset cjk-flow-static `
+        -BuildDir .\.bpdf-roundtrip-msvc `
+        -OutputJson .\build\pdf-ctest-bounded-cjk-flow-static-current\summary.json
+
+   ``cjk-flow-static`` 固定覆盖 10 个 CJK / RTL flow 静态契约测试：
+   ``pdf_cjk_font_search_density_flow_contract``、
+   ``pdf_cjk_font_embed_wrap_mix_contract``、
+   ``pdf_cjk_repeated_key_boundary_flow_contract``、
+   ``pdf_cjk_style_overlay_page_flow_contract``、
+   ``pdf_cjk_complex_layout_contract``、
+   ``pdf_cjk_image_wrap_stress_contract``、
+   ``pdf_cjk_extreme_page_breaks_contract``、
+   ``pdf_cjk_vertical_merge_wrap_cant_split_contract``、
+   ``pdf_rtl_bidi_light_contract`` 和 ``pdf_cjk_list_page_flow_contract``。
+   summary 必须写出 ``status = pass``、``verdict = pass``、
+   ``subset = cjk-flow-static``、``selected_test_count = 10`` 和
+   ``ctest_timeout_seconds = 60``。固定标记：
+   ``pdf_ctest_bounded_cjk_flow_static_release_trace``。
+
    资源窗口允许时再运行：
 
    .. code-block:: powershell
