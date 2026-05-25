@@ -651,6 +651,8 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "project_template_delivery_readiness",
             "project_template_delivery_readiness_contract",
             "featherdoc.project_template_delivery_readiness_report.v1",
+            "status:",
+            "release_ready:",
             "latest_schema_approval_gate_status",
             "source_report_display",
             "source_json_display"

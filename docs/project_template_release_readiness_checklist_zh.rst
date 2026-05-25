@@ -134,6 +134,9 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      onboarding 字段拆开拼接。固定标记：
      ``block_scoped_entry_project_template_trace``、
      ``block_scoped_release_bundle_project_template_trace``。
+     其中 readiness block 还必须保留 ``status`` 与 ``release_ready``，不能只留下
+     schema approval 状态。固定标记：
+     ``block_scoped_entry_project_template_status_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、
      ``release_handoff.md``、``release_body.zh-CN.md``、
      ``release_summary.zh-CN.md``、``release_governance_handoff.md`` 和
