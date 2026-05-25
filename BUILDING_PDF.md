@@ -766,6 +766,7 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+  -Subset smoke-import `
   -BuildDir .\.bpdf-roundtrip-msvc `
   -OutputJson .\build\pdf-ctest-bounded-subset-current\summary.json
 ```
@@ -774,8 +775,27 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.
 `pdf_text_metrics`、`pdf_text_shaper`、`pdf_document_adapter_font`、`pdf_cli_export`、
 `pdf_cli_import`、`pdf_import_structure`、`pdf_import_failure` 和
 `pdf_import_table_heuristic`。summary 中的 `status = pass`、`verdict = pass`、
-`selected_test_count = 10` 和 `ctest_timeout_seconds = 60` 只能证明这条 bounded
-子集通过，不替代完整 visual gate 或 `pdf_regression_` 全量样本链。
+`subset = smoke-import`、`selected_test_count = 10` 和 `ctest_timeout_seconds = 60`
+只能证明这条 bounded 子集通过，不替代完整 visual gate 或 `pdf_regression_`
+全量样本链。
+
+第二条低资源证据可运行静态契约子集：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+  -Subset contract-static `
+  -BuildDir .\.bpdf-roundtrip-msvc `
+  -OutputJson .\build\pdf-ctest-bounded-contract-static-current\summary.json
+```
+
+`contract-static` 固定覆盖 10 个 docs/layout/ctest 契约测试，包括
+`pdf_import_docs_contract`、`pdf_ctest_timeout_contract`、`pdf_ctest_label_contract`、
+`pdf_bidi_line_layout_static_contract`、`pdf_document_style_gallery_contract`、
+`pdf_document_font_matrix_contract`、`pdf_document_table_font_matrix_contract`、
+`pdf_cjk_copy_search_matrix_contract`、`pdf_cjk_font_embed_matrix_contract` 和
+`pdf_cjk_anchor_font_matrix_boundary_contract`。summary 仍必须写出
+`status = pass`、`verdict = pass`、`subset = contract-static`、
+`selected_test_count = 10` 和 `ctest_timeout_seconds = 60`。
 
 边界外不承诺：
 

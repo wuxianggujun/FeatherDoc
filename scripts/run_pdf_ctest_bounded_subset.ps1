@@ -1,7 +1,9 @@
 param(
     [string]$BuildDir = ".bpdf-roundtrip-msvc",
     [string]$OutputJson = "",
-    [string]$CtestExecutable = "ctest"
+    [string]$CtestExecutable = "ctest",
+    [ValidateSet("smoke-import", "contract-static")]
+    [string]$Subset = "smoke-import"
 )
 
 Set-StrictMode -Version Latest
@@ -81,18 +83,41 @@ if (-not (Test-Path -LiteralPath $resolvedBuildDir)) {
     throw "Build directory was not found: $resolvedBuildDir"
 }
 
-$selectedTests = @(
-    "pdf_document_generator_probe",
-    "pdf_font_resolver",
-    "pdf_text_metrics",
-    "pdf_text_shaper",
-    "pdf_document_adapter_font",
-    "pdf_cli_export",
-    "pdf_cli_import",
-    "pdf_import_structure",
-    "pdf_import_failure",
-    "pdf_import_table_heuristic"
-)
+$subsets = [ordered]@{
+    "smoke-import" = [ordered]@{
+        description = "PDF smoke/import executable subset"
+        tests = @(
+            "pdf_document_generator_probe",
+            "pdf_font_resolver",
+            "pdf_text_metrics",
+            "pdf_text_shaper",
+            "pdf_document_adapter_font",
+            "pdf_cli_export",
+            "pdf_cli_import",
+            "pdf_import_structure",
+            "pdf_import_failure",
+            "pdf_import_table_heuristic"
+        )
+    }
+    "contract-static" = [ordered]@{
+        description = "PDF docs/layout/ctest static contract subset"
+        tests = @(
+            "pdf_import_docs_contract",
+            "pdf_ctest_timeout_contract",
+            "pdf_ctest_label_contract",
+            "pdf_bidi_line_layout_static_contract",
+            "pdf_document_style_gallery_contract",
+            "pdf_document_font_matrix_contract",
+            "pdf_document_table_font_matrix_contract",
+            "pdf_cjk_copy_search_matrix_contract",
+            "pdf_cjk_font_embed_matrix_contract",
+            "pdf_cjk_anchor_font_matrix_boundary_contract"
+        )
+    }
+}
+
+$subsetConfig = $subsets[$Subset]
+$selectedTests = @($subsetConfig.tests)
 $regex = "^($(($selectedTests | ForEach-Object { [regex]::Escape($_) }) -join '|'))$"
 
 $listResult = Invoke-CapturedCommand `
@@ -129,6 +154,8 @@ $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
     status = $status
     verdict = $status
+    subset = $Subset
+    subset_description = $subsetConfig.description
     repo_root = $repoRoot
     build_dir = $resolvedBuildDir
     ctest_executable = $resolvedCtestExecutable

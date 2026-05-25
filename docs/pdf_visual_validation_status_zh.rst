@@ -240,18 +240,29 @@ bounded PDF CTest 路径：
 
 * 该 helper 仍通过 ``ctest --test-dir .bpdf-roundtrip-msvc`` 执行真实测试，不使用
   fake ctest 或 synthetic fixture。
-* 固定覆盖 10 个 smoke/import 测试：``pdf_document_generator_probe``、
+* ``smoke-import`` 固定覆盖 10 个 smoke/import 测试：
+  ``pdf_document_generator_probe``、
   ``pdf_font_resolver``、``pdf_text_metrics``、``pdf_text_shaper``、
   ``pdf_document_adapter_font``、``pdf_cli_export``、``pdf_cli_import``、
   ``pdf_import_structure``、``pdf_import_failure`` 和
   ``pdf_import_table_heuristic``。
+* ``contract-static`` 固定覆盖 10 个 docs/layout/ctest 契约测试：
+  ``pdf_import_docs_contract``、``pdf_ctest_timeout_contract``、
+  ``pdf_ctest_label_contract``、``pdf_bidi_line_layout_static_contract``、
+  ``pdf_document_style_gallery_contract``、``pdf_document_font_matrix_contract``、
+  ``pdf_document_table_font_matrix_contract``、
+  ``pdf_cjk_copy_search_matrix_contract``、
+  ``pdf_cjk_font_embed_matrix_contract`` 和
+  ``pdf_cjk_anchor_font_matrix_boundary_contract``。
 * summary 必须写出 ``status = pass``、``verdict = pass``、
+  ``subset = smoke-import`` 或 ``subset = contract-static``、
   ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
-* 固定标记：``pdf_ctest_bounded_subset_release_trace``。
+* 固定标记：``pdf_ctest_bounded_subset_release_trace``、
+  ``pdf_ctest_bounded_contract_static_release_trace``。
 
-这条路径只补足资源受限时的 CTest smoke/import 证据；它不替代完整 PDF visual gate、
-不替代 ``pdf_regression_`` 全量样本链，也不把被 60 秒外层保护截断的完整
-``pdf_`` 套件标记为通过。
+这两条路径只补足资源受限时的 CTest smoke/import 与静态契约证据；它们不替代完整
+PDF visual gate、不替代 ``pdf_regression_`` 全量样本链，也不把被 60 秒外层保护截断的
+完整 ``pdf_`` 套件标记为通过。
 
 下一步
 ------

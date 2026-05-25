@@ -163,17 +163,39 @@ OCR 或任意视觉精确还原。
    .. code-block:: powershell
 
       powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+        -Subset smoke-import `
         -BuildDir .\.bpdf-roundtrip-msvc `
         -OutputJson .\build\pdf-ctest-bounded-subset-current\summary.json
 
-   该 helper 固定覆盖 10 个 smoke/import 测试：
+   ``smoke-import`` 固定覆盖 10 个 smoke/import 测试：
    ``pdf_document_generator_probe``、``pdf_font_resolver``、
    ``pdf_text_metrics``、``pdf_text_shaper``、``pdf_document_adapter_font``、
    ``pdf_cli_export``、``pdf_cli_import``、``pdf_import_structure``、
    ``pdf_import_failure`` 和 ``pdf_import_table_heuristic``。summary 必须写出
-   ``status = pass``、``verdict = pass``、``selected_test_count = 10`` 和
-   ``ctest_timeout_seconds = 60``。固定标记：
-   ``pdf_ctest_bounded_subset_release_trace``。
+   ``status = pass``、``verdict = pass``、``subset = smoke-import``、
+   ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
+
+   资源受限时还可以补跑静态契约子集：
+
+   .. code-block:: powershell
+
+      powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+        -Subset contract-static `
+        -BuildDir .\.bpdf-roundtrip-msvc `
+        -OutputJson .\build\pdf-ctest-bounded-contract-static-current\summary.json
+
+   ``contract-static`` 固定覆盖 10 个 docs/layout/ctest 契约测试：
+   ``pdf_import_docs_contract``、``pdf_ctest_timeout_contract``、
+   ``pdf_ctest_label_contract``、``pdf_bidi_line_layout_static_contract``、
+   ``pdf_document_style_gallery_contract``、``pdf_document_font_matrix_contract``、
+   ``pdf_document_table_font_matrix_contract``、
+   ``pdf_cjk_copy_search_matrix_contract``、
+   ``pdf_cjk_font_embed_matrix_contract`` 和
+   ``pdf_cjk_anchor_font_matrix_boundary_contract``。summary 必须写出
+   ``status = pass``、``verdict = pass``、``subset = contract-static``、
+   ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
+   固定标记：``pdf_ctest_bounded_subset_release_trace``、
+   ``pdf_ctest_bounded_contract_static_release_trace``。
 
    资源窗口允许时再运行：
 
