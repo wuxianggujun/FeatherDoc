@@ -741,6 +741,23 @@ function Add-ReleaseEntryPdfVisualGateTraceViolations {
         return
     }
 
+    $finalizeEvidenceNeedles = @(
+        "Confirm the PDF visual gate finalize evidence",
+        'verdict `',
+        "summary ",
+        "summary.json",
+        "aggregate contact sheet",
+        "aggregate-contact-sheet.png",
+        "CJK manifest samples",
+        "CJK copy/search samples",
+        "missing text",
+        "visual baseline manifest samples",
+        "visual baselines"
+    )
+    if (Test-TextLineContainsAll -Text $Content -Needles $finalizeEvidenceNeedles) {
+        return
+    }
+
     if (-not (Test-TextLineContainsAll -Text $Content -Needles @("Confirm PDF visual gate summary", "summary.json"))) {
         Add-AuditViolation `
             -Violations $Violations `

@@ -528,6 +528,23 @@ Set-Content -LiteralPath $passReviewerChecklistPdfTracePath -Encoding UTF8 -Valu
 
 & $auditScript -Path $passReviewerChecklistPdfTracePath
 
+$passReviewerChecklistFinalizePdfTraceDir = Join-Path $passDir "reviewer-checklist-pdf-visual-finalize-trace"
+$passReviewerChecklistFinalizePdfTracePath = Join-Path $passReviewerChecklistFinalizePdfTraceDir "REVIEWER_CHECKLIST.md"
+New-Item -ItemType Directory -Path $passReviewerChecklistFinalizePdfTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReviewerChecklistFinalizePdfTracePath -Encoding UTF8 -Value @"
+# Reviewer Checklist
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF CJK manifest samples: 43
+- PDF CJK copy/search samples: 43
+- PDF visual baseline manifest samples: 42
+- PDF visual baselines: 44
+- [ ] Confirm the PDF visual gate finalize evidence is signed off: verdict ``pass``, summary .\output\pdf-visual-release-gate-current\report\summary.json, aggregate contact sheet .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png, CJK manifest samples ``43``, CJK copy/search samples ``43``, missing text ``0``, visual baseline manifest samples ``42``, visual baselines ``44``.
+"@
+
+& $auditScript -Path $passReviewerChecklistFinalizePdfTracePath
+
 $passReleaseBodyTraceDir = Join-Path $passDir "release-body-project-template-trace"
 $passReleaseBodyTracePath = Join-Path $passReleaseBodyTraceDir "release_body.zh-CN.md"
 New-Item -ItemType Directory -Path $passReleaseBodyTraceDir -Force | Out-Null
@@ -1965,6 +1982,28 @@ try {
 
 if (-not $badReviewerChecklistPdfDetachedContactTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed REVIEWER_CHECKLIST.md with PDF visual contact sheet supplied only by detached notes."
+}
+
+$badReviewerChecklistPdfFinalizeTraceDir = Join-Path $failDir "reviewer-checklist-pdf-visual-finalize-line-missing-contact-sheet"
+$badReviewerChecklistPdfFinalizeTracePath = Join-Path $badReviewerChecklistPdfFinalizeTraceDir "REVIEWER_CHECKLIST.md"
+New-Item -ItemType Directory -Path $badReviewerChecklistPdfFinalizeTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReviewerChecklistPdfFinalizeTracePath -Encoding UTF8 -Value @"
+# Reviewer Checklist
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- [ ] Confirm the PDF visual gate finalize evidence is signed off: verdict ``pass``, summary .\output\pdf-visual-release-gate-current\report\summary.json, aggregate contact sheet, CJK manifest samples ``43``, CJK copy/search samples ``43``, missing text ``0``, visual baseline manifest samples ``42``, visual baselines ``44``.
+"@
+
+$badReviewerChecklistPdfFinalizeTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReviewerChecklistPdfFinalizeTracePath
+} catch {
+    $badReviewerChecklistPdfFinalizeTraceFailedAsExpected = $true
+}
+
+if (-not $badReviewerChecklistPdfFinalizeTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed REVIEWER_CHECKLIST.md with PDF visual finalize evidence missing the contact-sheet path on the finalize line."
 }
 
 $badReleaseBodyTraceDir = Join-Path $failDir "release-body-missing-project-template-source-json"
