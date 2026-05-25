@@ -128,6 +128,11 @@ OCR 或任意视觉精确还原。
      和 42/43/44 计数放在同一块里；不能让块外的
      ``aggregate-contact-sheet.png`` 替代当前 source report 的证据。
      固定标记：``block_scoped_pdf_visual_gate_handoff_trace``。
+   * ``release_assets_manifest.json`` 中的 ``pdf_visual_gate_evidence`` 必须保留
+     ``cjk_manifest_count >= 43``、``visual_baseline_manifest_count >= 42``，
+     并且 ``verdict = pass`` 时 ``cjk_missing_text_count = 0``；不能只依赖
+     ``summary.json`` 路径或 ``full_visual_gate_status`` 推断样本覆盖完整。
+     固定标记：``manifest_scoped_pdf_visual_gate_count_trace``。
    * preflight governance 中的 ``not_run_by_preflight_governance`` 只能解释
      preflight-governance 报告自身没有重跑 full gate；如果同轮
      ``FinalizeOnly`` summary 已给出 ``verdict = pass``，发布结论应以

@@ -245,6 +245,7 @@ foreach ($marker in @(
     "PDF visual gate aggregate contact sheet:",
     "line_scoped_reviewer_checklist_pdf_visual_evidence",
     "block_scoped_pdf_visual_gate_handoff_trace",
+    "manifest_scoped_pdf_visual_gate_count_trace",
     "not_run_by_preflight_governance",
     "contact sheet",
     "aggregate-contact-sheet.png",

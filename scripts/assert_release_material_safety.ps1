@@ -2201,9 +2201,12 @@ function Add-PdfVisualGateManifestContractViolations {
         }
     }
 
+    $manifestCountValues = @{}
     foreach ($countContract in @(
+            @{ Name = "cjk_manifest_count"; Minimum = 43 },
             @{ Name = "cjk_copy_search_count"; Minimum = 1 },
             @{ Name = "cjk_missing_text_count"; Minimum = 0 },
+            @{ Name = "visual_baseline_manifest_count"; Minimum = 42 },
             @{ Name = "visual_baseline_count"; Minimum = 1 }
         )) {
         $fieldName = $countContract.Name
@@ -2215,12 +2218,19 @@ function Add-PdfVisualGateManifestContractViolations {
 
         try {
             $integerValue = [int]$fieldValue
+            $manifestCountValues[$fieldName] = $integerValue
             if ($integerValue -lt [int]$countContract.Minimum) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.$fieldName must be at least $($countContract.Minimum)."
             }
         } catch {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.$fieldName must be an integer."
         }
+    }
+
+    if ($evidenceVerdict -eq "pass" -and
+        $manifestCountValues.ContainsKey("cjk_missing_text_count") -and
+        $manifestCountValues["cjk_missing_text_count"] -ne 0) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.cjk_missing_text_count must be 0 when verdict is pass."
     }
 }
 

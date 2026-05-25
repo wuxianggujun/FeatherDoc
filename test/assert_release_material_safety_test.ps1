@@ -209,8 +209,10 @@ $pdfVisualGateEvidence = [ordered]@{
     full_visual_gate_status = "pass"
     verdict = "pass"
     aggregate_contact_sheet = ".\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png"
+    cjk_manifest_count = "43"
     cjk_copy_search_count = "43"
     cjk_missing_text_count = "0"
+    visual_baseline_manifest_count = "42"
     visual_baseline_count = "44"
     pdf_cli_export_log = ".\output\pdf-visual-release-gate-current\report\pdf-cli-export-test.log"
     pdf_regression_log = ".\output\pdf-visual-release-gate-current\report\pdf-regression-test.log"
@@ -387,6 +389,43 @@ try {
 
 if (-not $zeroPdfCountsFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with zero PDF visual gate evidence counts."
+}
+
+$badManifestLowPdfManifestCountsDir = Join-Path $failDir "manifest-low-pdf-visual-manifest-counts"
+$badManifestLowPdfManifestCountsPath = Join-Path $badManifestLowPdfManifestCountsDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestLowPdfManifestCountsDir -Force | Out-Null
+$badManifestLowPdfManifestCounts = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestLowPdfManifestCounts.pdf_visual_gate_evidence.cjk_manifest_count = "42"
+$badManifestLowPdfManifestCounts.pdf_visual_gate_evidence.visual_baseline_manifest_count = "41"
+($badManifestLowPdfManifestCounts | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestLowPdfManifestCountsPath -Encoding UTF8
+
+$lowPdfManifestCountsFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestLowPdfManifestCountsPath
+} catch {
+    $lowPdfManifestCountsFailedAsExpected = $true
+}
+
+if (-not $lowPdfManifestCountsFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with low PDF visual manifest sample counts."
+}
+
+$badManifestPassingPdfMissingTextDir = Join-Path $failDir "manifest-passing-pdf-visual-missing-cjk-text"
+$badManifestPassingPdfMissingTextPath = Join-Path $badManifestPassingPdfMissingTextDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestPassingPdfMissingTextDir -Force | Out-Null
+$badManifestPassingPdfMissingText = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestPassingPdfMissingText.pdf_visual_gate_evidence.cjk_missing_text_count = "1"
+($badManifestPassingPdfMissingText | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestPassingPdfMissingTextPath -Encoding UTF8
+
+$passingPdfMissingTextFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestPassingPdfMissingTextPath
+} catch {
+    $passingPdfMissingTextFailedAsExpected = $true
+}
+
+if (-not $passingPdfMissingTextFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with verdict=pass and missing CJK text."
 }
 
 $badManifestMissingMetricDetailsDir = Join-Path $failDir "manifest-missing-governance-metric-details"
