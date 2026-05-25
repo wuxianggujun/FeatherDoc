@@ -500,6 +500,34 @@ Set-Content -LiteralPath $passReleaseSummaryPdfTracePath -Encoding UTF8 -Value @
 
 & $auditScript -Path $passReleaseSummaryPdfTracePath
 
+$passStartHerePdfTraceDir = Join-Path $passDir "start-here-pdf-visual-gate-trace"
+$passStartHerePdfTracePath = Join-Path $passStartHerePdfTraceDir "START_HERE.md"
+New-Item -ItemType Directory -Path $passStartHerePdfTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passStartHerePdfTracePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF CJK manifest samples: 43
+- PDF CJK copy/search samples: 43
+- PDF visual baseline manifest samples: 42
+- PDF visual baselines: 44
+- PDF visual gate aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+& $auditScript -Path $passStartHerePdfTracePath
+
+$passReviewerChecklistPdfTraceDir = Join-Path $passDir "reviewer-checklist-pdf-visual-gate-trace"
+$passReviewerChecklistPdfTracePath = Join-Path $passReviewerChecklistPdfTraceDir "REVIEWER_CHECKLIST.md"
+New-Item -ItemType Directory -Path $passReviewerChecklistPdfTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReviewerChecklistPdfTracePath -Encoding UTF8 -Value @"
+# Reviewer Checklist
+
+- Confirm PDF visual gate summary .\output\pdf-visual-release-gate-current\report\summary.json with 43 CJK copy/search samples and 44 visual baselines before release.
+- Confirm PDF visual gate aggregate contact sheet .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png before release.
+"@
+
+& $auditScript -Path $passReviewerChecklistPdfTracePath
+
 $passReleaseBodyTraceDir = Join-Path $passDir "release-body-project-template-trace"
 $passReleaseBodyTracePath = Join-Path $passReleaseBodyTraceDir "release_body.zh-CN.md"
 New-Item -ItemType Directory -Path $passReleaseBodyTraceDir -Force | Out-Null
@@ -1856,6 +1884,87 @@ try {
 
 if (-not $badReleaseSummaryPdfVerdictTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with a non-pass/fail PDF visual gate verdict."
+}
+
+$badStartHerePdfDetachedCountTraceDir = Join-Path $failDir "start-here-pdf-visual-count-supplied-by-detached-notes"
+$badStartHerePdfDetachedCountTracePath = Join-Path $badStartHerePdfDetachedCountTraceDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badStartHerePdfDetachedCountTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badStartHerePdfDetachedCountTracePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF CJK manifest samples: 43
+- PDF CJK copy/search samples: 43
+- PDF visual baselines: 44
+- PDF visual gate aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+
+## Detached notes
+
+- PDF visual baseline manifest samples: 42
+"@
+
+$badStartHerePdfDetachedCountTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badStartHerePdfDetachedCountTracePath
+} catch {
+    $badStartHerePdfDetachedCountTraceFailedAsExpected = $true
+}
+
+if (-not $badStartHerePdfDetachedCountTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with PDF visual counts supplied only by detached notes."
+}
+
+$badArtifactGuidePdfDetachedCountTraceDir = Join-Path $failDir "artifact-guide-pdf-visual-count-supplied-by-detached-notes"
+$badArtifactGuidePdfDetachedCountTracePath = Join-Path $badArtifactGuidePdfDetachedCountTraceDir "ARTIFACT_GUIDE.md"
+New-Item -ItemType Directory -Path $badArtifactGuidePdfDetachedCountTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badArtifactGuidePdfDetachedCountTracePath -Encoding UTF8 -Value @"
+# Artifact Guide
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF CJK manifest samples: 43
+- PDF CJK copy/search samples: 43
+- PDF visual baseline manifest samples: 42
+- PDF visual baselines: 44
+
+## Detached notes
+
+- PDF visual gate aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+$badArtifactGuidePdfDetachedCountTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badArtifactGuidePdfDetachedCountTracePath
+} catch {
+    $badArtifactGuidePdfDetachedCountTraceFailedAsExpected = $true
+}
+
+if (-not $badArtifactGuidePdfDetachedCountTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed ARTIFACT_GUIDE.md with PDF visual contact sheet supplied only by detached notes."
+}
+
+$badReviewerChecklistPdfDetachedContactTraceDir = Join-Path $failDir "reviewer-checklist-pdf-visual-contact-sheet-supplied-by-detached-notes"
+$badReviewerChecklistPdfDetachedContactTracePath = Join-Path $badReviewerChecklistPdfDetachedContactTraceDir "REVIEWER_CHECKLIST.md"
+New-Item -ItemType Directory -Path $badReviewerChecklistPdfDetachedContactTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReviewerChecklistPdfDetachedContactTracePath -Encoding UTF8 -Value @"
+# Reviewer Checklist
+
+- Confirm PDF visual gate summary .\output\pdf-visual-release-gate-current\report\summary.json with 43 CJK copy/search samples and 44 visual baselines before release.
+- Confirm PDF visual gate aggregate contact sheet before release.
+
+## Detached notes
+
+- aggregate_contact_sheet=.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+$badReviewerChecklistPdfDetachedContactTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReviewerChecklistPdfDetachedContactTracePath
+} catch {
+    $badReviewerChecklistPdfDetachedContactTraceFailedAsExpected = $true
+}
+
+if (-not $badReviewerChecklistPdfDetachedContactTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed REVIEWER_CHECKLIST.md with PDF visual contact sheet supplied only by detached notes."
 }
 
 $badReleaseBodyTraceDir = Join-Path $failDir "release-body-missing-project-template-source-json"

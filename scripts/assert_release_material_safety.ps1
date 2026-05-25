@@ -698,6 +698,79 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     }
 }
 
+function Add-ReleaseEntryPdfVisualGateTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -notin @("start_here.md", "artifact_guide.md", "reviewer_checklist.md")) {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "PDF visual gate summary",
+        "PDF visual gate aggregate contact sheet"
+    ))) {
+        return
+    }
+
+    $label = "release entry PDF visual gate trace"
+    if ($leafName -in @("start_here.md", "artifact_guide.md")) {
+        $evidenceNeedles = @(
+            "PDF visual gate summary:",
+            "summary.json",
+            "PDF CJK manifest samples:",
+            "PDF CJK copy/search samples:",
+            "PDF visual baseline manifest samples:",
+            "PDF visual baselines:",
+            "PDF visual gate aggregate contact sheet:",
+            "aggregate-contact-sheet.png"
+        )
+
+        if (-not (Test-MarkdownListRunContainsAll -Text $Content -Anchor "PDF visual gate summary:" -Needles $evidenceNeedles)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Entry document must keep PDF visual gate summary, counts, and contact-sheet evidence in the same Markdown list run."
+        }
+
+        return
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("Confirm PDF visual gate summary", "summary.json"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Reviewer checklist must keep the PDF visual gate summary path on the summary confirmation line."
+    }
+
+    foreach ($needle in @(
+        "CJK copy/search samples",
+        "visual baselines"
+    )) {
+        if (-not (Test-TextLineContainsAll -Text $Content -Needles @("Confirm PDF visual gate summary", $needle))) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Reviewer checklist must keep PDF visual gate marker '$needle' on the summary confirmation line."
+        }
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("Confirm PDF visual gate aggregate contact sheet", "aggregate-contact-sheet.png"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Reviewer checklist must keep the PDF visual gate contact-sheet path on the contact-sheet confirmation line."
+    }
+}
+
 function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
     param(
         [string]$File,
@@ -2084,6 +2157,7 @@ foreach ($file in $scanFiles) {
     if ([System.IO.Path]::GetExtension($file).ToLowerInvariant() -eq ".md") {
         $content = Get-Content -Raw -LiteralPath $file
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseEntryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseSummaryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseBodyProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
