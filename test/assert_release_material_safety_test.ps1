@@ -724,6 +724,28 @@ if (-not $missingEntryContentControlRepairDetailsFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed entry document without full content-control repair workflow details."
 }
 
+$badEntryDetachedContentControlDetailsDir = Join-Path $failDir "entry-content-control-details-supplied-by-detached-notes"
+$badEntryDetachedContentControlDetailsPath = Join-Path $badEntryDetachedContentControlDetailsDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryDetachedContentControlDetailsDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryDetachedContentControlDetailsPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Content-control repair: content_control_data_binding.bound_placeholder -> sync_bound_content_control
+- Detached governance details are intentionally outside this entry.
+- Detached details: source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json input_docx=samples/invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
+"@
+
+$detachedEntryContentControlDetailsFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryDetachedContentControlDetailsPath
+} catch {
+    $detachedEntryContentControlDetailsFailedAsExpected = $true
+}
+
+if (-not $detachedEntryContentControlDetailsFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document with content-control repair details supplied only by detached notes."
+}
+
 $badEntryMissingProjectTemplateContractsDir = Join-Path $failDir "entry-missing-project-template-contracts"
 $badEntryMissingProjectTemplateContractsPath = Join-Path $badEntryMissingProjectTemplateContractsDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryMissingProjectTemplateContractsDir -Force | Out-Null

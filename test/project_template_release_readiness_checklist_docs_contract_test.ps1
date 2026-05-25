@@ -115,6 +115,7 @@ foreach ($marker in @(
     "project-template-delivery-readiness",
     "project-template-onboarding-governance",
     "content-control provenance",
+    "block_scoped_entry_content_control_trace",
     "START_HERE.md",
     "ARTIFACT_GUIDE.md",
     "REVIEWER_CHECKLIST.md",
@@ -273,6 +274,7 @@ foreach ($marker in @(
     "project_template_delivery_readiness_contract",
     "project_template_onboarding_governance_contract",
     "content_control_data_binding.bound_placeholder",
+    "Test-ReleaseEntryContentControlTraceBlockContainsAll",
     "Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations",
     "Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations",
     "Add-FinalReviewProjectTemplateGovernanceTraceViolations",
@@ -295,6 +297,7 @@ foreach ($marker in @(
 
 foreach ($marker in @(
     "Markdown list block",
+    "block_scoped_entry_content_control_trace",
     "block_scoped_release_handoff_trace",
     "block_scoped_governance_handoff_trace",
     "block_scoped_final_review_project_template_trace",

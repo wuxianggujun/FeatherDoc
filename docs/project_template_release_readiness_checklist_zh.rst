@@ -118,7 +118,10 @@ approval、content-control 和 release governance 报告之间手工拼结论。
    * 公开材料里出现 ``content_control_data_binding.bound_placeholder`` 时，必须同时
      出现 ``source_schema``、``source_json_display``、``repair_strategy``、
      ``repair_hint``、``command_template``、``input_docx``、``template_name``、
-     ``schema_target`` 和 ``target_mode``。
+     ``schema_target`` 和 ``target_mode``。这些字段必须和 blocker id 保持在
+     同一个 Markdown list block，或保持在相邻的 content-control 入口条目组内；
+     不能让 detached notes 补齐当前入口。固定标记：
+     ``block_scoped_entry_content_control_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、
      ``release_handoff.md``、``release_body.zh-CN.md``、
      ``release_summary.zh-CN.md``、``release_governance_handoff.md`` 和

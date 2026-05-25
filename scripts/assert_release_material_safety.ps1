@@ -282,6 +282,71 @@ function Test-MarkdownListBlockContainsAll {
     return $false
 }
 
+function Test-ReleaseEntryContentControlBulletRunContainsAll {
+    param(
+        [string]$Text,
+        [string[]]$Needles
+    )
+
+    $anchor = "content_control_data_binding.bound_placeholder"
+    $contentControlBulletPattern = "(?i)(content-control|content_control_data_binding)"
+    $lines = $Text -split "\r?\n"
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if (-not $lines[$lineIndex].Contains($anchor)) {
+            continue
+        }
+        if ($lines[$lineIndex] -notmatch '^\s*-\s*') {
+            continue
+        }
+
+        $blockStart = $lineIndex
+        while (
+            $blockStart -gt 0 -and
+            $lines[$blockStart - 1] -match '^\s*-\s*' -and
+            $lines[$blockStart - 1] -match $contentControlBulletPattern
+        ) {
+            $blockStart--
+        }
+
+        $blockEnd = $lineIndex
+        while (
+            $blockEnd + 1 -lt $lines.Count -and
+            $lines[$blockEnd + 1] -match '^\s*-\s*' -and
+            $lines[$blockEnd + 1] -match $contentControlBulletPattern
+        ) {
+            $blockEnd++
+        }
+
+        $block = ($lines[$blockStart..$blockEnd]) -join "`n"
+        $containsAllNeedles = $true
+        foreach ($needle in $Needles) {
+            if ([string]::IsNullOrWhiteSpace($needle) -or -not $block.Contains($needle)) {
+                $containsAllNeedles = $false
+                break
+            }
+        }
+
+        if ($containsAllNeedles) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Test-ReleaseEntryContentControlTraceBlockContainsAll {
+    param(
+        [string]$Text,
+        [string[]]$Needles
+    )
+
+    $anchor = "content_control_data_binding.bound_placeholder"
+    return (
+        (Test-MarkdownListBlockContainsAll -Text $Text -Anchor $anchor -Needles $Needles) -or
+        (Test-ReleaseEntryContentControlBulletRunContainsAll -Text $Text -Needles $Needles)
+    )
+}
+
 function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     param(
         [string]$File,
@@ -312,7 +377,8 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     $label = "release entry governance trace"
 
     if ($Content.Contains("content_control_data_binding.bound_placeholder")) {
-        foreach ($needle in @(
+        $contentControlAnchor = "content_control_data_binding.bound_placeholder"
+        $contentControlNeedles = @(
             "featherdoc.content_control_data_binding_governance_report.v1",
             "source_json_display",
             "input_docx",
@@ -325,13 +391,27 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "sync_bound_content_control",
             "command_template",
             "sync-content-controls-from-custom-xml"
-        )) {
-            if (-not $Content.Contains($needle)) {
+        )
+        $contentControlBlockNeedles = @($contentControlAnchor) + $contentControlNeedles
+        if (-not (Test-ReleaseEntryContentControlTraceBlockContainsAll -Text $Content -Needles $contentControlBlockNeedles)) {
+            $foundMissingNeedle = $false
+            foreach ($needle in $contentControlNeedles) {
+                if (-not (Test-ReleaseEntryContentControlTraceBlockContainsAll -Text $Content -Needles @($contentControlAnchor, $needle))) {
+                    $foundMissingNeedle = $true
+                    Add-AuditViolation `
+                        -Violations $Violations `
+                        -File $File `
+                        -Label $label `
+                        -Text "Entry document mentions content_control_data_binding.bound_placeholder without required repair workflow marker '$needle'."
+                }
+            }
+
+            if (-not $foundMissingNeedle) {
                 Add-AuditViolation `
                     -Violations $Violations `
                     -File $File `
                     -Label $label `
-                    -Text "Entry document mentions content_control_data_binding.bound_placeholder without required repair workflow marker '$needle'."
+                    -Text "Entry document must keep content_control_data_binding.bound_placeholder repair workflow markers in the same Markdown list block or adjacent content-control entry block."
             }
         }
     }
