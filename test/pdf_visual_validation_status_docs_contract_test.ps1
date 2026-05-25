@@ -230,6 +230,7 @@ foreach ($marker in @(
     "-SkipPreflight",
     "full_visual_gate_status",
     "full gate summary verdict",
+    "line_scoped_final_review_pdf_visual_trace",
     "block_scoped_pdf_visual_gate_handoff_trace",
     "not_run_by_preflight_governance",
     "contact sheet",

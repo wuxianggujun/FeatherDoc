@@ -788,10 +788,7 @@ function Add-FinalReviewPdfVisualGateTraceViolations {
         "PDF visual gate verdict:",
         "PDF visual gate counts:",
         "PDF visual gate manifest counts:",
-        "PDF visual gate finalizable:",
-        "PDF visual gate summary:",
-        "PDF visual gate contact sheet:",
-        "aggregate-contact-sheet.png"
+        "PDF visual gate finalizable:"
     )) {
         if (-not $Content.Contains($needle)) {
             Add-AuditViolation `
@@ -800,6 +797,22 @@ function Add-FinalReviewPdfVisualGateTraceViolations {
                 -Label $label `
                 -Text "Final review lost PDF visual gate trace marker '$needle'."
         }
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate summary:", "summary.json"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep the PDF visual gate summary path on the PDF visual gate summary line."
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate contact sheet:", "aggregate-contact-sheet.png"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep the PDF visual gate contact-sheet path on the PDF visual gate contact sheet line."
     }
 }
 
