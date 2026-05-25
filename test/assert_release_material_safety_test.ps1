@@ -2275,7 +2275,7 @@ Set-Content -LiteralPath $badFinalReviewSplitTracePath -Encoding UTF8 -Value @"
 
 ## Detached notes
 
-- source_json_display: .\output\project-template-onboarding-governance\summary.json
+- project_template_delivery_readiness / project_template_onboarding.schema_approval: detached source_json_display: .\output\project-template-onboarding-governance\summary.json project-template-onboarding-governance
 "@
 
 $badFinalReviewSplitTraceFailedAsExpected = $false
@@ -2286,7 +2286,7 @@ try {
 }
 
 if (-not $badFinalReviewSplitTraceFailedAsExpected) {
-    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with project-template source_json_display supplied only by detached notes."
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with project-template source_json_display supplied only by repeated-anchor detached notes."
 }
 
 $badFinalReviewPdfTraceDir = Join-Path $failDir "final-review-missing-pdf-visual-contact-sheet"

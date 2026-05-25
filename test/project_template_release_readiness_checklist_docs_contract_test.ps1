@@ -292,6 +292,7 @@ foreach ($marker in @(
     "Add-ProjectTemplateOnboardingGovernanceContractViolations",
     "Test-ReleaseGovernanceHandoffProjectTemplateTraceBlockContainsAll",
     "Test-ReleaseHandoffProjectTemplateTraceBlockContainsAll",
+    "Test-FinalReviewProjectTemplateTraceBlockContainsAll",
     "Test-ReleaseNoteProjectTemplateTraceLineContainsAll",
     "Test-TextLineContainsAll",
     "Test-MarkdownListBlockContainsAll",
@@ -319,6 +320,7 @@ foreach ($marker in @(
     "block_scoped_governance_handoff_trace",
     "single_block_governance_handoff_project_template_trace",
     "block_scoped_final_review_project_template_trace",
+    "single_block_final_review_project_template_trace",
     "onboarding governance block"
 )) {
     Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `

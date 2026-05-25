@@ -474,6 +474,16 @@ function Test-ReleaseHandoffProjectTemplateTraceBlockContainsAll {
     return Test-MarkdownListBlockContainsAll -Text $Text -Anchor $Anchor -Needles (@($Anchor) + $Needles)
 }
 
+function Test-FinalReviewProjectTemplateTraceBlockContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$Needles
+    )
+
+    return Test-MarkdownListBlockContainsAll -Text $Text -Anchor $Anchor -Needles (@($Anchor) + $Needles)
+}
+
 function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     param(
         [string]$File,
@@ -1102,9 +1112,7 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
     }
 
     $anchor = "project_template_delivery_readiness / project_template_onboarding.schema_approval"
-    foreach ($needle in @(
-        "project_template_delivery_readiness",
-        "project_template_onboarding.schema_approval",
+    $blockNeedles = @(
         "featherdoc.project_template_onboarding_governance_report.v1",
         "project_template_onboarding_governance_contract",
         "schema_approval_status_summary",
@@ -1112,14 +1120,30 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
         "project-template-delivery-readiness",
         "source_json_display:",
         "project-template-onboarding-governance"
-    )) {
-        if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor $anchor -Needles @($needle))) {
+    )
+
+    if (Test-FinalReviewProjectTemplateTraceBlockContainsAll -Text $Content -Anchor $anchor -Needles $blockNeedles) {
+        return
+    }
+
+    $foundMissingNeedle = $false
+    foreach ($needle in $blockNeedles) {
+        if (-not (Test-FinalReviewProjectTemplateTraceBlockContainsAll -Text $Content -Anchor $anchor -Needles @($needle))) {
+            $foundMissingNeedle = $true
             Add-AuditViolation `
                 -Violations $Violations `
                 -File $File `
                 -Label $label `
                 -Text "Final review lost project template governance trace marker '$needle' inside the handoff blocker block."
         }
+    }
+
+    if (-not $foundMissingNeedle) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep project template governance trace markers in the same handoff blocker block."
     }
 }
 
