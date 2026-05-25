@@ -245,6 +245,7 @@ function Get-PdfVisualGateEvidence {
     $evidence = [ordered]@{
         summary_json = $SummaryPath
         status = if ([string]::IsNullOrWhiteSpace($SummaryPath)) { "" } else { "missing" }
+        full_visual_gate_status = ""
         verdict = ""
         aggregate_contact_sheet = ""
         cjk_manifest_count = ""
@@ -277,6 +278,9 @@ function Get-PdfVisualGateEvidence {
 
     $evidence.status = "loaded"
     $evidence.verdict = Get-OptionalPropertyValue -Object $summary -Name "verdict"
+    if ($evidence.verdict -in @("pass", "fail")) {
+        $evidence.full_visual_gate_status = $evidence.verdict
+    }
     $evidence.aggregate_contact_sheet = Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet"
     $evidence.cjk_manifest_count = Get-OptionalPropertyValue -Object $summary -Name "cjk_manifest_count"
     $evidence.visual_baseline_manifest_count = Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_manifest_count"

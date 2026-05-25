@@ -514,11 +514,18 @@ function Add-PdfVisualGateEvidenceFields {
         $summaryJson = Get-FirstJsonString -Object $Summary -Names @("pdf_visual_gate_summary_json")
     }
     $aggregateContactSheet = Get-FirstJsonString -Object $pdfVisualGate -Names @("aggregate_contact_sheet")
+    $verdict = Get-FirstJsonString -Object $pdfVisualGate -Names @("verdict")
+    $fullVisualGateStatus = Get-FirstJsonString -Object $pdfVisualGate -Names @("full_visual_gate_status")
+    if ([string]::IsNullOrWhiteSpace($fullVisualGateStatus) -and $verdict -in @("pass", "fail")) {
+        $fullVisualGateStatus = $verdict
+    }
 
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_status" `
         -Value (Get-FirstJsonString -Object $pdfVisualGate -Names @("status"))
+    Set-OptionalSourceReportField -Target $Target -Name "full_visual_gate_status" `
+        -Value $fullVisualGateStatus
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_verdict" `
-        -Value (Get-FirstJsonString -Object $pdfVisualGate -Names @("verdict"))
+        -Value $verdict
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_finalizable" `
         -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("finalizable"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_summary_json" `

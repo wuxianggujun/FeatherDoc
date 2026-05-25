@@ -857,6 +857,8 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should expose at least one PDF visual gate evidence source report."
     Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_status) -Expected "loaded" `
         -Message "Handoff summary should expose PDF visual gate status from the nested rollup."
+    Assert-Equal -Actual ([string]$pdfEvidence.full_visual_gate_status) -Expected "pass" `
+        -Message "Handoff summary should expose the normalized full PDF visual gate status from the nested rollup."
     Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_verdict) -Expected "pass" `
         -Message "Handoff summary should expose PDF visual gate verdict from the nested rollup."
     Assert-Equal -Actual ([bool]$pdfEvidence.pdf_visual_gate_finalizable) -Expected $true `
@@ -914,6 +916,8 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should expose the PDF visual gate evidence count."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict: ``pass``" `
         -Message "Handoff Markdown should expose the PDF visual gate verdict."
+    Assert-ContainsText -Text $markdown -ExpectedText "full_visual_gate_status: ``pass``" `
+        -Message "Handoff Markdown should expose the normalized full PDF visual gate conclusion."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_summary_json_display" `
         -Message "Handoff Markdown should expose the PDF visual gate summary display field."
     Assert-ContainsText -Text $markdown -ExpectedText "aggregate-contact-sheet.png" `
@@ -929,6 +933,7 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
         "schema=``featherdoc.release_candidate_summary``",
         "pdf_visual_gate_status: ``loaded``",
+        "full_visual_gate_status: ``pass``",
         "pdf_visual_gate_verdict: ``pass``",
         "pdf_visual_gate_finalizable: ``True``",
         "pdf_visual_gate_summary_json_display:",

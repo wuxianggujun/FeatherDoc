@@ -941,6 +941,8 @@ if (Test-Scenario -Name "passing") {
         Select-Object -First 1)
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_status) -Expected "loaded" `
         -Message "Rollup should preserve loaded PDF visual gate evidence status from release candidate summaries."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.full_visual_gate_status) -Expected "pass" `
+        -Message "Rollup should normalize full PDF visual gate status from release candidate summaries."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_verdict) -Expected "pass" `
         -Message "Rollup should preserve PDF visual gate verdict from release candidate summaries."
     Assert-Equal -Actual ([bool]$releaseCandidateSourceReport.pdf_visual_gate_finalizable) -Expected $true `
@@ -1037,6 +1039,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should make clear that PDF preflight did not run the full visual gate."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict" `
         -Message "Markdown should include PDF visual gate verdict evidence from release candidate summaries."
+    Assert-ContainsText -Text $markdown -ExpectedText "full_visual_gate_status: ``pass``" `
+        -Message "Markdown should expose the full PDF visual gate conclusion from release candidate summaries."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict: ``pass``" `
         -Message "Markdown should make the PDF visual gate pass verdict explicit."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_summary_json_display" `
@@ -1049,6 +1053,7 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF visual gate visual baseline count."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "featherdoc.release_candidate_summary" -ExpectedFragments @(
         "pdf_visual_gate_status: ``loaded``",
+        "full_visual_gate_status: ``pass``",
         "pdf_visual_gate_verdict: ``pass``",
         "pdf_visual_gate_finalizable: ``True``",
         "pdf_visual_gate_summary_json_display:",

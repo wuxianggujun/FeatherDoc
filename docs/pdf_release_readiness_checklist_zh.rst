@@ -123,7 +123,8 @@ OCR 或任意视觉精确还原。
    * ``full_visual_gate_status`` 不能停留在“governance 未消化”的唯一结论；
      release reviewer 应同时看到 full gate summary verdict。
    * ``release_governance_handoff.md`` 中每个 ``source_report:`` block
-     必须把 PDF visual gate verdict、finalizable、summary、contact sheet
+     必须把 ``full_visual_gate_status = pass`` 或 ``fail``、PDF visual gate
+     verdict、finalizable、summary、contact sheet
      和 42/43/44 计数放在同一块里；不能让块外的
      ``aggregate-contact-sheet.png`` 替代当前 source report 的证据。
      固定标记：``block_scoped_pdf_visual_gate_handoff_trace``。

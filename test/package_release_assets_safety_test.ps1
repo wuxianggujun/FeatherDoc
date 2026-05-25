@@ -184,6 +184,7 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
 - PDF visual gate evidence source reports: ``1``
   - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
     - pdf_visual_gate_status: ``loaded``
+    - full_visual_gate_status: ``pass``
     - pdf_visual_gate_verdict: ``pass``
     - pdf_visual_gate_finalizable: ``True``
     - pdf_visual_gate_summary_json_display: ``$pdfGateSummaryPath``
@@ -668,6 +669,7 @@ Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'project_templa
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'featherdoc.project_template_onboarding_governance_report.v1' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText '.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'PDF visual gate evidence source reports: `1`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'full_visual_gate_status: `pass`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_verdict: `pass`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_finalizable: `True`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_summary_json_display' -Label 'staged release_governance_handoff.md'
@@ -865,6 +867,9 @@ if ([string]$manifest.pdf_visual_gate_evidence.summary_json -ne $expectedRelativ
 }
 if ([string]$manifest.pdf_visual_gate_evidence.verdict -ne "pass") {
     throw "release_assets_manifest.json lost the PDF visual gate verdict."
+}
+if ([string]$manifest.pdf_visual_gate_evidence.full_visual_gate_status -ne "pass") {
+    throw "release_assets_manifest.json lost the full PDF visual gate status."
 }
 if ([string]$manifest.pdf_visual_gate_evidence.aggregate_contact_sheet -notmatch "aggregate-contact-sheet.png") {
     throw "release_assets_manifest.json lost the PDF visual gate aggregate contact sheet."

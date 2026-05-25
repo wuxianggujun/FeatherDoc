@@ -416,6 +416,7 @@ function Get-PdfVisualGateSummaryInfo {
         requested = -not [string]::IsNullOrWhiteSpace($SummaryJson)
         status = if ([string]::IsNullOrWhiteSpace($SummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $SummaryJson) { "available" } else { "missing" }
         summary_json = $SummaryJson
+        full_visual_gate_status = ""
         verdict = ""
         aggregate_contact_sheet = ""
         cjk_manifest_count = 0
@@ -434,6 +435,9 @@ function Get-PdfVisualGateSummaryInfo {
         $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $SummaryJson | ConvertFrom-Json
         $info.status = "loaded"
         $info.verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "verdict")
+        if ($info.verdict -in @("pass", "fail")) {
+            $info.full_visual_gate_status = $info.verdict
+        }
         $info.aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet")
         $info.cjk_manifest_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_manifest_count")
         $info.cjk_copy_search_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_count")

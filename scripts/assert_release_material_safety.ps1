@@ -1294,6 +1294,7 @@ function Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations {
     $sourceReportBlockNeedles = @(
         "source_report:",
         "pdf_visual_gate_status:",
+        "full_visual_gate_status:",
         "pdf_visual_gate_verdict:",
         "pdf_visual_gate_finalizable:",
         "pdf_visual_gate_summary_json_display:",
@@ -1309,7 +1310,7 @@ function Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations {
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release governance handoff must keep PDF visual gate source report, verdict, counts, and contact-sheet path in the same source_report block."
+            -Text "Release governance handoff must keep PDF visual gate source report, full visual status, verdict, counts, and contact-sheet path in the same source_report block."
     }
 }
 
@@ -2165,6 +2166,15 @@ function Add-PdfVisualGateManifestContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.verdict is missing."
     } elseif ($evidenceVerdict -notin @("pass", "fail")) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.verdict must be pass or fail."
+    }
+
+    $fullVisualGateStatus = ([string](Get-JsonPropertyValue -Object $evidence -Name "full_visual_gate_status")).Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($fullVisualGateStatus)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.full_visual_gate_status is missing."
+    } elseif ($fullVisualGateStatus -notin @("pass", "fail")) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.full_visual_gate_status must be pass or fail."
+    } elseif ($evidenceVerdict -in @("pass", "fail") -and $fullVisualGateStatus -ne $evidenceVerdict) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.full_visual_gate_status must match verdict."
     }
 
     $evidenceSummary = [string](Get-JsonPropertyValue -Object $evidence -Name "summary_json")

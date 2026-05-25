@@ -206,6 +206,7 @@ $pdfVisualGateSummaryJson = ".\output\pdf-visual-release-gate-current\report\sum
 $pdfVisualGateEvidence = [ordered]@{
     summary_json = $pdfVisualGateSummaryJson
     status = "loaded"
+    full_visual_gate_status = "pass"
     verdict = "pass"
     aggregate_contact_sheet = ".\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png"
     cjk_copy_search_count = "43"
@@ -331,6 +332,24 @@ try {
 
 if (-not $invalidPdfVerdictFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with invalid PDF visual gate verdict."
+}
+
+$badManifestMismatchedFullPdfStatusDir = Join-Path $failDir "manifest-mismatched-full-pdf-visual-status"
+$badManifestMismatchedFullPdfStatusPath = Join-Path $badManifestMismatchedFullPdfStatusDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMismatchedFullPdfStatusDir -Force | Out-Null
+$badManifestMismatchedFullPdfStatus = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMismatchedFullPdfStatus.pdf_visual_gate_evidence.full_visual_gate_status = "fail"
+($badManifestMismatchedFullPdfStatus | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMismatchedFullPdfStatusPath -Encoding UTF8
+
+$mismatchedFullPdfStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMismatchedFullPdfStatusPath
+} catch {
+    $mismatchedFullPdfStatusFailedAsExpected = $true
+}
+
+if (-not $mismatchedFullPdfStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with PDF full visual status diverging from verdict."
 }
 
 $badManifestMismatchedPdfSummaryDir = Join-Path $failDir "manifest-mismatched-pdf-visual-summary"
@@ -676,6 +695,7 @@ Set-Content -LiteralPath $passReleaseGovernanceHandoffPdfTracePath -Encoding UTF
 - PDF visual gate evidence source reports: ``1``
   - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
     - pdf_visual_gate_status: ``loaded``
+    - full_visual_gate_status: ``pass``
     - pdf_visual_gate_verdict: ``pass``
     - pdf_visual_gate_finalizable: ``True``
     - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
