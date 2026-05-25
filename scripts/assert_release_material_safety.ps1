@@ -577,7 +577,7 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
             "source_report_display:",
             "source_json_display:"
         )) {
-            if (-not $Content.Contains($needle)) {
+            if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor "project_template_delivery_readiness:" -Needles @($needle))) {
                 Add-AuditViolation `
                     -Violations $Violations `
                     -File $File `
@@ -596,7 +596,7 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
             "source_report_display:",
             "source_json_display:"
         )) {
-            if (-not $Content.Contains($needle)) {
+            if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor "project_template_onboarding.schema_approval" -Needles @($needle))) {
                 Add-AuditViolation `
                     -Violations $Violations `
                     -File $File `

@@ -1718,6 +1718,78 @@ if (-not $badReleaseHandoffTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md without project-template source_json_display."
 }
 
+$badReleaseHandoffReadinessSplitTraceDir = Join-Path $failDir "release-handoff-readiness-source-json-supplied-by-onboarding"
+$badReleaseHandoffReadinessSplitTracePath = Join-Path $badReleaseHandoffReadinessSplitTraceDir "release_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseHandoffReadinessSplitTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseHandoffReadinessSplitTracePath -Encoding UTF8 -Value @"
+# Release handoff
+
+- project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+  - project_template_delivery_readiness_contract:
+    - source_schema: featherdoc.project_template_delivery_readiness_report.v1
+    - status: ready
+    - release_ready: True
+    - latest_schema_approval_gate_status: passed
+    - schema_approval_status_summary: approved=4
+    - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+    - source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseHandoffReadinessSplitTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseHandoffReadinessSplitTracePath
+} catch {
+    $badReleaseHandoffReadinessSplitTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseHandoffReadinessSplitTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with readiness source_json_display supplied only by onboarding."
+}
+
+$badReleaseHandoffOnboardingSplitTraceDir = Join-Path $failDir "release-handoff-onboarding-source-json-supplied-by-readiness"
+$badReleaseHandoffOnboardingSplitTracePath = Join-Path $badReleaseHandoffOnboardingSplitTraceDir "release_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseHandoffOnboardingSplitTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseHandoffOnboardingSplitTracePath -Encoding UTF8 -Value @"
+# Release handoff
+
+- project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+  - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+  - project_template_delivery_readiness_contract:
+    - source_schema: featherdoc.project_template_delivery_readiness_report.v1
+    - status: ready
+    - release_ready: True
+    - latest_schema_approval_gate_status: passed
+    - schema_approval_status_summary: approved=4
+    - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+    - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseHandoffOnboardingSplitTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseHandoffOnboardingSplitTracePath
+} catch {
+    $badReleaseHandoffOnboardingSplitTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseHandoffOnboardingSplitTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with onboarding source_json_display supplied only by readiness."
+}
+
 $badReleaseGovernanceHandoffTraceDir = Join-Path $failDir "release-governance-handoff-missing-project-template-source-json"
 $badReleaseGovernanceHandoffTracePath = Join-Path $badReleaseGovernanceHandoffTraceDir "release_governance_handoff.md"
 New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffTraceDir -Force | Out-Null
