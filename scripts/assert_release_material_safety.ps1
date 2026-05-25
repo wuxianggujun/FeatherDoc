@@ -347,6 +347,56 @@ function Test-ReleaseEntryContentControlTraceBlockContainsAll {
     )
 }
 
+function Test-ReleaseEntryGovernanceMetricTraceBlockContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$Needles
+    )
+
+    return (
+        (Test-TextLineContainsAll -Text $Text -Needles $Needles) -or
+        (Test-MarkdownListBlockContainsAll -Text $Text -Anchor $Anchor -Needles $Needles)
+    )
+}
+
+function Add-ReleaseEntryGovernanceMetricDetailViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations,
+        [string]$Label,
+        [string]$Anchor,
+        [string]$Description,
+        [string[]]$Needles
+    )
+
+    $blockNeedles = @($Anchor) + $Needles
+    if (Test-ReleaseEntryGovernanceMetricTraceBlockContainsAll -Text $Content -Anchor $Anchor -Needles $blockNeedles) {
+        return
+    }
+
+    $foundMissingNeedle = $false
+    foreach ($needle in $Needles) {
+        if (-not (Test-ReleaseEntryGovernanceMetricTraceBlockContainsAll -Text $Content -Anchor $Anchor -Needles @($Anchor, $needle))) {
+            $foundMissingNeedle = $true
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $Label `
+                -Text "Entry document mentions $Description without required detail marker '$needle'."
+        }
+    }
+
+    if (-not $foundMissingNeedle) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $Label `
+            -Text "Entry document must keep $Description detail markers in the same line or Markdown list block."
+    }
+}
+
 function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     param(
         [string]$File,
@@ -474,7 +524,14 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     }
 
     if ($Content.Contains("numbering_catalog_governance.real_corpus_confidence")) {
-        foreach ($needle in @(
+        Add-ReleaseEntryGovernanceMetricDetailViolations `
+            -File $File `
+            -Content $Content `
+            -Violations $Violations `
+            -Label $label `
+            -Anchor "numbering_catalog_governance.real_corpus_confidence" `
+            -Description "numbering_catalog_governance.real_corpus_confidence" `
+            -Needles @(
             "catalog_coverage_percent",
             "baseline_coverage_percent",
             "coverage_score",
@@ -487,19 +544,18 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "matched_document_keys",
             "penalty_summary",
             "style_numbering_issues"
-        )) {
-            if (-not $Content.Contains($needle)) {
-                Add-AuditViolation `
-                    -Violations $Violations `
-                    -File $File `
-                    -Label $label `
-                    -Text "Entry document mentions numbering_catalog_governance.real_corpus_confidence without required detail marker '$needle'."
-            }
-        }
+        )
     }
 
     if ($Content.Contains("table_layout_delivery_governance.delivery_quality")) {
-        foreach ($needle in @(
+        Add-ReleaseEntryGovernanceMetricDetailViolations `
+            -File $File `
+            -Content $Content `
+            -Violations $Violations `
+            -Label $label `
+            -Anchor "table_layout_delivery_governance.delivery_quality" `
+            -Description "table_layout_delivery_governance.delivery_quality" `
+            -Needles @(
             "table_style_issue_count",
             "automatic_tblLook_fix_count",
             "manual_table_style_fix_count",
@@ -510,15 +566,7 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "unresolved_item_count",
             "penalty_summary",
             "floating_table_plans_pending"
-        )) {
-            if (-not $Content.Contains($needle)) {
-                Add-AuditViolation `
-                    -Violations $Violations `
-                    -File $File `
-                    -Label $label `
-                    -Text "Entry document mentions table_layout_delivery_governance.delivery_quality without required detail marker '$needle'."
-            }
-        }
+        )
     }
 }
 

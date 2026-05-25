@@ -702,6 +702,50 @@ if (-not $missingEntryGovernanceMetricDetailsFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed entry document without governance metric detail markers."
 }
 
+$badEntryDetachedNumberingDetailsDir = Join-Path $failDir "entry-numbering-details-supplied-by-detached-notes"
+$badEntryDetachedNumberingDetailsPath = Join-Path $badEntryDetachedNumberingDetailsDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryDetachedNumberingDetailsDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryDetachedNumberingDetailsPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence level=low score=56
+- Detached governance details are intentionally outside this metric.
+- Detached details: catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
+"@
+
+$detachedEntryNumberingDetailsFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryDetachedNumberingDetailsPath
+} catch {
+    $detachedEntryNumberingDetailsFailedAsExpected = $true
+}
+
+if (-not $detachedEntryNumberingDetailsFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document with numbering details supplied only by detached notes."
+}
+
+$badEntryDetachedTableLayoutDetailsDir = Join-Path $failDir "entry-table-layout-details-supplied-by-detached-notes"
+$badEntryDetachedTableLayoutDetailsPath = Join-Path $badEntryDetachedTableLayoutDetailsDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryDetachedTableLayoutDetailsDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryDetachedTableLayoutDetailsPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready
+- Detached governance details are intentionally outside this metric.
+- Detached details: table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+"@
+
+$detachedEntryTableLayoutDetailsFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryDetachedTableLayoutDetailsPath
+} catch {
+    $detachedEntryTableLayoutDetailsFailedAsExpected = $true
+}
+
+if (-not $detachedEntryTableLayoutDetailsFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document with table-layout details supplied only by detached notes."
+}
+
 $badEntryMissingRepairDetailsDir = Join-Path $failDir "entry-missing-content-control-repair-details"
 $badEntryMissingRepairDetailsPath = Join-Path $badEntryMissingRepairDetailsDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryMissingRepairDetailsDir -Force | Out-Null
