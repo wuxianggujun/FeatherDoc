@@ -698,6 +698,26 @@ if (-not $missingEntryReadinessSchemaSummaryFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed entry document where only onboarding carried schema_approval_status_summary."
 }
 
+$badEntryMissingReadinessForOnboardingDir = Join-Path $failDir "entry-missing-readiness-for-onboarding"
+$badEntryMissingReadinessForOnboardingPath = Join-Path $badEntryMissingReadinessForOnboardingDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryMissingReadinessForOnboardingDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryMissingReadinessForOnboardingPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$missingEntryReadinessForOnboardingFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryMissingReadinessForOnboardingPath
+} catch {
+    $missingEntryReadinessForOnboardingFailedAsExpected = $true
+}
+
+if (-not $missingEntryReadinessForOnboardingFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document with onboarding governance but without delivery readiness contract."
+}
+
 $badDraftFile = Join-Path $failDir "bad_draft.md"
 Set-Content -LiteralPath $badDraftFile -Encoding UTF8 -Value @"
 # FeatherDoc v1.6.4 鍙戝竷璇存槑鑽夌

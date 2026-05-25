@@ -107,6 +107,8 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``project_template_delivery_readiness_contract``，并要求入口材料中
      ``project_template_delivery_readiness`` 所在行携带
      ``schema_approval_status_summary``，不能被 onboarding 行的同名字段误满足。
+     入口材料只要出现 ``project_template_onboarding.schema_approval``，也必须同时
+     保留 delivery readiness 与 onboarding governance 两条契约，不能只暴露单边阻断项。
    * 公开材料里出现 ``content_control_data_binding.bound_placeholder`` 时，必须同时
      出现 ``source_schema``、``source_json_display``、``repair_strategy``、
      ``repair_hint``、``command_template``、``input_docx``、``template_name``、

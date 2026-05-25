@@ -296,7 +296,7 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
         }
     }
 
-    if (Test-TextContainsAny -Text $Content -Needles @("project_template_delivery_readiness", "project_template_onboarding_governance")) {
+    if (Test-TextContainsAny -Text $Content -Needles @("project_template_delivery_readiness", "project_template_onboarding.schema_approval", "project_template_onboarding_governance")) {
         foreach ($needle in @(
             "project_template_delivery_readiness",
             "project_template_delivery_readiness_contract",
