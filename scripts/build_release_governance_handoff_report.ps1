@@ -167,6 +167,12 @@ function Get-PdfVisualGateRollupEvidence {
                 pdf_visual_gate_cjk_missing_text_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_cjk_missing_text_count")
                 pdf_visual_gate_visual_baseline_manifest_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_visual_baseline_manifest_count")
                 pdf_visual_gate_visual_baseline_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_visual_baseline_count")
+                pdf_bounded_ctest_summary_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_bounded_ctest_summary_count")
+                pdf_bounded_ctest_pass_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_bounded_ctest_pass_count")
+                pdf_bounded_ctest_skipped_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_bounded_ctest_skipped_test_count")
+                pdf_bounded_ctest_selected_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_bounded_ctest_selected_test_count")
+                pdf_bounded_ctest_subsets = @(Get-JsonArray -Object $sourceReport -Name "pdf_bounded_ctest_subsets")
+                pdf_bounded_ctest_summary_json_display = @(Get-JsonArray -Object $sourceReport -Name "pdf_bounded_ctest_summary_json_display")
             }
         }
     )
@@ -847,6 +853,12 @@ function New-ReportMarkdown {
             $lines.Add("    - pdf_visual_gate_cjk_copy_search_count: ``$($evidence.pdf_visual_gate_cjk_copy_search_count)``") | Out-Null
             $lines.Add("    - pdf_visual_gate_visual_baseline_manifest_count: ``$($evidence.pdf_visual_gate_visual_baseline_manifest_count)``") | Out-Null
             $lines.Add("    - pdf_visual_gate_visual_baseline_count: ``$($evidence.pdf_visual_gate_visual_baseline_count)``") | Out-Null
+            $lines.Add("    - pdf_bounded_ctest_summary_count: ``$($evidence.pdf_bounded_ctest_summary_count)``") | Out-Null
+            $lines.Add("    - pdf_bounded_ctest_pass_count: ``$($evidence.pdf_bounded_ctest_pass_count)``") | Out-Null
+            $lines.Add("    - pdf_bounded_ctest_skipped_test_count: ``$($evidence.pdf_bounded_ctest_skipped_test_count)``") | Out-Null
+            $lines.Add("    - pdf_bounded_ctest_selected_test_count: ``$($evidence.pdf_bounded_ctest_selected_test_count)``") | Out-Null
+            $lines.Add("    - pdf_bounded_ctest_subsets: ``$(@($evidence.pdf_bounded_ctest_subsets) -join ', ')``") | Out-Null
+            $lines.Add("    - pdf_bounded_ctest_summary_json_display: ``$(@($evidence.pdf_bounded_ctest_summary_json_display) -join ', ')``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$evidence.full_visual_gate_status)) {
                 $lines.Add("    - full_visual_gate_status: ``$($evidence.full_visual_gate_status)``") | Out-Null
             }

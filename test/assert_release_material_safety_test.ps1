@@ -747,9 +747,57 @@ Set-Content -LiteralPath $passReleaseGovernanceHandoffPdfTracePath -Encoding UTF
     - pdf_visual_gate_cjk_copy_search_count: ``43``
     - pdf_visual_gate_visual_baseline_manifest_count: ``42``
     - pdf_visual_gate_visual_baseline_count: ``44``
+    - pdf_bounded_ctest_summary_count: ``7``
+    - pdf_bounded_ctest_pass_count: ``7``
+    - pdf_bounded_ctest_skipped_test_count: ``0``
+    - pdf_bounded_ctest_selected_test_count: ``70``
+    - pdf_bounded_ctest_subsets: ``smoke-import, contract-static, cjk-flow-static, regression-basic-text, regression-styled-document, regression-business-samples, regression-table-layout``
+    - pdf_bounded_ctest_summary_json_display: ``.\build\pdf-ctest-bounded-subset-current\summary.json, .\build\pdf-ctest-bounded-contract-static-current\summary.json, .\build\pdf-ctest-bounded-cjk-flow-static-current\summary.json, .\build\pdf-ctest-bounded-regression-basic-text-current\summary.json, .\build\pdf-ctest-bounded-regression-styled-document-current\summary.json, .\build\pdf-ctest-bounded-regression-business-samples-current\summary.json, .\build\pdf-ctest-bounded-regression-table-layout-current\summary.json``
 "@
 
 & $auditScript -Path $passReleaseGovernanceHandoffPdfTracePath
+
+$badReleaseGovernanceHandoffPdfBoundedSplitDir = Join-Path $failDir "release-governance-handoff-pdf-bounded-split"
+$badReleaseGovernanceHandoffPdfBoundedSplitPath = Join-Path $badReleaseGovernanceHandoffPdfBoundedSplitDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffPdfBoundedSplitDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffPdfBoundedSplitPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- PDF visual gate evidence source reports: ``1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - pdf_visual_gate_status: ``loaded``
+    - full_visual_gate_status: ``pass``
+    - pdf_visual_gate_verdict: ``pass``
+    - pdf_visual_gate_finalizable: ``True``
+    - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
+    - pdf_visual_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+    - pdf_visual_gate_cjk_manifest_count: ``43``
+    - pdf_visual_gate_cjk_copy_search_count: ``43``
+    - pdf_visual_gate_visual_baseline_manifest_count: ``42``
+    - pdf_visual_gate_visual_baseline_count: ``44``
+
+- Detached bounded CTest evidence:
+  - pdf_bounded_ctest_summary_count: ``7``
+  - pdf_bounded_ctest_pass_count: ``7``
+  - pdf_bounded_ctest_skipped_test_count: ``0``
+  - pdf_bounded_ctest_selected_test_count: ``70``
+  - pdf_bounded_ctest_subsets: ``smoke-import, regression-business-samples``
+  - pdf_bounded_ctest_summary_json_display: ``.\build\pdf-ctest-bounded-regression-business-samples-current\summary.json``
+"@
+
+$badReleaseGovernanceHandoffPdfBoundedSplitFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffPdfBoundedSplitPath
+} catch {
+    $badReleaseGovernanceHandoffPdfBoundedSplitFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffPdfBoundedSplitFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with bounded PDF CTest evidence split outside source_report block."
+}
 
 $passFinalReviewTraceDir = Join-Path $passDir "final-review-project-template-trace"
 $passFinalReviewTracePath = Join-Path $passFinalReviewTraceDir "final_review.md"

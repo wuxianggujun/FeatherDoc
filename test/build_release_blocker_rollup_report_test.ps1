@@ -433,6 +433,31 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
             visual_baseline_manifest_count = 42
             visual_baseline_count = 44
         }
+        pdf_bounded_ctest = [ordered]@{
+            status = "pass"
+            summary_count = 7
+            pass_count = 7
+            selected_test_count = 70
+            skipped_test_count = 0
+            subsets = @(
+                "smoke-import",
+                "contract-static",
+                "cjk-flow-static",
+                "regression-basic-text",
+                "regression-styled-document",
+                "regression-business-samples",
+                "regression-table-layout"
+            )
+            summary_json_display = @(
+                ".\build\pdf-ctest-bounded-subset-current\summary.json",
+                ".\build\pdf-ctest-bounded-contract-static-current\summary.json",
+                ".\build\pdf-ctest-bounded-cjk-flow-static-current\summary.json",
+                ".\build\pdf-ctest-bounded-regression-basic-text-current\summary.json",
+                ".\build\pdf-ctest-bounded-regression-styled-document-current\summary.json",
+                ".\build\pdf-ctest-bounded-regression-business-samples-current\summary.json",
+                ".\build\pdf-ctest-bounded-regression-table-layout-current\summary.json"
+            )
+        }
     }
 })
 
@@ -963,6 +988,20 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve PDF visual gate visual baseline manifest count."
     Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_visual_baseline_count) -Expected 44 `
         -Message "Rollup should preserve PDF visual gate rendered visual baseline count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_bounded_ctest_summary_count) -Expected 7 `
+        -Message "Rollup should preserve PDF bounded CTest summary count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_bounded_ctest_pass_count) -Expected 7 `
+        -Message "Rollup should preserve PDF bounded CTest pass count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_bounded_ctest_selected_test_count) -Expected 70 `
+        -Message "Rollup should preserve PDF bounded CTest selected test count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_bounded_ctest_skipped_test_count) -Expected 0 `
+        -Message "Rollup should preserve PDF bounded CTest skipped test count."
+    Assert-ContainsText -Text (@($releaseCandidateSourceReport.pdf_bounded_ctest_subsets) -join ",") `
+        -ExpectedText "regression-business-samples" `
+        -Message "Rollup should preserve PDF bounded CTest subset names."
+    Assert-ContainsText -Text (@($releaseCandidateSourceReport.pdf_bounded_ctest_summary_json_display) -join ",") `
+        -ExpectedText "pdf-ctest-bounded-regression-table-layout-current\summary.json" `
+        -Message "Rollup should preserve PDF bounded CTest summary display paths."
     $skeletonWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "document_skeleton.exemplar_catalog_missing" } |
         Select-Object -First 1)
@@ -1051,6 +1090,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF visual gate CJK copy/search count."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_visual_baseline_count: ``44``" `
         -Message "Markdown should include PDF visual gate visual baseline count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_bounded_ctest_summary_count: ``7``" `
+        -Message "Markdown should include PDF bounded CTest summary count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_bounded_ctest_skipped_test_count: ``0``" `
+        -Message "Markdown should include PDF bounded CTest skipped test count."
+    Assert-ContainsText -Text $markdown -ExpectedText "regression-business-samples" `
+        -Message "Markdown should include PDF bounded CTest subset names."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "featherdoc.release_candidate_summary" -ExpectedFragments @(
         "pdf_visual_gate_status: ``loaded``",
         "full_visual_gate_status: ``pass``",
@@ -1064,7 +1109,15 @@ if (Test-Scenario -Name "passing") {
         "pdf_visual_gate_cjk_copy_search_count: ``43``",
         "pdf_visual_gate_cjk_missing_text_count: ``0``",
         "pdf_visual_gate_visual_baseline_manifest_count: ``42``",
-        "pdf_visual_gate_visual_baseline_count: ``44``"
+        "pdf_visual_gate_visual_baseline_count: ``44``",
+        "pdf_bounded_ctest_summary_count: ``7``",
+        "pdf_bounded_ctest_pass_count: ``7``",
+        "pdf_bounded_ctest_skipped_test_count: ``0``",
+        "pdf_bounded_ctest_selected_test_count: ``70``",
+        "pdf_bounded_ctest_subsets:",
+        "regression-table-layout",
+        "pdf_bounded_ctest_summary_json_display:",
+        "pdf-ctest-bounded-regression-business-samples-current\summary.json"
     ) -Message "Markdown should keep release-candidate PDF visual source-report evidence in one Source Report Contracts block."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_status" `
         -Message "Markdown should include controlled PDF visual smoke status."

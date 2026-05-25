@@ -327,6 +327,27 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_h
 检查；含图样本则从 manifest 读取 `expected_image_count`，再用 PDFium 对页面 image
 object 数量做回读断言。这样文件体量和图片出现次数都能留在同一条 CTest 链路里。
 
+资源受限时可复用 bounded CTest summary 作为 release governance 的辅助证据，但它
+不替代完整 `pdf_` CTest 套件或 full visual gate。`run_release_candidate_checks.ps1`
+会自动发现当前 7 个标准 summary，并把它们聚合为 `pdf_bounded_ctest`：
+
+```text
+build\pdf-ctest-bounded-subset-current\summary.json
+build\pdf-ctest-bounded-contract-static-current\summary.json
+build\pdf-ctest-bounded-cjk-flow-static-current\summary.json
+build\pdf-ctest-bounded-regression-basic-text-current\summary.json
+build\pdf-ctest-bounded-regression-styled-document-current\summary.json
+build\pdf-ctest-bounded-regression-business-samples-current\summary.json
+build\pdf-ctest-bounded-regression-table-layout-current\summary.json
+```
+
+release governance 会在同一个 `source_report:` block 中保留
+`pdf_bounded_ctest_summary_count`、`pdf_bounded_ctest_pass_count`、
+`pdf_bounded_ctest_skipped_test_count`、`pdf_bounded_ctest_selected_test_count`、
+`pdf_bounded_ctest_subsets` 和 `pdf_bounded_ctest_summary_json_display`。
+固定标记：`pdf_bounded_ctest_governance_trace`、
+`pdf_bounded_ctest_source_report_block_trace`。
+
 默认 `PdfDocumentImporter` 遇到 `PdfParsedTableCandidate` 仍返回
 `table_candidates_detected`，避免把表格误扁平化成正文。只有显式设置
 `PdfDocumentImportOptions::import_table_candidates_as_tables=true` 时，才会尝试把简单

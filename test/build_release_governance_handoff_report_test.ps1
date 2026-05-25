@@ -913,6 +913,31 @@ if (Test-Scenario -Name "include_rollup") {
                 visual_baseline_manifest_count = 42
                 visual_baseline_count = 44
             }
+            pdf_bounded_ctest = [ordered]@{
+                status = "pass"
+                summary_count = 7
+                pass_count = 7
+                selected_test_count = 70
+                skipped_test_count = 0
+                subsets = @(
+                    "smoke-import",
+                    "contract-static",
+                    "cjk-flow-static",
+                    "regression-basic-text",
+                    "regression-styled-document",
+                    "regression-business-samples",
+                    "regression-table-layout"
+                )
+                summary_json_display = @(
+                    ".\build\pdf-ctest-bounded-subset-current\summary.json",
+                    ".\build\pdf-ctest-bounded-contract-static-current\summary.json",
+                    ".\build\pdf-ctest-bounded-cjk-flow-static-current\summary.json",
+                    ".\build\pdf-ctest-bounded-regression-basic-text-current\summary.json",
+                    ".\build\pdf-ctest-bounded-regression-styled-document-current\summary.json",
+                    ".\build\pdf-ctest-bounded-regression-business-samples-current\summary.json",
+                    ".\build\pdf-ctest-bounded-regression-table-layout-current\summary.json"
+                )
+            }
         }
     })
 
@@ -975,6 +1000,20 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should expose PDF visual baseline manifest count from the nested rollup."
     Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_visual_baseline_count) -Expected 44 `
         -Message "Handoff summary should expose PDF visual baseline count from the nested rollup."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_bounded_ctest_summary_count) -Expected 7 `
+        -Message "Handoff summary should expose PDF bounded CTest summary count from the nested rollup."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_bounded_ctest_pass_count) -Expected 7 `
+        -Message "Handoff summary should expose PDF bounded CTest pass count from the nested rollup."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_bounded_ctest_selected_test_count) -Expected 70 `
+        -Message "Handoff summary should expose PDF bounded CTest selected test count from the nested rollup."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_bounded_ctest_skipped_test_count) -Expected 0 `
+        -Message "Handoff summary should expose PDF bounded CTest skipped test count from the nested rollup."
+    Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_subsets) -join ",") `
+        -ExpectedText "regression-business-samples" `
+        -Message "Handoff summary should expose PDF bounded CTest subset names from the nested rollup."
+    Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_summary_json_display) -join ",") `
+        -ExpectedText "pdf-ctest-bounded-regression-table-layout-current\summary.json" `
+        -Message "Handoff summary should expose PDF bounded CTest summary display paths from the nested rollup."
 
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
@@ -1028,6 +1067,12 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should expose the PDF visual baseline manifest count."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_visual_baseline_count: ``44``" `
         -Message "Handoff Markdown should expose the PDF visual baseline count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_bounded_ctest_summary_count: ``7``" `
+        -Message "Handoff Markdown should expose the PDF bounded CTest summary count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_bounded_ctest_skipped_test_count: ``0``" `
+        -Message "Handoff Markdown should expose the PDF bounded CTest skipped test count."
+    Assert-ContainsText -Text $markdown -ExpectedText "regression-business-samples" `
+        -Message "Handoff Markdown should expose the PDF bounded CTest subset names."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
         "schema=``featherdoc.release_candidate_summary``",
         "pdf_visual_gate_status: ``loaded``",
@@ -1041,7 +1086,15 @@ if (Test-Scenario -Name "include_rollup") {
         "pdf_visual_gate_cjk_manifest_count: ``43``",
         "pdf_visual_gate_cjk_copy_search_count: ``43``",
         "pdf_visual_gate_visual_baseline_manifest_count: ``42``",
-        "pdf_visual_gate_visual_baseline_count: ``44``"
+        "pdf_visual_gate_visual_baseline_count: ``44``",
+        "pdf_bounded_ctest_summary_count: ``7``",
+        "pdf_bounded_ctest_pass_count: ``7``",
+        "pdf_bounded_ctest_skipped_test_count: ``0``",
+        "pdf_bounded_ctest_selected_test_count: ``70``",
+        "pdf_bounded_ctest_subsets:",
+        "regression-table-layout",
+        "pdf_bounded_ctest_summary_json_display:",
+        "pdf-ctest-bounded-regression-business-samples-current\summary.json"
     ) -Message "Handoff Markdown should keep PDF visual gate source-report evidence in one source_report block."
 }
 

@@ -362,6 +362,7 @@ $functionNames = @(
     "Get-RepoRelativePath",
     "Get-OptionalPropertyValue",
     "Get-PdfVisualGateSummaryInfo",
+    "Get-PdfBoundedCtestSummaryInfo",
     "Convert-ReviewTimestamp",
     "Get-ReleaseCandidateDisplayValue",
     "Read-ReleaseBlockerRollupSummary",
@@ -411,6 +412,36 @@ if ($pdfVisualGateInfo.status -ne "loaded" -or
 $missingPdfVisualGateInfo = Get-PdfVisualGateSummaryInfo -SummaryJson (Join-Path $resolvedWorkingDir "missing-summary.json")
 if ($missingPdfVisualGateInfo.status -ne "missing" -or [bool]$missingPdfVisualGateInfo.finalizable) {
     throw "Missing PDF visual gate summary should not be marked finalizable."
+}
+
+$boundedCtestDir = Join-Path $resolvedWorkingDir "pdf-bounded-ctest"
+New-Item -ItemType Directory -Path $boundedCtestDir -Force | Out-Null
+$boundedSmokePath = Join-Path $boundedCtestDir "smoke-summary.json"
+$boundedBusinessPath = Join-Path $boundedCtestDir "business-summary.json"
+foreach ($bounded in @(
+        [ordered]@{ path = $boundedSmokePath; subset = "smoke-import" },
+        [ordered]@{ path = $boundedBusinessPath; subset = "regression-business-samples" }
+    )) {
+    ([ordered]@{
+            status = "pass"
+            verdict = "pass"
+            subset = [string]$bounded.subset
+            selected_test_count = 10
+            skipped_test_count = 0
+            ctest_timeout_seconds = 60
+            exit_code = 0
+        } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath ([string]$bounded.path) -Encoding UTF8
+}
+$pdfBoundedCtestInfo = Get-PdfBoundedCtestSummaryInfo `
+    -SummaryJson @($boundedSmokePath, $boundedBusinessPath) `
+    -RepoRoot $resolvedRepoRoot
+if ($pdfBoundedCtestInfo.status -ne "pass" -or
+    [int]$pdfBoundedCtestInfo.summary_count -ne 2 -or
+    [int]$pdfBoundedCtestInfo.pass_count -ne 2 -or
+    [int]$pdfBoundedCtestInfo.selected_test_count -ne 20 -or
+    [int]$pdfBoundedCtestInfo.skipped_test_count -ne 0 -or
+    @($pdfBoundedCtestInfo.subsets) -notcontains "regression-business-samples") {
+    throw "PDF bounded CTest summaries were not aggregated as auxiliary release evidence."
 }
 
 $completeReviewTaskSummary = Get-CompleteVisualGateReviewTaskSummary -Summary ([ordered]@{
@@ -626,7 +657,8 @@ $candidateTaskOutputRoot = Join-Path $resolvedWorkingDir "visual-tasks"
     -GateOutputDir $candidateGateOutputDir `
     -TaskOutputRoot $candidateTaskOutputRoot `
     -SummaryOutputDir $candidateOutputDir `
-    -PdfVisualGateSummaryJson $pdfSummaryPath
+    -PdfVisualGateSummaryJson $pdfSummaryPath `
+    -PdfBoundedCtestSummaryJson @($boundedSmokePath, $boundedBusinessPath)
 if ($LASTEXITCODE -ne 0) {
     throw "Release candidate dry run with PDF visual gate summary failed with exit code $LASTEXITCODE."
 }
@@ -654,6 +686,13 @@ if ([int]$candidateSummary.steps.pdf_visual_gate.cjk_manifest_count -ne 43 -or
 if ([string]$candidateSummary.steps.pdf_visual_gate.summary_json -ne $pdfSummaryPath -or
     [string]$candidateSummary.steps.pdf_visual_gate.aggregate_contact_sheet -ne $pdfContactSheetPath) {
     throw "Release candidate summary did not preserve PDF visual gate evidence paths."
+}
+if ([int]$candidateSummary.steps.pdf_bounded_ctest.summary_count -ne 2 -or
+    [int]$candidateSummary.steps.pdf_bounded_ctest.pass_count -ne 2 -or
+    [int]$candidateSummary.steps.pdf_bounded_ctest.selected_test_count -ne 20 -or
+    [int]$candidateSummary.steps.pdf_bounded_ctest.skipped_test_count -ne 0 -or
+    @($candidateSummary.steps.pdf_bounded_ctest.subsets) -notcontains "regression-business-samples") {
+    throw "Release candidate summary did not preserve PDF bounded CTest auxiliary evidence."
 }
 
 $candidateFinalReviewPath = Join-Path $candidateOutputDir "report\final_review.md"
@@ -709,8 +748,17 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Key o
     "PDF visual gate summary:",
     "summary.json",
     "PDF visual gate contact sheet:",
-    "aggregate-contact-sheet.png"
+    "aggregate-contact-sheet.png",
+    "PDF bounded CTest summaries:",
+    "smoke-summary.json",
+    "business-summary.json"
 ) -Message "final_review.md should keep PDF visual summary and aggregate contact sheet inside the Key outputs section."
+Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Step status" -Fragments @(
+    "PDF bounded CTest summaries: 2 summaries, 2 pass",
+    "PDF bounded CTest subsets: smoke-import, regression-business-samples",
+    "PDF bounded CTest selected tests: 20",
+    "PDF bounded CTest skipped tests: 0"
+) -Message "final_review.md should expose bounded PDF CTest auxiliary evidence in the Step status section."
 
 $candidateReleaseBody = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseBodyPath
 foreach ($fragments in @(

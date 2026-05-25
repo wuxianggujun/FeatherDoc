@@ -552,6 +552,47 @@ function Add-PdfVisualGateEvidenceFields {
         -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("visual_baseline_count", "baselines_count"))
 }
 
+function Get-PdfBoundedCtestEvidenceObject {
+    param($Summary)
+
+    $pdfBoundedCtest = Get-JsonProperty -Object $Summary -Name "pdf_bounded_ctest"
+    if ($null -ne $pdfBoundedCtest) {
+        return $pdfBoundedCtest
+    }
+
+    $steps = Get-JsonProperty -Object $Summary -Name "steps"
+    if ($null -eq $steps) {
+        return $null
+    }
+
+    return (Get-JsonProperty -Object $steps -Name "pdf_bounded_ctest")
+}
+
+function Add-PdfBoundedCtestEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary
+    )
+
+    $pdfBoundedCtest = Get-PdfBoundedCtestEvidenceObject -Summary $Summary
+    if ($null -eq $pdfBoundedCtest) {
+        return
+    }
+
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_summary_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfBoundedCtest -Names @("summary_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_pass_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfBoundedCtest -Names @("pass_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_skipped_test_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfBoundedCtest -Names @("skipped_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_selected_test_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfBoundedCtest -Names @("selected_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_subsets" `
+        -Value @(Get-JsonArray -Object $pdfBoundedCtest -Name "subsets")
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_summary_json_display" `
+        -Value @(Get-JsonArray -Object $pdfBoundedCtest -Name "summary_json_display")
+}
+
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
@@ -722,11 +763,22 @@ function New-ReportMarkdown {
                     "pdf_visual_gate_cjk_copy_search_count",
                     "pdf_visual_gate_cjk_missing_text_count",
                     "pdf_visual_gate_visual_baseline_manifest_count",
-                    "pdf_visual_gate_visual_baseline_count"
+                    "pdf_visual_gate_visual_baseline_count",
+                    "pdf_bounded_ctest_summary_count",
+                    "pdf_bounded_ctest_pass_count",
+                    "pdf_bounded_ctest_skipped_test_count",
+                    "pdf_bounded_ctest_selected_test_count",
+                    "pdf_bounded_ctest_subsets",
+                    "pdf_bounded_ctest_summary_json_display"
                 )) {
                 $fieldValue = Get-JsonProperty -Object $report -Name $fieldName
-                if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace([string]$fieldValue)) {
-                    $lines.Add("  - ${fieldName}: ``$fieldValue``") | Out-Null
+                $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+                    @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+                } else {
+                    [string]$fieldValue
+                }
+                if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+                    $lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
                 }
             }
             $controlledVisualSmokeAvailable = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_available"
@@ -1197,6 +1249,7 @@ foreach ($path in @($inputPaths)) {
             "controlled_visual_smoke_json_display"
         )
     Add-PdfVisualGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
+    Add-PdfBoundedCtestEvidenceFields -Target $sourceReport -Summary $summaryObject
     $sourceReports.Add($sourceReport) | Out-Null
 }
 

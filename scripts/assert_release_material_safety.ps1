@@ -1920,14 +1920,20 @@ function Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations {
         "pdf_visual_gate_cjk_manifest_count:",
         "pdf_visual_gate_cjk_copy_search_count:",
         "pdf_visual_gate_visual_baseline_manifest_count:",
-        "pdf_visual_gate_visual_baseline_count:"
+        "pdf_visual_gate_visual_baseline_count:",
+        "pdf_bounded_ctest_summary_count:",
+        "pdf_bounded_ctest_pass_count:",
+        "pdf_bounded_ctest_skipped_test_count:",
+        "pdf_bounded_ctest_selected_test_count:",
+        "pdf_bounded_ctest_subsets:",
+        "pdf_bounded_ctest_summary_json_display:"
     )
     if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release governance handoff must keep PDF visual gate source report, full visual status, verdict, counts, and contact-sheet path in the same source_report block."
+            -Text "Release governance handoff must keep PDF visual gate source report, full visual status, verdict, counts, contact-sheet path, and bounded CTest auxiliary evidence in the same source_report block."
     }
 }
 

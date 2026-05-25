@@ -128,6 +128,14 @@ OCR 或任意视觉精确还原。
      和 42/43/44 计数放在同一块里；不能让块外的
      ``aggregate-contact-sheet.png`` 替代当前 source report 的证据。
      固定标记：``block_scoped_pdf_visual_gate_handoff_trace``。
+   * bounded CTest 只作为资源受限时的辅助证据进入同一个
+     ``source_report:`` block，必须包含
+     ``pdf_bounded_ctest_summary_count``、``pdf_bounded_ctest_pass_count``、
+     ``pdf_bounded_ctest_skipped_test_count``、
+     ``pdf_bounded_ctest_selected_test_count``、``pdf_bounded_ctest_subsets`` 和
+     ``pdf_bounded_ctest_summary_json_display``；不能替代 full visual gate
+     verdict。固定标记：``pdf_bounded_ctest_governance_trace``、
+     ``pdf_bounded_ctest_source_report_block_trace``。
    * ``release_assets_manifest.json`` 中的 ``pdf_visual_gate_evidence`` 必须保留
      ``cjk_manifest_count >= 43``、``visual_baseline_manifest_count >= 42``，
      并且 ``verdict = pass`` 时 ``cjk_missing_text_count = 0``；不能只依赖

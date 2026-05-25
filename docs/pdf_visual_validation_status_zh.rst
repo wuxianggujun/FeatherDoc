@@ -322,6 +322,15 @@ bounded PDF CTest 路径：
 不替代 ``pdf_regression_`` 全量样本链，也不把被 60 秒外层保护截断的完整
 ``pdf_`` 套件标记为通过。
 
+release governance 现在会把 bounded CTest 作为独立辅助证据同块写入
+``source_report:``，字段包括 ``pdf_bounded_ctest_summary_count``、
+``pdf_bounded_ctest_pass_count``、``pdf_bounded_ctest_skipped_test_count``、
+``pdf_bounded_ctest_selected_test_count``、``pdf_bounded_ctest_subsets`` 和
+``pdf_bounded_ctest_summary_json_display``。固定标记：
+``pdf_bounded_ctest_governance_trace``、
+``pdf_bounded_ctest_source_report_block_trace``。这些字段不能替代
+``full_visual_gate_status`` 或 full gate summary verdict。
+
 下一步
 ------
 

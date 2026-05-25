@@ -96,6 +96,7 @@ param(
     [switch]$ReleaseGovernanceHandoffFailOnBlocker,
     [switch]$ReleaseGovernanceHandoffFailOnWarning,
     [string]$PdfVisualGateSummaryJson = "",
+    [string[]]$PdfBoundedCtestSummaryJson = @(),
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -453,6 +454,123 @@ function Get-PdfVisualGateSummaryInfo {
     }
 
     return $info
+}
+
+function Get-PdfBoundedCtestDefaultSummaryPaths {
+    param([string]$RepoRoot)
+
+    return @(
+        "build\pdf-ctest-bounded-subset-current\summary.json",
+        "build\pdf-ctest-bounded-contract-static-current\summary.json",
+        "build\pdf-ctest-bounded-cjk-flow-static-current\summary.json",
+        "build\pdf-ctest-bounded-regression-basic-text-current\summary.json",
+        "build\pdf-ctest-bounded-regression-styled-document-current\summary.json",
+        "build\pdf-ctest-bounded-regression-business-samples-current\summary.json",
+        "build\pdf-ctest-bounded-regression-table-layout-current\summary.json"
+    ) | ForEach-Object { Join-Path $RepoRoot $_ }
+}
+
+function Resolve-PdfBoundedCtestSummaryPaths {
+    param(
+        [string]$RepoRoot,
+        [string[]]$SummaryJson
+    )
+
+    $requested = @($SummaryJson | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+    $candidates = if ($requested.Count -gt 0) {
+        @($requested | ForEach-Object { Resolve-FullPath -RepoRoot $RepoRoot -InputPath ([string]$_) })
+    } else {
+        @(Get-PdfBoundedCtestDefaultSummaryPaths -RepoRoot $RepoRoot)
+    }
+
+    $seen = @{}
+    return @(
+        foreach ($candidate in $candidates) {
+            if ([string]::IsNullOrWhiteSpace([string]$candidate)) { continue }
+            $resolved = [System.IO.Path]::GetFullPath([string]$candidate)
+            if (-not (Test-Path -LiteralPath $resolved)) { continue }
+            $key = $resolved.ToLowerInvariant()
+            if ($seen.ContainsKey($key)) { continue }
+            $seen[$key] = $true
+            $resolved
+        }
+    )
+}
+
+function Get-PdfBoundedCtestSummaryInfo {
+    param(
+        [string[]]$SummaryJson,
+        [string]$RepoRoot
+    )
+
+    $paths = @($SummaryJson | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+    $summaries = New-Object 'System.Collections.Generic.List[object]'
+    $subsets = New-Object 'System.Collections.Generic.List[string]'
+    $displayPaths = New-Object 'System.Collections.Generic.List[string]'
+    $passCount = 0
+    $selectedTestCount = 0
+    $skippedTestCount = 0
+    $errorCount = 0
+    $errors = New-Object 'System.Collections.Generic.List[string]'
+
+    foreach ($path in $paths) {
+        try {
+            $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
+            $status = [string](Get-OptionalPropertyValue -Object $summary -Name "status")
+            $verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "verdict")
+            $subset = [string](Get-OptionalPropertyValue -Object $summary -Name "subset")
+            $selected = [int](Get-OptionalPropertyValue -Object $summary -Name "selected_test_count")
+            $skipped = [int](Get-OptionalPropertyValue -Object $summary -Name "skipped_test_count")
+            if ($status -eq "pass" -and $verdict -eq "pass") {
+                $passCount++
+            }
+            if (-not [string]::IsNullOrWhiteSpace($subset)) {
+                $subsets.Add($subset) | Out-Null
+            }
+            $selectedTestCount += $selected
+            $skippedTestCount += $skipped
+            $displayPaths.Add((Get-RepoRelativePath -RepoRoot $RepoRoot -Path $path)) | Out-Null
+            $summaries.Add([ordered]@{
+                    summary_json = $path
+                    summary_json_display = Get-RepoRelativePath -RepoRoot $RepoRoot -Path $path
+                    status = $status
+                    verdict = $verdict
+                    subset = $subset
+                    selected_test_count = $selected
+                    skipped_test_count = $skipped
+                    ctest_timeout_seconds = [int](Get-OptionalPropertyValue -Object $summary -Name "ctest_timeout_seconds")
+                    exit_code = [int](Get-OptionalPropertyValue -Object $summary -Name "exit_code")
+                }) | Out-Null
+        } catch {
+            $errorCount++
+            $errors.Add(("{0}: {1}" -f (Get-RepoRelativePath -RepoRoot $RepoRoot -Path $path), $_.Exception.Message)) | Out-Null
+        }
+    }
+
+    $summaryCount = $summaries.Count
+    $statusValue = if ($summaryCount -eq 0) {
+        "not_available"
+    } elseif ($errorCount -gt 0) {
+        "partial"
+    } elseif ($passCount -eq $summaryCount -and $skippedTestCount -eq 0) {
+        "pass"
+    } else {
+        "needs_review"
+    }
+
+    return [ordered]@{
+        status = $statusValue
+        summary_count = $summaryCount
+        pass_count = $passCount
+        skipped_test_count = $skippedTestCount
+        selected_test_count = $selectedTestCount
+        subsets = @($subsets.ToArray())
+        summary_json = @($paths)
+        summary_json_display = @($displayPaths.ToArray())
+        summaries = @($summaries.ToArray())
+        error_count = $errorCount
+        errors = @($errors.ToArray())
+    }
 }
 
 function Convert-ReviewTimestamp {
@@ -1428,6 +1546,12 @@ if (-not [string]::IsNullOrWhiteSpace($PdfVisualGateSummaryJson)) {
     }
 }
 $pdfVisualGateSummaryInfo = Get-PdfVisualGateSummaryInfo -SummaryJson $resolvedPdfVisualGateSummaryJson
+$resolvedPdfBoundedCtestSummaryJson = @(Resolve-PdfBoundedCtestSummaryPaths `
+        -RepoRoot $repoRoot `
+        -SummaryJson $PdfBoundedCtestSummaryJson)
+$pdfBoundedCtestSummaryInfo = Get-PdfBoundedCtestSummaryInfo `
+    -SummaryJson $resolvedPdfBoundedCtestSummaryJson `
+    -RepoRoot $repoRoot
 $installSmokeScript = Join-Path $repoRoot "scripts\run_install_find_package_smoke.ps1"
 $templateSchemaCheckScript = Join-Path $repoRoot "scripts\check_template_schema_baseline.ps1"
 $templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_schema_manifest.ps1"
@@ -1616,6 +1740,7 @@ $summary = [ordered]@{
     start_here = $startHerePath
     pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson
     pdf_visual_gate = $pdfVisualGateSummaryInfo
+    pdf_bounded_ctest = $pdfBoundedCtestSummaryInfo
     release_blocker_rollup = [ordered]@{
         requested = $releaseBlockerRollupRequested
         status = if ($releaseBlockerRollupRequested) { "pending" } else { "not_requested" }
@@ -1781,6 +1906,7 @@ $summary = [ordered]@{
             error = ""
         }
         pdf_visual_gate = $pdfVisualGateSummaryInfo
+        pdf_bounded_ctest = $pdfBoundedCtestSummaryInfo
     }
 }
 
@@ -2645,6 +2771,16 @@ try {
     $startHereDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $startHerePath
     $pdfVisualGateSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate.summary_json
     $pdfVisualGateContactSheetDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate.aggregate_contact_sheet
+    $pdfBoundedCtestSubsetsDisplay = if (@($summary.steps.pdf_bounded_ctest.subsets).Count -gt 0) {
+        @($summary.steps.pdf_bounded_ctest.subsets) -join ", "
+    } else {
+        "(not available)"
+    }
+    $pdfBoundedCtestSummaryDisplay = if (@($summary.steps.pdf_bounded_ctest.summary_json_display).Count -gt 0) {
+        @($summary.steps.pdf_bounded_ctest.summary_json_display) -join ", "
+    } else {
+        "(not available)"
+    }
 
     $readmeGalleryStatusLine = switch ($summary.readme_gallery.status) {
         "completed" {
@@ -2714,6 +2850,10 @@ try {
 - PDF visual gate counts: $($summary.steps.pdf_visual_gate.visual_baseline_count) visual baselines, $($summary.steps.pdf_visual_gate.cjk_copy_search_count) CJK copy/search
 - PDF visual gate manifest counts: $($summary.steps.pdf_visual_gate.visual_baseline_manifest_count) visual baseline manifest samples, $($summary.steps.pdf_visual_gate.cjk_manifest_count) CJK manifest samples
 - PDF visual gate finalizable: $($summary.steps.pdf_visual_gate.finalizable)
+- PDF bounded CTest summaries: $($summary.steps.pdf_bounded_ctest.summary_count) summaries, $($summary.steps.pdf_bounded_ctest.pass_count) pass
+- PDF bounded CTest subsets: $pdfBoundedCtestSubsetsDisplay
+- PDF bounded CTest selected tests: $($summary.steps.pdf_bounded_ctest.selected_test_count)
+- PDF bounded CTest skipped tests: $($summary.steps.pdf_bounded_ctest.skipped_test_count)
 - Release blocker rollup: $($summary.steps.release_blocker_rollup.status)
 - Release governance handoff: $($summary.steps.release_governance_handoff.status)
 $visualGateReviewTaskSummaryLine
@@ -2758,6 +2898,7 @@ $releaseGovernanceHandoffMarkdown
 - Start here: $startHereDisplayPath
 - PDF visual gate summary: $pdfVisualGateSummaryDisplayPath
 - PDF visual gate contact sheet: $pdfVisualGateContactSheetDisplayPath
+- PDF bounded CTest summaries: $pdfBoundedCtestSummaryDisplay
 "@
     $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 
@@ -2797,6 +2938,9 @@ Write-Host "Artifact guide: $artifactGuidePath"
 Write-Host "Reviewer checklist: $reviewerChecklistPath"
 if (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)) {
     Write-Host "PDF visual gate summary: $resolvedPdfVisualGateSummaryJson"
+}
+if (@($resolvedPdfBoundedCtestSummaryJson).Count -gt 0) {
+    Write-Host "PDF bounded CTest summaries: $($resolvedPdfBoundedCtestSummaryJson -join ', ')"
 }
 if ($projectTemplateSmokeRequested) {
     Write-Host "Project template schema approval history JSON: $schemaApprovalHistoryJsonPath"
