@@ -698,6 +698,8 @@ $summary = [ordered]@{
                 source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
                 source_report_display = ".\output\project-template-delivery-readiness\summary.json"
                 source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                readiness_status = "failed"
+                readiness_release_ready = "False"
             },
             [ordered]@{
                 report_id = "schema_patch_confidence_calibration"
@@ -721,6 +723,8 @@ $summary = [ordered]@{
                 source_report_display = ".\output\project-template-delivery-readiness\summary.json"
                 source_json_display = ".\output\project-template-onboarding-governance\summary.json"
                 open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
+                readiness_status = "failed"
+                readiness_release_ready = "False"
             },
             [ordered]@{
                 report_id = "schema_patch_confidence_calibration"
@@ -978,6 +982,8 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
         'source_schema=featherdoc.project_template_onboarding_governance_report.v1',
         'source_report_display: .\output\project-template-delivery-readiness\summary.json',
         'source_json_display: .\output\project-template-onboarding-governance\summary.json',
+        'readiness_status: failed',
+        'readiness_release_ready: False',
         'project_template_onboarding_governance_contract:',
         'schema_approval_status_summary: pending_review'
     ) -Label $document.Label

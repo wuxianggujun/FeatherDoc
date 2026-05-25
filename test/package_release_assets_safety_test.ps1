@@ -223,6 +223,8 @@ Set-Content -LiteralPath $finalReviewPath -Encoding UTF8 -Value @"
 - project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
   - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
   - source_json_display: .\output\project-template-onboarding-governance\summary.json
+  - readiness_status: ready
+  - readiness_release_ready: True
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
     - schema_approval_status_summary: approved
@@ -706,6 +708,8 @@ Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'project_template_onb
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'schema_approval_status_summary: approved' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'source_json_display: .\output\project-template-onboarding-governance\summary.json' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'readiness_status: ready' -Label 'staged final_review.md'
+Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'readiness_release_ready: True' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'PDF visual gate: loaded' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'PDF visual gate verdict: pass' -Label 'staged final_review.md'
 Assert-Contains -Path $stagedFinalReviewPath -ExpectedText 'PDF visual gate counts: 3 visual baselines, 2 CJK copy/search' -Label 'staged final_review.md'

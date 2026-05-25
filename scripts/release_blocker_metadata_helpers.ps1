@@ -1034,6 +1034,14 @@ function Add-ReleaseGovernanceRollupSourceLines {
 
     [void]$Lines.Add("  - source_report_display: $sourceReportDisplay")
     [void]$Lines.Add("  - source_json_display: $sourceJsonDisplay")
+    $readinessStatus = Get-ReleaseBlockerPropertyValue -Object $Item -Name "readiness_status"
+    if (-not [string]::IsNullOrWhiteSpace($readinessStatus)) {
+        [void]$Lines.Add("  - readiness_status: $readinessStatus")
+    }
+    $readinessReleaseReady = Get-ReleaseBlockerPropertyValue -Object $Item -Name "readiness_release_ready"
+    if (-not [string]::IsNullOrWhiteSpace($readinessReleaseReady)) {
+        [void]$Lines.Add("  - readiness_release_ready: $readinessReleaseReady")
+    }
     Add-ProjectTemplateOnboardingGovernanceContractLines `
         -Lines $Lines `
         -Item $Item `

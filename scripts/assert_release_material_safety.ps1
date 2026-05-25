@@ -1671,7 +1671,9 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
         "source_report_display:",
         "project-template-delivery-readiness",
         "source_json_display:",
-        "project-template-onboarding-governance"
+        "project-template-onboarding-governance",
+        "readiness_status:",
+        "readiness_release_ready:"
     )
 
     if (Test-FinalReviewProjectTemplateTraceBlockContainsAll -Text $Content -Anchor $anchor -Needles $blockNeedles) {

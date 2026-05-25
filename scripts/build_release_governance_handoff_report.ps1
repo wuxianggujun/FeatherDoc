@@ -329,6 +329,17 @@ function Get-ReportKind {
     }
 }
 
+function Test-ProjectTemplateDeliveryReadinessReportEntry {
+    param([object]$Report)
+
+    $id = Get-JsonString -Object $Report -Name "id"
+    $schema = Get-JsonString -Object $Report -Name "schema"
+    return (
+        [string]::Equals($id, "project_template_delivery_readiness", [System.StringComparison]::OrdinalIgnoreCase) -or
+        [string]::Equals($schema, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)
+    )
+}
+
 function New-ExpectedReport {
     param(
         [string]$Id,
@@ -407,7 +418,9 @@ function New-ReportEntry {
         source_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $ExpectedSummaryPath
         build_command = $BuildCommand
         schema = $schema
+        status_present = ($null -ne $Json -and $null -ne (Get-JsonProperty -Object $Json -Name "status"))
         status = if ($null -eq $Json) { $Status } else { Get-JsonString -Object $Json -Name "status" -DefaultValue $Status }
+        release_ready_present = ($null -ne $Json -and $null -ne (Get-JsonProperty -Object $Json -Name "release_ready"))
         release_ready = if ($null -eq $Json) { $false } else { Get-JsonBool -Object $Json -Name "release_ready" }
         release_blocker_count = if ($null -eq $Json) { 0 } else { Get-JsonInt -Object $Json -Name "release_blocker_count" }
         action_item_count = if ($null -eq $Json) { 0 } else { Get-JsonInt -Object $Json -Name "action_item_count" }
@@ -432,6 +445,18 @@ function Add-NormalizedBlockers {
         [object]$Report
     )
 
+    $isProjectTemplateDeliveryReadiness = Test-ProjectTemplateDeliveryReadinessReportEntry -Report $Report
+    $readinessStatus = if ($isProjectTemplateDeliveryReadiness -and (Get-JsonBool -Object $Report -Name "status_present")) {
+        Get-JsonString -Object $Report -Name "status"
+    } else {
+        ""
+    }
+    $readinessReleaseReady = if ($isProjectTemplateDeliveryReadiness -and (Get-JsonBool -Object $Report -Name "release_ready_present")) {
+        [string](Get-JsonBool -Object $Report -Name "release_ready")
+    } else {
+        ""
+    }
+
     foreach ($blocker in @($Report.release_blockers)) {
         $sourceReportDisplay = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
         $sourceReport = Get-JsonString -Object $blocker -Name "source_report" -DefaultValue ([string]$Report.expected_summary)
@@ -453,6 +478,8 @@ function Add-NormalizedBlockers {
             source_report_display = $sourceReportDisplay
             source_json = $sourceJson
             source_json_display = $sourceJsonDisplay
+            readiness_status = $readinessStatus
+            readiness_release_ready = $readinessReleaseReady
             input_docx = Get-JsonString -Object $blocker -Name "input_docx"
             input_docx_display = Get-JsonString -Object $blocker -Name "input_docx_display"
             schema_target = Get-JsonString -Object $blocker -Name "schema_target"
@@ -469,6 +496,18 @@ function Add-NormalizedActions {
         [System.Collections.Generic.List[object]]$Collection,
         [object]$Report
     )
+
+    $isProjectTemplateDeliveryReadiness = Test-ProjectTemplateDeliveryReadinessReportEntry -Report $Report
+    $readinessStatus = if ($isProjectTemplateDeliveryReadiness -and (Get-JsonBool -Object $Report -Name "status_present")) {
+        Get-JsonString -Object $Report -Name "status"
+    } else {
+        ""
+    }
+    $readinessReleaseReady = if ($isProjectTemplateDeliveryReadiness -and (Get-JsonBool -Object $Report -Name "release_ready_present")) {
+        [string](Get-JsonBool -Object $Report -Name "release_ready")
+    } else {
+        ""
+    }
 
     foreach ($item in @($Report.action_items)) {
         $sourceReportDisplay = Get-JsonString -Object $item -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
@@ -495,6 +534,8 @@ function Add-NormalizedActions {
             source_report_display = $sourceReportDisplay
             source_json = $sourceJson
             source_json_display = $sourceJsonDisplay
+            readiness_status = $readinessStatus
+            readiness_release_ready = $readinessReleaseReady
             input_docx = Get-JsonString -Object $item -Name "input_docx"
             input_docx_display = Get-JsonString -Object $item -Name "input_docx_display"
             schema_target = Get-JsonString -Object $item -Name "schema_target"
@@ -702,6 +743,12 @@ function New-ReportMarkdown {
             Add-TraceabilityMarkdownLines -Lines $lines -Item $blocker
             $lines.Add("  - source_report_display: ``$($blocker.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.readiness_status)) {
+                $lines.Add("  - readiness_status: ``$($blocker.readiness_status)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.readiness_release_ready)) {
+                $lines.Add("  - readiness_release_ready: ``$($blocker.readiness_release_ready)``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -728,6 +775,12 @@ function New-ReportMarkdown {
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
             $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.readiness_status)) {
+                $lines.Add("  - readiness_status: ``$($item.readiness_status)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.readiness_release_ready)) {
+                $lines.Add("  - readiness_release_ready: ``$($item.readiness_release_ready)``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null

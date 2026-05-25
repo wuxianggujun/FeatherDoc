@@ -760,6 +760,8 @@ Set-Content -LiteralPath $passFinalReviewTracePath -Encoding UTF8 -Value @"
 - project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
   - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
   - source_json_display: .\output\project-template-onboarding-governance\summary.json
+  - readiness_status: ready
+  - readiness_release_ready: True
   - project_template_onboarding_governance_contract:
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
     - schema_approval_status_summary: approved
@@ -2940,6 +2942,37 @@ try {
 
 if (-not $badReleaseGovernanceHandoffPdfManifestTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md without PDF visual gate manifest-count trace."
+}
+
+$badFinalReviewStatusTraceDir = Join-Path $failDir "final-review-missing-project-template-readiness-status"
+$badFinalReviewStatusTracePath = Join-Path $badFinalReviewStatusTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewStatusTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewStatusTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Release governance handoff details
+
+### Handoff Blockers
+
+- project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+  - source_json_display: .\output\project-template-onboarding-governance\summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+    - source_json_display: .\output\project-template-onboarding-governance\summary.json
+"@
+
+$badFinalReviewStatusTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewStatusTracePath
+} catch {
+    $badFinalReviewStatusTraceFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewStatusTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md without project-template readiness_status/readiness_release_ready in the handoff blocker block."
 }
 
 $badFinalReviewTraceDir = Join-Path $failDir "final-review-missing-project-template-source-json"

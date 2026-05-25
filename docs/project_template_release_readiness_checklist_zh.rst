@@ -169,10 +169,13 @@ approval、content-control 和 release governance 报告之间手工拼结论。
    * ``final_review.md`` 中的
      ``project_template_delivery_readiness / project_template_onboarding.schema_approval``
      handoff blocker block 必须同时保留 ``source_report_display``、
-     ``source_json_display``、``schema_approval_status_summary`` 和 onboarding
-     governance contract；不能让 detached notes、重复 anchor、source path 或其它段落
-     补齐当前块；``source_json_display`` 字段值必须回到 onboarding governance
-     原始证据。固定标记：``block_scoped_final_review_project_template_trace``、
+     ``source_json_display``、``readiness_status``、
+     ``readiness_release_ready``、``schema_approval_status_summary`` 和
+     onboarding governance contract；不能让 detached notes、重复 anchor、source path
+     或其它段落补齐当前块；``source_json_display`` 字段值必须回到 onboarding
+     governance 原始证据。固定标记：
+     ``block_scoped_final_review_project_template_status_trace``、
+     ``block_scoped_final_review_project_template_trace``、
      ``single_block_final_review_project_template_trace``、
      ``block_scoped_final_review_source_identity_trace``。
    * ``release_summary.zh-CN.md`` 与 ``release_body.zh-CN.md`` 的

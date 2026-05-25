@@ -261,6 +261,8 @@ Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
 
 Write-JsonFile -Path $autoDiscoverProjectSummaryPath -Value ([ordered]@{
     schema = "featherdoc.project_template_delivery_readiness_report.v1"
+    status = "blocked"
+    release_ready = $false
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -434,6 +436,10 @@ if ($Scenario -eq "handoff") {
         -Message "Final review should include handoff project-template source report display."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "source_json_display: .\output\project-template-onboarding-governance\summary.json" `
         -Message "Final review should include handoff project-template source JSON display."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "readiness_status: blocked" `
+        -Message "Final review should include handoff project-template readiness status."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "readiness_release_ready: False" `
+        -Message "Final review should include handoff project-template release_ready state."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Final review should include handoff action item open command."
 
@@ -743,6 +749,10 @@ Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "project-templa
     -Message "Auto-discovered final review should include project-template delivery readiness source report display."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "source_json_display: .\output\project-template-onboarding-governance\summary.json" `
     -Message "Auto-discovered final review should include project-template onboarding source JSON display."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "readiness_status: blocked" `
+    -Message "Auto-discovered final review should include project-template readiness status."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "readiness_release_ready: False" `
+    -Message "Auto-discovered final review should include project-template release_ready state."
 
 $autoDiscoverRollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverRollupSummaryPath | ConvertFrom-Json
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `

@@ -402,6 +402,20 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve project-template report source_report_display."
     Assert-ContainsText -Text ([string]$projectTemplateReport.source_json_display) -ExpectedText "project-template-delivery-readiness\summary.json" `
         -Message "Aggregate handoff should preserve project-template report source_json_display."
+    $projectTemplateBlocker = ($summary.release_blockers |
+        Where-Object { [string]$_.report_id -eq "project_template_delivery_readiness" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$projectTemplateBlocker.readiness_status) -Expected "blocked" `
+        -Message "Aggregate handoff should propagate project-template readiness status to blockers."
+    Assert-Equal -Actual ([string]$projectTemplateBlocker.readiness_release_ready) -Expected "False" `
+        -Message "Aggregate handoff should propagate project-template release_ready to blockers."
+    $projectTemplateAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "approve_project_template_schema" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$projectTemplateAction.readiness_status) -Expected "blocked" `
+        -Message "Aggregate handoff should propagate project-template readiness status to action items."
+    Assert-Equal -Actual ([string]$projectTemplateAction.readiness_release_ready) -Expected "False" `
+        -Message "Aggregate handoff should propagate project-template release_ready to action items."
     $metricText = ($summary.governance_metrics | ForEach-Object { "$($_.report_id):$($_.metric):$($_.level):$($_.score)" }) -join "`n"
     Assert-ContainsText -Text $metricText -ExpectedText "numbering_catalog_governance:real_corpus_confidence:low:56" `
         -Message "Aggregate handoff should preserve numbering real-corpus confidence metric."
@@ -570,6 +584,12 @@ if (Test-Scenario -Name "aggregate") {
         'latest_schema_approval_gate_status:',
         'schema_approval_status_summary:'
     ) -Message "Markdown should keep project-template readiness status, ready flag, schema approval summary, and source displays in one report-status block."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor '`project_template_delivery_readiness` / `project_template_delivery.pending_schema_approval`' -ExpectedFragments @(
+        'source_report_display:',
+        'source_json_display:',
+        'readiness_status:',
+        'readiness_release_ready:'
+    ) -Message "Markdown should keep project-template readiness status with the handoff blocker evidence block."
     Assert-ContainsText -Text $markdown -ExpectedText "content_control_data_binding_governance" `
         -Message "Markdown should include content-control data-binding governance."
     Assert-ContainsText -Text $markdown -ExpectedText "content-control-data-binding-governance\summary.json" `
