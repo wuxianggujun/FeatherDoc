@@ -275,6 +275,9 @@ foreach ($marker in @(
     "Add-ProjectTemplateDeliveryReadinessContractViolations",
     "Add-ProjectTemplateOnboardingGovernanceContractViolations",
     "Test-TextLineContainsAll",
+    "Test-MarkdownListBlockContainsAll",
+    "-Anchor ""project_template_delivery_readiness""",
+    "-Anchor ""project_template_onboarding.schema_approval""",
     "project_template_onboarding.schema_approval",
     "schema_approval_status_summary=",
     "repair_strategy",
@@ -284,6 +287,15 @@ foreach ($marker in @(
 )) {
     Assert-ContainsText -Text $materialSafetyScript -ExpectedText $marker `
         -Message "Material safety audit should keep public governance safety marker '$marker'."
+}
+
+foreach ($marker in @(
+    "Markdown list block",
+    "block_scoped_governance_handoff_trace",
+    "onboarding governance block"
+)) {
+    Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `
+        -Message "Project-template checklist should document block-scoped governance handoff safety marker '$marker'."
 }
 
 Assert-ContainsText -Text $cmakeLists -ExpectedText "project_template_release_readiness_checklist_docs_contract" `

@@ -117,6 +117,13 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``release_handoff.md``、``release_body.zh-CN.md``、
      ``release_summary.zh-CN.md``、``release_governance_handoff.md`` 和
      ``final_review.md`` 不能丢失这些治理入口。
+   * ``release_governance_handoff.md`` 中的
+     ``project_template_delivery_readiness`` 与
+     ``project_template_onboarding.schema_approval`` 必须分别在自己的
+     Markdown list block 内保留 ``schema_approval_status_summary``、
+     ``source_report_display`` 和 ``source_json_display``；不能让 readiness
+     block 的 source display 代替 onboarding governance block。
+     固定标记：``block_scoped_governance_handoff_trace``。
    * ``release_assets_manifest.json`` 必须保留
      ``project_template_delivery_readiness_contract`` 与
      ``project_template_onboarding_governance_contract``，并继续带出
