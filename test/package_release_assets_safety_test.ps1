@@ -164,6 +164,14 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
   - source_json_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
   - latest_schema_approval_gate_status: ``passed``
   - schema_approval_status_summary: ``approved=4``
+- ``project_template_onboarding.schema_approval``: action=``review_schema_update_candidate`` source_schema=``featherdoc.project_template_onboarding_governance_report.v1``
+  - source_report_display: ``.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json``
+  - source_json_display: ``.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json``
+  - project_template_onboarding_governance_contract:
+    - source_schema: ``featherdoc.project_template_onboarding_governance_report.v1``
+    - schema_approval_status_summary: ``approved``
+    - source_report_display: ``.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json``
+    - source_json_display: ``.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json``
 
 ## Governance Metrics
 
@@ -655,6 +663,10 @@ Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'source_json_di
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'latest_schema_approval_gate_status' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'schema_approval_status_summary' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText '.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'project_template_onboarding.schema_approval' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'project_template_onboarding_governance_contract' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'featherdoc.project_template_onboarding_governance_report.v1' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText '.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'PDF visual gate evidence source reports: `1`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_verdict: `pass`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_finalizable: `True`' -Label 'staged release_governance_handoff.md'

@@ -242,6 +242,46 @@ function Test-TextLineContainsAll {
     return $false
 }
 
+function Test-MarkdownListBlockContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$Needles
+    )
+
+    $lines = $Text -split "\r?\n"
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if (-not $lines[$lineIndex].Contains($Anchor)) {
+            continue
+        }
+
+        $blockLines = [System.Collections.Generic.List[string]]::new()
+        $blockLines.Add($lines[$lineIndex])
+        for ($nextLineIndex = $lineIndex + 1; $nextLineIndex -lt $lines.Count; $nextLineIndex++) {
+            $nextLine = $lines[$nextLineIndex]
+            if (-not [string]::IsNullOrWhiteSpace($nextLine) -and $nextLine -match '^\S') {
+                break
+            }
+            $blockLines.Add($nextLine)
+        }
+
+        $block = $blockLines -join "`n"
+        $containsAllNeedles = $true
+        foreach ($needle in $Needles) {
+            if ([string]::IsNullOrWhiteSpace($needle) -or -not $block.Contains($needle)) {
+                $containsAllNeedles = $false
+                break
+            }
+        }
+
+        if ($containsAllNeedles) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     param(
         [string]$File,
@@ -579,29 +619,51 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
         return
     }
 
-    if (-not (Test-TextContainsAny -Text $Content -Needles @(
-        "featherdoc.project_template_delivery_readiness_report.v1",
-        "latest_schema_approval_gate_status",
-        "schema_approval_status_summary"
-    ))) {
-        return
-    }
-
     $label = "release governance handoff project template trace"
-    foreach ($needle in @(
+
+    if (Test-TextContainsAny -Text $Content -Needles @(
         "project_template_delivery_readiness",
         "featherdoc.project_template_delivery_readiness_report.v1",
-        "latest_schema_approval_gate_status",
-        "schema_approval_status_summary",
-        "source_report_display",
-        "source_json_display"
+        "latest_schema_approval_gate_status"
     )) {
-        if (-not $Content.Contains($needle)) {
-            Add-AuditViolation `
-                -Violations $Violations `
-                -File $File `
-                -Label $label `
-                -Text "Release governance handoff lost project template trace marker '$needle'."
+        foreach ($needle in @(
+            "project_template_delivery_readiness",
+            "featherdoc.project_template_delivery_readiness_report.v1",
+            "latest_schema_approval_gate_status",
+            "schema_approval_status_summary",
+            "source_report_display",
+            "source_json_display"
+        )) {
+            if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor "project_template_delivery_readiness" -Needles @($needle))) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Release governance handoff lost project template readiness trace marker '$needle'."
+            }
+        }
+    }
+
+    if (Test-TextContainsAny -Text $Content -Needles @(
+        "project_template_onboarding.schema_approval",
+        "project_template_onboarding_governance_contract",
+        "featherdoc.project_template_onboarding_governance_report.v1"
+    )) {
+        foreach ($needle in @(
+            "project_template_onboarding.schema_approval",
+            "project_template_onboarding_governance_contract",
+            "featherdoc.project_template_onboarding_governance_report.v1",
+            "schema_approval_status_summary",
+            "source_report_display",
+            "source_json_display"
+        )) {
+            if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor "project_template_onboarding.schema_approval" -Needles @($needle))) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Release governance handoff lost project template onboarding trace marker '$needle'."
+            }
         }
     }
 }
