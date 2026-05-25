@@ -2597,6 +2597,66 @@ if (-not $badReleaseHandoffOnboardingSourceJsonIdentityFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with onboarding source_json_display pointing at delivery readiness evidence."
 }
 
+$badReleaseHandoffInvalidReadinessStatusDir = Join-Path $failDir "release-handoff-invalid-project-template-readiness-status"
+$badReleaseHandoffInvalidReadinessStatusPath = Join-Path $badReleaseHandoffInvalidReadinessStatusDir "release_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseHandoffInvalidReadinessStatusDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseHandoffInvalidReadinessStatusPath -Encoding UTF8 -Value @"
+# Release handoff
+
+- project_template_delivery_readiness: status=ready-ish ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+  - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+  - project_template_delivery_readiness_contract:
+    - source_schema: featherdoc.project_template_delivery_readiness_report.v1
+    - status: ready-ish
+    - release_ready: True
+    - latest_schema_approval_gate_status: passed
+    - schema_approval_status_summary: approved=4
+    - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+    - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+"@
+
+$badReleaseHandoffInvalidReadinessStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseHandoffInvalidReadinessStatusPath
+} catch {
+    $badReleaseHandoffInvalidReadinessStatusFailedAsExpected = $true
+}
+
+if (-not $badReleaseHandoffInvalidReadinessStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with an invalid project-template readiness status value."
+}
+
+$badReleaseHandoffInvalidReadinessReadyDir = Join-Path $failDir "release-handoff-invalid-project-template-readiness-release-ready"
+$badReleaseHandoffInvalidReadinessReadyPath = Join-Path $badReleaseHandoffInvalidReadinessReadyDir "release_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseHandoffInvalidReadinessReadyDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseHandoffInvalidReadinessReadyPath -Encoding UTF8 -Value @"
+# Release handoff
+
+- project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1
+  - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+  - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+  - project_template_delivery_readiness_contract:
+    - source_schema: featherdoc.project_template_delivery_readiness_report.v1
+    - status: ready
+    - release_ready: maybe
+    - latest_schema_approval_gate_status: passed
+    - schema_approval_status_summary: approved=4
+    - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+    - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+"@
+
+$badReleaseHandoffInvalidReadinessReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseHandoffInvalidReadinessReadyPath
+} catch {
+    $badReleaseHandoffInvalidReadinessReadyFailedAsExpected = $true
+}
+
+if (-not $badReleaseHandoffInvalidReadinessReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with an invalid project-template readiness release_ready value."
+}
+
 $badReleaseHandoffPdfSplitTraceDir = Join-Path $failDir "release-handoff-split-pdf-visual-contact-sheet"
 $badReleaseHandoffPdfSplitTracePath = Join-Path $badReleaseHandoffPdfSplitTraceDir "release_handoff.md"
 New-Item -ItemType Directory -Path $badReleaseHandoffPdfSplitTraceDir -Force | Out-Null
@@ -2746,6 +2806,60 @@ try {
 
 if (-not $badReleaseGovernanceHandoffStatusTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md without project-template status/ready in the readiness report-status block."
+}
+
+$badReleaseGovernanceHandoffInvalidReadinessStatusDir = Join-Path $failDir "release-governance-handoff-invalid-project-template-readiness-status"
+$badReleaseGovernanceHandoffInvalidReadinessStatusPath = Join-Path $badReleaseGovernanceHandoffInvalidReadinessStatusDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffInvalidReadinessStatusDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffInvalidReadinessStatusPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Report Status
+
+- ``project_template_delivery_readiness``: status=``ready-ish`` ready=``True`` blockers=``0`` actions=``0`` source_failures=``0`` source_failure_count=``0`` schema=``featherdoc.project_template_delivery_readiness_report.v1``
+  - summary: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - source_report_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - source_json_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - latest_schema_approval_gate_status: ``passed``
+  - schema_approval_status_summary: ``approved=4``
+"@
+
+$badReleaseGovernanceHandoffInvalidReadinessStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffInvalidReadinessStatusPath
+} catch {
+    $badReleaseGovernanceHandoffInvalidReadinessStatusFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffInvalidReadinessStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md with an invalid project-template readiness status value."
+}
+
+$badReleaseGovernanceHandoffInvalidReadinessReadyDir = Join-Path $failDir "release-governance-handoff-invalid-project-template-readiness-ready"
+$badReleaseGovernanceHandoffInvalidReadinessReadyPath = Join-Path $badReleaseGovernanceHandoffInvalidReadinessReadyDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffInvalidReadinessReadyDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffInvalidReadinessReadyPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Report Status
+
+- ``project_template_delivery_readiness``: status=``ready`` ready=``maybe`` blockers=``0`` actions=``0`` source_failures=``0`` source_failure_count=``0`` schema=``featherdoc.project_template_delivery_readiness_report.v1``
+  - summary: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - source_report_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - source_json_display: ``.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json``
+  - latest_schema_approval_gate_status: ``passed``
+  - schema_approval_status_summary: ``approved=4``
+"@
+
+$badReleaseGovernanceHandoffInvalidReadinessReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffInvalidReadinessReadyPath
+} catch {
+    $badReleaseGovernanceHandoffInvalidReadinessReadyFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffInvalidReadinessReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_governance_handoff.md with an invalid project-template readiness ready value."
 }
 
 $badReleaseGovernanceHandoffOnboardingTraceDir = Join-Path $failDir "release-governance-handoff-missing-project-template-onboarding-source-json"

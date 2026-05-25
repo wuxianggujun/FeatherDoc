@@ -151,21 +151,26 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      detached notes 或 source path 里的同名片段补齐 onboarding governance block。
      字段值也必须保持证据源身份：readiness 的 ``source_report_display`` /
      ``source_json_display`` 必须回到 delivery-readiness 证据，onboarding 的
-     ``source_json_display`` 必须回到 onboarding governance 原始证据。
+     ``source_json_display`` 必须回到 onboarding governance 原始证据；``status``
+     只能使用可解释 readiness 枚举，``ready`` 只能使用布尔值。
      固定标记：``block_scoped_governance_handoff_trace``、
      ``single_block_governance_handoff_project_template_trace``、
      ``block_scoped_governance_handoff_project_template_status_trace``、
-     ``block_scoped_governance_handoff_source_identity_trace``。
+     ``block_scoped_governance_handoff_source_identity_trace``、
+     ``governance_handoff_readiness_value_set_trace``。
    * ``release_handoff.md`` 中的
      ``project_template_delivery_readiness`` 与
      ``project_template_onboarding.schema_approval`` 也必须分别在自己的
      Markdown list block 内保留 ``source_report_display``、
      ``source_json_display`` 和对应 contract；不能让另一条契约的 source
-     display、detached notes 或重复 anchor 补齐当前块。字段值也必须保持同样的
-     delivery-readiness / onboarding governance 源身份。固定标记：
+     display、detached notes 或重复 anchor 补齐当前块。readiness contract 的
+     ``status`` 只能使用可解释 readiness 枚举，``release_ready`` 只能使用布尔值。
+     字段值也必须保持同样的 delivery-readiness / onboarding governance 源身份。
+     固定标记：
      ``block_scoped_release_handoff_trace``、
      ``single_block_release_handoff_project_template_trace``、
-     ``block_scoped_release_handoff_source_identity_trace``。
+     ``block_scoped_release_handoff_source_identity_trace``、
+     ``release_handoff_readiness_value_set_trace``。
    * ``final_review.md`` 中的
      ``project_template_delivery_readiness / project_template_onboarding.schema_approval``
      handoff blocker block 必须同时保留 ``source_report_display``、

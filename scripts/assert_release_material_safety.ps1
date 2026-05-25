@@ -395,8 +395,9 @@ function Get-MarkdownListBlockFieldValues {
 
     $values = [System.Collections.Generic.List[string]]::new()
     $escapedFieldName = [regex]::Escape($FieldName)
+    $fieldPattern = '(?<![A-Za-z0-9_])`*' + $escapedFieldName + '`*\s*[:=]\s*(?<value>.+?)(?=\s+[A-Za-z_][A-Za-z0-9_]*\s*=|$)'
     foreach ($line in ($block -split "\r?\n")) {
-        if ($line -match "$escapedFieldName\s*[:=]\s*(?<value>.+)$") {
+        if ($line -match $fieldPattern) {
             $value = $Matches["value"].Trim()
             $value = $value -replace '^[`\s]+|[`\s]+$', ''
             [void]$values.Add($value)
@@ -749,6 +750,8 @@ $ProjectTemplateGovernanceReportSourceNeedles = @(
     "project_template_onboarding_governance",
     "project-template-onboarding-governance"
 )
+$ProjectTemplateReadinessStatusValues = @("ready", "blocked", "failed", "pending_review", "needs_review")
+$ProjectTemplateBooleanValues = @("true", "false")
 
 function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     param(
@@ -1370,6 +1373,30 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
                 -Text "Release handoff must keep project template readiness schema, contract, status, and source displays in the same list block."
         }
 
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $readinessAnchor `
+            -FieldName "status" `
+            -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release handoff project template readiness status must be a recognized readiness state."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $readinessAnchor `
+            -FieldName "release_ready" `
+            -AllowedValues $ProjectTemplateBooleanValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release handoff project template readiness release_ready must be true or false."
+        }
+
         foreach ($fieldName in @("source_report_display", "source_json_display")) {
             if (-not (Test-MarkdownListBlockFieldValuesIdentify `
                 -Text $Content `
@@ -1545,6 +1572,30 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
                 -File $File `
                 -Label $label `
                 -Text "Release governance handoff must keep project template readiness schema, status, and source displays in the same report-status block."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $readinessAnchor `
+            -FieldName "status" `
+            -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release governance handoff project template readiness status must be a recognized readiness state."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor $readinessAnchor `
+            -FieldName "ready" `
+            -AllowedValues $ProjectTemplateBooleanValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release governance handoff project template readiness ready must be true or false."
         }
 
         foreach ($fieldName in @("source_report_display", "source_json_display")) {
@@ -1736,7 +1787,7 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
             -Text $Content `
             -Anchor $anchor `
             -FieldName "readiness_status" `
-            -AllowedValues @("ready", "blocked", "failed", "pending_review", "needs_review"))) {
+            -AllowedValues $ProjectTemplateReadinessStatusValues)) {
             Add-AuditViolation `
                 -Violations $Violations `
                 -File $File `
@@ -1748,7 +1799,7 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
             -Text $Content `
             -Anchor $anchor `
             -FieldName "readiness_release_ready" `
-            -AllowedValues @("true", "false"))) {
+            -AllowedValues $ProjectTemplateBooleanValues)) {
             Add-AuditViolation `
                 -Violations $Violations `
                 -File $File `
