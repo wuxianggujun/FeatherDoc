@@ -42,6 +42,50 @@ function Assert-LineContainsAll {
     throw $Message
 }
 
+function Assert-MarkdownListRunContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$Fragments,
+        [string]$Message
+    )
+
+    $lines = $Text -split "\r?\n"
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if ($lines[$lineIndex] -notmatch [regex]::Escape($Anchor)) {
+            continue
+        }
+        if ($lines[$lineIndex] -notmatch '^\s*-\s*') {
+            continue
+        }
+
+        $runStart = $lineIndex
+        while ($runStart -gt 0 -and $lines[$runStart - 1] -match '^\s*-\s*') {
+            $runStart--
+        }
+
+        $runEnd = $lineIndex
+        while ($runEnd + 1 -lt $lines.Count -and $lines[$runEnd + 1] -match '^\s*-\s*') {
+            $runEnd++
+        }
+
+        $run = ($lines[$runStart..$runEnd]) -join "`n"
+        $runMatches = $true
+        foreach ($fragment in $Fragments) {
+            if ($run -notmatch [regex]::Escape($fragment)) {
+                $runMatches = $false
+                break
+            }
+        }
+
+        if ($runMatches) {
+            return
+        }
+    }
+
+    throw $Message
+}
+
 function Assert-MarkdownSectionContainsAll {
     param(
         [string]$Text,
@@ -658,6 +702,26 @@ foreach ($fragments in @(
             -Message ("release_body.zh-CN.md should expose PDF visual gate fragment '{0}'." -f $fragment)
     }
 }
+Assert-MarkdownListRunContainsAll -Text $candidateReleaseBody -Anchor "PDF visual gate summary" -Fragments @(
+    "PDF visual gate summary",
+    "summary.json",
+    "PDF visual gate evidence status",
+    "loaded",
+    "PDF visual gate verdict",
+    "pass",
+    "PDF visual gate aggregate contact sheet",
+    "aggregate-contact-sheet.png",
+    "PDF CJK manifest samples",
+    "43",
+    "PDF CJK copy/search samples",
+    "43",
+    "PDF CJK missing text count",
+    "0",
+    "PDF visual baseline manifest samples",
+    "42",
+    "PDF visual baselines",
+    "44"
+) -Message "release_body.zh-CN.md should keep PDF visual status, verdict, paths, and counts in one Markdown list run."
 
 $candidateReleaseSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseSummaryPath
 foreach ($fragment in @(
