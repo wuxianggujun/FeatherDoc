@@ -297,6 +297,7 @@ foreach ($marker in @(
     "Markdown list block",
     "block_scoped_release_handoff_trace",
     "block_scoped_governance_handoff_trace",
+    "block_scoped_final_review_project_template_trace",
     "onboarding governance block"
 )) {
     Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `

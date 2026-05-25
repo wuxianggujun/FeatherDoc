@@ -2034,6 +2034,39 @@ if (-not $badFinalReviewTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md without project-template source_json_display."
 }
 
+$badFinalReviewSplitTraceDir = Join-Path $failDir "final-review-project-template-source-json-supplied-by-detached-notes"
+$badFinalReviewSplitTracePath = Join-Path $badFinalReviewSplitTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewSplitTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewSplitTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Release governance handoff details
+
+### Handoff Blockers
+
+- project_template_delivery_readiness / project_template_onboarding.schema_approval: action=review_schema_update_candidate source_schema=featherdoc.project_template_onboarding_governance_report.v1
+  - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+  - project_template_onboarding_governance_contract:
+    - source_schema: featherdoc.project_template_onboarding_governance_report.v1
+    - schema_approval_status_summary: approved
+    - source_report_display: .\output\release-governance-handoff\project-template-delivery-readiness\summary.json
+
+## Detached notes
+
+- source_json_display: .\output\project-template-onboarding-governance\summary.json
+"@
+
+$badFinalReviewSplitTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewSplitTracePath
+} catch {
+    $badFinalReviewSplitTraceFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewSplitTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with project-template source_json_display supplied only by detached notes."
+}
+
 $badFinalReviewPdfTraceDir = Join-Path $failDir "final-review-missing-pdf-visual-contact-sheet"
 $badFinalReviewPdfTracePath = Join-Path $badFinalReviewPdfTraceDir "final_review.md"
 New-Item -ItemType Directory -Path $badFinalReviewPdfTraceDir -Force | Out-Null

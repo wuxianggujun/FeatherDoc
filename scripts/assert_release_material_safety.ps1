@@ -796,8 +796,16 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
     }
 
     $label = "final review project template governance trace"
+    if (-not $Content.Contains("Release governance handoff details")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review lost project template governance trace marker 'Release governance handoff details'."
+    }
+
+    $anchor = "project_template_delivery_readiness / project_template_onboarding.schema_approval"
     foreach ($needle in @(
-        "Release governance handoff details",
         "project_template_delivery_readiness",
         "project_template_onboarding.schema_approval",
         "featherdoc.project_template_onboarding_governance_report.v1",
@@ -808,12 +816,12 @@ function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
         "source_json_display:",
         "project-template-onboarding-governance"
     )) {
-        if (-not $Content.Contains($needle)) {
+        if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor $anchor -Needles @($needle))) {
             Add-AuditViolation `
                 -Violations $Violations `
                 -File $File `
                 -Label $label `
-                -Text "Final review lost project template governance trace marker '$needle'."
+                -Text "Final review lost project template governance trace marker '$needle' inside the handoff blocker block."
         }
     }
 }

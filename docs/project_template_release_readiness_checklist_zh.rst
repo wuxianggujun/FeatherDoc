@@ -136,6 +136,12 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      Markdown list block 内保留 ``source_report_display``、
      ``source_json_display`` 和对应 contract；不能让另一条契约的 source
      display 补齐当前块。固定标记：``block_scoped_release_handoff_trace``。
+   * ``final_review.md`` 中的
+     ``project_template_delivery_readiness / project_template_onboarding.schema_approval``
+     handoff blocker block 必须同时保留 ``source_report_display``、
+     ``source_json_display``、``schema_approval_status_summary`` 和 onboarding
+     governance contract；不能让 detached notes 或其它段落补齐当前块。
+     固定标记：``block_scoped_final_review_project_template_trace``。
    * ``release_assets_manifest.json`` 必须保留
      ``project_template_delivery_readiness_contract`` 与
      ``project_template_onboarding_governance_contract``，并继续带出
