@@ -835,6 +835,50 @@ if (-not $missingEntryReadinessSchemaSummaryFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed entry document where only onboarding carried schema_approval_status_summary."
 }
 
+$badEntryProjectTemplateReadinessSplitDir = Join-Path $failDir "entry-project-template-readiness-split-block"
+$badEntryProjectTemplateReadinessSplitPath = Join-Path $badEntryProjectTemplateReadinessSplitDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateReadinessSplitDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateReadinessSplitPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Detached readiness note: project_template_delivery_readiness source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$projectTemplateReadinessSplitFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateReadinessSplitPath
+} catch {
+    $projectTemplateReadinessSplitFailedAsExpected = $true
+}
+
+if (-not $projectTemplateReadinessSplitFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document with project-template readiness details split across detached notes."
+}
+
+$badEntryProjectTemplateOnboardingSplitDir = Join-Path $failDir "entry-project-template-onboarding-split-block"
+$badEntryProjectTemplateOnboardingSplitPath = Join-Path $badEntryProjectTemplateOnboardingSplitDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateOnboardingSplitDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateOnboardingSplitPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+- Detached onboarding note: project_template_onboarding.schema_approval source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$projectTemplateOnboardingSplitFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateOnboardingSplitPath
+} catch {
+    $projectTemplateOnboardingSplitFailedAsExpected = $true
+}
+
+if (-not $projectTemplateOnboardingSplitFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document with project-template onboarding details split across detached notes."
+}
+
 $badEntryMissingReadinessForOnboardingDir = Join-Path $failDir "entry-missing-readiness-for-onboarding"
 $badEntryMissingReadinessForOnboardingPath = Join-Path $badEntryMissingReadinessForOnboardingDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryMissingReadinessForOnboardingDir -Force | Out-Null

@@ -397,6 +397,53 @@ function Add-ReleaseEntryGovernanceMetricDetailViolations {
     }
 }
 
+function Add-ReleaseEntryProjectTemplateDetailViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations,
+        [string]$Label,
+        [string]$Anchor,
+        [string]$Description,
+        [string[]]$Needles
+    )
+
+    $blockNeedles = @($Anchor) + $Needles
+    if (Test-MarkdownListBlockContainsAll -Text $Content -Anchor $Anchor -Needles $blockNeedles) {
+        return
+    }
+
+    $foundMissingNeedle = $false
+    foreach ($needle in $Needles) {
+        if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor $Anchor -Needles @($Anchor, $needle))) {
+            $foundMissingNeedle = $true
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $Label `
+                -Text "Entry document mentions $Description without required block marker '$needle'."
+        }
+    }
+
+    if (-not $foundMissingNeedle) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $Label `
+            -Text "Entry document must keep $Description detail markers in the same Markdown list block."
+    }
+}
+
+function Test-ReleaseEntryProjectTemplateTraceBlockContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$Needles
+    )
+
+    return (Test-MarkdownListBlockContainsAll -Text $Text -Anchor $Anchor -Needles $Needles)
+}
+
 function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     param(
         [string]$File,
@@ -467,24 +514,23 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     }
 
     if (Test-TextContainsAny -Text $Content -Needles @("project_template_delivery_readiness", "project_template_onboarding.schema_approval", "project_template_onboarding_governance")) {
-        foreach ($needle in @(
+        Add-ReleaseEntryProjectTemplateDetailViolations `
+            -File $File `
+            -Content $Content `
+            -Violations $Violations `
+            -Label $label `
+            -Anchor "project_template_delivery_readiness" `
+            -Description "project_template_delivery_readiness" `
+            -Needles @(
             "project_template_delivery_readiness",
             "project_template_delivery_readiness_contract",
             "featherdoc.project_template_delivery_readiness_report.v1",
             "latest_schema_approval_gate_status",
             "source_report_display",
             "source_json_display"
-        )) {
-            if (-not (Test-TextLineContainsAll -Text $Content -Needles @("project_template_delivery_readiness", $needle))) {
-                Add-AuditViolation `
-                    -Violations $Violations `
-                    -File $File `
-                    -Label $label `
-                    -Text "Entry document lost project template delivery readiness marker '$needle'."
-            }
-        }
+        )
 
-        if (-not (Test-TextLineContainsAll -Text $Content -Needles @(
+        if (-not (Test-ReleaseEntryProjectTemplateTraceBlockContainsAll -Text $Content -Anchor "project_template_delivery_readiness" -Needles @(
             "project_template_delivery_readiness",
             "schema_approval_status_summary="
         ))) {
@@ -495,22 +541,21 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
                 -Text "Entry document lost project template delivery readiness schema approval summary marker 'schema_approval_status_summary='."
         }
 
-        foreach ($needle in @(
+        Add-ReleaseEntryProjectTemplateDetailViolations `
+            -File $File `
+            -Content $Content `
+            -Violations $Violations `
+            -Label $label `
+            -Anchor "project_template_onboarding.schema_approval" `
+            -Description "project_template_onboarding.schema_approval" `
+            -Needles @(
             "project_template_onboarding.schema_approval",
             "project_template_onboarding_governance_contract",
             "featherdoc.project_template_onboarding_governance_report.v1",
             "schema_approval_status_summary",
             "source_report_display",
             "source_json_display"
-        )) {
-            if (-not (Test-TextLineContainsAll -Text $Content -Needles @("project_template_onboarding.schema_approval", $needle))) {
-                Add-AuditViolation `
-                    -Violations $Violations `
-                    -File $File `
-                    -Label $label `
-                    -Text "Entry document lost project template onboarding governance marker '$needle'."
-            }
-        }
+        )
     }
 
     if (Test-TextContainsAny -Text $Content -Needles @("delivery_quality", "table_layout_delivery_governance")) {
