@@ -129,6 +129,14 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
   - source_json_display: ``.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json``
   - latest_schema_approval_gate_status: ``passed``
   - schema_approval_status_summary: ``approved=4``
+- ``project_template_onboarding.schema_approval``: action=``review_schema_update_candidate`` source_schema=``featherdoc.project_template_onboarding_governance_report.v1``
+  - source_report_display: ``.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json``
+  - source_json_display: ``.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json``
+  - project_template_onboarding_governance_contract:
+    - source_schema: ``featherdoc.project_template_onboarding_governance_report.v1``
+    - schema_approval_status_summary: ``approved``
+    - source_report_display: ``.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json``
+    - source_json_display: ``.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json``
 
 ## Governance Metrics
 
@@ -569,6 +577,10 @@ foreach ($expectedText in @(
     "source_report_display",
     "source_json_display",
     ".\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json",
+    "project_template_onboarding.schema_approval",
+    "project_template_onboarding_governance_contract",
+    "featherdoc.project_template_onboarding_governance_report.v1",
+    ".\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
     "Governance Metrics",
     "real_corpus_confidence",
     "numbering_catalog_governance.real_corpus_confidence",
