@@ -107,6 +107,7 @@ foreach ($marker in @(
     "build_release_governance_handoff_report.ps1",
     "run_release_candidate_checks.ps1",
     "assert_release_material_safety.ps1",
+    "release_note_bundle_version_test.ps1",
     "steps.release_governance_handoff",
     "final_review.md",
     "project_template_delivery_readiness_contract",
@@ -329,5 +330,13 @@ foreach ($marker in @(
 
 Assert-ContainsText -Text $cmakeLists -ExpectedText "project_template_release_readiness_checklist_docs_contract" `
     -Message "CTest should register the project-template readiness checklist contract."
+
+foreach ($marker in @(
+    "release_note_bundle_version",
+    "release_note_bundle_version_test.ps1"
+)) {
+    Assert-ContainsText -Text $cmakeLists -ExpectedText $marker `
+        -Message "CTest should keep the release bundle version contract wired for project-template readiness evidence."
+}
 
 Write-Host "Project template release readiness checklist docs contract passed."
