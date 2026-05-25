@@ -68,6 +68,50 @@ function Assert-LineContainsAll {
     throw "$Label does not contain a line with all expected fragments: $($Fragments -join ', ')"
 }
 
+function Assert-MarkdownListRunContainsAll {
+    param(
+        [string]$Path,
+        [string]$Anchor,
+        [string[]]$Fragments,
+        [string]$Label
+    )
+
+    $lines = Get-CachedFileLines -Path $Path
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if ($lines[$lineIndex] -notmatch [regex]::Escape($Anchor)) {
+            continue
+        }
+        if ($lines[$lineIndex] -notmatch '^\s*-\s*') {
+            continue
+        }
+
+        $runStart = $lineIndex
+        while ($runStart -gt 0 -and $lines[$runStart - 1] -match '^\s*-\s*') {
+            $runStart--
+        }
+
+        $runEnd = $lineIndex
+        while ($runEnd + 1 -lt $lines.Count -and $lines[$runEnd + 1] -match '^\s*-\s*') {
+            $runEnd++
+        }
+
+        $run = ($lines[$runStart..$runEnd]) -join "`n"
+        $runMatches = $true
+        foreach ($fragment in $Fragments) {
+            if ($run -notmatch [regex]::Escape($fragment)) {
+                $runMatches = $false
+                break
+            }
+        }
+
+        if ($runMatches) {
+            return
+        }
+    }
+
+    throw "$Label does not contain a Markdown list run anchored by '$Anchor' with all expected fragments: $($Fragments -join ', ')"
+}
+
 function Get-OptionalPropertyValue {
     param(
         $Object,
@@ -407,6 +451,28 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual baseline manifest samples: 42" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "PDF visual baselines: 3" -Label $assertion.Label
 }
+
+foreach ($assertion in @(
+        @{ Path = $handoffPath; Label = "release_handoff.md" },
+        @{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+        @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        @{ Path = $startHerePath; Label = "START_HERE.md" }
+    )) {
+    Assert-MarkdownListRunContainsAll -Path $assertion.Path -Anchor "PDF visual gate summary:" -Fragments @(
+        "PDF visual gate summary:",
+        "pdf-visual-gate\report\summary.json",
+        "PDF visual gate evidence status: loaded",
+        "PDF visual gate verdict: pass",
+        "PDF visual gate aggregate contact sheet",
+        "aggregate-contact-sheet.png",
+        "PDF CJK manifest samples: 43",
+        "PDF CJK copy/search samples: 2",
+        "PDF CJK missing text count: 0",
+        "PDF visual baseline manifest samples: 42",
+        "PDF visual baselines: 3"
+    ) -Label $assertion.Label
+}
+
 foreach ($fragments in @(
         @("PDF visual gate summary", "pdf-visual-gate\report\summary.json"),
         @("PDF visual gate evidence status", "loaded"),
