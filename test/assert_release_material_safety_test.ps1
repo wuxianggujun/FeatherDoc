@@ -1931,6 +1931,10 @@ Set-Content -LiteralPath $badReleaseHandoffTracePath -Encoding UTF8 -Value @"
     - latest_schema_approval_gate_status: passed
     - schema_approval_status_summary: approved=4
     - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+
+## Detached notes
+
+- project_template_delivery_readiness: source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 "@
 
 $badReleaseHandoffTraceFailedAsExpected = $false
@@ -1941,7 +1945,7 @@ try {
 }
 
 if (-not $badReleaseHandoffTraceFailedAsExpected) {
-    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md without project-template source_json_display."
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with project-template source_json_display outside the readiness list block."
 }
 
 $badReleaseHandoffReadinessSplitTraceDir = Join-Path $failDir "release-handoff-readiness-source-json-supplied-by-onboarding"
@@ -2003,6 +2007,10 @@ Set-Content -LiteralPath $badReleaseHandoffOnboardingSplitTracePath -Encoding UT
     - source_schema: featherdoc.project_template_onboarding_governance_report.v1
     - schema_approval_status_summary: approved
     - source_report_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+
+## Detached notes
+
+- project_template_onboarding.schema_approval source_json_display: .\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 "@
 
 $badReleaseHandoffOnboardingSplitTraceFailedAsExpected = $false
@@ -2013,7 +2021,7 @@ try {
 }
 
 if (-not $badReleaseHandoffOnboardingSplitTraceFailedAsExpected) {
-    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with onboarding source_json_display supplied only by readiness."
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with onboarding source_json_display outside the onboarding list block."
 }
 
 $badReleaseHandoffPdfSplitTraceDir = Join-Path $failDir "release-handoff-split-pdf-visual-contact-sheet"
