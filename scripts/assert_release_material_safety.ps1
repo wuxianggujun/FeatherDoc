@@ -466,7 +466,7 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
             "source_report_display=",
             "source_json_display="
         )) {
-            if (-not $Content.Contains($needle)) {
+            if (-not (Test-TextLineContainsAll -Text $Content -Needles @("project-template readiness governance contract", $needle))) {
                 Add-AuditViolation `
                     -Violations $Violations `
                     -File $File `
@@ -483,7 +483,7 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
             "source_report_display=",
             "source_json_display="
         )) {
-            if (-not $Content.Contains($needle)) {
+            if (-not (Test-TextLineContainsAll -Text $Content -Needles @("project-template onboarding governance contract", $needle))) {
                 Add-AuditViolation `
                     -Violations $Violations `
                     -File $File `
@@ -520,7 +520,7 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
             "source_report_display=",
             "source_json_display="
         )) {
-            if (-not $Content.Contains($needle)) {
+            if (-not (Test-TextLineContainsAll -Text $Content -Needles @("project_template_delivery_readiness", $needle))) {
                 Add-AuditViolation `
                     -Violations $Violations `
                     -File $File `
@@ -540,7 +540,7 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
             "source_report_display=",
             "source_json_display="
         )) {
-            if (-not $Content.Contains($needle)) {
+            if (-not (Test-TextLineContainsAll -Text $Content -Needles @("project_template_onboarding.schema_approval", $needle))) {
                 Add-AuditViolation `
                     -Violations $Violations `
                     -File $File `

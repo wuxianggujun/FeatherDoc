@@ -1607,6 +1607,27 @@ if (-not $badReleaseSummaryTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md without project-template source_json_display."
 }
 
+$badReleaseSummaryOnboardingTraceDir = Join-Path $failDir "release-summary-onboarding-missing-project-template-source-json"
+$badReleaseSummaryOnboardingTracePath = Join-Path $badReleaseSummaryOnboardingTraceDir "release_summary.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseSummaryOnboardingTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseSummaryOnboardingTracePath -Encoding UTF8 -Value @"
+# Release summary
+
+- project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- project-template onboarding governance contract: schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseSummaryOnboardingTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseSummaryOnboardingTracePath
+} catch {
+    $badReleaseSummaryOnboardingTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseSummaryOnboardingTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with onboarding source_json_display supplied only by readiness."
+}
+
 $badReleaseBodyTraceDir = Join-Path $failDir "release-body-missing-project-template-source-json"
 $badReleaseBodyTracePath = Join-Path $badReleaseBodyTraceDir "release_body.zh-CN.md"
 New-Item -ItemType Directory -Path $badReleaseBodyTraceDir -Force | Out-Null
@@ -1625,6 +1646,27 @@ try {
 
 if (-not $badReleaseBodyTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md without project-template source_json_display."
+}
+
+$badReleaseBodyOnboardingTraceDir = Join-Path $failDir "release-body-onboarding-missing-project-template-source-json"
+$badReleaseBodyOnboardingTracePath = Join-Path $badReleaseBodyOnboardingTraceDir "release_body.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseBodyOnboardingTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBodyOnboardingTracePath -Encoding UTF8 -Value @"
+# Release body
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseBodyOnboardingTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBodyOnboardingTracePath
+} catch {
+    $badReleaseBodyOnboardingTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseBodyOnboardingTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with onboarding source_json_display supplied only by readiness."
 }
 
 $badReleaseHandoffTraceDir = Join-Path $failDir "release-handoff-missing-project-template-source-json"
