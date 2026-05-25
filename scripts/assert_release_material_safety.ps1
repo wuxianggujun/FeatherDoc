@@ -1155,6 +1155,8 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
     if ($Content.Contains("project-template onboarding governance contract")) {
         foreach ($needle in @(
             "project-template onboarding governance contract",
+            "status=",
+            "release_ready=",
             "schema_approval_status_summary=",
             "source_report_display=",
             "source_json_display="
@@ -1195,6 +1197,30 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
                 -File $File `
                 -Label $label `
                 -Text "Release summary project template onboarding source_json_display must identify the onboarding governance evidence source."
+        }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldValueInSet `
+            -Text $Content `
+            -Anchor "project-template onboarding governance contract" `
+            -FieldName "status" `
+            -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release summary project template onboarding status must be a recognized readiness state."
+        }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldValueInSet `
+            -Text $Content `
+            -Anchor "project-template onboarding governance contract" `
+            -FieldName "release_ready" `
+            -AllowedValues $ProjectTemplateBooleanValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release summary project template onboarding release_ready must be true or false."
         }
     }
 }
@@ -1328,6 +1354,8 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
             "project_template_onboarding_governance",
             "project_template_onboarding_governance_contract",
             "source_schema=featherdoc.project_template_onboarding_governance_report.v1",
+            "status=",
+            "release_ready=",
             "schema_approval_status_summary=",
             "source_report_display=",
             "source_json_display="
@@ -1368,6 +1396,30 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
                 -File $File `
                 -Label $label `
                 -Text "Release body project template onboarding source_json_display must identify the onboarding governance evidence source."
+        }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldValueInSet `
+            -Text $Content `
+            -Anchor "Project template onboarding:" `
+            -FieldName "status" `
+            -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release body project template onboarding status must be a recognized readiness state."
+        }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldValueInSet `
+            -Text $Content `
+            -Anchor "Project template onboarding:" `
+            -FieldName "release_ready" `
+            -AllowedValues $ProjectTemplateBooleanValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release body project template onboarding release_ready must be true or false."
         }
     }
 }

@@ -200,10 +200,12 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``source_report_display`` 可以指向 delivery-readiness 汇总或 onboarding 原始报告，
      但 ``source_json_display`` 必须回到 ``project_template_onboarding_governance`` /
      ``project-template-onboarding-governance`` 原始证据，不能由同一行其它 token 冒充。
-     readiness 的 ``status`` 只能使用可解释 readiness 枚举，``release_ready``
-     只能使用布尔值。固定标记：
+     delivery readiness 与 onboarding governance 的 ``status`` 都只能使用可解释
+     readiness 枚举，``release_ready`` 都只能使用布尔值，且 onboarding 行必须使用
+     报告级结论，不能从 blocker / action item 推断整体发布状态。固定标记：
      ``line_scoped_release_note_source_identity_trace``、
-     ``line_scoped_release_note_readiness_value_set_trace``。
+     ``line_scoped_release_note_readiness_value_set_trace``、
+     ``line_scoped_release_note_onboarding_value_set_trace``。
    * ``release_assets_manifest.json`` 必须保留
      ``project_template_delivery_readiness_contract`` 与
      ``project_template_onboarding_governance_contract``，并继续带出

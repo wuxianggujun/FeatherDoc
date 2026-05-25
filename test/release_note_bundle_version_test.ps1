@@ -404,6 +404,28 @@ $summary = [ordered]@{
                 action_item_count = 1
                 warning_count = 0
                 build_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
+            },
+            [ordered]@{
+                id = "project_template_onboarding_governance"
+                schema = "featherdoc.project_template_onboarding_governance_report.v1"
+                status = "pending_review"
+                release_ready = $false
+                path = ".\output\project-template-onboarding-governance\summary.json"
+                path_display = ".\output\project-template-onboarding-governance\summary.json"
+                source_json = ".\output\project-template-onboarding-governance\summary.json"
+                source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                source_failure_count = 0
+                schema_approval_status_summary = "pending_review"
+                source_file_count = 3
+                entry_count = 4
+                blocked_entry_count = 0
+                pending_review_entry_count = 1
+                not_evaluated_entry_count = 0
+                approved_entry_count = 2
+                not_required_entry_count = 1
+                release_blocker_count = 1
+                action_item_count = 1
+                manual_review_recommendation_count = 1
             }
         )
         release_blocker_count = 5
@@ -684,6 +706,28 @@ $summary = [ordered]@{
                 warning_count = 0
                 error = "Failed to parse project template delivery readiness summary."
                 build_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
+            },
+            [ordered]@{
+                id = "project_template_onboarding_governance"
+                schema = "featherdoc.project_template_onboarding_governance_report.v1"
+                status = "pending_review"
+                release_ready = $false
+                expected_summary = ".\output\project-template-onboarding-governance\summary.json"
+                expected_summary_display = ".\output\project-template-onboarding-governance\summary.json"
+                source_json = ".\output\project-template-onboarding-governance\summary.json"
+                source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                source_failure_count = 0
+                schema_approval_status_summary = "pending_review"
+                source_file_count = 3
+                entry_count = 4
+                blocked_entry_count = 0
+                pending_review_entry_count = 1
+                not_evaluated_entry_count = 0
+                approved_entry_count = 2
+                not_required_entry_count = 1
+                release_blocker_count = 1
+                action_item_count = 1
+                manual_review_recommendation_count = 1
             }
         )
         release_blocker_count = 2
@@ -896,7 +940,7 @@ Assert-Contains -Path $bodyPath -ExpectedText 'source_json_display=.\output\proj
 Assert-Contains -Path $bodyPath -ExpectedText 'project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'source_schema=featherdoc.project_template_onboarding_governance_report.v1' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'schema_approval_status_summary=pending_review' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=pending_review source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=pending_review release_ready=False schema_approval_status_summary=pending_review source_report_display=.\output\project-template-onboarding-governance\summary.json source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'Readiness action evidence:' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'provide_pdf_dependency_input/pdf_dependency_inputs_ready -> PDFio source header' -Label 'release_body.zh-CN.md'
@@ -915,7 +959,7 @@ Assert-Contains -Path $shortPath -ExpectedText 'Template table CLI selector=`pas
 Assert-Contains -Path $shortPath -ExpectedText 'project-template readiness governance contract' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'status=blocked release_ready=False latest_schema_approval_gate_status=pending_review schema_approval_status_summary=pending_review source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'project-template onboarding governance contract' -Label 'release_summary.zh-CN.md'
-Assert-Contains -Path $shortPath -ExpectedText 'schema_approval_status_summary=pending_review source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_summary.zh-CN.md'
+Assert-Contains -Path $shortPath -ExpectedText 'status=pending_review release_ready=False schema_approval_status_summary=pending_review source_report_display=.\output\project-template-onboarding-governance\summary.json source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_summary.zh-CN.md'
 Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
     'project-template readiness governance contract',
     'status=blocked',
@@ -927,8 +971,10 @@ Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
 ) -Label 'release_summary.zh-CN.md'
 Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
     'project-template onboarding governance contract',
+    'status=pending_review',
+    'release_ready=False',
     'schema_approval_status_summary=pending_review',
-    'source_report_display=.\output\project-template-delivery-readiness\summary.json',
+    'source_report_display=.\output\project-template-onboarding-governance\summary.json',
     'source_json_display=.\output\project-template-onboarding-governance\summary.json'
 ) -Label 'release_summary.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText $installDir -Label 'release_body.zh-CN.md'

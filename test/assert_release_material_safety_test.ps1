@@ -542,7 +542,7 @@ Set-Content -LiteralPath $passReleaseSummaryTracePath -Encoding UTF8 -Value @"
 # Release summary
 
 - project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
-- project-template onboarding governance contract: schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+- project-template onboarding governance contract: status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 "@
 
 & $auditScript -Path $passReleaseSummaryTracePath
@@ -610,7 +610,7 @@ Set-Content -LiteralPath $passReleaseBodyTracePath -Encoding UTF8 -Value @"
 # Release body
 
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
-- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 "@
 
 & $auditScript -Path $passReleaseBodyTracePath
@@ -2090,7 +2090,7 @@ Set-Content -LiteralPath $badReleaseSummaryOnboardingTracePath -Encoding UTF8 -V
 # Release summary
 
 - project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
-- project-template onboarding governance contract: schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+- project-template onboarding governance contract: status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 "@
 
 $badReleaseSummaryOnboardingTraceFailedAsExpected = $false
@@ -2164,6 +2164,48 @@ if (-not $badReleaseSummaryInvalidReadinessReadyFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with an invalid project-template readiness release_ready."
 }
 
+$badReleaseSummaryInvalidOnboardingStatusDir = Join-Path $failDir "release-summary-invalid-project-template-onboarding-status"
+$badReleaseSummaryInvalidOnboardingStatusPath = Join-Path $badReleaseSummaryInvalidOnboardingStatusDir "release_summary.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseSummaryInvalidOnboardingStatusDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseSummaryInvalidOnboardingStatusPath -Encoding UTF8 -Value @"
+# Release summary
+
+- project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- project-template onboarding governance contract: status=ready-ish release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseSummaryInvalidOnboardingStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseSummaryInvalidOnboardingStatusPath
+} catch {
+    $badReleaseSummaryInvalidOnboardingStatusFailedAsExpected = $true
+}
+
+if (-not $badReleaseSummaryInvalidOnboardingStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with an invalid project-template onboarding status."
+}
+
+$badReleaseSummaryInvalidOnboardingReadyDir = Join-Path $failDir "release-summary-invalid-project-template-onboarding-release-ready"
+$badReleaseSummaryInvalidOnboardingReadyPath = Join-Path $badReleaseSummaryInvalidOnboardingReadyDir "release_summary.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseSummaryInvalidOnboardingReadyDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseSummaryInvalidOnboardingReadyPath -Encoding UTF8 -Value @"
+# Release summary
+
+- project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- project-template onboarding governance contract: status=ready release_ready=maybe schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseSummaryInvalidOnboardingReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseSummaryInvalidOnboardingReadyPath
+} catch {
+    $badReleaseSummaryInvalidOnboardingReadyFailedAsExpected = $true
+}
+
+if (-not $badReleaseSummaryInvalidOnboardingReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with an invalid project-template onboarding release_ready."
+}
+
 $badReleaseSummaryOnboardingSourceJsonIdentityDir = Join-Path $failDir "release-summary-onboarding-source-json-identity-impersonated"
 $badReleaseSummaryOnboardingSourceJsonIdentityPath = Join-Path $badReleaseSummaryOnboardingSourceJsonIdentityDir "release_summary.zh-CN.md"
 New-Item -ItemType Directory -Path $badReleaseSummaryOnboardingSourceJsonIdentityDir -Force | Out-Null
@@ -2171,7 +2213,7 @@ Set-Content -LiteralPath $badReleaseSummaryOnboardingSourceJsonIdentityPath -Enc
 # Release summary
 
 - project-template readiness governance contract: status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
-- project-template onboarding governance contract: schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- project-template onboarding governance contract: status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 "@
 
 $badReleaseSummaryOnboardingSourceJsonIdentityFailedAsExpected = $false
@@ -2363,7 +2405,7 @@ Set-Content -LiteralPath $badReleaseBodyOnboardingTracePath -Encoding UTF8 -Valu
 # Release body
 
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
-- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 "@
 
 $badReleaseBodyOnboardingTraceFailedAsExpected = $false
@@ -2437,6 +2479,48 @@ if (-not $badReleaseBodyInvalidReadinessReadyFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with an invalid project-template readiness release_ready."
 }
 
+$badReleaseBodyInvalidOnboardingStatusDir = Join-Path $failDir "release-body-invalid-project-template-onboarding-status"
+$badReleaseBodyInvalidOnboardingStatusPath = Join-Path $badReleaseBodyInvalidOnboardingStatusDir "release_body.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseBodyInvalidOnboardingStatusDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBodyInvalidOnboardingStatusPath -Encoding UTF8 -Value @"
+# Release body
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready-ish release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseBodyInvalidOnboardingStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBodyInvalidOnboardingStatusPath
+} catch {
+    $badReleaseBodyInvalidOnboardingStatusFailedAsExpected = $true
+}
+
+if (-not $badReleaseBodyInvalidOnboardingStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with an invalid project-template onboarding status."
+}
+
+$badReleaseBodyInvalidOnboardingReadyDir = Join-Path $failDir "release-body-invalid-project-template-onboarding-release-ready"
+$badReleaseBodyInvalidOnboardingReadyPath = Join-Path $badReleaseBodyInvalidOnboardingReadyDir "release_body.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseBodyInvalidOnboardingReadyDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBodyInvalidOnboardingReadyPath -Encoding UTF8 -Value @"
+# Release body
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready release_ready=maybe schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badReleaseBodyInvalidOnboardingReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBodyInvalidOnboardingReadyPath
+} catch {
+    $badReleaseBodyInvalidOnboardingReadyFailedAsExpected = $true
+}
+
+if (-not $badReleaseBodyInvalidOnboardingReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with an invalid project-template onboarding release_ready."
+}
+
 $badReleaseBodyOnboardingSourceIdentityDir = Join-Path $failDir "release-body-onboarding-source-identity-impersonated"
 $badReleaseBodyOnboardingSourceIdentityPath = Join-Path $badReleaseBodyOnboardingSourceIdentityDir "release_body.zh-CN.md"
 New-Item -ItemType Directory -Path $badReleaseBodyOnboardingSourceIdentityDir -Force | Out-Null
@@ -2444,7 +2528,7 @@ Set-Content -LiteralPath $badReleaseBodyOnboardingSourceIdentityPath -Encoding U
 # Release body
 
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
-- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 "@
 
 $badReleaseBodyOnboardingSourceIdentityFailedAsExpected = $false

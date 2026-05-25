@@ -327,6 +327,7 @@ foreach ($marker in @(
     "line_scoped_release_note_project_template_trace",
     "line_scoped_release_note_source_identity_trace",
     "line_scoped_release_note_readiness_value_set_trace",
+    "line_scoped_release_note_onboarding_value_set_trace",
     "block_scoped_release_handoff_trace",
     "single_block_release_handoff_project_template_trace",
     "block_scoped_release_handoff_source_identity_trace",
