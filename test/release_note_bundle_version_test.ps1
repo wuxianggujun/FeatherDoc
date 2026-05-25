@@ -29,6 +29,31 @@ function Assert-Contains {
     }
 }
 
+function Assert-LineContainsAll {
+    param(
+        [string]$Path,
+        [string[]]$ExpectedFragments,
+        [string]$Label
+    )
+
+    $lines = Get-Content -LiteralPath $Path
+    foreach ($line in $lines) {
+        $matchesAllFragments = $true
+        foreach ($fragment in $ExpectedFragments) {
+            if ($line -notmatch [regex]::Escape($fragment)) {
+                $matchesAllFragments = $false
+                break
+            }
+        }
+
+        if ($matchesAllFragments) {
+            return
+        }
+    }
+
+    throw ("{0} does not contain one line with all expected fragments: {1}" -f $Label, ($ExpectedFragments -join ", "))
+}
+
 function Assert-NotContains {
     param(
         [string]$Path,
@@ -841,6 +866,21 @@ Assert-Contains -Path $shortPath -ExpectedText 'project-template readiness gover
 Assert-Contains -Path $shortPath -ExpectedText 'status=blocked release_ready=False latest_schema_approval_gate_status=pending_review schema_approval_status_summary=pending_review source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'project-template onboarding governance contract' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'schema_approval_status_summary=pending_review source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_summary.zh-CN.md'
+Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
+    'project-template readiness governance contract',
+    'status=blocked',
+    'release_ready=False',
+    'latest_schema_approval_gate_status=pending_review',
+    'schema_approval_status_summary=pending_review',
+    'source_report_display=.\output\project-template-delivery-readiness\summary.json',
+    'source_json_display=.\output\project-template-delivery-readiness\summary.json'
+) -Label 'release_summary.zh-CN.md'
+Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
+    'project-template onboarding governance contract',
+    'schema_approval_status_summary=pending_review',
+    'source_report_display=.\output\project-template-delivery-readiness\summary.json',
+    'source_json_display=.\output\project-template-onboarding-governance\summary.json'
+) -Label 'release_summary.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText $installDir -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText $resolvedWorkingDir -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText 'draft' -Label 'release_body.zh-CN.md'
