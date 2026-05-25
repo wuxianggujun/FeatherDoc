@@ -231,6 +231,7 @@ foreach ($marker in @(
     "full_visual_gate_status",
     "full gate summary verdict",
     "line_scoped_final_review_pdf_visual_trace",
+    "line_scoped_release_handoff_pdf_visual_trace",
     "block_scoped_pdf_visual_gate_handoff_trace",
     "not_run_by_preflight_governance",
     "contact sheet",

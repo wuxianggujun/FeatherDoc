@@ -530,6 +530,26 @@ Set-Content -LiteralPath $passReleaseHandoffTracePath -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passReleaseHandoffTracePath
 
+$passReleaseHandoffPdfTraceDir = Join-Path $passDir "release-handoff-pdf-visual-gate-trace"
+$passReleaseHandoffPdfTracePath = Join-Path $passReleaseHandoffPdfTraceDir "release_handoff.md"
+New-Item -ItemType Directory -Path $passReleaseHandoffPdfTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseHandoffPdfTracePath -Encoding UTF8 -Value @"
+# Release handoff
+
+## PDF visual gate evidence
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate evidence status: ready
+- PDF visual gate verdict: pass
+- PDF CJK manifest samples: 43
+- PDF CJK copy/search samples: 43
+- PDF visual baseline manifest samples: 42
+- PDF visual baselines: 44
+- PDF visual aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+& $auditScript -Path $passReleaseHandoffPdfTracePath
+
 $passReleaseGovernanceHandoffTraceDir = Join-Path $passDir "release-governance-handoff-project-template-trace"
 $passReleaseGovernanceHandoffTracePath = Join-Path $passReleaseGovernanceHandoffTraceDir "release_governance_handoff.md"
 New-Item -ItemType Directory -Path $passReleaseGovernanceHandoffTraceDir -Force | Out-Null
@@ -1788,6 +1808,39 @@ try {
 
 if (-not $badReleaseHandoffOnboardingSplitTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with onboarding source_json_display supplied only by readiness."
+}
+
+$badReleaseHandoffPdfSplitTraceDir = Join-Path $failDir "release-handoff-split-pdf-visual-contact-sheet"
+$badReleaseHandoffPdfSplitTracePath = Join-Path $badReleaseHandoffPdfSplitTraceDir "release_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseHandoffPdfSplitTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseHandoffPdfSplitTracePath -Encoding UTF8 -Value @"
+# Release handoff
+
+## PDF visual gate evidence
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate evidence status: ready
+- PDF visual gate verdict: pass
+- PDF CJK manifest samples: 43
+- PDF CJK copy/search samples: 43
+- PDF visual baseline manifest samples: 42
+- PDF visual baselines: 44
+- PDF visual aggregate contact sheet:
+
+## Detached notes
+
+- archived_contact_sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+$badReleaseHandoffPdfSplitTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseHandoffPdfSplitTracePath
+} catch {
+    $badReleaseHandoffPdfSplitTraceFailedAsExpected = $true
+}
+
+if (-not $badReleaseHandoffPdfSplitTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_handoff.md with a PDF visual gate contact-sheet path outside the contact sheet line."
 }
 
 $badReleaseGovernanceHandoffTraceDir = Join-Path $failDir "release-governance-handoff-missing-project-template-source-json"

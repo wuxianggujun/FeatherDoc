@@ -607,6 +607,62 @@ function Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations {
     }
 }
 
+function Add-ReleaseHandoffPdfVisualGateTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_handoff.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "PDF visual gate summary:",
+        "PDF visual gate verdict:",
+        "PDF visual aggregate contact sheet:"
+    ))) {
+        return
+    }
+
+    $label = "release handoff PDF visual gate trace"
+    foreach ($needle in @(
+        "PDF visual gate summary:",
+        "PDF visual gate evidence status:",
+        "PDF visual gate verdict:",
+        "PDF CJK manifest samples:",
+        "PDF CJK copy/search samples:",
+        "PDF visual baseline manifest samples:",
+        "PDF visual baselines:"
+    )) {
+        if (-not $Content.Contains($needle)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release handoff lost PDF visual gate trace marker '$needle'."
+        }
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate summary:", "summary.json"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release handoff must keep the PDF visual gate summary path on the PDF visual gate summary line."
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual aggregate contact sheet:", "aggregate-contact-sheet.png"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release handoff must keep the PDF visual gate contact-sheet path on the PDF visual aggregate contact sheet line."
+    }
+}
+
 function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
     param(
         [string]$File,
@@ -1584,6 +1640,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseBodyProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations

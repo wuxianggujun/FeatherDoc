@@ -84,6 +84,11 @@ OCR 或任意视觉精确还原。
      ``summary.json`` 路径，``PDF visual gate contact sheet:`` 行必须直接携带
      ``aggregate-contact-sheet.png`` 路径；不能让其它段落里的同名路径替代。
      固定标记：``line_scoped_final_review_pdf_visual_trace``。
+   * ``release_handoff.md`` 中 ``PDF visual gate summary:`` 行必须直接携带
+     ``summary.json`` 路径，``PDF visual aggregate contact sheet:`` 行必须
+     直接携带 ``aggregate-contact-sheet.png`` 路径；不能让 detached notes
+     或其它段落替代当前 handoff 证据。
+     固定标记：``line_scoped_release_handoff_pdf_visual_trace``。
    * ``full_visual_gate_status`` 不能停留在“governance 未消化”的唯一结论；
      release reviewer 应同时看到 full gate summary verdict。
    * ``release_governance_handoff.md`` 中每个 ``source_report:`` block
