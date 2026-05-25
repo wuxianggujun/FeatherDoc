@@ -80,10 +80,12 @@ OCR 或任意视觉精确还原。
    * ``scripts/run_release_candidate_checks.ps1`` 的 summary / final review
      必须显示 PDF visual gate verdict、baseline count、CJK copy/search count
      和 contact sheet 路径。
-   * ``final_review.md`` 中 ``PDF visual gate summary:`` 行必须直接携带
+   * ``final_review.md`` 中 ``PDF visual gate verdict:`` 行必须直接携带
+     ``pass`` 或 ``fail``，``PDF visual gate summary:`` 行必须直接携带
      ``summary.json`` 路径，``PDF visual gate contact sheet:`` 行必须直接携带
      ``aggregate-contact-sheet.png`` 路径；不能让其它段落里的同名路径替代。
-     固定标记：``line_scoped_final_review_pdf_visual_trace``。
+     固定标记：``line_scoped_final_review_pdf_visual_trace``、
+     ``line_scoped_final_review_pdf_visual_verdict``。
    * ``release_handoff.md`` 中 ``PDF visual gate summary:`` 行必须直接携带
      ``summary.json`` 路径，``PDF visual aggregate contact sheet:`` 行必须
      直接携带 ``aggregate-contact-sheet.png`` 路径；不能让 detached notes

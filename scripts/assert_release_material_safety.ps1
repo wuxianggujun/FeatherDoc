@@ -1192,6 +1192,17 @@ function Add-FinalReviewPdfVisualGateTraceViolations {
             -Text "Final review must keep the PDF visual gate summary path on the PDF visual gate summary line."
     }
 
+    if (-not (
+        (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate verdict:", "pass")) -or
+        (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate verdict:", "fail"))
+    )) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep a pass/fail PDF visual gate verdict on the PDF visual gate verdict line."
+    }
+
     if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate contact sheet:", "aggregate-contact-sheet.png"))) {
         Add-AuditViolation `
             -Violations $Violations `

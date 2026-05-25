@@ -2354,6 +2354,37 @@ if (-not $badFinalReviewPdfSplitTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with a PDF visual gate contact-sheet path outside the contact sheet line."
 }
 
+$badFinalReviewPdfVerdictTraceDir = Join-Path $failDir "final-review-invalid-pdf-visual-verdict"
+$badFinalReviewPdfVerdictTracePath = Join-Path $badFinalReviewPdfVerdictTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewPdfVerdictTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewPdfVerdictTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Step status
+
+- PDF visual gate: loaded
+- PDF visual gate verdict: blocked
+- PDF visual gate counts: 44 visual baselines, 43 CJK copy/search
+- PDF visual gate manifest counts: 42 visual baseline manifest samples, 43 CJK manifest samples
+- PDF visual gate finalizable: True
+
+## Key outputs
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+$badFinalReviewPdfVerdictTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewPdfVerdictTracePath
+} catch {
+    $badFinalReviewPdfVerdictTraceFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewPdfVerdictTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with a non-pass/fail PDF visual gate verdict."
+}
+
 $badEntryGovernanceTracePath = Join-Path $failDir "ARTIFACT_GUIDE.md"
 Set-Content -LiteralPath $badEntryGovernanceTracePath -Encoding UTF8 -Value @"
 # Artifact Guide
