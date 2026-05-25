@@ -219,6 +219,31 @@ function Test-TextContainsAny {
     return $false
 }
 
+function Test-StringValueInSet {
+    param(
+        $Value,
+        [string[]]$AllowedValues
+    )
+
+    if ($null -eq $Value) {
+        return $false
+    }
+
+    $normalized = ([string]$Value).Trim().Trim('`').ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($normalized)) {
+        return $false
+    }
+
+    $allowed = @{}
+    foreach ($allowedValue in @($AllowedValues)) {
+        if (-not [string]::IsNullOrWhiteSpace($allowedValue)) {
+            $allowed[[string]$allowedValue.ToLowerInvariant()] = $true
+        }
+    }
+
+    return $allowed.ContainsKey($normalized)
+}
+
 function Add-SourceDisplayIdentityViolations {
     param(
         [string]$File,
@@ -305,7 +330,7 @@ function Get-ReleaseNoteProjectTemplateTraceFieldValue {
 
     $escapedFieldPrefix = [regex]::Escape($fieldPrefix)
     if ($line -match "(?:^|\s)$escapedFieldPrefix(?<value>\S+)") {
-        return $Matches["value"]
+        return ([string]$Matches["value"]).Trim().Trim('`')
     }
 
     return $null
@@ -328,6 +353,21 @@ function Test-ReleaseNoteProjectTemplateTraceFieldIdentifies {
     }
 
     return Test-TextContainsAny -Text ([string]$fieldValue) -Needles $Needles
+}
+
+function Test-ReleaseNoteProjectTemplateTraceFieldValueInSet {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string]$FieldName,
+        [string[]]$AllowedValues
+    )
+
+    $fieldValue = Get-ReleaseNoteProjectTemplateTraceFieldValue `
+        -Text $Text `
+        -Anchor $Anchor `
+        -FieldName $FieldName
+    return (Test-StringValueInSet -Value $fieldValue -AllowedValues $AllowedValues)
 }
 
 function Test-MarkdownListBlockContainsAll {
@@ -395,7 +435,7 @@ function Get-MarkdownListBlockFieldValues {
 
     $values = [System.Collections.Generic.List[string]]::new()
     $escapedFieldName = [regex]::Escape($FieldName)
-    $fieldPattern = '(?<![A-Za-z0-9_])`*' + $escapedFieldName + '`*\s*[:=]\s*(?<value>.+?)(?=\s+[A-Za-z_][A-Za-z0-9_]*\s*=|$)'
+    $fieldPattern = '(?<![A-Za-z0-9_])`*' + $escapedFieldName + '`*\s*[:=]\s*(?<value>.+?)(?=\s+[A-Za-z_][A-Za-z0-9_]*\s*[:=]|$)'
     foreach ($line in ($block -split "\r?\n")) {
         if ($line -match $fieldPattern) {
             $value = $Matches["value"].Trim()
@@ -841,6 +881,30 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "source_json_display"
         )
 
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor "project_template_delivery_readiness" `
+            -FieldName "status" `
+            -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Entry document project template delivery readiness status must be a recognized readiness state."
+        }
+
+        if (-not (Test-MarkdownListBlockFieldValuesInSet `
+            -Text $Content `
+            -Anchor "project_template_delivery_readiness" `
+            -FieldName "release_ready" `
+            -AllowedValues $ProjectTemplateBooleanValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Entry document project template delivery readiness release_ready must be true or false."
+        }
+
         if (-not (Test-ReleaseEntryProjectTemplateTraceBlockContainsAll -Text $Content -Anchor "project_template_delivery_readiness" -Needles @(
             "project_template_delivery_readiness",
             "schema_approval_status_summary="
@@ -1062,6 +1126,30 @@ function Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations {
                     -Text "Release summary project template readiness $fieldName must identify the delivery readiness evidence source."
             }
         }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldValueInSet `
+            -Text $Content `
+            -Anchor "project-template readiness governance contract" `
+            -FieldName "status" `
+            -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release summary project template readiness status must be a recognized readiness state."
+        }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldValueInSet `
+            -Text $Content `
+            -Anchor "project-template readiness governance contract" `
+            -FieldName "release_ready" `
+            -AllowedValues $ProjectTemplateBooleanValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release summary project template readiness release_ready must be true or false."
+        }
     }
 
     if ($Content.Contains("project-template onboarding governance contract")) {
@@ -1207,6 +1295,30 @@ function Add-ReleaseBodyProjectTemplateGovernanceTraceViolations {
                     -Label $label `
                     -Text "Release body project template readiness $fieldName must identify the delivery readiness evidence source."
             }
+        }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldValueInSet `
+            -Text $Content `
+            -Anchor "Project template readiness:" `
+            -FieldName "status" `
+            -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release body project template readiness status must be a recognized readiness state."
+        }
+
+        if (-not (Test-ReleaseNoteProjectTemplateTraceFieldValueInSet `
+            -Text $Content `
+            -Anchor "Project template readiness:" `
+            -FieldName "release_ready" `
+            -AllowedValues $ProjectTemplateBooleanValues)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release body project template readiness release_ready must be true or false."
         }
     }
 
@@ -2349,6 +2461,9 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
     if ([string]::IsNullOrWhiteSpace([string]$status)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.status is missing."
     }
+    if (-not (Test-StringValueInSet -Value $status -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.status must be a recognized readiness state."
+    }
 
     $latestGateStatus = Get-JsonPropertyValue -Object $contract -Name "latest_schema_approval_gate_status"
     if ([string]::IsNullOrWhiteSpace([string]$latestGateStatus)) {
@@ -2393,6 +2508,9 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
     $releaseReady = Get-JsonPropertyValue -Object $contract -Name "release_ready"
     if ($null -eq $releaseReady) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.release_ready is missing."
+    }
+    if (-not (Test-StringValueInSet -Value $releaseReady -AllowedValues $ProjectTemplateBooleanValues)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.release_ready must be true or false."
     }
 
     $integerValues = @{}
@@ -2477,6 +2595,9 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
     if ([string]::IsNullOrWhiteSpace([string]$status)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.status is missing."
     }
+    if (-not (Test-StringValueInSet -Value $status -AllowedValues $ProjectTemplateReadinessStatusValues)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.status must be a recognized readiness state."
+    }
 
     $sourceJsonDisplay = Get-JsonPropertyValue -Object $contract -Name "source_json_display"
     if ([string]::IsNullOrWhiteSpace([string]$sourceJsonDisplay)) {
@@ -2509,6 +2630,9 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
     $releaseReady = Get-JsonPropertyValue -Object $contract -Name "release_ready"
     if ($null -eq $releaseReady) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.release_ready is missing."
+    }
+    if (-not (Test-StringValueInSet -Value $releaseReady -AllowedValues $ProjectTemplateBooleanValues)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.release_ready must be true or false."
     }
 
     $statusSummary = Get-JsonPropertyValue -Object $contract -Name "schema_approval_status_summary"

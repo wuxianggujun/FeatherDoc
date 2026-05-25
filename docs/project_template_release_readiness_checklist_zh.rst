@@ -135,8 +135,10 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``block_scoped_entry_project_template_trace``、
      ``block_scoped_release_bundle_project_template_trace``。
      其中 readiness block 还必须保留 ``status`` 与 ``release_ready``，不能只留下
-     schema approval 状态。固定标记：
-     ``block_scoped_entry_project_template_status_trace``。
+     schema approval 状态；``status`` 只能使用可解释 readiness 枚举，
+     ``release_ready`` 只能使用布尔值。固定标记：
+     ``block_scoped_entry_project_template_status_trace``、
+     ``entry_readiness_value_set_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、
      ``release_handoff.md``、``release_body.zh-CN.md``、
      ``release_summary.zh-CN.md``、``release_governance_handoff.md`` 和
@@ -198,7 +200,10 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``source_report_display`` 可以指向 delivery-readiness 汇总或 onboarding 原始报告，
      但 ``source_json_display`` 必须回到 ``project_template_onboarding_governance`` /
      ``project-template-onboarding-governance`` 原始证据，不能由同一行其它 token 冒充。
-     固定标记：``line_scoped_release_note_source_identity_trace``。
+     readiness 的 ``status`` 只能使用可解释 readiness 枚举，``release_ready``
+     只能使用布尔值。固定标记：
+     ``line_scoped_release_note_source_identity_trace``、
+     ``line_scoped_release_note_readiness_value_set_trace``。
    * ``release_assets_manifest.json`` 必须保留
      ``project_template_delivery_readiness_contract`` 与
      ``project_template_onboarding_governance_contract``，并继续带出
@@ -209,10 +214,12 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``project_template_onboarding_governance`` /
      ``project-template-onboarding-governance``，不能互相冒充。两条契约的
      ``status`` 与 ``release_ready`` 必须双向一致：``status = ready`` 等价于
-     ``release_ready = true``，不能留下互相矛盾的发布结论。固定标记：
+     ``release_ready = true``，且 ``status`` 只能使用可解释 readiness 枚举、
+     ``release_ready`` 只能使用布尔值，不能留下互相矛盾的发布结论。固定标记：
      ``manifest_scoped_project_template_trace``、
      ``manifest_source_display_identity_trace``、
-     ``manifest_status_release_ready_consistency_trace``。
+     ``manifest_status_release_ready_consistency_trace``、
+     ``manifest_readiness_value_set_trace``。
 
 
 推荐轻量验证

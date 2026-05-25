@@ -1350,6 +1350,24 @@ if (-not $badManifestProjectTemplateReadinessStatusFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with release_ready=true but project template readiness status not ready."
 }
 
+$badManifestProjectTemplateReadinessInvalidStatusDir = Join-Path $failDir "manifest-project-template-readiness-invalid-status"
+$badManifestProjectTemplateReadinessInvalidStatusPath = Join-Path $badManifestProjectTemplateReadinessInvalidStatusDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessInvalidStatusDir -Force | Out-Null
+$badManifestProjectTemplateReadinessInvalidStatus = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateReadinessInvalidStatus.project_template_delivery_readiness_contract.status = "ready-ish"
+($badManifestProjectTemplateReadinessInvalidStatus | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateReadinessInvalidStatusPath -Encoding UTF8
+
+$badManifestProjectTemplateReadinessInvalidStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateReadinessInvalidStatusPath
+} catch {
+    $badManifestProjectTemplateReadinessInvalidStatusFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateReadinessInvalidStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with invalid project template readiness status."
+}
+
 $badManifestProjectTemplateReadinessReleaseReadyDir = Join-Path $failDir "manifest-project-template-readiness-release-ready-status-mismatch"
 $badManifestProjectTemplateReadinessReleaseReadyPath = Join-Path $badManifestProjectTemplateReadinessReleaseReadyDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessReleaseReadyDir -Force | Out-Null
@@ -1367,6 +1385,24 @@ try {
 
 if (-not $badManifestProjectTemplateReadinessReleaseReadyFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness status=ready but release_ready=false."
+}
+
+$badManifestProjectTemplateReadinessInvalidReleaseReadyDir = Join-Path $failDir "manifest-project-template-readiness-invalid-release-ready"
+$badManifestProjectTemplateReadinessInvalidReleaseReadyPath = Join-Path $badManifestProjectTemplateReadinessInvalidReleaseReadyDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessInvalidReleaseReadyDir -Force | Out-Null
+$badManifestProjectTemplateReadinessInvalidReleaseReady = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateReadinessInvalidReleaseReady.project_template_delivery_readiness_contract.release_ready = "maybe"
+($badManifestProjectTemplateReadinessInvalidReleaseReady | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateReadinessInvalidReleaseReadyPath -Encoding UTF8
+
+$badManifestProjectTemplateReadinessInvalidReleaseReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateReadinessInvalidReleaseReadyPath
+} catch {
+    $badManifestProjectTemplateReadinessInvalidReleaseReadyFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateReadinessInvalidReleaseReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with invalid project template readiness release_ready."
 }
 
 $badManifestProjectTemplateOnboardingSourceSchemaDir = Join-Path $failDir "manifest-project-template-onboarding-missing-source-schema"
@@ -1460,6 +1496,24 @@ if (-not $badManifestProjectTemplateOnboardingSchemaSummaryFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with empty project template onboarding schema_approval_status_summary."
 }
 
+$badManifestProjectTemplateOnboardingInvalidStatusDir = Join-Path $failDir "manifest-project-template-onboarding-invalid-status"
+$badManifestProjectTemplateOnboardingInvalidStatusPath = Join-Path $badManifestProjectTemplateOnboardingInvalidStatusDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateOnboardingInvalidStatusDir -Force | Out-Null
+$badManifestProjectTemplateOnboardingInvalidStatus = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateOnboardingInvalidStatus.project_template_onboarding_governance_contract.status = "ready-ish"
+($badManifestProjectTemplateOnboardingInvalidStatus | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateOnboardingInvalidStatusPath -Encoding UTF8
+
+$badManifestProjectTemplateOnboardingInvalidStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateOnboardingInvalidStatusPath
+} catch {
+    $badManifestProjectTemplateOnboardingInvalidStatusFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateOnboardingInvalidStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with invalid project template onboarding status."
+}
+
 $badManifestProjectTemplateOnboardingReleaseReadyDir = Join-Path $failDir "manifest-project-template-onboarding-release-ready-status-mismatch"
 $badManifestProjectTemplateOnboardingReleaseReadyPath = Join-Path $badManifestProjectTemplateOnboardingReleaseReadyDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestProjectTemplateOnboardingReleaseReadyDir -Force | Out-Null
@@ -1477,6 +1531,24 @@ try {
 
 if (-not $badManifestProjectTemplateOnboardingReleaseReadyFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template onboarding status=ready but release_ready=false."
+}
+
+$badManifestProjectTemplateOnboardingInvalidReleaseReadyDir = Join-Path $failDir "manifest-project-template-onboarding-invalid-release-ready"
+$badManifestProjectTemplateOnboardingInvalidReleaseReadyPath = Join-Path $badManifestProjectTemplateOnboardingInvalidReleaseReadyDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateOnboardingInvalidReleaseReadyDir -Force | Out-Null
+$badManifestProjectTemplateOnboardingInvalidReleaseReady = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateOnboardingInvalidReleaseReady.project_template_onboarding_governance_contract.release_ready = "maybe"
+($badManifestProjectTemplateOnboardingInvalidReleaseReady | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateOnboardingInvalidReleaseReadyPath -Encoding UTF8
+
+$badManifestProjectTemplateOnboardingInvalidReleaseReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateOnboardingInvalidReleaseReadyPath
+} catch {
+    $badManifestProjectTemplateOnboardingInvalidReleaseReadyFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateOnboardingInvalidReleaseReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with invalid project template onboarding release_ready."
 }
 
 $badManifestMissingNumberingConfidenceDir = Join-Path $failDir "manifest-missing-numbering-confidence"
@@ -2052,6 +2124,46 @@ if (-not $badReleaseSummaryReadinessSourceIdentityFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with readiness source displays pointing at onboarding governance evidence."
 }
 
+$badReleaseSummaryInvalidReadinessStatusDir = Join-Path $failDir "release-summary-invalid-project-template-readiness-status"
+$badReleaseSummaryInvalidReadinessStatusPath = Join-Path $badReleaseSummaryInvalidReadinessStatusDir "release_summary.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseSummaryInvalidReadinessStatusDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseSummaryInvalidReadinessStatusPath -Encoding UTF8 -Value @"
+# Release summary
+
+- project-template readiness governance contract: status=ready-ish release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+"@
+
+$badReleaseSummaryInvalidReadinessStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseSummaryInvalidReadinessStatusPath
+} catch {
+    $badReleaseSummaryInvalidReadinessStatusFailedAsExpected = $true
+}
+
+if (-not $badReleaseSummaryInvalidReadinessStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with an invalid project-template readiness status."
+}
+
+$badReleaseSummaryInvalidReadinessReadyDir = Join-Path $failDir "release-summary-invalid-project-template-readiness-release-ready"
+$badReleaseSummaryInvalidReadinessReadyPath = Join-Path $badReleaseSummaryInvalidReadinessReadyDir "release_summary.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseSummaryInvalidReadinessReadyDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseSummaryInvalidReadinessReadyPath -Encoding UTF8 -Value @"
+# Release summary
+
+- project-template readiness governance contract: status=ready release_ready=maybe latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+"@
+
+$badReleaseSummaryInvalidReadinessReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseSummaryInvalidReadinessReadyPath
+} catch {
+    $badReleaseSummaryInvalidReadinessReadyFailedAsExpected = $true
+}
+
+if (-not $badReleaseSummaryInvalidReadinessReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_summary.zh-CN.md with an invalid project-template readiness release_ready."
+}
+
 $badReleaseSummaryOnboardingSourceJsonIdentityDir = Join-Path $failDir "release-summary-onboarding-source-json-identity-impersonated"
 $badReleaseSummaryOnboardingSourceJsonIdentityPath = Join-Path $badReleaseSummaryOnboardingSourceJsonIdentityDir "release_summary.zh-CN.md"
 New-Item -ItemType Directory -Path $badReleaseSummaryOnboardingSourceJsonIdentityDir -Force | Out-Null
@@ -2285,6 +2397,46 @@ if (-not $badReleaseBodyReadinessSourceIdentityFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with readiness source displays pointing at onboarding governance evidence."
 }
 
+$badReleaseBodyInvalidReadinessStatusDir = Join-Path $failDir "release-body-invalid-project-template-readiness-status"
+$badReleaseBodyInvalidReadinessStatusPath = Join-Path $badReleaseBodyInvalidReadinessStatusDir "release_body.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseBodyInvalidReadinessStatusDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBodyInvalidReadinessStatusPath -Encoding UTF8 -Value @"
+# Release body
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready-ish release_ready=True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+"@
+
+$badReleaseBodyInvalidReadinessStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBodyInvalidReadinessStatusPath
+} catch {
+    $badReleaseBodyInvalidReadinessStatusFailedAsExpected = $true
+}
+
+if (-not $badReleaseBodyInvalidReadinessStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with an invalid project-template readiness status."
+}
+
+$badReleaseBodyInvalidReadinessReadyDir = Join-Path $failDir "release-body-invalid-project-template-readiness-release-ready"
+$badReleaseBodyInvalidReadinessReadyPath = Join-Path $badReleaseBodyInvalidReadinessReadyDir "release_body.zh-CN.md"
+New-Item -ItemType Directory -Path $badReleaseBodyInvalidReadinessReadyDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBodyInvalidReadinessReadyPath -Encoding UTF8 -Value @"
+# Release body
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=ready release_ready=maybe latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+"@
+
+$badReleaseBodyInvalidReadinessReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBodyInvalidReadinessReadyPath
+} catch {
+    $badReleaseBodyInvalidReadinessReadyFailedAsExpected = $true
+}
+
+if (-not $badReleaseBodyInvalidReadinessReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release_body.zh-CN.md with an invalid project-template readiness release_ready."
+}
+
 $badReleaseBodyOnboardingSourceIdentityDir = Join-Path $failDir "release-body-onboarding-source-identity-impersonated"
 $badReleaseBodyOnboardingSourceIdentityPath = Join-Path $badReleaseBodyOnboardingSourceIdentityDir "release_body.zh-CN.md"
 New-Item -ItemType Directory -Path $badReleaseBodyOnboardingSourceIdentityDir -Force | Out-Null
@@ -2419,6 +2571,48 @@ try {
 
 if (-not $badEntryProjectTemplateStatusTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md without project-template readiness status/release_ready in the readiness block."
+}
+
+$badEntryProjectTemplateInvalidStatusDir = Join-Path $failDir "entry-project-template-readiness-invalid-status"
+$badEntryProjectTemplateInvalidStatusPath = Join-Path $badEntryProjectTemplateInvalidStatusDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateInvalidStatusDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateInvalidStatusPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status: ready-ish release_ready: True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badEntryProjectTemplateInvalidStatusFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateInvalidStatusPath
+} catch {
+    $badEntryProjectTemplateInvalidStatusFailedAsExpected = $true
+}
+
+if (-not $badEntryProjectTemplateInvalidStatusFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with an invalid project-template readiness status."
+}
+
+$badEntryProjectTemplateInvalidReadyDir = Join-Path $failDir "entry-project-template-readiness-invalid-release-ready"
+$badEntryProjectTemplateInvalidReadyPath = Join-Path $badEntryProjectTemplateInvalidReadyDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateInvalidReadyDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateInvalidReadyPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status: ready release_ready: maybe latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+"@
+
+$badEntryProjectTemplateInvalidReadyFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateInvalidReadyPath
+} catch {
+    $badEntryProjectTemplateInvalidReadyFailedAsExpected = $true
+}
+
+if (-not $badEntryProjectTemplateInvalidReadyFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with an invalid project-template readiness release_ready."
 }
 
 $badReleaseHandoffTraceDir = Join-Path $failDir "release-handoff-missing-project-template-source-json"
