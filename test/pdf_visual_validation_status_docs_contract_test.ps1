@@ -239,6 +239,7 @@ foreach ($marker in @(
     "block_scoped_release_handoff_pdf_visual_evidence",
     "line_scoped_release_note_pdf_visual_trace",
     "line_scoped_release_note_pdf_visual_verdict",
+    "line_scoped_release_bundle_pdf_visual_summary",
     "block_scoped_release_body_pdf_visual_evidence",
     "block_scoped_entry_pdf_visual_evidence",
     "PDF visual gate aggregate contact sheet:",

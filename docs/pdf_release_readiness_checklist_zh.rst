@@ -111,6 +111,7 @@ OCR 或任意视觉精确还原。
      发布说明证据。
      固定标记：``line_scoped_release_note_pdf_visual_trace``、
      ``line_scoped_release_note_pdf_visual_verdict``、
+     ``line_scoped_release_bundle_pdf_visual_summary``、
      ``block_scoped_release_body_pdf_visual_evidence``。
    * ``START_HERE.md`` 和 ``ARTIFACT_GUIDE.md`` 的 PDF visual gate summary、
      CJK count、visual baseline count 和 ``PDF visual gate aggregate contact sheet:``
