@@ -263,6 +263,28 @@ OCR 或任意视觉精确还原。
    ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。固定标记：
    ``pdf_ctest_bounded_regression_styled_document_release_trace``。
 
+   资源受限时还可以补跑真实业务样本 regression 子集：
+
+   .. code-block:: powershell
+
+      powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
+        -Subset regression-business-samples `
+        -BuildDir .\.bpdf-roundtrip-msvc `
+        -OutputJson .\build\pdf-ctest-bounded-regression-business-samples-current\summary.json
+
+   ``regression-business-samples`` 固定覆盖 10 个真实 ``pdf_regression_``
+   业务样本测试，覆盖合同、发票 / 报价单、图文报告、长文档和多 section
+   文档：``pdf_regression_contract-cjk-style``、
+   ``pdf_regression_document-contract-cjk-style``、
+   ``pdf_regression_invoice-grid-text``、``pdf_regression_document-invoice-table-text``、
+   ``pdf_regression_image-report-text``、``pdf_regression_cjk-image-report-text``、
+   ``pdf_regression_document-cjk-image-wrap-stress-text``、
+   ``pdf_regression_long-report-text``、``pdf_regression_document-long-flow-text`` 和
+   ``pdf_regression_sectioned-report-text``。summary 必须写出
+   ``status = pass``、``verdict = pass``、``subset = regression-business-samples``、
+   ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。固定标记：
+   ``pdf_ctest_bounded_regression_business_samples_release_trace``。
+
    资源窗口允许时再运行：
 
    .. code-block:: powershell

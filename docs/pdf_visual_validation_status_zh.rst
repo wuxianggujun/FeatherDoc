@@ -279,21 +279,31 @@ bounded PDF CTest 路径：
   ``pdf_regression_style-superscript-subscript-text``、
   ``pdf_regression_document-style-gallery-text`` 和
   ``pdf_regression_document-font-matrix-text``。
+* ``regression-business-samples`` 固定覆盖 10 个真实 ``pdf_regression_``
+  业务样本测试，覆盖合同、发票 / 报价单、图文报告、长文档和多 section
+  文档：``pdf_regression_contract-cjk-style``、
+  ``pdf_regression_document-contract-cjk-style``、
+  ``pdf_regression_invoice-grid-text``、``pdf_regression_document-invoice-table-text``、
+  ``pdf_regression_image-report-text``、``pdf_regression_cjk-image-report-text``、
+  ``pdf_regression_document-cjk-image-wrap-stress-text``、
+  ``pdf_regression_long-report-text``、``pdf_regression_document-long-flow-text`` 和
+  ``pdf_regression_sectioned-report-text``。
 * summary 必须写出 ``status = pass``、``verdict = pass``、
   ``subset = smoke-import``、``subset = contract-static`` 或
   ``subset = cjk-flow-static``、``subset = regression-basic-text``、
-  ``subset = regression-styled-document``、
+  ``subset = regression-styled-document``、``subset = regression-business-samples``、
   ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
 * 固定标记：``pdf_ctest_bounded_subset_release_trace``、
   ``pdf_ctest_bounded_contract_static_release_trace``、
   ``pdf_ctest_bounded_cjk_flow_static_release_trace``、
   ``pdf_ctest_bounded_regression_basic_text_release_trace``、
-  ``pdf_ctest_bounded_regression_styled_document_release_trace``。
+  ``pdf_ctest_bounded_regression_styled_document_release_trace``、
+  ``pdf_ctest_bounded_regression_business_samples_release_trace``。
 
 这些路径只补足资源受限时的 CTest smoke/import、静态契约、CJK / RTL flow
-静态契约、基础文本 regression 与样式/文档 regression 证据；它们不替代完整
-PDF visual gate、不替代 ``pdf_regression_`` 全量样本链，也不把被 60 秒外层保护截断的
-完整 ``pdf_`` 套件标记为通过。
+静态契约、基础文本 regression、样式/文档 regression 与真实业务样本 regression
+证据；它们不替代完整 PDF visual gate、不替代 ``pdf_regression_`` 全量样本链，
+也不把被 60 秒外层保护截断的完整 ``pdf_`` 套件标记为通过。
 
 下一步
 ------
