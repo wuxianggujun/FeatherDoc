@@ -46,6 +46,8 @@ $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scrip
 $governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
 $materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
 $materialSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
+$packageAssetsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\package_release_assets.ps1"
+$packageAssetsSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_safety_test.ps1"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 $doNotRunFullVisualGateMarker = [string]::Concat(@(
     [char]0x4E0D,
@@ -482,6 +484,37 @@ $pdfImportBoundaryMarkers = @(
 foreach ($marker in $pdfImportBoundaryMarkers) {
     Assert-ContainsText -Text $pdfImportScopeDoc -ExpectedText $marker `
         -Message "docs/pdf_import_scope.rst should preserve PDF import boundary marker '$marker'."
+}
+
+$pdfPackageManifestMarkers = @(
+    "release_assets_manifest.json",
+    'pdf_visual_gate_evidence_included = $hasPdfVisualGateEvidence',
+    'pdf_visual_gate_evidence = $pdfVisualGateManifestEvidence',
+    "Release evidence ZIP:"
+)
+
+foreach ($marker in $pdfPackageManifestMarkers) {
+    Assert-ContainsText -Text $packageAssetsScript -ExpectedText $marker `
+        -Message "package_release_assets.ps1 should preserve PDF visual gate package marker '$marker'."
+}
+
+$pdfPackageSafetyMarkers = @(
+    "release_assets_manifest.json did not record PDF visual gate evidence as included.",
+    "release_assets_manifest.json did not preserve the PDF visual gate summary display path.",
+    "release_assets_manifest.json lost the PDF visual gate verdict.",
+    "release_assets_manifest.json lost the full PDF visual gate status.",
+    "release_assets_manifest.json lost the PDF visual gate aggregate contact sheet.",
+    "release_assets_manifest.json lost the PDF CJK manifest sample count.",
+    "release_assets_manifest.json lost the PDF CJK copy/search sample count.",
+    "release_assets_manifest.json lost the PDF CJK missing text count.",
+    "release_assets_manifest.json lost the PDF visual baseline count.",
+    "release_assets_manifest.json lost the PDF visual baseline manifest sample count.",
+    "Release evidence ZIP did not include expected PDF visual gate entry"
+)
+
+foreach ($marker in $pdfPackageSafetyMarkers) {
+    Assert-ContainsText -Text $packageAssetsSafetyTest -ExpectedText $marker `
+        -Message "package_release_assets_safety_test.ps1 should preserve PDF package safety marker '$marker'."
 }
 
 foreach ($marker in @(
