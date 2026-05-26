@@ -80,7 +80,23 @@ OCR 或任意视觉精确还原。
    manifest 中 ``expect_visual_baseline=true`` 的样本数，``baselines_count``
    对应 full gate 当前渲染并汇总的 baseline 产物数。
 
-6. 发布治理已消费 PDF 结论：
+6. 机器准入结论已生成：
+
+   .. code-block:: powershell
+
+      powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pdf_release_readiness.ps1 `
+        -OutputJson .\output\pdf-release-readiness-current\summary.json
+
+   该入口只读取现有 preflight、visual gate、manifest、contact-sheet 和本清单，
+   不运行 CMake、CTest、Ninja、MSBuild、Office、LibreOffice、浏览器、PDF 渲染或
+   PDF 生成。summary 必须包含 ``schema = featherdoc.pdf_release_readiness_check.v1``、
+   ``status = pass``、``verdict = pass_with_warnings``、
+   ``release_ready = true``、``evidence_scope = persisted_pdf_release_evidence_only``、
+   ``pdf_full_fresh_visual_gate.not_completed_in_current_window`` 和
+   ``pdf_full_ctest.not_completed_in_current_window``。固定标记：
+   ``pdf_release_readiness_machine_gate_trace``。
+
+7. 发布治理已消费 PDF 结论：
 
    * ``scripts/run_release_candidate_checks.ps1`` 的 summary / final review
      必须显示 PDF visual gate verdict、baseline count、CJK copy/search count
@@ -281,7 +297,7 @@ OCR 或任意视觉精确还原。
      ``FinalizeOnly`` summary 已给出 ``verdict = pass``，发布结论应以
      full gate summary 和 contact sheet 证据为准。
 
-7. 可视化证据非空：
+8. 可视化证据非空：
 
    * ``output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png``
      必须存在且非空。
@@ -291,7 +307,7 @@ OCR 或任意视觉精确还原。
      ``1822428`` bytes；后续 release 可接受尺寸变化，但必须记录非空、
      可读和未丢失路径的证据。
 
-8. 轻量验证已跑：
+9. 轻量验证已跑：
 
    .. code-block:: powershell
 

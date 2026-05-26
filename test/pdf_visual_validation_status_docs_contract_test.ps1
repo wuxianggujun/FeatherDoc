@@ -43,6 +43,7 @@ $releaseChecklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "d
 $pdfImportScopeDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_import_scope.rst"
 $dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
 $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
+$releaseReadinessScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_release_readiness.ps1"
 $governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
 $materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
 $materialSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
@@ -323,6 +324,13 @@ $buildingPdfFixtureMarkers = @(
     "expect_visual_baseline=true",
     "expect_cjk=true",
     "pdf_release_readiness_checklist_zh",
+    "check_pdf_release_readiness.ps1",
+    "featherdoc.pdf_release_readiness_check.v1",
+    "pass_with_warnings",
+    "persisted_pdf_release_evidence_only",
+    "pdf_release_readiness_machine_gate_trace",
+    "pdf_full_fresh_visual_gate.not_completed_in_current_window",
+    "pdf_full_ctest.not_completed_in_current_window",
     "visual baseline manifest",
     "run_pdf_ctest_bounded_subset.ps1",
     "pdf_bounded_ctest",
@@ -579,6 +587,13 @@ foreach ($marker in @(
     "line_scoped_reviewer_checklist_pdf_visual_evidence",
     "block_scoped_pdf_visual_gate_handoff_trace",
     "manifest_scoped_pdf_visual_gate_count_trace",
+    "check_pdf_release_readiness.ps1",
+    "featherdoc.pdf_release_readiness_check.v1",
+    "pass_with_warnings",
+    "persisted_pdf_release_evidence_only",
+    "pdf_release_readiness_machine_gate_trace",
+    "pdf_full_fresh_visual_gate.not_completed_in_current_window",
+    "pdf_full_ctest.not_completed_in_current_window",
     "release_entry_pdf_readiness_checklist_trace",
     "pdf_real_business_sample_release_entry_trace",
     "docs/pdf_release_readiness_checklist_zh.rst",
@@ -776,6 +791,25 @@ foreach ($marker in $preflightDefaultOutputMarkers) {
         -Message "PDF visual preflight script should preserve default current-summary marker '$marker'."
 }
 
+$releaseReadinessMachineGateMarkers = @(
+    "featherdoc.pdf_release_readiness_check.v1",
+    "persisted_pdf_release_evidence_only",
+    "pass_with_warnings",
+    "release_ready",
+    "pdf_release_readiness_machine_gate_trace",
+    "pdf_full_fresh_visual_gate.not_completed_in_current_window",
+    "pdf_full_ctest.not_completed_in_current_window",
+    "does not run CMake, CTest, rendering, Office, LibreOffice, browsers, or PDF generation",
+    "preflight_summary_json",
+    "visual_gate_summary_json",
+    "aggregate_contact_sheet_bytes"
+)
+
+foreach ($marker in $releaseReadinessMachineGateMarkers) {
+    Assert-ContainsText -Text $releaseReadinessScript -ExpectedText $marker `
+        -Message "PDF release readiness script should preserve machine gate marker '$marker'."
+}
+
 foreach ($marker in $scriptMarkers) {
     foreach ($entry in @(
         [ordered]@{ name = "PDF visual preflight script"; text = $preflightScript },
@@ -826,6 +860,8 @@ foreach ($marker in @(
     "release_note_bundle_visual_verdict_metadata_test.ps1",
     "pdf_real_business_sample_manifest_contract",
     "pdf_real_business_sample_manifest_contract_test.ps1",
+    "pdf_release_readiness_check",
+    "pdf_release_readiness_check_test.ps1",
     "TIMEOUT 60"
 )) {
     Assert-ContainsText -Text $cmakeLists -ExpectedText $marker `

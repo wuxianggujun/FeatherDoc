@@ -1440,6 +1440,25 @@ if(WIN32)
 
         add_test(
             NAME
+            pdf_release_readiness_check
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_release_readiness_check_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_release_readiness_check
+        )
+        set_tests_properties(pdf_release_readiness_check
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;docs;visual")
+
+        add_test(
+            NAME
             pdf_visual_gate_attempt_summary
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

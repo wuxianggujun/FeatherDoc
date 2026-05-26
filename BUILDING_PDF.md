@@ -925,10 +925,21 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
 9. 机器结论：`output/pdf-visual-release-gate-current/report/summary.json` 必须包含
    `verdict = pass`、`baselines_count > 0`、`cjk_copy_search_count > 0` 和
    `aggregate_contact_sheet`。
-10. 发布治理：`scripts/run_release_candidate_checks.ps1` 的 summary / final review
+10. 机器准入入口：运行
+   `scripts/check_pdf_release_readiness.ps1 -OutputJson .\output\pdf-release-readiness-current\summary.json`，
+   确认 `schema = featherdoc.pdf_release_readiness_check.v1`、
+   `status = pass`、`verdict = pass_with_warnings`、
+   `release_ready = true` 和
+   `evidence_scope = persisted_pdf_release_evidence_only`。固定标记：
+   `pdf_release_readiness_machine_gate_trace`。该入口只读取现有证据，不运行 CMake、
+   CTest、渲染、Office、LibreOffice、浏览器或 PDF 生成；其中
+   `pdf_full_fresh_visual_gate.not_completed_in_current_window` 和
+   `pdf_full_ctest.not_completed_in_current_window` 是剩余 heavy gate warning，
+   不能被解释为 fresh full gate 已完成。
+11. 发布治理：`scripts/run_release_candidate_checks.ps1` 的 summary / final review
    必须消费 PDF visual gate verdict、计数和 contact sheet 路径。
-11. 视觉证据：复用或生成的 `aggregate-contact-sheet.png` 必须非空，且抽检不是白图。
-12. 轻量验证：至少运行相关 PowerShell 契约测试；资源窗口允许时再运行
+12. 视觉证据：复用或生成的 `aggregate-contact-sheet.png` 必须非空，且抽检不是白图。
+13. 轻量验证：至少运行相关 PowerShell 契约测试；资源窗口允许时再运行
    `ctest -R "pdf_" --output-on-failure --timeout 60`。
 
 资源受限时，先使用 bounded PDF CTest helper 记录 smoke/import 证据，避免完整
