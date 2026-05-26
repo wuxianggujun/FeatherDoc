@@ -1536,6 +1536,31 @@ $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $schemaApprovalHistoryJsonPath = Join-Path $reportDir "project_template_schema_approval_history.json"
 $schemaApprovalHistoryMarkdownPath = Join-Path $reportDir "project_template_schema_approval_history.md"
 $startHerePath = Join-Path $resolvedSummaryOutputDir "START_HERE.md"
+$releaseAssetsManifestSignoffPath = if ([string]::IsNullOrWhiteSpace($projectVersion)) {
+    "output\release-assets\v<version>\release_assets_manifest.json"
+} else {
+    Join-Path (Join-Path "output\release-assets" ("v{0}" -f $projectVersion)) "release_assets_manifest.json"
+}
+$manifestSignoffEntrypoints = @(
+    [ordered]@{
+        id = "start_here"
+        path = $startHerePath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $startHerePath
+        required = $true
+    },
+    [ordered]@{
+        id = "artifact_guide"
+        path = $artifactGuidePath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $artifactGuidePath
+        required = $true
+    },
+    [ordered]@{
+        id = "reviewer_checklist"
+        path = $reviewerChecklistPath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $reviewerChecklistPath
+        required = $true
+    }
+)
 $resolvedPdfVisualGateSummaryJson = ""
 if (-not [string]::IsNullOrWhiteSpace($PdfVisualGateSummaryJson)) {
     $resolvedPdfVisualGateSummaryJson = Resolve-FullPath -RepoRoot $repoRoot -InputPath $PdfVisualGateSummaryJson
@@ -1738,6 +1763,24 @@ $summary = [ordered]@{
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
+    manifest_signoff_entrypoints = [ordered]@{
+        status = "declared"
+        release_assets_manifest = $releaseAssetsManifestSignoffPath
+        required_entrypoint_count = @($manifestSignoffEntrypoints).Count
+        entrypoints = @($manifestSignoffEntrypoints)
+        required_contracts = @(
+            "project_template_delivery_readiness_contract",
+            "project_template_onboarding_governance_contract"
+        )
+        required_fields = @(
+            "status",
+            "release_ready",
+            "schema_approval_status_summary",
+            "source_report_display",
+            "source_json_display"
+        )
+        checklist_marker = "reviewer_manifest_scoped_project_template_trace"
+    }
     pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson
     pdf_visual_gate = $pdfVisualGateSummaryInfo
     pdf_bounded_ctest = $pdfBoundedCtestSummaryInfo
@@ -2962,3 +3005,5 @@ if ($null -ne $releaseBlockerRollupFailure) {
 if ($null -ne $releaseGovernanceHandoffFailure) {
     throw $releaseGovernanceHandoffFailure
 }
+
+$global:LASTEXITCODE = 0

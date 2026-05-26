@@ -694,6 +694,43 @@ if ([int]$candidateSummary.steps.pdf_bounded_ctest.summary_count -ne 2 -or
     @($candidateSummary.steps.pdf_bounded_ctest.subsets) -notcontains "regression-business-samples") {
     throw "Release candidate summary did not preserve PDF bounded CTest auxiliary evidence."
 }
+$manifestSignoff = $candidateSummary.manifest_signoff_entrypoints
+$expectedReleaseAssetsManifest = "output\release-assets\v$($candidateSummary.release_version)\release_assets_manifest.json"
+if ($manifestSignoff.status -ne "declared" -or
+    [int]$manifestSignoff.required_entrypoint_count -ne 3 -or
+    [string]$manifestSignoff.release_assets_manifest -notmatch [regex]::Escape($expectedReleaseAssetsManifest)) {
+    throw "Release candidate summary did not declare the packaged manifest signoff entrypoints."
+}
+foreach ($entrypointId in @("start_here", "artifact_guide", "reviewer_checklist")) {
+    $entrypoint = @($manifestSignoff.entrypoints) |
+        Where-Object { [string]$_.id -eq $entrypointId } |
+        Select-Object -First 1
+    if ($null -eq $entrypoint -or -not [bool]$entrypoint.required -or [string]::IsNullOrWhiteSpace([string]$entrypoint.path_display)) {
+        throw "Release candidate summary did not declare required manifest signoff entrypoint '$entrypointId'."
+    }
+}
+foreach ($contractName in @(
+        "project_template_delivery_readiness_contract",
+        "project_template_onboarding_governance_contract"
+    )) {
+    if (@($manifestSignoff.required_contracts) -notcontains $contractName) {
+        throw "Release candidate summary did not declare required manifest contract '$contractName'."
+    }
+}
+foreach ($fieldName in @(
+        "status",
+        "release_ready",
+        "schema_approval_status_summary",
+        "source_report_display",
+        "source_json_display"
+    )) {
+    if (@($manifestSignoff.required_fields) -notcontains $fieldName) {
+        throw "Release candidate summary did not declare required manifest field '$fieldName'."
+    }
+}
+if ([string]$manifestSignoff.checklist_marker -ne "reviewer_manifest_scoped_project_template_trace") {
+    throw "Release candidate summary did not preserve the reviewer manifest checklist marker."
+}
 
 $candidateFinalReviewPath = Join-Path $candidateOutputDir "report\final_review.md"
 $candidateReleaseBodyPath = Join-Path $candidateOutputDir "report\release_body.zh-CN.md"

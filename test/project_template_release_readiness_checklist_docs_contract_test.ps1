@@ -128,7 +128,9 @@ foreach ($marker in @(
     "release_body.zh-CN.md",
     "release_summary.zh-CN.md",
     "release_governance_handoff.md",
-    "release_assets_manifest.json"
+    "release_assets_manifest.json",
+    "manifest_signoff_entrypoints",
+    "manifest_signoff_entrypoints_release_trace"
 )) {
     Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `
         -Message "Project-template release readiness checklist should preserve marker '$marker'."
@@ -276,6 +278,20 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+    "manifest_signoff_entrypoints",
+    "release_assets_manifest.json",
+    "project_template_delivery_readiness_contract",
+    "project_template_onboarding_governance_contract",
+    "required_entrypoint_count",
+    "required_contracts",
+    "required_fields",
+    "reviewer_manifest_scoped_project_template_trace"
+)) {
+    Assert-ContainsText -Text $releaseChecksScript -ExpectedText $marker `
+        -Message "Release candidate checks should keep manifest signoff summary marker '$marker'."
+}
+
+foreach ($marker in @(
     "project_template_delivery_readiness_contract",
     "project_template_onboarding_governance_contract",
     "content_control_data_binding.bound_placeholder",
@@ -325,6 +341,7 @@ foreach ($marker in @(
     "manifest_status_release_ready_consistency_trace",
     "manifest_readiness_value_set_trace",
     "reviewer_manifest_scoped_project_template_trace",
+    "manifest_signoff_entrypoints_release_trace",
     "line_scoped_release_note_project_template_trace",
     "line_scoped_release_note_source_identity_trace",
     "line_scoped_release_note_readiness_value_set_trace",

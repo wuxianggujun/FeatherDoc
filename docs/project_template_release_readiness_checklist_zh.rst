@@ -238,6 +238,13 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      只依赖 manifest 安全审计或缺失数为 0 的间接推断，首屏入口也不能只把核对项
      留在 reviewer checklist 深处。固定标记：
      ``reviewer_manifest_scoped_project_template_trace``。
+   * ``scripts/run_release_candidate_checks.ps1`` 生成的 ``summary.json`` 还必须提供
+     ``manifest_signoff_entrypoints`` 机器可消费字段，明确声明
+     ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 三个入口
+     都是必签项，并写出打包后的 ``release_assets_manifest.json``、
+     ``required_contracts``、``required_fields`` 和
+     ``reviewer_manifest_scoped_project_template_trace``。固定标记：
+     ``manifest_signoff_entrypoints_release_trace``。
 
 
 推荐轻量验证
