@@ -2167,7 +2167,7 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
     $label = "release governance handoff project template trace"
 
     if (Test-TextContainsAny -Text $Content -Needles @(
-        "project_template_delivery_readiness",
+        '`project_template_delivery_readiness`:',
         "featherdoc.project_template_delivery_readiness_report.v1",
         "latest_schema_approval_gate_status"
     )) {
@@ -2232,7 +2232,6 @@ function Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations {
 
     if (Test-TextContainsAny -Text $Content -Needles @(
         "project_template_onboarding.schema_approval",
-        "project_template_onboarding_governance_contract",
         "featherdoc.project_template_onboarding_governance_report.v1"
     )) {
         $onboardingAnchor = "project_template_onboarding.schema_approval"
@@ -2482,6 +2481,76 @@ function Add-ReleaseGovernanceHandoffPdfVisualSegmentedGateTraceViolations {
             -File $File `
             -Label $label `
             -Text "Release governance handoff must keep PDF visual segmented gate status, verdict, auxiliary scope, summary path, slice coverage, contact-sheet status, and rebuild evidence in the same release-candidate source_report block."
+    }
+}
+
+function Add-ReleaseGovernanceHandoffManifestSignoffEntrypointsTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_governance_handoff.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "Manifest signoff entrypoints evidence source reports",
+        "manifest_signoff_entrypoints_status",
+        "reviewer_manifest_scoped_project_template_trace"
+    ))) {
+        return
+    }
+
+    $label = "release governance handoff manifest signoff entrypoints trace"
+    if (-not $Content.Contains("Manifest signoff entrypoints evidence source reports:")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release governance handoff lost manifest signoff entrypoints source-report trace marker 'Manifest signoff entrypoints evidence source reports:'."
+    }
+
+    $sourceReportBlockNeedles = @(
+        "source_report:",
+        "schema=",
+        "featherdoc.release_candidate_summary",
+        "manifest_signoff_entrypoints_status:",
+        "declared",
+        "manifest_signoff_entrypoints_release_assets_manifest_display:",
+        "release_assets_manifest.json",
+        "manifest_signoff_entrypoints_required_entrypoint_count:",
+        "3",
+        "manifest_signoff_entrypoints_entrypoint_ids:",
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "manifest_signoff_entrypoints_required_contracts:",
+        "project_template_delivery_readiness_contract",
+        "project_template_onboarding_governance_contract",
+        "manifest_signoff_entrypoints_required_fields:",
+        "status",
+        "release_ready",
+        "schema_approval_status_summary",
+        "source_report_display",
+        "source_json_display",
+        "manifest_signoff_entrypoints_checklist_marker:",
+        "reviewer_manifest_scoped_project_template_trace"
+    )
+    if (-not (Test-MarkdownAnyListBlockContainsAllAndFieldValuesInSet `
+        -Text $Content `
+        -Anchor "source_report:" `
+        -Needles $sourceReportBlockNeedles `
+        -FieldName "schema" `
+        -AllowedValues @("featherdoc.release_candidate_summary"))) {
+        $traceMarker = "manifest_signoff_entrypoints_handoff_material_safety_trace"
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release governance handoff must keep manifest signoff status, release assets manifest path, required entrypoints, required contracts, required fields, fixed marker, and release-candidate source identity in the same source_report block. Fixed marker: $traceMarker."
     }
 }
 
@@ -4207,6 +4276,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffPdfVisualGateAttemptTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffPdfVisualSegmentedGateTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseGovernanceHandoffManifestSignoffEntrypointsTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations

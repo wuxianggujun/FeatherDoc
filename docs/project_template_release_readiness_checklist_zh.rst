@@ -350,6 +350,14 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``required_contracts``、``required_fields`` 和
      ``reviewer_manifest_scoped_project_template_trace``。固定标记：
      ``manifest_signoff_entrypoints_release_trace``。
+     ``release_governance_handoff.md`` 中的
+     ``manifest_signoff_entrypoints_source_reports`` 必须继续把
+     ``status=declared``、打包后的 ``release_assets_manifest.json``、三个必签入口、
+     两条 required contracts、五个 required fields 和
+     ``reviewer_manifest_scoped_project_template_trace`` 保留在同一个
+     ``schema=featherdoc.release_candidate_summary`` 的 ``source_report:`` block 中，
+     不能由 detached notes 补齐。固定标记：
+     ``manifest_signoff_entrypoints_handoff_material_safety_trace``。
    * ``scripts/package_release_assets.ps1`` 写出的 ``release_assets_manifest.json`` 必须继续
      保留 ``manifest_signoff_entrypoints``，并由
      ``scripts/assert_release_material_safety.ps1`` 直接审计 ``status=declared``、

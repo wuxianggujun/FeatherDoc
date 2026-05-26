@@ -166,6 +166,7 @@ foreach ($marker in @(
     "compact_evidence_source_schema=featherdoc.release_candidate_summary",
     "manifest_signoff_entrypoints",
     "manifest_signoff_entrypoints_release_trace",
+    "manifest_signoff_entrypoints_handoff_material_safety_trace",
     "manifest_signoff_entrypoints_manifest_trace"
 )) {
     Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `
@@ -221,6 +222,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_source_report_identity_trace",
     "compact_evidence_source_schema",
     "compact_evidence_source_schema=featherdoc.release_candidate_summary",
+    "manifest_signoff_entrypoints_handoff_material_safety_trace",
     "block_scoped_governance_handoff_trace",
     "block_scoped_governance_handoff_project_template_status_trace",
     "project_template_onboarding.schema_approval",
@@ -562,6 +564,7 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+    "Add-ReleaseGovernanceHandoffManifestSignoffEntrypointsTraceViolations",
     "Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations",
     "Add-FinalReviewProjectTemplateReadinessChecklistEntrypointsTraceViolations",
     "Add-ReleaseMetadataProjectTemplateReadinessChecklistEntrypointsTraceViolations",
@@ -575,6 +578,8 @@ foreach ($marker in @(
     "Project-template readiness checklist packaged audit evidence",
     "Project-template readiness checklist entrypoints evidence source reports",
     "Release-entry project-template readiness checklist material-safety audit source reports",
+    "Manifest signoff entrypoints evidence source reports",
+    "manifest_signoff_entrypoints_handoff_material_safety_trace",
     "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=",
     "compact_evidence_source_schema=featherdoc.release_candidate_summary",
     "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema",

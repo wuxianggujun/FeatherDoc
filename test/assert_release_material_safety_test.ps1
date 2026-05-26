@@ -1592,6 +1592,93 @@ if (-not $badReleaseGovernanceHandoffPdfSegmentedWrongSchemaFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with PDF visual segmented gate evidence using a non-release-candidate source_report schema."
 }
 
+$passReleaseGovernanceHandoffManifestSignoffTraceDir = Join-Path $passDir "release-governance-handoff-manifest-signoff-trace"
+$passReleaseGovernanceHandoffManifestSignoffTracePath = Join-Path $passReleaseGovernanceHandoffManifestSignoffTraceDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $passReleaseGovernanceHandoffManifestSignoffTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseGovernanceHandoffManifestSignoffTracePath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- Manifest signoff entrypoints evidence source reports: ``1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - manifest_signoff_entrypoints_status: ``declared``
+    - manifest_signoff_entrypoints_release_assets_manifest_display: ``.\output\release-assets\v<version>\release_assets_manifest.json``
+    - manifest_signoff_entrypoints_required_entrypoint_count: ``3``
+    - manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
+    - manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``
+    - manifest_signoff_entrypoints_required_fields: ``status, release_ready, schema_approval_status_summary, source_report_display, source_json_display``
+    - manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``
+"@
+
+& $auditScript -Path $passReleaseGovernanceHandoffManifestSignoffTracePath
+
+$badReleaseGovernanceHandoffManifestSignoffSplitDir = Join-Path $failDir "release-governance-handoff-manifest-signoff-split"
+$badReleaseGovernanceHandoffManifestSignoffSplitPath = Join-Path $badReleaseGovernanceHandoffManifestSignoffSplitDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffManifestSignoffSplitDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffManifestSignoffSplitPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- Manifest signoff entrypoints evidence source reports: ``1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - manifest_signoff_entrypoints_status: ``declared``
+    - manifest_signoff_entrypoints_release_assets_manifest_display: ``.\output\release-assets\v<version>\release_assets_manifest.json``
+    - manifest_signoff_entrypoints_required_entrypoint_count: ``3``
+
+## Detached manifest signoff notes
+
+- manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
+- manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``
+- manifest_signoff_entrypoints_required_fields: ``status, release_ready, schema_approval_status_summary, source_report_display, source_json_display``
+- manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``
+"@
+
+$badReleaseGovernanceHandoffManifestSignoffSplitFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffManifestSignoffSplitPath
+} catch {
+    $badReleaseGovernanceHandoffManifestSignoffSplitFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffManifestSignoffSplitFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with manifest signoff entrypoints split outside source_report block."
+}
+
+$badReleaseGovernanceHandoffManifestSignoffWrongSchemaDir = Join-Path $failDir "release-governance-handoff-manifest-signoff-wrong-schema"
+$badReleaseGovernanceHandoffManifestSignoffWrongSchemaPath = Join-Path $badReleaseGovernanceHandoffManifestSignoffWrongSchemaDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffManifestSignoffWrongSchemaDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffManifestSignoffWrongSchemaPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- Manifest signoff entrypoints evidence source reports: ``1``
+  - source_report: ``.\output\release-blocker-rollup\summary.json`` schema=``featherdoc.release_blocker_rollup_report.v1``
+    - manifest_signoff_entrypoints_status: ``declared``
+    - manifest_signoff_entrypoints_release_assets_manifest_display: ``.\output\release-assets\v<version>\release_assets_manifest.json``
+    - manifest_signoff_entrypoints_required_entrypoint_count: ``3``
+    - manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
+    - manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``
+    - manifest_signoff_entrypoints_required_fields: ``status, release_ready, schema_approval_status_summary, source_report_display, source_json_display``
+    - manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``
+"@
+
+$badReleaseGovernanceHandoffManifestSignoffWrongSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffManifestSignoffWrongSchemaPath
+} catch {
+    $badReleaseGovernanceHandoffManifestSignoffWrongSchemaFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffManifestSignoffWrongSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with manifest signoff entrypoints source_report using a non-release-candidate schema."
+}
+
 $passReleaseGovernanceHandoffProjectTemplateChecklistTraceDir = Join-Path $passDir "release-governance-handoff-project-template-checklist-source-report-trace"
 $passReleaseGovernanceHandoffProjectTemplateChecklistTracePath = Join-Path $passReleaseGovernanceHandoffProjectTemplateChecklistTraceDir "release_governance_handoff.md"
 New-Item -ItemType Directory -Path $passReleaseGovernanceHandoffProjectTemplateChecklistTraceDir -Force | Out-Null
