@@ -3091,6 +3091,25 @@ try {
     } else {
         ""
     }
+    $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
+    $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
+    $projectTemplateChecklistEvidenceLines = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($evidenceLine in @(
+            $projectTemplateChecklistHandoffEvidenceLine,
+            $projectTemplateChecklistMaterialSafetyAuditEvidenceLine
+        )) {
+        if (-not [string]::IsNullOrWhiteSpace($evidenceLine)) {
+            [void]$projectTemplateChecklistEvidenceLines.Add("- $evidenceLine")
+        }
+    }
+    $projectTemplateChecklistEvidenceMarkdown = if ($projectTemplateChecklistEvidenceLines.Count -gt 0) {
+        "## Project-template release entry evidence" + [Environment]::NewLine +
+        [Environment]::NewLine +
+        ($projectTemplateChecklistEvidenceLines.ToArray() -join [Environment]::NewLine) +
+        [Environment]::NewLine
+    } else {
+        ""
+    }
 
     $finalReview = @"
 # Release Candidate Checks
@@ -3142,6 +3161,7 @@ $readmeGalleryStatusLine
 $visualGateReviewSummary
 $releaseGovernanceRollupMarkdown
 $releaseGovernanceHandoffMarkdown
+$projectTemplateChecklistEvidenceMarkdown
 ## Key outputs
 
 - Build directory: $buildDirDisplay

@@ -590,6 +590,24 @@ foreach ($scriptText in @($releaseBundleVersionTest)) {
         -Message "Release entry tests should lock packaged audit evidence to the release-blocker rollup source."
 }
 
+Assert-ContainsText -Text $releaseChecksScript -ExpectedText "Project-template release entry evidence" `
+    -Message "Release candidate final_review.md should expose a dedicated project-template release entry evidence section."
+Assert-ContainsText -Text $releaseChecksScript -ExpectedText "projectTemplateChecklistEvidenceMarkdown" `
+    -Message "Release candidate final_review.md should render compact project-template checklist evidence from governance handoff."
+
+foreach ($marker in @(
+    "ReleaseGovernanceHandoffIncludeRollup",
+    "Project-template release entry evidence",
+    "Project-template readiness checklist handoff evidence",
+    "project_template_readiness_checklist_entrypoints_source_report_count -ne 1",
+    "release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 1",
+    "compact_evidence_source_schema=featherdoc.release_candidate_summary",
+    "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+)) {
+    Assert-ContainsText -Text $releaseCandidateVisualTest -ExpectedText $marker `
+        -Message "Release candidate visual verdict test should lock final_review.md project-template source-report evidence consumption."
+}
+
 Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Missing project_template_readiness_checklist_entrypoints." `
     -Message "Material safety audit should fail packaged manifests missing the project-template readiness checklist entrypoints contract."
 Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Missing release_entry_project_template_readiness_checklist_material_safety_audit." `

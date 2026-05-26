@@ -318,6 +318,15 @@ Assert-ContainsText -Text $scriptText -ExpectedText '$visualGateReviewTaskSummar
 Assert-ContainsText -Text $scriptText -ExpectedText '$visualGateReviewSummary' `
     -Message "Release preflight final_review.md should embed the visual review verdict summary."
 
+Assert-ContainsText -Text $scriptText -ExpectedText 'Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary' `
+    -Message "Release preflight final_review.md should derive project-template checklist handoff evidence from release governance handoff."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary' `
+    -Message "Release preflight final_review.md should derive packaged project-template checklist audit evidence from release governance handoff."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '## Project-template release entry evidence' `
+    -Message "Release preflight final_review.md should expose project-template release entry evidence as a reviewer-facing section."
+
 Assert-ContainsText -Text $scriptText -ExpectedText 'Project template smoke schema approval gate blocked.' `
     -Message "Release preflight should fail when schema approval gate is blocked."
 
@@ -712,6 +721,66 @@ $candidateInstallDir = Join-Path $resolvedWorkingDir "install"
 $candidateConsumerBuildDir = Join-Path $resolvedWorkingDir "consumer-build"
 $candidateGateOutputDir = Join-Path $resolvedWorkingDir "word-visual-gate"
 $candidateTaskOutputRoot = Join-Path $resolvedWorkingDir "visual-tasks"
+$releaseGovernanceHandoffInputRoot = Join-Path $resolvedWorkingDir "release-governance-handoff-input"
+$releaseGovernanceHandoffOutputDir = Join-Path $resolvedWorkingDir "release-governance-handoff"
+$releaseGovernanceSourceDir = Join-Path $resolvedWorkingDir "release-candidate-governance-source"
+$releaseGovernanceSourcePath = Join-Path $releaseGovernanceSourceDir "summary.json"
+New-Item -ItemType Directory -Path $releaseGovernanceHandoffInputRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $releaseGovernanceSourceDir -Force | Out-Null
+([ordered]@{
+        schema = "featherdoc.release_candidate_summary"
+        status = "ready"
+        release_ready = $true
+        project_template_smoke = [ordered]@{
+            status = "ready"
+        }
+        project_template_readiness_checklist_entrypoints = [ordered]@{
+            status = "declared"
+            checklist_label = "Project template release readiness checklist"
+            checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+            required_entrypoint_count = 3
+            entrypoints = @(
+                [ordered]@{
+                    id = "start_here"
+                    required = $true
+                    path_display = ".\output\release-candidate-checks\START_HERE.md"
+                },
+                [ordered]@{
+                    id = "artifact_guide"
+                    required = $true
+                    path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+                },
+                [ordered]@{
+                    id = "reviewer_checklist"
+                    required = $true
+                    path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+                }
+            )
+            checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+        }
+        release_entry_project_template_readiness_checklist_material_safety_audit = [ordered]@{
+            status = "passed"
+            audit_script = ".\scripts\assert_release_material_safety.ps1"
+            audited_entrypoint_count = 3
+            audited_entrypoints = @(
+                "start_here",
+                "artifact_guide",
+                "reviewer_checklist"
+            )
+            compact_evidence_label = "Project-template readiness checklist handoff evidence"
+            compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+            compact_evidence_source_schema = "featherdoc.release_candidate_summary"
+            checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+            checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+            material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+        }
+        release_blocker_count = 0
+        release_blockers = @()
+        action_item_count = 0
+        action_items = @()
+        warning_count = 0
+        warnings = @()
+    } | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $releaseGovernanceSourcePath -Encoding UTF8
 
 & $scriptPath `
     -SkipConfigure `
@@ -726,6 +795,11 @@ $candidateTaskOutputRoot = Join-Path $resolvedWorkingDir "visual-tasks"
     -GateOutputDir $candidateGateOutputDir `
     -TaskOutputRoot $candidateTaskOutputRoot `
     -SummaryOutputDir $candidateOutputDir `
+    -ReleaseGovernanceHandoff `
+    -ReleaseGovernanceHandoffInputRoot $releaseGovernanceHandoffInputRoot `
+    -ReleaseGovernanceHandoffInputJson $releaseGovernanceSourcePath `
+    -ReleaseGovernanceHandoffOutputDir $releaseGovernanceHandoffOutputDir `
+    -ReleaseGovernanceHandoffIncludeRollup `
     -PdfVisualGateSummaryJson $pdfSummaryPath `
     -PdfVisualSegmentedGateSummaryJson $pdfSegmentedSummaryPath `
     -PdfBoundedCtestSummaryJson @($boundedSmokePath, $boundedBusinessPath)
@@ -776,6 +850,10 @@ if ([int]$candidateSummary.steps.pdf_bounded_ctest.summary_count -ne 2 -or
     [int]$candidateSummary.steps.pdf_bounded_ctest.skipped_test_count -ne 0 -or
     @($candidateSummary.steps.pdf_bounded_ctest.subsets) -notcontains "regression-business-samples") {
     throw "Release candidate summary did not preserve PDF bounded CTest auxiliary evidence."
+}
+if ([int]$candidateSummary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count -ne 1 -or
+    [int]$candidateSummary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 1) {
+    throw "Release candidate summary did not consume project-template release entry evidence from release governance handoff."
 }
 $manifestSignoff = $candidateSummary.manifest_signoff_entrypoints
 $expectedReleaseAssetsManifest = "output\release-assets\v$($candidateSummary.release_version)\release_assets_manifest.json"
@@ -912,6 +990,23 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Step 
     "PDF bounded CTest selected tests: 20",
     "PDF bounded CTest skipped tests: 0"
 ) -Message "final_review.md should expose bounded PDF CTest auxiliary evidence in the Step status section."
+Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Project-template release entry evidence" -Fragments @(
+    "Project-template readiness checklist handoff evidence",
+    "project_template_readiness_checklist_entrypoints_source_reports=1",
+    "docs/project_template_release_readiness_checklist_zh.rst",
+    "required_entrypoint_count=3",
+    "entrypoints=start_here, artifact_guide, reviewer_checklist",
+    "entrypoint_paths=",
+    "release_entry_project_template_readiness_checklist_trace",
+    "source_schema=featherdoc.release_candidate_summary",
+    "Project-template readiness checklist packaged audit evidence",
+    "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1",
+    "assert_release_material_safety.ps1",
+    "audited_entrypoints=start_here, artifact_guide, reviewer_checklist",
+    "compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports",
+    "compact_evidence_source_schema=featherdoc.release_candidate_summary",
+    "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+) -Message "final_review.md should expose project-template checklist handoff and packaged audit evidence consumed from release governance handoff."
 
 $candidateReleaseBody = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseBodyPath
 foreach ($fragments in @(
