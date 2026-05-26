@@ -440,6 +440,30 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
         )
         checklist_marker = "reviewer_manifest_scoped_project_template_trace"
     }
+    project_template_readiness_checklist_entrypoints = [ordered]@{
+        status = "declared"
+        checklist_label = "Project template release readiness checklist"
+        checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+        required_entrypoint_count = 3
+        entrypoints = @(
+            [ordered]@{
+                id = "start_here"
+                path_display = ".\output\release-candidate-checks\START_HERE.md"
+                required = $true
+            },
+            [ordered]@{
+                id = "artifact_guide"
+                path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+                required = $true
+            },
+            [ordered]@{
+                id = "reviewer_checklist"
+                path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+                required = $true
+            }
+        )
+        checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+    }
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -1060,6 +1084,19 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve manifest signoff required traceability fields."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.manifest_signoff_entrypoints_checklist_marker) -Expected "reviewer_manifest_scoped_project_template_trace" `
         -Message "Rollup should preserve manifest signoff reviewer checklist marker."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_status) -Expected "declared" `
+        -Message "Rollup should preserve project-template checklist entrypoint status from release candidate summaries."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_checklist_label) -Expected "Project template release readiness checklist" `
+        -Message "Rollup should preserve project-template checklist label."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_checklist_path) -Expected "docs/project_template_release_readiness_checklist_zh.rst" `
+        -Message "Rollup should preserve project-template checklist path."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_required_entrypoint_count) -Expected 3 `
+        -Message "Rollup should preserve project-template checklist required entrypoint count."
+    Assert-ContainsText -Text (@($releaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_entrypoint_ids) -join "`n") `
+        -ExpectedText "reviewer_checklist" `
+        -Message "Rollup should preserve reviewer checklist project-template readiness entrypoint."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_checklist_marker) -Expected "release_entry_project_template_readiness_checklist_trace" `
+        -Message "Rollup should preserve project-template readiness checklist marker."
     $skeletonWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "document_skeleton.exemplar_catalog_missing" } |
         Select-Object -First 1)
@@ -1189,6 +1226,12 @@ if (Test-Scenario -Name "passing") {
         "manifest_signoff_entrypoints_required_fields:",
         "source_json_display",
         "manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``",
+        "project_template_readiness_checklist_entrypoints_status: ``declared``",
+        "project_template_readiness_checklist_entrypoints_checklist_label: ``Project template release readiness checklist``",
+        "project_template_readiness_checklist_entrypoints_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``",
+        "project_template_readiness_checklist_entrypoints_required_entrypoint_count: ``3``",
+        "project_template_readiness_checklist_entrypoints_entrypoint_ids:",
+        "project_template_readiness_checklist_entrypoints_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``",
         "``reviewer_checklist``: required=``True``"
     ) -Message "Markdown should keep release-candidate PDF visual source-report evidence in one Source Report Contracts block."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_status" `

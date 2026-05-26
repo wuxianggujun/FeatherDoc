@@ -928,6 +928,30 @@ if (Test-Scenario -Name "include_rollup") {
             )
             checklist_marker = "reviewer_manifest_scoped_project_template_trace"
         }
+        project_template_readiness_checklist_entrypoints = [ordered]@{
+            status = "declared"
+            checklist_label = "Project template release readiness checklist"
+            checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+            required_entrypoint_count = 3
+            entrypoints = @(
+                [ordered]@{
+                    id = "start_here"
+                    path_display = ".\output\release-candidate-checks\START_HERE.md"
+                    required = $true
+                },
+                [ordered]@{
+                    id = "artifact_guide"
+                    path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+                    required = $true
+                },
+                [ordered]@{
+                    id = "reviewer_checklist"
+                    path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+                    required = $true
+                }
+            )
+            checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+        }
         release_blocker_count = 0
         release_blockers = @()
         action_item_count = 0
@@ -1071,6 +1095,24 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should expose manifest signoff required traceability fields."
     Assert-Equal -Actual ([string]$manifestSignoffEvidence.manifest_signoff_entrypoints_checklist_marker) -Expected "reviewer_manifest_scoped_project_template_trace" `
         -Message "Handoff summary should expose manifest signoff reviewer checklist marker."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.project_template_readiness_checklist_entrypoints_source_report_count) -Expected 1 `
+        -Message "Handoff summary should consume nested project-template readiness checklist entrypoints evidence count."
+    $projectTemplateChecklistEvidence = $summary.release_blocker_rollup.project_template_readiness_checklist_entrypoints_source_reports | Select-Object -First 1
+    Assert-True -Condition ($null -ne $projectTemplateChecklistEvidence) `
+        -Message "Handoff summary should expose at least one project-template readiness checklist evidence source report."
+    Assert-Equal -Actual ([string]$projectTemplateChecklistEvidence.project_template_readiness_checklist_entrypoints_status) -Expected "declared" `
+        -Message "Handoff summary should expose project-template readiness checklist status from the nested rollup."
+    Assert-Equal -Actual ([string]$projectTemplateChecklistEvidence.project_template_readiness_checklist_entrypoints_checklist_label) -Expected "Project template release readiness checklist" `
+        -Message "Handoff summary should expose project-template readiness checklist label from the nested rollup."
+    Assert-Equal -Actual ([string]$projectTemplateChecklistEvidence.project_template_readiness_checklist_entrypoints_checklist_path) -Expected "docs/project_template_release_readiness_checklist_zh.rst" `
+        -Message "Handoff summary should expose project-template readiness checklist path from the nested rollup."
+    Assert-Equal -Actual ([int]$projectTemplateChecklistEvidence.project_template_readiness_checklist_entrypoints_required_entrypoint_count) -Expected 3 `
+        -Message "Handoff summary should expose project-template readiness checklist required entrypoint count."
+    Assert-ContainsText -Text (@($projectTemplateChecklistEvidence.project_template_readiness_checklist_entrypoints_entrypoint_ids) -join "`n") `
+        -ExpectedText "reviewer_checklist" `
+        -Message "Handoff summary should expose reviewer checklist project-template readiness entrypoint."
+    Assert-Equal -Actual ([string]$projectTemplateChecklistEvidence.project_template_readiness_checklist_entrypoints_checklist_marker) -Expected "release_entry_project_template_readiness_checklist_trace" `
+        -Message "Handoff summary should expose project-template readiness checklist marker."
 
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
@@ -1112,6 +1154,13 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (@($rollupReleaseCandidateSourceReport.manifest_signoff_entrypoints_entrypoint_ids) -join "`n") `
         -ExpectedText "start_here" `
         -Message "Nested rollup should preserve manifest signoff START_HERE entrypoint."
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_status) -Expected "declared" `
+        -Message "Nested rollup should preserve project-template readiness checklist entrypoint status."
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_checklist_path) -Expected "docs/project_template_release_readiness_checklist_zh.rst" `
+        -Message "Nested rollup should preserve project-template readiness checklist path."
+    Assert-ContainsText -Text (@($rollupReleaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_entrypoint_ids) -join "`n") `
+        -ExpectedText "start_here" `
+        -Message "Nested rollup should preserve project-template readiness START_HERE entrypoint."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
     Assert-ContainsText -Text $markdown -ExpectedText "PDF visual gate evidence source reports: ``1``" `
@@ -1148,6 +1197,18 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should expose all manifest signoff entrypoint ids."
     Assert-ContainsText -Text $markdown -ExpectedText "reviewer_manifest_scoped_project_template_trace" `
         -Message "Handoff Markdown should expose the manifest signoff checklist marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "Project-template readiness checklist entrypoints evidence source reports: ``1``" `
+        -Message "Handoff Markdown should expose the project-template readiness checklist evidence count."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_readiness_checklist_entrypoints_status: ``declared``" `
+        -Message "Handoff Markdown should expose the project-template readiness checklist status."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_readiness_checklist_entrypoints_checklist_label: ``Project template release readiness checklist``" `
+        -Message "Handoff Markdown should expose the project-template readiness checklist label."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_readiness_checklist_entrypoints_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``" `
+        -Message "Handoff Markdown should expose the project-template readiness checklist path."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_readiness_checklist_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``" `
+        -Message "Handoff Markdown should expose all project-template readiness checklist entrypoint ids."
+    Assert-ContainsText -Text $markdown -ExpectedText "release_entry_project_template_readiness_checklist_trace" `
+        -Message "Handoff Markdown should expose the project-template readiness checklist marker."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
         "schema=``featherdoc.release_candidate_summary``",
         "pdf_visual_gate_status: ``loaded``",

@@ -1839,6 +1839,8 @@ $summary = [ordered]@{
         action_items = @()
         warning_count = 0
         warnings = @()
+        project_template_readiness_checklist_entrypoints_source_report_count = 0
+        project_template_readiness_checklist_entrypoints_source_reports = @()
         error = ""
     }
     template_schema = [ordered]@{
@@ -1958,6 +1960,8 @@ $summary = [ordered]@{
             action_items = @()
             warning_count = 0
             warnings = @()
+            project_template_readiness_checklist_entrypoints_source_report_count = 0
+            project_template_readiness_checklist_entrypoints_source_reports = @()
             error = ""
         }
         pdf_visual_gate = $pdfVisualGateSummaryInfo
@@ -2750,6 +2754,8 @@ try {
             $handoffRollup = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "release_blocker_rollup" }
             $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_report_count") }
             $summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_reports") }
+            $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_report_count") }
+            $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_reports") }
             $summary.release_governance_handoff.error = ""
             $summary.steps.release_governance_handoff.status = $summary.release_governance_handoff.status
             $summary.steps.release_governance_handoff.expected_report_count = $summary.release_governance_handoff.expected_report_count
@@ -2764,6 +2770,8 @@ try {
             $summary.steps.release_governance_handoff.warnings = @($summary.release_governance_handoff.warnings)
             $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count
             $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_reports = @($summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports)
+            $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count
+            $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = @($summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports)
             $summary.steps.release_governance_handoff.error = ""
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
         } catch {
@@ -2783,6 +2791,8 @@ try {
             $handoffRollup = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "release_blocker_rollup" }
             $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_report_count") }
             $summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_reports") }
+            $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_report_count") }
+            $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_reports") }
             $summary.release_governance_handoff.error = $handoffError
             $summary.steps.release_governance_handoff.status = "failed"
             $summary.steps.release_governance_handoff.expected_report_count = $summary.release_governance_handoff.expected_report_count
@@ -2797,6 +2807,8 @@ try {
             $summary.steps.release_governance_handoff.warnings = @($summary.release_governance_handoff.warnings)
             $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count
             $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_reports = @($summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports)
+            $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count
+            $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = @($summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports)
             $summary.steps.release_governance_handoff.error = $handoffError
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
             Write-Step "Release governance handoff failed: $handoffError"

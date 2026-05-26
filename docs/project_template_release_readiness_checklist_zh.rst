@@ -241,6 +241,15 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      保留该字段，并由 ``scripts/assert_release_material_safety.ps1`` 直接审计，不能只依赖
      人工阅读 entry 文案。固定标记：
      ``project_template_readiness_checklist_entrypoints_manifest_trace``。
+   * ``scripts/build_release_blocker_rollup_report.ps1`` 必须把
+     ``project_template_readiness_checklist_entrypoints`` 展平成 source report contract
+     字段；``scripts/build_release_governance_handoff_report.ps1`` 必须继续汇总为
+     ``project_template_readiness_checklist_entrypoints_source_reports``，并由
+     ``release_governance_handoff.md``、``final_review.md``、``START_HERE.md``、
+     ``ARTIFACT_GUIDE.md`` 和 ``REVIEWER_CHECKLIST.md`` 展示 ``status``、
+     ``checklist_label``、``checklist_path``、三个必需入口和
+     ``release_entry_project_template_readiness_checklist_trace``。固定标记：
+     ``project_template_readiness_checklist_entrypoints_governance_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
      在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
      ``release_assets_manifest.json``，并核对

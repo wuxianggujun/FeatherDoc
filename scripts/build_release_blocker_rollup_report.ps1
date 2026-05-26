@@ -657,6 +657,48 @@ function Add-ManifestSignoffEntrypointsEvidenceFields {
         -Value (Get-JsonString -Object $signoff -Name "checklist_marker")
 }
 
+function Add-ProjectTemplateReadinessChecklistEntrypointsEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary
+    )
+
+    $entrypointsContract = Get-JsonProperty -Object $Summary -Name "project_template_readiness_checklist_entrypoints"
+    if ($null -eq $entrypointsContract) {
+        return
+    }
+
+    $entrypointEvidence = @(
+        foreach ($entrypoint in @(Get-JsonArray -Object $entrypointsContract -Name "entrypoints")) {
+            $id = Get-JsonString -Object $entrypoint -Name "id"
+            if ([string]::IsNullOrWhiteSpace($id)) {
+                continue
+            }
+
+            [ordered]@{
+                id = $id
+                required = Get-JsonBool -Object $entrypoint -Name "required"
+                path_display = Get-JsonString -Object $entrypoint -Name "path_display"
+            }
+        }
+    )
+
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_status" `
+        -Value (Get-JsonString -Object $entrypointsContract -Name "status")
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_checklist_label" `
+        -Value (Get-JsonString -Object $entrypointsContract -Name "checklist_label")
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_checklist_path" `
+        -Value (Get-JsonString -Object $entrypointsContract -Name "checklist_path")
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_required_entrypoint_count" `
+        -Value (Get-FirstJsonProperty -Object $entrypointsContract -Names @("required_entrypoint_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_entrypoint_ids" `
+        -Value @($entrypointEvidence | ForEach-Object { [string]$_.id })
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_entrypoints" `
+        -Value @($entrypointEvidence)
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_checklist_marker" `
+        -Value (Get-JsonString -Object $entrypointsContract -Name "checklist_marker")
+}
+
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
@@ -764,6 +806,50 @@ function Add-ManifestSignoffEntrypointsMarkdownLines {
     }
 
     $Lines.Add("  - manifest_signoff_entrypoints:") | Out-Null
+    foreach ($entrypoint in $entrypoints) {
+        $id = Get-JsonString -Object $entrypoint -Name "id" -DefaultValue "(unknown entrypoint)"
+        $required = Get-JsonProperty -Object $entrypoint -Name "required"
+        $pathDisplay = Get-JsonString -Object $entrypoint -Name "path_display"
+        $Lines.Add("    - ``${id}``: required=``$required`` path_display=``$pathDisplay``") | Out-Null
+    }
+}
+
+function Add-ProjectTemplateReadinessChecklistEntrypointsMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Report
+    )
+
+    $status = Get-JsonString -Object $Report -Name "project_template_readiness_checklist_entrypoints_status"
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "project_template_readiness_checklist_entrypoints_status",
+            "project_template_readiness_checklist_entrypoints_checklist_label",
+            "project_template_readiness_checklist_entrypoints_checklist_path",
+            "project_template_readiness_checklist_entrypoints_required_entrypoint_count",
+            "project_template_readiness_checklist_entrypoints_entrypoint_ids",
+            "project_template_readiness_checklist_entrypoints_checklist_marker"
+        )) {
+        $fieldValue = Get-JsonProperty -Object $Report -Name $fieldName
+        $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+            @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+        } else {
+            [string]$fieldValue
+        }
+        if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+            $Lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
+        }
+    }
+
+    $entrypoints = @(Get-JsonArray -Object $Report -Name "project_template_readiness_checklist_entrypoints_entrypoints")
+    if ($entrypoints.Count -eq 0) {
+        return
+    }
+
+    $Lines.Add("  - project_template_readiness_checklist_entrypoints:") | Out-Null
     foreach ($entrypoint in $entrypoints) {
         $id = Get-JsonString -Object $entrypoint -Name "id" -DefaultValue "(unknown entrypoint)"
         $required = Get-JsonProperty -Object $entrypoint -Name "required"
@@ -892,6 +978,7 @@ function New-ReportMarkdown {
                 }
             }
             Add-ManifestSignoffEntrypointsMarkdownLines -Lines $lines -Report $report
+            Add-ProjectTemplateReadinessChecklistEntrypointsMarkdownLines -Lines $lines -Report $report
             $controlledVisualSmokeAvailable = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_available"
             if ($null -ne $controlledVisualSmokeAvailable) {
                 $lines.Add("  - controlled_visual_smoke_available: ``$controlledVisualSmokeAvailable``") | Out-Null
@@ -1362,6 +1449,7 @@ foreach ($path in @($inputPaths)) {
     Add-PdfVisualGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-PdfBoundedCtestEvidenceFields -Target $sourceReport -Summary $summaryObject
     Add-ManifestSignoffEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
+    Add-ProjectTemplateReadinessChecklistEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject
     $sourceReports.Add($sourceReport) | Out-Null
 }
 

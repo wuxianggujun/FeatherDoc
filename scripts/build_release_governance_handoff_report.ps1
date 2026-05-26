@@ -206,6 +206,32 @@ function Get-ManifestSignoffEntrypointsRollupEvidence {
     )
 }
 
+function Get-ProjectTemplateReadinessChecklistEntrypointsRollupEvidence {
+    param($RollupSummary)
+
+    return @(
+        foreach ($sourceReport in @(Get-JsonArray -Object $RollupSummary -Name "source_reports")) {
+            $status = Get-JsonString -Object $sourceReport -Name "project_template_readiness_checklist_entrypoints_status"
+            $checklistPath = Get-JsonString -Object $sourceReport -Name "project_template_readiness_checklist_entrypoints_checklist_path"
+            if ([string]::IsNullOrWhiteSpace($status) -and [string]::IsNullOrWhiteSpace($checklistPath)) {
+                continue
+            }
+
+            [ordered]@{
+                schema = Get-JsonString -Object $sourceReport -Name "schema"
+                path_display = Get-JsonString -Object $sourceReport -Name "path_display"
+                project_template_readiness_checklist_entrypoints_status = $status
+                project_template_readiness_checklist_entrypoints_checklist_label = Get-JsonString -Object $sourceReport -Name "project_template_readiness_checklist_entrypoints_checklist_label"
+                project_template_readiness_checklist_entrypoints_checklist_path = $checklistPath
+                project_template_readiness_checklist_entrypoints_required_entrypoint_count = Get-FirstJsonProperty -Object $sourceReport -Names @("project_template_readiness_checklist_entrypoints_required_entrypoint_count")
+                project_template_readiness_checklist_entrypoints_entrypoint_ids = @(Get-JsonArray -Object $sourceReport -Name "project_template_readiness_checklist_entrypoints_entrypoint_ids")
+                project_template_readiness_checklist_entrypoints_entrypoints = @(Get-JsonArray -Object $sourceReport -Name "project_template_readiness_checklist_entrypoints_entrypoints")
+                project_template_readiness_checklist_entrypoints_checklist_marker = Get-JsonString -Object $sourceReport -Name "project_template_readiness_checklist_entrypoints_checklist_marker"
+            }
+        }
+    )
+}
+
 function Get-GovernanceMetricByContract {
     param(
         $Metrics,
@@ -904,6 +930,18 @@ function New-ReportMarkdown {
                 $lines.Add("    - manifest_signoff_entrypoints_checklist_marker: ``$($evidence.manifest_signoff_entrypoints_checklist_marker)``") | Out-Null
             }
         }
+        $lines.Add("- Project-template readiness checklist entrypoints evidence source reports: ``$($rollup.project_template_readiness_checklist_entrypoints_source_report_count)``") | Out-Null
+        foreach ($evidence in @($rollup.project_template_readiness_checklist_entrypoints_source_reports)) {
+            $lines.Add("  - source_report: ``$($evidence.path_display)`` schema=``$($evidence.schema)``") | Out-Null
+            $lines.Add("    - project_template_readiness_checklist_entrypoints_status: ``$($evidence.project_template_readiness_checklist_entrypoints_status)``") | Out-Null
+            $lines.Add("    - project_template_readiness_checklist_entrypoints_checklist_label: ``$($evidence.project_template_readiness_checklist_entrypoints_checklist_label)``") | Out-Null
+            $lines.Add("    - project_template_readiness_checklist_entrypoints_checklist_path: ``$($evidence.project_template_readiness_checklist_entrypoints_checklist_path)``") | Out-Null
+            $lines.Add("    - project_template_readiness_checklist_entrypoints_required_entrypoint_count: ``$($evidence.project_template_readiness_checklist_entrypoints_required_entrypoint_count)``") | Out-Null
+            $lines.Add("    - project_template_readiness_checklist_entrypoints_entrypoint_ids: ``$(@($evidence.project_template_readiness_checklist_entrypoints_entrypoint_ids) -join ', ')``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$evidence.project_template_readiness_checklist_entrypoints_checklist_marker)) {
+                $lines.Add("    - project_template_readiness_checklist_entrypoints_checklist_marker: ``$($evidence.project_template_readiness_checklist_entrypoints_checklist_marker)``") | Out-Null
+            }
+        }
         $lines.Add("") | Out-Null
     }
 
@@ -1288,6 +1326,8 @@ $summary = [ordered]@{
         pdf_visual_gate_evidence_source_reports = @()
         manifest_signoff_entrypoints_source_report_count = 0
         manifest_signoff_entrypoints_source_reports = @()
+        project_template_readiness_checklist_entrypoints_source_report_count = 0
+        project_template_readiness_checklist_entrypoints_source_reports = @()
     }
     expected_report_count = $expectedReports.Count
     loaded_report_count = $loadedReportCount
@@ -1347,6 +1387,9 @@ if ($IncludeReleaseBlockerRollup) {
     $manifestSignoffEvidence = @(Get-ManifestSignoffEntrypointsRollupEvidence -RollupSummary $rollupSummary)
     $summary.release_blocker_rollup.manifest_signoff_entrypoints_source_report_count = @($manifestSignoffEvidence).Count
     $summary.release_blocker_rollup.manifest_signoff_entrypoints_source_reports = @($manifestSignoffEvidence)
+    $projectTemplateChecklistEvidence = @(Get-ProjectTemplateReadinessChecklistEntrypointsRollupEvidence -RollupSummary $rollupSummary)
+    $summary.release_blocker_rollup.project_template_readiness_checklist_entrypoints_source_report_count = @($projectTemplateChecklistEvidence).Count
+    $summary.release_blocker_rollup.project_template_readiness_checklist_entrypoints_source_reports = @($projectTemplateChecklistEvidence)
     ($summary | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
     (New-ReportMarkdown -Summary $summary) | Set-Content -LiteralPath $markdownPath -Encoding UTF8
 }

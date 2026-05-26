@@ -301,6 +301,14 @@ blocker rollup 的 source report contract evidence，并由 release governance h
 ``package_release_assets.ps1`` 必须把该字段保留到 ``release_assets_manifest.json``，
 再由 ``assert_release_material_safety.ps1`` 审计。这样固定清单入口不是只靠人工文案
 或 grep 推断，而是成为 packaged asset 层可检查的发布证据。
+同一字段还必须继续进入 ``build_release_blocker_rollup_report.ps1`` 的 source report
+contract evidence，再由 ``build_release_governance_handoff_report.ps1`` 汇总为
+``project_template_readiness_checklist_entrypoints_source_reports``，并同步到
+``steps.release_governance_handoff``。这样 ``final_review.md``、``START_HERE.md``、
+``ARTIFACT_GUIDE.md`` 和 ``REVIEWER_CHECKLIST.md`` 可以直接展示 ``status``、
+``checklist_label``、``checklist_path``、三个入口和固定 marker，而不需要 reviewer
+从 packaged manifest 反向推断。固定标记：
+``project_template_readiness_checklist_entrypoints_governance_trace``。
 
 对 project-template governance，``final_review.md`` 和
 ``steps.release_governance_handoff`` 还必须同时保留

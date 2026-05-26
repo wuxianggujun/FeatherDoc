@@ -1379,6 +1379,10 @@ function Add-ReleaseGovernanceSourceReportContractLines {
             -Lines $Lines `
             -Report $report `
             -Indent "  "
+        Add-ReleaseGovernanceProjectTemplateReadinessChecklistSourceReportLines `
+            -Lines $Lines `
+            -Report $report `
+            -Indent "  "
 
         foreach ($fieldName in @(
                 "preflight_ready",
@@ -1448,6 +1452,55 @@ function Add-ReleaseGovernanceManifestSignoffSourceReportLines {
     }
 
     [void]$Lines.Add("${Indent}- manifest_signoff_entrypoints:")
+    $entryIndent = "${Indent}  "
+    foreach ($entrypoint in $entrypoints) {
+        $id = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypoint -Name "id") -Fallback "(unknown entrypoint)"
+        $required = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypoint -Name "required")
+        $pathDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypoint -Name "path_display")
+        [void]$Lines.Add("${entryIndent}- ${id}: required=$required path_display=$pathDisplay")
+    }
+}
+
+function Add-ReleaseGovernanceProjectTemplateReadinessChecklistSourceReportLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Report,
+        [string]$Indent = "  "
+    )
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Report -Name "project_template_readiness_checklist_entrypoints_status"
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "project_template_readiness_checklist_entrypoints_status",
+            "project_template_readiness_checklist_entrypoints_checklist_label",
+            "project_template_readiness_checklist_entrypoints_checklist_path",
+            "project_template_readiness_checklist_entrypoints_required_entrypoint_count",
+            "project_template_readiness_checklist_entrypoints_checklist_marker"
+        )) {
+        $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Report -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+            [void]$Lines.Add("${Indent}- ${fieldName}: $fieldValue")
+        }
+    }
+
+    $entrypointIds = @(
+        Get-ReleaseBlockerArrayProperty -Object $Report -Name "project_template_readiness_checklist_entrypoints_entrypoint_ids" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($entrypointIds.Count -gt 0) {
+        [void]$Lines.Add("${Indent}- project_template_readiness_checklist_entrypoints_entrypoint_ids: $($entrypointIds -join ', ')")
+    }
+
+    $entrypoints = @(Get-ReleaseBlockerArrayProperty -Object $Report -Name "project_template_readiness_checklist_entrypoints_entrypoints")
+    if ($entrypoints.Count -eq 0) {
+        return
+    }
+
+    [void]$Lines.Add("${Indent}- project_template_readiness_checklist_entrypoints:")
     $entryIndent = "${Indent}  "
     foreach ($entrypoint in $entrypoints) {
         $id = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypoint -Name "id") -Fallback "(unknown entrypoint)"
@@ -2562,6 +2615,23 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
             $schema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")
             [void]$Lines.Add("  - source_report: $sourceReportDisplay schema=$schema")
             Add-ReleaseGovernanceManifestSignoffSourceReportLines `
+                -Lines $Lines `
+                -Report $report `
+                -Indent "    "
+        }
+    }
+    $projectTemplateChecklistReports = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "project_template_readiness_checklist_entrypoints_source_reports")
+    $projectTemplateChecklistCount = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "project_template_readiness_checklist_entrypoints_source_report_count"
+    if ([string]::IsNullOrWhiteSpace($projectTemplateChecklistCount)) {
+        $projectTemplateChecklistCount = [string]$projectTemplateChecklistReports.Count
+    }
+    if ($projectTemplateChecklistReports.Count -gt 0 -or $projectTemplateChecklistCount -ne "0") {
+        [void]$Lines.Add("- Project-template readiness checklist entrypoints evidence source reports: $projectTemplateChecklistCount")
+        foreach ($report in $projectTemplateChecklistReports) {
+            $sourceReportDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display")
+            $schema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")
+            [void]$Lines.Add("  - source_report: $sourceReportDisplay schema=$schema")
+            Add-ReleaseGovernanceProjectTemplateReadinessChecklistSourceReportLines `
                 -Lines $Lines `
                 -Report $report `
                 -Indent "    "

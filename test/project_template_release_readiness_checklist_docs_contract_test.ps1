@@ -63,6 +63,9 @@ $releasePolicyDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs
 $deliveryScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_project_template_delivery_readiness_report.ps1"
 $contentControlScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
 $releaseChecksScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_release_candidate_checks.ps1"
+$releaseBlockerRollupScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_blocker_rollup_report.ps1"
+$releaseGovernanceHandoffScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_governance_handoff_report.ps1"
+$releaseBlockerMetadataHelpersScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\release_blocker_metadata_helpers.ps1"
 $packageAssetsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\package_release_assets.ps1"
 $materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
 $startHereScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_metadata_start_here.ps1"
@@ -140,6 +143,7 @@ foreach ($marker in @(
     "release_entry_project_template_readiness_checklist_trace",
     "project_template_readiness_checklist_entrypoints",
     "project_template_readiness_checklist_entrypoints_manifest_trace",
+    "project_template_readiness_checklist_entrypoints_governance_trace",
     "manifest_signoff_entrypoints",
     "manifest_signoff_entrypoints_release_trace",
     "manifest_signoff_entrypoints_manifest_trace"
@@ -173,8 +177,10 @@ foreach ($marker in @(
     "source_report_display",
     "source_json_display",
     "project_template_readiness_checklist_entrypoints",
+    "project_template_readiness_checklist_entrypoints_source_reports",
     "docs/project_template_release_readiness_checklist_zh.rst",
     "release_entry_project_template_readiness_checklist_trace",
+    "project_template_readiness_checklist_entrypoints_governance_trace",
     "block_scoped_governance_handoff_trace",
     "block_scoped_governance_handoff_project_template_status_trace",
     "project_template_onboarding.schema_approval",
@@ -405,6 +411,21 @@ Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Entry document mu
 foreach ($scriptText in @($releaseChecksScript, $packageAssetsScript, $materialSafetyScript, $releaseCandidateVisualTest)) {
     Assert-ContainsText -Text $scriptText -ExpectedText "project_template_readiness_checklist_entrypoints" `
         -Message "Release candidate/package/material safety flow should keep the project-template readiness checklist entrypoints machine-auditable."
+}
+
+foreach ($scriptText in @($releaseBlockerRollupScript, $releaseGovernanceHandoffScript, $releaseBlockerMetadataHelpersScript, $releaseChecksScript)) {
+    Assert-ContainsText -Text $scriptText -ExpectedText "project_template_readiness_checklist_entrypoints" `
+        -Message "Release governance flow should preserve project-template readiness checklist entrypoint fields."
+}
+
+foreach ($scriptText in @($releaseBlockerRollupScript, $releaseGovernanceHandoffScript, $releaseBlockerMetadataHelpersScript)) {
+    Assert-ContainsText -Text $scriptText -ExpectedText "project_template_readiness_checklist_entrypoints_checklist_marker" `
+        -Message "Release governance flow should preserve the project-template readiness checklist marker field."
+}
+
+foreach ($scriptText in @($releaseGovernanceHandoffScript, $releaseBlockerMetadataHelpersScript, $releaseChecksScript)) {
+    Assert-ContainsText -Text $scriptText -ExpectedText "project_template_readiness_checklist_entrypoints_source_reports" `
+        -Message "Release governance flow should propagate project-template readiness checklist entrypoints into source-report evidence."
 }
 
 Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Missing project_template_readiness_checklist_entrypoints." `
