@@ -421,6 +421,59 @@ function Get-MarkdownListBlockText {
     return $null
 }
 
+function Get-MarkdownListBlockTexts {
+    param(
+        [string]$Text,
+        [string]$Anchor
+    )
+
+    $blocks = [System.Collections.Generic.List[string]]::new()
+    $lines = $Text -split "\r?\n"
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if (-not $lines[$lineIndex].Contains($Anchor)) {
+            continue
+        }
+
+        $blockLines = [System.Collections.Generic.List[string]]::new()
+        $blockLines.Add($lines[$lineIndex])
+        for ($nextLineIndex = $lineIndex + 1; $nextLineIndex -lt $lines.Count; $nextLineIndex++) {
+            $nextLine = $lines[$nextLineIndex]
+            if (-not [string]::IsNullOrWhiteSpace($nextLine) -and $nextLine -match '^\S') {
+                break
+            }
+            $blockLines.Add($nextLine)
+        }
+
+        $blocks.Add(($blockLines -join "`n"))
+    }
+
+    return $blocks.ToArray()
+}
+
+function Test-MarkdownAnyListBlockContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$Needles
+    )
+
+    foreach ($block in @(Get-MarkdownListBlockTexts -Text $Text -Anchor $Anchor)) {
+        $containsAllNeedles = $true
+        foreach ($needle in $Needles) {
+            if ([string]::IsNullOrWhiteSpace($needle) -or -not $block.Contains($needle)) {
+                $containsAllNeedles = $false
+                break
+            }
+        }
+
+        if ($containsAllNeedles) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Get-MarkdownListBlockFieldValues {
     param(
         [string]$Text,
@@ -1959,6 +2012,60 @@ function Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations {
     }
 }
 
+function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_governance_handoff.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "Project-template readiness checklist entrypoints evidence source reports",
+        "project_template_readiness_checklist_entrypoints_status",
+        "project_template_readiness_checklist_entrypoints_checklist_path"
+    ))) {
+        return
+    }
+
+    $label = "release governance handoff project template readiness checklist entrypoints trace"
+    if (-not $Content.Contains("Project-template readiness checklist entrypoints evidence source reports:")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release governance handoff lost project-template readiness checklist source-report trace marker 'Project-template readiness checklist entrypoints evidence source reports:'."
+    }
+
+    $sourceReportBlockNeedles = @(
+        "source_report:",
+        "schema=",
+        "project_template_readiness_checklist_entrypoints_status:",
+        "project_template_readiness_checklist_entrypoints_checklist_label:",
+        "Project template release readiness checklist",
+        "project_template_readiness_checklist_entrypoints_checklist_path:",
+        "docs/project_template_release_readiness_checklist_zh.rst",
+        "project_template_readiness_checklist_entrypoints_required_entrypoint_count:",
+        "project_template_readiness_checklist_entrypoints_entrypoint_ids:",
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "project_template_readiness_checklist_entrypoints_checklist_marker:",
+        "release_entry_project_template_readiness_checklist_trace"
+    )
+    if (-not (Test-MarkdownAnyListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release governance handoff must keep project-template readiness checklist status, checklist path, required entrypoint ids, and fixed checklist marker in the same source_report block."
+    }
+}
+
 function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
     param(
         [string]$File,
@@ -3220,6 +3327,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
     }

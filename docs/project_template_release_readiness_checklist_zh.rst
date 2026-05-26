@@ -250,6 +250,11 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``checklist_label``、``checklist_path``、三个必需入口和
      ``release_entry_project_template_readiness_checklist_trace``。固定标记：
      ``project_template_readiness_checklist_entrypoints_governance_trace``。
+     ``scripts/assert_release_material_safety.ps1`` 必须继续审计
+     ``release_governance_handoff.md`` 中同一个 ``source_report`` 列表块是否同时携带
+     ``checklist_path``、三个必需入口和固定 checklist marker，不能把 marker 放到
+     detached notes 中补齐。固定标记：
+     ``project_template_readiness_checklist_entrypoints_material_safety_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
      在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
      ``release_assets_manifest.json``，并核对

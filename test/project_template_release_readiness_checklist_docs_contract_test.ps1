@@ -144,6 +144,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints",
     "project_template_readiness_checklist_entrypoints_manifest_trace",
     "project_template_readiness_checklist_entrypoints_governance_trace",
+    "project_template_readiness_checklist_entrypoints_material_safety_trace",
     "manifest_signoff_entrypoints",
     "manifest_signoff_entrypoints_release_trace",
     "manifest_signoff_entrypoints_manifest_trace"
@@ -181,6 +182,7 @@ foreach ($marker in @(
     "docs/project_template_release_readiness_checklist_zh.rst",
     "release_entry_project_template_readiness_checklist_trace",
     "project_template_readiness_checklist_entrypoints_governance_trace",
+    "project_template_readiness_checklist_entrypoints_material_safety_trace",
     "block_scoped_governance_handoff_trace",
     "block_scoped_governance_handoff_project_template_status_trace",
     "project_template_onboarding.schema_approval",
@@ -430,6 +432,16 @@ foreach ($scriptText in @($releaseGovernanceHandoffScript, $releaseBlockerMetada
 
 Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Missing project_template_readiness_checklist_entrypoints." `
     -Message "Material safety audit should fail packaged manifests missing the project-template readiness checklist entrypoints contract."
+
+foreach ($marker in @(
+    "Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations",
+    "Project-template readiness checklist entrypoints evidence source reports",
+    "project_template_readiness_checklist_entrypoints_checklist_path",
+    "project_template_readiness_checklist_entrypoints_checklist_marker"
+)) {
+    Assert-ContainsText -Text $materialSafetyScript -ExpectedText $marker `
+        -Message "Material safety audit should keep project-template readiness checklist source-report evidence block-scoped."
+}
 
 Assert-ContainsText -Text $cmakeLists -ExpectedText "project_template_release_readiness_checklist_docs_contract" `
     -Message "CTest should register the project-template readiness checklist contract."

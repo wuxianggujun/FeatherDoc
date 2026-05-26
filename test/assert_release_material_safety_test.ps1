@@ -987,6 +987,60 @@ if (-not $badReleaseGovernanceHandoffPdfBoundedSplitFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with bounded PDF CTest evidence split outside source_report block."
 }
 
+$passReleaseGovernanceHandoffProjectTemplateChecklistTraceDir = Join-Path $passDir "release-governance-handoff-project-template-checklist-source-report-trace"
+$passReleaseGovernanceHandoffProjectTemplateChecklistTracePath = Join-Path $passReleaseGovernanceHandoffProjectTemplateChecklistTraceDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $passReleaseGovernanceHandoffProjectTemplateChecklistTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseGovernanceHandoffProjectTemplateChecklistTracePath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- Project-template readiness checklist entrypoints evidence source reports: ``1``
+  - source_report: ``.\output\release-blocker-rollup\summary.json`` schema=``featherdoc.release_blocker_rollup_summary.v1``
+    - project_template_readiness_checklist_entrypoints_status: ``declared``
+    - project_template_readiness_checklist_entrypoints_checklist_label: ``Project template release readiness checklist``
+    - project_template_readiness_checklist_entrypoints_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``
+    - project_template_readiness_checklist_entrypoints_required_entrypoint_count: ``3``
+    - project_template_readiness_checklist_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
+    - project_template_readiness_checklist_entrypoints_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``
+"@
+
+& $auditScript -Path $passReleaseGovernanceHandoffProjectTemplateChecklistTracePath
+
+$badReleaseGovernanceHandoffProjectTemplateChecklistSplitDir = Join-Path $failDir "release-governance-handoff-project-template-checklist-split"
+$badReleaseGovernanceHandoffProjectTemplateChecklistSplitPath = Join-Path $badReleaseGovernanceHandoffProjectTemplateChecklistSplitDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffProjectTemplateChecklistSplitDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffProjectTemplateChecklistSplitPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- Project-template readiness checklist entrypoints evidence source reports: ``1``
+  - source_report: ``.\output\release-blocker-rollup\summary.json`` schema=``featherdoc.release_blocker_rollup_summary.v1``
+    - project_template_readiness_checklist_entrypoints_status: ``declared``
+    - project_template_readiness_checklist_entrypoints_checklist_label: ``Project template release readiness checklist``
+    - project_template_readiness_checklist_entrypoints_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``
+    - project_template_readiness_checklist_entrypoints_required_entrypoint_count: ``3``
+
+## Detached checklist notes
+
+- project_template_readiness_checklist_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
+- project_template_readiness_checklist_entrypoints_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``
+"@
+
+$badReleaseGovernanceHandoffProjectTemplateChecklistSplitFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffProjectTemplateChecklistSplitPath
+} catch {
+    $badReleaseGovernanceHandoffProjectTemplateChecklistSplitFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffProjectTemplateChecklistSplitFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with project-template checklist entrypoints split outside source_report block."
+}
+
 $passFinalReviewTraceDir = Join-Path $passDir "final-review-project-template-trace"
 $passFinalReviewTracePath = Join-Path $passFinalReviewTraceDir "final_review.md"
 New-Item -ItemType Directory -Path $passFinalReviewTraceDir -Force | Out-Null
