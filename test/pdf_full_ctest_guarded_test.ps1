@@ -99,6 +99,12 @@ Assert-Equal -Actual ([int]$passSummary.passed_test_count) -Expected 2 `
     -Message "Passing fake CTest should preserve pass count."
 Assert-Equal -Actual ([int]$passSummary.not_run_test_count) -Expected 0 `
     -Message "Passing fake CTest should not report not-run tests."
+Assert-Equal -Actual ([double]$passSummary.full_ctest_completion_percent) -Expected 100.0 `
+    -Message "Passing fake CTest should report full completion percent."
+Assert-Equal -Actual ([int]$passSummary.full_ctest_remaining_test_count) -Expected 0 `
+    -Message "Passing fake CTest should report no remaining tests."
+Assert-Equal -Actual ([bool]$passSummary.full_ctest_zero_failed_tests_observed) -Expected $true `
+    -Message "Passing fake CTest should report zero observed failures."
 Assert-Equal -Actual ([string]$passSummary.marker) -Expected "pdf_full_ctest_guarded_summary_trace" `
     -Message "Full PDF CTest summary should keep a fixed trace marker."
 
@@ -143,6 +149,12 @@ Assert-Equal -Actual ([int]$timeoutSummary.completed_test_count) -Expected 1 `
     -Message "Timed-out fake CTest should preserve completed test count."
 Assert-Equal -Actual ([int]$timeoutSummary.not_run_test_count) -Expected 2 `
     -Message "Timed-out fake CTest should preserve not-run test count."
+Assert-Equal -Actual ([double]$timeoutSummary.full_ctest_completion_percent) -Expected 33.3 `
+    -Message "Timed-out fake CTest should report partial completion percent."
+Assert-Equal -Actual ([int]$timeoutSummary.full_ctest_remaining_test_count) -Expected 2 `
+    -Message "Timed-out fake CTest should report remaining tests."
+Assert-Equal -Actual ([bool]$timeoutSummary.full_ctest_zero_failed_tests_observed) -Expected $true `
+    -Message "Timed-out fake CTest should report no observed failures when none were logged."
 
 $scriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 foreach ($expectedText in @(
@@ -153,6 +165,9 @@ foreach ($expectedText in @(
         "outer_guard_timed_out",
         "outer_guard_timeout_seconds",
         "not_run_test_count",
+        "full_ctest_completion_percent",
+        "full_ctest_remaining_test_count",
+        "full_ctest_zero_failed_tests_observed",
         "guarded_full_ctest_attempt_does_not_replace_completed_full_ctest",
         "pdf_full_ctest_guarded_summary_trace"
     )) {

@@ -249,6 +249,19 @@ $status = if (-not $completed) {
 }
 $verdict = if ($status -eq "pass") { "pass" } elseif ($status -eq "timeout") { "not_complete" } else { "fail" }
 $fullCtestStatus = if ($status -eq "pass") { "pass" } elseif ($status -eq "timeout") { "not_complete" } else { "fail" }
+$selectedTestCount = [int]$stats.selected_test_count
+$completedTestCount = [int]$stats.completed_test_count
+$passedTestCount = [int]$stats.passed_test_count
+$failedTestCount = [int]$stats.failed_test_count
+$skippedTestCount = [int]$stats.skipped_test_count
+$notRunTestCount = [int]$stats.not_run_test_count
+$completionPercent = if ($selectedTestCount -gt 0) {
+    [Math]::Round(($completedTestCount / $selectedTestCount) * 100, 1)
+} else {
+    0.0
+}
+$remainingTestCount = [Math]::Max(0, $notRunTestCount)
+$zeroFailedTestsObserved = ($selectedTestCount -gt 0 -and $failedTestCount -eq 0)
 
 $summary = [ordered]@{
     schema = "featherdoc.pdf_full_ctest_guarded_summary.v1"
@@ -268,12 +281,15 @@ $summary = [ordered]@{
     outer_guard_timed_out = -not $completed
     outer_guard_timeout_seconds = $OuterTimeoutSeconds
     exit_code = $exitCode
-    selected_test_count = [int]$stats.selected_test_count
-    completed_test_count = [int]$stats.completed_test_count
-    passed_test_count = [int]$stats.passed_test_count
-    failed_test_count = [int]$stats.failed_test_count
-    skipped_test_count = [int]$stats.skipped_test_count
-    not_run_test_count = [int]$stats.not_run_test_count
+    selected_test_count = $selectedTestCount
+    completed_test_count = $completedTestCount
+    passed_test_count = $passedTestCount
+    failed_test_count = $failedTestCount
+    skipped_test_count = $skippedTestCount
+    not_run_test_count = $notRunTestCount
+    full_ctest_completion_percent = $completionPercent
+    full_ctest_remaining_test_count = $remainingTestCount
+    full_ctest_zero_failed_tests_observed = $zeroFailedTestsObserved
     total_time_seconds = [string]$stats.total_time_seconds
     stdout_log = $stdoutLog
     stdout_log_display = Get-DisplayPath -RepoRoot $repoRoot -Path $stdoutLog
