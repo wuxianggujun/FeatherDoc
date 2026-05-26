@@ -1383,6 +1383,10 @@ function Add-ReleaseGovernanceSourceReportContractLines {
             -Lines $Lines `
             -Report $report `
             -Indent "  "
+        Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditSourceReportLines `
+            -Lines $Lines `
+            -Report $report `
+            -Indent "  "
 
         foreach ($fieldName in @(
                 "preflight_ready",
@@ -1507,6 +1511,44 @@ function Add-ReleaseGovernanceProjectTemplateReadinessChecklistSourceReportLines
         $required = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypoint -Name "required")
         $pathDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypoint -Name "path_display")
         [void]$Lines.Add("${entryIndent}- ${id}: required=$required path_display=$pathDisplay")
+    }
+}
+
+function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditSourceReportLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Report,
+        [string]$Indent = "  "
+    )
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_status"
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "release_entry_project_template_readiness_checklist_material_safety_audit_status",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_script",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker"
+        )) {
+        $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Report -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+            [void]$Lines.Add("${Indent}- ${fieldName}: $fieldValue")
+        }
+    }
+
+    $auditedEntrypoints = @(
+        Get-ReleaseBlockerArrayProperty -Object $Report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($auditedEntrypoints.Count -gt 0) {
+        [void]$Lines.Add("${Indent}- release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: $($auditedEntrypoints -join ', ')")
     }
 }
 
@@ -2656,6 +2698,23 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
             $schema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")
             [void]$Lines.Add("  - source_report: $sourceReportDisplay schema=$schema")
             Add-ReleaseGovernanceProjectTemplateReadinessChecklistSourceReportLines `
+                -Lines $Lines `
+                -Report $report `
+                -Indent "    "
+        }
+    }
+    $releaseEntryChecklistAuditReports = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports")
+    $releaseEntryChecklistAuditCount = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count"
+    if ([string]::IsNullOrWhiteSpace($releaseEntryChecklistAuditCount)) {
+        $releaseEntryChecklistAuditCount = [string]$releaseEntryChecklistAuditReports.Count
+    }
+    if ($releaseEntryChecklistAuditReports.Count -gt 0 -or $releaseEntryChecklistAuditCount -ne "0") {
+        [void]$Lines.Add("- Release-entry project-template readiness checklist material-safety audit source reports: $releaseEntryChecklistAuditCount")
+        foreach ($report in $releaseEntryChecklistAuditReports) {
+            $sourceReportDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display")
+            $schema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")
+            [void]$Lines.Add("  - source_report: $sourceReportDisplay schema=$schema")
+            Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditSourceReportLines `
                 -Lines $Lines `
                 -Report $report `
                 -Indent "    "

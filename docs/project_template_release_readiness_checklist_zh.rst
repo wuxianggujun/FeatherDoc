@@ -278,6 +278,12 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      material-safety marker，让打包阶段的入口审计结论可以继续进入 release blocker
      rollup，而不是只停留在 ``release_assets_manifest.json``。固定标记：
      ``project_template_readiness_checklist_entrypoints_packaged_audit_rollup_trace``。
+     ``scripts/build_release_governance_handoff_report.ps1`` 与
+     ``scripts/run_release_candidate_checks.ps1`` 还必须把同一 packaged audit 汇总到
+     ``release_governance_handoff`` 和 ``steps.release_governance_handoff``，并由
+     release metadata helper 展示到 handoff details，避免最终 release summary 看不到
+     staged entry materials 的 material-safety 结论。固定标记：
+     ``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
      在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
      ``release_assets_manifest.json``，并核对

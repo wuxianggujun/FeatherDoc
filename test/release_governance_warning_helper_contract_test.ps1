@@ -622,6 +622,22 @@ Add-ReleaseGovernanceHandoffMarkdownSection `
                     project_template_readiness_checklist_entrypoints_checklist_marker = "release_entry_project_template_readiness_checklist_trace"
                 }
             )
+            release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = 1
+            release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @(
+                [pscustomobject]@{
+                    schema = "featherdoc.release_candidate_summary"
+                    path_display = ".\output\release-candidate-checks\report\summary.json"
+                    release_entry_project_template_readiness_checklist_material_safety_audit_status = "passed"
+                    release_entry_project_template_readiness_checklist_material_safety_audit_script = ".\scripts\assert_release_material_safety.ps1"
+                    release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count = 3
+                    release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints = @("start_here", "artifact_guide", "reviewer_checklist")
+                    release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label = "Project-template readiness checklist handoff evidence"
+                    release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+                    release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+                    release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+                    release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+                }
+            )
         }
     }) `
     -RepoRoot $resolvedRepoRoot
@@ -660,6 +676,14 @@ Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "project_template
     -Message "Handoff detail Markdown should render project-template readiness checklist entrypoint ids."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "release_entry_project_template_readiness_checklist_trace" `
     -Message "Handoff detail Markdown should render project-template readiness checklist marker."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "Release-entry project-template readiness checklist material-safety audit source reports: 1" `
+    -Message "Handoff detail Markdown should render release-entry checklist material-safety audit evidence count."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "release_entry_project_template_readiness_checklist_material_safety_audit_status: passed" `
+    -Message "Handoff detail Markdown should render release-entry checklist material-safety audit status."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: start_here, artifact_guide, reviewer_checklist" `
+    -Message "Handoff detail Markdown should render release-entry checklist material-safety audited entrypoints."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
+    -Message "Handoff detail Markdown should render release-entry checklist material-safety marker."
 
 $actionChecklistItems = @(Get-ReleaseGovernanceActionItemChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{

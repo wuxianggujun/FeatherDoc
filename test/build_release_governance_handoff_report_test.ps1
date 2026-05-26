@@ -952,6 +952,17 @@ if (Test-Scenario -Name "include_rollup") {
             )
             checklist_marker = "release_entry_project_template_readiness_checklist_trace"
         }
+        release_entry_project_template_readiness_checklist_material_safety_audit = [ordered]@{
+            status = "passed"
+            audit_script = ".\scripts\assert_release_material_safety.ps1"
+            audited_entrypoint_count = 3
+            audited_entrypoints = @("start_here", "artifact_guide", "reviewer_checklist")
+            compact_evidence_label = "Project-template readiness checklist handoff evidence"
+            compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+            checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+            checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+            material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+        }
         release_blocker_count = 0
         release_blockers = @()
         action_item_count = 0
@@ -1113,6 +1124,23 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should expose reviewer checklist project-template readiness entrypoint."
     Assert-Equal -Actual ([string]$projectTemplateChecklistEvidence.project_template_readiness_checklist_entrypoints_checklist_marker) -Expected "release_entry_project_template_readiness_checklist_trace" `
         -Message "Handoff summary should expose project-template readiness checklist marker."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count) -Expected 1 `
+        -Message "Handoff summary should consume nested release-entry checklist material-safety audit evidence count."
+    $releaseEntryChecklistAuditEvidence = $summary.release_blocker_rollup.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports | Select-Object -First 1
+    Assert-True -Condition ($null -ne $releaseEntryChecklistAuditEvidence) `
+        -Message "Handoff summary should expose at least one release-entry checklist material-safety audit source report."
+    Assert-Equal -Actual ([string]$releaseEntryChecklistAuditEvidence.release_entry_project_template_readiness_checklist_material_safety_audit_status) -Expected "passed" `
+        -Message "Handoff summary should expose packaged release-entry checklist material-safety audit status."
+    Assert-ContainsText -Text ([string]$releaseEntryChecklistAuditEvidence.release_entry_project_template_readiness_checklist_material_safety_audit_script) `
+        -ExpectedText "assert_release_material_safety.ps1" `
+        -Message "Handoff summary should expose packaged release-entry checklist material-safety audit script."
+    Assert-ContainsText -Text (@($releaseEntryChecklistAuditEvidence.release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints) -join "`n") `
+        -ExpectedText "reviewer_checklist" `
+        -Message "Handoff summary should expose packaged release-entry checklist material-safety audited entrypoints."
+    Assert-Equal -Actual ([string]$releaseEntryChecklistAuditEvidence.release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field) -Expected "project_template_readiness_checklist_entrypoints_source_reports" `
+        -Message "Handoff summary should expose packaged release-entry checklist material-safety compact evidence field."
+    Assert-Equal -Actual ([string]$releaseEntryChecklistAuditEvidence.release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker) -Expected "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
+        -Message "Handoff summary should expose packaged release-entry checklist material-safety marker."
 
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
@@ -1161,6 +1189,11 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (@($rollupReleaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_entrypoint_ids) -join "`n") `
         -ExpectedText "start_here" `
         -Message "Nested rollup should preserve project-template readiness START_HERE entrypoint."
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_status) -Expected "passed" `
+        -Message "Nested rollup should preserve packaged release-entry checklist material-safety audit status."
+    Assert-ContainsText -Text (@($rollupReleaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints) -join "`n") `
+        -ExpectedText "artifact_guide" `
+        -Message "Nested rollup should preserve packaged release-entry checklist material-safety audited entrypoints."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
     Assert-ContainsText -Text $markdown -ExpectedText "PDF visual gate evidence source reports: ``1``" `
@@ -1209,6 +1242,14 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should expose all project-template readiness checklist entrypoint ids."
     Assert-ContainsText -Text $markdown -ExpectedText "release_entry_project_template_readiness_checklist_trace" `
         -Message "Handoff Markdown should expose the project-template readiness checklist marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "Release-entry project-template readiness checklist material-safety audit source reports: ``1``" `
+        -Message "Handoff Markdown should expose release-entry checklist material-safety audit evidence count."
+    Assert-ContainsText -Text $markdown -ExpectedText "release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``" `
+        -Message "Handoff Markdown should expose release-entry checklist material-safety audit status."
+    Assert-ContainsText -Text $markdown -ExpectedText "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``start_here, artifact_guide, reviewer_checklist``" `
+        -Message "Handoff Markdown should expose release-entry checklist material-safety audited entrypoints."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
+        -Message "Handoff Markdown should expose release-entry checklist material-safety marker."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
         "schema=``featherdoc.release_candidate_summary``",
         "pdf_visual_gate_status: ``loaded``",
@@ -1232,6 +1273,12 @@ if (Test-Scenario -Name "include_rollup") {
         "pdf_bounded_ctest_summary_json_display:",
         "pdf-ctest-bounded-regression-business-samples-current\summary.json"
     ) -Message "Handoff Markdown should keep PDF visual gate source-report evidence in one source_report block."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
+        "schema=``featherdoc.release_candidate_summary``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``start_here, artifact_guide, reviewer_checklist``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``"
+    ) -Message "Handoff Markdown should keep release-entry checklist material-safety audit evidence in one source_report block."
 }
 
 Write-Host "Release governance handoff report regression passed."

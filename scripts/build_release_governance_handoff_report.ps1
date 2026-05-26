@@ -232,6 +232,34 @@ function Get-ProjectTemplateReadinessChecklistEntrypointsRollupEvidence {
     )
 }
 
+function Get-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditRollupEvidence {
+    param($RollupSummary)
+
+    return @(
+        foreach ($sourceReport in @(Get-JsonArray -Object $RollupSummary -Name "source_reports")) {
+            $status = Get-JsonString -Object $sourceReport -Name "release_entry_project_template_readiness_checklist_material_safety_audit_status"
+            $marker = Get-JsonString -Object $sourceReport -Name "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker"
+            if ([string]::IsNullOrWhiteSpace($status) -and [string]::IsNullOrWhiteSpace($marker)) {
+                continue
+            }
+
+            [ordered]@{
+                schema = Get-JsonString -Object $sourceReport -Name "schema"
+                path_display = Get-JsonString -Object $sourceReport -Name "path_display"
+                release_entry_project_template_readiness_checklist_material_safety_audit_status = $status
+                release_entry_project_template_readiness_checklist_material_safety_audit_script = Get-JsonString -Object $sourceReport -Name "release_entry_project_template_readiness_checklist_material_safety_audit_script"
+                release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count = Get-FirstJsonProperty -Object $sourceReport -Names @("release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count")
+                release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints = @(Get-JsonArray -Object $sourceReport -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints")
+                release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label = Get-JsonString -Object $sourceReport -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label"
+                release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field = Get-JsonString -Object $sourceReport -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field"
+                release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path = Get-JsonString -Object $sourceReport -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path"
+                release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker = Get-JsonString -Object $sourceReport -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker"
+                release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker = $marker
+            }
+        }
+    )
+}
+
 function Get-GovernanceMetricByContract {
     param(
         $Metrics,
@@ -942,6 +970,19 @@ function New-ReportMarkdown {
                 $lines.Add("    - project_template_readiness_checklist_entrypoints_checklist_marker: ``$($evidence.project_template_readiness_checklist_entrypoints_checklist_marker)``") | Out-Null
             }
         }
+        $lines.Add("- Release-entry project-template readiness checklist material-safety audit source reports: ``$($rollup.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count)``") | Out-Null
+        foreach ($evidence in @($rollup.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports)) {
+            $lines.Add("  - source_report: ``$($evidence.path_display)`` schema=``$($evidence.schema)``") | Out-Null
+            $lines.Add("    - release_entry_project_template_readiness_checklist_material_safety_audit_status: ``$($evidence.release_entry_project_template_readiness_checklist_material_safety_audit_status)``") | Out-Null
+            $lines.Add("    - release_entry_project_template_readiness_checklist_material_safety_audit_script: ``$($evidence.release_entry_project_template_readiness_checklist_material_safety_audit_script)``") | Out-Null
+            $lines.Add("    - release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count: ``$($evidence.release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count)``") | Out-Null
+            $lines.Add("    - release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``$(@($evidence.release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints) -join ', ')``") | Out-Null
+            $lines.Add("    - release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label: ``$($evidence.release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label)``") | Out-Null
+            $lines.Add("    - release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field: ``$($evidence.release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field)``") | Out-Null
+            $lines.Add("    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path: ``$($evidence.release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path)``") | Out-Null
+            $lines.Add("    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: ``$($evidence.release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker)``") | Out-Null
+            $lines.Add("    - release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``$($evidence.release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker)``") | Out-Null
+        }
         $lines.Add("") | Out-Null
     }
 
@@ -1328,6 +1369,8 @@ $summary = [ordered]@{
         manifest_signoff_entrypoints_source_reports = @()
         project_template_readiness_checklist_entrypoints_source_report_count = 0
         project_template_readiness_checklist_entrypoints_source_reports = @()
+        release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = 0
+        release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @()
     }
     expected_report_count = $expectedReports.Count
     loaded_report_count = $loadedReportCount
@@ -1390,6 +1433,9 @@ if ($IncludeReleaseBlockerRollup) {
     $projectTemplateChecklistEvidence = @(Get-ProjectTemplateReadinessChecklistEntrypointsRollupEvidence -RollupSummary $rollupSummary)
     $summary.release_blocker_rollup.project_template_readiness_checklist_entrypoints_source_report_count = @($projectTemplateChecklistEvidence).Count
     $summary.release_blocker_rollup.project_template_readiness_checklist_entrypoints_source_reports = @($projectTemplateChecklistEvidence)
+    $releaseEntryChecklistAuditEvidence = @(Get-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditRollupEvidence -RollupSummary $rollupSummary)
+    $summary.release_blocker_rollup.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = @($releaseEntryChecklistAuditEvidence).Count
+    $summary.release_blocker_rollup.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @($releaseEntryChecklistAuditEvidence)
     ($summary | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
     (New-ReportMarkdown -Summary $summary) | Set-Content -LiteralPath $markdownPath -Encoding UTF8
 }

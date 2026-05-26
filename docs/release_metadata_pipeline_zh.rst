@@ -340,6 +340,15 @@ manifest 字段，避免打包阶段只靠日志推断。固定标记：
 这样 release blocker rollup 能直接展示打包入口材料已经过 material-safety 审计，
 不需要 reviewer 从 ``release_assets_manifest.json`` 手工反推。固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_audit_rollup_trace``。
+``build_release_governance_handoff_report.ps1`` 会继续把该 packaged audit 汇总成
+``release_entry_project_template_readiness_checklist_material_safety_audit_source_reports``；
+``run_release_candidate_checks.ps1`` 必须把该数组和计数同步到
+``release_governance_handoff`` 与 ``steps.release_governance_handoff``。共享 release
+metadata helper 也必须在 handoff details 中展示 status、audit script、audited
+entrypoints、compact evidence field 和 material-safety marker，避免最终 summary/entry
+材料只能看到 checklist entrypoints，却看不到 staged entry materials 已经通过审计。
+固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_trace``。
 
 对 project-template governance，``final_review.md`` 和
 ``steps.release_governance_handoff`` 还必须同时保留
