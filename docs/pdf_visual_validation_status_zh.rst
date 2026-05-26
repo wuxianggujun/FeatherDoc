@@ -56,7 +56,26 @@ PDF 可视化验证状态
      ``run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputDir .\output\pdf-visual-release-gate-current -FinalizeOnly -SkipPreflight``
    * 当前结论应理解为“已有 full gate 产物链且可复核”，而不是“仍然缺少 full gate 证据”
 
-4. ``preflight_ready`` 是 preflight governance report 写出的治理字段，不是
+4. 2026-05-26 fresh preflight 复核再次确认完整 visual gate 输入已齐备：
+
+   * ``output/pdf-visual-release-gate-preflight-current/summary.json``
+     写回 ``generated_at = 2026-05-26T22:50:00``
+   * ``status = ready``、``evidence_kind = real_build``
+   * ``blocking_check_count = 0``、``output_gap_count = 0``、
+     ``missing_output_count = 0``
+   * ``pdf_dependency_inputs_status = ready``、
+     ``pdf_dependency_missing_input_count = 0``、
+     ``pdf_build_options_enabled = true``
+   * ``visual_baseline_sample_count = 42``、
+     ``missing_visual_baseline_pdf_count = 0``
+   * ``cjk_text_layer_sample_count = 43``、
+     ``missing_cjk_text_layer_pdf_count = 0``
+   * ``free_memory_mb = 2439.4`` 高于 ``min_free_memory_mb = 2048``，
+     且 ``memory_guard_blocked = false``
+   * 该结果只证明 full visual gate 的输入和前置产物 ready；在外部浏览器 /
+     Node / PowerShell 进程压力仍高时，仍不应直接启动重型 full visual gate。
+
+5. ``preflight_ready`` 是 preflight governance report 写出的治理字段，不是
    ``check_pdf_visual_release_gate_preflight.ps1`` raw summary 的顶层字段。它只表示
    预检是否清零；即使它为 ``true``，也仍需结合 full gate 证据链判断是否可以
    视为完整可视化验收通过。当前 ``dev`` 的状态不是“尚无 full gate 证据”，而是
@@ -229,6 +248,30 @@ Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
 * 可视化非空复核继续通过：
   ``output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png`` 为
   ``912x14566``，大小 ``1822428`` bytes。
+
+2026-05-26 fresh preflight 复核结论
+-----------------------------------
+
+本轮在提交 release notes evidence 闭环后，再次运行轻量 preflight，只写 ignored
+summary，不触发 CMake、CTest、Ninja、MSBuild、Office、浏览器或 full visual gate：
+
+* ``scripts/check_pdf_visual_release_gate_preflight.ps1 -OutputJson .\output\pdf-visual-release-gate-preflight-current\summary.json``
+  在 60 秒 PowerShell Job 内通过。
+* preflight summary 写回时间为 ``2026-05-26T22:50:00``，结果为
+  ``status = ready``、``evidence_kind = real_build``、``blocking_check_count = 0``、
+  ``output_gap_count = 0``、``missing_output_count = 0``。
+* 同一份 preflight 证据确认 ``pdf_dependency_inputs_status = ready``、
+  ``pdf_dependency_missing_input_count = 0``、``pdf_build_options_enabled = true``、
+  ``pdfio_dependency_ready = true``、``pdfium_dependency_ready = true`` 和
+  ``selected_pdfium_provider = prebuilt``。
+* 样本输入缺口仍为 0：``visual_baseline_sample_count = 42``、
+  ``missing_visual_baseline_pdf_count = 0``、``cjk_text_layer_sample_count = 43``、
+  ``missing_cjk_text_layer_pdf_count = 0``。
+* 资源门槛通过：``free_memory_mb = 2439.4``、
+  ``min_free_memory_mb = 2048``、``memory_guard_blocked = false``。
+* 该证据将“是否可以启动 full visual gate”的前置条件推进为 ready；剩余阻断
+  是外部 Edge / Node / PowerShell 进程压力下是否值得启动重型 full gate，而不是
+  PDFio/PDFium 输入、PDF build options、baseline/render 输入缺失。
 
 2026-05-26 bounded CTest 复核结论
 ---------------------------------
