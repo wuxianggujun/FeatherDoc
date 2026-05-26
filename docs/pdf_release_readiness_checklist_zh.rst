@@ -148,7 +148,8 @@ OCR 或任意视觉精确还原。
      ``evidence_scope = bounded_attempt_auxiliary_only`` 或
      ``verdict = not_complete`` 时，不能替代 full visual gate verdict。固定标记：
      ``pdf_visual_gate_attempt_summary_trace``、
-     ``pdf_visual_gate_attempt_governance_trace``。
+     ``pdf_visual_gate_attempt_governance_trace``、
+     ``pdf_visual_gate_attempt_material_safety_trace``。
    * ``release_assets_manifest.json`` 中的 ``pdf_visual_gate_evidence`` 必须保留
      ``cjk_manifest_count >= 43``、``visual_baseline_manifest_count >= 42``，
      并且 ``verdict = pass`` 时 ``cjk_missing_text_count = 0``；不能只依赖

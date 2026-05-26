@@ -2098,6 +2098,65 @@ function Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations {
     }
 }
 
+function Add-ReleaseGovernanceHandoffPdfVisualGateAttemptTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_governance_handoff.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "pdf_visual_gate_attempt_status",
+        "pdf_visual_gate_attempt_summary_json_display",
+        "bounded_attempt_auxiliary_only"
+    ))) {
+        return
+    }
+
+    $label = "release governance handoff PDF visual gate attempt trace"
+    $sourceReportBlockNeedles = @(
+        "source_report:",
+        "schema=",
+        "pdf_visual_gate_attempt_status:",
+        "pdf_visual_gate_attempt_verdict:",
+        "pdf_visual_gate_attempt_full_visual_gate_status:",
+        "pdf_visual_gate_attempt_evidence_scope:",
+        "bounded_attempt_auxiliary_only",
+        "pdf_visual_gate_attempt_summary_json_display:",
+        "attempt-summary.json",
+        "pdf_visual_gate_attempt_stage_count:",
+        "pdf_visual_gate_attempt_passed_stage_count:",
+        "pdf_visual_gate_attempt_failed_stage_count:",
+        "pdf_visual_gate_attempt_incomplete_stage_count:",
+        "pdf_visual_gate_attempt_pdf_cli_export_status:",
+        "pdf_visual_gate_attempt_pdf_regression_status:",
+        "pdf_visual_gate_attempt_pdf_regression_selected_test_count:",
+        "pdf_visual_gate_attempt_pdf_regression_failed_test_count:",
+        "pdf_visual_gate_attempt_pdf_regression_skipped_test_count:",
+        "pdf_visual_gate_attempt_unicode_font_status:",
+        "pdf_visual_gate_attempt_cjk_copy_search_status:",
+        "pdf_visual_gate_attempt_cjk_copy_search_count:",
+        "pdf_visual_gate_attempt_cjk_copy_search_missing_text_count:",
+        "pdf_visual_gate_attempt_visual_baseline_render_status:",
+        "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count:",
+        "pdf_visual_gate_attempt_expected_visual_render_count:",
+        "pdf_visual_gate_attempt_aggregate_contact_sheet_status:",
+        "pdf_visual_gate_attempt_aggregate_contact_sheet_display:"
+    )
+    if (-not (Test-MarkdownAnyListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release governance handoff must keep PDF visual gate bounded attempt status, verdict, auxiliary scope, CTest counts, CJK evidence, render progress, and contact-sheet status in the same source_report block."
+    }
+}
+
 function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations {
     param(
         [string]$File,
@@ -3536,6 +3595,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseGovernanceHandoffPdfVisualGateAttemptTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations

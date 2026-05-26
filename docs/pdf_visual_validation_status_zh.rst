@@ -347,7 +347,10 @@ schema 为 ``featherdoc.pdf_visual_gate_attempt_summary.v1``，固定标记：
 ``pdf_visual_gate_attempt_aggregate_contact_sheet_status`` 作为同一
 ``source_report:`` block 的辅助证据。``bounded_attempt_auxiliary_only`` 只能解释
 已完成子阶段；当 ``verdict = not_complete`` 时，仍不能替代
-``full_visual_gate_status = pass``。
+``full_visual_gate_status = pass``。``assert_release_material_safety.ps1`` 会审计
+这些 ``pdf_visual_gate_attempt_*`` 字段必须与 ``source_report:`` 同块，避免
+detached notes 单独补齐被截断尝试的子阶段证据。固定标记：
+``pdf_visual_gate_attempt_material_safety_trace``。
 
 下一步
 ------

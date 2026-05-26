@@ -362,7 +362,10 @@ schema 为 `featherdoc.pdf_visual_gate_attempt_summary.v1`，并显式写出
 `pdf_visual_gate_attempt_aggregate_contact_sheet_status`。固定标记：
 `pdf_visual_gate_attempt_summary_trace`、`pdf_visual_gate_attempt_governance_trace`。
 `bounded_attempt_auxiliary_only` 只解释被截断尝试已经完成的子阶段，不能替代
-`full_visual_gate_status = pass` 或 full gate summary verdict。
+`full_visual_gate_status = pass` 或 full gate summary verdict。`assert_release_material_safety.ps1`
+会要求 `pdf_visual_gate_attempt_*` 字段与 `source_report:` 同块，避免 detached notes
+单独补齐被截断尝试的子阶段证据。固定标记：
+`pdf_visual_gate_attempt_material_safety_trace`。
 
 默认 `PdfDocumentImporter` 遇到 `PdfParsedTableCandidate` 仍返回
 `table_candidates_detected`，避免把表格误扁平化成正文。只有显式设置
