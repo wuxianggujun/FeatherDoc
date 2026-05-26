@@ -40,6 +40,7 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $statusDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_visual_validation_status_zh.rst"
 $buildingPdfDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "BUILDING_PDF.md"
 $releaseChecklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_release_readiness_checklist_zh.rst"
+$pdfImportScopeDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_import_scope.rst"
 $dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
 $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
 $governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
@@ -419,6 +420,68 @@ $buildingPdfFixtureMarkers = @(
 foreach ($marker in $buildingPdfFixtureMarkers) {
     Assert-ContainsText -Text $buildingPdfDoc -ExpectedText $marker `
         -Message "BUILDING_PDF.md should preserve the PDF preflight fixture boundary marker."
+}
+
+$pdfExportSupportMatrixMarkers = @(
+    "support matrix",
+    "text-layer",
+    "cant split",
+    "Word",
+    "HarfBuzz shaped run",
+    "CJK fallback",
+    "synthetic bold / italic",
+    "43",
+    "CJK text-layer",
+    "RTL / Bidi",
+    "LTR glyph-id stream",
+    "manifest ID",
+    "contract-cjk-style",
+    "document-contract-cjk-style",
+    "invoice-grid-text",
+    "document-invoice-table-text",
+    "image-report-text",
+    "cjk-image-report-text",
+    "document-cjk-image-wrap-stress-text",
+    "long-report-text",
+    "document-long-flow-text",
+    "sectioned-report-text",
+    "header-footer-text",
+    "document-cjk-table-wrap-page-flow-text",
+    "release checklist"
+)
+
+foreach ($marker in $pdfExportSupportMatrixMarkers) {
+    Assert-ContainsText -Text $buildingPdfDoc -ExpectedText $marker `
+        -Message "BUILDING_PDF.md should preserve PDF export support matrix marker '$marker'."
+}
+
+$pdfImportBoundaryMarkers = @(
+    "The importer is text-first.",
+    "extractable PDF text and character geometry",
+    "It is not a general PDF-to-Word converter",
+    "does not",
+    "promise arbitrary visual fidelity",
+    "Paragraph import from extractable PDF text.",
+    "Conservative table-candidate detection",
+    "Opt-in table promotion through",
+    "--import-table-candidates-as-tables",
+    "Table candidates are rejected by default.",
+    "Ordinary two-column prose, numbered lists, short-label prose, and free-form",
+    "forms should remain paragraphs rather than becoming tables",
+    "does not support scanned PDFs, OCR, image-only",
+    "arbitrary nested table semantics",
+    "rotated or floating content recovery",
+    "exact visual reconstruction of an",
+    "Text extraction is the primary contract",
+    "layout reconstruction is best-effort",
+    "Table import is opt-in through",
+    "Unsupported cases must fail or remain paragraphs",
+    "OCR, scanned pages, and visual-perfect recreation remain out of scope."
+)
+
+foreach ($marker in $pdfImportBoundaryMarkers) {
+    Assert-ContainsText -Text $pdfImportScopeDoc -ExpectedText $marker `
+        -Message "docs/pdf_import_scope.rst should preserve PDF import boundary marker '$marker'."
 }
 
 foreach ($marker in @(
