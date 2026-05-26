@@ -292,6 +292,16 @@ blocker rollup 的 source report contract evidence，并由 release governance h
 ``reviewer_manifest_scoped_project_template_trace``，避免 packaged manifest signoff
 只停留在打包产物层。
 
+固定 project-template 发布准入清单也要有同级机器证据：
+``run_release_candidate_checks.ps1`` 必须写出
+``project_template_readiness_checklist_entrypoints``，声明 ``START_HERE.md``、
+``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 三个入口都指向
+``docs/project_template_release_readiness_checklist_zh.rst``，并携带
+``release_entry_project_template_readiness_checklist_trace``。
+``package_release_assets.ps1`` 必须把该字段保留到 ``release_assets_manifest.json``，
+再由 ``assert_release_material_safety.ps1`` 审计。这样固定清单入口不是只靠人工文案
+或 grep 推断，而是成为 packaged asset 层可检查的发布证据。
+
 对 project-template governance，``final_review.md`` 和
 ``steps.release_governance_handoff`` 还必须同时保留
 ``source_report_display`` 与 ``source_json_display``：前者指向

@@ -254,6 +254,30 @@ $manifestSignoffEntrypoints = [ordered]@{
     )
     checklist_marker = "reviewer_manifest_scoped_project_template_trace"
 }
+$projectTemplateReadinessChecklistEntrypoints = [ordered]@{
+    status = "declared"
+    checklist_label = "Project template release readiness checklist"
+    checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+    required_entrypoint_count = 3
+    entrypoints = @(
+        [ordered]@{
+            id = "start_here"
+            path_display = ".\output\release-candidate-checks\START_HERE.md"
+            required = $true
+        },
+        [ordered]@{
+            id = "artifact_guide"
+            path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+            required = $true
+        },
+        [ordered]@{
+            id = "reviewer_checklist"
+            path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+            required = $true
+        }
+    )
+    checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+}
 
 function New-NumberingCatalogRealCorpusConfidenceMirror {
     param($GovernanceMetrics)
@@ -312,10 +336,29 @@ $passManifest = [ordered]@{
     project_template_delivery_readiness_contract = $projectTemplateDeliveryReadinessContract
     project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
     manifest_signoff_entrypoints = $manifestSignoffEntrypoints
+    project_template_readiness_checklist_entrypoints = $projectTemplateReadinessChecklistEntrypoints
 }
 ($passManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $passManifestPath -Encoding UTF8
 
 & $auditScript -Path @($passSummaryPath, $passManifestPath)
+
+$badManifestMissingProjectTemplateChecklistEntrypointsDir = Join-Path $failDir "manifest-missing-project-template-readiness-checklist-entrypoints"
+$badManifestMissingProjectTemplateChecklistEntrypointsPath = Join-Path $badManifestMissingProjectTemplateChecklistEntrypointsDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingProjectTemplateChecklistEntrypointsDir -Force | Out-Null
+$badManifestMissingProjectTemplateChecklistEntrypoints = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingProjectTemplateChecklistEntrypoints.PSObject.Properties.Remove("project_template_readiness_checklist_entrypoints")
+($badManifestMissingProjectTemplateChecklistEntrypoints | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingProjectTemplateChecklistEntrypointsPath -Encoding UTF8
+
+$missingProjectTemplateChecklistEntrypointsFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingProjectTemplateChecklistEntrypointsPath
+} catch {
+    $missingProjectTemplateChecklistEntrypointsFailedAsExpected = $true
+}
+
+if (-not $missingProjectTemplateChecklistEntrypointsFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing project_template_readiness_checklist_entrypoints."
+}
 
 $badManifestMissingSignoffDir = Join-Path $failDir "manifest-missing-signoff-entrypoints"
 $badManifestMissingSignoffPath = Join-Path $badManifestMissingSignoffDir "release_assets_manifest.json"

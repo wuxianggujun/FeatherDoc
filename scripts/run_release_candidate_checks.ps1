@@ -1781,6 +1781,14 @@ $summary = [ordered]@{
         )
         checklist_marker = "reviewer_manifest_scoped_project_template_trace"
     }
+    project_template_readiness_checklist_entrypoints = [ordered]@{
+        status = "declared"
+        checklist_label = "Project template release readiness checklist"
+        checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+        required_entrypoint_count = @($manifestSignoffEntrypoints).Count
+        entrypoints = @($manifestSignoffEntrypoints)
+        checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+    }
     pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson
     pdf_visual_gate = $pdfVisualGateSummaryInfo
     pdf_bounded_ctest = $pdfBoundedCtestSummaryInfo

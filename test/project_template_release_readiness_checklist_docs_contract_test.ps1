@@ -63,11 +63,13 @@ $releasePolicyDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs
 $deliveryScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_project_template_delivery_readiness_report.ps1"
 $contentControlScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
 $releaseChecksScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_release_candidate_checks.ps1"
+$packageAssetsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\package_release_assets.ps1"
 $materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
 $startHereScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_metadata_start_here.ps1"
 $artifactGuideScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_artifact_guide.ps1"
 $reviewerChecklistScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_reviewer_checklist.ps1"
 $releaseBundleVersionTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_note_bundle_version_test.ps1"
+$releaseCandidateVisualTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_candidate_visual_verdict_test.ps1"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 
 foreach ($marker in @(
@@ -136,6 +138,8 @@ foreach ($marker in @(
     "Project template release readiness checklist",
     "docs/project_template_release_readiness_checklist_zh.rst",
     "release_entry_project_template_readiness_checklist_trace",
+    "project_template_readiness_checklist_entrypoints",
+    "project_template_readiness_checklist_entrypoints_manifest_trace",
     "manifest_signoff_entrypoints",
     "manifest_signoff_entrypoints_release_trace",
     "manifest_signoff_entrypoints_manifest_trace"
@@ -168,6 +172,9 @@ foreach ($marker in @(
     "Release governance handoff details",
     "source_report_display",
     "source_json_display",
+    "project_template_readiness_checklist_entrypoints",
+    "docs/project_template_release_readiness_checklist_zh.rst",
+    "release_entry_project_template_readiness_checklist_trace",
     "block_scoped_governance_handoff_trace",
     "block_scoped_governance_handoff_project_template_status_trace",
     "project_template_onboarding.schema_approval",
@@ -394,6 +401,14 @@ Assert-ContainsText -Text $reviewerChecklistScript -ExpectedText "Confirm the fi
 
 Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Entry document must point reviewers at docs/project_template_release_readiness_checklist_zh.rst" `
     -Message "Material safety audit should require release entries to point at the fixed project-template readiness checklist."
+
+foreach ($scriptText in @($releaseChecksScript, $packageAssetsScript, $materialSafetyScript, $releaseCandidateVisualTest)) {
+    Assert-ContainsText -Text $scriptText -ExpectedText "project_template_readiness_checklist_entrypoints" `
+        -Message "Release candidate/package/material safety flow should keep the project-template readiness checklist entrypoints machine-auditable."
+}
+
+Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Missing project_template_readiness_checklist_entrypoints." `
+    -Message "Material safety audit should fail packaged manifests missing the project-template readiness checklist entrypoints contract."
 
 Assert-ContainsText -Text $cmakeLists -ExpectedText "project_template_release_readiness_checklist_docs_contract" `
     -Message "CTest should register the project-template readiness checklist contract."

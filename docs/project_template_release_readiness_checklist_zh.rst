@@ -233,6 +233,14 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``docs/project_template_release_readiness_checklist_zh.rst``，让 reviewer 从三个
      release entry 都能回到本固定准入入口。固定标记：
      ``release_entry_project_template_readiness_checklist_trace``。
+   * ``scripts/run_release_candidate_checks.ps1`` 生成的 ``summary.json`` 必须声明
+     ``project_template_readiness_checklist_entrypoints``，把上述三个 release entry、
+     ``Project template release readiness checklist``、固定 checklist 路径与
+     ``release_entry_project_template_readiness_checklist_trace`` 作为机器可消费证据。
+     ``scripts/package_release_assets.ps1`` 写出的 ``release_assets_manifest.json`` 必须
+     保留该字段，并由 ``scripts/assert_release_material_safety.ps1`` 直接审计，不能只依赖
+     人工阅读 entry 文案。固定标记：
+     ``project_template_readiness_checklist_entrypoints_manifest_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
      在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
      ``release_assets_manifest.json``，并核对

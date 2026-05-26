@@ -734,6 +734,8 @@ $projectTemplateDeliveryReadinessContract = Get-ProjectTemplateDeliveryReadiness
 $projectTemplateOnboardingGovernanceContract = Get-ProjectTemplateOnboardingGovernanceContract -RepoRoot $repoRoot -Summary $summary
 $manifestSignoffEntrypoints = Get-OptionalPropertyObject -Object $summary -Name "manifest_signoff_entrypoints"
 $manifestSignoffEntrypointsPublic = Convert-StructuredValueToPublic -Value $manifestSignoffEntrypoints -RepoRoot $repoRoot
+$projectTemplateReadinessChecklistEntrypoints = Get-OptionalPropertyObject -Object $summary -Name "project_template_readiness_checklist_entrypoints"
+$projectTemplateReadinessChecklistEntrypointsPublic = Convert-StructuredValueToPublic -Value $projectTemplateReadinessChecklistEntrypoints -RepoRoot $repoRoot
 $summaryGovernanceMetricCount = Get-OptionalPropertyValue -Object $summary -Name "governance_metric_count"
 $governanceMetricCount = if (-not [string]::IsNullOrWhiteSpace($summaryGovernanceMetricCount)) {
     [int]$summaryGovernanceMetricCount
@@ -999,6 +1001,7 @@ $manifest = [ordered]@{
     project_template_delivery_readiness_contract = $projectTemplateDeliveryReadinessContract
     project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
     manifest_signoff_entrypoints = $manifestSignoffEntrypointsPublic
+    project_template_readiness_checklist_entrypoints = $projectTemplateReadinessChecklistEntrypointsPublic
     assets = @(
         (Get-AssetDescriptor -Path $installZipPath -Label "msvc_install")
         (Get-AssetDescriptor -Path $galleryZipPath -Label "visual_validation_gallery")

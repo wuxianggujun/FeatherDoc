@@ -2972,6 +2972,83 @@ function Add-ManifestSignoffEntrypointsContractViolations {
     }
 }
 
+function Add-ProjectTemplateReadinessChecklistEntrypointsContractViolations {
+    param(
+        [string]$File,
+        $Json,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_assets_manifest.json") {
+        return
+    }
+
+    $label = "project-template readiness checklist entrypoints contract"
+    $entrypointsContract = Get-JsonPropertyValue -Object $Json -Name "project_template_readiness_checklist_entrypoints"
+    if ($null -eq $entrypointsContract) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "Missing project_template_readiness_checklist_entrypoints."
+        return
+    }
+
+    $status = Get-JsonPropertyValue -Object $entrypointsContract -Name "status"
+    if ([string]$status -ne "declared") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.status must be declared."
+    }
+
+    $checklistLabel = Get-JsonPropertyValue -Object $entrypointsContract -Name "checklist_label"
+    if ([string]$checklistLabel -ne "Project template release readiness checklist") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.checklist_label is invalid."
+    }
+
+    $checklistPath = Get-JsonPropertyValue -Object $entrypointsContract -Name "checklist_path"
+    if ([string]::IsNullOrWhiteSpace([string]$checklistPath) -or
+        -not ([string]$checklistPath).Contains("docs/project_template_release_readiness_checklist_zh.rst")) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.checklist_path must identify docs/project_template_release_readiness_checklist_zh.rst."
+    }
+
+    $requiredEntrypointCount = Get-JsonPropertyValue -Object $entrypointsContract -Name "required_entrypoint_count"
+    try {
+        if ([int]$requiredEntrypointCount -ne 3) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.required_entrypoint_count must be 3."
+        }
+    } catch {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.required_entrypoint_count must be an integer."
+    }
+
+    $entrypoints = @(Get-JsonArray -Object $entrypointsContract -Name "entrypoints")
+    $entrypointsById = @{}
+    foreach ($entrypoint in $entrypoints) {
+        $entrypointId = [string](Get-JsonPropertyValue -Object $entrypoint -Name "id")
+        if (-not [string]::IsNullOrWhiteSpace($entrypointId)) {
+            $entrypointsById[$entrypointId] = $entrypoint
+        }
+    }
+
+    foreach ($requiredEntrypointId in @("start_here", "artifact_guide", "reviewer_checklist")) {
+        if (-not $entrypointsById.ContainsKey($requiredEntrypointId)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.entrypoints is missing $requiredEntrypointId."
+            continue
+        }
+
+        $entrypoint = $entrypointsById[$requiredEntrypointId]
+        $entrypointRequired = Get-JsonPropertyValue -Object $entrypoint -Name "required"
+        if (-not (Test-StringValueInSet -Value $entrypointRequired -AllowedValues @("true"))) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.entrypoints.$requiredEntrypointId.required must be true."
+        }
+
+        $entrypointPathDisplay = Get-JsonPropertyValue -Object $entrypoint -Name "path_display"
+        if ([string]::IsNullOrWhiteSpace([string]$entrypointPathDisplay)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.entrypoints.$requiredEntrypointId.path_display is missing."
+        }
+    }
+
+    $checklistMarker = Get-JsonPropertyValue -Object $entrypointsContract -Name "checklist_marker"
+    if ([string]$checklistMarker -ne "release_entry_project_template_readiness_checklist_trace") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.checklist_marker is invalid."
+    }
+}
+
 function Add-PdfVisualGateManifestContractViolations {
     param(
         [string]$File,
@@ -3156,6 +3233,7 @@ foreach ($file in $scanFiles) {
             Add-ProjectTemplateDeliveryReadinessContractViolations -File $file -Json $json -Violations $violations
             Add-ProjectTemplateOnboardingGovernanceContractViolations -File $file -Json $json -Violations $violations
             Add-ManifestSignoffEntrypointsContractViolations -File $file -Json $json -Violations $violations
+            Add-ProjectTemplateReadinessChecklistEntrypointsContractViolations -File $file -Json $json -Violations $violations
             Add-PdfVisualGateManifestContractViolations -File $file -Json $json -Violations $violations
         } catch {
             if ($leafName -eq "summary.json" -or $leafName -eq "release_assets_manifest.json") {

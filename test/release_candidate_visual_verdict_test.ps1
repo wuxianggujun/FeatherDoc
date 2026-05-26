@@ -732,6 +732,25 @@ if ([string]$manifestSignoff.checklist_marker -ne "reviewer_manifest_scoped_proj
     throw "Release candidate summary did not preserve the reviewer manifest checklist marker."
 }
 
+$projectTemplateChecklistEntrypoints = $candidateSummary.project_template_readiness_checklist_entrypoints
+if ($projectTemplateChecklistEntrypoints.status -ne "declared" -or
+    [int]$projectTemplateChecklistEntrypoints.required_entrypoint_count -ne 3 -or
+    [string]$projectTemplateChecklistEntrypoints.checklist_path -ne "docs/project_template_release_readiness_checklist_zh.rst") {
+    throw "Release candidate summary did not declare the project-template readiness checklist entrypoints."
+}
+if ([string]$projectTemplateChecklistEntrypoints.checklist_label -ne "Project template release readiness checklist" -or
+    [string]$projectTemplateChecklistEntrypoints.checklist_marker -ne "release_entry_project_template_readiness_checklist_trace") {
+    throw "Release candidate summary did not preserve the project-template readiness checklist identity."
+}
+foreach ($entrypointId in @("start_here", "artifact_guide", "reviewer_checklist")) {
+    $entrypoint = @($projectTemplateChecklistEntrypoints.entrypoints) |
+        Where-Object { [string]$_.id -eq $entrypointId } |
+        Select-Object -First 1
+    if ($null -eq $entrypoint -or -not [bool]$entrypoint.required -or [string]::IsNullOrWhiteSpace([string]$entrypoint.path_display)) {
+        throw "Release candidate summary did not declare required project-template checklist entrypoint '$entrypointId'."
+    }
+}
+
 $candidateFinalReviewPath = Join-Path $candidateOutputDir "report\final_review.md"
 $candidateReleaseBodyPath = Join-Path $candidateOutputDir "report\release_body.zh-CN.md"
 $candidateReleaseSummaryPath = Join-Path $candidateOutputDir "report\release_summary.zh-CN.md"
