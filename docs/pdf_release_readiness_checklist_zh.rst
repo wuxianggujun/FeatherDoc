@@ -141,6 +141,13 @@ OCR 或任意视觉精确还原。
      并且 ``verdict = pass`` 时 ``cjk_missing_text_count = 0``；不能只依赖
      ``summary.json`` 路径或 ``full_visual_gate_status`` 推断样本覆盖完整。
      固定标记：``manifest_scoped_pdf_visual_gate_count_trace``。
+   * release 入口物料必须直接指向本页作为固定 PDF 发布准入入口：
+     ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 和 ``REVIEWER_CHECKLIST.md``
+     都必须保留 ``docs/pdf_release_readiness_checklist_zh.rst``。本页要与
+     ``pdf_visual_gate_evidence``、``pdf_bounded_ctest_evidence`` 和
+     ``manifest_signoff_entrypoints`` 一起被 reviewer 看到，避免 PDF 发布结论
+     只散落在脚本或生成产物里。固定标记：
+     ``release_entry_pdf_readiness_checklist_trace``。
    * preflight governance 中的 ``not_run_by_preflight_governance`` 只能解释
      preflight-governance 报告自身没有重跑 full gate；如果同轮
      ``FinalizeOnly`` summary 已给出 ``verdict = pass``，发布结论应以

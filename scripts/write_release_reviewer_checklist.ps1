@@ -639,6 +639,7 @@ if ($pdfBoundedCtestEvidence.status -ne "not_available") {
             (@($pdfBoundedCtestEvidence.subsets) -join ', '))
     Add-CheckboxLine -Lines $lines -Text ('Open the bounded CTest summary list when you need to verify the auxiliary evidence source set: {0}' -f (Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', ')))
 }
+Add-CheckboxLine -Lines $lines -Text 'Confirm the fixed PDF release readiness checklist has been reviewed before publishing: `docs/pdf_release_readiness_checklist_zh.rst`.'
 Add-CheckboxLine -Lines $lines -Text 'For PDF/CJK-facing releases, manually verify a generated Chinese PDF can be copied and searched in at least one common reader, and record the reader/version in the release notes or final review.'
 
 if (-not [string]::IsNullOrWhiteSpace($consumerDocument)) {
