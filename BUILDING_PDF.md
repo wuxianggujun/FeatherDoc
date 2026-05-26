@@ -947,7 +947,14 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    `visual_full_gate_attempt_visual_baseline_fresh_rendered_count`、
    `visual_full_gate_attempt_aggregate_contact_sheet_status`，并把这些字段附到
    `pdf_full_fresh_visual_gate.not_completed_in_current_window` warning 上。固定标记：
-   `pdf_visual_full_gate_guarded_summary_trace`。若已生成
+   `pdf_visual_full_gate_guarded_summary_trace`。如果超时后又重写
+   `attempt-summary.json` 并重建 aggregate contact sheet，readiness summary 还必须保留
+   `visual_full_gate_attempt_summary_visual_baseline_fresh_rendered_count` 和
+   `visual_full_gate_attempt_summary_aggregate_contact_sheet_status`，并把
+   `attempt_summary_visual_baseline_fresh_rendered_count` 与
+   `attempt_summary_aggregate_contact_sheet_status` 附到同一个 warning 上。这些
+   post-timeout attempt-summary 字段只能说明辅助证据补齐情况，不能替代 fresh full
+   visual gate pass。若已生成
    `output/pdf-visual-release-gate-current/report/segmented-summary.json`，该 readiness
    summary 还必须读取 `schema = featherdoc.pdf_visual_segmented_gate_summary.v1`，
    保留 `visual_segmented_gate_status`、`visual_segmented_gate_verdict`、

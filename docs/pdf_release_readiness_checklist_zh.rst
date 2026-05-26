@@ -112,6 +112,15 @@ OCR 或任意视觉精确还原。
    ``pdf_full_fresh_visual_gate.not_completed_in_current_window`` warning 必须携带这些计数，
    不能只留下人工日志路径。固定标记：
    ``pdf_visual_full_gate_guarded_summary_trace``。
+   如果超时后又运行 ``write_pdf_visual_gate_attempt_summary.ps1`` 和 aggregate
+   contact-sheet rebuild 补齐辅助证据，readiness summary 还必须保留
+   ``visual_full_gate_attempt_summary_status``、
+   ``visual_full_gate_attempt_summary_visual_baseline_fresh_rendered_count``、
+   ``visual_full_gate_attempt_summary_aggregate_contact_sheet_status``，并把
+   ``attempt_summary_visual_baseline_fresh_rendered_count`` 与
+   ``attempt_summary_aggregate_contact_sheet_status`` 附到同一个 warning 上。该
+   post-timeout attempt-summary evidence 只能解释辅助证据补齐情况，不能替代
+   fresh full visual gate pass。
 
    如果已经生成分段 visual gate 汇总，必须通过
    ``scripts/write_pdf_visual_segmented_gate_summary.ps1`` 写出

@@ -422,13 +422,47 @@ $visualFullGateVerdict = if ($null -eq $visualFullGateGuarded) { "not_available"
 $visualFullGateFullStatus = if ($null -eq $visualFullGateGuarded) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "full_visual_gate_status") }
 $visualFullGateOuterGuardStatus = if ($null -eq $visualFullGateGuarded) { "not_run" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_status") }
 $visualFullGateOuterGuardTimedOut = if ($null -eq $visualFullGateGuarded) { $false } else { [bool](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_timed_out") }
+$visualFullGateAttemptSummaryJsonRaw = if ($null -eq $visualFullGateGuarded) { "" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_summary_json") }
 $visualFullGateAttemptSummaryJson = if ($null -eq $visualFullGateGuarded) { "" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_summary_json_display") }
+$visualFullGateAttemptSummaryPathInput = if (-not [string]::IsNullOrWhiteSpace($visualFullGateAttemptSummaryJsonRaw)) {
+    $visualFullGateAttemptSummaryJsonRaw
+} else {
+    $visualFullGateAttemptSummaryJson
+}
+$resolvedVisualFullGateAttemptSummaryJson = if ([string]::IsNullOrWhiteSpace($visualFullGateAttemptSummaryPathInput)) {
+    ""
+} else {
+    Resolve-RepoPath -RepoRoot $repoRoot -Path $visualFullGateAttemptSummaryPathInput -AllowMissing
+}
+$visualFullGateAttemptSummaryExists = (-not [string]::IsNullOrWhiteSpace($resolvedVisualFullGateAttemptSummaryJson) -and (Test-Path -LiteralPath $resolvedVisualFullGateAttemptSummaryJson -PathType Leaf))
+$visualFullGateAttemptSummary = if ($visualFullGateAttemptSummaryExists) { Read-JsonFile -Path $resolvedVisualFullGateAttemptSummaryJson } else { $null }
+if ($visualFullGateAttemptSummaryExists) {
+    $visualFullGateAttemptSummarySchema = [string](Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "schema")
+    Add-Check -Checks $checks -Name "visual_full_gate_attempt_summary_schema" -Passed ($visualFullGateAttemptSummarySchema -eq "featherdoc.pdf_visual_gate_attempt_summary.v1") `
+        -Message "Existing fresh full PDF visual gate attempt summary must use the stable schema." `
+        -Details @{
+            actual = $visualFullGateAttemptSummarySchema
+            expected = "featherdoc.pdf_visual_gate_attempt_summary.v1"
+            path = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedVisualFullGateAttemptSummaryJson
+        }
+}
 $visualFullGateAttemptStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_stage_count" }
 $visualFullGateAttemptPassedStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_passed_stage_count" }
 $visualFullGateAttemptFailedStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_failed_stage_count" }
 $visualFullGateAttemptIncompleteStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_incomplete_stage_count" }
 $visualFullGateAttemptFreshRenderedCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_visual_baseline_fresh_rendered_count" }
 $visualFullGateAttemptContactSheetStatus = if ($null -eq $visualFullGateGuarded) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_aggregate_contact_sheet_status") }
+$visualFullGateAttemptSummaryStatus = if ($null -eq $visualFullGateAttemptSummary) { "missing" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "status") }
+$visualFullGateAttemptSummaryVerdict = if ($null -eq $visualFullGateAttemptSummary) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "verdict") }
+$visualFullGateAttemptSummaryFullStatus = if ($null -eq $visualFullGateAttemptSummary) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "full_visual_gate_status") }
+$visualFullGateAttemptSummaryStageCount = if ($null -eq $visualFullGateAttemptSummary) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "stage_count" }
+$visualFullGateAttemptSummaryPassedStageCount = if ($null -eq $visualFullGateAttemptSummary) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "passed_stage_count" }
+$visualFullGateAttemptSummaryIncompleteStageCount = if ($null -eq $visualFullGateAttemptSummary) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "incomplete_stage_count" }
+$visualFullGateAttemptSummaryVisualBaselineRenderStatus = if ($null -eq $visualFullGateAttemptSummary) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "visual_baseline_render_status") }
+$visualFullGateAttemptSummaryFreshRenderedCount = if ($null -eq $visualFullGateAttemptSummary) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "visual_baseline_fresh_rendered_count" }
+$visualFullGateAttemptSummaryExpectedVisualRenderCount = if ($null -eq $visualFullGateAttemptSummary) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "expected_visual_render_count" }
+$visualFullGateAttemptSummaryContactSheetStatus = if ($null -eq $visualFullGateAttemptSummary) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "aggregate_contact_sheet_status") }
+$visualFullGateAttemptSummaryContactSheetBytes = if ($null -eq $visualFullGateAttemptSummary) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateAttemptSummary -Name "aggregate_contact_sheet_bytes" }
 $visualSegmentedGateStatus = if ($null -eq $visualSegmentedGate) { "missing" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "status") }
 $visualSegmentedGateVerdict = if ($null -eq $visualSegmentedGate) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "verdict") }
 $visualSegmentedGateFullStatus = if ($null -eq $visualSegmentedGate) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "full_visual_gate_status") }
@@ -465,6 +499,18 @@ if (-not $visualFullGateCompleted) {
             attempt_visual_baseline_fresh_rendered_count = $visualFullGateAttemptFreshRenderedCount
             attempt_aggregate_contact_sheet_status = $visualFullGateAttemptContactSheetStatus
             attempt_summary_json = $visualFullGateAttemptSummaryJson
+            attempt_summary_exists = $visualFullGateAttemptSummaryExists
+            attempt_summary_status = $visualFullGateAttemptSummaryStatus
+            attempt_summary_verdict = $visualFullGateAttemptSummaryVerdict
+            attempt_summary_full_visual_gate_status = $visualFullGateAttemptSummaryFullStatus
+            attempt_summary_stage_count = $visualFullGateAttemptSummaryStageCount
+            attempt_summary_passed_stage_count = $visualFullGateAttemptSummaryPassedStageCount
+            attempt_summary_incomplete_stage_count = $visualFullGateAttemptSummaryIncompleteStageCount
+            attempt_summary_visual_baseline_render_status = $visualFullGateAttemptSummaryVisualBaselineRenderStatus
+            attempt_summary_visual_baseline_fresh_rendered_count = $visualFullGateAttemptSummaryFreshRenderedCount
+            attempt_summary_expected_visual_render_count = $visualFullGateAttemptSummaryExpectedVisualRenderCount
+            attempt_summary_aggregate_contact_sheet_status = $visualFullGateAttemptSummaryContactSheetStatus
+            attempt_summary_aggregate_contact_sheet_bytes = $visualFullGateAttemptSummaryContactSheetBytes
             segmented_gate_status = $visualSegmentedGateStatus
             segmented_gate_verdict = $visualSegmentedGateVerdict
             segmented_gate_full_visual_gate_status = $visualSegmentedGateFullStatus
@@ -546,6 +592,18 @@ $summary = [ordered]@{
     visual_full_gate_outer_guard_status = $visualFullGateOuterGuardStatus
     visual_full_gate_outer_guard_timed_out = $visualFullGateOuterGuardTimedOut
     visual_full_gate_attempt_summary_json = $visualFullGateAttemptSummaryJson
+    visual_full_gate_attempt_summary_exists = $visualFullGateAttemptSummaryExists
+    visual_full_gate_attempt_summary_status = $visualFullGateAttemptSummaryStatus
+    visual_full_gate_attempt_summary_verdict = $visualFullGateAttemptSummaryVerdict
+    visual_full_gate_attempt_summary_full_visual_gate_status = $visualFullGateAttemptSummaryFullStatus
+    visual_full_gate_attempt_summary_stage_count = $visualFullGateAttemptSummaryStageCount
+    visual_full_gate_attempt_summary_passed_stage_count = $visualFullGateAttemptSummaryPassedStageCount
+    visual_full_gate_attempt_summary_incomplete_stage_count = $visualFullGateAttemptSummaryIncompleteStageCount
+    visual_full_gate_attempt_summary_visual_baseline_render_status = $visualFullGateAttemptSummaryVisualBaselineRenderStatus
+    visual_full_gate_attempt_summary_visual_baseline_fresh_rendered_count = $visualFullGateAttemptSummaryFreshRenderedCount
+    visual_full_gate_attempt_summary_expected_visual_render_count = $visualFullGateAttemptSummaryExpectedVisualRenderCount
+    visual_full_gate_attempt_summary_aggregate_contact_sheet_status = $visualFullGateAttemptSummaryContactSheetStatus
+    visual_full_gate_attempt_summary_aggregate_contact_sheet_bytes = $visualFullGateAttemptSummaryContactSheetBytes
     visual_full_gate_attempt_stage_count = $visualFullGateAttemptStageCount
     visual_full_gate_attempt_passed_stage_count = $visualFullGateAttemptPassedStageCount
     visual_full_gate_attempt_failed_stage_count = $visualFullGateAttemptFailedStageCount

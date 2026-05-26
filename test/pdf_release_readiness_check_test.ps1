@@ -151,6 +151,24 @@ function New-PassingFixture {
         marker = "pdf_visual_full_gate_guarded_summary_trace"
     })
 
+    Write-JsonFile -Path (Join-Path $Root "output\pdf-visual-release-gate-current\report\attempt-summary.json") -Value ([ordered]@{
+        schema = "featherdoc.pdf_visual_gate_attempt_summary.v1"
+        generated_at = "2026-05-27T04:56:32"
+        status = "partial"
+        verdict = "not_complete"
+        full_visual_gate_status = "not_complete"
+        evidence_scope = "bounded_attempt_auxiliary_only"
+        stage_count = 6
+        passed_stage_count = 6
+        incomplete_stage_count = 0
+        visual_baseline_render_status = "pass"
+        visual_baseline_fresh_rendered_count = 44
+        expected_visual_render_count = 44
+        aggregate_contact_sheet_status = "pass"
+        aggregate_contact_sheet_bytes = 1822428
+        marker = "pdf_visual_gate_attempt_summary_trace"
+    })
+
     Write-JsonFile -Path (Join-Path $Root "output\pdf-visual-release-gate-current\report\segmented-summary.json") -Value ([ordered]@{
         schema = "featherdoc.pdf_visual_segmented_gate_summary.v1"
         generated_at = "2026-05-27T04:36:21"
@@ -251,6 +269,18 @@ Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_visual_basel
     -Message "Passing fixture should preserve guarded full visual gate fresh render count."
 Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_attempt_aggregate_contact_sheet_status) -Expected "stale" `
     -Message "Passing fixture should preserve guarded full visual gate contact sheet status."
+Assert-Equal -Actual ([bool]$fixtureSummary.visual_full_gate_attempt_summary_exists) -Expected $true `
+    -Message "Passing fixture should detect post-timeout visual gate attempt summary evidence."
+Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_attempt_summary_status) -Expected "partial" `
+    -Message "Passing fixture should preserve post-timeout visual gate attempt summary status."
+Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_attempt_summary_verdict) -Expected "not_complete" `
+    -Message "Passing fixture should preserve post-timeout visual gate attempt summary verdict."
+Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_summary_passed_stage_count) -Expected 6 `
+    -Message "Passing fixture should preserve post-timeout visual gate attempt passed stage count."
+Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_summary_visual_baseline_fresh_rendered_count) -Expected 44 `
+    -Message "Passing fixture should preserve post-timeout visual gate fresh render count."
+Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_attempt_summary_aggregate_contact_sheet_status) -Expected "pass" `
+    -Message "Passing fixture should preserve post-timeout visual gate contact sheet status."
 Assert-Equal -Actual ([bool]$fixtureSummary.visual_segmented_gate_summary_exists) -Expected $true `
     -Message "Passing fixture should detect segmented visual gate evidence."
 Assert-Equal -Actual ([string]$fixtureSummary.visual_segmented_gate_status) -Expected "pass" `
@@ -300,6 +330,10 @@ Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_visual_baselin
     -Message "Fresh full visual gate warning should carry guarded attempt fresh render counts."
 Assert-Equal -Actual ([string]$visualFullGateWarning.details.attempt_aggregate_contact_sheet_status) -Expected "stale" `
     -Message "Fresh full visual gate warning should carry guarded attempt contact sheet status."
+Assert-Equal -Actual ([string]$visualFullGateWarning.details.attempt_summary_aggregate_contact_sheet_status) -Expected "pass" `
+    -Message "Fresh full visual gate warning should carry post-timeout attempt summary contact sheet status."
+Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_summary_visual_baseline_fresh_rendered_count) -Expected 44 `
+    -Message "Fresh full visual gate warning should carry post-timeout attempt summary fresh render count."
 Assert-Equal -Actual ([string]$visualFullGateWarning.details.segmented_gate_status) -Expected "pass" `
     -Message "Fresh full visual gate warning should carry segmented visual gate status."
 Assert-Equal -Actual ([string]$visualFullGateWarning.details.segmented_gate_verdict) -Expected "pass" `
@@ -357,8 +391,11 @@ foreach ($expectedText in @(
         "visual_full_gate_attempt_passed_stage_count",
         "visual_full_gate_attempt_visual_baseline_fresh_rendered_count",
         "visual_full_gate_attempt_aggregate_contact_sheet_status",
+        "visual_full_gate_attempt_summary_aggregate_contact_sheet_status",
+        "attempt_summary_aggregate_contact_sheet_status",
         "attempt_visual_baseline_fresh_rendered_count",
         "attempt_aggregate_contact_sheet_status",
+        "attempt_summary_visual_baseline_fresh_rendered_count",
         "featherdoc.pdf_visual_segmented_gate_summary.v1",
         "pdf_visual_segmented_gate_summary_trace",
         "visual_segmented_gate_status",
