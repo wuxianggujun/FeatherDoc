@@ -741,6 +741,26 @@ if (-not $badEntryProjectTemplateChecklistHandoffEvidenceSplitFailedAsExpected) 
     throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with project-template checklist handoff marker supplied only by detached notes."
 }
 
+$badEntryProjectTemplateChecklistHandoffEvidenceWrongSourceDir = Join-Path $failDir "entry-project-template-checklist-handoff-evidence-wrong-source"
+$badEntryProjectTemplateChecklistHandoffEvidenceWrongSourcePath = Join-Path $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourceDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourceDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourcePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, entrypoints=start_here, artifact_guide, reviewer_checklist, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-blocker-rollup\summary.json
+"@
+
+$badEntryProjectTemplateChecklistHandoffEvidenceWrongSourceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourcePath
+} catch {
+    $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourceFailedAsExpected = $true
+}
+
+if (-not $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with project-template checklist handoff source_report pointing at the wrong evidence source."
+}
+
 $passEntryProjectTemplateChecklistPackagedAuditEvidenceDir = Join-Path $passDir "entry-project-template-checklist-packaged-audit-evidence"
 $passEntryProjectTemplateChecklistPackagedAuditEvidencePath = Join-Path $passEntryProjectTemplateChecklistPackagedAuditEvidenceDir "START_HERE.md"
 New-Item -ItemType Directory -Path $passEntryProjectTemplateChecklistPackagedAuditEvidenceDir -Force | Out-Null
@@ -775,6 +795,26 @@ try {
 
 if (-not $badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with packaged checklist audit entrypoints and material-safety marker supplied only by detached notes."
+}
+
+$badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourceDir = Join-Path $failDir "entry-project-template-checklist-packaged-audit-evidence-wrong-source"
+$badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourcePath = Join-Path $badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourceDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourceDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourcePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1, status=passed, audit_script=.\scripts\assert_release_material_safety.ps1, audited_entrypoint_count=3, audited_entrypoints=start_here, artifact_guide, reviewer_checklist, compact_evidence_label=Project-template readiness checklist handoff evidence, compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, checklist_marker=release_entry_project_template_readiness_checklist_trace, material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace, source_report=.\output\release-candidate-checks\summary.json
+"@
+
+$badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourcePath
+} catch {
+    $badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourceFailedAsExpected = $true
+}
+
+if (-not $badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with packaged checklist audit source_report pointing at the wrong evidence source."
 }
 
 $badStartHereProjectTemplateMissingChecklistDir = Join-Path $failDir "start-here-project-template-readiness-checklist-missing"

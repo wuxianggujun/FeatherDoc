@@ -264,8 +264,10 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      固定标记：``project_template_readiness_checklist_entrypoints_release_entry_trace``。
      ``scripts/assert_release_material_safety.ps1`` 必须继续审计这条 compact evidence 行，
      要求 count、status、``checklist_path``、三个入口、marker 和 ``source_report`` 保持在
-     同一行，不能用 detached notes 补齐。固定标记：
-     ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``。
+     同一行，且 ``source_report`` 必须能识别 release-candidate summary 证据源，
+     不能用 detached notes 或错误 source report 补齐。固定标记：
+     ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``、
+     ``project_template_readiness_checklist_entrypoints_release_entry_source_report_identity_trace``。
      ``scripts/package_release_assets.ps1`` 还必须在 staged release materials 阶段强制检查
      三个入口文件都保留该 compact evidence 行，并把通过后的审计结果写入
      ``release_assets_manifest.json`` 的
@@ -300,8 +302,11 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``scripts/assert_release_material_safety.ps1`` 必须继续审计这条 packaged audit
      compact evidence 行，要求 count、status、audit script、三个 audited entrypoints、
      compact evidence identity、checklist path、checklist marker、material-safety marker 和
-     ``source_report`` 保持同一行，不能用 detached notes 补齐。固定标记：
-     ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace``。
+     ``source_report`` 保持同一行，且 ``source_report`` 必须能识别 release-blocker
+     rollup 证据源，不能用 detached notes 或 release-candidate summary 冒充打包审计来源。
+     固定标记：
+     ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace``、
+     ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_source_report_identity_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
      在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
      ``release_assets_manifest.json``，并核对

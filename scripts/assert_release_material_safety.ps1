@@ -1092,6 +1092,18 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTra
             -Label $label `
             -Text "Release entry must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoints, marker, and source report on the same compact evidence line."
     }
+
+    if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
+                -Text $Content `
+                -Anchor "Project-template readiness checklist handoff evidence" `
+                -FieldName "source_report" `
+                -Needles @("release-candidate-checks", "release_candidate_summary"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry project-template checklist handoff source_report must identify the release-candidate summary evidence source."
+    }
 }
 
 function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceTraceViolations {
@@ -1137,6 +1149,18 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvi
             -File $File `
             -Label $label `
             -Text "Release entry must keep packaged project-template readiness checklist material-safety audit count, status, audit script, audited entrypoints, compact evidence identity, checklist path, checklist marker, material-safety marker, and source report on the same compact evidence line."
+    }
+
+    if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
+                -Text $Content `
+                -Anchor "Project-template readiness checklist packaged audit evidence" `
+                -FieldName "source_report" `
+                -Needles @("release-blocker-rollup", "release_blocker_rollup"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry project-template packaged audit source_report must identify the release-blocker rollup evidence source."
     }
 }
 
