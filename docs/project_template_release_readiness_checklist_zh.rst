@@ -270,12 +270,15 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      行展示到发布入口材料，让 reviewer 在 ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 和
      ``REVIEWER_CHECKLIST.md`` 中直接看到 ``checklist_path``、
      ``required_entrypoint_count=3``、``entrypoint_paths``、三个入口的
-     ``path_display`` 和固定 marker。
+     ``path_display``、固定 marker 和
+     ``source_schema=featherdoc.release_candidate_summary``。
      固定标记：``project_template_readiness_checklist_entrypoints_release_entry_trace``。
      ``scripts/assert_release_material_safety.ps1`` 必须继续审计这条 compact evidence 行，
      要求 count、status、``checklist_path``、``required_entrypoint_count=3``、
-     ``entrypoint_paths``、三个入口的 ``path_display``、marker 和 ``source_report`` 保持在
-     同一行，且 ``source_report`` 必须能识别 release-candidate summary 证据源，
+     ``entrypoint_paths``、三个入口的 ``path_display``、marker、
+     ``source_schema=featherdoc.release_candidate_summary`` 和 ``source_report`` 保持在
+     同一行，且 ``source_schema`` 必须显式保留 release-candidate summary schema 身份，
+     ``source_report`` 必须能识别 release-candidate summary 证据源，
      不能用 detached notes 或错误 source report 补齐。固定标记：
      ``project_template_readiness_checklist_entrypoints_release_entry_path_display_trace``、
      ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``、
@@ -320,8 +323,10 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``scripts/assert_release_material_safety.ps1`` 必须继续审计这条 packaged audit
      compact evidence 行，要求 count、status、audit script、三个 audited entrypoints、
      compact evidence identity、checklist path、checklist marker、material-safety marker 和
-     ``source_report`` 保持同一行，且 ``source_report`` 必须能识别 release-blocker
-     rollup 证据源，不能用 detached notes 或 release-candidate summary 冒充打包审计来源。
+     ``source_schema=featherdoc.release_candidate_summary``、``source_report`` 保持同一行，
+     且 ``source_schema`` 必须显式保留 release-candidate summary schema 身份，
+     ``source_report`` 必须能识别 release-blocker rollup 证据源，不能用 detached notes
+     或 release-candidate summary 冒充打包审计来源。
      固定标记：
      ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace``、
      ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_source_report_identity_trace``。

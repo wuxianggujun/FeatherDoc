@@ -715,6 +715,7 @@ $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTempl
             project_template_readiness_checklist_entrypoints_source_report_count = 1
             project_template_readiness_checklist_entrypoints_source_reports = @(
                 [pscustomobject]@{
+                    schema = "featherdoc.release_candidate_summary"
                     path_display = ".\output\release-candidate-checks\summary.json"
                     project_template_readiness_checklist_entrypoints_status = "declared"
                     project_template_readiness_checklist_entrypoints_checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
@@ -752,6 +753,7 @@ foreach ($expectedText in @(
         "artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md",
         "reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md",
         "marker=release_entry_project_template_readiness_checklist_trace",
+        "source_schema=featherdoc.release_candidate_summary",
         "source_report=.\output\release-candidate-checks\summary.json"
     )) {
     Assert-ContainsText -Text $projectTemplateChecklistHandoffEvidenceLine -ExpectedText $expectedText `

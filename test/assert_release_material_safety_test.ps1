@@ -712,10 +712,30 @@ New-Item -ItemType Directory -Path $passEntryProjectTemplateChecklistHandoffEvid
 Set-Content -LiteralPath $passEntryProjectTemplateChecklistHandoffEvidencePath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-candidate-checks\summary.json
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
 "@
 
 & $auditScript -Path $passEntryProjectTemplateChecklistHandoffEvidencePath
+
+$badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaDir = Join-Path $failDir "entry-project-template-checklist-handoff-evidence-missing-source-schema"
+$badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaPath = Join-Path $badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-candidate-checks\summary.json
+"@
+
+$badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaPath
+} catch {
+    $badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaFailedAsExpected = $true
+}
+
+if (-not $badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with project-template checklist handoff evidence missing source_schema."
+}
 
 $badEntryProjectTemplateChecklistHandoffEvidenceSplitDir = Join-Path $failDir "entry-project-template-checklist-handoff-evidence-split"
 $badEntryProjectTemplateChecklistHandoffEvidenceSplitPath = Join-Path $badEntryProjectTemplateChecklistHandoffEvidenceSplitDir "START_HERE.md"
@@ -723,7 +743,7 @@ New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistHandoffEvide
 Set-Content -LiteralPath $badEntryProjectTemplateChecklistHandoffEvidenceSplitPath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, source_report=.\output\release-candidate-checks\summary.json
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
 
 ## Detached notes
 
@@ -747,7 +767,7 @@ New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistHandoffEvide
 Set-Content -LiteralPath $badEntryProjectTemplateChecklistHandoffEvidenceMissingPathsPath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-candidate-checks\summary.json
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
 "@
 
 $badEntryProjectTemplateChecklistHandoffEvidenceMissingPathsFailedAsExpected = $false
@@ -767,7 +787,7 @@ New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistHandoffEvide
 Set-Content -LiteralPath $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourcePath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-blocker-rollup\summary.json
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-blocker-rollup\summary.json
 "@
 
 $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourceFailedAsExpected = $false
@@ -787,10 +807,30 @@ New-Item -ItemType Directory -Path $passEntryProjectTemplateChecklistPackagedAud
 Set-Content -LiteralPath $passEntryProjectTemplateChecklistPackagedAuditEvidencePath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1, status=passed, audit_script=.\scripts\assert_release_material_safety.ps1, audited_entrypoint_count=3, audited_entrypoints=start_here, artifact_guide, reviewer_checklist, compact_evidence_label=Project-template readiness checklist handoff evidence, compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, checklist_marker=release_entry_project_template_readiness_checklist_trace, material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace, source_report=.\output\release-blocker-rollup\summary.json
+- Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1, status=passed, audit_script=.\scripts\assert_release_material_safety.ps1, audited_entrypoint_count=3, audited_entrypoints=start_here, artifact_guide, reviewer_checklist, compact_evidence_label=Project-template readiness checklist handoff evidence, compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, checklist_marker=release_entry_project_template_readiness_checklist_trace, material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-blocker-rollup\summary.json
 "@
 
 & $auditScript -Path $passEntryProjectTemplateChecklistPackagedAuditEvidencePath
+
+$badEntryProjectTemplateChecklistPackagedAuditEvidenceMissingSourceSchemaDir = Join-Path $failDir "entry-project-template-checklist-packaged-audit-evidence-missing-source-schema"
+$badEntryProjectTemplateChecklistPackagedAuditEvidenceMissingSourceSchemaPath = Join-Path $badEntryProjectTemplateChecklistPackagedAuditEvidenceMissingSourceSchemaDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistPackagedAuditEvidenceMissingSourceSchemaDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateChecklistPackagedAuditEvidenceMissingSourceSchemaPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1, status=passed, audit_script=.\scripts\assert_release_material_safety.ps1, audited_entrypoint_count=3, audited_entrypoints=start_here, artifact_guide, reviewer_checklist, compact_evidence_label=Project-template readiness checklist handoff evidence, compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, checklist_marker=release_entry_project_template_readiness_checklist_trace, material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace, source_report=.\output\release-blocker-rollup\summary.json
+"@
+
+$badEntryProjectTemplateChecklistPackagedAuditEvidenceMissingSourceSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateChecklistPackagedAuditEvidenceMissingSourceSchemaPath
+} catch {
+    $badEntryProjectTemplateChecklistPackagedAuditEvidenceMissingSourceSchemaFailedAsExpected = $true
+}
+
+if (-not $badEntryProjectTemplateChecklistPackagedAuditEvidenceMissingSourceSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with packaged checklist audit evidence missing source_schema."
+}
 
 $badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitDir = Join-Path $failDir "entry-project-template-checklist-packaged-audit-evidence-split"
 $badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitPath = Join-Path $badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitDir "START_HERE.md"
@@ -798,7 +838,7 @@ New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistPackagedAudi
 Set-Content -LiteralPath $badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitPath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1, status=passed, audit_script=.\scripts\assert_release_material_safety.ps1, audited_entrypoint_count=3, compact_evidence_label=Project-template readiness checklist handoff evidence, compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, checklist_marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-blocker-rollup\summary.json
+- Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1, status=passed, audit_script=.\scripts\assert_release_material_safety.ps1, audited_entrypoint_count=3, compact_evidence_label=Project-template readiness checklist handoff evidence, compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, checklist_marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-blocker-rollup\summary.json
 
 ## Detached packaged audit notes
 
@@ -823,7 +863,7 @@ New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistPackagedAudi
 Set-Content -LiteralPath $badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourcePath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1, status=passed, audit_script=.\scripts\assert_release_material_safety.ps1, audited_entrypoint_count=3, audited_entrypoints=start_here, artifact_guide, reviewer_checklist, compact_evidence_label=Project-template readiness checklist handoff evidence, compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, checklist_marker=release_entry_project_template_readiness_checklist_trace, material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace, source_report=.\output\release-candidate-checks\summary.json
+- Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1, status=passed, audit_script=.\scripts\assert_release_material_safety.ps1, audited_entrypoint_count=3, audited_entrypoints=start_here, artifact_guide, reviewer_checklist, compact_evidence_label=Project-template readiness checklist handoff evidence, compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, checklist_marker=release_entry_project_template_readiness_checklist_trace, material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
 "@
 
 $badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourceFailedAsExpected = $false

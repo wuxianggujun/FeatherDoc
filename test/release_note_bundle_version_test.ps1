@@ -1180,6 +1180,7 @@ foreach ($document in $checklistHandoffEntryDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'release_entry_project_template_readiness_checklist_trace' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_schema=featherdoc.release_candidate_summary' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report=.\output\release-candidate-checks\summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'Project-template readiness checklist packaged audit evidence' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1' -Label $document.Label
@@ -1187,6 +1188,7 @@ foreach ($document in $checklistHandoffEntryDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'audited_entrypoints=start_here, artifact_guide, reviewer_checklist' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_schema=featherdoc.release_candidate_summary' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report=.\output\release-blocker-rollup\summary.json' -Label $document.Label
 }
 Assert-Contains -Path $checklistPath -ExpectedText 'Confirm release governance handoff carries project-template readiness checklist entrypoint evidence' -Label 'REVIEWER_CHECKLIST.md'

@@ -198,11 +198,12 @@ function Assert-ProjectTemplateChecklistHandoffEvidenceLine {
         "ARTIFACT_GUIDE.md",
         "REVIEWER_CHECKLIST.md",
         "marker=release_entry_project_template_readiness_checklist_trace",
+        "source_schema=featherdoc.release_candidate_summary",
         "source_report="
     )
 
     if (-not (Test-TextLineContainsAll -Text $content -Needles $requiredFragments)) {
-        throw "$Label must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoint count, entrypoint ids, entrypoint paths, marker, and source report on the same compact evidence line."
+        throw "$Label must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoint count, entrypoint ids, entrypoint paths, marker, source schema, and source report on the same compact evidence line."
     }
 }
 

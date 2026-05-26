@@ -332,9 +332,11 @@ manifest 反向推断。固定标记：
 ``assert_release_material_safety.ps1`` 会继续审计该 compact evidence 行，要求
 ``project_template_readiness_checklist_entrypoints_source_reports``、``status``、
 ``checklist_path``、``required_entrypoint_count=3``、``entrypoint_paths``、
-三个入口的 ``path_display``、固定 marker 与 ``source_report`` 保持在同一行，避免
-detached notes 补齐入口材料；``source_report`` 还必须能识别 release-candidate
-summary 证据源，避免把同名 compact evidence 挂到错误报告上。固定标记：
+三个入口的 ``path_display``、固定 marker、
+``source_schema=featherdoc.release_candidate_summary`` 与 ``source_report`` 保持在同一行，
+避免 detached notes 补齐入口材料；``source_schema`` 必须显式保留 release-candidate
+summary schema 身份，``source_report`` 还必须能识别 release-candidate summary
+证据源，避免把同名 compact evidence 挂到错误报告上。固定标记：
 ``project_template_readiness_checklist_entrypoints_release_entry_path_display_trace``、
 ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``、
 ``project_template_readiness_checklist_entrypoints_release_entry_source_report_identity_trace``。
@@ -380,9 +382,11 @@ material-safety 审计。固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_trace``。
 ``assert_release_material_safety.ps1`` 会继续审计这条 packaged audit compact evidence 行，
 要求 count、status、audit script、三个 audited entrypoints、compact evidence identity、
-checklist path、checklist marker、material-safety marker 和 ``source_report`` 保持同一行，
-避免 detached notes 补齐入口材料；``source_report`` 还必须能识别 release-blocker rollup
-证据源，避免 release-candidate summary 冒充打包入口审计来源。固定标记：
+checklist path、checklist marker、material-safety marker、
+``source_schema=featherdoc.release_candidate_summary`` 和 ``source_report`` 保持同一行，
+避免 detached notes 补齐入口材料；``source_schema`` 必须显式保留 release-candidate
+summary schema 身份，``source_report`` 还必须能识别 release-blocker rollup 证据源，
+避免 release-candidate summary 冒充打包入口审计来源。固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace``、
 ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_source_report_identity_trace``。
 

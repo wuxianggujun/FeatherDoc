@@ -1089,13 +1089,14 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTra
         "ARTIFACT_GUIDE.md",
         "REVIEWER_CHECKLIST.md",
         "marker=release_entry_project_template_readiness_checklist_trace",
+        "source_schema=featherdoc.release_candidate_summary",
         "source_report="
     ))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release entry must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoint count, entrypoint ids, entrypoint paths, marker, and source report on the same compact evidence line."
+            -Text "Release entry must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoint count, entrypoint ids, entrypoint paths, marker, source schema, and source report on the same compact evidence line."
     }
 
     if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
@@ -1147,13 +1148,14 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvi
         "checklist_path=docs/project_template_release_readiness_checklist_zh.rst",
         "checklist_marker=release_entry_project_template_readiness_checklist_trace",
         "material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
+        "source_schema=featherdoc.release_candidate_summary",
         "source_report="
     ))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release entry must keep packaged project-template readiness checklist material-safety audit count, status, audit script, audited entrypoints, compact evidence identity, checklist path, checklist marker, material-safety marker, and source report on the same compact evidence line."
+            -Text "Release entry must keep packaged project-template readiness checklist material-safety audit count, status, audit script, audited entrypoints, compact evidence identity, checklist path, checklist marker, material-safety marker, source schema, and source report on the same compact evidence line."
     }
 
     if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
