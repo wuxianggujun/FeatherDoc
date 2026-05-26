@@ -284,6 +284,12 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      release metadata helper 展示到 handoff details，避免最终 release summary 看不到
      staged entry materials 的 material-safety 结论。固定标记：
      ``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_trace``。
+     ``scripts/assert_release_material_safety.ps1`` 必须继续审计
+     ``release_governance_handoff.md`` 中同一个 packaged audit ``source_report`` 列表块，
+     要求 audit status、audit script、三个 audited entrypoints、compact evidence field、
+     checklist path、checklist marker 和 material-safety marker 保持同块，不能用
+     detached notes 补齐。固定标记：
+     ``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_material_safety_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
      在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
      ``release_assets_manifest.json``，并核对

@@ -150,6 +150,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_packaged_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_packaged_audit_rollup_trace",
     "project_template_readiness_checklist_entrypoints_packaged_audit_handoff_trace",
+    "project_template_readiness_checklist_entrypoints_packaged_audit_handoff_material_safety_trace",
     "manifest_signoff_entrypoints",
     "manifest_signoff_entrypoints_release_trace",
     "manifest_signoff_entrypoints_manifest_trace"
@@ -193,6 +194,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_packaged_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_packaged_audit_rollup_trace",
     "project_template_readiness_checklist_entrypoints_packaged_audit_handoff_trace",
+    "project_template_readiness_checklist_entrypoints_packaged_audit_handoff_material_safety_trace",
     "block_scoped_governance_handoff_trace",
     "block_scoped_governance_handoff_project_template_status_trace",
     "project_template_onboarding.schema_approval",
@@ -491,12 +493,15 @@ foreach ($marker in @(
 
 foreach ($marker in @(
     "Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations",
+    "Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations",
     "Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations",
     "Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditContractViolations",
     "Project-template readiness checklist handoff evidence",
     "Project-template readiness checklist entrypoints evidence source reports",
+    "Release-entry project-template readiness checklist material-safety audit source reports",
     "project_template_readiness_checklist_entrypoints_checklist_path",
-    "project_template_readiness_checklist_entrypoints_checklist_marker"
+    "project_template_readiness_checklist_entrypoints_checklist_marker",
+    "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker"
 )) {
     Assert-ContainsText -Text $materialSafetyScript -ExpectedText $marker `
         -Message "Material safety audit should keep project-template readiness checklist source-report evidence block-scoped."

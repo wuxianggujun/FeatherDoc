@@ -1106,6 +1106,66 @@ if (-not $badReleaseGovernanceHandoffProjectTemplateChecklistSplitFailedAsExpect
     throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with project-template checklist entrypoints split outside source_report block."
 }
 
+$passReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditTraceDir = Join-Path $passDir "release-governance-handoff-project-template-checklist-material-safety-audit-trace"
+$passReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditTracePath = Join-Path $passReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditTraceDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $passReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditTracePath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- Release-entry project-template readiness checklist material-safety audit source reports: ``1``
+  - source_report: ``.\output\release-blocker-rollup\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_script: ``.\scripts\assert_release_material_safety.ps1``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count: ``3``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``start_here, artifact_guide, reviewer_checklist``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label: ``Project-template readiness checklist handoff evidence``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field: ``project_template_readiness_checklist_entrypoints_source_reports``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``
+"@
+
+& $auditScript -Path $passReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditTracePath
+
+$badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditSplitDir = Join-Path $failDir "release-governance-handoff-project-template-checklist-material-safety-audit-split"
+$badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditSplitPath = Join-Path $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditSplitDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditSplitDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditSplitPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- Release-entry project-template readiness checklist material-safety audit source reports: ``1``
+  - source_report: ``.\output\release-blocker-rollup\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_script: ``.\scripts\assert_release_material_safety.ps1``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count: ``3``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``
+
+## Detached release-entry checklist material-safety audit notes
+
+- release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``start_here, artifact_guide, reviewer_checklist``
+- release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label: ``Project-template readiness checklist handoff evidence``
+- release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field: ``project_template_readiness_checklist_entrypoints_source_reports``
+- release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``
+"@
+
+$badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditSplitFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditSplitPath
+} catch {
+    $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditSplitFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditSplitFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with release-entry project-template checklist material-safety audit evidence split outside source_report block."
+}
+
 $passFinalReviewTraceDir = Join-Path $passDir "final-review-project-template-trace"
 $passFinalReviewTracePath = Join-Path $passFinalReviewTraceDir "final_review.md"
 New-Item -ItemType Directory -Path $passFinalReviewTraceDir -Force | Out-Null

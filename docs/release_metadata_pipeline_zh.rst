@@ -349,6 +349,12 @@ entrypoints、compact evidence field 和 material-safety marker，避免最终 s
 材料只能看到 checklist entrypoints，却看不到 staged entry materials 已经通过审计。
 固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_trace``。
+``assert_release_material_safety.ps1`` 还会审计
+``release_governance_handoff.md`` 中同一个 packaged audit ``source_report`` 列表块，
+要求 audit status、audit script、三个 audited entrypoints、compact evidence field、
+checklist path、checklist marker 与 material-safety marker 保持同块，避免 detached
+notes 补齐最终 handoff 证据。固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_material_safety_trace``。
 
 对 project-template governance，``final_review.md`` 和
 ``steps.release_governance_handoff`` 还必须同时保留
