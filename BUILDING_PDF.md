@@ -943,7 +943,9 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    `visual_full_gate_full_visual_gate_status`、
    `visual_full_gate_outer_guard_status`、
    `visual_full_gate_outer_guard_timed_out` 和
-   `visual_full_gate_attempt_passed_stage_count`，并把这些字段附到
+   `visual_full_gate_attempt_passed_stage_count`、
+   `visual_full_gate_attempt_visual_baseline_fresh_rendered_count`、
+   `visual_full_gate_attempt_aggregate_contact_sheet_status`，并把这些字段附到
    `pdf_full_fresh_visual_gate.not_completed_in_current_window` warning 上。固定标记：
    `pdf_visual_full_gate_guarded_summary_trace`。若已执行
    `scripts/run_pdf_full_ctest_guarded.ps1`，该 readiness summary 还必须读取
@@ -974,7 +976,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_full_gate_guar
 summary 必须写出 `schema = featherdoc.pdf_visual_full_gate_guarded_summary.v1`、
 `status`、`verdict`、`full_visual_gate_status`、`outer_guard_status`、
 `outer_guard_timed_out`、`outer_guard_timeout_seconds`、`attempt_summary_json`、
-`attempt_passed_stage_count` 和
+`attempt_passed_stage_count`、`attempt_visual_baseline_fresh_rendered_count`、
+`attempt_aggregate_contact_sheet_status` 和
 `guarded_full_visual_gate_attempt_does_not_replace_completed_full_visual_gate`。固定标记：
 `pdf_visual_full_gate_guarded_summary_trace`。只有 `status = pass` 且
 `full_visual_gate_status = pass` 且 `outer_guard_status = completed` 才能视为 fresh

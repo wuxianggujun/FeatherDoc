@@ -105,7 +105,9 @@ OCR 或任意视觉精确还原。
    ``visual_full_gate_full_visual_gate_status``、
    ``visual_full_gate_outer_guard_status``、
    ``visual_full_gate_outer_guard_timed_out`` 和
-   ``visual_full_gate_attempt_passed_stage_count``。当
+   ``visual_full_gate_attempt_passed_stage_count``、
+   ``visual_full_gate_attempt_visual_baseline_fresh_rendered_count``、
+   ``visual_full_gate_attempt_aggregate_contact_sheet_status``。当
    ``outer_guard_status = timed_out`` 或 ``full_visual_gate_status != pass`` 时，
    ``pdf_full_fresh_visual_gate.not_completed_in_current_window`` warning 必须携带这些计数，
    不能只留下人工日志路径。固定标记：

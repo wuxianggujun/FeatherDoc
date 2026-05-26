@@ -408,6 +408,8 @@ $visualFullGateAttemptStageCount = if ($null -eq $visualFullGateGuarded) { 0 } e
 $visualFullGateAttemptPassedStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_passed_stage_count" }
 $visualFullGateAttemptFailedStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_failed_stage_count" }
 $visualFullGateAttemptIncompleteStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_incomplete_stage_count" }
+$visualFullGateAttemptFreshRenderedCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_visual_baseline_fresh_rendered_count" }
+$visualFullGateAttemptContactSheetStatus = if ($null -eq $visualFullGateGuarded) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_aggregate_contact_sheet_status") }
 $visualFullGateCompleted = ($visualFullGateStatus -eq "pass" -and $visualFullGateVerdict -eq "pass" -and $visualFullGateFullStatus -eq "pass" -and $visualFullGateOuterGuardStatus -eq "completed" -and -not $visualFullGateOuterGuardTimedOut)
 if (-not $visualFullGateCompleted) {
     Add-Warning -Warnings $warnings -Id "pdf_full_fresh_visual_gate.not_completed_in_current_window" `
@@ -422,6 +424,8 @@ if (-not $visualFullGateCompleted) {
             attempt_passed_stage_count = $visualFullGateAttemptPassedStageCount
             attempt_failed_stage_count = $visualFullGateAttemptFailedStageCount
             attempt_incomplete_stage_count = $visualFullGateAttemptIncompleteStageCount
+            attempt_visual_baseline_fresh_rendered_count = $visualFullGateAttemptFreshRenderedCount
+            attempt_aggregate_contact_sheet_status = $visualFullGateAttemptContactSheetStatus
             attempt_summary_json = $visualFullGateAttemptSummaryJson
             summary_json = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedVisualFullGateGuardedSummaryJson
         }
@@ -493,6 +497,8 @@ $summary = [ordered]@{
     visual_full_gate_attempt_passed_stage_count = $visualFullGateAttemptPassedStageCount
     visual_full_gate_attempt_failed_stage_count = $visualFullGateAttemptFailedStageCount
     visual_full_gate_attempt_incomplete_stage_count = $visualFullGateAttemptIncompleteStageCount
+    visual_full_gate_attempt_visual_baseline_fresh_rendered_count = $visualFullGateAttemptFreshRenderedCount
+    visual_full_gate_attempt_aggregate_contact_sheet_status = $visualFullGateAttemptContactSheetStatus
     full_ctest_summary_json = $resolvedFullCtestSummaryJson
     full_ctest_summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedFullCtestSummaryJson
     full_ctest_summary_exists = $fullCtestSummaryExists

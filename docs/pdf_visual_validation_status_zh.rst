@@ -362,7 +362,9 @@ attempt evidence，不能替代完整 PDF CTest pass。
 summary schema 为 ``featherdoc.pdf_visual_full_gate_guarded_summary.v1``，必须保留
 ``visual_full_gate_status``、``visual_full_gate_verdict``、
 ``visual_full_gate_outer_guard_status``、``visual_full_gate_outer_guard_timed_out``、
-``visual_full_gate_attempt_passed_stage_count`` 和 ``attempt_summary_json``。固定标记：
+``visual_full_gate_attempt_passed_stage_count``、
+``visual_full_gate_attempt_visual_baseline_fresh_rendered_count``、
+``visual_full_gate_attempt_aggregate_contact_sheet_status`` 和 ``attempt_summary_json``。固定标记：
 ``pdf_visual_full_gate_guarded_summary_trace``。如果外层保护超时，该 summary 只能作为
 attempt evidence，不能替代 fresh full visual gate pass。
 

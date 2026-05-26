@@ -145,6 +145,8 @@ function New-PassingFixture {
         attempt_passed_stage_count = 2
         attempt_failed_stage_count = 0
         attempt_incomplete_stage_count = 4
+        attempt_visual_baseline_fresh_rendered_count = 3
+        attempt_aggregate_contact_sheet_status = "stale"
         boundary = "guarded_full_visual_gate_attempt_does_not_replace_completed_full_visual_gate"
         marker = "pdf_visual_full_gate_guarded_summary_trace"
     })
@@ -217,6 +219,10 @@ Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_outer_guard_statu
     -Message "Passing fixture should preserve guarded full visual gate outer guard status."
 Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_passed_stage_count) -Expected 2 `
     -Message "Passing fixture should preserve guarded full visual gate attempt stage count."
+Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_visual_baseline_fresh_rendered_count) -Expected 3 `
+    -Message "Passing fixture should preserve guarded full visual gate fresh render count."
+Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_attempt_aggregate_contact_sheet_status) -Expected "stale" `
+    -Message "Passing fixture should preserve guarded full visual gate contact sheet status."
 Assert-Equal -Actual ([string]$fixtureSummary.full_ctest_status) -Expected "timeout" `
     -Message "Passing fixture should preserve guarded full PDF CTest attempt status."
 Assert-Equal -Actual ([string]$fixtureSummary.full_ctest_verdict) -Expected "not_complete" `
@@ -238,6 +244,10 @@ Assert-Equal -Actual ([string]$visualFullGateWarning.details.status) -Expected "
     -Message "Fresh full visual gate warning should carry the guarded attempt status."
 Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_passed_stage_count) -Expected 2 `
     -Message "Fresh full visual gate warning should carry guarded attempt stage counts."
+Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_visual_baseline_fresh_rendered_count) -Expected 3 `
+    -Message "Fresh full visual gate warning should carry guarded attempt fresh render counts."
+Assert-Equal -Actual ([string]$visualFullGateWarning.details.attempt_aggregate_contact_sheet_status) -Expected "stale" `
+    -Message "Fresh full visual gate warning should carry guarded attempt contact sheet status."
 $fullCtestWarning = @($fixtureSummary.warnings) |
     Where-Object { [string]$_.id -eq "pdf_full_ctest.not_completed_in_current_window" } |
     Select-Object -First 1
@@ -279,6 +289,10 @@ foreach ($expectedText in @(
         "featherdoc.pdf_visual_full_gate_guarded_summary.v1",
         "pdf_visual_full_gate_guarded_summary_trace",
         "visual_full_gate_attempt_passed_stage_count",
+        "visual_full_gate_attempt_visual_baseline_fresh_rendered_count",
+        "visual_full_gate_attempt_aggregate_contact_sheet_status",
+        "attempt_visual_baseline_fresh_rendered_count",
+        "attempt_aggregate_contact_sheet_status",
         "featherdoc.pdf_full_ctest_guarded_summary.v1",
         "pdf_full_ctest_guarded_summary_trace",
         "full_ctest_completed_test_count",
