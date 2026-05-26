@@ -665,6 +665,7 @@ Set-Content -LiteralPath $passStartHerePdfTracePath -Encoding UTF8 -Value @"
 - PDF visual baseline manifest samples: 42
 - PDF visual baselines: 44
 - PDF visual gate aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF release readiness checklist: docs/pdf_release_readiness_checklist_zh.rst
 "@
 
 & $auditScript -Path $passStartHerePdfTracePath
@@ -677,6 +678,7 @@ Set-Content -LiteralPath $passReviewerChecklistPdfTracePath -Encoding UTF8 -Valu
 
 - Confirm PDF visual gate summary .\output\pdf-visual-release-gate-current\report\summary.json with 43 CJK copy/search samples and 44 visual baselines before release.
 - Confirm PDF visual gate aggregate contact sheet .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png before release.
+- Confirm the fixed PDF release readiness checklist has been reviewed before publishing: docs/pdf_release_readiness_checklist_zh.rst.
 "@
 
 & $auditScript -Path $passReviewerChecklistPdfTracePath
@@ -694,9 +696,35 @@ Set-Content -LiteralPath $passReviewerChecklistFinalizePdfTracePath -Encoding UT
 - PDF visual baseline manifest samples: 42
 - PDF visual baselines: 44
 - [ ] Confirm the PDF visual gate finalize evidence is signed off: verdict ``pass``, summary .\output\pdf-visual-release-gate-current\report\summary.json, aggregate contact sheet .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png, CJK manifest samples ``43``, CJK copy/search samples ``43``, missing text ``0``, visual baseline manifest samples ``42``, visual baselines ``44``.
+- [ ] Confirm the fixed PDF release readiness checklist has been reviewed before publishing: docs/pdf_release_readiness_checklist_zh.rst.
 "@
 
 & $auditScript -Path $passReviewerChecklistFinalizePdfTracePath
+
+$badStartHerePdfMissingChecklistDir = Join-Path $failDir "start-here-pdf-readiness-checklist-missing"
+$badStartHerePdfMissingChecklistPath = Join-Path $badStartHerePdfMissingChecklistDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badStartHerePdfMissingChecklistDir -Force | Out-Null
+Set-Content -LiteralPath $badStartHerePdfMissingChecklistPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF CJK manifest samples: 43
+- PDF CJK copy/search samples: 43
+- PDF visual baseline manifest samples: 42
+- PDF visual baselines: 44
+- PDF visual gate aggregate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+$badStartHerePdfMissingChecklistFailedAsExpected = $false
+try {
+    & $auditScript -Path $badStartHerePdfMissingChecklistPath
+} catch {
+    $badStartHerePdfMissingChecklistFailedAsExpected = $true
+}
+
+if (-not $badStartHerePdfMissingChecklistFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md without the fixed PDF release readiness checklist."
+}
 
 $passReleaseBodyTraceDir = Join-Path $passDir "release-body-project-template-trace"
 $passReleaseBodyTracePath = Join-Path $passReleaseBodyTraceDir "release_body.zh-CN.md"

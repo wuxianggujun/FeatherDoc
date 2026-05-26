@@ -1010,6 +1010,17 @@ function Add-ReleaseEntryPdfVisualGateTraceViolations {
     }
 
     $label = "release entry PDF visual gate trace"
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @(
+        "PDF release readiness checklist",
+        "docs/pdf_release_readiness_checklist_zh.rst"
+    ))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Entry document must point reviewers at docs/pdf_release_readiness_checklist_zh.rst when PDF visual gate evidence is present."
+    }
+
     if ($leafName -in @("start_here.md", "artifact_guide.md")) {
         $evidenceNeedles = @(
             "PDF visual gate summary:",
