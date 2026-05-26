@@ -2809,6 +2809,132 @@ function Add-ReleaseBlockerRollupManifestSignoffEntrypointsTraceViolations {
     }
 }
 
+function Add-ReleaseBlockerRollupProjectTemplateReadinessChecklistEntrypointsTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_blocker_rollup.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "project_template_readiness_checklist_entrypoints_status",
+        "project_template_readiness_checklist_entrypoints_checklist_path",
+        "release_entry_project_template_readiness_checklist_trace"
+    ))) {
+        return
+    }
+
+    $label = "release blocker rollup project template readiness checklist entrypoints trace"
+    if (-not $Content.Contains("Source Report Contracts")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release blocker rollup lost Source Report Contracts while carrying project-template readiness checklist entrypoints evidence."
+    }
+
+    $sourceReportBlockNeedles = @(
+        "featherdoc.release_candidate_summary",
+        "project_template_readiness_checklist_entrypoints_status:",
+        "declared",
+        "project_template_readiness_checklist_entrypoints_checklist_label:",
+        "Project template release readiness checklist",
+        "project_template_readiness_checklist_entrypoints_checklist_path:",
+        "docs/project_template_release_readiness_checklist_zh.rst",
+        "project_template_readiness_checklist_entrypoints_required_entrypoint_count:",
+        "3",
+        "project_template_readiness_checklist_entrypoints_entrypoint_ids:",
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "project_template_readiness_checklist_entrypoints_checklist_marker:",
+        "release_entry_project_template_readiness_checklist_trace"
+    )
+    if (-not (Test-MarkdownAnyListBlockContainsAll `
+        -Text $Content `
+        -Anchor "featherdoc.release_candidate_summary" `
+        -Needles $sourceReportBlockNeedles)) {
+        $traceMarker = "project_template_readiness_checklist_entrypoints_rollup_material_safety_trace"
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release blocker rollup must keep project-template readiness checklist status, checklist identity, required entrypoint count, entrypoint ids, fixed checklist marker, and release-candidate source identity in the same Source Report Contracts block. Fixed marker: $traceMarker."
+    }
+}
+
+function Add-ReleaseBlockerRollupProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_blocker_rollup.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "release_entry_project_template_readiness_checklist_material_safety_audit_status",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker",
+        "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+    ))) {
+        return
+    }
+
+    $label = "release blocker rollup project template readiness checklist material-safety audit trace"
+    if (-not $Content.Contains("Source Report Contracts")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release blocker rollup lost Source Report Contracts while carrying release-entry project-template readiness checklist material-safety audit evidence."
+    }
+
+    $sourceReportBlockNeedles = @(
+        "featherdoc.release_candidate_summary",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_status:",
+        "passed",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_script:",
+        "assert_release_material_safety.ps1",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count:",
+        "3",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints:",
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label:",
+        "Project-template readiness checklist handoff evidence",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field:",
+        "project_template_readiness_checklist_entrypoints_source_reports",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema:",
+        "featherdoc.release_candidate_summary",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path:",
+        "docs/project_template_release_readiness_checklist_zh.rst",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker:",
+        "release_entry_project_template_readiness_checklist_trace",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker:",
+        "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+    )
+    if (-not (Test-MarkdownAnyListBlockContainsAll `
+        -Text $Content `
+        -Anchor "featherdoc.release_candidate_summary" `
+        -Needles $sourceReportBlockNeedles)) {
+        $traceMarker = "project_template_readiness_checklist_entrypoints_packaged_audit_rollup_material_safety_trace"
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release blocker rollup must keep release-entry project-template readiness checklist material-safety audit status, script, audited entrypoints, compact evidence identity, compact source schema, checklist path, checklist marker, material-safety marker, and release-candidate source identity in the same Source Report Contracts block. Fixed marker: $traceMarker."
+    }
+}
+
 function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations {
     param(
         [string]$File,
@@ -4529,6 +4655,8 @@ foreach ($file in $scanFiles) {
         Add-ReleaseBlockerRollupPdfVisualGateAttemptTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseBlockerRollupPdfVisualSegmentedGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseBlockerRollupManifestSignoffEntrypointsTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseBlockerRollupProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseBlockerRollupProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations

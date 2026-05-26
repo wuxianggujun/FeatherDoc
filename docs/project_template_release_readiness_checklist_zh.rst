@@ -263,6 +263,12 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``project_template_readiness_checklist_entrypoints_handoff_source_schema_identity_trace``、
      ``project_template_readiness_checklist_entrypoints_final_review_source_schema_identity_trace``、
      ``project_template_readiness_checklist_entrypoints_release_metadata_details_source_schema_identity_trace``。
+     ``release_blocker_rollup.md`` 的 ``Source Report Contracts`` 也必须把
+     ``project_template_readiness_checklist_entrypoints`` 的 status、checklist label/path、
+     required entrypoint count、entrypoint ids 和 checklist marker 保留在同一个
+     ``featherdoc.release_candidate_summary`` 列表块内，不能由 detached notes 或 rollup
+     自身 schema 冒充。固定标记：
+     ``project_template_readiness_checklist_entrypoints_rollup_material_safety_trace``。
      ``scripts/write_release_metadata_start_here.ps1``、
      ``scripts/write_release_artifact_guide.ps1`` 与
      ``scripts/write_release_reviewer_checklist.ps1`` 还必须把
@@ -296,6 +302,12 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``featherdoc.release_candidate_summary``，让打包阶段的入口审计结论可以继续进入
      release blocker rollup，而不是只停留在 ``release_assets_manifest.json``。固定标记：
      ``project_template_readiness_checklist_entrypoints_packaged_audit_rollup_trace``。
+     ``release_blocker_rollup.md`` 的 ``Source Report Contracts`` 还必须把该 packaged
+     audit 的 status、audit script、audited entrypoints、compact evidence label/field/source
+     schema、checklist path/marker 和 material-safety marker 保留在同一个
+     ``featherdoc.release_candidate_summary`` 列表块内，不能由 detached notes 或 rollup
+     自身 schema 冒充。固定标记：
+     ``project_template_readiness_checklist_entrypoints_packaged_audit_rollup_material_safety_trace``。
      ``scripts/build_release_governance_handoff_report.ps1`` 与
      ``scripts/run_release_candidate_checks.ps1`` 还必须把同一 packaged audit 汇总到
      ``release_governance_handoff`` 和 ``steps.release_governance_handoff``，并由
