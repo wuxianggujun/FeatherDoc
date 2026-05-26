@@ -345,6 +345,13 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      固定标记：
      ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace``、
      ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_source_report_identity_trace``。
+   * ``scripts/write_release_body_zh.ps1`` 生成的 ``release_body.zh-CN.md`` 和
+     ``release_summary.zh-CN.md`` 必须复用同一批 compact evidence helper，展示
+     ``Project-template readiness checklist handoff evidence`` 和
+     ``Project-template readiness checklist packaged audit evidence``。release notes
+     不能只展示 delivery readiness / onboarding governance 合同摘要，而遗漏固定准入清单
+     handoff 和 packaged material-safety audit 结论。固定标记：
+     ``project_template_readiness_checklist_entrypoints_release_notes_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
      在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
      ``release_assets_manifest.json``，并核对

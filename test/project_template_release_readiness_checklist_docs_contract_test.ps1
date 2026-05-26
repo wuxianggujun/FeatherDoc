@@ -71,6 +71,7 @@ $materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "
 $startHereScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_metadata_start_here.ps1"
 $artifactGuideScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_artifact_guide.ps1"
 $reviewerChecklistScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_reviewer_checklist.ps1"
+$releaseBodyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_body_zh.ps1"
 $releaseBundleVersionTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_note_bundle_version_test.ps1"
 $releaseCandidateVisualTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_candidate_visual_verdict_test.ps1"
 $releaseBlockerRollupTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
@@ -166,6 +167,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_trace",
     "project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_source_report_identity_trace",
+    "project_template_readiness_checklist_entrypoints_release_notes_trace",
     "compact_evidence_source_schema",
     "compact_evidence_source_schema=featherdoc.release_candidate_summary",
     "manifest_signoff_entrypoints",
@@ -563,6 +565,19 @@ foreach ($scriptText in @($startHereScript, $artifactGuideScript, $reviewerCheck
         -Message "Release entry generators should call the compact checklist packaged audit evidence helper."
     Assert-ContainsText -Text $scriptText -ExpectedText "projectTemplateChecklistMaterialSafetyAuditEvidenceLine" `
         -Message "Release entry generators should surface the checklist packaged audit evidence line."
+}
+
+foreach ($marker in @(
+    "Add-ProjectTemplateReadinessChecklistEvidenceSummaryLines",
+    "Add-ProjectTemplateReadinessChecklistEvidenceShortSummaryBullets",
+    "Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine",
+    "Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine",
+    "Project template release checklist evidence",
+    "Project-template readiness checklist handoff evidence",
+    "Project-template readiness checklist packaged audit evidence"
+)) {
+    Assert-ContainsText -Text $releaseBodyScript -ExpectedText $marker `
+        -Message "Release note body generator should consume project-template readiness checklist compact evidence."
 }
 
 foreach ($scriptText in @($releaseBundleVersionTest)) {

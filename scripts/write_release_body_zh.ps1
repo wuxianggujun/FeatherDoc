@@ -479,6 +479,50 @@ function Add-ProjectTemplateGovernanceContractSummaryLines {
     }
 }
 
+function Add-ProjectTemplateReadinessChecklistEvidenceSummaryLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary
+    )
+
+    $checklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $Summary
+    $packagedAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $Summary
+    if ([string]::IsNullOrWhiteSpace($checklistHandoffEvidenceLine) -and
+        [string]::IsNullOrWhiteSpace($packagedAuditEvidenceLine)) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add("## Project template release checklist evidence")
+    if (-not [string]::IsNullOrWhiteSpace($checklistHandoffEvidenceLine)) {
+        [void]$Lines.Add("- $checklistHandoffEvidenceLine")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($packagedAuditEvidenceLine)) {
+        [void]$Lines.Add("- $packagedAuditEvidenceLine")
+    }
+}
+
+function Add-ProjectTemplateReadinessChecklistEvidenceShortSummaryBullets {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary
+    )
+
+    $checklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $Summary
+    if (-not [string]::IsNullOrWhiteSpace($checklistHandoffEvidenceLine)) {
+        Add-UniqueLine -Lines $Lines -Line (
+            "project-template readiness checklist handoff evidence 已进入短摘要：$checklistHandoffEvidenceLine"
+        )
+    }
+
+    $packagedAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $Summary
+    if (-not [string]::IsNullOrWhiteSpace($packagedAuditEvidenceLine)) {
+        Add-UniqueLine -Lines $Lines -Line (
+            "project-template readiness checklist packaged audit evidence 已进入短摘要：$packagedAuditEvidenceLine"
+        )
+    }
+}
+
 function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
     param(
         [System.Collections.Generic.List[string]]$Lines,
@@ -1158,6 +1202,7 @@ foreach ($shortSummaryBullet in $shortSummaryBulletResults) {
     Add-UniqueLine -Lines $shortSummaryBullets -Line ([string]$shortSummaryBullet)
 }
 Add-ProjectTemplateGovernanceContractShortSummaryBullets -Lines $shortSummaryBullets -Summary $summary
+Add-ProjectTemplateReadinessChecklistEvidenceShortSummaryBullets -Lines $shortSummaryBullets -Summary $summary
 Add-PdfVisualGateEvidenceShortSummaryBullets -Lines $shortSummaryBullets -PdfVisualGateEvidence $pdfVisualGateEvidence -RepoRoot $repoRoot
 Add-PdfBoundedCtestEvidenceShortSummaryBullets -Lines $shortSummaryBullets -PdfBoundedCtestEvidence $pdfBoundedCtestEvidence
 
@@ -1235,6 +1280,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$lines.Add("- 说明：$validationNote")
 Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot -Heading "## 发布阻断项" -PublicArtifactPaths
 Add-ProjectTemplateGovernanceContractSummaryLines -Lines $lines -Summary $summary
+Add-ProjectTemplateReadinessChecklistEvidenceSummaryLines -Lines $lines -Summary $summary
 [void]$lines.Add("")
 [void]$lines.Add("## 安装包入口")
 [void]$lines.Add("- 以下路径使用安装树相对位置，不包含本机绝对目录。")

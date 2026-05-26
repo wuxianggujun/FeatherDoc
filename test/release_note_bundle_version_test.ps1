@@ -1007,6 +1007,26 @@ Assert-Contains -Path $bodyPath -ExpectedText 'source_schema=featherdoc.project_
 Assert-Contains -Path $bodyPath -ExpectedText 'schema_approval_status_summary=pending_review' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=pending_review release_ready=False schema_approval_status_summary=pending_review source_report_display=.\output\project-template-onboarding-governance\summary.json source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'Project template release checklist evidence' -Label 'release_body.zh-CN.md'
+Assert-LineContainsAll -Path $bodyPath -ExpectedFragments @(
+    'Project-template readiness checklist handoff evidence',
+    'project_template_readiness_checklist_entrypoints_source_reports=1',
+    'docs/project_template_release_readiness_checklist_zh.rst',
+    'required_entrypoint_count=3',
+    'entrypoint_paths=',
+    'source_schema=featherdoc.release_candidate_summary',
+    'source_report=.\output\release-candidate-checks\summary.json'
+) -Label 'release_body.zh-CN.md'
+Assert-LineContainsAll -Path $bodyPath -ExpectedFragments @(
+    'Project-template readiness checklist packaged audit evidence',
+    'release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1',
+    'audit_script=.\scripts\assert_release_material_safety.ps1',
+    'audited_entrypoints=start_here, artifact_guide, reviewer_checklist',
+    'compact_evidence_source_schema=featherdoc.release_candidate_summary',
+    'project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace',
+    'source_schema=featherdoc.release_candidate_summary',
+    'source_report=.\output\release-blocker-rollup\summary.json'
+) -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'Readiness action evidence:' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'provide_pdf_dependency_input/pdf_dependency_inputs_ready -> PDFio source header' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'enable_pdf_build_option/pdf_build_options_enabled -> FEATHERDOC_BUILD_PDF_IMPORT' -Label 'release_body.zh-CN.md'
@@ -1025,6 +1045,24 @@ Assert-Contains -Path $shortPath -ExpectedText 'project-template readiness gover
 Assert-Contains -Path $shortPath -ExpectedText 'status=blocked release_ready=False latest_schema_approval_gate_status=pending_review schema_approval_status_summary=pending_review source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'project-template onboarding governance contract' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'status=pending_review release_ready=False schema_approval_status_summary=pending_review source_report_display=.\output\project-template-onboarding-governance\summary.json source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_summary.zh-CN.md'
+Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
+    'project-template readiness checklist handoff evidence',
+    'Project-template readiness checklist handoff evidence',
+    'project_template_readiness_checklist_entrypoints_source_reports=1',
+    'required_entrypoint_count=3',
+    'entrypoint_paths=',
+    'source_schema=featherdoc.release_candidate_summary',
+    'source_report=.\output\release-candidate-checks\summary.json'
+) -Label 'release_summary.zh-CN.md'
+Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
+    'project-template readiness checklist packaged audit evidence',
+    'Project-template readiness checklist packaged audit evidence',
+    'release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1',
+    'audited_entrypoints=start_here, artifact_guide, reviewer_checklist',
+    'compact_evidence_source_schema=featherdoc.release_candidate_summary',
+    'source_schema=featherdoc.release_candidate_summary',
+    'source_report=.\output\release-blocker-rollup\summary.json'
+) -Label 'release_summary.zh-CN.md'
 Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
     'project-template readiness governance contract',
     'status=blocked',
