@@ -209,16 +209,28 @@ OCR 或任意视觉精确还原。
      ``pdf_visual_segmented_gate_verdict``、
      ``pdf_visual_segmented_gate_full_visual_gate_status``、
      ``pdf_visual_segmented_gate_evidence_scope``、
+     ``pdf_visual_segmented_gate_boundary``、
      ``pdf_visual_segmented_gate_summary_json_display``、
      ``pdf_visual_segmented_gate_slice_summary_count``、
      ``pdf_visual_segmented_gate_slice_pass_count``、
+     ``pdf_visual_segmented_gate_slice_failed_count``、
      ``pdf_visual_segmented_gate_covered_baseline_count``、
      ``pdf_visual_segmented_gate_expected_visual_render_count``、
+     ``pdf_visual_segmented_gate_attempt_stage_count``、
+     ``pdf_visual_segmented_gate_attempt_passed_stage_count``、
+     ``pdf_visual_segmented_gate_visual_baseline_render_status``、
+     ``pdf_visual_segmented_gate_aggregate_contact_sheet_status``、
      ``pdf_visual_segmented_gate_aggregate_contact_sheet_display`` 和
-     ``pdf_visual_segmented_gate_aggregate_contact_sheet_bytes``。固定标记：
+     ``pdf_visual_segmented_gate_aggregate_contact_sheet_bytes``、
+     ``pdf_visual_segmented_gate_aggregate_rebuild_status`` 和
+     ``pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count``。固定标记：
      ``pdf_visual_segmented_gate_summary_trace``、
      ``pdf_visual_segmented_gate_governance_trace``。该证据不能替代 full visual gate
      verdict。
+     ``release_governance_handoff.md`` 中这些 segmented gate 字段必须继续与
+     ``schema=featherdoc.release_candidate_summary`` 的 ``source_report:`` 保持同块，
+     不能由 detached notes 补齐。固定标记：
+     ``pdf_visual_segmented_gate_material_safety_trace``。
      ``final_review.md`` 中的 segmented summary/contact sheet reviewer 入口也必须经过
      line/section scoped 审计。固定标记：
      ``pdf_visual_segmented_gate_final_review_material_safety_trace``。

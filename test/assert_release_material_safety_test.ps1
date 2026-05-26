@@ -1422,6 +1422,176 @@ if (-not $badReleaseGovernanceHandoffPdfAttemptSplitFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with PDF visual gate attempt evidence split outside source_report block."
 }
 
+$passReleaseGovernanceHandoffPdfSegmentedTraceDir = Join-Path $passDir "release-governance-handoff-pdf-segmented-trace"
+$passReleaseGovernanceHandoffPdfSegmentedTracePath = Join-Path $passReleaseGovernanceHandoffPdfSegmentedTraceDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $passReleaseGovernanceHandoffPdfSegmentedTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseGovernanceHandoffPdfSegmentedTracePath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- PDF visual gate evidence source reports: ``1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - pdf_visual_gate_status: ``loaded``
+    - full_visual_gate_status: ``pass``
+    - pdf_visual_gate_verdict: ``pass``
+    - pdf_visual_gate_finalizable: ``True``
+    - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
+    - pdf_visual_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+    - pdf_visual_gate_cjk_manifest_count: ``43``
+    - pdf_visual_gate_cjk_copy_search_count: ``43``
+    - pdf_visual_gate_visual_baseline_manifest_count: ``42``
+    - pdf_visual_gate_visual_baseline_count: ``44``
+    - pdf_bounded_ctest_summary_count: ``7``
+    - pdf_bounded_ctest_pass_count: ``7``
+    - pdf_bounded_ctest_skipped_test_count: ``0``
+    - pdf_bounded_ctest_selected_test_count: ``70``
+    - pdf_bounded_ctest_subsets: ``smoke-import, contract-static, cjk-flow-static, regression-basic-text, regression-styled-document, regression-business-samples, regression-table-layout``
+    - pdf_bounded_ctest_summary_json_display: ``.\build\pdf-ctest-bounded-subset-current\summary.json, .\build\pdf-ctest-bounded-contract-static-current\summary.json, .\build\pdf-ctest-bounded-cjk-flow-static-current\summary.json, .\build\pdf-ctest-bounded-regression-basic-text-current\summary.json, .\build\pdf-ctest-bounded-regression-styled-document-current\summary.json, .\build\pdf-ctest-bounded-regression-business-samples-current\summary.json, .\build\pdf-ctest-bounded-regression-table-layout-current\summary.json``
+    - pdf_visual_segmented_gate_status: ``pass``
+    - pdf_visual_segmented_gate_verdict: ``pass``
+    - pdf_visual_segmented_gate_full_visual_gate_status: ``not_complete``
+    - pdf_visual_segmented_gate_evidence_scope: ``segmented_visual_gate_auxiliary_only``
+    - pdf_visual_segmented_gate_boundary: ``segmented_summary_does_not_replace_full_visual_gate_verdict``
+    - pdf_visual_segmented_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\segmented-summary.json``
+    - pdf_visual_segmented_gate_slice_summary_count: ``4``
+    - pdf_visual_segmented_gate_slice_pass_count: ``4``
+    - pdf_visual_segmented_gate_slice_failed_count: ``0``
+    - pdf_visual_segmented_gate_covered_baseline_count: ``44``
+    - pdf_visual_segmented_gate_expected_visual_render_count: ``44``
+    - pdf_visual_segmented_gate_attempt_stage_count: ``6``
+    - pdf_visual_segmented_gate_attempt_passed_stage_count: ``6``
+    - pdf_visual_segmented_gate_visual_baseline_render_status: ``pass``
+    - pdf_visual_segmented_gate_aggregate_contact_sheet_status: ``pass``
+    - pdf_visual_segmented_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+    - pdf_visual_segmented_gate_aggregate_contact_sheet_bytes: ``1822428``
+    - pdf_visual_segmented_gate_aggregate_rebuild_status: ``pass``
+    - pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count: ``44``
+"@
+
+& $auditScript -Path $passReleaseGovernanceHandoffPdfSegmentedTracePath
+
+$badReleaseGovernanceHandoffPdfSegmentedSplitDir = Join-Path $failDir "release-governance-handoff-pdf-segmented-split"
+$badReleaseGovernanceHandoffPdfSegmentedSplitPath = Join-Path $badReleaseGovernanceHandoffPdfSegmentedSplitDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffPdfSegmentedSplitDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffPdfSegmentedSplitPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- PDF visual gate evidence source reports: ``1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - pdf_visual_gate_status: ``loaded``
+    - full_visual_gate_status: ``pass``
+    - pdf_visual_gate_verdict: ``pass``
+    - pdf_visual_gate_finalizable: ``True``
+    - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
+    - pdf_visual_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+    - pdf_visual_gate_cjk_manifest_count: ``43``
+    - pdf_visual_gate_cjk_copy_search_count: ``43``
+    - pdf_visual_gate_visual_baseline_manifest_count: ``42``
+    - pdf_visual_gate_visual_baseline_count: ``44``
+    - pdf_bounded_ctest_summary_count: ``7``
+    - pdf_bounded_ctest_pass_count: ``7``
+    - pdf_bounded_ctest_skipped_test_count: ``0``
+    - pdf_bounded_ctest_selected_test_count: ``70``
+    - pdf_bounded_ctest_subsets: ``smoke-import, contract-static, cjk-flow-static, regression-basic-text, regression-styled-document, regression-business-samples, regression-table-layout``
+    - pdf_bounded_ctest_summary_json_display: ``.\build\pdf-ctest-bounded-subset-current\summary.json, .\build\pdf-ctest-bounded-contract-static-current\summary.json, .\build\pdf-ctest-bounded-cjk-flow-static-current\summary.json, .\build\pdf-ctest-bounded-regression-basic-text-current\summary.json, .\build\pdf-ctest-bounded-regression-styled-document-current\summary.json, .\build\pdf-ctest-bounded-regression-business-samples-current\summary.json, .\build\pdf-ctest-bounded-regression-table-layout-current\summary.json``
+
+- Detached PDF visual segmented gate evidence:
+  - pdf_visual_segmented_gate_status: ``pass``
+  - pdf_visual_segmented_gate_verdict: ``pass``
+  - pdf_visual_segmented_gate_full_visual_gate_status: ``not_complete``
+  - pdf_visual_segmented_gate_evidence_scope: ``segmented_visual_gate_auxiliary_only``
+  - pdf_visual_segmented_gate_boundary: ``segmented_summary_does_not_replace_full_visual_gate_verdict``
+  - pdf_visual_segmented_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\segmented-summary.json``
+  - pdf_visual_segmented_gate_slice_summary_count: ``4``
+  - pdf_visual_segmented_gate_slice_pass_count: ``4``
+  - pdf_visual_segmented_gate_slice_failed_count: ``0``
+  - pdf_visual_segmented_gate_covered_baseline_count: ``44``
+  - pdf_visual_segmented_gate_expected_visual_render_count: ``44``
+  - pdf_visual_segmented_gate_attempt_stage_count: ``6``
+  - pdf_visual_segmented_gate_attempt_passed_stage_count: ``6``
+  - pdf_visual_segmented_gate_visual_baseline_render_status: ``pass``
+  - pdf_visual_segmented_gate_aggregate_contact_sheet_status: ``pass``
+  - pdf_visual_segmented_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+  - pdf_visual_segmented_gate_aggregate_contact_sheet_bytes: ``1822428``
+  - pdf_visual_segmented_gate_aggregate_rebuild_status: ``pass``
+  - pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count: ``44``
+"@
+
+$badReleaseGovernanceHandoffPdfSegmentedSplitFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffPdfSegmentedSplitPath
+} catch {
+    $badReleaseGovernanceHandoffPdfSegmentedSplitFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffPdfSegmentedSplitFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with PDF visual segmented gate evidence split outside source_report block."
+}
+
+$badReleaseGovernanceHandoffPdfSegmentedWrongSchemaDir = Join-Path $failDir "release-governance-handoff-pdf-segmented-wrong-schema"
+$badReleaseGovernanceHandoffPdfSegmentedWrongSchemaPath = Join-Path $badReleaseGovernanceHandoffPdfSegmentedWrongSchemaDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffPdfSegmentedWrongSchemaDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffPdfSegmentedWrongSchemaPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- PDF visual gate evidence source reports: ``1``
+  - source_report: ``.\output\pdf-visual-release-gate-current\report\segmented-summary.json`` schema=``featherdoc.pdf_visual_segmented_gate_summary.v1``
+    - pdf_visual_gate_status: ``loaded``
+    - full_visual_gate_status: ``pass``
+    - pdf_visual_gate_verdict: ``pass``
+    - pdf_visual_gate_finalizable: ``True``
+    - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
+    - pdf_visual_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+    - pdf_visual_gate_cjk_manifest_count: ``43``
+    - pdf_visual_gate_cjk_copy_search_count: ``43``
+    - pdf_visual_gate_visual_baseline_manifest_count: ``42``
+    - pdf_visual_gate_visual_baseline_count: ``44``
+    - pdf_bounded_ctest_summary_count: ``7``
+    - pdf_bounded_ctest_pass_count: ``7``
+    - pdf_bounded_ctest_skipped_test_count: ``0``
+    - pdf_bounded_ctest_selected_test_count: ``70``
+    - pdf_bounded_ctest_subsets: ``smoke-import, contract-static, cjk-flow-static, regression-basic-text, regression-styled-document, regression-business-samples, regression-table-layout``
+    - pdf_bounded_ctest_summary_json_display: ``.\build\pdf-ctest-bounded-subset-current\summary.json, .\build\pdf-ctest-bounded-contract-static-current\summary.json, .\build\pdf-ctest-bounded-cjk-flow-static-current\summary.json, .\build\pdf-ctest-bounded-regression-basic-text-current\summary.json, .\build\pdf-ctest-bounded-regression-styled-document-current\summary.json, .\build\pdf-ctest-bounded-regression-business-samples-current\summary.json, .\build\pdf-ctest-bounded-regression-table-layout-current\summary.json``
+    - pdf_visual_segmented_gate_status: ``pass``
+    - pdf_visual_segmented_gate_verdict: ``pass``
+    - pdf_visual_segmented_gate_full_visual_gate_status: ``not_complete``
+    - pdf_visual_segmented_gate_evidence_scope: ``segmented_visual_gate_auxiliary_only``
+    - pdf_visual_segmented_gate_boundary: ``segmented_summary_does_not_replace_full_visual_gate_verdict``
+    - pdf_visual_segmented_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\segmented-summary.json``
+    - pdf_visual_segmented_gate_slice_summary_count: ``4``
+    - pdf_visual_segmented_gate_slice_pass_count: ``4``
+    - pdf_visual_segmented_gate_slice_failed_count: ``0``
+    - pdf_visual_segmented_gate_covered_baseline_count: ``44``
+    - pdf_visual_segmented_gate_expected_visual_render_count: ``44``
+    - pdf_visual_segmented_gate_attempt_stage_count: ``6``
+    - pdf_visual_segmented_gate_attempt_passed_stage_count: ``6``
+    - pdf_visual_segmented_gate_visual_baseline_render_status: ``pass``
+    - pdf_visual_segmented_gate_aggregate_contact_sheet_status: ``pass``
+    - pdf_visual_segmented_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+    - pdf_visual_segmented_gate_aggregate_contact_sheet_bytes: ``1822428``
+    - pdf_visual_segmented_gate_aggregate_rebuild_status: ``pass``
+    - pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count: ``44``
+"@
+
+$badReleaseGovernanceHandoffPdfSegmentedWrongSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffPdfSegmentedWrongSchemaPath
+} catch {
+    $badReleaseGovernanceHandoffPdfSegmentedWrongSchemaFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffPdfSegmentedWrongSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with PDF visual segmented gate evidence using a non-release-candidate source_report schema."
+}
+
 $passReleaseGovernanceHandoffProjectTemplateChecklistTraceDir = Join-Path $passDir "release-governance-handoff-project-template-checklist-source-report-trace"
 $passReleaseGovernanceHandoffProjectTemplateChecklistTracePath = Join-Path $passReleaseGovernanceHandoffProjectTemplateChecklistTraceDir "release_governance_handoff.md"
 New-Item -ItemType Directory -Path $passReleaseGovernanceHandoffProjectTemplateChecklistTraceDir -Force | Out-Null

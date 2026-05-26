@@ -433,6 +433,10 @@ release governance 会在同一个 `source_report:` block 中保留
 `pdf_visual_segmented_gate_aggregate_contact_sheet_bytes`、
 `pdf_visual_segmented_gate_aggregate_rebuild_status` 和
 `pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count`。
+`release_governance_handoff.md` 中这些 segmented gate 字段必须继续与
+`schema=featherdoc.release_candidate_summary` 的 `source_report:` 保持同块，不能由
+detached notes 补齐。固定标记：
+`pdf_visual_segmented_gate_material_safety_trace`。
 `final_review.md` 展示 segmented gate 辅助证据时，segmented status/verdict/full status、
 scope、slices 和 coverage 行必须保留在 `## Step status` 的同一连续 list run，
 scope 行必须直接携带 `segmented_visual_gate_auxiliary_only`；segmented summary/contact sheet

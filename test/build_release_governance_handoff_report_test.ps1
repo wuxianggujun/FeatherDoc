@@ -1189,12 +1189,16 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should expose segmented PDF visual gate slice count."
     Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_segmented_gate_slice_pass_count) -Expected 4 `
         -Message "Handoff summary should expose segmented PDF visual gate passing slice count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_segmented_gate_slice_failed_count) -Expected 0 `
+        -Message "Handoff summary should expose segmented PDF visual gate failed slice count."
     Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_segmented_gate_covered_baseline_count) -Expected 44 `
         -Message "Handoff summary should expose segmented PDF visual gate covered baseline count."
     Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_segmented_gate_expected_visual_render_count) -Expected 44 `
         -Message "Handoff summary should expose segmented PDF visual gate expected baseline count."
-    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_segmented_gate_attempt_passed_stage_count) -Expected 6 `
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_segmented_gate_attempt_stage_count) -Expected 6 `
         -Message "Handoff summary should expose segmented PDF visual gate attempt stage count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_segmented_gate_attempt_passed_stage_count) -Expected 6 `
+        -Message "Handoff summary should expose segmented PDF visual gate passed attempt stage count."
     Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_segmented_gate_visual_baseline_render_status) -Expected "pass" `
         -Message "Handoff summary should expose segmented PDF visual gate render status."
     Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_segmented_gate_aggregate_contact_sheet_status) -Expected "pass" `
@@ -1206,6 +1210,8 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should expose segmented PDF visual gate contact-sheet byte size."
     Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_segmented_gate_aggregate_rebuild_status) -Expected "pass" `
         -Message "Handoff summary should expose segmented PDF visual gate aggregate rebuild status."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count) -Expected 44 `
+        -Message "Handoff summary should expose segmented PDF visual gate aggregate rebuild selected baseline count."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.manifest_signoff_entrypoints_source_report_count) -Expected 1 `
         -Message "Handoff summary should consume nested manifest signoff evidence count."
     $manifestSignoffEvidence = $summary.release_blocker_rollup.manifest_signoff_entrypoints_source_reports | Select-Object -First 1
@@ -1465,13 +1471,18 @@ if (Test-Scenario -Name "include_rollup") {
         "segmented-summary.json",
         "pdf_visual_segmented_gate_slice_summary_count: ``4``",
         "pdf_visual_segmented_gate_slice_pass_count: ``4``",
+        "pdf_visual_segmented_gate_slice_failed_count: ``0``",
         "pdf_visual_segmented_gate_covered_baseline_count: ``44``",
         "pdf_visual_segmented_gate_expected_visual_render_count: ``44``",
+        "pdf_visual_segmented_gate_attempt_stage_count: ``6``",
+        "pdf_visual_segmented_gate_attempt_passed_stage_count: ``6``",
         "pdf_visual_segmented_gate_visual_baseline_render_status: ``pass``",
         "pdf_visual_segmented_gate_aggregate_contact_sheet_status: ``pass``",
         "pdf_visual_segmented_gate_aggregate_contact_sheet_display:",
         "aggregate-contact-sheet.png",
-        "pdf_visual_segmented_gate_aggregate_contact_sheet_bytes: ``1822428``"
+        "pdf_visual_segmented_gate_aggregate_contact_sheet_bytes: ``1822428``",
+        "pdf_visual_segmented_gate_aggregate_rebuild_status: ``pass``",
+        "pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count: ``44``"
     ) -Message "Handoff Markdown should keep PDF visual gate source-report evidence in one source_report block."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
         "schema=``featherdoc.release_candidate_summary``",

@@ -2422,6 +2422,69 @@ function Add-ReleaseGovernanceHandoffPdfVisualGateAttemptTraceViolations {
     }
 }
 
+function Add-ReleaseGovernanceHandoffPdfVisualSegmentedGateTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_governance_handoff.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "pdf_visual_segmented_gate_status",
+        "pdf_visual_segmented_gate_summary_json_display",
+        "segmented_visual_gate_auxiliary_only"
+    ))) {
+        return
+    }
+
+    $label = "release governance handoff PDF visual segmented gate trace"
+    $sourceReportBlockNeedles = @(
+        "source_report:",
+        "schema=",
+        "featherdoc.release_candidate_summary",
+        "pdf_visual_segmented_gate_status:",
+        "pdf_visual_segmented_gate_verdict:",
+        "pdf_visual_segmented_gate_full_visual_gate_status:",
+        "pdf_visual_segmented_gate_evidence_scope:",
+        "segmented_visual_gate_auxiliary_only",
+        "pdf_visual_segmented_gate_boundary:",
+        "segmented_summary_does_not_replace_full_visual_gate_verdict",
+        "pdf_visual_segmented_gate_summary_json_display:",
+        "segmented-summary.json",
+        "pdf_visual_segmented_gate_slice_summary_count:",
+        "pdf_visual_segmented_gate_slice_pass_count:",
+        "pdf_visual_segmented_gate_slice_failed_count:",
+        "pdf_visual_segmented_gate_covered_baseline_count:",
+        "pdf_visual_segmented_gate_expected_visual_render_count:",
+        "pdf_visual_segmented_gate_attempt_stage_count:",
+        "pdf_visual_segmented_gate_attempt_passed_stage_count:",
+        "pdf_visual_segmented_gate_visual_baseline_render_status:",
+        "pdf_visual_segmented_gate_aggregate_contact_sheet_status:",
+        "pdf_visual_segmented_gate_aggregate_contact_sheet_display:",
+        "aggregate-contact-sheet.png",
+        "pdf_visual_segmented_gate_aggregate_contact_sheet_bytes:",
+        "pdf_visual_segmented_gate_aggregate_rebuild_status:",
+        "pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count:"
+    )
+    if (-not (Test-MarkdownAnyListBlockContainsAllAndFieldValuesInSet `
+        -Text $Content `
+        -Anchor "source_report:" `
+        -Needles $sourceReportBlockNeedles `
+        -FieldName "schema" `
+        -AllowedValues @("featherdoc.release_candidate_summary"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release governance handoff must keep PDF visual segmented gate status, verdict, auxiliary scope, summary path, slice coverage, contact-sheet status, and rebuild evidence in the same release-candidate source_report block."
+    }
+}
+
 function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations {
     param(
         [string]$File,
@@ -4143,6 +4206,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffPdfVisualGateAttemptTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseGovernanceHandoffPdfVisualSegmentedGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations

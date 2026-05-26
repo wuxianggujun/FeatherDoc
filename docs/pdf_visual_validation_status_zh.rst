@@ -424,6 +424,10 @@ aggregate contact-sheet rebuild summary 后，必须再运行
 ``pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count`` 写入同一
 ``source_report:`` block。它只能解释分段 visual gate 辅助证据已经闭合，
 不能替代一份非 ``FinalizeOnly`` 的 full gate summary verdict。
+``release_governance_handoff.md`` 中这些 segmented gate 字段必须继续与
+``schema=featherdoc.release_candidate_summary`` 的 ``source_report:`` 保持同块，不能由
+detached notes 补齐。固定标记：
+``pdf_visual_segmented_gate_material_safety_trace``。
 ``final_review.md`` 同步展示 segmented gate 证据时，
 ``PDF visual segmented gate:``、``PDF visual segmented gate verdict:``、
 ``PDF visual segmented gate full status:``、``PDF visual segmented gate scope:``、
