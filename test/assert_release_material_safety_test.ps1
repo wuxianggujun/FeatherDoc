@@ -4844,6 +4844,216 @@ if (-not $badFinalReviewPdfVerdictTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with a non-pass/fail PDF visual gate verdict."
 }
 
+$passFinalReviewPdfAuxTraceDir = Join-Path $passDir "final-review-pdf-visual-aux-trace"
+$passFinalReviewPdfAuxTracePath = Join-Path $passFinalReviewPdfAuxTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $passFinalReviewPdfAuxTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passFinalReviewPdfAuxTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Step status
+
+- PDF visual gate: loaded
+- PDF visual gate verdict: pass
+- PDF visual gate counts: 44 visual baselines, 43 CJK copy/search
+- PDF visual gate manifest counts: 42 visual baseline manifest samples, 43 CJK manifest samples
+- PDF visual gate finalizable: True
+- PDF visual gate attempt: partial
+- PDF visual gate attempt verdict: not_complete
+- PDF visual gate attempt full status: not_complete
+- PDF visual gate attempt stages: 6/6 passed, 0 incomplete
+- PDF visual gate attempt pdf_regression: 91 selected, 0 failed, 7 skipped
+- PDF visual gate attempt render: 44/44 fresh baselines, contact sheet pass
+- PDF visual segmented gate: pass
+- PDF visual segmented gate verdict: pass
+- PDF visual segmented gate full status: not_complete
+- PDF visual segmented gate scope: segmented_visual_gate_auxiliary_only
+- PDF visual segmented gate slices: 4/4 pass
+- PDF visual segmented gate coverage: 44/44 baselines, contact sheet pass
+
+## Key outputs
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual gate attempt summary: .\output\pdf-visual-release-gate-current\report\attempt-summary.json
+- PDF visual gate attempt contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual segmented gate summary: .\output\pdf-visual-release-gate-current\report\segmented-summary.json
+- PDF visual segmented gate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+& $auditScript -Path $passFinalReviewPdfAuxTracePath
+
+$badFinalReviewPdfAttemptDetachedStepTraceDir = Join-Path $failDir "final-review-pdf-visual-attempt-step-status-supplied-by-detached-notes"
+$badFinalReviewPdfAttemptDetachedStepTracePath = Join-Path $badFinalReviewPdfAttemptDetachedStepTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewPdfAttemptDetachedStepTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewPdfAttemptDetachedStepTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Step status
+
+- PDF visual gate: loaded
+- PDF visual gate verdict: pass
+- PDF visual gate counts: 44 visual baselines, 43 CJK copy/search
+- PDF visual gate manifest counts: 42 visual baseline manifest samples, 43 CJK manifest samples
+- PDF visual gate finalizable: True
+- PDF visual gate attempt: partial
+- PDF visual gate attempt verdict: not_complete
+- PDF visual gate attempt full status: not_complete
+
+## Key outputs
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual gate attempt summary: .\output\pdf-visual-release-gate-current\report\attempt-summary.json
+- PDF visual gate attempt contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+
+## Detached notes
+
+- PDF visual gate attempt stages: 6/6 passed, 0 incomplete
+- PDF visual gate attempt pdf_regression: 91 selected, 0 failed, 7 skipped
+- PDF visual gate attempt render: 44/44 fresh baselines, contact sheet pass
+"@
+
+$badFinalReviewPdfAttemptDetachedStepTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewPdfAttemptDetachedStepTracePath
+} catch {
+    $badFinalReviewPdfAttemptDetachedStepTraceFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewPdfAttemptDetachedStepTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with PDF visual attempt step-status markers supplied only by detached notes."
+}
+
+$badFinalReviewPdfAttemptDetachedOutputTraceDir = Join-Path $failDir "final-review-pdf-visual-attempt-key-outputs-supplied-by-detached-notes"
+$badFinalReviewPdfAttemptDetachedOutputTracePath = Join-Path $badFinalReviewPdfAttemptDetachedOutputTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewPdfAttemptDetachedOutputTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewPdfAttemptDetachedOutputTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Step status
+
+- PDF visual gate: loaded
+- PDF visual gate verdict: pass
+- PDF visual gate counts: 44 visual baselines, 43 CJK copy/search
+- PDF visual gate manifest counts: 42 visual baseline manifest samples, 43 CJK manifest samples
+- PDF visual gate finalizable: True
+- PDF visual gate attempt: partial
+- PDF visual gate attempt verdict: not_complete
+- PDF visual gate attempt full status: not_complete
+- PDF visual gate attempt stages: 6/6 passed, 0 incomplete
+- PDF visual gate attempt pdf_regression: 91 selected, 0 failed, 7 skipped
+- PDF visual gate attempt render: 44/44 fresh baselines, contact sheet pass
+
+## Key outputs
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual gate attempt summary:
+- PDF visual gate attempt contact sheet:
+
+## Detached notes
+
+- PDF visual gate attempt summary: .\output\pdf-visual-release-gate-current\report\attempt-summary.json
+- PDF visual gate attempt contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+$badFinalReviewPdfAttemptDetachedOutputTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewPdfAttemptDetachedOutputTracePath
+} catch {
+    $badFinalReviewPdfAttemptDetachedOutputTraceFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewPdfAttemptDetachedOutputTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with PDF visual attempt Key outputs evidence supplied only by detached notes."
+}
+
+$badFinalReviewPdfSegmentedDetachedStepTraceDir = Join-Path $failDir "final-review-pdf-visual-segmented-step-status-supplied-by-detached-notes"
+$badFinalReviewPdfSegmentedDetachedStepTracePath = Join-Path $badFinalReviewPdfSegmentedDetachedStepTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewPdfSegmentedDetachedStepTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewPdfSegmentedDetachedStepTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Step status
+
+- PDF visual gate: loaded
+- PDF visual gate verdict: pass
+- PDF visual gate counts: 44 visual baselines, 43 CJK copy/search
+- PDF visual gate manifest counts: 42 visual baseline manifest samples, 43 CJK manifest samples
+- PDF visual gate finalizable: True
+- PDF visual segmented gate: pass
+- PDF visual segmented gate verdict: pass
+- PDF visual segmented gate full status: not_complete
+
+## Key outputs
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual segmented gate summary: .\output\pdf-visual-release-gate-current\report\segmented-summary.json
+- PDF visual segmented gate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+
+## Detached notes
+
+- PDF visual segmented gate scope: segmented_visual_gate_auxiliary_only
+- PDF visual segmented gate slices: 4/4 pass
+- PDF visual segmented gate coverage: 44/44 baselines, contact sheet pass
+"@
+
+$badFinalReviewPdfSegmentedDetachedStepTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewPdfSegmentedDetachedStepTracePath
+} catch {
+    $badFinalReviewPdfSegmentedDetachedStepTraceFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewPdfSegmentedDetachedStepTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with PDF visual segmented gate step-status markers supplied only by detached notes."
+}
+
+$badFinalReviewPdfSegmentedDetachedOutputTraceDir = Join-Path $failDir "final-review-pdf-visual-segmented-key-outputs-supplied-by-detached-notes"
+$badFinalReviewPdfSegmentedDetachedOutputTracePath = Join-Path $badFinalReviewPdfSegmentedDetachedOutputTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewPdfSegmentedDetachedOutputTraceDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewPdfSegmentedDetachedOutputTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Step status
+
+- PDF visual gate: loaded
+- PDF visual gate verdict: pass
+- PDF visual gate counts: 44 visual baselines, 43 CJK copy/search
+- PDF visual gate manifest counts: 42 visual baseline manifest samples, 43 CJK manifest samples
+- PDF visual gate finalizable: True
+- PDF visual segmented gate: pass
+- PDF visual segmented gate verdict: pass
+- PDF visual segmented gate full status: not_complete
+- PDF visual segmented gate scope: segmented_visual_gate_auxiliary_only
+- PDF visual segmented gate slices: 4/4 pass
+- PDF visual segmented gate coverage: 44/44 baselines, contact sheet pass
+
+## Key outputs
+
+- PDF visual gate summary: .\output\pdf-visual-release-gate-current\report\summary.json
+- PDF visual gate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+- PDF visual segmented gate summary:
+- PDF visual segmented gate contact sheet:
+
+## Detached notes
+
+- PDF visual segmented gate summary: .\output\pdf-visual-release-gate-current\report\segmented-summary.json
+- PDF visual segmented gate contact sheet: .\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png
+"@
+
+$badFinalReviewPdfSegmentedDetachedOutputTraceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewPdfSegmentedDetachedOutputTracePath
+} catch {
+    $badFinalReviewPdfSegmentedDetachedOutputTraceFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewPdfSegmentedDetachedOutputTraceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with PDF visual segmented gate Key outputs evidence supplied only by detached notes."
+}
+
 $badEntryGovernanceTracePath = Join-Path $failDir "ARTIFACT_GUIDE.md"
 Set-Content -LiteralPath $badEntryGovernanceTracePath -Encoding UTF8 -Value @"
 # Artifact Guide

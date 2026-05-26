@@ -92,6 +92,20 @@ OCR 或任意视觉精确还原。
      ``line_scoped_final_review_pdf_visual_verdict``、
      ``block_scoped_final_review_pdf_visual_step_status``、
      ``section_scoped_final_review_pdf_visual_key_outputs``。
+   * ``final_review.md`` 同步展示 attempt 辅助证据时，
+     ``PDF visual gate attempt:``、verdict、full status、stages、pdf_regression
+     和 render 必须保留在 ``## Step status`` 的同一连续 list run；
+     ``PDF visual gate attempt summary:`` 与 contact sheet 必须保留在
+     ``## Key outputs``，且路径必须直接携带 ``attempt-summary.json`` 和
+     ``aggregate-contact-sheet.png``。detached notes 不能补齐这些入口证据。
+     固定标记：``pdf_visual_gate_attempt_final_review_material_safety_trace``。
+   * ``final_review.md`` 同步展示 segmented gate 辅助证据时，
+     ``PDF visual segmented gate:``、verdict、full status、scope、slices 和 coverage
+     必须保留在 ``## Step status`` 的同一连续 list run，scope 行必须直接携带
+     ``segmented_visual_gate_auxiliary_only``；summary/contact sheet 必须保留在
+     ``## Key outputs``，且路径必须直接携带 ``segmented-summary.json`` 和
+     ``aggregate-contact-sheet.png``。detached notes 不能补齐这些入口证据。
+     固定标记：``pdf_visual_segmented_gate_final_review_material_safety_trace``。
    * ``release_handoff.md`` 中 ``PDF visual gate verdict:`` 行必须直接携带
      ``pass`` 或 ``fail``，``PDF visual gate summary:`` 行必须直接携带
      ``summary.json`` 路径，``PDF visual gate aggregate contact sheet:`` 行必须
@@ -157,6 +171,9 @@ OCR 或任意视觉精确还原。
      ``outer_guard_timed_out = true`` 和 ``outer_guard_timeout_seconds = 60``；
      这些字段只解释外层保护状态，不能替代 full visual gate verdict。固定标记：
      ``pdf_visual_gate_attempt_outer_guard_trace``。
+     ``final_review.md`` 中的 attempt summary/contact sheet reviewer 入口也必须经过
+     line/section scoped 审计。固定标记：
+     ``pdf_visual_gate_attempt_final_review_material_safety_trace``。
    * visual baseline render 阶段如果无法在单个 60 秒外层保护内完成，可以补跑
      ``scripts/run_pdf_visual_release_gate.ps1 -VisualBaselineSliceOnly``。
      该模式必须携带 ``VisualBaselineOffset`` 和 ``VisualBaselineLimit``，生成
@@ -202,6 +219,9 @@ OCR 或任意视觉精确还原。
      ``pdf_visual_segmented_gate_summary_trace``、
      ``pdf_visual_segmented_gate_governance_trace``。该证据不能替代 full visual gate
      verdict。
+     ``final_review.md`` 中的 segmented summary/contact sheet reviewer 入口也必须经过
+     line/section scoped 审计。固定标记：
+     ``pdf_visual_segmented_gate_final_review_material_safety_trace``。
    * ``release_assets_manifest.json`` 中的 ``pdf_visual_gate_evidence`` 必须保留
      ``cjk_manifest_count >= 43``、``visual_baseline_manifest_count >= 42``，
      并且 ``verdict = pass`` 时 ``cjk_missing_text_count = 0``；不能只依赖

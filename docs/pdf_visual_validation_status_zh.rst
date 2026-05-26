@@ -358,6 +358,15 @@ attempt summary 必须写出 ``outer_guard_status = timed_out``、
 ``outer_guard_timed_out = true`` 和 ``outer_guard_timeout_seconds = 60``；这些字段
 只解释外层保护状态，不能替代 fresh full visual gate pass。固定标记：
 ``pdf_visual_gate_attempt_outer_guard_trace``。
+``final_review.md`` 同步展示 attempt 证据时，``PDF visual gate attempt:``、
+``PDF visual gate attempt verdict:``、``PDF visual gate attempt full status:``、
+``PDF visual gate attempt stages:``、``PDF visual gate attempt pdf_regression:`` 和
+``PDF visual gate attempt render:`` 必须保留在 ``## Step status`` 的同一连续
+Markdown list run；``PDF visual gate attempt summary:`` 与
+``PDF visual gate attempt contact sheet:`` 必须保留在 ``## Key outputs``，且路径
+必须分别直接携带 ``attempt-summary.json`` 和 ``aggregate-contact-sheet.png``。
+detached notes 不能补齐这些 reviewer-facing 入口证据。固定标记：
+``pdf_visual_gate_attempt_final_review_material_safety_trace``。
 
 如果 44 个 visual baseline 无法在单个 60 秒外层保护内一次性重渲染，可以使用
 ``scripts/run_pdf_visual_release_gate.ps1 -VisualBaselineSliceOnly`` 做受控切片。
@@ -415,6 +424,16 @@ aggregate contact-sheet rebuild summary 后，必须再运行
 ``pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count`` 写入同一
 ``source_report:`` block。它只能解释分段 visual gate 辅助证据已经闭合，
 不能替代一份非 ``FinalizeOnly`` 的 full gate summary verdict。
+``final_review.md`` 同步展示 segmented gate 证据时，
+``PDF visual segmented gate:``、``PDF visual segmented gate verdict:``、
+``PDF visual segmented gate full status:``、``PDF visual segmented gate scope:``、
+``PDF visual segmented gate slices:`` 和 ``PDF visual segmented gate coverage:`` 必须保留在
+``## Step status`` 的同一连续 Markdown list run，且 scope 行必须直接携带
+``segmented_visual_gate_auxiliary_only``；``PDF visual segmented gate summary:`` 与
+``PDF visual segmented gate contact sheet:`` 必须保留在 ``## Key outputs``，且路径
+必须分别直接携带 ``segmented-summary.json`` 和 ``aggregate-contact-sheet.png``。
+detached notes 不能补齐这些 reviewer-facing 入口证据。固定标记：
+``pdf_visual_segmented_gate_final_review_material_safety_trace``。
 
 下一步
 ------

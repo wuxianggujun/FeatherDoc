@@ -374,6 +374,11 @@ schema 为 `featherdoc.pdf_visual_gate_attempt_summary.v1`，并显式写出
 会要求 `pdf_visual_gate_attempt_*` 字段与 `source_report:` 同块，避免 detached notes
 单独补齐被截断尝试的子阶段证据。固定标记：
 `pdf_visual_gate_attempt_material_safety_trace`。
+`final_review.md` 展示 attempt 辅助证据时，attempt status/verdict/full status、
+stages、pdf_regression 和 render 行必须保留在 `## Step status` 的同一连续 list run；
+attempt summary/contact sheet 必须保留在 `## Key outputs`，且路径必须直接携带
+`attempt-summary.json` 和 `aggregate-contact-sheet.png`，不能由 detached notes 补齐。
+固定标记：`pdf_visual_gate_attempt_final_review_material_safety_trace`。
 
 如果 44 个 visual baseline 无法在单个 60 秒外层保护内一次性重渲染，可以先用
 `scripts/run_pdf_visual_release_gate.ps1 -VisualBaselineSliceOnly -VisualBaselineOffset <n> -VisualBaselineLimit <m>`
@@ -428,6 +433,12 @@ release governance 会在同一个 `source_report:` block 中保留
 `pdf_visual_segmented_gate_aggregate_contact_sheet_bytes`、
 `pdf_visual_segmented_gate_aggregate_rebuild_status` 和
 `pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count`。
+`final_review.md` 展示 segmented gate 辅助证据时，segmented status/verdict/full status、
+scope、slices 和 coverage 行必须保留在 `## Step status` 的同一连续 list run，
+scope 行必须直接携带 `segmented_visual_gate_auxiliary_only`；segmented summary/contact sheet
+必须保留在 `## Key outputs`，且路径必须直接携带 `segmented-summary.json` 和
+`aggregate-contact-sheet.png`，不能由 detached notes 补齐。固定标记：
+`pdf_visual_segmented_gate_final_review_material_safety_trace`。
 
 默认 `PdfDocumentImporter` 遇到 `PdfParsedTableCandidate` 仍返回
 `table_candidates_detected`，避免把表格误扁平化成正文。只有显式设置

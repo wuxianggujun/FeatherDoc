@@ -699,6 +699,42 @@ function Test-MarkdownSectionContainsAll {
     return $false
 }
 
+function Test-MarkdownSectionListRunContainsAll {
+    param(
+        [string]$Text,
+        [string]$Heading,
+        [string]$Anchor,
+        [string[]]$Needles
+    )
+
+    $lines = $Text -split "\r?\n"
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        $line = $lines[$lineIndex].Trim()
+        if ($line -ne $Heading) {
+            continue
+        }
+        if ($line -notmatch '^(#+)\s+') {
+            continue
+        }
+
+        $headingLevel = $Matches[1].Length
+        $sectionEnd = $lines.Count - 1
+        for ($nextLineIndex = $lineIndex + 1; $nextLineIndex -lt $lines.Count; $nextLineIndex++) {
+            if ($lines[$nextLineIndex] -match '^(#+)\s+' -and $Matches[1].Length -le $headingLevel) {
+                $sectionEnd = $nextLineIndex - 1
+                break
+            }
+        }
+
+        $section = ($lines[$lineIndex..$sectionEnd]) -join "`n"
+        if (Test-MarkdownListRunContainsAll -Text $section -Anchor $Anchor -Needles $Needles) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Test-ReleaseEntryContentControlBulletRunContainsAll {
     param(
         [string]$Text,
@@ -2826,7 +2862,7 @@ function Add-FinalReviewPdfVisualGateTraceViolations {
         }
     }
 
-    if (-not (Test-MarkdownListRunContainsAll -Text $Content -Anchor "PDF visual gate:" -Needles $stepStatusNeedles)) {
+    if (-not (Test-MarkdownSectionListRunContainsAll -Text $Content -Heading "## Step status" -Anchor "PDF visual gate:" -Needles $stepStatusNeedles)) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
@@ -2873,6 +2909,141 @@ function Add-FinalReviewPdfVisualGateTraceViolations {
             -File $File `
             -Label $label `
             -Text "Final review must keep the PDF visual gate contact-sheet path on the PDF visual gate contact sheet line."
+    }
+}
+
+function Add-FinalReviewPdfVisualGateAttemptTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "final_review.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "attempt-summary.json",
+        "bounded_attempt_auxiliary_only"
+    ))) {
+        return
+    }
+
+    $label = "final review PDF visual gate attempt trace"
+    $stepStatusNeedles = @(
+        "PDF visual gate attempt:",
+        "PDF visual gate attempt verdict:",
+        "PDF visual gate attempt full status:",
+        "PDF visual gate attempt stages:",
+        "PDF visual gate attempt pdf_regression:",
+        "PDF visual gate attempt render:"
+    )
+    if (-not (Test-MarkdownSectionListRunContainsAll -Text $Content -Heading "## Step status" -Anchor "PDF visual gate attempt:" -Needles $stepStatusNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep PDF visual gate attempt status, verdict, full status, stage counts, regression counts, and render progress in the same step-status Markdown list run."
+    }
+
+    $keyOutputNeedles = @(
+        "PDF visual gate attempt summary:",
+        "attempt-summary.json",
+        "PDF visual gate attempt contact sheet:",
+        "aggregate-contact-sheet.png"
+    )
+    if (-not (Test-MarkdownSectionContainsAll -Text $Content -Heading "## Key outputs" -Needles $keyOutputNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep PDF visual gate attempt summary and contact-sheet evidence inside the Key outputs section."
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate attempt summary:", "attempt-summary.json"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep the PDF visual gate attempt summary path on the PDF visual gate attempt summary line."
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate attempt contact sheet:", "aggregate-contact-sheet.png"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep the PDF visual gate attempt contact-sheet path on the PDF visual gate attempt contact sheet line."
+    }
+}
+
+function Add-FinalReviewPdfVisualSegmentedGateTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "final_review.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "segmented-summary.json",
+        "segmented_visual_gate_auxiliary_only"
+    ))) {
+        return
+    }
+
+    $label = "final review PDF visual segmented gate trace"
+    $stepStatusNeedles = @(
+        "PDF visual segmented gate:",
+        "PDF visual segmented gate verdict:",
+        "PDF visual segmented gate full status:",
+        "PDF visual segmented gate scope:",
+        "segmented_visual_gate_auxiliary_only",
+        "PDF visual segmented gate slices:",
+        "PDF visual segmented gate coverage:"
+    )
+    if (-not (Test-MarkdownSectionListRunContainsAll -Text $Content -Heading "## Step status" -Anchor "PDF visual segmented gate:" -Needles $stepStatusNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep PDF visual segmented gate status, verdict, full status, auxiliary scope, slice counts, and coverage in the same step-status Markdown list run."
+    }
+
+    $keyOutputNeedles = @(
+        "PDF visual segmented gate summary:",
+        "segmented-summary.json",
+        "PDF visual segmented gate contact sheet:",
+        "aggregate-contact-sheet.png"
+    )
+    if (-not (Test-MarkdownSectionContainsAll -Text $Content -Heading "## Key outputs" -Needles $keyOutputNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep PDF visual segmented gate summary and contact-sheet evidence inside the Key outputs section."
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual segmented gate summary:", "segmented-summary.json"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep the PDF visual segmented gate summary path on the PDF visual segmented gate summary line."
+    }
+
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual segmented gate contact sheet:", "aggregate-contact-sheet.png"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Final review must keep the PDF visual segmented gate contact-sheet path on the PDF visual segmented gate contact sheet line."
     }
 }
 
@@ -3978,6 +4149,8 @@ foreach ($file in $scanFiles) {
         Add-FinalReviewProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
+        Add-FinalReviewPdfVisualGateAttemptTraceViolations -File $file -Content $content -Violations $violations
+        Add-FinalReviewPdfVisualSegmentedGateTraceViolations -File $file -Content $content -Violations $violations
     }
 
     if ([System.IO.Path]::GetExtension($file).ToLowerInvariant() -eq ".json") {
