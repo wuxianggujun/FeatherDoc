@@ -74,6 +74,7 @@ $reviewerChecklistScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePat
 $releaseBundleVersionTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_note_bundle_version_test.ps1"
 $releaseCandidateVisualTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_candidate_visual_verdict_test.ps1"
 $releaseBlockerRollupTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
+$releaseGovernanceHandoffTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_handoff_report_test.ps1"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 
 foreach ($marker in @(
@@ -495,6 +496,26 @@ foreach ($marker in @(
 )) {
     Assert-ContainsText -Text $releaseBlockerRollupTest -ExpectedText $marker `
         -Message "Release blocker rollup regression should prove project-template checklist and packaged audit evidence stay in the release-candidate source-report block."
+}
+
+Assert-ContainsText -Text $releaseGovernanceHandoffTest -ExpectedText 'if (Test-Scenario -Name "include_rollup") {' `
+    -Message "Release governance handoff regression should exercise the nested release blocker rollup evidence path."
+Assert-ContainsText -Text $releaseGovernanceHandoffTest -ExpectedText 'Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(' `
+    -Message "Release governance handoff regression should lock release-candidate source_report evidence as one Markdown list block."
+foreach ($marker in @(
+    'project_template_readiness_checklist_entrypoints_source_report_count) -Expected 1',
+    'release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count) -Expected 1',
+    'project_template_readiness_checklist_entrypoints_status: ``declared``',
+    'project_template_readiness_checklist_entrypoints_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``',
+    'project_template_readiness_checklist_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``',
+    'project_template_readiness_checklist_entrypoints_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``',
+    'release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``',
+    'release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``start_here, artifact_guide, reviewer_checklist``',
+    'release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema: ``featherdoc.release_candidate_summary``',
+    'release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``'
+)) {
+    Assert-ContainsText -Text $releaseGovernanceHandoffTest -ExpectedText $marker `
+        -Message "Release governance handoff regression should prove nested project-template checklist and packaged audit evidence stay in the release-candidate source_report block."
 }
 
 foreach ($scriptText in @($releaseGovernanceHandoffScript, $releaseBlockerMetadataHelpersScript)) {
