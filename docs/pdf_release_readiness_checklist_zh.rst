@@ -189,6 +189,12 @@ OCR 或任意视觉精确还原。
      ``outer_guard_timed_out = true`` 和 ``outer_guard_timeout_seconds = 60``；
      这些字段只解释外层保护状态，不能替代 full visual gate verdict。固定标记：
      ``pdf_visual_gate_attempt_outer_guard_trace``。
+     从 2026-05-26 起，``scripts/run_release_candidate_checks.ps1`` 还必须把这类
+     fresh attempt 未完成事实上提为顶层 ``warnings[]``，稳定 id 为
+     ``pdf_visual_gate_attempt.incomplete_fresh_render``。warning 必须直接携带
+     ``attempt-summary.json`` 路径和 outer guard ``timed_out`` / ``true`` / ``60``，
+     并明确说明当前发布结论仍依赖 ``FinalizeOnly`` summary / contact-sheet
+     复核证据；它是 reviewer-facing warning，不是新的 release blocker。
      ``final_review.md`` 中的 attempt summary/contact sheet reviewer 入口也必须经过
      line/section scoped 审计。固定标记：
      ``pdf_visual_gate_attempt_final_review_material_safety_trace``。

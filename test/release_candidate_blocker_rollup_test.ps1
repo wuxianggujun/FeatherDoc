@@ -441,7 +441,7 @@ if ($Scenario -eq "handoff") {
         -Message "Release candidate summary should surface handoff blocker count."
     Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.action_item_count) -Expected 5 `
         -Message "Release candidate summary should surface handoff action count."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.warning_count) -Expected 2 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.warning_count) -Expected 3 `
         -Message "Release candidate summary should surface handoff warning count."
     Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
@@ -455,6 +455,9 @@ if ($Scenario -eq "handoff") {
     Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
         -Message "Release candidate summary should carry handoff warning ids."
+    Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "pdf_visual_gate_attempt.incomplete_fresh_render" `
+        -Message "Release candidate summary should carry the current PDF visual gate attempt warning."
     Assert-ContainsText -Text (($handoffReleaseSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Release candidate step summary should carry handoff action open command."
@@ -546,7 +549,7 @@ if ($Scenario -eq "handoff") {
         -Message "Fail-on-blocker handoff summary should preserve blocker count."
     Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.action_item_count) -Expected 5 `
         -Message "Fail-on-blocker handoff summary should preserve action count."
-    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.warning_count) -Expected 2 `
+    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.warning_count) -Expected 3 `
         -Message "Fail-on-blocker handoff summary should preserve warning count."
     Assert-ContainsText -Text (($handoffFailOnSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "project_template_onboarding.schema_approval" `
@@ -560,6 +563,9 @@ if ($Scenario -eq "handoff") {
     Assert-ContainsText -Text (($handoffFailOnSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
         -Message "Fail-on-blocker handoff summary should keep warnings written before child failure."
+    Assert-ContainsText -Text (($handoffFailOnSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "pdf_visual_gate_attempt.incomplete_fresh_render" `
+        -Message "Fail-on-blocker handoff summary should keep the current PDF visual gate attempt warning."
     Assert-ContainsText -Text (($handoffFailOnSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Fail-on-blocker handoff step summary should keep action open commands."

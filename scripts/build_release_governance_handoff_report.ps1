@@ -840,6 +840,29 @@ function Add-NormalizedWarnings {
     }
 }
 
+function New-ExplicitReleaseCandidateWarningReport {
+    param(
+        [string]$RepoRoot,
+        [string]$Path,
+        [object]$Json,
+        [int]$Index
+    )
+
+    return [ordered]@{
+        id = ("release_candidate_summary_{0}" -f $Index)
+        title = "Release Candidate Summary"
+        source = "explicit"
+        expected_summary = $Path
+        expected_summary_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
+        source_report = $Path
+        source_report_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
+        source_json = $Path
+        source_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
+        schema = Get-JsonString -Object $Json -Name "schema"
+        warnings = @(Get-JsonArray -Object $Json -Name "warnings")
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -1311,6 +1334,7 @@ $expectedReports = @(
 
 $reports = New-Object 'System.Collections.Generic.List[object]'
 $reportById = @{}
+$explicitWarningReports = New-Object 'System.Collections.Generic.List[object]'
 foreach ($expected in @($expectedReports)) {
     $path = Join-Path $resolvedInputRoot ([string]$expected.relative_summary)
     if (-not (Test-Path -LiteralPath $path)) {
@@ -1360,6 +1384,13 @@ foreach ($input in @(Expand-InputPathList -Paths $InputJson)) {
         $json = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
         $kind = Get-ReportKind -Summary $json
         if (-not $reportById.ContainsKey($kind)) {
+            if ([string]::Equals($kind, "featherdoc.release_candidate_summary", [System.StringComparison]::OrdinalIgnoreCase)) {
+                $explicitWarningReports.Add((New-ExplicitReleaseCandidateWarningReport `
+                            -RepoRoot $repoRoot `
+                            -Path $path `
+                            -Json $json `
+                            -Index ($explicitWarningReports.Count + 1))) | Out-Null
+            }
             continue
         }
         $expected = @($expectedReports | Where-Object { $_.id -eq $kind } | Select-Object -First 1)
@@ -1403,6 +1434,9 @@ foreach ($report in @($reports.ToArray())) {
         -ProjectTemplateOnboardingGovernanceContract $projectTemplateOnboardingGovernanceContract
     Add-NormalizedWarnings -Collection $warnings -Report $report
 }
+foreach ($report in @($explicitWarningReports.ToArray())) {
+    Add-NormalizedWarnings -Collection $warnings -Report $report
+}
 
 $loadedReportCount = @($reports.ToArray() | Where-Object { $_.status -notin @("missing", "failed") }).Count
 $missingReportCount = @($reports.ToArray() | Where-Object { $_.status -eq "missing" }).Count
@@ -1410,6 +1444,9 @@ $failedReportCount = @($reports.ToArray() | Where-Object { $_.status -eq "failed
 $warningCount = 0
 foreach ($report in @($reports.ToArray())) {
     $warningCount += [int]$report.warning_count
+}
+foreach ($report in @($explicitWarningReports.ToArray())) {
+    $warningCount += @($report.warnings).Count
 }
 $governanceMetrics = New-Object 'System.Collections.Generic.List[object]'
 foreach ($report in @($reports.ToArray())) {

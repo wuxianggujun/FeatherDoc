@@ -234,6 +234,24 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'pdf_visual_gate_summary_jso
 Assert-ContainsText -Text $scriptText -ExpectedText 'pdf_visual_gate = $pdfVisualGateSummaryInfo' `
     -Message "Release summary should expose PDF visual gate metadata."
 
+Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-PdfVisualGateAttemptReleaseWarnings' `
+    -Message "Release preflight should derive machine-readable warnings from incomplete fresh PDF visual gate attempts."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'id = "pdf_visual_gate_attempt.incomplete_fresh_render"' `
+    -Message "Release warnings should include a stable id for incomplete fresh PDF visual gate attempts."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'warning_count = 0' `
+    -Message "Release summary should expose a top-level warning count."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'warnings = @()' `
+    -Message "Release summary should expose top-level machine-readable warnings."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'Set-ReleaseSummaryWarnings -ReleaseSummary $summary -Warnings $releaseWarnings' `
+    -Message "Release summary should materialize PDF attempt warnings before governance rollups consume the summary."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '- Warnings: $($summary.warning_count)' `
+    -Message "Release final review should render the top-level warning count."
+
 Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate: $($summary.steps.pdf_visual_gate.status)' `
     -Message "Release final review should include PDF visual gate status."
 
@@ -281,6 +299,15 @@ Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual segmented gate
 
 Assert-ContainsText -Text $scriptText -ExpectedText 'Get-PdfVisualSegmentedGateSummaryInfo -SummaryJson $resolvedPdfVisualSegmentedGateSummaryJson' `
     -Message "Release preflight should load machine-readable segmented PDF visual gate metadata."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'outer_guard_status = ""' `
+    -Message "PDF visual gate attempt summary metadata should expose outer_guard_status."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'outer_guard_timed_out = $false' `
+    -Message "PDF visual gate attempt summary metadata should expose outer_guard_timed_out."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'outer_guard_timeout_seconds = 0' `
+    -Message "PDF visual gate attempt summary metadata should expose outer_guard_timeout_seconds."
 
 Assert-ContainsText -Text $scriptText -ExpectedText '"-TableStyleQualityBuildDir"' `
     -Message "Release preflight should pass the shared build directory to table style quality visual gate."
@@ -395,6 +422,7 @@ $functionNames = @(
     "Get-RepoRelativePath",
     "Get-OptionalPropertyValue",
     "Get-PdfVisualGateSummaryInfo",
+    "Get-PdfVisualGateAttemptSummaryInfo",
     "Get-PdfVisualSegmentedGateSummaryInfo",
     "Get-PdfBoundedCtestSummaryInfo",
     "Convert-ReviewTimestamp",
@@ -446,6 +474,49 @@ if ($pdfVisualGateInfo.status -ne "loaded" -or
 $missingPdfVisualGateInfo = Get-PdfVisualGateSummaryInfo -SummaryJson (Join-Path $resolvedWorkingDir "missing-summary.json")
 if ($missingPdfVisualGateInfo.status -ne "missing" -or [bool]$missingPdfVisualGateInfo.finalizable) {
     throw "Missing PDF visual gate summary should not be marked finalizable."
+}
+
+$pdfAttemptSummaryPath = Join-Path $pdfSummaryDir "attempt-summary.json"
+([ordered]@{
+        schema = "featherdoc.pdf_visual_gate_attempt_summary.v1"
+        status = "partial"
+        verdict = "not_complete"
+        full_visual_gate_status = "not_complete"
+        evidence_scope = "bounded_attempt_auxiliary_only"
+        stage_count = 6
+        passed_stage_count = 4
+        failed_stage_count = 0
+        incomplete_stage_count = 2
+        pdf_cli_export_status = "pass"
+        pdf_regression_status = "pass"
+        pdf_regression_selected_test_count = 91
+        pdf_regression_failed_test_count = 0
+        pdf_regression_skipped_test_count = 7
+        unicode_font_status = "pass"
+        cjk_copy_search_status = "pass"
+        cjk_copy_search_count = 43
+        cjk_copy_search_missing_text_count = 0
+        visual_baseline_render_status = "partial"
+        visual_baseline_fresh_rendered_count = 37
+        expected_visual_render_count = 44
+        outer_guard_status = "timed_out"
+        outer_guard_timed_out = $true
+        outer_guard_timeout_seconds = 60
+        aggregate_contact_sheet_status = "stale"
+        aggregate_contact_sheet = $pdfContactSheetPath
+        aggregate_contact_sheet_bytes = 1822428
+    } | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $pdfAttemptSummaryPath -Encoding UTF8
+
+$pdfAttemptInfo = Get-PdfVisualGateAttemptSummaryInfo -SummaryJson $pdfAttemptSummaryPath
+if ($pdfAttemptInfo.status -ne "partial" -or
+    $pdfAttemptInfo.verdict -ne "not_complete" -or
+    $pdfAttemptInfo.full_visual_gate_status -ne "not_complete" -or
+    $pdfAttemptInfo.outer_guard_status -ne "timed_out" -or
+    -not [bool]$pdfAttemptInfo.outer_guard_timed_out -or
+    [int]$pdfAttemptInfo.outer_guard_timeout_seconds -ne 60 -or
+    [int]$pdfAttemptInfo.visual_baseline_fresh_rendered_count -ne 37 -or
+    [int]$pdfAttemptInfo.expected_visual_render_count -ne 44) {
+    throw "PDF visual gate attempt summary metadata was not loaded with outer-guard evidence."
 }
 
 $pdfSegmentedSummaryPath = Join-Path $pdfSummaryDir "segmented-summary.json"
@@ -801,6 +872,7 @@ New-Item -ItemType Directory -Path $releaseGovernanceSourceDir -Force | Out-Null
     -ReleaseGovernanceHandoffOutputDir $releaseGovernanceHandoffOutputDir `
     -ReleaseGovernanceHandoffIncludeRollup `
     -PdfVisualGateSummaryJson $pdfSummaryPath `
+    -PdfVisualGateAttemptSummaryJson $pdfAttemptSummaryPath `
     -PdfVisualSegmentedGateSummaryJson $pdfSegmentedSummaryPath `
     -PdfBoundedCtestSummaryJson @($boundedSmokePath, $boundedBusinessPath)
 if ($LASTEXITCODE -ne 0) {
@@ -851,7 +923,34 @@ if ([int]$candidateSummary.steps.pdf_bounded_ctest.summary_count -ne 2 -or
     @($candidateSummary.steps.pdf_bounded_ctest.subsets) -notcontains "regression-business-samples") {
     throw "Release candidate summary did not preserve PDF bounded CTest auxiliary evidence."
 }
-if ([int]$candidateSummary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count -ne 1 -or
+if ($candidateSummary.steps.pdf_visual_gate_attempt.status -ne "partial" -or
+    $candidateSummary.steps.pdf_visual_gate_attempt.verdict -ne "not_complete" -or
+    $candidateSummary.steps.pdf_visual_gate_attempt.outer_guard_status -ne "timed_out" -or
+    -not [bool]$candidateSummary.steps.pdf_visual_gate_attempt.outer_guard_timed_out -or
+    [int]$candidateSummary.steps.pdf_visual_gate_attempt.outer_guard_timeout_seconds -ne 60) {
+    throw "Release candidate summary did not preserve PDF visual gate attempt outer-guard evidence."
+}
+if ([int]$candidateSummary.warning_count -ne 1 -or @($candidateSummary.warnings).Count -ne 1) {
+    throw "Release candidate summary should expose one machine-readable PDF fresh-attempt warning."
+}
+$pdfAttemptWarning = @($candidateSummary.warnings) |
+    Where-Object { [string]$_.id -eq "pdf_visual_gate_attempt.incomplete_fresh_render" } |
+    Select-Object -First 1
+if ($null -eq $pdfAttemptWarning -or
+    [string]$pdfAttemptWarning.action -ne "review_pdf_visual_gate_attempt_and_finalize_evidence" -or
+    [string]$pdfAttemptWarning.source_schema -ne "featherdoc.release_candidate_summary" -or
+    [string]$pdfAttemptWarning.source_json -ne $pdfAttemptSummaryPath -or
+    [string]$pdfAttemptWarning.source_json_display -notmatch [regex]::Escape("attempt-summary.json") -or
+    [string]$pdfAttemptWarning.outer_guard_status -ne "timed_out" -or
+    -not [bool]$pdfAttemptWarning.outer_guard_timed_out -or
+    [int]$pdfAttemptWarning.outer_guard_timeout_seconds -ne 60 -or
+    [string]$pdfAttemptWarning.visual_baseline_render_status -ne "partial" -or
+    [string]$pdfAttemptWarning.aggregate_contact_sheet_status -ne "stale") {
+    throw "Release candidate summary did not materialize the PDF fresh-attempt warning with reviewer-facing evidence."
+}
+Assert-ContainsText -Text ([string]$pdfAttemptWarning.message) -ExpectedText "FinalizeOnly" `
+    -Message "PDF fresh-attempt warning should explain that release still relies on FinalizeOnly evidence."
+if ([int]$candidateSummary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count -ne 2 -or
     [int]$candidateSummary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 1) {
     throw "Release candidate summary did not consume project-template release entry evidence from release governance handoff."
 }
@@ -939,6 +1038,8 @@ foreach ($assertion in @(
 }
 
 $finalReviewContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateFinalReviewPath
+Assert-ContainsText -Text $finalReviewContent -ExpectedText "- Warnings: 1" `
+    -Message "final_review.md should expose the top-level warning count."
 Assert-MarkdownListRunContainsAll -Text $finalReviewContent -Anchor "PDF visual segmented gate:" -Fragments @(
     "PDF visual segmented gate: pass",
     "PDF visual segmented gate verdict: pass",
@@ -974,6 +1075,16 @@ foreach ($assertion in @(
     ) -Message ("{0} should keep PDF visual status, verdict, paths, and counts in one Markdown list run." -f $assertion.Label)
 }
 
+$candidateReleaseHandoff = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseHandoffPath
+Assert-ContainsText -Text $candidateReleaseHandoff -ExpectedText "Warnings: 1" `
+    -Message "release_handoff.md should expose the propagated warning count."
+Assert-ContainsText -Text $candidateReleaseHandoff -ExpectedText "pdf_visual_gate_attempt.incomplete_fresh_render" `
+    -Message "release_handoff.md should preserve the PDF fresh-attempt warning id."
+Assert-ContainsText -Text $candidateReleaseHandoff -ExpectedText "review_pdf_visual_gate_attempt_and_finalize_evidence" `
+    -Message "release_handoff.md should preserve the PDF fresh-attempt warning action."
+Assert-ContainsText -Text $candidateReleaseHandoff -ExpectedText "attempt-summary.json" `
+    -Message "release_handoff.md should preserve the PDF fresh-attempt warning evidence path."
+
 $candidateFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateFinalReviewPath
 Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Key outputs" -Fragments @(
     "PDF visual gate summary:",
@@ -992,7 +1103,7 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Step 
 ) -Message "final_review.md should expose bounded PDF CTest auxiliary evidence in the Step status section."
 Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Project-template release entry evidence" -Fragments @(
     "Project-template readiness checklist handoff evidence",
-    "project_template_readiness_checklist_entrypoints_source_reports=1",
+    "project_template_readiness_checklist_entrypoints_source_reports=2",
     "docs/project_template_release_readiness_checklist_zh.rst",
     "required_entrypoint_count=3",
     "entrypoints=start_here, artifact_guide, reviewer_checklist",

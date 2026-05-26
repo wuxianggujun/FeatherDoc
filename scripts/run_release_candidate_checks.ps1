@@ -486,6 +486,9 @@ function Get-PdfVisualGateAttemptSummaryInfo {
         visual_baseline_render_status = ""
         visual_baseline_fresh_rendered_count = 0
         expected_visual_render_count = 0
+        outer_guard_status = ""
+        outer_guard_timed_out = $false
+        outer_guard_timeout_seconds = 0
         aggregate_contact_sheet_status = ""
         aggregate_contact_sheet = ""
         aggregate_contact_sheet_bytes = 0
@@ -518,6 +521,9 @@ function Get-PdfVisualGateAttemptSummaryInfo {
         $info.visual_baseline_render_status = [string](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_render_status")
         $info.visual_baseline_fresh_rendered_count = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_fresh_rendered_count")
         $info.expected_visual_render_count = [int](Get-OptionalPropertyValue -Object $summary -Name "expected_visual_render_count")
+        $info.outer_guard_status = [string](Get-OptionalPropertyValue -Object $summary -Name "outer_guard_status")
+        $info.outer_guard_timed_out = [bool](Get-OptionalPropertyValue -Object $summary -Name "outer_guard_timed_out")
+        $info.outer_guard_timeout_seconds = [int](Get-OptionalPropertyValue -Object $summary -Name "outer_guard_timeout_seconds")
         $info.aggregate_contact_sheet_status = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet_status")
         $info.aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet")
         $info.aggregate_contact_sheet_bytes = [int](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet_bytes")
@@ -527,6 +533,99 @@ function Get-PdfVisualGateAttemptSummaryInfo {
     }
 
     return $info
+}
+
+function Get-PdfVisualGateAttemptReleaseWarnings {
+    param(
+        [System.Collections.IDictionary]$ReleaseSummary,
+        [string]$RepoRoot
+    )
+
+    $warnings = New-Object 'System.Collections.Generic.List[object]'
+    $attempt = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "pdf_visual_gate_attempt"
+    if ($null -eq $attempt) {
+        return @()
+    }
+
+    $attemptStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "status")
+    $attemptVerdict = [string](Get-OptionalPropertyValue -Object $attempt -Name "verdict")
+    $attemptFullStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "full_visual_gate_status")
+    $outerGuardTimedOut = [bool](Get-OptionalPropertyValue -Object $attempt -Name "outer_guard_timed_out")
+    $outerGuardStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "outer_guard_status")
+    $renderStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_render_status")
+    $contactSheetStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "aggregate_contact_sheet_status")
+    $needsWarning = $attemptStatus -eq "partial" -or
+        $attemptVerdict -eq "not_complete" -or
+        $attemptFullStatus -eq "not_complete" -or
+        $outerGuardTimedOut -or
+        $outerGuardStatus -eq "timed_out"
+
+    if (-not $needsWarning) {
+        return @()
+    }
+
+    $summaryJsonPath = [string](Get-OptionalPropertyValue -Object $attempt -Name "summary_json")
+    $summaryJsonDisplay = Get-RepoRelativePath -RepoRoot $RepoRoot -Path $summaryJsonPath
+    $renderedCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_fresh_rendered_count")
+    $expectedRenderCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "expected_visual_render_count")
+    $pdfRegressionSelected = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_selected_test_count")
+    $pdfRegressionFailed = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_failed_test_count")
+    $pdfRegressionSkipped = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_skipped_test_count")
+    $cjkCopySearchCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_count")
+    $cjkMissingTextCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_missing_text_count")
+    $outerGuardTimeoutSeconds = [int](Get-OptionalPropertyValue -Object $attempt -Name "outer_guard_timeout_seconds")
+    $message = "Fresh non-FinalizeOnly PDF visual gate attempt did not complete within the 60-second outer guard; release still relies on FinalizeOnly summary/contact-sheet evidence while baseline render/contact-sheet refresh remains incomplete."
+
+    [void]$warnings.Add([ordered]@{
+            id = "pdf_visual_gate_attempt.incomplete_fresh_render"
+            action = "review_pdf_visual_gate_attempt_and_finalize_evidence"
+            message = $message
+            source_schema = "featherdoc.release_candidate_summary"
+            source_report = $summaryJsonPath
+            source_report_display = $summaryJsonDisplay
+            source_json = $summaryJsonPath
+            source_json_display = $summaryJsonDisplay
+            attempt_status = $attemptStatus
+            attempt_verdict = $attemptVerdict
+            full_visual_gate_status = $attemptFullStatus
+            evidence_scope = [string](Get-OptionalPropertyValue -Object $attempt -Name "evidence_scope")
+            outer_guard_status = $outerGuardStatus
+            outer_guard_timed_out = $outerGuardTimedOut
+            outer_guard_timeout_seconds = $outerGuardTimeoutSeconds
+            pdf_cli_export_status = [string](Get-OptionalPropertyValue -Object $attempt -Name "pdf_cli_export_status")
+            pdf_regression_status = [string](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_status")
+            pdf_regression_selected_test_count = $pdfRegressionSelected
+            pdf_regression_failed_test_count = $pdfRegressionFailed
+            pdf_regression_skipped_test_count = $pdfRegressionSkipped
+            unicode_font_status = [string](Get-OptionalPropertyValue -Object $attempt -Name "unicode_font_status")
+            cjk_copy_search_status = [string](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_status")
+            cjk_copy_search_count = $cjkCopySearchCount
+            cjk_copy_search_missing_text_count = $cjkMissingTextCount
+            visual_baseline_render_status = $renderStatus
+            visual_baseline_fresh_rendered_count = $renderedCount
+            expected_visual_render_count = $expectedRenderCount
+            aggregate_contact_sheet_status = $contactSheetStatus
+            aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $attempt -Name "aggregate_contact_sheet")
+        })
+
+    return @($warnings.ToArray())
+}
+
+function Set-ReleaseSummaryWarnings {
+    param(
+        [System.Collections.IDictionary]$ReleaseSummary,
+        [object[]]$Warnings
+    )
+
+    $normalizedWarnings = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($warning in @($Warnings)) {
+        if ($null -ne $warning) {
+            [void]$normalizedWarnings.Add($warning)
+        }
+    }
+
+    $ReleaseSummary["warnings"] = @($normalizedWarnings.ToArray())
+    $ReleaseSummary["warning_count"] = $normalizedWarnings.Count
 }
 
 function Get-PdfVisualSegmentedGateSummaryInfo {
@@ -1362,6 +1461,16 @@ function Select-UniqueReleaseBlockerRollupPathList {
     )
 }
 
+function Get-ReleaseGovernanceHandoffEffectiveInputJson {
+    param(
+        [string[]]$InputJson,
+        [string]$ReleaseSummaryPath
+    )
+
+    return @(Select-UniqueReleaseBlockerRollupPathList `
+            -Paths (@($InputJson) + @($ReleaseSummaryPath)))
+}
+
 function Get-ReleaseBlockerRollupAutoDiscoveredInputJson {
     param(
         [string]$RepoRoot,
@@ -1909,6 +2018,7 @@ New-Item -ItemType Directory -Path $resolvedSummaryOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 
 $summary = [ordered]@{
+    schema = "featherdoc.release_candidate_summary"
     generated_at = (Get-Date).ToString("s")
     workspace = $repoRoot
     build_dir = $resolvedBuildDir
@@ -1928,6 +2038,8 @@ $summary = [ordered]@{
     error = ""
     release_blockers = @()
     release_blocker_count = 0
+    warning_count = 0
+    warnings = @()
     release_handoff = $releaseHandoffPath
     release_body_zh_cn = $releaseBodyZhCnPath
     release_summary_zh_cn = $releaseSummaryZhCnPath
@@ -2841,6 +2953,17 @@ try {
         ($summary | ConvertTo-Json -Depth 10) | Set-Content -Path $summaryPath -Encoding UTF8
     }
 
+    $releaseWarnings = @(Get-PdfVisualGateAttemptReleaseWarnings -ReleaseSummary $summary -RepoRoot $repoRoot)
+    Set-ReleaseSummaryWarnings -ReleaseSummary $summary -Warnings $releaseWarnings
+    ($summary | ConvertTo-Json -Depth 10) | Set-Content -Path $summaryPath -Encoding UTF8
+
+    $effectiveReleaseGovernanceHandoffInputJson = @(Get-ReleaseGovernanceHandoffEffectiveInputJson `
+            -InputJson $resolvedReleaseGovernanceHandoffInputJson `
+            -ReleaseSummaryPath $summaryPath)
+    if ($releaseGovernanceHandoffRequested) {
+        $summary.release_governance_handoff.input_json = @($effectiveReleaseGovernanceHandoffInputJson)
+    }
+
     if ($releaseBlockerRollupRequested) {
         try {
             Write-Step "Building release blocker rollup"
@@ -2912,7 +3035,7 @@ try {
             Invoke-ReleaseGovernanceHandoff `
                 -ScriptPath $releaseGovernanceHandoffScript `
                 -InputRoot $resolvedReleaseGovernanceHandoffInputRoot `
-                -InputJson $resolvedReleaseGovernanceHandoffInputJson `
+                -InputJson $effectiveReleaseGovernanceHandoffInputJson `
                 -OutputDir $resolvedReleaseGovernanceHandoffOutputDir `
                 -SummaryJson $releaseGovernanceHandoffSummaryPath `
                 -ReportMarkdown $releaseGovernanceHandoffMarkdownPath `
@@ -3122,6 +3245,7 @@ try {
 - Failed step: $($summary.failed_step)
 - Error: $($summary.error)
 - Release blockers: $($summary.release_blocker_count)
+- Warnings: $($summary.warning_count)
 - MSVC bootstrap mode: $($summary.msvc_bootstrap_mode)
 
 ## Step status
