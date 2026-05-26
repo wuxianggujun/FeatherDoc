@@ -44,6 +44,7 @@ $pdfImportScopeDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "doc
 $dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
 $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
 $releaseReadinessScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_release_readiness.ps1"
+$fullCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_full_ctest_guarded.ps1"
 $governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
 $materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
 $materialSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
@@ -797,6 +798,14 @@ $releaseReadinessMachineGateMarkers = @(
     "pass_with_warnings",
     "release_ready",
     "pdf_release_readiness_machine_gate_trace",
+    "run_pdf_full_ctest_guarded.ps1",
+    "featherdoc.pdf_full_ctest_guarded_summary.v1",
+    "pdf_full_ctest_guarded_summary_trace",
+    "full_ctest_status",
+    "full_ctest_verdict",
+    "full_ctest_outer_guard_status",
+    "full_ctest_completed_test_count",
+    "full_ctest_not_run_test_count",
     "pdf_full_fresh_visual_gate.not_completed_in_current_window",
     "pdf_full_ctest.not_completed_in_current_window",
     "does not run CMake, CTest, rendering, Office, LibreOffice, browsers, or PDF generation",
@@ -808,6 +817,22 @@ $releaseReadinessMachineGateMarkers = @(
 foreach ($marker in $releaseReadinessMachineGateMarkers) {
     Assert-ContainsText -Text $releaseReadinessScript -ExpectedText $marker `
         -Message "PDF release readiness script should preserve machine gate marker '$marker'."
+}
+
+foreach ($marker in @(
+    "featherdoc.pdf_full_ctest_guarded_summary.v1",
+    "guarded_full_pdf_ctest_attempt",
+    "outer_guard_status",
+    "outer_guard_timed_out",
+    "outer_guard_timeout_seconds",
+    "selected_test_count",
+    "completed_test_count",
+    "not_run_test_count",
+    "guarded_full_ctest_attempt_does_not_replace_completed_full_ctest",
+    "pdf_full_ctest_guarded_summary_trace"
+)) {
+    Assert-ContainsText -Text $fullCtestGuardedScript -ExpectedText $marker `
+        -Message "PDF full CTest guarded script should preserve marker '$marker'."
 }
 
 foreach ($marker in $scriptMarkers) {
@@ -862,6 +887,8 @@ foreach ($marker in @(
     "pdf_real_business_sample_manifest_contract_test.ps1",
     "pdf_release_readiness_check",
     "pdf_release_readiness_check_test.ps1",
+    "pdf_full_ctest_guarded",
+    "pdf_full_ctest_guarded_test.ps1",
     "TIMEOUT 60"
 )) {
     Assert-ContainsText -Text $cmakeLists -ExpectedText $marker `

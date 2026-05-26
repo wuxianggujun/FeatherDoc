@@ -108,14 +108,39 @@ function New-PassingFixture {
         samples = @(New-ManifestSamples)
     })
 
+    Write-JsonFile -Path (Join-Path $Root "output\pdf-ctest-current\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.pdf_full_ctest_guarded_summary.v1"
+        generated_at = "2026-05-27T02:33:46"
+        status = "timeout"
+        verdict = "not_complete"
+        full_ctest_status = "not_complete"
+        evidence_scope = "guarded_full_pdf_ctest_attempt"
+        ctest_pattern = "pdf_"
+        ctest_timeout_seconds = 60
+        outer_guard_status = "timed_out"
+        outer_guard_timed_out = $true
+        outer_guard_timeout_seconds = 60
+        selected_test_count = 139
+        completed_test_count = 102
+        passed_test_count = 96
+        failed_test_count = 0
+        skipped_test_count = 6
+        not_run_test_count = 37
+        boundary = "guarded_full_ctest_attempt_does_not_replace_completed_full_ctest"
+        marker = "pdf_full_ctest_guarded_summary_trace"
+    })
+
     @"
 PDF release readiness checklist fixture
 check_pdf_release_readiness.ps1
+run_pdf_full_ctest_guarded.ps1
 featherdoc.pdf_release_readiness_check.v1
+featherdoc.pdf_full_ctest_guarded_summary.v1
 pdf_visual_gate_evidence
 pdf_bounded_ctest_evidence
 release_entry_pdf_readiness_checklist_trace
 pdf_release_readiness_machine_gate_trace
+pdf_full_ctest_guarded_summary_trace
 "@ | Set-Content -LiteralPath (Join-Path $Root "docs\pdf_release_readiness_checklist_zh.rst") -Encoding UTF8
 }
 
@@ -160,10 +185,27 @@ Assert-Equal -Actual ([int]$fixtureSummary.failed_check_count) -Expected 0 `
     -Message "Passing fixture should not have failed checks."
 Assert-Equal -Actual ([int]$fixtureSummary.aggregate_contact_sheet_bytes) -Expected 12 `
     -Message "Passing fixture should record aggregate contact sheet bytes."
+Assert-Equal -Actual ([string]$fixtureSummary.full_ctest_status) -Expected "timeout" `
+    -Message "Passing fixture should preserve guarded full PDF CTest attempt status."
+Assert-Equal -Actual ([string]$fixtureSummary.full_ctest_verdict) -Expected "not_complete" `
+    -Message "Passing fixture should preserve guarded full PDF CTest attempt verdict."
+Assert-Equal -Actual ([string]$fixtureSummary.full_ctest_outer_guard_status) -Expected "timed_out" `
+    -Message "Passing fixture should preserve guarded full PDF CTest outer guard status."
+Assert-Equal -Actual ([int]$fixtureSummary.full_ctest_selected_test_count) -Expected 139 `
+    -Message "Passing fixture should preserve guarded full PDF CTest selected test count."
+Assert-Equal -Actual ([int]$fixtureSummary.full_ctest_completed_test_count) -Expected 102 `
+    -Message "Passing fixture should preserve guarded full PDF CTest completed test count."
 Assert-True -Condition ((@($fixtureSummary.warnings | ForEach-Object { [string]$_.id }) -contains "pdf_full_fresh_visual_gate.not_completed_in_current_window")) `
     -Message "Readiness summary should keep fresh full visual gate debt visible."
 Assert-True -Condition ((@($fixtureSummary.warnings | ForEach-Object { [string]$_.id }) -contains "pdf_full_ctest.not_completed_in_current_window")) `
     -Message "Readiness summary should keep full PDF CTest debt visible."
+$fullCtestWarning = @($fixtureSummary.warnings) |
+    Where-Object { [string]$_.id -eq "pdf_full_ctest.not_completed_in_current_window" } |
+    Select-Object -First 1
+Assert-Equal -Actual ([string]$fullCtestWarning.details.status) -Expected "timeout" `
+    -Message "Full PDF CTest warning should carry the guarded attempt status."
+Assert-Equal -Actual ([int]$fullCtestWarning.details.completed_test_count) -Expected 102 `
+    -Message "Full PDF CTest warning should carry the guarded attempt completed count."
 
 $blockedRoot = Join-Path $resolvedWorkingDir "fixture-blocked"
 New-PassingFixture -Root $blockedRoot -ScriptPath $scriptPath
@@ -195,6 +237,9 @@ foreach ($expectedText in @(
         "featherdoc.pdf_release_readiness_check.v1",
         "persisted_pdf_release_evidence_only",
         "pdf_release_readiness_machine_gate_trace",
+        "featherdoc.pdf_full_ctest_guarded_summary.v1",
+        "pdf_full_ctest_guarded_summary_trace",
+        "full_ctest_completed_test_count",
         "pdf_full_fresh_visual_gate.not_completed_in_current_window",
         "pdf_full_ctest.not_completed_in_current_window",
         "pass_with_warnings",

@@ -96,6 +96,18 @@ OCR 或任意视觉精确还原。
    ``pdf_full_ctest.not_completed_in_current_window``。固定标记：
    ``pdf_release_readiness_machine_gate_trace``。
 
+   如果已经运行完整 PDF CTest 的受控尝试，必须通过
+   ``scripts/run_pdf_full_ctest_guarded.ps1`` 写出
+   ``output/pdf-ctest-current/summary.json``，并让 readiness summary 保留
+   ``schema = featherdoc.pdf_full_ctest_guarded_summary.v1``、
+   ``full_ctest_status``、``full_ctest_verdict``、
+   ``full_ctest_outer_guard_status``、``full_ctest_outer_guard_timed_out``、
+   ``full_ctest_completed_test_count`` 和 ``full_ctest_not_run_test_count``。
+   当 ``outer_guard_status = timed_out`` 或 ``status != pass`` 时，
+   ``pdf_full_ctest.not_completed_in_current_window`` warning 必须携带这些计数，
+   不能只留下人工日志路径。固定标记：
+   ``pdf_full_ctest_guarded_summary_trace``。
+
 7. 发布治理已消费 PDF 结论：
 
    * ``scripts/run_release_candidate_checks.ps1`` 的 summary / final review
@@ -478,7 +490,16 @@ OCR 或任意视觉精确还原。
 
    .. code-block:: powershell
 
-      ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_" --output-on-failure --timeout 60
+      powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_full_ctest_guarded.ps1 `
+        -BuildDir .\.bpdf-roundtrip-msvc `
+        -OutputJson .\output\pdf-ctest-current\summary.json
+
+   该入口内部执行
+   ``ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_" --output-on-failure --timeout 60``，
+   并额外记录 60 秒外层保护状态。summary 必须包含
+   ``guarded_full_ctest_attempt_does_not_replace_completed_full_ctest``；只有
+   ``status = pass`` 且 ``outer_guard_status = completed`` 才能视为完整 PDF CTest
+   已完成。
 
 发布边界
 --------

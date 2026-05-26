@@ -13,6 +13,7 @@ param(
     [string]$VisualGateSummaryJson = "output/pdf-visual-release-gate-current/report/summary.json",
     [string]$ManifestJson = "test/pdf_regression_manifest.json",
     [string]$ReadinessChecklist = "docs/pdf_release_readiness_checklist_zh.rst",
+    [string]$FullCtestSummaryJson = "output/pdf-ctest-current/summary.json",
     [string]$OutputJson = "",
     [switch]$Strict
 )
@@ -197,6 +198,7 @@ $resolvedPreflightSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $Pref
 $resolvedVisualGateSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $VisualGateSummaryJson -AllowMissing
 $resolvedManifestJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $ManifestJson -AllowMissing
 $resolvedReadinessChecklist = Resolve-RepoPath -RepoRoot $repoRoot -Path $ReadinessChecklist -AllowMissing
+$resolvedFullCtestSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $FullCtestSummaryJson -AllowMissing
 $resolvedOutputJson = if ([string]::IsNullOrWhiteSpace($OutputJson)) {
     ""
 } else {
@@ -210,6 +212,7 @@ $preflight = $null
 $visual = $null
 $manifest = $null
 $checklistText = ""
+$fullCtest = $null
 
 $preflightExists = Test-Path -LiteralPath $resolvedPreflightSummaryJson -PathType Leaf
 Add-Check -Checks $checks -Name "preflight_summary_exists" -Passed $preflightExists `
@@ -241,6 +244,19 @@ Add-Check -Checks $checks -Name "readiness_checklist_exists" -Passed $checklistE
     -Details @{ path = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedReadinessChecklist }
 if ($checklistExists) {
     $checklistText = Get-Content -Raw -Encoding UTF8 -LiteralPath $resolvedReadinessChecklist
+}
+
+$fullCtestSummaryExists = Test-Path -LiteralPath $resolvedFullCtestSummaryJson -PathType Leaf
+if ($fullCtestSummaryExists) {
+    $fullCtest = Read-JsonFile -Path $resolvedFullCtestSummaryJson
+    $fullCtestSchema = [string](Get-OptionalPropertyValue -Object $fullCtest -Name "schema")
+    Add-Check -Checks $checks -Name "full_ctest_guarded_summary_schema" -Passed ($fullCtestSchema -eq "featherdoc.pdf_full_ctest_guarded_summary.v1") `
+        -Message "Existing full PDF CTest guarded summary must use the stable schema." `
+        -Details @{
+            actual = $fullCtestSchema
+            expected = "featherdoc.pdf_full_ctest_guarded_summary.v1"
+            path = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedFullCtestSummaryJson
+        }
 }
 
 if ($null -ne $manifest) {
@@ -348,7 +364,10 @@ if ($checklistText.Length -gt 0) {
     $requiredChecklistMarkers = @(
         "pdf_release_readiness_machine_gate_trace",
         "check_pdf_release_readiness.ps1",
+        "run_pdf_full_ctest_guarded.ps1",
         "featherdoc.pdf_release_readiness_check.v1",
+        "featherdoc.pdf_full_ctest_guarded_summary.v1",
+        "pdf_full_ctest_guarded_summary_trace",
         "pdf_visual_gate_evidence",
         "pdf_bounded_ctest_evidence",
         "release_entry_pdf_readiness_checklist_trace"
@@ -362,8 +381,35 @@ if ($checklistText.Length -gt 0) {
 
 Add-Warning -Warnings $warnings -Id "pdf_full_fresh_visual_gate.not_completed_in_current_window" `
     -Message "A fresh non-FinalizeOnly full visual gate is still required before claiming a new end-to-end render pass; this check only validates current persisted release evidence."
-Add-Warning -Warnings $warnings -Id "pdf_full_ctest.not_completed_in_current_window" `
-    -Message "A full ctest -R pdf_ run is still required when resources allow; bounded/static evidence does not replace the full PDF CTest suite."
+
+$fullCtestStatus = if ($null -eq $fullCtest) { "missing" } else { [string](Get-OptionalPropertyValue -Object $fullCtest -Name "status") }
+$fullCtestVerdict = if ($null -eq $fullCtest) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $fullCtest -Name "verdict") }
+$fullCtestOuterGuardStatus = if ($null -eq $fullCtest) { "not_run" } else { [string](Get-OptionalPropertyValue -Object $fullCtest -Name "outer_guard_status") }
+$fullCtestOuterGuardTimedOut = if ($null -eq $fullCtest) { $false } else { [bool](Get-OptionalPropertyValue -Object $fullCtest -Name "outer_guard_timed_out") }
+$fullCtestSelectedCount = if ($null -eq $fullCtest) { 0 } else { Get-OptionalPropertyValue -Object $fullCtest -Name "selected_test_count" }
+$fullCtestCompletedCount = if ($null -eq $fullCtest) { 0 } else { Get-OptionalPropertyValue -Object $fullCtest -Name "completed_test_count" }
+$fullCtestPassedCount = if ($null -eq $fullCtest) { 0 } else { Get-OptionalPropertyValue -Object $fullCtest -Name "passed_test_count" }
+$fullCtestFailedCount = if ($null -eq $fullCtest) { 0 } else { Get-OptionalPropertyValue -Object $fullCtest -Name "failed_test_count" }
+$fullCtestSkippedCount = if ($null -eq $fullCtest) { 0 } else { Get-OptionalPropertyValue -Object $fullCtest -Name "skipped_test_count" }
+$fullCtestNotRunCount = if ($null -eq $fullCtest) { 0 } else { Get-OptionalPropertyValue -Object $fullCtest -Name "not_run_test_count" }
+$fullCtestCompleted = ($fullCtestStatus -eq "pass" -and $fullCtestVerdict -eq "pass" -and $fullCtestOuterGuardStatus -eq "completed" -and -not $fullCtestOuterGuardTimedOut)
+if (-not $fullCtestCompleted) {
+    Add-Warning -Warnings $warnings -Id "pdf_full_ctest.not_completed_in_current_window" `
+        -Message "A full ctest -R pdf_ run is still required when resources allow; bounded/static evidence does not replace the full PDF CTest suite." `
+        -Details @{
+            status = $fullCtestStatus
+            verdict = $fullCtestVerdict
+            outer_guard_status = $fullCtestOuterGuardStatus
+            outer_guard_timed_out = $fullCtestOuterGuardTimedOut
+            selected_test_count = $fullCtestSelectedCount
+            completed_test_count = $fullCtestCompletedCount
+            passed_test_count = $fullCtestPassedCount
+            failed_test_count = $fullCtestFailedCount
+            skipped_test_count = $fullCtestSkippedCount
+            not_run_test_count = $fullCtestNotRunCount
+            summary_json = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedFullCtestSummaryJson
+        }
+}
 
 $failedChecks = @($checks | Where-Object { [string]$_.status -ne "pass" })
 $status = if ($failedChecks.Count -eq 0) { "pass" } else { "blocked" }
@@ -389,6 +435,19 @@ $summary = [ordered]@{
     manifest_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedManifestJson
     readiness_checklist = $resolvedReadinessChecklist
     readiness_checklist_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedReadinessChecklist
+    full_ctest_summary_json = $resolvedFullCtestSummaryJson
+    full_ctest_summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedFullCtestSummaryJson
+    full_ctest_summary_exists = $fullCtestSummaryExists
+    full_ctest_status = $fullCtestStatus
+    full_ctest_verdict = $fullCtestVerdict
+    full_ctest_outer_guard_status = $fullCtestOuterGuardStatus
+    full_ctest_outer_guard_timed_out = $fullCtestOuterGuardTimedOut
+    full_ctest_selected_test_count = $fullCtestSelectedCount
+    full_ctest_completed_test_count = $fullCtestCompletedCount
+    full_ctest_passed_test_count = $fullCtestPassedCount
+    full_ctest_failed_test_count = $fullCtestFailedCount
+    full_ctest_skipped_test_count = $fullCtestSkippedCount
+    full_ctest_not_run_test_count = $fullCtestNotRunCount
     check_count = $checks.Count
     failed_check_count = $failedChecks.Count
     warning_count = $warnings.Count

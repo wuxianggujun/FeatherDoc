@@ -344,6 +344,17 @@ PowerShell 保护内曾推进到 128/139 个测试但被保护截断，因此不
 当前低资源窗口下改用 ``scripts/run_pdf_ctest_bounded_subset.ps1`` 固化一条可复核的
 bounded PDF CTest 路径：
 
+2026-05-27 起，完整 ``pdf_`` 套件也有固定受控入口
+``scripts/run_pdf_full_ctest_guarded.ps1``。该入口把
+``ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_" --output-on-failure --timeout 60``
+包在 60 秒外层保护中，并写出 ``output/pdf-ctest-current/summary.json``。
+summary schema 为 ``featherdoc.pdf_full_ctest_guarded_summary.v1``，必须保留
+``full_ctest_status``、``outer_guard_status``、``outer_guard_timed_out``、
+``outer_guard_timeout_seconds``、``selected_test_count``、
+``completed_test_count`` 和 ``not_run_test_count``。固定标记：
+``pdf_full_ctest_guarded_summary_trace``。如果外层保护超时，该 summary 只能作为
+attempt evidence，不能替代完整 PDF CTest pass。
+
 * 该 helper 仍通过 ``ctest --test-dir .bpdf-roundtrip-msvc`` 执行真实测试，不使用
   fake ctest 或 synthetic fixture。
 * ``smoke-import`` 固定覆盖 10 个 smoke/import 测试：

@@ -935,7 +935,14 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    CTest、渲染、Office、LibreOffice、浏览器或 PDF 生成；其中
    `pdf_full_fresh_visual_gate.not_completed_in_current_window` 和
    `pdf_full_ctest.not_completed_in_current_window` 是剩余 heavy gate warning，
-   不能被解释为 fresh full gate 已完成。
+   不能被解释为 fresh full gate 已完成。若已执行
+   `scripts/run_pdf_full_ctest_guarded.ps1`，该 readiness summary 还必须读取
+   `output/pdf-ctest-current/summary.json`，保留
+   `schema = featherdoc.pdf_full_ctest_guarded_summary.v1`、
+   `full_ctest_status`、`full_ctest_verdict`、`full_ctest_outer_guard_status`、
+   `full_ctest_completed_test_count` 和 `full_ctest_not_run_test_count`，并把这些字段
+   附到 `pdf_full_ctest.not_completed_in_current_window` warning 上。固定标记：
+   `pdf_full_ctest_guarded_summary_trace`。
 11. 发布治理：`scripts/run_release_candidate_checks.ps1` 的 summary / final review
    必须消费 PDF visual gate verdict、计数和 contact sheet 路径。
 12. 视觉证据：复用或生成的 `aggregate-contact-sheet.png` 必须非空，且抽检不是白图。
@@ -944,6 +951,24 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
 
 资源受限时，先使用 bounded PDF CTest helper 记录 smoke/import 证据，避免完整
 `pdf_` 套件在单个 60 秒外层保护里被截断后被误记为通过：
+
+如需直接尝试完整 `pdf_` 套件，优先使用受控入口，避免临时命令的日志脱离
+release readiness：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_full_ctest_guarded.ps1 `
+  -BuildDir .\.bpdf-roundtrip-msvc `
+  -OutputJson .\output\pdf-ctest-current\summary.json
+```
+
+summary 必须写出 `schema = featherdoc.pdf_full_ctest_guarded_summary.v1`、
+`status`、`verdict`、`full_ctest_status`、`outer_guard_status`、
+`outer_guard_timed_out`、`outer_guard_timeout_seconds`、`selected_test_count`、
+`completed_test_count`、`not_run_test_count` 和
+`guarded_full_ctest_attempt_does_not_replace_completed_full_ctest`。固定标记：
+`pdf_full_ctest_guarded_summary_trace`。只有 `status = pass` 且
+`outer_guard_status = completed` 才能声明完整 PDF CTest 已完成；`timeout` 只能作为
+可追溯 attempt evidence。
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
