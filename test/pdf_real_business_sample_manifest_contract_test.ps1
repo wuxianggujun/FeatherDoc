@@ -42,6 +42,7 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
 $checklistPath = Join-Path $resolvedRepoRoot "docs\pdf_release_readiness_checklist_zh.rst"
 $buildingPdfPath = Join-Path $resolvedRepoRoot "BUILDING_PDF.md"
+$boundedSubsetScriptPath = Join-Path $resolvedRepoRoot "scripts\run_pdf_ctest_bounded_subset.ps1"
 
 $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath | ConvertFrom-Json
 $sampleIds = @($manifest.samples | ForEach-Object { [string]$_.id })
@@ -82,8 +83,23 @@ $businessSampleGroups = [ordered]@{
     )
 }
 
+$boundedBusinessSampleIds = @(
+    "contract-cjk-style",
+    "document-contract-cjk-style",
+    "invoice-grid-text",
+    "document-invoice-table-text",
+    "image-report-text",
+    "cjk-image-report-text",
+    "document-cjk-image-wrap-stress-text",
+    "long-report-text",
+    "document-long-flow-text",
+    "sectioned-report-text"
+)
+
+$allBusinessSampleIds = New-Object 'System.Collections.Generic.List[string]'
 foreach ($group in $businessSampleGroups.GetEnumerator()) {
     foreach ($sampleId in @($group.Value)) {
+        $allBusinessSampleIds.Add($sampleId) | Out-Null
         Assert-True -Condition $sampleIdSet.ContainsKey($sampleId) `
             -Message "PDF business sample group '$($group.Key)' should reference existing manifest sample '$sampleId'."
     }
@@ -91,6 +107,33 @@ foreach ($group in $businessSampleGroups.GetEnumerator()) {
 
 $checklistText = Get-Content -Raw -Encoding UTF8 -LiteralPath $checklistPath
 $buildingPdfText = Get-Content -Raw -Encoding UTF8 -LiteralPath $buildingPdfPath
+$boundedSubsetScriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $boundedSubsetScriptPath
+
+foreach ($sampleId in @($allBusinessSampleIds.ToArray())) {
+    Assert-True -Condition ($checklistText -match [regex]::Escape($sampleId)) `
+        -Message "PDF release readiness checklist should preserve real business sample '$sampleId'."
+    Assert-True -Condition ($buildingPdfText -match [regex]::Escape($sampleId)) `
+        -Message "BUILDING_PDF.md should preserve real business sample '$sampleId'."
+}
+
+$businessSubsetMatch = [regex]::Match(
+    $boundedSubsetScriptText,
+    '(?s)"regression-business-samples"\s*=\s*\[ordered\]@\{.*?tests\s*=\s*@\((?<tests>.*?)\)\s*\r?\n\s*\}'
+)
+Assert-True -Condition $businessSubsetMatch.Success `
+    -Message "run_pdf_ctest_bounded_subset.ps1 should declare the regression-business-samples subset."
+$boundedSubsetTests = @(
+    [regex]::Matches($businessSubsetMatch.Groups["tests"].Value, '"([^"]+)"') |
+        ForEach-Object { [string]$_.Groups[1].Value }
+)
+$expectedBoundedSubsetTests = @($boundedBusinessSampleIds | ForEach-Object { "pdf_regression_$_" })
+Assert-True -Condition ($boundedSubsetTests.Count -eq $expectedBoundedSubsetTests.Count) `
+    -Message "regression-business-samples subset should contain exactly $($expectedBoundedSubsetTests.Count) tests."
+for ($index = 0; $index -lt $expectedBoundedSubsetTests.Count; $index++) {
+    Assert-True -Condition ($boundedSubsetTests[$index] -eq $expectedBoundedSubsetTests[$index]) `
+        -Message "regression-business-samples subset drifted at index $index. Expected '$($expectedBoundedSubsetTests[$index])', got '$($boundedSubsetTests[$index])'."
+}
+
 foreach ($expectedText in @(
         "verdict = pass",
         "90",
@@ -106,6 +149,9 @@ foreach ($expectedText in @(
     Assert-True -Condition ($checklistText -match [regex]::Escape($expectedText)) `
         -Message "PDF release readiness checklist should contain '$expectedText'."
 }
+
+Assert-True -Condition ($checklistText -match [regex]::Escape("pdf_real_business_sample_release_entry_trace")) `
+    -Message "PDF release readiness checklist should keep the real business sample release-entry trace marker."
 
 foreach ($expectedText in @(
         "manifest ID",
@@ -128,5 +174,8 @@ foreach ($expectedText in @(
     Assert-True -Condition ($buildingPdfText -match [regex]::Escape($expectedText)) `
         -Message "BUILDING_PDF.md should contain '$expectedText'."
 }
+
+Assert-True -Condition ($buildingPdfText -match [regex]::Escape("pdf_real_business_sample_release_entry_trace")) `
+    -Message "BUILDING_PDF.md should keep the real business sample release-entry trace marker."
 
 Write-Host "PDF real business sample manifest contract passed."

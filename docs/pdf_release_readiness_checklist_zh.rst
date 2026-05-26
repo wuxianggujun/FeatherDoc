@@ -29,6 +29,11 @@ OCR 或任意视觉精确还原。
    * 长文档：``long-report-text``、``document-long-flow-text``。
    * 多 section / 页眉页脚 / 多页流：``sectioned-report-text``、
      ``header-footer-text``、``document-cjk-table-wrap-page-flow-text``。
+   * 上述 manifest ID 必须继续由
+     ``test/pdf_real_business_sample_manifest_contract_test.ps1`` 校验存在性，并且
+     ``regression-business-samples`` bounded subset 必须保持固定的 10 个
+     ``pdf_regression_`` 测试顺序。固定标记：
+     ``pdf_real_business_sample_release_entry_trace``。
 
 4. 预检通过：
 

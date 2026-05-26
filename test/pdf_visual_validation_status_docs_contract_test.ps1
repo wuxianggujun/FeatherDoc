@@ -449,6 +449,7 @@ $pdfExportSupportMatrixMarkers = @(
     "sectioned-report-text",
     "header-footer-text",
     "document-cjk-table-wrap-page-flow-text",
+    "pdf_real_business_sample_release_entry_trace",
     "release checklist"
 )
 
@@ -565,6 +566,7 @@ foreach ($marker in @(
     "block_scoped_pdf_visual_gate_handoff_trace",
     "manifest_scoped_pdf_visual_gate_count_trace",
     "release_entry_pdf_readiness_checklist_trace",
+    "pdf_real_business_sample_release_entry_trace",
     "docs/pdf_release_readiness_checklist_zh.rst",
     "pdf_visual_gate_evidence",
     "pdf_bounded_ctest_evidence",

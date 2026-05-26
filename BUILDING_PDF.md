@@ -857,6 +857,13 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 - 多 section / 页眉页脚 / 多页流：`sectioned-report-text`、`header-footer-text`、
   `document-cjk-table-wrap-page-flow-text`
 
+这些发布准入样本必须继续被
+`test/pdf_real_business_sample_manifest_contract_test.ps1` 同步校验：文档清单里的
+manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
+`regression-business-samples` bounded subset 也必须保持固定的 10 个
+`pdf_regression_` 测试顺序，避免真实业务样本只停留在文档描述中。固定标记：
+`pdf_real_business_sample_release_entry_trace`。
+
 当前导出支持矩阵（support matrix）：
 
 - 段落：已支持基础段落、分页流和 text-layer 回读；复杂 Word 级版式仍需专项。
@@ -1039,7 +1046,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.
 summary 仍必须写出 `status = pass`、`verdict = pass`、
 `subset = regression-business-samples`、`selected_test_count = 10` 和
 `ctest_timeout_seconds = 60`。固定标记：
-`pdf_ctest_bounded_regression_business_samples_release_trace`。
+`pdf_ctest_bounded_regression_business_samples_release_trace`、
+`pdf_real_business_sample_release_entry_trace`。
 
 第七条低资源证据可运行表格布局 regression 子集：
 
