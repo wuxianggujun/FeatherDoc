@@ -1592,6 +1592,240 @@ if (-not $badReleaseGovernanceHandoffPdfSegmentedWrongSchemaFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with PDF visual segmented gate evidence using a non-release-candidate source_report schema."
 }
 
+$passReleaseBlockerRollupPdfAuxTraceDir = Join-Path $passDir "release-blocker-rollup-pdf-aux-trace"
+$passReleaseBlockerRollupPdfAuxTracePath = Join-Path $passReleaseBlockerRollupPdfAuxTraceDir "release_blocker_rollup.md"
+New-Item -ItemType Directory -Path $passReleaseBlockerRollupPdfAuxTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseBlockerRollupPdfAuxTracePath -Encoding UTF8 -Value @"
+# Release Blocker Rollup Report
+
+## Source Report Contracts
+
+- ``featherdoc.release_candidate_summary``: status=``ready`` ready=``True`` path=``.\output\release-candidate-checks\summary.json``
+  - pdf_visual_gate_status: ``loaded``
+  - full_visual_gate_status: ``pass``
+  - pdf_visual_gate_verdict: ``pass``
+  - pdf_visual_gate_finalizable: ``True``
+  - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
+  - pdf_visual_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+  - pdf_visual_gate_cjk_manifest_count: ``43``
+  - pdf_visual_gate_cjk_copy_search_count: ``43``
+  - pdf_visual_gate_cjk_missing_text_count: ``0``
+  - pdf_visual_gate_visual_baseline_manifest_count: ``42``
+  - pdf_visual_gate_visual_baseline_count: ``44``
+  - pdf_bounded_ctest_summary_count: ``7``
+  - pdf_bounded_ctest_pass_count: ``7``
+  - pdf_bounded_ctest_skipped_test_count: ``0``
+  - pdf_bounded_ctest_selected_test_count: ``70``
+  - pdf_bounded_ctest_subsets: ``smoke-import, contract-static, cjk-flow-static, regression-basic-text, regression-styled-document, regression-business-samples, regression-table-layout``
+  - pdf_bounded_ctest_summary_json_display: ``.\build\pdf-ctest-bounded-regression-business-samples-current\summary.json``
+  - pdf_visual_gate_attempt_status: ``partial``
+  - pdf_visual_gate_attempt_verdict: ``not_complete``
+  - pdf_visual_gate_attempt_full_visual_gate_status: ``not_complete``
+  - pdf_visual_gate_attempt_evidence_scope: ``bounded_attempt_auxiliary_only``
+  - pdf_visual_gate_attempt_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\attempt-summary.json``
+  - pdf_visual_gate_attempt_stage_count: ``6``
+  - pdf_visual_gate_attempt_passed_stage_count: ``4``
+  - pdf_visual_gate_attempt_failed_stage_count: ``0``
+  - pdf_visual_gate_attempt_incomplete_stage_count: ``2``
+  - pdf_visual_gate_attempt_outer_guard_status: ``timed_out``
+  - pdf_visual_gate_attempt_outer_guard_timed_out: ``True``
+  - pdf_visual_gate_attempt_outer_guard_timeout_seconds: ``60``
+  - pdf_visual_gate_attempt_pdf_regression_selected_test_count: ``91``
+  - pdf_visual_gate_attempt_pdf_regression_failed_test_count: ``0``
+  - pdf_visual_gate_attempt_pdf_regression_skipped_test_count: ``7``
+  - pdf_visual_gate_attempt_cjk_copy_search_count: ``43``
+  - pdf_visual_gate_attempt_cjk_copy_search_missing_text_count: ``0``
+  - pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``
+  - pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``
+  - pdf_visual_gate_attempt_expected_visual_render_count: ``44``
+  - pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``stale``
+  - pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+  - pdf_visual_segmented_gate_status: ``pass``
+  - pdf_visual_segmented_gate_verdict: ``pass``
+  - pdf_visual_segmented_gate_full_visual_gate_status: ``not_complete``
+  - pdf_visual_segmented_gate_evidence_scope: ``segmented_visual_gate_auxiliary_only``
+  - pdf_visual_segmented_gate_boundary: ``segmented_summary_does_not_replace_full_visual_gate_verdict``
+  - pdf_visual_segmented_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\segmented-summary.json``
+  - pdf_visual_segmented_gate_slice_summary_count: ``4``
+  - pdf_visual_segmented_gate_slice_pass_count: ``4``
+  - pdf_visual_segmented_gate_slice_failed_count: ``0``
+  - pdf_visual_segmented_gate_covered_baseline_count: ``44``
+  - pdf_visual_segmented_gate_expected_visual_render_count: ``44``
+  - pdf_visual_segmented_gate_attempt_stage_count: ``6``
+  - pdf_visual_segmented_gate_attempt_passed_stage_count: ``6``
+  - pdf_visual_segmented_gate_visual_baseline_render_status: ``pass``
+  - pdf_visual_segmented_gate_aggregate_contact_sheet_status: ``pass``
+  - pdf_visual_segmented_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+  - pdf_visual_segmented_gate_aggregate_contact_sheet_bytes: ``1822428``
+  - pdf_visual_segmented_gate_aggregate_rebuild_status: ``pass``
+  - pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count: ``44``
+"@
+
+& $auditScript -Path $passReleaseBlockerRollupPdfAuxTracePath
+
+$badReleaseBlockerRollupPdfAuxSplitDir = Join-Path $failDir "release-blocker-rollup-pdf-aux-split"
+$badReleaseBlockerRollupPdfAuxSplitPath = Join-Path $badReleaseBlockerRollupPdfAuxSplitDir "release_blocker_rollup.md"
+New-Item -ItemType Directory -Path $badReleaseBlockerRollupPdfAuxSplitDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBlockerRollupPdfAuxSplitPath -Encoding UTF8 -Value @"
+# Release Blocker Rollup Report
+
+## Source Report Contracts
+
+- ``featherdoc.release_candidate_summary``: status=``ready`` ready=``True`` path=``.\output\release-candidate-checks\summary.json``
+  - pdf_visual_gate_status: ``loaded``
+  - full_visual_gate_status: ``pass``
+  - pdf_visual_gate_verdict: ``pass``
+  - pdf_visual_gate_finalizable: ``True``
+  - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
+  - pdf_visual_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+  - pdf_visual_gate_cjk_manifest_count: ``43``
+  - pdf_visual_gate_cjk_copy_search_count: ``43``
+  - pdf_visual_gate_cjk_missing_text_count: ``0``
+  - pdf_visual_gate_visual_baseline_manifest_count: ``42``
+  - pdf_visual_gate_visual_baseline_count: ``44``
+
+## Detached PDF auxiliary notes
+
+- pdf_bounded_ctest_summary_count: ``7``
+- pdf_bounded_ctest_pass_count: ``7``
+- pdf_bounded_ctest_skipped_test_count: ``0``
+- pdf_bounded_ctest_selected_test_count: ``70``
+- pdf_bounded_ctest_subsets: ``smoke-import, regression-business-samples``
+- pdf_bounded_ctest_summary_json_display: ``.\build\pdf-ctest-bounded-regression-business-samples-current\summary.json``
+- pdf_visual_gate_attempt_status: ``partial``
+- pdf_visual_gate_attempt_verdict: ``not_complete``
+- pdf_visual_gate_attempt_full_visual_gate_status: ``not_complete``
+- pdf_visual_gate_attempt_evidence_scope: ``bounded_attempt_auxiliary_only``
+- pdf_visual_gate_attempt_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\attempt-summary.json``
+- pdf_visual_gate_attempt_stage_count: ``6``
+- pdf_visual_gate_attempt_passed_stage_count: ``4``
+- pdf_visual_gate_attempt_failed_stage_count: ``0``
+- pdf_visual_gate_attempt_incomplete_stage_count: ``2``
+- pdf_visual_gate_attempt_outer_guard_status: ``timed_out``
+- pdf_visual_gate_attempt_outer_guard_timed_out: ``True``
+- pdf_visual_gate_attempt_outer_guard_timeout_seconds: ``60``
+- pdf_visual_gate_attempt_pdf_regression_selected_test_count: ``91``
+- pdf_visual_gate_attempt_pdf_regression_failed_test_count: ``0``
+- pdf_visual_gate_attempt_pdf_regression_skipped_test_count: ``7``
+- pdf_visual_gate_attempt_cjk_copy_search_count: ``43``
+- pdf_visual_gate_attempt_cjk_copy_search_missing_text_count: ``0``
+- pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``
+- pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``
+- pdf_visual_gate_attempt_expected_visual_render_count: ``44``
+- pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``stale``
+- pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+- pdf_visual_segmented_gate_status: ``pass``
+- pdf_visual_segmented_gate_verdict: ``pass``
+- pdf_visual_segmented_gate_full_visual_gate_status: ``not_complete``
+- pdf_visual_segmented_gate_evidence_scope: ``segmented_visual_gate_auxiliary_only``
+- pdf_visual_segmented_gate_boundary: ``segmented_summary_does_not_replace_full_visual_gate_verdict``
+- pdf_visual_segmented_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\segmented-summary.json``
+- pdf_visual_segmented_gate_slice_summary_count: ``4``
+- pdf_visual_segmented_gate_slice_pass_count: ``4``
+- pdf_visual_segmented_gate_slice_failed_count: ``0``
+- pdf_visual_segmented_gate_covered_baseline_count: ``44``
+- pdf_visual_segmented_gate_expected_visual_render_count: ``44``
+- pdf_visual_segmented_gate_attempt_stage_count: ``6``
+- pdf_visual_segmented_gate_attempt_passed_stage_count: ``6``
+- pdf_visual_segmented_gate_visual_baseline_render_status: ``pass``
+- pdf_visual_segmented_gate_aggregate_contact_sheet_status: ``pass``
+- pdf_visual_segmented_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+- pdf_visual_segmented_gate_aggregate_contact_sheet_bytes: ``1822428``
+- pdf_visual_segmented_gate_aggregate_rebuild_status: ``pass``
+- pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count: ``44``
+"@
+
+$badReleaseBlockerRollupPdfAuxSplitFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBlockerRollupPdfAuxSplitPath
+} catch {
+    $badReleaseBlockerRollupPdfAuxSplitFailedAsExpected = $true
+}
+
+if (-not $badReleaseBlockerRollupPdfAuxSplitFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release blocker rollup with PDF visual auxiliary evidence split outside the release-candidate Source Report Contracts block."
+}
+
+$badReleaseBlockerRollupPdfAuxWrongSchemaDir = Join-Path $failDir "release-blocker-rollup-pdf-aux-wrong-schema"
+$badReleaseBlockerRollupPdfAuxWrongSchemaPath = Join-Path $badReleaseBlockerRollupPdfAuxWrongSchemaDir "release_blocker_rollup.md"
+New-Item -ItemType Directory -Path $badReleaseBlockerRollupPdfAuxWrongSchemaDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBlockerRollupPdfAuxWrongSchemaPath -Encoding UTF8 -Value @"
+# Release Blocker Rollup Report
+
+## Source Report Contracts
+
+- ``featherdoc.pdf_visual_segmented_gate_summary.v1``: status=``pass`` ready=``True`` path=``.\output\pdf-visual-release-gate-current\report\segmented-summary.json``
+  - pdf_visual_gate_status: ``loaded``
+  - full_visual_gate_status: ``pass``
+  - pdf_visual_gate_verdict: ``pass``
+  - pdf_visual_gate_finalizable: ``True``
+  - pdf_visual_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\summary.json``
+  - pdf_visual_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+  - pdf_visual_gate_cjk_manifest_count: ``43``
+  - pdf_visual_gate_cjk_copy_search_count: ``43``
+  - pdf_visual_gate_cjk_missing_text_count: ``0``
+  - pdf_visual_gate_visual_baseline_manifest_count: ``42``
+  - pdf_visual_gate_visual_baseline_count: ``44``
+  - pdf_bounded_ctest_summary_count: ``7``
+  - pdf_bounded_ctest_pass_count: ``7``
+  - pdf_bounded_ctest_skipped_test_count: ``0``
+  - pdf_bounded_ctest_selected_test_count: ``70``
+  - pdf_bounded_ctest_subsets: ``smoke-import, regression-business-samples``
+  - pdf_bounded_ctest_summary_json_display: ``.\build\pdf-ctest-bounded-regression-business-samples-current\summary.json``
+  - pdf_visual_gate_attempt_status: ``partial``
+  - pdf_visual_gate_attempt_verdict: ``not_complete``
+  - pdf_visual_gate_attempt_full_visual_gate_status: ``not_complete``
+  - pdf_visual_gate_attempt_evidence_scope: ``bounded_attempt_auxiliary_only``
+  - pdf_visual_gate_attempt_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\attempt-summary.json``
+  - pdf_visual_gate_attempt_stage_count: ``6``
+  - pdf_visual_gate_attempt_passed_stage_count: ``4``
+  - pdf_visual_gate_attempt_failed_stage_count: ``0``
+  - pdf_visual_gate_attempt_incomplete_stage_count: ``2``
+  - pdf_visual_gate_attempt_outer_guard_status: ``timed_out``
+  - pdf_visual_gate_attempt_outer_guard_timed_out: ``True``
+  - pdf_visual_gate_attempt_outer_guard_timeout_seconds: ``60``
+  - pdf_visual_gate_attempt_pdf_regression_selected_test_count: ``91``
+  - pdf_visual_gate_attempt_pdf_regression_failed_test_count: ``0``
+  - pdf_visual_gate_attempt_pdf_regression_skipped_test_count: ``7``
+  - pdf_visual_gate_attempt_cjk_copy_search_count: ``43``
+  - pdf_visual_gate_attempt_cjk_copy_search_missing_text_count: ``0``
+  - pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``
+  - pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``
+  - pdf_visual_gate_attempt_expected_visual_render_count: ``44``
+  - pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``stale``
+  - pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+  - pdf_visual_segmented_gate_status: ``pass``
+  - pdf_visual_segmented_gate_verdict: ``pass``
+  - pdf_visual_segmented_gate_full_visual_gate_status: ``not_complete``
+  - pdf_visual_segmented_gate_evidence_scope: ``segmented_visual_gate_auxiliary_only``
+  - pdf_visual_segmented_gate_boundary: ``segmented_summary_does_not_replace_full_visual_gate_verdict``
+  - pdf_visual_segmented_gate_summary_json_display: ``.\output\pdf-visual-release-gate-current\report\segmented-summary.json``
+  - pdf_visual_segmented_gate_slice_summary_count: ``4``
+  - pdf_visual_segmented_gate_slice_pass_count: ``4``
+  - pdf_visual_segmented_gate_slice_failed_count: ``0``
+  - pdf_visual_segmented_gate_covered_baseline_count: ``44``
+  - pdf_visual_segmented_gate_expected_visual_render_count: ``44``
+  - pdf_visual_segmented_gate_attempt_stage_count: ``6``
+  - pdf_visual_segmented_gate_attempt_passed_stage_count: ``6``
+  - pdf_visual_segmented_gate_visual_baseline_render_status: ``pass``
+  - pdf_visual_segmented_gate_aggregate_contact_sheet_status: ``pass``
+  - pdf_visual_segmented_gate_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
+  - pdf_visual_segmented_gate_aggregate_contact_sheet_bytes: ``1822428``
+  - pdf_visual_segmented_gate_aggregate_rebuild_status: ``pass``
+  - pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count: ``44``
+"@
+
+$badReleaseBlockerRollupPdfAuxWrongSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBlockerRollupPdfAuxWrongSchemaPath
+} catch {
+    $badReleaseBlockerRollupPdfAuxWrongSchemaFailedAsExpected = $true
+}
+
+if (-not $badReleaseBlockerRollupPdfAuxWrongSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release blocker rollup with PDF visual auxiliary evidence under a non-release-candidate Source Report Contracts schema."
+}
+
 $passReleaseBlockerRollupManifestSignoffTraceDir = Join-Path $passDir "release-blocker-rollup-manifest-signoff-trace"
 $passReleaseBlockerRollupManifestSignoffTracePath = Join-Path $passReleaseBlockerRollupManifestSignoffTraceDir "release_blocker_rollup.md"
 New-Item -ItemType Directory -Path $passReleaseBlockerRollupManifestSignoffTraceDir -Force | Out-Null

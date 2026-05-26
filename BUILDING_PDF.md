@@ -347,6 +347,11 @@ release governance 会在同一个 `source_report:` block 中保留
 `pdf_bounded_ctest_subsets` 和 `pdf_bounded_ctest_summary_json_display`。
 固定标记：`pdf_bounded_ctest_governance_trace`、
 `pdf_bounded_ctest_source_report_block_trace`。
+`release_blocker_rollup.md` 的 `Source Report Contracts` 也必须在同一个
+`featherdoc.release_candidate_summary` list block 中保留 PDF visual gate status、
+`full_visual_gate_status`、verdict、finalizable、summary/contact sheet、CJK/baseline
+计数和 bounded CTest 字段，不能由 detached notes 或非 release-candidate schema
+补齐。固定标记：`pdf_visual_gate_rollup_material_safety_trace`。
 
 资源受限导致非 `FinalizeOnly` 的完整 visual gate 被外层 60 秒保护截断时，先运行
 `scripts/write_pdf_visual_gate_attempt_summary.ps1` 汇总当前 `report` 目录中的
@@ -374,6 +379,11 @@ schema 为 `featherdoc.pdf_visual_gate_attempt_summary.v1`，并显式写出
 会要求 `pdf_visual_gate_attempt_*` 字段与 `source_report:` 同块，避免 detached notes
 单独补齐被截断尝试的子阶段证据。固定标记：
 `pdf_visual_gate_attempt_material_safety_trace`。
+`release_blocker_rollup.md` 的 `Source Report Contracts` 也必须把 attempt status、
+verdict、full status、`bounded_attempt_auxiliary_only` scope、`attempt-summary.json`、
+outer guard `timed_out` / `true` / `60`、regression/CJK/render 计数和 contact sheet
+保留在同一个 release-candidate list block。固定标记：
+`pdf_visual_gate_attempt_rollup_material_safety_trace`。
 `final_review.md` 展示 attempt 辅助证据时，attempt status/verdict/full status、
 stages、pdf_regression 和 render 行必须保留在 `## Step status` 的同一连续 list run；
 attempt summary/contact sheet 必须保留在 `## Key outputs`，且路径必须直接携带
@@ -437,6 +447,11 @@ release governance 会在同一个 `source_report:` block 中保留
 `schema=featherdoc.release_candidate_summary` 的 `source_report:` 保持同块，不能由
 detached notes 补齐。固定标记：
 `pdf_visual_segmented_gate_material_safety_trace`。
+`release_blocker_rollup.md` 的 `Source Report Contracts` 也必须把 segmented status、
+verdict、full status、`segmented_visual_gate_auxiliary_only` scope/boundary、
+`segmented-summary.json`、slice coverage、contact sheet bytes/status 和 aggregate
+rebuild 计数保留在同一个 release-candidate list block。固定标记：
+`pdf_visual_segmented_gate_rollup_material_safety_trace`。
 `final_review.md` 展示 segmented gate 辅助证据时，segmented status/verdict/full status、
 scope、slices 和 coverage 行必须保留在 `## Step status` 的同一连续 list run，
 scope 行必须直接携带 `segmented_visual_gate_auxiliary_only`；segmented summary/contact sheet

@@ -150,6 +150,12 @@ OCR 或任意视觉精确还原。
      ``pdf_bounded_ctest_summary_json_display``；不能替代 full visual gate
      verdict。固定标记：``pdf_bounded_ctest_governance_trace``、
      ``pdf_bounded_ctest_source_report_block_trace``。
+     ``release_blocker_rollup.md`` 的 ``Source Report Contracts`` 也必须在同一个
+     ``featherdoc.release_candidate_summary`` list block 中保留 PDF visual gate status、
+     ``full_visual_gate_status``、verdict、finalizable、summary/contact sheet、
+     CJK/baseline 计数和 bounded CTest 字段，不能由 detached notes 或非
+     release-candidate schema 补齐。固定标记：
+     ``pdf_visual_gate_rollup_material_safety_trace``。
    * 非 ``FinalizeOnly`` full visual gate 被 60 秒保护截断时，必须运行
      ``scripts/write_pdf_visual_gate_attempt_summary.ps1`` 生成
      ``attempt-summary.json``。该辅助证据必须在 release governance 中保留
@@ -166,7 +172,14 @@ OCR 或任意视觉精确还原。
      ``verdict = not_complete`` 时，不能替代 full visual gate verdict。固定标记：
      ``pdf_visual_gate_attempt_summary_trace``、
      ``pdf_visual_gate_attempt_governance_trace``、
-     ``pdf_visual_gate_attempt_material_safety_trace``。如果外层 60 秒保护截断本次尝试，
+     ``pdf_visual_gate_attempt_material_safety_trace``。
+     ``release_blocker_rollup.md`` 的 ``Source Report Contracts`` 也必须把
+     attempt status、verdict、full status、``bounded_attempt_auxiliary_only`` scope、
+     ``attempt-summary.json``、outer guard ``timed_out`` / ``true`` / ``60``、
+     regression/CJK/render 计数和 contact sheet 保留在同一个 release-candidate
+     list block。固定标记：
+     ``pdf_visual_gate_attempt_rollup_material_safety_trace``。
+     如果外层 60 秒保护截断本次尝试，
      必须保留 ``outer_guard_status = timed_out``、
      ``outer_guard_timed_out = true`` 和 ``outer_guard_timeout_seconds = 60``；
      这些字段只解释外层保护状态，不能替代 full visual gate verdict。固定标记：
@@ -231,6 +244,12 @@ OCR 或任意视觉精确还原。
      ``schema=featherdoc.release_candidate_summary`` 的 ``source_report:`` 保持同块，
      不能由 detached notes 补齐。固定标记：
      ``pdf_visual_segmented_gate_material_safety_trace``。
+     ``release_blocker_rollup.md`` 的 ``Source Report Contracts`` 也必须把
+     segmented status、verdict、full status、``segmented_visual_gate_auxiliary_only``
+     scope/boundary、``segmented-summary.json``、slice coverage、contact sheet
+     bytes/status 和 aggregate rebuild 计数保留在同一个 release-candidate
+     list block。固定标记：
+     ``pdf_visual_segmented_gate_rollup_material_safety_trace``。
      ``final_review.md`` 中的 segmented summary/contact sheet reviewer 入口也必须经过
      line/section scoped 审计。固定标记：
      ``pdf_visual_segmented_gate_final_review_material_safety_trace``。
