@@ -240,21 +240,30 @@ $exitCode = if (-not $completed) {
     1
 }
 
-$status = if (-not $completed) {
-    "timeout"
-} elseif ($exitCode -eq 0 -and [int]$stats.failed_test_count -eq 0 -and [int]$stats.skipped_test_count -eq 0) {
-    "pass"
-} else {
-    "fail"
-}
-$verdict = if ($status -eq "pass") { "pass" } elseif ($status -eq "timeout") { "not_complete" } else { "fail" }
-$fullCtestStatus = if ($status -eq "pass") { "pass" } elseif ($status -eq "timeout") { "not_complete" } else { "fail" }
 $selectedTestCount = [int]$stats.selected_test_count
 $completedTestCount = [int]$stats.completed_test_count
 $passedTestCount = [int]$stats.passed_test_count
 $failedTestCount = [int]$stats.failed_test_count
 $skippedTestCount = [int]$stats.skipped_test_count
 $notRunTestCount = [int]$stats.not_run_test_count
+$fullCtestCompletedWithoutFailures = (
+    $completed -and
+    $exitCode -eq 0 -and
+    $selectedTestCount -gt 0 -and
+    $completedTestCount -ge $selectedTestCount -and
+    $failedTestCount -eq 0 -and
+    $notRunTestCount -eq 0
+)
+
+$status = if (-not $completed) {
+    "timeout"
+} elseif ($fullCtestCompletedWithoutFailures) {
+    "pass"
+} else {
+    "fail"
+}
+$verdict = if ($status -eq "pass") { "pass" } elseif ($status -eq "timeout") { "not_complete" } else { "fail" }
+$fullCtestStatus = if ($status -eq "pass") { "pass" } elseif ($status -eq "timeout") { "not_complete" } else { "fail" }
 $completionPercent = if ($selectedTestCount -gt 0) {
     [Math]::Round(($completedTestCount / $selectedTestCount) * 100, 1)
 } else {

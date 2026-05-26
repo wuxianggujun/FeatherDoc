@@ -61,10 +61,12 @@ $fakePass = Join-Path $resolvedWorkingDir "fake-ctest-pass.ps1"
 @'
 Write-Host "Test project fixture"
 Write-Host "    Start 1: pdf_alpha"
-Write-Host "1/2 Test #1: pdf_alpha ................................................   Passed    0.01 sec"
+Write-Host "1/3 Test #1: pdf_alpha ................................................   Passed    0.01 sec"
 Write-Host "    Start 2: pdf_beta"
-Write-Host "2/2 Test #2: pdf_beta .................................................   Passed    0.02 sec"
-Write-Host "100% tests passed, 0 tests failed out of 2"
+Write-Host "2/3 Test #2: pdf_beta .................................................   Passed    0.02 sec"
+Write-Host "    Start 3: pdf_env_skip"
+Write-Host "3/3 Test #3: pdf_env_skip .............................................***Skipped   0.00 sec"
+Write-Host "100% tests passed, 0 tests failed out of 3"
 Write-Host "Total Test time (real) = 0.03 sec"
 exit 0
 '@ | Set-Content -LiteralPath $fakePass -Encoding UTF8
@@ -91,12 +93,14 @@ Assert-Equal -Actual ([string]$passSummary.full_ctest_status) -Expected "pass" `
     -Message "Passing fake CTest should report full CTest pass."
 Assert-Equal -Actual ([string]$passSummary.outer_guard_status) -Expected "completed" `
     -Message "Passing fake CTest should complete before the outer guard."
-Assert-Equal -Actual ([int]$passSummary.selected_test_count) -Expected 2 `
+Assert-Equal -Actual ([int]$passSummary.selected_test_count) -Expected 3 `
     -Message "Passing fake CTest should preserve selected test count."
-Assert-Equal -Actual ([int]$passSummary.completed_test_count) -Expected 2 `
+Assert-Equal -Actual ([int]$passSummary.completed_test_count) -Expected 3 `
     -Message "Passing fake CTest should preserve completed test count."
 Assert-Equal -Actual ([int]$passSummary.passed_test_count) -Expected 2 `
     -Message "Passing fake CTest should preserve pass count."
+Assert-Equal -Actual ([int]$passSummary.skipped_test_count) -Expected 1 `
+    -Message "Passing fake CTest should preserve skipped test count without failing the full run."
 Assert-Equal -Actual ([int]$passSummary.not_run_test_count) -Expected 0 `
     -Message "Passing fake CTest should not report not-run tests."
 Assert-Equal -Actual ([double]$passSummary.full_ctest_completion_percent) -Expected 100.0 `
