@@ -149,7 +149,10 @@ function Get-PdfVisualGateRollupEvidence {
         foreach ($sourceReport in @(Get-JsonArray -Object $RollupSummary -Name "source_reports")) {
             $verdict = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_verdict"
             $status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_status"
-            if ([string]::IsNullOrWhiteSpace($verdict) -and [string]::IsNullOrWhiteSpace($status)) {
+            $segmentedStatus = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_status"
+            if ([string]::IsNullOrWhiteSpace($verdict) -and
+                [string]::IsNullOrWhiteSpace($status) -and
+                [string]::IsNullOrWhiteSpace($segmentedStatus)) {
                 continue
             }
 
@@ -196,6 +199,25 @@ function Get-PdfVisualGateRollupEvidence {
                 pdf_visual_gate_attempt_expected_visual_render_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_expected_visual_render_count")
                 pdf_visual_gate_attempt_aggregate_contact_sheet_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_aggregate_contact_sheet_status"
                 pdf_visual_gate_attempt_aggregate_contact_sheet_display = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_aggregate_contact_sheet_display"
+                pdf_visual_segmented_gate_status = $segmentedStatus
+                pdf_visual_segmented_gate_verdict = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_verdict"
+                pdf_visual_segmented_gate_full_visual_gate_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_full_visual_gate_status"
+                pdf_visual_segmented_gate_evidence_scope = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_evidence_scope"
+                pdf_visual_segmented_gate_boundary = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_boundary"
+                pdf_visual_segmented_gate_summary_json_display = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_summary_json_display"
+                pdf_visual_segmented_gate_slice_summary_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_segmented_gate_slice_summary_count")
+                pdf_visual_segmented_gate_slice_pass_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_segmented_gate_slice_pass_count")
+                pdf_visual_segmented_gate_slice_failed_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_segmented_gate_slice_failed_count")
+                pdf_visual_segmented_gate_covered_baseline_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_segmented_gate_covered_baseline_count")
+                pdf_visual_segmented_gate_expected_visual_render_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_segmented_gate_expected_visual_render_count")
+                pdf_visual_segmented_gate_attempt_stage_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_segmented_gate_attempt_stage_count")
+                pdf_visual_segmented_gate_attempt_passed_stage_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_segmented_gate_attempt_passed_stage_count")
+                pdf_visual_segmented_gate_visual_baseline_render_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_visual_baseline_render_status"
+                pdf_visual_segmented_gate_aggregate_contact_sheet_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_aggregate_contact_sheet_status"
+                pdf_visual_segmented_gate_aggregate_contact_sheet_display = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_aggregate_contact_sheet_display"
+                pdf_visual_segmented_gate_aggregate_contact_sheet_bytes = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_segmented_gate_aggregate_contact_sheet_bytes")
+                pdf_visual_segmented_gate_aggregate_rebuild_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_aggregate_rebuild_status"
+                pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count")
             }
         }
     )
@@ -988,6 +1010,27 @@ function New-ReportMarkdown {
                 $lines.Add("    - pdf_visual_gate_attempt_expected_visual_render_count: ``$($evidence.pdf_visual_gate_attempt_expected_visual_render_count)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``$($evidence.pdf_visual_gate_attempt_aggregate_contact_sheet_status)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``$($evidence.pdf_visual_gate_attempt_aggregate_contact_sheet_display)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$evidence.pdf_visual_segmented_gate_status)) {
+                $lines.Add("    - pdf_visual_segmented_gate_status: ``$($evidence.pdf_visual_segmented_gate_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_verdict: ``$($evidence.pdf_visual_segmented_gate_verdict)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_full_visual_gate_status: ``$($evidence.pdf_visual_segmented_gate_full_visual_gate_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_evidence_scope: ``$($evidence.pdf_visual_segmented_gate_evidence_scope)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_boundary: ``$($evidence.pdf_visual_segmented_gate_boundary)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_summary_json_display: ``$($evidence.pdf_visual_segmented_gate_summary_json_display)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_slice_summary_count: ``$($evidence.pdf_visual_segmented_gate_slice_summary_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_slice_pass_count: ``$($evidence.pdf_visual_segmented_gate_slice_pass_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_slice_failed_count: ``$($evidence.pdf_visual_segmented_gate_slice_failed_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_covered_baseline_count: ``$($evidence.pdf_visual_segmented_gate_covered_baseline_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_expected_visual_render_count: ``$($evidence.pdf_visual_segmented_gate_expected_visual_render_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_attempt_stage_count: ``$($evidence.pdf_visual_segmented_gate_attempt_stage_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_attempt_passed_stage_count: ``$($evidence.pdf_visual_segmented_gate_attempt_passed_stage_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_visual_baseline_render_status: ``$($evidence.pdf_visual_segmented_gate_visual_baseline_render_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_aggregate_contact_sheet_status: ``$($evidence.pdf_visual_segmented_gate_aggregate_contact_sheet_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_aggregate_contact_sheet_display: ``$($evidence.pdf_visual_segmented_gate_aggregate_contact_sheet_display)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_aggregate_contact_sheet_bytes: ``$($evidence.pdf_visual_segmented_gate_aggregate_contact_sheet_bytes)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_aggregate_rebuild_status: ``$($evidence.pdf_visual_segmented_gate_aggregate_rebuild_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count: ``$($evidence.pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count)``") | Out-Null
             }
             if (-not [string]::IsNullOrWhiteSpace([string]$evidence.full_visual_gate_status)) {
                 $lines.Add("    - full_visual_gate_status: ``$($evidence.full_visual_gate_status)``") | Out-Null

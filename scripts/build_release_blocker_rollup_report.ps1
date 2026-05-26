@@ -687,6 +687,92 @@ function Add-PdfVisualGateAttemptEvidenceFields {
     }
 }
 
+function Get-PdfVisualSegmentedGateEvidenceObject {
+    param($Summary)
+
+    $segmented = Get-JsonProperty -Object $Summary -Name "pdf_visual_segmented_gate"
+    if ($null -ne $segmented) {
+        return $segmented
+    }
+
+    $steps = Get-JsonProperty -Object $Summary -Name "steps"
+    if ($null -eq $steps) {
+        return $null
+    }
+
+    return (Get-JsonProperty -Object $steps -Name "pdf_visual_segmented_gate")
+}
+
+function Add-PdfVisualSegmentedGateEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary,
+        [string]$RepoRoot
+    )
+
+    $segmented = Get-PdfVisualSegmentedGateEvidenceObject -Summary $Summary
+    if ($null -eq $segmented) {
+        return
+    }
+
+    $summaryJson = Get-FirstJsonString -Object $segmented -Names @("summary_json")
+    if ([string]::IsNullOrWhiteSpace($summaryJson)) {
+        $summaryJson = Get-FirstJsonString -Object $Summary -Names @("pdf_visual_segmented_gate_summary_json")
+    }
+    $status = Get-FirstJsonString -Object $segmented -Names @("status")
+    if ([string]::IsNullOrWhiteSpace($summaryJson) -and $status -eq "not_requested") {
+        return
+    }
+    $aggregateContactSheet = Get-FirstJsonString -Object $segmented -Names @("aggregate_contact_sheet")
+
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_status" `
+        -Value $status
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_verdict" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("verdict"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_full_visual_gate_status" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("full_visual_gate_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_evidence_scope" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("evidence_scope"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_boundary" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("boundary"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_summary_json" `
+        -Value $summaryJson
+    if (-not [string]::IsNullOrWhiteSpace($summaryJson)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_summary_json_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson)
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_slice_summary_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("slice_summary_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_slice_pass_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("slice_pass_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_slice_failed_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("slice_failed_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_covered_baseline_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("covered_baseline_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_expected_visual_render_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("expected_visual_render_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_attempt_stage_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("attempt_stage_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_attempt_passed_stage_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("attempt_passed_stage_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_visual_baseline_render_status" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("visual_baseline_render_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_contact_sheet_status" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("aggregate_contact_sheet_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_contact_sheet" `
+        -Value $aggregateContactSheet
+    if (-not [string]::IsNullOrWhiteSpace($aggregateContactSheet)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_contact_sheet_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $aggregateContactSheet)
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_contact_sheet_bytes" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("aggregate_contact_sheet_bytes"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_rebuild_status" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("aggregate_rebuild_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("aggregate_rebuild_selected_baseline_count"))
+}
+
 function Add-ManifestSignoffEntrypointsEvidenceFields {
     param(
         [System.Collections.IDictionary]$Target,
@@ -1147,7 +1233,26 @@ function New-ReportMarkdown {
                     "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count",
                     "pdf_visual_gate_attempt_expected_visual_render_count",
                     "pdf_visual_gate_attempt_aggregate_contact_sheet_status",
-                    "pdf_visual_gate_attempt_aggregate_contact_sheet_display"
+                    "pdf_visual_gate_attempt_aggregate_contact_sheet_display",
+                    "pdf_visual_segmented_gate_status",
+                    "pdf_visual_segmented_gate_verdict",
+                    "pdf_visual_segmented_gate_full_visual_gate_status",
+                    "pdf_visual_segmented_gate_evidence_scope",
+                    "pdf_visual_segmented_gate_boundary",
+                    "pdf_visual_segmented_gate_summary_json_display",
+                    "pdf_visual_segmented_gate_slice_summary_count",
+                    "pdf_visual_segmented_gate_slice_pass_count",
+                    "pdf_visual_segmented_gate_slice_failed_count",
+                    "pdf_visual_segmented_gate_covered_baseline_count",
+                    "pdf_visual_segmented_gate_expected_visual_render_count",
+                    "pdf_visual_segmented_gate_attempt_stage_count",
+                    "pdf_visual_segmented_gate_attempt_passed_stage_count",
+                    "pdf_visual_segmented_gate_visual_baseline_render_status",
+                    "pdf_visual_segmented_gate_aggregate_contact_sheet_status",
+                    "pdf_visual_segmented_gate_aggregate_contact_sheet_display",
+                    "pdf_visual_segmented_gate_aggregate_contact_sheet_bytes",
+                    "pdf_visual_segmented_gate_aggregate_rebuild_status",
+                    "pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count"
                 )) {
                 $fieldValue = Get-JsonProperty -Object $report -Name $fieldName
                 $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
@@ -1632,6 +1737,7 @@ foreach ($path in @($inputPaths)) {
     Add-PdfVisualGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-PdfBoundedCtestEvidenceFields -Target $sourceReport -Summary $summaryObject
     Add-PdfVisualGateAttemptEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
+    Add-PdfVisualSegmentedGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-ManifestSignoffEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-ProjectTemplateReadinessChecklistEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject
     Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceFields -Target $sourceReport -Summary $summaryObject

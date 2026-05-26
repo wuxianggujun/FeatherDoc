@@ -171,6 +171,30 @@ OCR 或任意视觉精确还原。
      ``aggregate_rebuild_summary_does_not_replace_full_visual_gate_verdict``。固定标记：
      ``pdf_visual_aggregate_contact_sheet_rebuild_trace``。该证据不能替代 full visual gate
      verdict。
+   * attempt、visual baseline slice 与 aggregate contact-sheet rebuild 已经形成完整分段链路时，
+     必须运行 ``scripts/write_pdf_visual_segmented_gate_summary.ps1`` 生成
+     ``segmented-summary.json``。summary 必须包含
+     ``schema = featherdoc.pdf_visual_segmented_gate_summary.v1``、
+     明确的 ``status`` / ``verdict``、
+     ``full_visual_gate_status = not_complete``、
+     ``evidence_scope = segmented_visual_gate_auxiliary_only`` 和
+     ``segmented_summary_does_not_replace_full_visual_gate_verdict``；即使
+     ``status = pass`` 且 ``verdict = pass``，也只能证明分段辅助证据完整。
+     release governance 必须同块保留
+     ``pdf_visual_segmented_gate_status``、
+     ``pdf_visual_segmented_gate_verdict``、
+     ``pdf_visual_segmented_gate_full_visual_gate_status``、
+     ``pdf_visual_segmented_gate_evidence_scope``、
+     ``pdf_visual_segmented_gate_summary_json_display``、
+     ``pdf_visual_segmented_gate_slice_summary_count``、
+     ``pdf_visual_segmented_gate_slice_pass_count``、
+     ``pdf_visual_segmented_gate_covered_baseline_count``、
+     ``pdf_visual_segmented_gate_expected_visual_render_count``、
+     ``pdf_visual_segmented_gate_aggregate_contact_sheet_display`` 和
+     ``pdf_visual_segmented_gate_aggregate_contact_sheet_bytes``。固定标记：
+     ``pdf_visual_segmented_gate_summary_trace``、
+     ``pdf_visual_segmented_gate_governance_trace``。该证据不能替代 full visual gate
+     verdict。
    * ``release_assets_manifest.json`` 中的 ``pdf_visual_gate_evidence`` 必须保留
      ``cjk_manifest_count >= 43``、``visual_baseline_manifest_count >= 42``，
      并且 ``verdict = pass`` 时 ``cjk_missing_text_count = 0``；不能只依赖

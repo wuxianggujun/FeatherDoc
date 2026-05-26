@@ -1459,6 +1459,25 @@ if(WIN32)
 
         add_test(
             NAME
+            pdf_visual_segmented_gate_summary
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_segmented_gate_summary_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_segmented_gate_summary
+        )
+        set_tests_properties(pdf_visual_segmented_gate_summary
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        add_test(
+            NAME
             pdf_visual_validation_status_docs_contract
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

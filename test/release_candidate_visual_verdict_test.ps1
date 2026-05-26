@@ -258,6 +258,30 @@ Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual gate contact s
 Assert-ContainsText -Text $scriptText -ExpectedText 'Get-PdfVisualGateSummaryInfo -SummaryJson $resolvedPdfVisualGateSummaryJson' `
     -Message "Release preflight should load machine-readable PDF visual gate verdict metadata."
 
+Assert-ContainsText -Text $scriptText -ExpectedText '[string]$PdfVisualSegmentedGateSummaryJson = ""' `
+    -Message "Release preflight should expose an optional segmented PDF visual gate summary path."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'pdf_visual_segmented_gate_summary_json = $resolvedPdfVisualSegmentedGateSummaryJson' `
+    -Message "Release summary should preserve the segmented PDF visual gate summary path."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'pdf_visual_segmented_gate = $pdfVisualSegmentedGateSummaryInfo' `
+    -Message "Release summary should expose segmented PDF visual gate metadata."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual segmented gate: $($summary.steps.pdf_visual_segmented_gate.status)' `
+    -Message "Release final review should include segmented PDF visual gate status."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual segmented gate verdict: $($summary.steps.pdf_visual_segmented_gate.verdict)' `
+    -Message "Release final review should include segmented PDF visual gate verdict."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual segmented gate full status: $($summary.steps.pdf_visual_segmented_gate.full_visual_gate_status)' `
+    -Message "Release final review should keep segmented evidence separate from full visual gate status."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '- PDF visual segmented gate summary: $pdfVisualSegmentedGateSummaryDisplayPath' `
+    -Message "Release final review should link segmented PDF visual gate evidence."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'Get-PdfVisualSegmentedGateSummaryInfo -SummaryJson $resolvedPdfVisualSegmentedGateSummaryJson' `
+    -Message "Release preflight should load machine-readable segmented PDF visual gate metadata."
+
 Assert-ContainsText -Text $scriptText -ExpectedText '"-TableStyleQualityBuildDir"' `
     -Message "Release preflight should pass the shared build directory to table style quality visual gate."
 
@@ -362,6 +386,7 @@ $functionNames = @(
     "Get-RepoRelativePath",
     "Get-OptionalPropertyValue",
     "Get-PdfVisualGateSummaryInfo",
+    "Get-PdfVisualSegmentedGateSummaryInfo",
     "Get-PdfBoundedCtestSummaryInfo",
     "Convert-ReviewTimestamp",
     "Get-ReleaseCandidateDisplayValue",
@@ -412,6 +437,50 @@ if ($pdfVisualGateInfo.status -ne "loaded" -or
 $missingPdfVisualGateInfo = Get-PdfVisualGateSummaryInfo -SummaryJson (Join-Path $resolvedWorkingDir "missing-summary.json")
 if ($missingPdfVisualGateInfo.status -ne "missing" -or [bool]$missingPdfVisualGateInfo.finalizable) {
     throw "Missing PDF visual gate summary should not be marked finalizable."
+}
+
+$pdfSegmentedSummaryPath = Join-Path $pdfSummaryDir "segmented-summary.json"
+([ordered]@{
+        schema = "featherdoc.pdf_visual_segmented_gate_summary.v1"
+        status = "pass"
+        verdict = "pass"
+        full_visual_gate_status = "not_complete"
+        evidence_scope = "segmented_visual_gate_auxiliary_only"
+        boundary = "segmented_summary_does_not_replace_full_visual_gate_verdict"
+        slice_summary_count = 4
+        slice_pass_count = 4
+        slice_failed_count = 0
+        covered_baseline_count = 44
+        expected_visual_render_count = 44
+        visual_baseline_manifest_count = 42
+        attempt_status = "partial"
+        attempt_verdict = "not_complete"
+        attempt_full_visual_gate_status = "not_complete"
+        attempt_stage_count = 6
+        attempt_passed_stage_count = 6
+        attempt_incomplete_stage_count = 0
+        visual_baseline_render_status = "pass"
+        visual_baseline_fresh_rendered_count = 44
+        aggregate_contact_sheet_status = "pass"
+        aggregate_contact_sheet = $pdfContactSheetPath
+        aggregate_contact_sheet_bytes = 1822428
+        aggregate_rebuild_status = "pass"
+        aggregate_rebuild_verdict = "pass"
+        aggregate_rebuild_selected_baseline_count = 44
+        aggregate_rebuild_expected_visual_render_count = 44
+    } | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $pdfSegmentedSummaryPath -Encoding UTF8
+
+$pdfSegmentedGateInfo = Get-PdfVisualSegmentedGateSummaryInfo -SummaryJson $pdfSegmentedSummaryPath
+if ($pdfSegmentedGateInfo.status -ne "pass" -or
+    $pdfSegmentedGateInfo.verdict -ne "pass" -or
+    $pdfSegmentedGateInfo.full_visual_gate_status -ne "not_complete" -or
+    $pdfSegmentedGateInfo.evidence_scope -ne "segmented_visual_gate_auxiliary_only" -or
+    [int]$pdfSegmentedGateInfo.slice_pass_count -ne 4 -or
+    [int]$pdfSegmentedGateInfo.covered_baseline_count -ne 44 -or
+    [int]$pdfSegmentedGateInfo.expected_visual_render_count -ne 44 -or
+    [int]$pdfSegmentedGateInfo.attempt_passed_stage_count -ne 6 -or
+    [int64]$pdfSegmentedGateInfo.aggregate_contact_sheet_bytes -ne 1822428) {
+    throw "Segmented PDF visual gate summary metadata was not loaded as auxiliary release evidence."
 }
 
 $boundedCtestDir = Join-Path $resolvedWorkingDir "pdf-bounded-ctest"
@@ -658,6 +727,7 @@ $candidateTaskOutputRoot = Join-Path $resolvedWorkingDir "visual-tasks"
     -TaskOutputRoot $candidateTaskOutputRoot `
     -SummaryOutputDir $candidateOutputDir `
     -PdfVisualGateSummaryJson $pdfSummaryPath `
+    -PdfVisualSegmentedGateSummaryJson $pdfSegmentedSummaryPath `
     -PdfBoundedCtestSummaryJson @($boundedSmokePath, $boundedBusinessPath)
 if ($LASTEXITCODE -ne 0) {
     throw "Release candidate dry run with PDF visual gate summary failed with exit code $LASTEXITCODE."
@@ -686,6 +756,19 @@ if ([int]$candidateSummary.steps.pdf_visual_gate.cjk_manifest_count -ne 43 -or
 if ([string]$candidateSummary.steps.pdf_visual_gate.summary_json -ne $pdfSummaryPath -or
     [string]$candidateSummary.steps.pdf_visual_gate.aggregate_contact_sheet -ne $pdfContactSheetPath) {
     throw "Release candidate summary did not preserve PDF visual gate evidence paths."
+}
+if ($candidateSummary.steps.pdf_visual_segmented_gate.status -ne "pass" -or
+    $candidateSummary.steps.pdf_visual_segmented_gate.verdict -ne "pass" -or
+    $candidateSummary.steps.pdf_visual_segmented_gate.full_visual_gate_status -ne "not_complete" -or
+    $candidateSummary.steps.pdf_visual_segmented_gate.evidence_scope -ne "segmented_visual_gate_auxiliary_only") {
+    throw "Release candidate summary did not preserve segmented PDF visual gate auxiliary status."
+}
+if ([int]$candidateSummary.steps.pdf_visual_segmented_gate.slice_pass_count -ne 4 -or
+    [int]$candidateSummary.steps.pdf_visual_segmented_gate.covered_baseline_count -ne 44 -or
+    [int]$candidateSummary.steps.pdf_visual_segmented_gate.expected_visual_render_count -ne 44 -or
+    [string]$candidateSummary.steps.pdf_visual_segmented_gate.summary_json -ne $pdfSegmentedSummaryPath -or
+    [string]$candidateSummary.steps.pdf_visual_segmented_gate.aggregate_contact_sheet -ne $pdfContactSheetPath) {
+    throw "Release candidate summary did not preserve segmented PDF visual gate counts or paths."
 }
 if ([int]$candidateSummary.steps.pdf_bounded_ctest.summary_count -ne 2 -or
     [int]$candidateSummary.steps.pdf_bounded_ctest.pass_count -ne 2 -or
@@ -776,6 +859,20 @@ foreach ($assertion in @(
     Assert-ContainsText -Text $content -ExpectedText "aggregate-contact-sheet.png" `
         -Message ("{0} should expose the PDF visual contact sheet." -f $assertion.Label)
 }
+
+$finalReviewContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateFinalReviewPath
+Assert-MarkdownListRunContainsAll -Text $finalReviewContent -Anchor "PDF visual segmented gate:" -Fragments @(
+    "PDF visual segmented gate: pass",
+    "PDF visual segmented gate verdict: pass",
+    "PDF visual segmented gate full status: not_complete",
+    "PDF visual segmented gate scope: segmented_visual_gate_auxiliary_only",
+    "PDF visual segmented gate slices: 4/4 pass",
+    "PDF visual segmented gate coverage: 44/44 baselines"
+) -Message "final_review.md should keep segmented PDF visual gate auxiliary evidence in one step-status list run."
+Assert-ContainsText -Text $finalReviewContent -ExpectedText "PDF visual segmented gate summary:" `
+    -Message "final_review.md should link segmented PDF visual gate summary evidence."
+Assert-ContainsText -Text $finalReviewContent -ExpectedText "segmented-summary.json" `
+    -Message "final_review.md should expose the segmented PDF visual gate summary path."
 
 foreach ($assertion in @(
         @{ Path = $candidateReleaseHandoffPath; Label = "release_handoff.md" },
