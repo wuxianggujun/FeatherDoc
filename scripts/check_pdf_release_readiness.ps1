@@ -589,8 +589,21 @@ if (-not $fullCtestCompleted) {
 
 $failedChecks = @($checks | Where-Object { [string]$_.status -ne "pass" })
 $status = if ($failedChecks.Count -eq 0) { "pass" } else { "blocked" }
-$verdict = if ($failedChecks.Count -eq 0) { "pass_with_warnings" } else { "blocked" }
+$verdict = if ($failedChecks.Count -ne 0) {
+    "blocked"
+} elseif ($warnings.Count -gt 0) {
+    "pass_with_warnings"
+} else {
+    "pass"
+}
 $releaseReady = ($failedChecks.Count -eq 0)
+$boundary = if ($failedChecks.Count -ne 0) {
+    "Blocked means required PDF release evidence failed one or more machine checks."
+} elseif ($warnings.Count -gt 0) {
+    "Pass-with-warnings means current persisted release evidence is coherent; it does not claim a fresh non-FinalizeOnly full visual gate or full pdf_ CTest run completed in this resource window."
+} else {
+    "Pass means current persisted release evidence is coherent and no full visual gate or full pdf_ CTest completion warnings remain."
+}
 
 $summary = [ordered]@{
     schema = "featherdoc.pdf_release_readiness_check.v1"
@@ -681,7 +694,7 @@ $summary = [ordered]@{
     checks = @($checks)
     failed_checks = @($failedChecks | ForEach-Object { $_.name })
     warnings = @($warnings)
-    boundary = "Pass-with-warnings means current persisted release evidence is coherent; it does not claim a fresh non-FinalizeOnly full visual gate or full pdf_ CTest run completed in this resource window."
+    boundary = $boundary
     marker = "pdf_release_readiness_machine_gate_trace"
 }
 

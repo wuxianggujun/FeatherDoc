@@ -368,6 +368,59 @@ Assert-Equal -Actual ([int]$fullCtestWarning.details.remaining_test_count) -Expe
 Assert-Equal -Actual ([bool]$fullCtestWarning.details.zero_failed_tests_observed) -Expected $true `
     -Message "Full PDF CTest warning should carry the zero-failure observation."
 
+$completedRoot = Join-Path $resolvedWorkingDir "fixture-completed"
+New-PassingFixture -Root $completedRoot -ScriptPath $scriptPath
+$completedVisualFullPath = Join-Path $completedRoot "output\pdf-visual-release-gate-current\report\full-visual-gate-guarded-summary.json"
+$completedVisualFull = Get-Content -Raw -Encoding UTF8 -LiteralPath $completedVisualFullPath | ConvertFrom-Json
+$completedVisualFull.status = "pass"
+$completedVisualFull.verdict = "pass"
+$completedVisualFull.full_visual_gate_status = "pass"
+$completedVisualFull.outer_guard_status = "completed"
+$completedVisualFull.outer_guard_timed_out = $false
+Write-JsonFile -Path $completedVisualFullPath -Value $completedVisualFull
+$completedVisualSummaryPath = Join-Path $completedRoot "output\pdf-visual-release-gate-current\report\summary.json"
+$completedVisualSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $completedVisualSummaryPath | ConvertFrom-Json
+$completedVisualSummary.skip_preflight = $true
+Write-JsonFile -Path $completedVisualSummaryPath -Value $completedVisualSummary
+$completedCtestPath = Join-Path $completedRoot "output\pdf-ctest-current\summary.json"
+$completedCtest = Get-Content -Raw -Encoding UTF8 -LiteralPath $completedCtestPath | ConvertFrom-Json
+$completedCtest.status = "pass"
+$completedCtest.verdict = "pass"
+$completedCtest.full_ctest_status = "pass"
+$completedCtest.outer_guard_status = "completed"
+$completedCtest.outer_guard_timed_out = $false
+$completedCtest.completed_test_count = 139
+$completedCtest.passed_test_count = 132
+$completedCtest.skipped_test_count = 7
+$completedCtest.not_run_test_count = 0
+Write-JsonFile -Path $completedCtestPath -Value $completedCtest
+$completedScript = Join-Path $completedRoot "scripts\check_pdf_release_readiness.ps1"
+$completedSummaryPath = Join-Path $resolvedWorkingDir "completed-readiness-summary.json"
+$completedResult = Invoke-PowerShellScript -ScriptPath $completedScript -Arguments @(
+    "-OutputJson", $completedSummaryPath
+)
+Assert-Equal -Actual $completedResult.ExitCode -Expected 0 `
+    -Message "Completed fixture PDF release readiness check should pass. Output: $($completedResult.Text)"
+$completedSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $completedSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$completedSummary.status) -Expected "pass" `
+    -Message "Completed fixture should report pass status."
+Assert-Equal -Actual ([string]$completedSummary.verdict) -Expected "pass" `
+    -Message "Completed fixture with no warnings should report pass verdict."
+Assert-Equal -Actual ([bool]$completedSummary.release_ready) -Expected $true `
+    -Message "Completed fixture should stay release-ready."
+Assert-Equal -Actual ([int]$completedSummary.warning_count) -Expected 0 `
+    -Message "Completed fixture should not carry warning debt."
+Assert-Equal -Actual ([int]$completedSummary.failed_check_count) -Expected 0 `
+    -Message "Completed fixture should not carry failed checks."
+Assert-Equal -Actual ([string]$completedSummary.visual_full_gate_status) -Expected "pass" `
+    -Message "Completed fixture should preserve completed visual full-gate status."
+Assert-Equal -Actual ([string]$completedSummary.full_ctest_status) -Expected "pass" `
+    -Message "Completed fixture should preserve completed full CTest status."
+Assert-Equal -Actual ([double]$completedSummary.full_ctest_completion_percent) -Expected 100.0 `
+    -Message "Completed fixture should expose full CTest completion percent."
+Assert-Equal -Actual ([int]$completedSummary.full_ctest_remaining_test_count) -Expected 0 `
+    -Message "Completed fixture should expose zero remaining full CTest tests."
+
 $blockedRoot = Join-Path $resolvedWorkingDir "fixture-blocked"
 New-PassingFixture -Root $blockedRoot -ScriptPath $scriptPath
 $blockedVisualPath = Join-Path $blockedRoot "output\pdf-visual-release-gate-current\report\summary.json"
