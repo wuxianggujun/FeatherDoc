@@ -148,10 +148,12 @@ OCR 或任意视觉精确还原。
    ``schema = featherdoc.pdf_full_ctest_guarded_summary.v1``、
    ``full_ctest_status``、``full_ctest_verdict``、
    ``full_ctest_outer_guard_status``、``full_ctest_outer_guard_timed_out``、
-   ``full_ctest_completed_test_count`` 和 ``full_ctest_not_run_test_count``。
+   ``full_ctest_completed_test_count``、``full_ctest_not_run_test_count``、
+   ``full_ctest_completion_percent``、``full_ctest_remaining_test_count`` 和
+   ``full_ctest_zero_failed_tests_observed``。
    当 ``outer_guard_status = timed_out`` 或 ``status != pass`` 时，
-   ``pdf_full_ctest.not_completed_in_current_window`` warning 必须携带这些计数，
-   不能只留下人工日志路径。固定标记：
+   ``pdf_full_ctest.not_completed_in_current_window`` warning 必须携带这些计数和派生
+   结论，不能只留下人工日志路径。固定标记：
    ``pdf_full_ctest_guarded_summary_trace``。
 
 7. 发布治理已消费 PDF 结论：
@@ -557,7 +559,10 @@ OCR 或任意视觉精确还原。
    并额外记录 60 秒外层保护状态。summary 必须包含
    ``guarded_full_ctest_attempt_does_not_replace_completed_full_ctest``；只有
    ``status = pass`` 且 ``outer_guard_status = completed`` 才能视为完整 PDF CTest
-   已完成。
+   已完成。readiness summary 还必须从该 attempt 派生
+   ``full_ctest_completion_percent``、``full_ctest_remaining_test_count`` 和
+   ``full_ctest_zero_failed_tests_observed``，让治理报告可以直接解释“接近完成但仍非
+   pass”的边界。
 
 发布边界
 --------

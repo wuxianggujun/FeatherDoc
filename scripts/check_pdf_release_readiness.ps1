@@ -119,6 +119,24 @@ function Test-IntegerAtLeast {
     }
 }
 
+function Convert-ToIntOrZero {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return 0
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$Value)) {
+        return 0
+    }
+
+    try {
+        return [int]$Value
+    } catch {
+        return 0
+    }
+}
+
 function Add-Check {
     param(
         [System.Collections.Generic.List[object]]$Checks,
@@ -540,6 +558,13 @@ $fullCtestPassedCount = if ($null -eq $fullCtest) { 0 } else { Get-OptionalPrope
 $fullCtestFailedCount = if ($null -eq $fullCtest) { 0 } else { Get-OptionalPropertyValue -Object $fullCtest -Name "failed_test_count" }
 $fullCtestSkippedCount = if ($null -eq $fullCtest) { 0 } else { Get-OptionalPropertyValue -Object $fullCtest -Name "skipped_test_count" }
 $fullCtestNotRunCount = if ($null -eq $fullCtest) { 0 } else { Get-OptionalPropertyValue -Object $fullCtest -Name "not_run_test_count" }
+$fullCtestSelectedCountInt = Convert-ToIntOrZero -Value $fullCtestSelectedCount
+$fullCtestCompletedCountInt = Convert-ToIntOrZero -Value $fullCtestCompletedCount
+$fullCtestFailedCountInt = Convert-ToIntOrZero -Value $fullCtestFailedCount
+$fullCtestNotRunCountInt = Convert-ToIntOrZero -Value $fullCtestNotRunCount
+$fullCtestCompletionPercent = if ($fullCtestSelectedCountInt -gt 0) { [Math]::Round(($fullCtestCompletedCountInt / $fullCtestSelectedCountInt) * 100, 1) } else { 0 }
+$fullCtestRemainingTestCount = [Math]::Max(0, $fullCtestNotRunCountInt)
+$fullCtestZeroFailedTestsObserved = ($fullCtestSummaryExists -and $fullCtestSelectedCountInt -gt 0 -and $fullCtestFailedCountInt -eq 0)
 $fullCtestCompleted = ($fullCtestStatus -eq "pass" -and $fullCtestVerdict -eq "pass" -and $fullCtestOuterGuardStatus -eq "completed" -and -not $fullCtestOuterGuardTimedOut)
 if (-not $fullCtestCompleted) {
     Add-Warning -Warnings $warnings -Id "pdf_full_ctest.not_completed_in_current_window" `
@@ -555,6 +580,9 @@ if (-not $fullCtestCompleted) {
             failed_test_count = $fullCtestFailedCount
             skipped_test_count = $fullCtestSkippedCount
             not_run_test_count = $fullCtestNotRunCount
+            completion_percent = $fullCtestCompletionPercent
+            remaining_test_count = $fullCtestRemainingTestCount
+            zero_failed_tests_observed = $fullCtestZeroFailedTestsObserved
             summary_json = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedFullCtestSummaryJson
         }
 }
@@ -644,6 +672,9 @@ $summary = [ordered]@{
     full_ctest_failed_test_count = $fullCtestFailedCount
     full_ctest_skipped_test_count = $fullCtestSkippedCount
     full_ctest_not_run_test_count = $fullCtestNotRunCount
+    full_ctest_completion_percent = $fullCtestCompletionPercent
+    full_ctest_remaining_test_count = $fullCtestRemainingTestCount
+    full_ctest_zero_failed_tests_observed = $fullCtestZeroFailedTestsObserved
     check_count = $checks.Count
     failed_check_count = $failedChecks.Count
     warning_count = $warnings.Count

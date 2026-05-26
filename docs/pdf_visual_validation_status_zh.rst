@@ -351,9 +351,12 @@ bounded PDF CTest 路径：
 summary schema 为 ``featherdoc.pdf_full_ctest_guarded_summary.v1``，必须保留
 ``full_ctest_status``、``outer_guard_status``、``outer_guard_timed_out``、
 ``outer_guard_timeout_seconds``、``selected_test_count``、
-``completed_test_count`` 和 ``not_run_test_count``。固定标记：
-``pdf_full_ctest_guarded_summary_trace``。如果外层保护超时，该 summary 只能作为
-attempt evidence，不能替代完整 PDF CTest pass。
+``completed_test_count`` 和 ``not_run_test_count``。readiness summary 会额外派生
+``full_ctest_completion_percent``、``full_ctest_remaining_test_count`` 和
+``full_ctest_zero_failed_tests_observed``，用于解释最近一次受控尝试的完成度、剩余
+测试数和是否观察到失败。固定标记：``pdf_full_ctest_guarded_summary_trace``。
+如果外层保护超时，该 summary 只能作为 attempt evidence，不能替代完整 PDF
+CTest pass。
 
 2026-05-27 起，fresh 非 ``FinalizeOnly`` full visual gate 也有固定受控入口
 ``scripts/run_pdf_visual_full_gate_guarded.ps1``。该入口把

@@ -315,6 +315,12 @@ Assert-Equal -Actual ([int]$fixtureSummary.full_ctest_selected_test_count) -Expe
     -Message "Passing fixture should preserve guarded full PDF CTest selected test count."
 Assert-Equal -Actual ([int]$fixtureSummary.full_ctest_completed_test_count) -Expected 102 `
     -Message "Passing fixture should preserve guarded full PDF CTest completed test count."
+Assert-Equal -Actual ([double]$fixtureSummary.full_ctest_completion_percent) -Expected 73.4 `
+    -Message "Passing fixture should expose guarded full PDF CTest completion percent."
+Assert-Equal -Actual ([int]$fixtureSummary.full_ctest_remaining_test_count) -Expected 37 `
+    -Message "Passing fixture should expose guarded full PDF CTest remaining test count."
+Assert-Equal -Actual ([bool]$fixtureSummary.full_ctest_zero_failed_tests_observed) -Expected $true `
+    -Message "Passing fixture should expose guarded full PDF CTest zero-failure observation."
 Assert-True -Condition ((@($fixtureSummary.warnings | ForEach-Object { [string]$_.id }) -contains "pdf_full_fresh_visual_gate.not_completed_in_current_window")) `
     -Message "Readiness summary should keep fresh full visual gate debt visible."
 Assert-True -Condition ((@($fixtureSummary.warnings | ForEach-Object { [string]$_.id }) -contains "pdf_full_ctest.not_completed_in_current_window")) `
@@ -355,6 +361,12 @@ Assert-Equal -Actual ([string]$fullCtestWarning.details.status) -Expected "timeo
     -Message "Full PDF CTest warning should carry the guarded attempt status."
 Assert-Equal -Actual ([int]$fullCtestWarning.details.completed_test_count) -Expected 102 `
     -Message "Full PDF CTest warning should carry the guarded attempt completed count."
+Assert-Equal -Actual ([double]$fullCtestWarning.details.completion_percent) -Expected 73.4 `
+    -Message "Full PDF CTest warning should carry the guarded attempt completion percent."
+Assert-Equal -Actual ([int]$fullCtestWarning.details.remaining_test_count) -Expected 37 `
+    -Message "Full PDF CTest warning should carry the guarded attempt remaining count."
+Assert-Equal -Actual ([bool]$fullCtestWarning.details.zero_failed_tests_observed) -Expected $true `
+    -Message "Full PDF CTest warning should carry the zero-failure observation."
 
 $blockedRoot = Join-Path $resolvedWorkingDir "fixture-blocked"
 New-PassingFixture -Root $blockedRoot -ScriptPath $scriptPath
@@ -406,6 +418,10 @@ foreach ($expectedText in @(
         "featherdoc.pdf_full_ctest_guarded_summary.v1",
         "pdf_full_ctest_guarded_summary_trace",
         "full_ctest_completed_test_count",
+        "full_ctest_completion_percent",
+        "full_ctest_remaining_test_count",
+        "full_ctest_zero_failed_tests_observed",
+        "zero_failed_tests_observed",
         "pdf_full_fresh_visual_gate.not_completed_in_current_window",
         "pdf_full_ctest.not_completed_in_current_window",
         "pass_with_warnings",

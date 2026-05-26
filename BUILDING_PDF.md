@@ -973,8 +973,10 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    `output/pdf-ctest-current/summary.json`，保留
    `schema = featherdoc.pdf_full_ctest_guarded_summary.v1`、
    `full_ctest_status`、`full_ctest_verdict`、`full_ctest_outer_guard_status`、
-   `full_ctest_completed_test_count` 和 `full_ctest_not_run_test_count`，并把这些字段
-   附到 `pdf_full_ctest.not_completed_in_current_window` warning 上。固定标记：
+   `full_ctest_completed_test_count`、`full_ctest_not_run_test_count`、
+   `full_ctest_completion_percent`、`full_ctest_remaining_test_count` 和
+   `full_ctest_zero_failed_tests_observed`，并把这些字段附到
+   `pdf_full_ctest.not_completed_in_current_window` warning 上。固定标记：
    `pdf_full_ctest_guarded_summary_trace`。
 11. 发布治理：`scripts/run_release_candidate_checks.ps1` 的 summary / final review
    必须消费 PDF visual gate verdict、计数和 contact sheet 路径。
@@ -1017,7 +1019,10 @@ summary 必须写出 `schema = featherdoc.pdf_full_ctest_guarded_summary.v1`、
 `guarded_full_ctest_attempt_does_not_replace_completed_full_ctest`。固定标记：
 `pdf_full_ctest_guarded_summary_trace`。只有 `status = pass` 且
 `outer_guard_status = completed` 才能声明完整 PDF CTest 已完成；`timeout` 只能作为
-可追溯 attempt evidence。
+可追溯 attempt evidence。readiness summary 会额外派生
+`full_ctest_completion_percent`、`full_ctest_remaining_test_count` 和
+`full_ctest_zero_failed_tests_observed`，用于解释最近一次受控尝试的完成度、剩余
+测试数和是否观察到失败。
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 `
