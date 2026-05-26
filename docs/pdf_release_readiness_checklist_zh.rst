@@ -136,6 +136,19 @@ OCR 或任意视觉精确还原。
      ``pdf_bounded_ctest_summary_json_display``；不能替代 full visual gate
      verdict。固定标记：``pdf_bounded_ctest_governance_trace``、
      ``pdf_bounded_ctest_source_report_block_trace``。
+   * 非 ``FinalizeOnly`` full visual gate 被 60 秒保护截断时，必须运行
+     ``scripts/write_pdf_visual_gate_attempt_summary.ps1`` 生成
+     ``attempt-summary.json``。该辅助证据必须在 release governance 中保留
+     ``pdf_visual_gate_attempt_status``、
+     ``pdf_visual_gate_attempt_verdict``、
+     ``pdf_visual_gate_attempt_full_visual_gate_status``、
+     ``pdf_visual_gate_attempt_evidence_scope``、
+     ``pdf_visual_gate_attempt_pdf_regression_skipped_test_count`` 和
+     ``pdf_visual_gate_attempt_visual_baseline_render_status``；当
+     ``evidence_scope = bounded_attempt_auxiliary_only`` 或
+     ``verdict = not_complete`` 时，不能替代 full visual gate verdict。固定标记：
+     ``pdf_visual_gate_attempt_summary_trace``、
+     ``pdf_visual_gate_attempt_governance_trace``。
    * ``release_assets_manifest.json`` 中的 ``pdf_visual_gate_evidence`` 必须保留
      ``cjk_manifest_count >= 43``、``visual_baseline_manifest_count >= 42``，
      并且 ``verdict = pass`` 时 ``cjk_missing_text_count = 0``；不能只依赖

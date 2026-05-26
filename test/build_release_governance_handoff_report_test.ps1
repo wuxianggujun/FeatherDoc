@@ -1007,6 +1007,31 @@ if (Test-Scenario -Name "include_rollup") {
                     ".\build\pdf-ctest-bounded-regression-table-layout-current\summary.json"
                 )
             }
+            pdf_visual_gate_attempt = [ordered]@{
+                status = "partial"
+                verdict = "not_complete"
+                full_visual_gate_status = "not_complete"
+                evidence_scope = "bounded_attempt_auxiliary_only"
+                summary_json = "output/pdf-visual-release-gate-current/report/attempt-summary.json"
+                stage_count = 6
+                passed_stage_count = 4
+                failed_stage_count = 0
+                incomplete_stage_count = 2
+                pdf_cli_export_status = "pass"
+                pdf_regression_status = "pass"
+                pdf_regression_selected_test_count = 91
+                pdf_regression_failed_test_count = 0
+                pdf_regression_skipped_test_count = 7
+                unicode_font_status = "pass"
+                cjk_copy_search_status = "pass"
+                cjk_copy_search_count = 43
+                cjk_copy_search_missing_text_count = 0
+                visual_baseline_render_status = "partial"
+                visual_baseline_fresh_rendered_count = 22
+                expected_visual_render_count = 44
+                aggregate_contact_sheet_status = "stale"
+                aggregate_contact_sheet = "output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png"
+            }
         }
     })
 
@@ -1083,6 +1108,39 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_summary_json_display) -join ",") `
         -ExpectedText "pdf-ctest-bounded-regression-table-layout-current\summary.json" `
         -Message "Handoff summary should expose PDF bounded CTest summary display paths from the nested rollup."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_attempt_status) -Expected "partial" `
+        -Message "Handoff summary should expose PDF visual gate attempt status from the nested rollup."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_attempt_verdict) -Expected "not_complete" `
+        -Message "Handoff summary should expose PDF visual gate attempt verdict from the nested rollup."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_attempt_full_visual_gate_status) -Expected "not_complete" `
+        -Message "Handoff summary should keep partial attempts separate from the full visual gate status."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_attempt_evidence_scope) -Expected "bounded_attempt_auxiliary_only" `
+        -Message "Handoff summary should expose PDF visual gate attempt evidence scope."
+    Assert-ContainsText -Text ([string]$pdfEvidence.pdf_visual_gate_attempt_summary_json_display) `
+        -ExpectedText "pdf-visual-release-gate-current\report\attempt-summary.json" `
+        -Message "Handoff summary should expose PDF visual gate attempt summary display path."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_stage_count) -Expected 6 `
+        -Message "Handoff summary should expose PDF visual gate attempt stage count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_passed_stage_count) -Expected 4 `
+        -Message "Handoff summary should expose PDF visual gate attempt passed stage count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_incomplete_stage_count) -Expected 2 `
+        -Message "Handoff summary should expose PDF visual gate attempt incomplete stage count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_pdf_regression_selected_test_count) -Expected 91 `
+        -Message "Handoff summary should expose PDF visual gate attempt pdf_regression selected count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_pdf_regression_failed_test_count) -Expected 0 `
+        -Message "Handoff summary should expose PDF visual gate attempt pdf_regression failed count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_pdf_regression_skipped_test_count) -Expected 7 `
+        -Message "Handoff summary should expose PDF visual gate attempt pdf_regression skipped count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_cjk_copy_search_count) -Expected 43 `
+        -Message "Handoff summary should expose PDF visual gate attempt CJK count."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_attempt_visual_baseline_render_status) -Expected "partial" `
+        -Message "Handoff summary should expose PDF visual gate attempt render status."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count) -Expected 22 `
+        -Message "Handoff summary should expose PDF visual gate attempt fresh render count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_expected_visual_render_count) -Expected 44 `
+        -Message "Handoff summary should expose PDF visual gate attempt expected render count."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_attempt_aggregate_contact_sheet_status) -Expected "stale" `
+        -Message "Handoff summary should expose PDF visual gate attempt contact sheet status."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.manifest_signoff_entrypoints_source_report_count) -Expected 1 `
         -Message "Handoff summary should consume nested manifest signoff evidence count."
     $manifestSignoffEvidence = $summary.release_blocker_rollup.manifest_signoff_entrypoints_source_reports | Select-Object -First 1
@@ -1194,6 +1252,14 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (@($rollupReleaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints) -join "`n") `
         -ExpectedText "artifact_guide" `
         -Message "Nested rollup should preserve packaged release-entry checklist material-safety audited entrypoints."
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_status) -Expected "partial" `
+        -Message "Nested rollup should preserve PDF visual gate attempt status."
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_verdict) -Expected "not_complete" `
+        -Message "Nested rollup should preserve PDF visual gate attempt verdict."
+    Assert-Equal -Actual ([int]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_pdf_regression_skipped_test_count) -Expected 7 `
+        -Message "Nested rollup should preserve PDF visual gate attempt skipped count."
+    Assert-Equal -Actual ([int]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count) -Expected 22 `
+        -Message "Nested rollup should preserve PDF visual gate attempt fresh rendered count."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
     Assert-ContainsText -Text $markdown -ExpectedText "PDF visual gate evidence source reports: ``1``" `
@@ -1220,6 +1286,16 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should expose the PDF bounded CTest skipped test count."
     Assert-ContainsText -Text $markdown -ExpectedText "regression-business-samples" `
         -Message "Handoff Markdown should expose the PDF bounded CTest subset names."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_status: ``partial``" `
+        -Message "Handoff Markdown should expose the PDF visual gate attempt status."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_verdict: ``not_complete``" `
+        -Message "Handoff Markdown should expose the PDF visual gate attempt verdict."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_evidence_scope: ``bounded_attempt_auxiliary_only``" `
+        -Message "Handoff Markdown should expose the PDF visual gate attempt evidence scope."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_pdf_regression_skipped_test_count: ``7``" `
+        -Message "Handoff Markdown should expose the PDF visual gate attempt skipped count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``" `
+        -Message "Handoff Markdown should expose the PDF visual gate attempt render status."
     Assert-ContainsText -Text $markdown -ExpectedText "Manifest signoff entrypoints evidence source reports: ``1``" `
         -Message "Handoff Markdown should expose the manifest signoff evidence count."
     Assert-ContainsText -Text $markdown -ExpectedText "manifest_signoff_entrypoints_status: ``declared``" `

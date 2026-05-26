@@ -348,6 +348,22 @@ release governance 会在同一个 `source_report:` block 中保留
 固定标记：`pdf_bounded_ctest_governance_trace`、
 `pdf_bounded_ctest_source_report_block_trace`。
 
+资源受限导致非 `FinalizeOnly` 的完整 visual gate 被外层 60 秒保护截断时，先运行
+`scripts/write_pdf_visual_gate_attempt_summary.ps1` 汇总当前 `report` 目录中的
+CTest 日志、CJK copy/search 结果、fresh baseline render 计数和 contact-sheet 状态。
+该脚本输出 `output/pdf-visual-release-gate-current/report/attempt-summary.json`，
+schema 为 `featherdoc.pdf_visual_gate_attempt_summary.v1`，并显式写出
+`pdf_visual_gate_attempt_status`、`pdf_visual_gate_attempt_verdict`、
+`pdf_visual_gate_attempt_full_visual_gate_status`、`pdf_visual_gate_attempt_evidence_scope`、
+`pdf_visual_gate_attempt_pdf_regression_selected_test_count`、
+`pdf_visual_gate_attempt_pdf_regression_failed_test_count`、
+`pdf_visual_gate_attempt_pdf_regression_skipped_test_count`、
+`pdf_visual_gate_attempt_visual_baseline_render_status` 和
+`pdf_visual_gate_attempt_aggregate_contact_sheet_status`。固定标记：
+`pdf_visual_gate_attempt_summary_trace`、`pdf_visual_gate_attempt_governance_trace`。
+`bounded_attempt_auxiliary_only` 只解释被截断尝试已经完成的子阶段，不能替代
+`full_visual_gate_status = pass` 或 full gate summary verdict。
+
 默认 `PdfDocumentImporter` 遇到 `PdfParsedTableCandidate` 仍返回
 `table_candidates_detected`，避免把表格误扁平化成正文。只有显式设置
 `PdfDocumentImportOptions::import_table_candidates_as_tables=true` 时，才会尝试把简单
@@ -773,10 +789,15 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
    时才用 `preflight_ready = true` 表示治理层预检通过。
 4. 完整门禁：运行 `scripts/run_pdf_visual_release_gate.ps1`，或在资源受限时用
    `-FinalizeOnly -SkipPreflight` 复核现有 full gate 产物。
-5. 机器结论：`output/pdf-visual-release-gate-current/report/summary.json` 必须包含
+5. 截断尝试：如果非 `FinalizeOnly` 完整门禁被 60 秒保护截断，运行
+   `scripts/write_pdf_visual_gate_attempt_summary.ps1 -ReportDir .\output\pdf-visual-release-gate-current\report`，
+   生成 `attempt-summary.json`，确认 `verdict = not_complete`、
+   `full_visual_gate_status = not_complete` 和 `evidence_scope = bounded_attempt_auxiliary_only`
+   与已完成的 `pdf_cli_export`、`pdf_regression`、CJK copy/search、fresh baseline 计数同块出现。
+6. 机器结论：`output/pdf-visual-release-gate-current/report/summary.json` 必须包含
    `verdict = pass`、`baselines_count > 0`、`cjk_copy_search_count > 0` 和
    `aggregate_contact_sheet`。
-6. 发布治理：`scripts/run_release_candidate_checks.ps1` 的 summary / final review
+7. 发布治理：`scripts/run_release_candidate_checks.ps1` 的 summary / final review
    必须消费 PDF visual gate verdict、计数和 contact sheet 路径。
 7. 视觉证据：复用或生成的 `aggregate-contact-sheet.png` 必须非空，且抽检不是白图。
 8. 轻量验证：至少运行相关 PowerShell 契约测试；资源窗口允许时再运行

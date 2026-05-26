@@ -96,6 +96,7 @@ param(
     [switch]$ReleaseGovernanceHandoffFailOnBlocker,
     [switch]$ReleaseGovernanceHandoffFailOnWarning,
     [string]$PdfVisualGateSummaryJson = "",
+    [string]$PdfVisualGateAttemptSummaryJson = "",
     [string[]]$PdfBoundedCtestSummaryJson = @(),
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
@@ -448,6 +449,77 @@ function Get-PdfVisualGateSummaryInfo {
             [int]$info.cjk_copy_search_count -gt 0 -and
             [int]$info.visual_baseline_count -gt 0 -and
             -not [string]::IsNullOrWhiteSpace([string]$info.aggregate_contact_sheet)
+    } catch {
+        $info.status = "unreadable"
+        $info.error = $_.Exception.Message
+    }
+
+    return $info
+}
+
+function Get-PdfVisualGateAttemptSummaryInfo {
+    param(
+        [string]$SummaryJson
+    )
+
+    $info = [ordered]@{
+        requested = -not [string]::IsNullOrWhiteSpace($SummaryJson)
+        status = if ([string]::IsNullOrWhiteSpace($SummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $SummaryJson) { "available" } else { "missing" }
+        summary_json = $SummaryJson
+        verdict = ""
+        full_visual_gate_status = ""
+        evidence_scope = ""
+        stage_count = 0
+        passed_stage_count = 0
+        failed_stage_count = 0
+        incomplete_stage_count = 0
+        pdf_cli_export_status = ""
+        pdf_regression_status = ""
+        pdf_regression_selected_test_count = 0
+        pdf_regression_failed_test_count = 0
+        pdf_regression_skipped_test_count = 0
+        unicode_font_status = ""
+        cjk_copy_search_status = ""
+        cjk_copy_search_count = 0
+        cjk_copy_search_missing_text_count = 0
+        visual_baseline_render_status = ""
+        visual_baseline_fresh_rendered_count = 0
+        expected_visual_render_count = 0
+        aggregate_contact_sheet_status = ""
+        aggregate_contact_sheet = ""
+        aggregate_contact_sheet_bytes = 0
+        error = ""
+    }
+
+    if (-not [bool]$info.requested -or -not (Test-Path -LiteralPath $SummaryJson)) {
+        return $info
+    }
+
+    try {
+        $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $SummaryJson | ConvertFrom-Json
+        $info.status = [string](Get-OptionalPropertyValue -Object $summary -Name "status")
+        $info.verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "verdict")
+        $info.full_visual_gate_status = [string](Get-OptionalPropertyValue -Object $summary -Name "full_visual_gate_status")
+        $info.evidence_scope = [string](Get-OptionalPropertyValue -Object $summary -Name "evidence_scope")
+        $info.stage_count = [int](Get-OptionalPropertyValue -Object $summary -Name "stage_count")
+        $info.passed_stage_count = [int](Get-OptionalPropertyValue -Object $summary -Name "passed_stage_count")
+        $info.failed_stage_count = [int](Get-OptionalPropertyValue -Object $summary -Name "failed_stage_count")
+        $info.incomplete_stage_count = [int](Get-OptionalPropertyValue -Object $summary -Name "incomplete_stage_count")
+        $info.pdf_cli_export_status = [string](Get-OptionalPropertyValue -Object $summary -Name "pdf_cli_export_status")
+        $info.pdf_regression_status = [string](Get-OptionalPropertyValue -Object $summary -Name "pdf_regression_status")
+        $info.pdf_regression_selected_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "pdf_regression_selected_test_count")
+        $info.pdf_regression_failed_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "pdf_regression_failed_test_count")
+        $info.pdf_regression_skipped_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "pdf_regression_skipped_test_count")
+        $info.unicode_font_status = [string](Get-OptionalPropertyValue -Object $summary -Name "unicode_font_status")
+        $info.cjk_copy_search_status = [string](Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_status")
+        $info.cjk_copy_search_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_count")
+        $info.cjk_copy_search_missing_text_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_missing_text_count")
+        $info.visual_baseline_render_status = [string](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_render_status")
+        $info.visual_baseline_fresh_rendered_count = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_fresh_rendered_count")
+        $info.expected_visual_render_count = [int](Get-OptionalPropertyValue -Object $summary -Name "expected_visual_render_count")
+        $info.aggregate_contact_sheet_status = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet_status")
+        $info.aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet")
+        $info.aggregate_contact_sheet_bytes = [int](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet_bytes")
     } catch {
         $info.status = "unreadable"
         $info.error = $_.Exception.Message
@@ -1571,6 +1643,16 @@ if (-not [string]::IsNullOrWhiteSpace($PdfVisualGateSummaryJson)) {
     }
 }
 $pdfVisualGateSummaryInfo = Get-PdfVisualGateSummaryInfo -SummaryJson $resolvedPdfVisualGateSummaryJson
+$resolvedPdfVisualGateAttemptSummaryJson = ""
+if (-not [string]::IsNullOrWhiteSpace($PdfVisualGateAttemptSummaryJson)) {
+    $resolvedPdfVisualGateAttemptSummaryJson = Resolve-FullPath -RepoRoot $repoRoot -InputPath $PdfVisualGateAttemptSummaryJson
+} else {
+    $autoPdfVisualGateAttemptSummaryJson = Join-Path $repoRoot "output\pdf-visual-release-gate-current\report\attempt-summary.json"
+    if (Test-Path -LiteralPath $autoPdfVisualGateAttemptSummaryJson) {
+        $resolvedPdfVisualGateAttemptSummaryJson = $autoPdfVisualGateAttemptSummaryJson
+    }
+}
+$pdfVisualGateAttemptSummaryInfo = Get-PdfVisualGateAttemptSummaryInfo -SummaryJson $resolvedPdfVisualGateAttemptSummaryJson
 $resolvedPdfBoundedCtestSummaryJson = @(Resolve-PdfBoundedCtestSummaryPaths `
         -RepoRoot $repoRoot `
         -SummaryJson $PdfBoundedCtestSummaryJson)
@@ -1791,6 +1873,8 @@ $summary = [ordered]@{
     }
     pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson
     pdf_visual_gate = $pdfVisualGateSummaryInfo
+    pdf_visual_gate_attempt_summary_json = $resolvedPdfVisualGateAttemptSummaryJson
+    pdf_visual_gate_attempt = $pdfVisualGateAttemptSummaryInfo
     pdf_bounded_ctest = $pdfBoundedCtestSummaryInfo
     release_blocker_rollup = [ordered]@{
         requested = $releaseBlockerRollupRequested
@@ -1969,6 +2053,7 @@ $summary = [ordered]@{
             error = ""
         }
         pdf_visual_gate = $pdfVisualGateSummaryInfo
+        pdf_visual_gate_attempt = $pdfVisualGateAttemptSummaryInfo
         pdf_bounded_ctest = $pdfBoundedCtestSummaryInfo
     }
 }
@@ -2860,6 +2945,8 @@ try {
     $startHereDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $startHerePath
     $pdfVisualGateSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate.summary_json
     $pdfVisualGateContactSheetDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate.aggregate_contact_sheet
+    $pdfVisualGateAttemptSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate_attempt.summary_json
+    $pdfVisualGateAttemptContactSheetDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate_attempt.aggregate_contact_sheet
     $pdfBoundedCtestSubsetsDisplay = if (@($summary.steps.pdf_bounded_ctest.subsets).Count -gt 0) {
         @($summary.steps.pdf_bounded_ctest.subsets) -join ", "
     } else {
@@ -2939,6 +3026,12 @@ try {
 - PDF visual gate counts: $($summary.steps.pdf_visual_gate.visual_baseline_count) visual baselines, $($summary.steps.pdf_visual_gate.cjk_copy_search_count) CJK copy/search
 - PDF visual gate manifest counts: $($summary.steps.pdf_visual_gate.visual_baseline_manifest_count) visual baseline manifest samples, $($summary.steps.pdf_visual_gate.cjk_manifest_count) CJK manifest samples
 - PDF visual gate finalizable: $($summary.steps.pdf_visual_gate.finalizable)
+- PDF visual gate attempt: $($summary.steps.pdf_visual_gate_attempt.status)
+- PDF visual gate attempt verdict: $($summary.steps.pdf_visual_gate_attempt.verdict)
+- PDF visual gate attempt full status: $($summary.steps.pdf_visual_gate_attempt.full_visual_gate_status)
+- PDF visual gate attempt stages: $($summary.steps.pdf_visual_gate_attempt.passed_stage_count)/$($summary.steps.pdf_visual_gate_attempt.stage_count) passed, $($summary.steps.pdf_visual_gate_attempt.incomplete_stage_count) incomplete
+- PDF visual gate attempt pdf_regression: $($summary.steps.pdf_visual_gate_attempt.pdf_regression_selected_test_count) selected, $($summary.steps.pdf_visual_gate_attempt.pdf_regression_failed_test_count) failed, $($summary.steps.pdf_visual_gate_attempt.pdf_regression_skipped_test_count) skipped
+- PDF visual gate attempt render: $($summary.steps.pdf_visual_gate_attempt.visual_baseline_fresh_rendered_count)/$($summary.steps.pdf_visual_gate_attempt.expected_visual_render_count) fresh baselines, contact sheet $($summary.steps.pdf_visual_gate_attempt.aggregate_contact_sheet_status)
 - PDF bounded CTest summaries: $($summary.steps.pdf_bounded_ctest.summary_count) summaries, $($summary.steps.pdf_bounded_ctest.pass_count) pass
 - PDF bounded CTest subsets: $pdfBoundedCtestSubsetsDisplay
 - PDF bounded CTest selected tests: $($summary.steps.pdf_bounded_ctest.selected_test_count)
@@ -2987,6 +3080,8 @@ $releaseGovernanceHandoffMarkdown
 - Start here: $startHereDisplayPath
 - PDF visual gate summary: $pdfVisualGateSummaryDisplayPath
 - PDF visual gate contact sheet: $pdfVisualGateContactSheetDisplayPath
+- PDF visual gate attempt summary: $pdfVisualGateAttemptSummaryDisplayPath
+- PDF visual gate attempt contact sheet: $pdfVisualGateAttemptContactSheetDisplayPath
 - PDF bounded CTest summaries: $pdfBoundedCtestSummaryDisplay
 "@
     $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
@@ -3027,6 +3122,9 @@ Write-Host "Artifact guide: $artifactGuidePath"
 Write-Host "Reviewer checklist: $reviewerChecklistPath"
 if (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)) {
     Write-Host "PDF visual gate summary: $resolvedPdfVisualGateSummaryJson"
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateAttemptSummaryJson)) {
+    Write-Host "PDF visual gate attempt summary: $resolvedPdfVisualGateAttemptSummaryJson"
 }
 if (@($resolvedPdfBoundedCtestSummaryJson).Count -gt 0) {
     Write-Host "PDF bounded CTest summaries: $($resolvedPdfBoundedCtestSummaryJson -join ', ')"

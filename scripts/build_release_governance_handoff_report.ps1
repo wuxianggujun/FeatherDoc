@@ -173,6 +173,29 @@ function Get-PdfVisualGateRollupEvidence {
                 pdf_bounded_ctest_selected_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_bounded_ctest_selected_test_count")
                 pdf_bounded_ctest_subsets = @(Get-JsonArray -Object $sourceReport -Name "pdf_bounded_ctest_subsets")
                 pdf_bounded_ctest_summary_json_display = @(Get-JsonArray -Object $sourceReport -Name "pdf_bounded_ctest_summary_json_display")
+                pdf_visual_gate_attempt_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_status"
+                pdf_visual_gate_attempt_verdict = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_verdict"
+                pdf_visual_gate_attempt_full_visual_gate_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_full_visual_gate_status"
+                pdf_visual_gate_attempt_evidence_scope = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_evidence_scope"
+                pdf_visual_gate_attempt_summary_json_display = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_summary_json_display"
+                pdf_visual_gate_attempt_stage_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_stage_count")
+                pdf_visual_gate_attempt_passed_stage_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_passed_stage_count")
+                pdf_visual_gate_attempt_failed_stage_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_failed_stage_count")
+                pdf_visual_gate_attempt_incomplete_stage_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_incomplete_stage_count")
+                pdf_visual_gate_attempt_pdf_cli_export_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_pdf_cli_export_status"
+                pdf_visual_gate_attempt_pdf_regression_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_pdf_regression_status"
+                pdf_visual_gate_attempt_pdf_regression_selected_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_pdf_regression_selected_test_count")
+                pdf_visual_gate_attempt_pdf_regression_failed_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_pdf_regression_failed_test_count")
+                pdf_visual_gate_attempt_pdf_regression_skipped_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_pdf_regression_skipped_test_count")
+                pdf_visual_gate_attempt_unicode_font_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_unicode_font_status"
+                pdf_visual_gate_attempt_cjk_copy_search_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_cjk_copy_search_status"
+                pdf_visual_gate_attempt_cjk_copy_search_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_cjk_copy_search_count")
+                pdf_visual_gate_attempt_cjk_copy_search_missing_text_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_cjk_copy_search_missing_text_count")
+                pdf_visual_gate_attempt_visual_baseline_render_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_visual_baseline_render_status"
+                pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count")
+                pdf_visual_gate_attempt_expected_visual_render_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_expected_visual_render_count")
+                pdf_visual_gate_attempt_aggregate_contact_sheet_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_aggregate_contact_sheet_status"
+                pdf_visual_gate_attempt_aggregate_contact_sheet_display = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_aggregate_contact_sheet_display"
             }
         }
     )
@@ -941,6 +964,31 @@ function New-ReportMarkdown {
             $lines.Add("    - pdf_bounded_ctest_selected_test_count: ``$($evidence.pdf_bounded_ctest_selected_test_count)``") | Out-Null
             $lines.Add("    - pdf_bounded_ctest_subsets: ``$(@($evidence.pdf_bounded_ctest_subsets) -join ', ')``") | Out-Null
             $lines.Add("    - pdf_bounded_ctest_summary_json_display: ``$(@($evidence.pdf_bounded_ctest_summary_json_display) -join ', ')``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$evidence.pdf_visual_gate_attempt_status)) {
+                $lines.Add("    - pdf_visual_gate_attempt_status: ``$($evidence.pdf_visual_gate_attempt_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_verdict: ``$($evidence.pdf_visual_gate_attempt_verdict)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_full_visual_gate_status: ``$($evidence.pdf_visual_gate_attempt_full_visual_gate_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_evidence_scope: ``$($evidence.pdf_visual_gate_attempt_evidence_scope)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_summary_json_display: ``$($evidence.pdf_visual_gate_attempt_summary_json_display)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_stage_count: ``$($evidence.pdf_visual_gate_attempt_stage_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_passed_stage_count: ``$($evidence.pdf_visual_gate_attempt_passed_stage_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_failed_stage_count: ``$($evidence.pdf_visual_gate_attempt_failed_stage_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_incomplete_stage_count: ``$($evidence.pdf_visual_gate_attempt_incomplete_stage_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_pdf_cli_export_status: ``$($evidence.pdf_visual_gate_attempt_pdf_cli_export_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_pdf_regression_status: ``$($evidence.pdf_visual_gate_attempt_pdf_regression_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_pdf_regression_selected_test_count: ``$($evidence.pdf_visual_gate_attempt_pdf_regression_selected_test_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_pdf_regression_failed_test_count: ``$($evidence.pdf_visual_gate_attempt_pdf_regression_failed_test_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_pdf_regression_skipped_test_count: ``$($evidence.pdf_visual_gate_attempt_pdf_regression_skipped_test_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_unicode_font_status: ``$($evidence.pdf_visual_gate_attempt_unicode_font_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_cjk_copy_search_status: ``$($evidence.pdf_visual_gate_attempt_cjk_copy_search_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_cjk_copy_search_count: ``$($evidence.pdf_visual_gate_attempt_cjk_copy_search_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_cjk_copy_search_missing_text_count: ``$($evidence.pdf_visual_gate_attempt_cjk_copy_search_missing_text_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_render_status: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_render_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_expected_visual_render_count: ``$($evidence.pdf_visual_gate_attempt_expected_visual_render_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``$($evidence.pdf_visual_gate_attempt_aggregate_contact_sheet_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``$($evidence.pdf_visual_gate_attempt_aggregate_contact_sheet_display)``") | Out-Null
+            }
             if (-not [string]::IsNullOrWhiteSpace([string]$evidence.full_visual_gate_status)) {
                 $lines.Add("    - full_visual_gate_status: ``$($evidence.full_visual_gate_status)``") | Out-Null
             }

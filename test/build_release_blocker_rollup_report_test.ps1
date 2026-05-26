@@ -527,6 +527,31 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
                 ".\build\pdf-ctest-bounded-regression-table-layout-current\summary.json"
             )
         }
+        pdf_visual_gate_attempt = [ordered]@{
+            status = "partial"
+            verdict = "not_complete"
+            full_visual_gate_status = "not_complete"
+            evidence_scope = "bounded_attempt_auxiliary_only"
+            summary_json = "output/pdf-visual-release-gate-current/report/attempt-summary.json"
+            stage_count = 6
+            passed_stage_count = 4
+            failed_stage_count = 0
+            incomplete_stage_count = 2
+            pdf_cli_export_status = "pass"
+            pdf_regression_status = "pass"
+            pdf_regression_selected_test_count = 91
+            pdf_regression_failed_test_count = 0
+            pdf_regression_skipped_test_count = 7
+            unicode_font_status = "pass"
+            cjk_copy_search_status = "pass"
+            cjk_copy_search_count = 43
+            cjk_copy_search_missing_text_count = 0
+            visual_baseline_render_status = "partial"
+            visual_baseline_fresh_rendered_count = 22
+            expected_visual_render_count = 44
+            aggregate_contact_sheet_status = "stale"
+            aggregate_contact_sheet = "output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png"
+        }
     }
 })
 
@@ -1071,6 +1096,41 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (@($releaseCandidateSourceReport.pdf_bounded_ctest_summary_json_display) -join ",") `
         -ExpectedText "pdf-ctest-bounded-regression-table-layout-current\summary.json" `
         -Message "Rollup should preserve PDF bounded CTest summary display paths."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_status) -Expected "partial" `
+        -Message "Rollup should preserve PDF visual gate attempt status."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_verdict) -Expected "not_complete" `
+        -Message "Rollup should preserve PDF visual gate attempt verdict."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_full_visual_gate_status) -Expected "not_complete" `
+        -Message "Rollup should keep partial attempt separate from full visual gate pass."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_evidence_scope) -Expected "bounded_attempt_auxiliary_only" `
+        -Message "Rollup should preserve PDF visual gate attempt evidence scope."
+    Assert-ContainsText -Text ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_summary_json_display) `
+        -ExpectedText "pdf-visual-release-gate-current\report\attempt-summary.json" `
+        -Message "Rollup should preserve reviewer-openable PDF visual gate attempt summary display path."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_stage_count) -Expected 6 `
+        -Message "Rollup should preserve PDF visual gate attempt stage count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_passed_stage_count) -Expected 4 `
+        -Message "Rollup should preserve PDF visual gate attempt passed stage count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_incomplete_stage_count) -Expected 2 `
+        -Message "Rollup should preserve PDF visual gate attempt incomplete stage count."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_pdf_regression_status) -Expected "pass" `
+        -Message "Rollup should preserve PDF visual gate attempt pdf_regression status."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_pdf_regression_selected_test_count) -Expected 91 `
+        -Message "Rollup should preserve PDF visual gate attempt pdf_regression selected count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_pdf_regression_failed_test_count) -Expected 0 `
+        -Message "Rollup should preserve PDF visual gate attempt pdf_regression failed count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_pdf_regression_skipped_test_count) -Expected 7 `
+        -Message "Rollup should preserve PDF visual gate attempt pdf_regression skipped count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_cjk_copy_search_count) -Expected 43 `
+        -Message "Rollup should preserve PDF visual gate attempt CJK copy/search count."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_render_status) -Expected "partial" `
+        -Message "Rollup should preserve PDF visual gate attempt render status."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count) -Expected 22 `
+        -Message "Rollup should preserve PDF visual gate attempt fresh render count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_expected_visual_render_count) -Expected 44 `
+        -Message "Rollup should preserve PDF visual gate attempt expected render count."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_aggregate_contact_sheet_status) -Expected "stale" `
+        -Message "Rollup should preserve PDF visual gate attempt contact sheet status."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.manifest_signoff_entrypoints_status) -Expected "declared" `
         -Message "Rollup should preserve manifest signoff status from release candidate summaries."
     Assert-ContainsText -Text ([string]$releaseCandidateSourceReport.manifest_signoff_entrypoints_release_assets_manifest_display) `
@@ -1222,6 +1282,14 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF bounded CTest skipped test count."
     Assert-ContainsText -Text $markdown -ExpectedText "regression-business-samples" `
         -Message "Markdown should include PDF bounded CTest subset names."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_status: ``partial``" `
+        -Message "Markdown should include PDF visual gate attempt status."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_verdict: ``not_complete``" `
+        -Message "Markdown should include PDF visual gate attempt verdict."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_pdf_regression_skipped_test_count: ``7``" `
+        -Message "Markdown should include PDF visual gate attempt skipped count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``" `
+        -Message "Markdown should include PDF visual gate attempt render status."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "featherdoc.release_candidate_summary" -ExpectedFragments @(
         "pdf_visual_gate_status: ``loaded``",
         "full_visual_gate_status: ``pass``",
@@ -1244,6 +1312,18 @@ if (Test-Scenario -Name "passing") {
         "regression-table-layout",
         "pdf_bounded_ctest_summary_json_display:",
         "pdf-ctest-bounded-regression-business-samples-current\summary.json",
+        "pdf_visual_gate_attempt_status: ``partial``",
+        "pdf_visual_gate_attempt_verdict: ``not_complete``",
+        "pdf_visual_gate_attempt_full_visual_gate_status: ``not_complete``",
+        "pdf_visual_gate_attempt_evidence_scope: ``bounded_attempt_auxiliary_only``",
+        "pdf_visual_gate_attempt_summary_json_display:",
+        "attempt-summary.json",
+        "pdf_visual_gate_attempt_pdf_regression_selected_test_count: ``91``",
+        "pdf_visual_gate_attempt_pdf_regression_failed_test_count: ``0``",
+        "pdf_visual_gate_attempt_pdf_regression_skipped_test_count: ``7``",
+        "pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``",
+        "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``",
+        "pdf_visual_gate_attempt_expected_visual_render_count: ``44``",
         "manifest_signoff_entrypoints_status: ``declared``",
         "manifest_signoff_entrypoints_release_assets_manifest_display:",
         "release_assets_manifest.json",
