@@ -851,6 +851,7 @@ $summary = [ordered]@{
                 )
                 release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label = "Project-template readiness checklist handoff evidence"
                 release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+                release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema = "featherdoc.release_candidate_summary"
                 release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
                 release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker = "release_entry_project_template_readiness_checklist_trace"
                 release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
@@ -1187,6 +1188,7 @@ foreach ($document in $checklistHandoffEntryDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'assert_release_material_safety.ps1' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'audited_entrypoints=start_here, artifact_guide, reviewer_checklist' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'compact_evidence_source_schema=featherdoc.release_candidate_summary' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_schema=featherdoc.release_candidate_summary' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report=.\output\release-blocker-rollup\summary.json' -Label $document.Label

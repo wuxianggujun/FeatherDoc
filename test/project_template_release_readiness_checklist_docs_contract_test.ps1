@@ -162,6 +162,8 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_trace",
     "project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_source_report_identity_trace",
+    "compact_evidence_source_schema",
+    "compact_evidence_source_schema=featherdoc.release_candidate_summary",
     "manifest_signoff_entrypoints",
     "manifest_signoff_entrypoints_release_trace",
     "manifest_signoff_entrypoints_manifest_trace"
@@ -217,6 +219,8 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_trace",
     "project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_source_report_identity_trace",
+    "compact_evidence_source_schema",
+    "compact_evidence_source_schema=featherdoc.release_candidate_summary",
     "block_scoped_governance_handoff_trace",
     "block_scoped_governance_handoff_project_template_status_trace",
     "project_template_onboarding.schema_approval",
@@ -462,10 +466,16 @@ foreach ($scriptText in @($releaseBlockerRollupScript, $releaseGovernanceHandoff
 foreach ($marker in @(
     "release_entry_project_template_readiness_checklist_material_safety_audit",
     "release_entry_project_template_readiness_checklist_material_safety_audit_status",
+    "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema",
     "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker"
 )) {
     Assert-ContainsText -Text $releaseBlockerRollupScript -ExpectedText $marker `
         -Message "Release blocker rollup should expose packaged project-template checklist material-safety audit evidence."
+}
+
+foreach ($scriptText in @($releaseGovernanceHandoffScript, $releaseBlockerMetadataHelpersScript)) {
+    Assert-ContainsText -Text $scriptText -ExpectedText "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema" `
+        -Message "Release governance handoff/helper flow should preserve packaged checklist compact evidence source schema."
 }
 
 foreach ($scriptText in @($releaseGovernanceHandoffScript, $releaseBlockerMetadataHelpersScript, $releaseChecksScript)) {
@@ -496,6 +506,8 @@ Assert-ContainsText -Text $releaseBlockerMetadataHelpersScript -ExpectedText "Ge
     -Message "Release entry flow should have a compact checklist packaged audit evidence line helper."
 Assert-ContainsText -Text $releaseBlockerMetadataHelpersScript -ExpectedText "Project-template readiness checklist packaged audit evidence" `
     -Message "Release entry flow helper should render the packaged checklist audit evidence label."
+Assert-ContainsText -Text $releaseBlockerMetadataHelpersScript -ExpectedText "compact_evidence_source_schema=" `
+    -Message "Release entry flow helper should render the packaged checklist compact evidence source schema."
 
 foreach ($scriptText in @($startHereScript, $artifactGuideScript, $reviewerChecklistScript)) {
     Assert-ContainsText -Text $scriptText -ExpectedText "Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine" `
@@ -527,6 +539,8 @@ foreach ($scriptText in @($releaseBundleVersionTest)) {
         -Message "Release entry tests should lock the packaged checklist audit evidence label."
     Assert-ContainsText -Text $scriptText -ExpectedText "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports" `
         -Message "Release entry tests should expose packaged checklist material-safety audit source-report evidence."
+    Assert-ContainsText -Text $scriptText -ExpectedText "compact_evidence_source_schema=featherdoc.release_candidate_summary" `
+        -Message "Release entry tests should lock packaged checklist compact evidence source schema."
     Assert-ContainsText -Text $scriptText -ExpectedText "source_report=.\output\release-blocker-rollup\summary.json" `
         -Message "Release entry tests should lock packaged audit evidence to the release-blocker rollup source."
 }
@@ -539,6 +553,7 @@ Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Missing release_e
 foreach ($marker in @(
     "Assert-StagedProjectTemplateChecklistHandoffEvidence",
     "release_entry_project_template_readiness_checklist_material_safety_audit",
+    "compact_evidence_source_schema",
     "source_schema=featherdoc.release_candidate_summary",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
 )) {
@@ -561,6 +576,8 @@ foreach ($marker in @(
     "Project-template readiness checklist entrypoints evidence source reports",
     "Release-entry project-template readiness checklist material-safety audit source reports",
     "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=",
+    "compact_evidence_source_schema=featherdoc.release_candidate_summary",
+    "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema",
     "release-candidate-checks",
     "release-blocker-rollup",
     "source_schema=featherdoc.release_candidate_summary",

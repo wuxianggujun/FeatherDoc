@@ -959,6 +959,7 @@ if (Test-Scenario -Name "include_rollup") {
             audited_entrypoints = @("start_here", "artifact_guide", "reviewer_checklist")
             compact_evidence_label = "Project-template readiness checklist handoff evidence"
             compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+            compact_evidence_source_schema = "featherdoc.release_candidate_summary"
             checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
             checklist_marker = "release_entry_project_template_readiness_checklist_trace"
             material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
@@ -1261,6 +1262,8 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should expose packaged release-entry checklist material-safety audited entrypoints."
     Assert-Equal -Actual ([string]$releaseEntryChecklistAuditEvidence.release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field) -Expected "project_template_readiness_checklist_entrypoints_source_reports" `
         -Message "Handoff summary should expose packaged release-entry checklist material-safety compact evidence field."
+    Assert-Equal -Actual ([string]$releaseEntryChecklistAuditEvidence.release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema) -Expected "featherdoc.release_candidate_summary" `
+        -Message "Handoff summary should expose packaged release-entry checklist material-safety compact evidence source schema."
     Assert-Equal -Actual ([string]$releaseEntryChecklistAuditEvidence.release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker) -Expected "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
         -Message "Handoff summary should expose packaged release-entry checklist material-safety marker."
 
@@ -1316,6 +1319,8 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (@($rollupReleaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints) -join "`n") `
         -ExpectedText "artifact_guide" `
         -Message "Nested rollup should preserve packaged release-entry checklist material-safety audited entrypoints."
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema) -Expected "featherdoc.release_candidate_summary" `
+        -Message "Nested rollup should preserve packaged release-entry checklist material-safety compact evidence source schema."
     Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_status) -Expected "partial" `
         -Message "Nested rollup should preserve PDF visual gate attempt status."
     Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_verdict) -Expected "not_complete" `
@@ -1479,6 +1484,7 @@ if (Test-Scenario -Name "include_rollup") {
         "schema=``featherdoc.release_candidate_summary``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``start_here, artifact_guide, reviewer_checklist``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema: ``featherdoc.release_candidate_summary``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``"
     ) -Message "Handoff Markdown should keep release-entry checklist material-safety audit evidence in one source_report block."
 }

@@ -908,6 +908,8 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvi
         -Value (Get-JsonString -Object $audit -Name "compact_evidence_label")
     Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field" `
         -Value (Get-JsonString -Object $audit -Name "compact_evidence_field")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema" `
+        -Value (Get-JsonString -Object $audit -Name "compact_evidence_source_schema")
     Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path" `
         -Value (Get-JsonString -Object $audit -Name "checklist_path")
     Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker" `
@@ -1093,6 +1095,7 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditMar
             "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints",
             "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label",
             "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema",
             "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path",
             "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker",
             "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker"

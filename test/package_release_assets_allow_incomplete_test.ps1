@@ -577,6 +577,7 @@ foreach ($entrypointId in @("start_here", "artifact_guide", "reviewer_checklist"
 }
 if ([string]$manifestProjectTemplateChecklistMaterialSafetyAudit.compact_evidence_label -ne "Project-template readiness checklist handoff evidence" -or
     [string]$manifestProjectTemplateChecklistMaterialSafetyAudit.compact_evidence_field -ne "project_template_readiness_checklist_entrypoints_source_reports" -or
+    [string]$manifestProjectTemplateChecklistMaterialSafetyAudit.compact_evidence_source_schema -ne "featherdoc.release_candidate_summary" -or
     [string]$manifestProjectTemplateChecklistMaterialSafetyAudit.checklist_path -ne "docs/project_template_release_readiness_checklist_zh.rst" -or
     [string]$manifestProjectTemplateChecklistMaterialSafetyAudit.checklist_marker -ne "release_entry_project_template_readiness_checklist_trace" -or
     [string]$manifestProjectTemplateChecklistMaterialSafetyAudit.material_safety_marker -ne "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace") {

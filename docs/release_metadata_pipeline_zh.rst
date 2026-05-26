@@ -349,8 +349,10 @@ manifest 字段，避免打包阶段只靠日志推断。固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_material_safety_trace``。
 ``build_release_blocker_rollup_report.ps1`` 还必须继续消费这个 packaged audit，
 并在 source report contract evidence 中保留 ``status``、``audit_script``、
-``audited_entrypoints``、compact evidence label/field、固定 checklist 路径和
-``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``。
+``audited_entrypoints``、compact evidence label/field/source schema、固定 checklist 路径和
+``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``；
+``compact_evidence_source_schema`` 必须固定为
+``featherdoc.release_candidate_summary``。
 这样 release blocker rollup 能直接展示打包入口材料已经过 material-safety 审计，
 不需要 reviewer 从 ``release_assets_manifest.json`` 手工反推。固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_audit_rollup_trace``。
@@ -359,8 +361,9 @@ manifest 字段，避免打包阶段只靠日志推断。固定标记：
 ``run_release_candidate_checks.ps1`` 必须把该数组和计数同步到
 ``release_governance_handoff`` 与 ``steps.release_governance_handoff``。共享 release
 metadata helper 也必须在 handoff details 中展示 status、audit script、audited
-entrypoints、compact evidence field 和 material-safety marker，避免最终 summary/entry
-材料只能看到 checklist entrypoints，却看不到 staged entry materials 已经通过审计。
+entrypoints、compact evidence field/source schema 和 material-safety marker，避免最终
+summary/entry 材料只能看到 checklist entrypoints，却看不到 staged entry materials
+已经通过审计。
 固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_trace``。
 ``assert_release_material_safety.ps1`` 还会审计
@@ -382,10 +385,12 @@ material-safety 审计。固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_trace``。
 ``assert_release_material_safety.ps1`` 会继续审计这条 packaged audit compact evidence 行，
 要求 count、status、audit script、三个 audited entrypoints、compact evidence identity、
-checklist path、checklist marker、material-safety marker、
+``compact_evidence_source_schema=featherdoc.release_candidate_summary``、checklist path、
+checklist marker、material-safety marker、
 ``source_schema=featherdoc.release_candidate_summary`` 和 ``source_report`` 保持同一行，
-避免 detached notes 补齐入口材料；``source_schema`` 必须显式保留 release-candidate
-summary schema 身份，``source_report`` 还必须能识别 release-blocker rollup 证据源，
+避免 detached notes 补齐入口材料；``compact_evidence_source_schema`` 标识被审计的
+compact evidence 原始 schema，``source_schema`` 必须显式保留当前 source report block
+的 release-candidate summary schema 身份，``source_report`` 还必须能识别 release-blocker rollup 证据源，
 避免 release-candidate summary 冒充打包入口审计来源。固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace``、
 ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_source_report_identity_trace``。

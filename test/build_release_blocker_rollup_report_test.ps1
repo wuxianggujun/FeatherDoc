@@ -471,6 +471,7 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
         audited_entrypoints = @("start_here", "artifact_guide", "reviewer_checklist")
         compact_evidence_label = "Project-template readiness checklist handoff evidence"
         compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+        compact_evidence_source_schema = "featherdoc.release_candidate_summary"
         checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
         checklist_marker = "release_entry_project_template_readiness_checklist_trace"
         material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
@@ -1246,6 +1247,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve packaged release-entry checklist material-safety compact evidence label."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field) -Expected "project_template_readiness_checklist_entrypoints_source_reports" `
         -Message "Rollup should preserve packaged release-entry checklist material-safety compact evidence field."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema) -Expected "featherdoc.release_candidate_summary" `
+        -Message "Rollup should preserve packaged release-entry checklist material-safety compact evidence source schema."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path) -Expected "docs/project_template_release_readiness_checklist_zh.rst" `
         -Message "Rollup should preserve packaged release-entry checklist material-safety checklist path."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker) -Expected "release_entry_project_template_readiness_checklist_trace" `
@@ -1446,6 +1449,7 @@ if (Test-Scenario -Name "passing") {
         "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints:",
         "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label: ``Project-template readiness checklist handoff evidence``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field: ``project_template_readiness_checklist_entrypoints_source_reports``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema: ``featherdoc.release_candidate_summary``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``"

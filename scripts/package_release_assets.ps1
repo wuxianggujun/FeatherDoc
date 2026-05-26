@@ -957,6 +957,7 @@ $releaseEntryProjectTemplateChecklistMaterialSafetyAudit = [ordered]@{
     audited_entrypoints = @("start_here", "artifact_guide", "reviewer_checklist")
     compact_evidence_label = "Project-template readiness checklist handoff evidence"
     compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+    compact_evidence_source_schema = "featherdoc.release_candidate_summary"
     checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
     checklist_marker = "release_entry_project_template_readiness_checklist_trace"
     material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"

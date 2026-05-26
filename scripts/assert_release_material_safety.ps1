@@ -330,7 +330,7 @@ function Get-ReleaseNoteProjectTemplateTraceFieldValue {
 
     $escapedFieldPrefix = [regex]::Escape($fieldPrefix)
     if ($line -match "(?:^|\s)$escapedFieldPrefix(?<value>\S+)") {
-        return ([string]$Matches["value"]).Trim().Trim('`')
+        return ([string]$Matches["value"]).Trim().Trim('`').TrimEnd(",", ";")
     }
 
     return $null
@@ -474,6 +474,73 @@ function Test-MarkdownAnyListBlockContainsAll {
     return $false
 }
 
+function Get-MarkdownListBlockFieldValuesFromText {
+    param(
+        [string]$Block,
+        [string]$FieldName
+    )
+
+    if ([string]::IsNullOrEmpty($Block)) {
+        return @()
+    }
+
+    $values = [System.Collections.Generic.List[string]]::new()
+    $escapedFieldName = [regex]::Escape($FieldName)
+    $fieldPattern = '(?<![A-Za-z0-9_])`*' + $escapedFieldName + '`*\s*[:=]\s*(?<value>.+?)(?=\s+[A-Za-z_][A-Za-z0-9_]*\s*[:=]|$)'
+    foreach ($line in ($Block -split "\r?\n")) {
+        if ($line -match $fieldPattern) {
+            $value = $Matches["value"].Trim()
+            $value = $value -replace '^[`\s]+|[`\s,;]+$', ''
+            [void]$values.Add($value)
+        }
+    }
+
+    return @($values)
+}
+
+function Test-MarkdownAnyListBlockContainsAllAndFieldValuesInSet {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$Needles,
+        [string]$FieldName,
+        [string[]]$AllowedValues
+    )
+
+    foreach ($block in @(Get-MarkdownListBlockTexts -Text $Text -Anchor $Anchor)) {
+        $containsAllNeedles = $true
+        foreach ($needle in $Needles) {
+            if ([string]::IsNullOrWhiteSpace($needle) -or -not $block.Contains($needle)) {
+                $containsAllNeedles = $false
+                break
+            }
+        }
+
+        if (-not $containsAllNeedles) {
+            continue
+        }
+
+        $values = @(Get-MarkdownListBlockFieldValuesFromText -Block $block -FieldName $FieldName)
+        if ($values.Count -eq 0) {
+            continue
+        }
+
+        $valuesAreAllowed = $true
+        foreach ($value in $values) {
+            if (-not (Test-StringValueInSet -Value $value -AllowedValues $AllowedValues)) {
+                $valuesAreAllowed = $false
+                break
+            }
+        }
+
+        if ($valuesAreAllowed) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Get-MarkdownListBlockFieldValues {
     param(
         [string]$Text,
@@ -486,18 +553,7 @@ function Get-MarkdownListBlockFieldValues {
         return @()
     }
 
-    $values = [System.Collections.Generic.List[string]]::new()
-    $escapedFieldName = [regex]::Escape($FieldName)
-    $fieldPattern = '(?<![A-Za-z0-9_])`*' + $escapedFieldName + '`*\s*[:=]\s*(?<value>.+?)(?=\s+[A-Za-z_][A-Za-z0-9_]*\s*[:=]|$)'
-    foreach ($line in ($block -split "\r?\n")) {
-        if ($line -match $fieldPattern) {
-            $value = $Matches["value"].Trim()
-            $value = $value -replace '^[`\s]+|[`\s]+$', ''
-            [void]$values.Add($value)
-        }
-    }
-
-    return @($values)
+    return @(Get-MarkdownListBlockFieldValuesFromText -Block $block -FieldName $FieldName)
 }
 
 function Test-MarkdownListBlockFieldValuesIdentify {
@@ -1145,17 +1201,29 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvi
         "reviewer_checklist",
         "compact_evidence_label=Project-template readiness checklist handoff evidence",
         "compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports",
+        "compact_evidence_source_schema=featherdoc.release_candidate_summary",
         "checklist_path=docs/project_template_release_readiness_checklist_zh.rst",
         "checklist_marker=release_entry_project_template_readiness_checklist_trace",
         "material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
-        "source_schema=featherdoc.release_candidate_summary",
         "source_report="
     ))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release entry must keep packaged project-template readiness checklist material-safety audit count, status, audit script, audited entrypoints, compact evidence identity, checklist path, checklist marker, material-safety marker, source schema, and source report on the same compact evidence line."
+            -Text "Release entry must keep packaged project-template readiness checklist material-safety audit count, status, audit script, audited entrypoints, compact evidence identity, compact evidence source schema, checklist path, checklist marker, material-safety marker, source schema, and source report on the same compact evidence line."
+    }
+
+    if (-not (Test-ReleaseNoteProjectTemplateTraceFieldValueInSet `
+                -Text $Content `
+                -Anchor "Project-template readiness checklist packaged audit evidence" `
+                -FieldName "source_schema" `
+                -AllowedValues @("featherdoc.release_candidate_summary"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry must keep packaged project-template readiness checklist material-safety audit source_schema as an explicit compact evidence field."
     }
 
     if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
@@ -1217,7 +1285,12 @@ function Add-ReleaseMetadataProjectTemplateReadinessChecklistEntrypointsTraceVio
         "project_template_readiness_checklist_entrypoints_checklist_marker:",
         "release_entry_project_template_readiness_checklist_trace"
     )
-    if (-not (Test-MarkdownAnyListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
+    if (-not (Test-MarkdownAnyListBlockContainsAllAndFieldValuesInSet `
+        -Text $Content `
+        -Anchor "source_report:" `
+        -Needles $sourceReportBlockNeedles `
+        -FieldName "schema" `
+        -AllowedValues @("featherdoc.release_candidate_summary"))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
@@ -1273,6 +1346,8 @@ function Add-ReleaseMetadataProjectTemplateReadinessChecklistMaterialSafetyAudit
         "Project-template readiness checklist handoff evidence",
         "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field:",
         "project_template_readiness_checklist_entrypoints_source_reports",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema:",
+        "featherdoc.release_candidate_summary",
         "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path:",
         "docs/project_template_release_readiness_checklist_zh.rst",
         "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker:",
@@ -1280,12 +1355,17 @@ function Add-ReleaseMetadataProjectTemplateReadinessChecklistMaterialSafetyAudit
         "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker:",
         "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
     )
-    if (-not (Test-MarkdownAnyListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
+    if (-not (Test-MarkdownAnyListBlockContainsAllAndFieldValuesInSet `
+        -Text $Content `
+        -Anchor "source_report:" `
+        -Needles $sourceReportBlockNeedles `
+        -FieldName "schema" `
+        -AllowedValues @("featherdoc.release_candidate_summary"))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release metadata must keep release-entry project-template readiness checklist material-safety audit release-candidate source identity, status, audit script, audited entrypoints, compact evidence identity, checklist path, checklist marker, and material-safety marker in the same source_report block."
+            -Text "Release metadata must keep release-entry project-template readiness checklist material-safety audit release-candidate source identity, status, audit script, audited entrypoints, compact evidence identity, compact evidence source schema, checklist path, checklist marker, and material-safety marker in the same source_report block."
     }
 }
 
@@ -2352,7 +2432,12 @@ function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypoint
         "project_template_readiness_checklist_entrypoints_checklist_marker:",
         "release_entry_project_template_readiness_checklist_trace"
     )
-    if (-not (Test-MarkdownAnyListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
+    if (-not (Test-MarkdownAnyListBlockContainsAllAndFieldValuesInSet `
+        -Text $Content `
+        -Anchor "source_report:" `
+        -Needles $sourceReportBlockNeedles `
+        -FieldName "schema" `
+        -AllowedValues @("featherdoc.release_candidate_summary"))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
@@ -2408,6 +2493,8 @@ function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistMaterialSa
         "Project-template readiness checklist handoff evidence",
         "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field:",
         "project_template_readiness_checklist_entrypoints_source_reports",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema:",
+        "featherdoc.release_candidate_summary",
         "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path:",
         "docs/project_template_release_readiness_checklist_zh.rst",
         "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker:",
@@ -2415,12 +2502,17 @@ function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistMaterialSa
         "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker:",
         "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
     )
-    if (-not (Test-MarkdownAnyListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
+    if (-not (Test-MarkdownAnyListBlockContainsAllAndFieldValuesInSet `
+        -Text $Content `
+        -Anchor "source_report:" `
+        -Needles $sourceReportBlockNeedles `
+        -FieldName "schema" `
+        -AllowedValues @("featherdoc.release_candidate_summary"))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release governance handoff must keep release-entry project-template readiness checklist material-safety audit release-candidate source identity, status, audit script, audited entrypoints, compact evidence identity, checklist path, checklist marker, and material-safety marker in the same source_report block."
+            -Text "Release governance handoff must keep release-entry project-template readiness checklist material-safety audit release-candidate source identity, status, audit script, audited entrypoints, compact evidence identity, compact evidence source schema, checklist path, checklist marker, and material-safety marker in the same source_report block."
     }
 }
 
@@ -2470,7 +2562,12 @@ function Add-FinalReviewProjectTemplateReadinessChecklistEntrypointsTraceViolati
         "project_template_readiness_checklist_entrypoints_checklist_marker:",
         "release_entry_project_template_readiness_checklist_trace"
     )
-    if (-not (Test-MarkdownAnyListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
+    if (-not (Test-MarkdownAnyListBlockContainsAllAndFieldValuesInSet `
+        -Text $Content `
+        -Anchor "source_report:" `
+        -Needles $sourceReportBlockNeedles `
+        -FieldName "schema" `
+        -AllowedValues @("featherdoc.release_candidate_summary"))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
@@ -2526,6 +2623,8 @@ function Add-FinalReviewProjectTemplateReadinessChecklistMaterialSafetyAuditTrac
         "Project-template readiness checklist handoff evidence",
         "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field:",
         "project_template_readiness_checklist_entrypoints_source_reports",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema:",
+        "featherdoc.release_candidate_summary",
         "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path:",
         "docs/project_template_release_readiness_checklist_zh.rst",
         "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker:",
@@ -2533,12 +2632,17 @@ function Add-FinalReviewProjectTemplateReadinessChecklistMaterialSafetyAuditTrac
         "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker:",
         "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
     )
-    if (-not (Test-MarkdownAnyListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
+    if (-not (Test-MarkdownAnyListBlockContainsAllAndFieldValuesInSet `
+        -Text $Content `
+        -Anchor "source_report:" `
+        -Needles $sourceReportBlockNeedles `
+        -FieldName "schema" `
+        -AllowedValues @("featherdoc.release_candidate_summary"))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Final review must keep release-entry project-template readiness checklist material-safety audit release-candidate source identity, status, audit script, audited entrypoints, compact evidence identity, checklist path, checklist marker, and material-safety marker in the same source_report block."
+            -Text "Final review must keep release-entry project-template readiness checklist material-safety audit release-candidate source identity, status, audit script, audited entrypoints, compact evidence identity, compact evidence source schema, checklist path, checklist marker, and material-safety marker in the same source_report block."
     }
 }
 
@@ -3680,6 +3784,7 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditCon
     $expectedFields = [ordered]@{
         compact_evidence_label = "Project-template readiness checklist handoff evidence"
         compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+        compact_evidence_source_schema = "featherdoc.release_candidate_summary"
         checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
         checklist_marker = "release_entry_project_template_readiness_checklist_trace"
         material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
