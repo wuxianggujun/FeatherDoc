@@ -113,6 +113,26 @@ OCR 或任意视觉精确还原。
    不能只留下人工日志路径。固定标记：
    ``pdf_visual_full_gate_guarded_summary_trace``。
 
+   如果已经生成分段 visual gate 汇总，必须通过
+   ``scripts/write_pdf_visual_segmented_gate_summary.ps1`` 写出
+   ``output/pdf-visual-release-gate-current/report/segmented-summary.json``，并让
+   readiness summary 保留
+   ``schema = featherdoc.pdf_visual_segmented_gate_summary.v1``、
+   ``visual_segmented_gate_status``、``visual_segmented_gate_verdict``、
+   ``visual_segmented_gate_full_visual_gate_status``、
+   ``visual_segmented_gate_evidence_scope``、
+   ``visual_segmented_gate_covered_baseline_count``、
+   ``visual_segmented_gate_expected_visual_render_count``、
+   ``visual_segmented_gate_aggregate_contact_sheet_status`` 和
+   ``visual_segmented_gate_aggregate_contact_sheet_bytes``。当 fresh full visual gate
+   尚未完整通过时，``pdf_full_fresh_visual_gate.not_completed_in_current_window``
+   warning 必须同步携带 ``segmented_gate_covered_baseline_count`` 和
+   ``segmented_gate_aggregate_contact_sheet_bytes``，让 reviewer 不必打开 ignored JSON
+   才能看到分段覆盖情况。固定标记：
+   ``pdf_visual_segmented_gate_summary_trace``。这些字段只能解释
+   ``segmented_visual_gate_auxiliary_only`` 辅助证据，不能替代 fresh 非
+   ``FinalizeOnly`` full visual gate pass。
+
    如果已经运行完整 PDF CTest 的受控尝试，必须通过
    ``scripts/run_pdf_full_ctest_guarded.ps1`` 写出
    ``output/pdf-ctest-current/summary.json``，并让 readiness summary 保留

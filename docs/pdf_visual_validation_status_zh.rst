@@ -593,6 +593,34 @@ rebuild 计数保留在同一个 release-candidate list block。固定标记：
 detached notes 不能补齐这些 reviewer-facing 入口证据。固定标记：
 ``pdf_visual_segmented_gate_final_review_material_safety_trace``。
 
+2026-05-27 当前 ``segmented-summary.json`` 已刷新为可审计的分段辅助证据：
+
+* ``generated_at = 2026-05-27T04:10:37``。
+* ``status = partial``、``verdict = not_complete``、``full_visual_gate_status = not_complete``。
+* ``evidence_scope = segmented_visual_gate_auxiliary_only``。
+* ``slice_summary_count = 5``、``slice_pass_count = 5``、``slice_failed_count = 0``。
+* ``covered_baseline_count = 44``、``expected_visual_render_count = 44``。
+* ``attempt_stage_count = 6``、``attempt_passed_stage_count = 4``。
+* ``visual_baseline_render_status = partial``。
+* ``aggregate_contact_sheet_status = stale``、``aggregate_contact_sheet_bytes = 1822428``。
+* ``aggregate_rebuild_status = pass``、``aggregate_rebuild_selected_baseline_count = 44``。
+
+``scripts/check_pdf_release_readiness.ps1`` 现在会读取
+``output/pdf-visual-release-gate-current/report/segmented-summary.json``，校验
+``featherdoc.pdf_visual_segmented_gate_summary.v1``，并把
+``visual_segmented_gate_status``、``visual_segmented_gate_verdict``、
+``visual_segmented_gate_full_visual_gate_status``、
+``visual_segmented_gate_evidence_scope``、``visual_segmented_gate_covered_baseline_count``、
+``visual_segmented_gate_expected_visual_render_count``、
+``visual_segmented_gate_aggregate_contact_sheet_status`` 和
+``visual_segmented_gate_aggregate_contact_sheet_bytes`` 暴露到 release readiness summary。
+当 fresh full visual gate 仍未完整通过时，同一份 warning
+``pdf_full_fresh_visual_gate.not_completed_in_current_window`` 还会携带
+``segmented_gate_covered_baseline_count`` 和
+``segmented_gate_aggregate_contact_sheet_bytes``。这些字段只说明分段辅助证据覆盖情况，
+不能替代 fresh 非 ``FinalizeOnly`` full visual gate pass。
+固定标记：``pdf_visual_segmented_gate_summary_trace``。
+
 下一步
 ------
 
