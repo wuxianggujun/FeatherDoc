@@ -464,6 +464,17 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
         )
         checklist_marker = "release_entry_project_template_readiness_checklist_trace"
     }
+    release_entry_project_template_readiness_checklist_material_safety_audit = [ordered]@{
+        status = "passed"
+        audit_script = ".\scripts\assert_release_material_safety.ps1"
+        audited_entrypoint_count = 3
+        audited_entrypoints = @("start_here", "artifact_guide", "reviewer_checklist")
+        compact_evidence_label = "Project-template readiness checklist handoff evidence"
+        compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+        checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+        checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+        material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+    }
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -1097,6 +1108,26 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve reviewer checklist project-template readiness entrypoint."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_checklist_marker) -Expected "release_entry_project_template_readiness_checklist_trace" `
         -Message "Rollup should preserve project-template readiness checklist marker."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_status) -Expected "passed" `
+        -Message "Rollup should preserve packaged release-entry checklist material-safety audit status."
+    Assert-ContainsText -Text ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_script) `
+        -ExpectedText "assert_release_material_safety.ps1" `
+        -Message "Rollup should preserve packaged release-entry checklist material-safety audit script."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count) -Expected 3 `
+        -Message "Rollup should preserve packaged release-entry checklist material-safety audited entrypoint count."
+    Assert-ContainsText -Text (@($releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints) -join "`n") `
+        -ExpectedText "artifact_guide" `
+        -Message "Rollup should preserve packaged release-entry checklist material-safety audited entrypoint ids."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label) -Expected "Project-template readiness checklist handoff evidence" `
+        -Message "Rollup should preserve packaged release-entry checklist material-safety compact evidence label."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field) -Expected "project_template_readiness_checklist_entrypoints_source_reports" `
+        -Message "Rollup should preserve packaged release-entry checklist material-safety compact evidence field."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path) -Expected "docs/project_template_release_readiness_checklist_zh.rst" `
+        -Message "Rollup should preserve packaged release-entry checklist material-safety checklist path."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker) -Expected "release_entry_project_template_readiness_checklist_trace" `
+        -Message "Rollup should preserve packaged release-entry checklist material-safety checklist marker."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker) -Expected "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
+        -Message "Rollup should preserve packaged release-entry checklist material-safety audit marker."
     $skeletonWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "document_skeleton.exemplar_catalog_missing" } |
         Select-Object -First 1)
@@ -1232,7 +1263,17 @@ if (Test-Scenario -Name "passing") {
         "project_template_readiness_checklist_entrypoints_required_entrypoint_count: ``3``",
         "project_template_readiness_checklist_entrypoints_entrypoint_ids:",
         "project_template_readiness_checklist_entrypoints_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``",
-        "``reviewer_checklist``: required=``True``"
+        "``reviewer_checklist``: required=``True``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_script:",
+        "assert_release_material_safety.ps1",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count: ``3``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints:",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label: ``Project-template readiness checklist handoff evidence``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field: ``project_template_readiness_checklist_entrypoints_source_reports``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``"
     ) -Message "Markdown should keep release-candidate PDF visual source-report evidence in one Source Report Contracts block."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_status" `
         -Message "Markdown should include controlled PDF visual smoke status."

@@ -333,6 +333,13 @@ compact evidence 行，并把通过后的
 ``release_assets_manifest.json``；``assert_release_material_safety.ps1`` 会继续审计该
 manifest 字段，避免打包阶段只靠日志推断。固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_material_safety_trace``。
+``build_release_blocker_rollup_report.ps1`` 还必须继续消费这个 packaged audit，
+并在 source report contract evidence 中保留 ``status``、``audit_script``、
+``audited_entrypoints``、compact evidence label/field、固定 checklist 路径和
+``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``。
+这样 release blocker rollup 能直接展示打包入口材料已经过 material-safety 审计，
+不需要 reviewer 从 ``release_assets_manifest.json`` 手工反推。固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_audit_rollup_trace``。
 
 对 project-template governance，``final_review.md`` 和
 ``steps.release_governance_handoff`` 还必须同时保留

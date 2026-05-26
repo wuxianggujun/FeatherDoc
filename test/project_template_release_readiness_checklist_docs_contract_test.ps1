@@ -148,6 +148,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_release_entry_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_packaged_material_safety_trace",
+    "project_template_readiness_checklist_entrypoints_packaged_audit_rollup_trace",
     "manifest_signoff_entrypoints",
     "manifest_signoff_entrypoints_release_trace",
     "manifest_signoff_entrypoints_manifest_trace"
@@ -189,6 +190,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_release_entry_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_packaged_material_safety_trace",
+    "project_template_readiness_checklist_entrypoints_packaged_audit_rollup_trace",
     "block_scoped_governance_handoff_trace",
     "block_scoped_governance_handoff_project_template_status_trace",
     "project_template_onboarding.schema_approval",
@@ -429,6 +431,15 @@ foreach ($scriptText in @($releaseBlockerRollupScript, $releaseGovernanceHandoff
 foreach ($scriptText in @($releaseBlockerRollupScript, $releaseGovernanceHandoffScript, $releaseBlockerMetadataHelpersScript)) {
     Assert-ContainsText -Text $scriptText -ExpectedText "project_template_readiness_checklist_entrypoints_checklist_marker" `
         -Message "Release governance flow should preserve the project-template readiness checklist marker field."
+}
+
+foreach ($marker in @(
+    "release_entry_project_template_readiness_checklist_material_safety_audit",
+    "release_entry_project_template_readiness_checklist_material_safety_audit_status",
+    "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker"
+)) {
+    Assert-ContainsText -Text $releaseBlockerRollupScript -ExpectedText $marker `
+        -Message "Release blocker rollup should expose packaged project-template checklist material-safety audit evidence."
 }
 
 foreach ($scriptText in @($releaseGovernanceHandoffScript, $releaseBlockerMetadataHelpersScript, $releaseChecksScript)) {

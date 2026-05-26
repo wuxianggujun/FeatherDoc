@@ -699,6 +699,37 @@ function Add-ProjectTemplateReadinessChecklistEntrypointsEvidenceFields {
         -Value (Get-JsonString -Object $entrypointsContract -Name "checklist_marker")
 }
 
+function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary
+    )
+
+    $audit = Get-JsonProperty -Object $Summary -Name "release_entry_project_template_readiness_checklist_material_safety_audit"
+    if ($null -eq $audit) {
+        return
+    }
+
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_status" `
+        -Value (Get-JsonString -Object $audit -Name "status")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_script" `
+        -Value (Get-JsonString -Object $audit -Name "audit_script")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count" `
+        -Value (Get-FirstJsonProperty -Object $audit -Names @("audited_entrypoint_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints" `
+        -Value @(Get-JsonArray -Object $audit -Name "audited_entrypoints" | ForEach-Object { [string]$_ })
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label" `
+        -Value (Get-JsonString -Object $audit -Name "compact_evidence_label")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field" `
+        -Value (Get-JsonString -Object $audit -Name "compact_evidence_field")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path" `
+        -Value (Get-JsonString -Object $audit -Name "checklist_path")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker" `
+        -Value (Get-JsonString -Object $audit -Name "checklist_marker")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker" `
+        -Value (Get-JsonString -Object $audit -Name "material_safety_marker")
+}
+
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
@@ -858,6 +889,40 @@ function Add-ProjectTemplateReadinessChecklistEntrypointsMarkdownLines {
     }
 }
 
+function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Report
+    )
+
+    $status = Get-JsonString -Object $Report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_status"
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "release_entry_project_template_readiness_checklist_material_safety_audit_status",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_script",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker"
+        )) {
+        $fieldValue = Get-JsonProperty -Object $Report -Name $fieldName
+        $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+            @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+        } else {
+            [string]$fieldValue
+        }
+        if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+            $Lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
+        }
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -979,6 +1044,7 @@ function New-ReportMarkdown {
             }
             Add-ManifestSignoffEntrypointsMarkdownLines -Lines $lines -Report $report
             Add-ProjectTemplateReadinessChecklistEntrypointsMarkdownLines -Lines $lines -Report $report
+            Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditMarkdownLines -Lines $lines -Report $report
             $controlledVisualSmokeAvailable = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_available"
             if ($null -ne $controlledVisualSmokeAvailable) {
                 $lines.Add("  - controlled_visual_smoke_available: ``$controlledVisualSmokeAvailable``") | Out-Null
@@ -1450,6 +1516,7 @@ foreach ($path in @($inputPaths)) {
     Add-PdfBoundedCtestEvidenceFields -Target $sourceReport -Summary $summaryObject
     Add-ManifestSignoffEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-ProjectTemplateReadinessChecklistEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject
+    Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceFields -Target $sourceReport -Summary $summaryObject
     $sourceReports.Add($sourceReport) | Out-Null
 }
 
