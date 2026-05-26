@@ -64,6 +64,10 @@ $deliveryScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "script
 $contentControlScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
 $releaseChecksScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_release_candidate_checks.ps1"
 $materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
+$startHereScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_metadata_start_here.ps1"
+$artifactGuideScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_artifact_guide.ps1"
+$reviewerChecklistScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_reviewer_checklist.ps1"
+$releaseBundleVersionTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_note_bundle_version_test.ps1"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 
 foreach ($marker in @(
@@ -129,6 +133,9 @@ foreach ($marker in @(
     "release_summary.zh-CN.md",
     "release_governance_handoff.md",
     "release_assets_manifest.json",
+    "Project template release readiness checklist",
+    "docs/project_template_release_readiness_checklist_zh.rst",
+    "release_entry_project_template_readiness_checklist_trace",
     "manifest_signoff_entrypoints",
     "manifest_signoff_entrypoints_release_trace",
     "manifest_signoff_entrypoints_manifest_trace"
@@ -336,6 +343,7 @@ foreach ($marker in @(
 
 foreach ($marker in @(
     "Markdown list block",
+    "docs/project_template_release_readiness_checklist_zh.rst",
     "block_scoped_entry_content_control_trace",
     "block_scoped_entry_governance_metric_trace",
     "block_scoped_entry_project_template_trace",
@@ -375,6 +383,17 @@ foreach ($marker in @(
     Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `
         -Message "Project-template checklist should document block-scoped governance handoff safety marker '$marker'."
 }
+
+foreach ($scriptText in @($startHereScript, $artifactGuideScript, $reviewerChecklistScript, $releaseBundleVersionTest)) {
+    Assert-ContainsText -Text $scriptText -ExpectedText "docs/project_template_release_readiness_checklist_zh.rst" `
+        -Message "Release entry generators/tests should keep the project-template readiness checklist wired."
+}
+
+Assert-ContainsText -Text $reviewerChecklistScript -ExpectedText "Confirm the fixed Project template release readiness checklist has been reviewed before publishing" `
+    -Message "Reviewer checklist should require the fixed project-template readiness checklist review."
+
+Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Entry document must point reviewers at docs/project_template_release_readiness_checklist_zh.rst" `
+    -Message "Material safety audit should require release entries to point at the fixed project-template readiness checklist."
 
 Assert-ContainsText -Text $cmakeLists -ExpectedText "project_template_release_readiness_checklist_docs_contract" `
     -Message "CTest should register the project-template readiness checklist contract."

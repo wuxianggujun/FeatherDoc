@@ -421,6 +421,7 @@ Add-ReleaseGovernanceHandoffMarkdownSection -Lines $lines -Summary $summary -Rep
 [void]$lines.Add("- Project template smoke candidate discovery: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson)")
 [void]$lines.Add("- Project template schema approval history JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryJson)")
 [void]$lines.Add("- Project template schema approval history Markdown: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryMarkdown)")
+[void]$lines.Add('- Project template release readiness checklist: `docs/project_template_release_readiness_checklist_zh.rst`')
 [void]$lines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$lines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
 [void]$lines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")

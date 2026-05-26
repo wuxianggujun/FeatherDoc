@@ -1116,8 +1116,10 @@ foreach ($document in @(
         [pscustomobject]@{ Path = $startHerePath; Label = "START_HERE.md" }
     )) {
     Assert-Contains -Path $document.Path -ExpectedText 'docs/pdf_release_readiness_checklist_zh.rst' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'docs/project_template_release_readiness_checklist_zh.rst' -Label $document.Label
 }
 Assert-Contains -Path $checklistPath -ExpectedText 'Confirm the fixed PDF release readiness checklist has been reviewed before publishing' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Confirm the fixed Project template release readiness checklist has been reviewed before publishing' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Smoke verdict: pass' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Fixed-grid verdict: undetermined' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Section page setup verdict: pass' -Label 'ARTIFACT_GUIDE.md'

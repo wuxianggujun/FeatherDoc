@@ -863,6 +863,17 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     }
 
     if (Test-TextContainsAny -Text $Content -Needles @("project_template_delivery_readiness", "project_template_onboarding.schema_approval", "project_template_onboarding_governance")) {
+        if (-not (Test-TextLineContainsAll -Text $Content -Needles @(
+            "Project template release readiness checklist",
+            "docs/project_template_release_readiness_checklist_zh.rst"
+        ))) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Entry document must point reviewers at docs/project_template_release_readiness_checklist_zh.rst when project-template governance evidence is present."
+        }
+
         Add-ReleaseEntryProjectTemplateDetailViolations `
             -File $File `
             -Content $Content `

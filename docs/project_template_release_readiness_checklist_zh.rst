@@ -229,6 +229,11 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``manifest_status_release_ready_consistency_trace``、
      ``manifest_readiness_value_set_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
+     直接保留 ``Project template release readiness checklist`` 与
+     ``docs/project_template_release_readiness_checklist_zh.rst``，让 reviewer 从三个
+     release entry 都能回到本固定准入入口。固定标记：
+     ``release_entry_project_template_readiness_checklist_trace``。
+   * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
      在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
      ``release_assets_manifest.json``，并核对
      ``project_template_delivery_readiness_contract`` 与
