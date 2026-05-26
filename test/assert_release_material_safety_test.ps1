@@ -278,6 +278,17 @@ $projectTemplateReadinessChecklistEntrypoints = [ordered]@{
     )
     checklist_marker = "release_entry_project_template_readiness_checklist_trace"
 }
+$releaseEntryProjectTemplateChecklistMaterialSafetyAudit = [ordered]@{
+    status = "passed"
+    audit_script = ".\scripts\assert_release_material_safety.ps1"
+    audited_entrypoint_count = 3
+    audited_entrypoints = @("start_here", "artifact_guide", "reviewer_checklist")
+    compact_evidence_label = "Project-template readiness checklist handoff evidence"
+    compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+    checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+    checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+    material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+}
 
 function New-NumberingCatalogRealCorpusConfidenceMirror {
     param($GovernanceMetrics)
@@ -337,6 +348,7 @@ $passManifest = [ordered]@{
     project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
     manifest_signoff_entrypoints = $manifestSignoffEntrypoints
     project_template_readiness_checklist_entrypoints = $projectTemplateReadinessChecklistEntrypoints
+    release_entry_project_template_readiness_checklist_material_safety_audit = $releaseEntryProjectTemplateChecklistMaterialSafetyAudit
 }
 ($passManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $passManifestPath -Encoding UTF8
 
@@ -358,6 +370,24 @@ try {
 
 if (-not $missingProjectTemplateChecklistEntrypointsFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing project_template_readiness_checklist_entrypoints."
+}
+
+$badManifestMissingProjectTemplateChecklistMaterialSafetyAuditDir = Join-Path $failDir "manifest-missing-project-template-checklist-material-safety-audit"
+$badManifestMissingProjectTemplateChecklistMaterialSafetyAuditPath = Join-Path $badManifestMissingProjectTemplateChecklistMaterialSafetyAuditDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingProjectTemplateChecklistMaterialSafetyAuditDir -Force | Out-Null
+$badManifestMissingProjectTemplateChecklistMaterialSafetyAudit = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingProjectTemplateChecklistMaterialSafetyAudit.PSObject.Properties.Remove("release_entry_project_template_readiness_checklist_material_safety_audit")
+($badManifestMissingProjectTemplateChecklistMaterialSafetyAudit | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingProjectTemplateChecklistMaterialSafetyAuditPath -Encoding UTF8
+
+$missingProjectTemplateChecklistMaterialSafetyAuditFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingProjectTemplateChecklistMaterialSafetyAuditPath
+} catch {
+    $missingProjectTemplateChecklistMaterialSafetyAuditFailedAsExpected = $true
+}
+
+if (-not $missingProjectTemplateChecklistMaterialSafetyAuditFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing release_entry_project_template_readiness_checklist_material_safety_audit."
 }
 
 $badManifestMissingSignoffDir = Join-Path $failDir "manifest-missing-signoff-entrypoints"

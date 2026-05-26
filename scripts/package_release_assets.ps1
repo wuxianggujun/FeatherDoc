@@ -152,6 +152,69 @@ function Copy-FileToPath {
     Copy-Item -LiteralPath $Source -Destination $Destination -Force
 }
 
+function Test-TextLineContainsAll {
+    param(
+        [string]$Text,
+        [string[]]$Needles
+    )
+
+    foreach ($line in ($Text -split "\r?\n")) {
+        $containsAll = $true
+        foreach ($needle in $Needles) {
+            if ($line -notlike "*$needle*") {
+                $containsAll = $false
+                break
+            }
+        }
+
+        if ($containsAll) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Assert-ProjectTemplateChecklistHandoffEvidenceLine {
+    param(
+        [string]$Path,
+        [string]$Label
+    )
+
+    Assert-PathExists -Path $Path -Label $Label
+    $content = Get-Content -Raw -LiteralPath $Path
+    $requiredFragments = @(
+        "Project-template readiness checklist handoff evidence",
+        "project_template_readiness_checklist_entrypoints_source_reports=",
+        "status=",
+        "checklist_path=docs/project_template_release_readiness_checklist_zh.rst",
+        "entrypoints=",
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "marker=release_entry_project_template_readiness_checklist_trace",
+        "source_report="
+    )
+
+    if (-not (Test-TextLineContainsAll -Text $content -Needles $requiredFragments)) {
+        throw "$Label must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoints, marker, and source report on the same compact evidence line."
+    }
+}
+
+function Assert-StagedProjectTemplateChecklistHandoffEvidence {
+    param([string]$ReleaseCandidateRoot)
+
+    Assert-ProjectTemplateChecklistHandoffEvidenceLine `
+        -Path (Join-Path $ReleaseCandidateRoot "START_HERE.md") `
+        -Label "staged START_HERE.md project-template checklist handoff evidence"
+    Assert-ProjectTemplateChecklistHandoffEvidenceLine `
+        -Path (Join-Path $ReleaseCandidateRoot "report\ARTIFACT_GUIDE.md") `
+        -Label "staged ARTIFACT_GUIDE.md project-template checklist handoff evidence"
+    Assert-ProjectTemplateChecklistHandoffEvidenceLine `
+        -Path (Join-Path $ReleaseCandidateRoot "report\REVIEWER_CHECKLIST.md") `
+        -Label "staged REVIEWER_CHECKLIST.md project-template checklist handoff evidence"
+}
+
 function New-ZipArchive {
     param(
         [string[]]$SourcePaths,
@@ -875,8 +938,23 @@ if ($hasPdfVisualGateEvidence) {
 Write-Step "Sanitizing staged release materials"
 Sanitize-StagedReleaseMaterials -RepoRoot $repoRoot -RootPaths $releaseMaterialRoots
 
+Write-Step "Checking staged project-template checklist handoff evidence"
+Assert-StagedProjectTemplateChecklistHandoffEvidence -ReleaseCandidateRoot $stageReleaseCandidateRoot
+
 Write-Step "Auditing staged release materials"
 & $releaseMaterialAuditScript -Path $releaseMaterialRoots
+
+$releaseEntryProjectTemplateChecklistMaterialSafetyAudit = [ordered]@{
+    status = "passed"
+    audit_script = ".\scripts\assert_release_material_safety.ps1"
+    audited_entrypoint_count = 3
+    audited_entrypoints = @("start_here", "artifact_guide", "reviewer_checklist")
+    compact_evidence_label = "Project-template readiness checklist handoff evidence"
+    compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+    checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+    checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+    material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+}
 
 $installZipPath = Join-Path $versionOutputDir ("FeatherDoc-v{0}-msvc-install.zip" -f $releaseVersion)
 $galleryZipPath = Join-Path $versionOutputDir ("FeatherDoc-v{0}-visual-validation-gallery.zip" -f $releaseVersion)
@@ -1002,6 +1080,7 @@ $manifest = [ordered]@{
     project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
     manifest_signoff_entrypoints = $manifestSignoffEntrypointsPublic
     project_template_readiness_checklist_entrypoints = $projectTemplateReadinessChecklistEntrypointsPublic
+    release_entry_project_template_readiness_checklist_material_safety_audit = $releaseEntryProjectTemplateChecklistMaterialSafetyAudit
     assets = @(
         (Get-AssetDescriptor -Path $installZipPath -Label "msvc_install")
         (Get-AssetDescriptor -Path $galleryZipPath -Label "visual_validation_gallery")

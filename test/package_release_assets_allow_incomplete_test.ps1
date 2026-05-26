@@ -68,6 +68,7 @@ Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status: ready release_ready: True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
 - Project template release readiness checklist: docs/project_template_release_readiness_checklist_zh.rst
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, entrypoints=start_here, artifact_guide, reviewer_checklist, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-candidate-checks-ci\summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
@@ -113,6 +114,7 @@ foreach ($filePath in @($artifactGuidePath, $reviewerChecklistPath)) {
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status: ready release_ready: True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks-ci\report\project_template_delivery_readiness_summary.json
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
 - Project template release readiness checklist: docs/project_template_release_readiness_checklist_zh.rst
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, entrypoints=start_here, artifact_guide, reviewer_checklist, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-candidate-checks-ci\summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
@@ -555,6 +557,32 @@ if ([string]$manifestProjectTemplateChecklistEntrypoints.checklist_marker -ne "r
     throw "Release assets manifest lost project-template readiness checklist marker in AllowIncomplete mode."
 }
 
+$manifestProjectTemplateChecklistMaterialSafetyAudit = $manifest.release_entry_project_template_readiness_checklist_material_safety_audit
+if ($null -eq $manifestProjectTemplateChecklistMaterialSafetyAudit) {
+    throw "Release assets manifest lost release_entry_project_template_readiness_checklist_material_safety_audit in AllowIncomplete mode."
+}
+if ([string]$manifestProjectTemplateChecklistMaterialSafetyAudit.status -ne "passed") {
+    throw "Release assets manifest lost project-template checklist material-safety audit pass status in AllowIncomplete mode."
+}
+if ([string]$manifestProjectTemplateChecklistMaterialSafetyAudit.audit_script -ne ".\scripts\assert_release_material_safety.ps1") {
+    throw "Release assets manifest lost project-template checklist material-safety audit script in AllowIncomplete mode."
+}
+if ([int]$manifestProjectTemplateChecklistMaterialSafetyAudit.audited_entrypoint_count -ne 3) {
+    throw "Release assets manifest lost project-template checklist material-safety audited entrypoint count in AllowIncomplete mode."
+}
+foreach ($entrypointId in @("start_here", "artifact_guide", "reviewer_checklist")) {
+    if (-not (@($manifestProjectTemplateChecklistMaterialSafetyAudit.audited_entrypoints | ForEach-Object { [string]$_ }) -contains $entrypointId)) {
+        throw "Release assets manifest lost project-template checklist material-safety audited entrypoint '$entrypointId' in AllowIncomplete mode."
+    }
+}
+if ([string]$manifestProjectTemplateChecklistMaterialSafetyAudit.compact_evidence_label -ne "Project-template readiness checklist handoff evidence" -or
+    [string]$manifestProjectTemplateChecklistMaterialSafetyAudit.compact_evidence_field -ne "project_template_readiness_checklist_entrypoints_source_reports" -or
+    [string]$manifestProjectTemplateChecklistMaterialSafetyAudit.checklist_path -ne "docs/project_template_release_readiness_checklist_zh.rst" -or
+    [string]$manifestProjectTemplateChecklistMaterialSafetyAudit.checklist_marker -ne "release_entry_project_template_readiness_checklist_trace" -or
+    [string]$manifestProjectTemplateChecklistMaterialSafetyAudit.material_safety_marker -ne "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace") {
+    throw "Release assets manifest lost project-template checklist material-safety audit identity in AllowIncomplete mode."
+}
+
 $manifestSignoffEntrypointsById = @{}
 foreach ($entrypoint in @($manifestSignoffEntrypoints.entrypoints)) {
     $manifestSignoffEntrypointsById[[string]$entrypoint.id] = $entrypoint
@@ -890,6 +918,12 @@ foreach ($expectedText in @(
     "schema_approval_status_summary",
     "source_report_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
     "source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
+    "Project-template readiness checklist handoff evidence",
+    "project_template_readiness_checklist_entrypoints_source_reports=1",
+    "checklist_path=docs/project_template_release_readiness_checklist_zh.rst",
+    "entrypoints=start_here, artifact_guide, reviewer_checklist",
+    "marker=release_entry_project_template_readiness_checklist_trace",
+    "source_report=.\output\release-candidate-checks-ci\summary.json",
     "numbering_catalog_governance.real_corpus_confidence",
     "table_layout_delivery_governance.delivery_quality",
     "catalog_coverage_percent=100",
@@ -934,6 +968,12 @@ foreach ($expectedText in @(
     "schema_approval_status_summary",
     "source_report_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
     "source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
+    "Project-template readiness checklist handoff evidence",
+    "project_template_readiness_checklist_entrypoints_source_reports=1",
+    "checklist_path=docs/project_template_release_readiness_checklist_zh.rst",
+    "entrypoints=start_here, artifact_guide, reviewer_checklist",
+    "marker=release_entry_project_template_readiness_checklist_trace",
+    "source_report=.\output\release-candidate-checks-ci\summary.json",
     "numbering_catalog_governance.real_corpus_confidence",
     "featherdoc.numbering_catalog_governance_report.v1",
     "table_layout_delivery_governance.delivery_quality",
@@ -979,6 +1019,12 @@ foreach ($expectedText in @(
     "schema_approval_status_summary",
     "source_report_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
     "source_json_display=.\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json",
+    "Project-template readiness checklist handoff evidence",
+    "project_template_readiness_checklist_entrypoints_source_reports=1",
+    "checklist_path=docs/project_template_release_readiness_checklist_zh.rst",
+    "entrypoints=start_here, artifact_guide, reviewer_checklist",
+    "marker=release_entry_project_template_readiness_checklist_trace",
+    "source_report=.\output\release-candidate-checks-ci\summary.json",
     "numbering_catalog_governance.real_corpus_confidence",
     "table_layout_delivery_governance.delivery_quality",
     "catalog_coverage_percent=100",

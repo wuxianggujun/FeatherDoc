@@ -147,6 +147,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
+    "project_template_readiness_checklist_entrypoints_packaged_material_safety_trace",
     "manifest_signoff_entrypoints",
     "manifest_signoff_entrypoints_release_trace",
     "manifest_signoff_entrypoints_manifest_trace"
@@ -187,6 +188,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
+    "project_template_readiness_checklist_entrypoints_packaged_material_safety_trace",
     "block_scoped_governance_handoff_trace",
     "block_scoped_governance_handoff_project_template_status_trace",
     "project_template_onboarding.schema_approval",
@@ -455,10 +457,22 @@ foreach ($scriptText in @($releaseBundleVersionTest)) {
 
 Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Missing project_template_readiness_checklist_entrypoints." `
     -Message "Material safety audit should fail packaged manifests missing the project-template readiness checklist entrypoints contract."
+Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Missing release_entry_project_template_readiness_checklist_material_safety_audit." `
+    -Message "Material safety audit should fail packaged manifests missing the release-entry checklist material-safety audit contract."
+
+foreach ($marker in @(
+    "Assert-StagedProjectTemplateChecklistHandoffEvidence",
+    "release_entry_project_template_readiness_checklist_material_safety_audit",
+    "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+)) {
+    Assert-ContainsText -Text $packageAssetsScript -ExpectedText $marker `
+        -Message "Package release assets should require and record release-entry project-template checklist material-safety evidence."
+}
 
 foreach ($marker in @(
     "Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations",
     "Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations",
+    "Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditContractViolations",
     "Project-template readiness checklist handoff evidence",
     "Project-template readiness checklist entrypoints evidence source reports",
     "project_template_readiness_checklist_entrypoints_checklist_path",

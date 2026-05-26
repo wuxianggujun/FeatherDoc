@@ -3196,6 +3196,65 @@ function Add-ProjectTemplateReadinessChecklistEntrypointsContractViolations {
     }
 }
 
+function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditContractViolations {
+    param(
+        [string]$File,
+        $Json,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_assets_manifest.json") {
+        return
+    }
+
+    $label = "release entry project-template readiness checklist material-safety audit contract"
+    $audit = Get-JsonPropertyValue -Object $Json -Name "release_entry_project_template_readiness_checklist_material_safety_audit"
+    if ($null -eq $audit) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "Missing release_entry_project_template_readiness_checklist_material_safety_audit."
+        return
+    }
+
+    if ([string](Get-JsonPropertyValue -Object $audit -Name "status") -ne "passed") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.status must be passed."
+    }
+
+    $auditScript = [string](Get-JsonPropertyValue -Object $audit -Name "audit_script")
+    if ([string]::IsNullOrWhiteSpace($auditScript) -or
+        -not $auditScript.Contains("scripts\assert_release_material_safety.ps1")) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audit_script must identify scripts/assert_release_material_safety.ps1."
+    }
+
+    $auditedEntrypointCount = Get-JsonPropertyValue -Object $audit -Name "audited_entrypoint_count"
+    try {
+        if ([int]$auditedEntrypointCount -ne 3) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoint_count must be 3."
+        }
+    } catch {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoint_count must be an integer."
+    }
+
+    $auditedEntrypoints = @(Get-JsonArray -Object $audit -Name "audited_entrypoints" | ForEach-Object { [string]$_ })
+    foreach ($requiredEntrypointId in @("start_here", "artifact_guide", "reviewer_checklist")) {
+        if (-not ($auditedEntrypoints -contains $requiredEntrypointId)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoints is missing $requiredEntrypointId."
+        }
+    }
+
+    $expectedFields = [ordered]@{
+        compact_evidence_label = "Project-template readiness checklist handoff evidence"
+        compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+        checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+        checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+        material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+    }
+    foreach ($entry in $expectedFields.GetEnumerator()) {
+        if ([string](Get-JsonPropertyValue -Object $audit -Name $entry.Key) -ne [string]$entry.Value) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.$($entry.Key) is invalid."
+        }
+    }
+}
+
 function Add-PdfVisualGateManifestContractViolations {
     param(
         [string]$File,
@@ -3383,6 +3442,7 @@ foreach ($file in $scanFiles) {
             Add-ProjectTemplateOnboardingGovernanceContractViolations -File $file -Json $json -Violations $violations
             Add-ManifestSignoffEntrypointsContractViolations -File $file -Json $json -Violations $violations
             Add-ProjectTemplateReadinessChecklistEntrypointsContractViolations -File $file -Json $json -Violations $violations
+            Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditContractViolations -File $file -Json $json -Violations $violations
             Add-PdfVisualGateManifestContractViolations -File $file -Json $json -Violations $violations
         } catch {
             if ($leafName -eq "summary.json" -or $leafName -eq "release_assets_manifest.json") {

@@ -266,6 +266,12 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      要求 count、status、``checklist_path``、三个入口、marker 和 ``source_report`` 保持在
      同一行，不能用 detached notes 补齐。固定标记：
      ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``。
+     ``scripts/package_release_assets.ps1`` 还必须在 staged release materials 阶段强制检查
+     三个入口文件都保留该 compact evidence 行，并把通过后的审计结果写入
+     ``release_assets_manifest.json`` 的
+     ``release_entry_project_template_readiness_checklist_material_safety_audit``，再由
+     material-safety 审计该 manifest 字段。固定标记：
+     ``project_template_readiness_checklist_entrypoints_packaged_material_safety_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
      在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
      ``release_assets_manifest.json``，并核对
