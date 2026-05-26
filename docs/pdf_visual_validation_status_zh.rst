@@ -107,7 +107,32 @@ PDF 可视化验证状态
    * fresh 重跑未完成必须被 reviewer 看见，但它应作为 governance warning，
      而不是直接推翻已存在的 full gate pass 结论
 
-7. ``preflight_ready`` 是 preflight governance report 写出的治理字段，不是
+7. 2026-05-27 再次运行轻量 preflight，脚本在 60 秒守护内完成，并验证
+   默认 current raw summary 会被本次运行刷新：
+
+   * ``check_pdf_visual_release_gate_preflight.ps1`` 默认写回
+     ``output/pdf-visual-release-gate-preflight-current/summary.json``；
+     不传 ``-OutputJson`` 时也会覆盖该 current raw summary，避免命令行输出已经
+     是新结论而文件仍停留在旧 ``ready`` 证据。
+   * 本次默认输出 raw preflight 写回
+     ``generated_at = 2026-05-27T01:38:37``。
+   * 本次 raw preflight 结论为 ``status = ready``，
+     ``blocking_check_count = 0``、``blocking_checks = []``。
+   * ``free_memory_mb = 2691.4`` 高于 ``min_free_memory_mb = 2048``，
+     且 ``memory_guard_blocked = false``。
+   * 同一份 summary 仍确认 ``evidence_kind = real_build``、
+     ``pdf_dependency_inputs_status = ready``、
+     ``pdf_dependency_missing_input_count = 0``、
+     ``pdf_build_options_enabled = true``、
+     ``visual_baseline_sample_count = 42``、
+     ``missing_visual_baseline_pdf_count = 0``、
+     ``cjk_text_layer_sample_count = 43``、
+     ``missing_cjk_text_layer_pdf_count = 0``。
+   * 若未来再次遇到 ``workstation_free_memory_available`` 阻断，该阻断也会写入
+     同一个 current raw summary，而不会被旧 ``ready`` 文件掩盖。
+   * 固定标记：``pdf_preflight_default_current_summary_trace``。
+
+8. ``preflight_ready`` 是 preflight governance report 写出的治理字段，不是
    ``check_pdf_visual_release_gate_preflight.ps1`` raw summary 的顶层字段。它只表示
    预检是否清零；即使它为 ``true``，也仍需结合 full gate 证据链判断是否可以
    视为完整可视化验收通过。当前 ``dev`` 的状态不是“尚无 full gate 证据”，而是
@@ -125,6 +150,12 @@ PDF 可视化验证状态
   CTest、Ninja、MSBuild、下载依赖或 PDF 渲染。
 * ``scripts/check_pdf_visual_release_gate_preflight.ps1`` 会在 summary JSON 中输出
   ``blocking_summary``。
+* ``scripts/check_pdf_visual_release_gate_preflight.ps1`` 默认把 raw summary 写入
+  ``output/pdf-visual-release-gate-preflight-current/summary.json``；即使显式传入空的
+  ``-OutputJson``，也会回退到该 current 路径。该文件表示最近一次 raw preflight
+  结果；如果资源不足导致 ``not_ready``，也必须覆盖旧 ``ready`` 文件并暴露新的
+  ``workstation_free_memory_available`` 阻断。固定标记：
+  ``pdf_preflight_default_current_summary_trace``。
 * 同一份 preflight summary 现在还会附带 ``pdf_dependency_inputs``，并在
   ``blocking_summary`` 中同步写入 ``pdf_dependency_inputs_status``、
   ``pdf_dependency_missing_input_count``、``selected_pdfium_provider``、

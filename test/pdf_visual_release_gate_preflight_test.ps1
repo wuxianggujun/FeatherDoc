@@ -49,6 +49,7 @@ $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
 $summaryPath = Join-Path $resolvedWorkingDir "preflight-summary.json"
 $plainBuildRepoRoot = Join-Path $resolvedWorkingDir "plain-build-repo"
 $plainBuildSummaryPath = Join-Path $resolvedWorkingDir "plain-build-summary.json"
+$plainBuildDefaultSummaryPath = Join-Path $plainBuildRepoRoot "output\pdf-visual-release-gate-preflight-current\summary.json"
 $malformedManifestRepoRoot = Join-Path $resolvedWorkingDir "malformed-manifest-repo"
 $malformedManifestSummaryPath = Join-Path $resolvedWorkingDir "malformed-manifest-summary.json"
 $disabledBuildDir = Join-Path $resolvedWorkingDir "disabled-pdf-build"
@@ -72,6 +73,20 @@ Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $plainBuildRepoRoot
 if ($LASTEXITCODE -ne 0) {
     throw "PDF visual release gate preflight should report not_ready for a plain build directory without failing."
 }
+& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    -File (Join-Path $plainBuildRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1") `
+    -MinFreeMemoryMB 1 | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    throw "PDF visual release gate preflight should report not_ready and write the default summary without failing."
+}
+if (-not (Test-Path -LiteralPath $plainBuildDefaultSummaryPath -PathType Leaf)) {
+    throw "PDF visual release gate preflight should write the default current raw summary when -OutputJson is omitted."
+}
+$plainBuildDefaultSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $plainBuildDefaultSummaryPath | ConvertFrom-Json
+Assert-True -Condition ([string]$plainBuildDefaultSummary.status -eq "not_ready") `
+    -Message "Default current raw summary should preserve the preflight status."
+Assert-True -Condition (($plainBuildDefaultSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "build_dir_exists") `
+    -Message "Default current raw summary should preserve blocking checks from the omitted -OutputJson run."
 
 New-Item -ItemType Directory -Path (Join-Path $malformedManifestRepoRoot "scripts") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $malformedManifestRepoRoot "test") -Force | Out-Null
@@ -517,6 +532,8 @@ foreach ($forbiddenText in @(
 
 $preflightText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 foreach ($expectedText in @(
+    '[string]$OutputJson = "output/pdf-visual-release-gate-preflight-current/summary.json"',
+    'if ([string]::IsNullOrWhiteSpace($OutputJson))',
     "Resolve-PreferredBuildDir",
     "Get-BuildDirectorySnapshot",
     "Get-CMakeCachePdfBuildOptions",

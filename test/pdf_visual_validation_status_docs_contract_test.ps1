@@ -80,6 +80,7 @@ $statusMarkers = @(
     "2026-05-24",
     "2026-05-25",
     "2026-05-26",
+    "2026-05-27",
     "2026-05-26T22:50:00",
     "FinalizeOnly",
     "release_blocker_count = 0",
@@ -117,8 +118,13 @@ $statusMarkers = @(
     "cjk_copy_search_count = 43",
     "generated_at = 2026-05-25T07:13:30",
     "generated_at = 2026-05-25T07:15:13",
-    "generated_at = 2026-05-26T22:50:00",
+    "generated_at = 2026-05-26T23:19:01",
+    "generated_at = 2026-05-27T01:38:37",
     "output/pdf-visual-release-gate-preflight-current/summary.json",
+    "pdf_preflight_default_current_summary_trace",
+    "blocking_check_count = 0",
+    "blocking_checks = []",
+    "free_memory_mb = 2691.4",
     "-FinalizeOnly -SkipPreflight",
     "selected_pdfium_provider = prebuilt",
     "pdf_dependency_inputs_status = ready",
@@ -758,6 +764,17 @@ $scriptMarkers = @(
     "output_gap_count",
     "missing_output_count"
 )
+
+$preflightDefaultOutputMarkers = @(
+    '[string]$OutputJson = "output/pdf-visual-release-gate-preflight-current/summary.json"',
+    'if ([string]::IsNullOrWhiteSpace($OutputJson))',
+    "Set-Content -LiteralPath `$resolvedOutputJson"
+)
+
+foreach ($marker in $preflightDefaultOutputMarkers) {
+    Assert-ContainsText -Text $preflightScript -ExpectedText $marker `
+        -Message "PDF visual preflight script should preserve default current-summary marker '$marker'."
+}
 
 foreach ($marker in $scriptMarkers) {
     foreach ($entry in @(

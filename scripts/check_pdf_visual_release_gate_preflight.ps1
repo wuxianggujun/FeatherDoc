@@ -1,6 +1,6 @@
 param(
     [string]$BuildDir = ".bpdf-roundtrip-msvc",
-    [string]$OutputJson = "",
+    [string]$OutputJson = "output/pdf-visual-release-gate-preflight-current/summary.json",
     [string]$CTestExecutable = "ctest",
     [string]$PdfioSourceDir = "",
     [ValidateSet("", "auto", "source", "prebuilt", "package")]
@@ -1008,14 +1008,15 @@ $summary = [ordered]@{
     blocking_checks = @($blockingChecks | ForEach-Object { $_.name })
 }
 
-if (-not [string]::IsNullOrWhiteSpace($OutputJson)) {
-    $resolvedOutputJson = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputJson
-    $outputDir = Split-Path -Parent $resolvedOutputJson
-    if (-not [string]::IsNullOrWhiteSpace($outputDir)) {
-        New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
-    }
-    ($summary | ConvertTo-Json -Depth 16) | Set-Content -LiteralPath $resolvedOutputJson -Encoding UTF8
+if ([string]::IsNullOrWhiteSpace($OutputJson)) {
+    $OutputJson = "output/pdf-visual-release-gate-preflight-current/summary.json"
 }
+$resolvedOutputJson = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputJson
+$outputDir = Split-Path -Parent $resolvedOutputJson
+if (-not [string]::IsNullOrWhiteSpace($outputDir)) {
+    New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+}
+($summary | ConvertTo-Json -Depth 16) | Set-Content -LiteralPath $resolvedOutputJson -Encoding UTF8
 
 $summary | ConvertTo-Json -Depth 16
 if ($Strict -and $status -ne "ready") {
