@@ -970,6 +970,25 @@ New-Item -ItemType Directory -Path $passReleaseHandoffTraceDir -Force | Out-Null
 Set-Content -LiteralPath $passReleaseHandoffTracePath -Encoding UTF8 -Value @"
 # Release handoff
 
+- Project-template readiness checklist entrypoints evidence source reports: 1
+  - source_report: .\output\release-candidate-checks\summary.json schema=featherdoc.release_candidate_summary
+    - project_template_readiness_checklist_entrypoints_status: declared
+    - project_template_readiness_checklist_entrypoints_checklist_label: Project template release readiness checklist
+    - project_template_readiness_checklist_entrypoints_checklist_path: docs/project_template_release_readiness_checklist_zh.rst
+    - project_template_readiness_checklist_entrypoints_required_entrypoint_count: 3
+    - project_template_readiness_checklist_entrypoints_entrypoint_ids: start_here, artifact_guide, reviewer_checklist
+    - project_template_readiness_checklist_entrypoints_checklist_marker: release_entry_project_template_readiness_checklist_trace
+- Release-entry project-template readiness checklist material-safety audit source reports: 1
+  - source_report: .\output\release-blocker-rollup\summary.json schema=featherdoc.release_candidate_summary
+    - release_entry_project_template_readiness_checklist_material_safety_audit_status: passed
+    - release_entry_project_template_readiness_checklist_material_safety_audit_script: .\scripts\assert_release_material_safety.ps1
+    - release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count: 3
+    - release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: start_here, artifact_guide, reviewer_checklist
+    - release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label: Project-template readiness checklist handoff evidence
+    - release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field: project_template_readiness_checklist_entrypoints_source_reports
+    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path: docs/project_template_release_readiness_checklist_zh.rst
+    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: release_entry_project_template_readiness_checklist_trace
+    - release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace
 - project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1
   - source_report_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
   - source_json_display: .\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
@@ -994,6 +1013,63 @@ Set-Content -LiteralPath $passReleaseHandoffTracePath -Encoding UTF8 -Value @"
 "@
 
 & $auditScript -Path $passReleaseHandoffTracePath
+
+$badReleaseMetadataProjectTemplateChecklistWrongSchemaDir = Join-Path $failDir "release-metadata-project-template-checklist-wrong-schema"
+$badReleaseMetadataProjectTemplateChecklistWrongSchemaPath = Join-Path $badReleaseMetadataProjectTemplateChecklistWrongSchemaDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badReleaseMetadataProjectTemplateChecklistWrongSchemaDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseMetadataProjectTemplateChecklistWrongSchemaPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project-template readiness checklist entrypoints evidence source reports: 1
+  - source_report: .\output\release-blocker-rollup\summary.json schema=featherdoc.release_blocker_rollup_report.v1
+    - project_template_readiness_checklist_entrypoints_status: declared
+    - project_template_readiness_checklist_entrypoints_checklist_label: Project template release readiness checklist
+    - project_template_readiness_checklist_entrypoints_checklist_path: docs/project_template_release_readiness_checklist_zh.rst
+    - project_template_readiness_checklist_entrypoints_required_entrypoint_count: 3
+    - project_template_readiness_checklist_entrypoints_entrypoint_ids: start_here, artifact_guide, reviewer_checklist
+    - project_template_readiness_checklist_entrypoints_checklist_marker: release_entry_project_template_readiness_checklist_trace
+"@
+
+$badReleaseMetadataProjectTemplateChecklistWrongSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseMetadataProjectTemplateChecklistWrongSchemaPath
+} catch {
+    $badReleaseMetadataProjectTemplateChecklistWrongSchemaFailedAsExpected = $true
+}
+
+if (-not $badReleaseMetadataProjectTemplateChecklistWrongSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release metadata with project-template checklist entrypoints source_report using a non-release-candidate schema."
+}
+
+$badReleaseMetadataProjectTemplateChecklistMaterialSafetyAuditWrongSchemaDir = Join-Path $failDir "release-metadata-project-template-checklist-material-safety-audit-wrong-schema"
+$badReleaseMetadataProjectTemplateChecklistMaterialSafetyAuditWrongSchemaPath = Join-Path $badReleaseMetadataProjectTemplateChecklistMaterialSafetyAuditWrongSchemaDir "release_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseMetadataProjectTemplateChecklistMaterialSafetyAuditWrongSchemaDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseMetadataProjectTemplateChecklistMaterialSafetyAuditWrongSchemaPath -Encoding UTF8 -Value @"
+# Release handoff
+
+- Release-entry project-template readiness checklist material-safety audit source reports: 1
+  - source_report: .\output\release-blocker-rollup\summary.json schema=featherdoc.release_blocker_rollup_report.v1
+    - release_entry_project_template_readiness_checklist_material_safety_audit_status: passed
+    - release_entry_project_template_readiness_checklist_material_safety_audit_script: .\scripts\assert_release_material_safety.ps1
+    - release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count: 3
+    - release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: start_here, artifact_guide, reviewer_checklist
+    - release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label: Project-template readiness checklist handoff evidence
+    - release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field: project_template_readiness_checklist_entrypoints_source_reports
+    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path: docs/project_template_release_readiness_checklist_zh.rst
+    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: release_entry_project_template_readiness_checklist_trace
+    - release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace
+"@
+
+$badReleaseMetadataProjectTemplateChecklistMaterialSafetyAuditWrongSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseMetadataProjectTemplateChecklistMaterialSafetyAuditWrongSchemaPath
+} catch {
+    $badReleaseMetadataProjectTemplateChecklistMaterialSafetyAuditWrongSchemaFailedAsExpected = $true
+}
+
+if (-not $badReleaseMetadataProjectTemplateChecklistMaterialSafetyAuditWrongSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release metadata with release-entry project-template checklist material-safety audit source_report using a non-release-candidate schema."
+}
 
 $passReleaseHandoffPdfTraceDir = Join-Path $passDir "release-handoff-pdf-visual-gate-trace"
 $passReleaseHandoffPdfTracePath = Join-Path $passReleaseHandoffPdfTraceDir "release_handoff.md"

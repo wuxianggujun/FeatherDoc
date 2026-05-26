@@ -1164,6 +1164,124 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvi
     }
 }
 
+function Add-ReleaseMetadataProjectTemplateReadinessChecklistEntrypointsTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -notin @("start_here.md", "artifact_guide.md", "reviewer_checklist.md", "release_handoff.md")) {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "Project-template readiness checklist entrypoints evidence source reports",
+        "project_template_readiness_checklist_entrypoints_status",
+        "project_template_readiness_checklist_entrypoints_checklist_path"
+    ))) {
+        return
+    }
+
+    $label = "release metadata project template readiness checklist entrypoints trace"
+    if (-not $Content.Contains("Project-template readiness checklist entrypoints evidence source reports:")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release metadata lost project-template readiness checklist source-report trace marker 'Project-template readiness checklist entrypoints evidence source reports:'."
+    }
+
+    $sourceReportBlockNeedles = @(
+        "source_report:",
+        "schema=",
+        "featherdoc.release_candidate_summary",
+        "project_template_readiness_checklist_entrypoints_status:",
+        "project_template_readiness_checklist_entrypoints_checklist_label:",
+        "Project template release readiness checklist",
+        "project_template_readiness_checklist_entrypoints_checklist_path:",
+        "docs/project_template_release_readiness_checklist_zh.rst",
+        "project_template_readiness_checklist_entrypoints_required_entrypoint_count:",
+        "project_template_readiness_checklist_entrypoints_entrypoint_ids:",
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "project_template_readiness_checklist_entrypoints_checklist_marker:",
+        "release_entry_project_template_readiness_checklist_trace"
+    )
+    if (-not (Test-MarkdownAnyListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release metadata must keep project-template readiness checklist release-candidate source identity, status, checklist path, required entrypoint ids, and fixed checklist marker in the same source_report block."
+    }
+}
+
+function Add-ReleaseMetadataProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -notin @("start_here.md", "artifact_guide.md", "reviewer_checklist.md", "release_handoff.md")) {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "Release-entry project-template readiness checklist material-safety audit source reports",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_status",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker"
+    ))) {
+        return
+    }
+
+    $label = "release metadata project template readiness checklist material-safety audit trace"
+    if (-not $Content.Contains("Release-entry project-template readiness checklist material-safety audit source reports:")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release metadata lost release-entry project-template readiness checklist material-safety audit source-report trace marker 'Release-entry project-template readiness checklist material-safety audit source reports:'."
+    }
+
+    $sourceReportBlockNeedles = @(
+        "source_report:",
+        "schema=",
+        "featherdoc.release_candidate_summary",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_status:",
+        "passed",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_script:",
+        "assert_release_material_safety.ps1",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count:",
+        "3",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints:",
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label:",
+        "Project-template readiness checklist handoff evidence",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field:",
+        "project_template_readiness_checklist_entrypoints_source_reports",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path:",
+        "docs/project_template_release_readiness_checklist_zh.rst",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker:",
+        "release_entry_project_template_readiness_checklist_trace",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker:",
+        "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+    )
+    if (-not (Test-MarkdownAnyListBlockContainsAll -Text $Content -Anchor "source_report:" -Needles $sourceReportBlockNeedles)) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release metadata must keep release-entry project-template readiness checklist material-safety audit release-candidate source identity, status, audit script, audited entrypoints, compact evidence identity, checklist path, checklist marker, and material-safety marker in the same source_report block."
+    }
+}
+
 function Add-ReleaseEntryPdfVisualGateTraceViolations {
     param(
         [string]$File,
@@ -3730,6 +3848,8 @@ foreach ($file in $scanFiles) {
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseMetadataProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseMetadataProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseSummaryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations

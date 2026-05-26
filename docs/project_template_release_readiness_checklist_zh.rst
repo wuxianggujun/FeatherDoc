@@ -251,14 +251,16 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``release_entry_project_template_readiness_checklist_trace``。固定标记：
      ``project_template_readiness_checklist_entrypoints_governance_trace``。
      ``scripts/assert_release_material_safety.ps1`` 必须继续审计
-     ``release_governance_handoff.md`` 与 ``final_review.md`` 中同一个 ``source_report``
-     列表块是否同时携带 ``checklist_path``、三个必需入口和固定 checklist marker，
-     不能把 marker 放到 detached notes 中补齐；同块还必须保留
-     ``featherdoc.release_candidate_summary`` schema 身份，避免 release blocker rollup
-     或其它报告冒充原始 release-candidate 证据。固定标记：
+     ``release_governance_handoff.md``、``final_review.md``、``release_handoff.md`` 与
+     三个 release entry 文档中同一个 ``source_report`` 列表块是否同时携带
+     ``checklist_path``、三个必需入口和固定 checklist marker，不能把 marker 放到
+     detached notes 中补齐；同块还必须保留 ``featherdoc.release_candidate_summary``
+     schema 身份，避免 release blocker rollup 或其它报告冒充原始 release-candidate
+     证据。固定标记：
      ``project_template_readiness_checklist_entrypoints_material_safety_trace``、
      ``project_template_readiness_checklist_entrypoints_handoff_source_schema_identity_trace``、
-     ``project_template_readiness_checklist_entrypoints_final_review_source_schema_identity_trace``。
+     ``project_template_readiness_checklist_entrypoints_final_review_source_schema_identity_trace``、
+     ``project_template_readiness_checklist_entrypoints_release_metadata_details_source_schema_identity_trace``。
      ``scripts/write_release_metadata_start_here.ps1``、
      ``scripts/write_release_artifact_guide.ps1`` 与
      ``scripts/write_release_reviewer_checklist.ps1`` 还必须把
@@ -291,15 +293,17 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      staged entry materials 的 material-safety 结论。固定标记：
      ``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_trace``。
      ``scripts/assert_release_material_safety.ps1`` 必须继续审计
-     ``release_governance_handoff.md`` 与 ``final_review.md`` 中同一个 packaged audit
-     ``source_report`` 列表块，要求 audit status、audit script、三个 audited
-     entrypoints、compact evidence field、checklist path、checklist marker 和
-     material-safety marker 保持同块，不能用 detached notes 补齐；同块还必须保留
+     ``release_governance_handoff.md``、``final_review.md``、``release_handoff.md`` 与
+     三个 release entry 文档中同一个 packaged audit ``source_report`` 列表块，
+     要求 audit status、audit script、三个 audited entrypoints、compact evidence
+     field、checklist path、checklist marker 和 material-safety marker 保持同块，
+     不能用 detached notes 补齐；同块还必须保留
      ``featherdoc.release_candidate_summary`` schema 身份，避免用 rollup 自身 summary
      冒充 packaged audit 的原始来源。固定标记：
      ``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_material_safety_trace``、
      ``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_source_schema_identity_trace``、
-     ``project_template_readiness_checklist_entrypoints_packaged_audit_final_review_source_schema_identity_trace``。
+     ``project_template_readiness_checklist_entrypoints_packaged_audit_final_review_source_schema_identity_trace``、
+     ``project_template_readiness_checklist_entrypoints_packaged_audit_release_metadata_details_source_schema_identity_trace``。
      ``scripts/write_release_metadata_start_here.ps1``、
      ``scripts/write_release_artifact_guide.ps1`` 与
      ``scripts/write_release_reviewer_checklist.ps1`` 还必须把该 packaged audit 压缩成
