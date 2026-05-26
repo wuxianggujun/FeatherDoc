@@ -1849,9 +1849,10 @@ $resolvedReleaseBlockerRollupInputRoot = @(
 )
 $resolvedReleaseBlockerRollupInputRoot = @(Select-UniqueReleaseBlockerRollupPathList `
         -Paths $resolvedReleaseBlockerRollupInputRoot)
-$releaseBlockerRollupRequested = $ReleaseBlockerRollupAutoDiscover -or @(Get-ReleaseBlockerRollupInputList `
+$releaseBlockerRollupInputCount = @(Get-ReleaseBlockerRollupInputList `
         -InputJson $resolvedReleaseBlockerRollupInputJson `
-        -InputRoot $resolvedReleaseBlockerRollupInputRoot).Count -gt 0
+        -InputRoot $resolvedReleaseBlockerRollupInputRoot).Count
+$releaseBlockerRollupRequested = $releaseBlockerRollupInputCount -gt 0
 $resolvedReleaseBlockerRollupOutputDir = if ($releaseBlockerRollupRequested) {
     if ([string]::IsNullOrWhiteSpace($ReleaseBlockerRollupOutputDir)) {
         Join-Path $reportDir "release-blocker-rollup"

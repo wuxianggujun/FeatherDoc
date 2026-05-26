@@ -834,4 +834,45 @@ Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-
     -ExpectedText "schema-patch-confidence-calibration" `
     -Message "Auto-discovered rollup should include schema patch confidence calibration."
 
+$emptyAutoDiscoverRoot = Join-Path $resolvedWorkingDir "empty-auto-discover-output"
+$emptyAutoDiscoverOutputDir = Join-Path $resolvedWorkingDir "release-candidate-empty-auto-discover"
+New-Item -ItemType Directory -Path $emptyAutoDiscoverRoot -Force | Out-Null
+$emptyAutoDiscoverArguments = @(
+    "-NoProfile",
+    "-NonInteractive",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    $scriptPath,
+    "-SkipConfigure",
+    "-SkipBuild",
+    "-SkipTests",
+    "-SkipInstallSmoke",
+    "-SkipVisualGate",
+    "-SummaryOutputDir",
+    $emptyAutoDiscoverOutputDir,
+    "-ReleaseBlockerRollupAutoDiscoverRoot",
+    $emptyAutoDiscoverRoot,
+    "-ReleaseBlockerRollupAutoDiscover"
+)
+$emptyAutoDiscoverResult = @(& (Get-Process -Id $PID).Path @emptyAutoDiscoverArguments 2>&1)
+$emptyAutoDiscoverExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+$emptyAutoDiscoverText = (@($emptyAutoDiscoverResult | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
+Assert-Equal -Actual $emptyAutoDiscoverExitCode -Expected 0 `
+    -Message "Release candidate empty auto-discovery run should pass without falling back to repo output. Output: $emptyAutoDiscoverText"
+
+$emptyAutoDiscoverSummaryPath = Join-Path $emptyAutoDiscoverOutputDir "report\summary.json"
+$emptyAutoDiscoverRollupSummaryPath = Join-Path $emptyAutoDiscoverOutputDir "report\release-blocker-rollup\summary.json"
+Assert-True -Condition (Test-Path -LiteralPath $emptyAutoDiscoverSummaryPath) `
+    -Message "Empty auto-discovery run should still write release candidate summary."
+Assert-True -Condition (-not (Test-Path -LiteralPath $emptyAutoDiscoverRollupSummaryPath)) `
+    -Message "Empty auto-discovery must not invoke release blocker rollup with empty inputs."
+$emptyAutoDiscoverSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $emptyAutoDiscoverSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([bool]$emptyAutoDiscoverSummary.release_blocker_rollup.auto_discover) -Expected $true `
+    -Message "Empty auto-discovery summary should record that auto-discovery was enabled."
+Assert-Equal -Actual ([int]$emptyAutoDiscoverSummary.release_blocker_rollup.auto_discovered_input_json.Count) -Expected 0 `
+    -Message "Empty auto-discovery summary should record zero discovered inputs."
+Assert-Equal -Actual ([string]$emptyAutoDiscoverSummary.release_blocker_rollup.status) -Expected "not_requested" `
+    -Message "Empty auto-discovery should not request rollup when no fixed governance summaries are found."
+
 Write-Host "Release candidate blocker rollup regression passed."
