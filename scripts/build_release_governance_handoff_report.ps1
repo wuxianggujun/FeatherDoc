@@ -178,6 +178,34 @@ function Get-PdfVisualGateRollupEvidence {
     )
 }
 
+function Get-ManifestSignoffEntrypointsRollupEvidence {
+    param($RollupSummary)
+
+    return @(
+        foreach ($sourceReport in @(Get-JsonArray -Object $RollupSummary -Name "source_reports")) {
+            $status = Get-JsonString -Object $sourceReport -Name "manifest_signoff_entrypoints_status"
+            $releaseAssetsManifest = Get-JsonString -Object $sourceReport -Name "manifest_signoff_entrypoints_release_assets_manifest"
+            if ([string]::IsNullOrWhiteSpace($status) -and [string]::IsNullOrWhiteSpace($releaseAssetsManifest)) {
+                continue
+            }
+
+            [ordered]@{
+                schema = Get-JsonString -Object $sourceReport -Name "schema"
+                path_display = Get-JsonString -Object $sourceReport -Name "path_display"
+                manifest_signoff_entrypoints_status = $status
+                manifest_signoff_entrypoints_release_assets_manifest = $releaseAssetsManifest
+                manifest_signoff_entrypoints_release_assets_manifest_display = Get-JsonString -Object $sourceReport -Name "manifest_signoff_entrypoints_release_assets_manifest_display"
+                manifest_signoff_entrypoints_required_entrypoint_count = Get-FirstJsonProperty -Object $sourceReport -Names @("manifest_signoff_entrypoints_required_entrypoint_count")
+                manifest_signoff_entrypoints_entrypoint_ids = @(Get-JsonArray -Object $sourceReport -Name "manifest_signoff_entrypoints_entrypoint_ids")
+                manifest_signoff_entrypoints_entrypoints = @(Get-JsonArray -Object $sourceReport -Name "manifest_signoff_entrypoints_entrypoints")
+                manifest_signoff_entrypoints_required_contracts = @(Get-JsonArray -Object $sourceReport -Name "manifest_signoff_entrypoints_required_contracts")
+                manifest_signoff_entrypoints_required_fields = @(Get-JsonArray -Object $sourceReport -Name "manifest_signoff_entrypoints_required_fields")
+                manifest_signoff_entrypoints_checklist_marker = Get-JsonString -Object $sourceReport -Name "manifest_signoff_entrypoints_checklist_marker"
+            }
+        }
+    )
+}
+
 function Get-GovernanceMetricByContract {
     param(
         $Metrics,
@@ -863,6 +891,19 @@ function New-ReportMarkdown {
                 $lines.Add("    - full_visual_gate_status: ``$($evidence.full_visual_gate_status)``") | Out-Null
             }
         }
+        $lines.Add("- Manifest signoff entrypoints evidence source reports: ``$($rollup.manifest_signoff_entrypoints_source_report_count)``") | Out-Null
+        foreach ($evidence in @($rollup.manifest_signoff_entrypoints_source_reports)) {
+            $lines.Add("  - source_report: ``$($evidence.path_display)`` schema=``$($evidence.schema)``") | Out-Null
+            $lines.Add("    - manifest_signoff_entrypoints_status: ``$($evidence.manifest_signoff_entrypoints_status)``") | Out-Null
+            $lines.Add("    - manifest_signoff_entrypoints_release_assets_manifest_display: ``$($evidence.manifest_signoff_entrypoints_release_assets_manifest_display)``") | Out-Null
+            $lines.Add("    - manifest_signoff_entrypoints_required_entrypoint_count: ``$($evidence.manifest_signoff_entrypoints_required_entrypoint_count)``") | Out-Null
+            $lines.Add("    - manifest_signoff_entrypoints_entrypoint_ids: ``$(@($evidence.manifest_signoff_entrypoints_entrypoint_ids) -join ', ')``") | Out-Null
+            $lines.Add("    - manifest_signoff_entrypoints_required_contracts: ``$(@($evidence.manifest_signoff_entrypoints_required_contracts) -join ', ')``") | Out-Null
+            $lines.Add("    - manifest_signoff_entrypoints_required_fields: ``$(@($evidence.manifest_signoff_entrypoints_required_fields) -join ', ')``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$evidence.manifest_signoff_entrypoints_checklist_marker)) {
+                $lines.Add("    - manifest_signoff_entrypoints_checklist_marker: ``$($evidence.manifest_signoff_entrypoints_checklist_marker)``") | Out-Null
+            }
+        }
         $lines.Add("") | Out-Null
     }
 
@@ -1245,6 +1286,8 @@ $summary = [ordered]@{
         warning_count = 0
         pdf_visual_gate_evidence_source_report_count = 0
         pdf_visual_gate_evidence_source_reports = @()
+        manifest_signoff_entrypoints_source_report_count = 0
+        manifest_signoff_entrypoints_source_reports = @()
     }
     expected_report_count = $expectedReports.Count
     loaded_report_count = $loadedReportCount
@@ -1301,6 +1344,9 @@ if ($IncludeReleaseBlockerRollup) {
     $summary.release_blocker_rollup.warning_count = [int]$rollupSummary.warning_count
     $summary.release_blocker_rollup.pdf_visual_gate_evidence_source_report_count = @($pdfVisualGateEvidence).Count
     $summary.release_blocker_rollup.pdf_visual_gate_evidence_source_reports = @($pdfVisualGateEvidence)
+    $manifestSignoffEvidence = @(Get-ManifestSignoffEntrypointsRollupEvidence -RollupSummary $rollupSummary)
+    $summary.release_blocker_rollup.manifest_signoff_entrypoints_source_report_count = @($manifestSignoffEvidence).Count
+    $summary.release_blocker_rollup.manifest_signoff_entrypoints_source_reports = @($manifestSignoffEvidence)
     ($summary | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
     (New-ReportMarkdown -Summary $summary) | Set-Content -LiteralPath $markdownPath -Encoding UTF8
 }

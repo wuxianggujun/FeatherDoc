@@ -1375,6 +1375,10 @@ function Add-ReleaseGovernanceSourceReportContractLines {
             -Report $report `
             -SourceReportDisplay $sourceReportDisplay `
             -SourceJsonDisplay $sourceJsonDisplay
+        Add-ReleaseGovernanceManifestSignoffSourceReportLines `
+            -Lines $Lines `
+            -Report $report `
+            -Indent "  "
 
         foreach ($fieldName in @(
                 "preflight_ready",
@@ -1395,6 +1399,61 @@ function Add-ReleaseGovernanceSourceReportContractLines {
                 [void]$Lines.Add("  - ${label}: $fieldValue")
             }
         }
+    }
+}
+
+function Add-ReleaseGovernanceManifestSignoffSourceReportLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Report,
+        [string]$Indent = "  "
+    )
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Report -Name "manifest_signoff_entrypoints_status"
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "manifest_signoff_entrypoints_status",
+            "manifest_signoff_entrypoints_release_assets_manifest",
+            "manifest_signoff_entrypoints_release_assets_manifest_display",
+            "manifest_signoff_entrypoints_required_entrypoint_count",
+            "manifest_signoff_entrypoints_checklist_marker"
+        )) {
+        $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Report -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+            [void]$Lines.Add("${Indent}- ${fieldName}: $fieldValue")
+        }
+    }
+
+    foreach ($fieldName in @(
+            "manifest_signoff_entrypoints_entrypoint_ids",
+            "manifest_signoff_entrypoints_required_contracts",
+            "manifest_signoff_entrypoints_required_fields"
+        )) {
+        $values = @(
+            Get-ReleaseBlockerArrayProperty -Object $Report -Name $fieldName |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        if ($values.Count -gt 0) {
+            [void]$Lines.Add("${Indent}- ${fieldName}: $($values -join ', ')")
+        }
+    }
+
+    $entrypoints = @(Get-ReleaseBlockerArrayProperty -Object $Report -Name "manifest_signoff_entrypoints_entrypoints")
+    if ($entrypoints.Count -eq 0) {
+        return
+    }
+
+    [void]$Lines.Add("${Indent}- manifest_signoff_entrypoints:")
+    $entryIndent = "${Indent}  "
+    foreach ($entrypoint in $entrypoints) {
+        $id = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypoint -Name "id") -Fallback "(unknown entrypoint)"
+        $required = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypoint -Name "required")
+        $pathDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypoint -Name "path_display")
+        [void]$Lines.Add("${entryIndent}- ${id}: required=$required path_display=$pathDisplay")
     }
 }
 
@@ -2491,6 +2550,23 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
     [void]$Lines.Add("- Blockers: $($releaseBlockers.Count)")
     [void]$Lines.Add("- Warnings: $($warnings.Count)")
     [void]$Lines.Add("- Action items: $($actionItems.Count)")
+    $manifestSignoffReports = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "manifest_signoff_entrypoints_source_reports")
+    $manifestSignoffCount = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "manifest_signoff_entrypoints_source_report_count"
+    if ([string]::IsNullOrWhiteSpace($manifestSignoffCount)) {
+        $manifestSignoffCount = [string]$manifestSignoffReports.Count
+    }
+    if ($manifestSignoffReports.Count -gt 0 -or $manifestSignoffCount -ne "0") {
+        [void]$Lines.Add("- Manifest signoff entrypoints evidence source reports: $manifestSignoffCount")
+        foreach ($report in $manifestSignoffReports) {
+            $sourceReportDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display")
+            $schema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")
+            [void]$Lines.Add("  - source_report: $sourceReportDisplay schema=$schema")
+            Add-ReleaseGovernanceManifestSignoffSourceReportLines `
+                -Lines $Lines `
+                -Report $report `
+                -Indent "    "
+        }
+    }
 
     Add-ReleaseGovernanceMetricsMarkdownSection -Lines $Lines -Summary $handoff
 

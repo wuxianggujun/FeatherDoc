@@ -593,6 +593,70 @@ function Add-PdfBoundedCtestEvidenceFields {
         -Value @(Get-JsonArray -Object $pdfBoundedCtest -Name "summary_json_display")
 }
 
+function Add-ManifestSignoffEntrypointsEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary,
+        [string]$RepoRoot
+    )
+
+    $signoff = Get-JsonProperty -Object $Summary -Name "manifest_signoff_entrypoints"
+    if ($null -eq $signoff) {
+        return
+    }
+
+    $releaseAssetsManifest = Get-JsonString -Object $signoff -Name "release_assets_manifest"
+    $releaseAssetsManifestDisplay = ""
+    if (-not [string]::IsNullOrWhiteSpace($releaseAssetsManifest)) {
+        try {
+            $resolvedManifest = Resolve-RepoPath -RepoRoot $RepoRoot -Path $releaseAssetsManifest -AllowMissing
+            $releaseAssetsManifestDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $resolvedManifest
+        } catch {
+            $normalizedManifest = $releaseAssetsManifest -replace '/', '\'
+            $looksRooted = $normalizedManifest.StartsWith('\\') -or $normalizedManifest -match '^[A-Za-z]:\\'
+            $releaseAssetsManifestDisplay = if ($normalizedManifest.StartsWith('.\') -or $looksRooted) {
+                $normalizedManifest
+            } else {
+                ".\$normalizedManifest"
+            }
+        }
+    }
+
+    $entrypointEvidence = @(
+        foreach ($entrypoint in @(Get-JsonArray -Object $signoff -Name "entrypoints")) {
+            $id = Get-JsonString -Object $entrypoint -Name "id"
+            if ([string]::IsNullOrWhiteSpace($id)) {
+                continue
+            }
+
+            [ordered]@{
+                id = $id
+                required = Get-JsonBool -Object $entrypoint -Name "required"
+                path_display = Get-JsonString -Object $entrypoint -Name "path_display"
+            }
+        }
+    )
+
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_status" `
+        -Value (Get-JsonString -Object $signoff -Name "status")
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_release_assets_manifest" `
+        -Value $releaseAssetsManifest
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_release_assets_manifest_display" `
+        -Value $releaseAssetsManifestDisplay
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_required_entrypoint_count" `
+        -Value (Get-FirstJsonProperty -Object $signoff -Names @("required_entrypoint_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_entrypoint_ids" `
+        -Value @($entrypointEvidence | ForEach-Object { [string]$_.id })
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_entrypoints" `
+        -Value @($entrypointEvidence)
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_required_contracts" `
+        -Value @(Get-JsonArray -Object $signoff -Name "required_contracts")
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_required_fields" `
+        -Value @(Get-JsonArray -Object $signoff -Name "required_fields")
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_checklist_marker" `
+        -Value (Get-JsonString -Object $signoff -Name "checklist_marker")
+}
+
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
@@ -659,6 +723,52 @@ function Add-ReadinessActionEvidenceMarkdownLines {
                 $Lines.Add("      - ${fieldName}: ``$fieldValue``") | Out-Null
             }
         }
+    }
+}
+
+function Add-ManifestSignoffEntrypointsMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Report
+    )
+
+    $status = Get-JsonString -Object $Report -Name "manifest_signoff_entrypoints_status"
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "manifest_signoff_entrypoints_status",
+            "manifest_signoff_entrypoints_release_assets_manifest",
+            "manifest_signoff_entrypoints_release_assets_manifest_display",
+            "manifest_signoff_entrypoints_required_entrypoint_count",
+            "manifest_signoff_entrypoints_entrypoint_ids",
+            "manifest_signoff_entrypoints_required_contracts",
+            "manifest_signoff_entrypoints_required_fields",
+            "manifest_signoff_entrypoints_checklist_marker"
+        )) {
+        $fieldValue = Get-JsonProperty -Object $Report -Name $fieldName
+        $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+            @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+        } else {
+            [string]$fieldValue
+        }
+        if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+            $Lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
+        }
+    }
+
+    $entrypoints = @(Get-JsonArray -Object $Report -Name "manifest_signoff_entrypoints_entrypoints")
+    if ($entrypoints.Count -eq 0) {
+        return
+    }
+
+    $Lines.Add("  - manifest_signoff_entrypoints:") | Out-Null
+    foreach ($entrypoint in $entrypoints) {
+        $id = Get-JsonString -Object $entrypoint -Name "id" -DefaultValue "(unknown entrypoint)"
+        $required = Get-JsonProperty -Object $entrypoint -Name "required"
+        $pathDisplay = Get-JsonString -Object $entrypoint -Name "path_display"
+        $Lines.Add("    - ``${id}``: required=``$required`` path_display=``$pathDisplay``") | Out-Null
     }
 }
 
@@ -781,6 +891,7 @@ function New-ReportMarkdown {
                     $lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
                 }
             }
+            Add-ManifestSignoffEntrypointsMarkdownLines -Lines $lines -Report $report
             $controlledVisualSmokeAvailable = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_available"
             if ($null -ne $controlledVisualSmokeAvailable) {
                 $lines.Add("  - controlled_visual_smoke_available: ``$controlledVisualSmokeAvailable``") | Out-Null
@@ -1250,6 +1361,7 @@ foreach ($path in @($inputPaths)) {
         )
     Add-PdfVisualGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-PdfBoundedCtestEvidenceFields -Target $sourceReport -Summary $summaryObject
+    Add-ManifestSignoffEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     $sourceReports.Add($sourceReport) | Out-Null
 }
 

@@ -894,6 +894,40 @@ if (Test-Scenario -Name "include_rollup") {
         status = "ready"
         release_ready = $true
         pdf_visual_gate_summary_json = "output/pdf-visual-release-gate-current/report/summary.json"
+        manifest_signoff_entrypoints = [ordered]@{
+            status = "declared"
+            release_assets_manifest = "output\release-assets\v<version>\release_assets_manifest.json"
+            required_entrypoint_count = 3
+            entrypoints = @(
+                [ordered]@{
+                    id = "start_here"
+                    path_display = ".\output\release-candidate-checks\START_HERE.md"
+                    required = $true
+                },
+                [ordered]@{
+                    id = "artifact_guide"
+                    path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+                    required = $true
+                },
+                [ordered]@{
+                    id = "reviewer_checklist"
+                    path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+                    required = $true
+                }
+            )
+            required_contracts = @(
+                "project_template_delivery_readiness_contract",
+                "project_template_onboarding_governance_contract"
+            )
+            required_fields = @(
+                "status",
+                "release_ready",
+                "schema_approval_status_summary",
+                "source_report_display",
+                "source_json_display"
+            )
+            checklist_marker = "reviewer_manifest_scoped_project_template_trace"
+        }
         release_blocker_count = 0
         release_blockers = @()
         action_item_count = 0
@@ -1014,6 +1048,29 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_summary_json_display) -join ",") `
         -ExpectedText "pdf-ctest-bounded-regression-table-layout-current\summary.json" `
         -Message "Handoff summary should expose PDF bounded CTest summary display paths from the nested rollup."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.manifest_signoff_entrypoints_source_report_count) -Expected 1 `
+        -Message "Handoff summary should consume nested manifest signoff evidence count."
+    $manifestSignoffEvidence = $summary.release_blocker_rollup.manifest_signoff_entrypoints_source_reports | Select-Object -First 1
+    Assert-True -Condition ($null -ne $manifestSignoffEvidence) `
+        -Message "Handoff summary should expose at least one manifest signoff evidence source report."
+    Assert-Equal -Actual ([string]$manifestSignoffEvidence.manifest_signoff_entrypoints_status) -Expected "declared" `
+        -Message "Handoff summary should expose manifest signoff status from the nested rollup."
+    Assert-ContainsText -Text ([string]$manifestSignoffEvidence.manifest_signoff_entrypoints_release_assets_manifest_display) `
+        -ExpectedText "release_assets_manifest.json" `
+        -Message "Handoff summary should expose release assets manifest display path from the nested rollup."
+    Assert-Equal -Actual ([int]$manifestSignoffEvidence.manifest_signoff_entrypoints_required_entrypoint_count) -Expected 3 `
+        -Message "Handoff summary should expose required manifest signoff entrypoint count."
+    Assert-ContainsText -Text (@($manifestSignoffEvidence.manifest_signoff_entrypoints_entrypoint_ids) -join "`n") `
+        -ExpectedText "reviewer_checklist" `
+        -Message "Handoff summary should expose reviewer checklist manifest signoff entrypoint."
+    Assert-ContainsText -Text (@($manifestSignoffEvidence.manifest_signoff_entrypoints_required_contracts) -join "`n") `
+        -ExpectedText "project_template_delivery_readiness_contract" `
+        -Message "Handoff summary should expose manifest signoff required project-template delivery contract."
+    Assert-ContainsText -Text (@($manifestSignoffEvidence.manifest_signoff_entrypoints_required_fields) -join "`n") `
+        -ExpectedText "source_json_display" `
+        -Message "Handoff summary should expose manifest signoff required traceability fields."
+    Assert-Equal -Actual ([string]$manifestSignoffEvidence.manifest_signoff_entrypoints_checklist_marker) -Expected "reviewer_manifest_scoped_project_template_trace" `
+        -Message "Handoff summary should expose manifest signoff reviewer checklist marker."
 
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
@@ -1047,6 +1104,14 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (($rollupSummary.warnings | ForEach-Object { [string]$_.candidate_type }) -join "`n") `
         -ExpectedText "rename" `
         -Message "Nested rollup should preserve calibration candidate type."
+    $rollupReleaseCandidateSourceReport = ($rollupSummary.source_reports |
+        Where-Object { [string]$_.schema -eq "featherdoc.release_candidate_summary" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.manifest_signoff_entrypoints_status) -Expected "declared" `
+        -Message "Nested rollup should preserve manifest signoff status from release candidate summaries."
+    Assert-ContainsText -Text (@($rollupReleaseCandidateSourceReport.manifest_signoff_entrypoints_entrypoint_ids) -join "`n") `
+        -ExpectedText "start_here" `
+        -Message "Nested rollup should preserve manifest signoff START_HERE entrypoint."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
     Assert-ContainsText -Text $markdown -ExpectedText "PDF visual gate evidence source reports: ``1``" `
@@ -1073,6 +1138,16 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should expose the PDF bounded CTest skipped test count."
     Assert-ContainsText -Text $markdown -ExpectedText "regression-business-samples" `
         -Message "Handoff Markdown should expose the PDF bounded CTest subset names."
+    Assert-ContainsText -Text $markdown -ExpectedText "Manifest signoff entrypoints evidence source reports: ``1``" `
+        -Message "Handoff Markdown should expose the manifest signoff evidence count."
+    Assert-ContainsText -Text $markdown -ExpectedText "manifest_signoff_entrypoints_status: ``declared``" `
+        -Message "Handoff Markdown should expose the manifest signoff status."
+    Assert-ContainsText -Text $markdown -ExpectedText "manifest_signoff_entrypoints_release_assets_manifest_display" `
+        -Message "Handoff Markdown should expose the release assets manifest display field."
+    Assert-ContainsText -Text $markdown -ExpectedText "manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``" `
+        -Message "Handoff Markdown should expose all manifest signoff entrypoint ids."
+    Assert-ContainsText -Text $markdown -ExpectedText "reviewer_manifest_scoped_project_template_trace" `
+        -Message "Handoff Markdown should expose the manifest signoff checklist marker."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
         "schema=``featherdoc.release_candidate_summary``",
         "pdf_visual_gate_status: ``loaded``",

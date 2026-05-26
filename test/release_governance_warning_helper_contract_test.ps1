@@ -585,6 +585,30 @@ Add-ReleaseGovernanceHandoffMarkdownSection `
             release_blockers = @($styleMergeBlocker)
             warnings = @($warningWithoutStyleMergeCount)
             action_items = @($restoreAuditActionItem)
+            manifest_signoff_entrypoints_source_report_count = 1
+            manifest_signoff_entrypoints_source_reports = @(
+                [pscustomobject]@{
+                    schema = "featherdoc.release_candidate_summary"
+                    path_display = ".\output\release-candidate-checks\report\summary.json"
+                    manifest_signoff_entrypoints_status = "declared"
+                    manifest_signoff_entrypoints_release_assets_manifest = "output\release-assets\v1.6.4\release_assets_manifest.json"
+                    manifest_signoff_entrypoints_release_assets_manifest_display = ".\output\release-assets\v1.6.4\release_assets_manifest.json"
+                    manifest_signoff_entrypoints_required_entrypoint_count = 3
+                    manifest_signoff_entrypoints_entrypoint_ids = @("start_here", "artifact_guide", "reviewer_checklist")
+                    manifest_signoff_entrypoints_required_contracts = @(
+                        "project_template_delivery_readiness_contract",
+                        "project_template_onboarding_governance_contract"
+                    )
+                    manifest_signoff_entrypoints_required_fields = @(
+                        "status",
+                        "release_ready",
+                        "schema_approval_status_summary",
+                        "source_report_display",
+                        "source_json_display"
+                    )
+                    manifest_signoff_entrypoints_checklist_marker = "reviewer_manifest_scoped_project_template_trace"
+                }
+            )
         }
     }) `
     -RepoRoot $resolvedRepoRoot
@@ -603,6 +627,16 @@ Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText 'source_report_di
     -Message "Handoff metric Markdown should render source report display paths."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText 'source_json_display: .\output\numbering-catalog-governance\coverage.json' `
     -Message "Handoff metric Markdown should render source JSON display paths."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "Manifest signoff entrypoints evidence source reports: 1" `
+    -Message "Handoff detail Markdown should render manifest signoff evidence count."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "manifest_signoff_entrypoints_status: declared" `
+    -Message "Handoff detail Markdown should render manifest signoff status."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "manifest_signoff_entrypoints_release_assets_manifest_display: .\output\release-assets\v1.6.4\release_assets_manifest.json" `
+    -Message "Handoff detail Markdown should render release assets manifest display path."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "manifest_signoff_entrypoints_entrypoint_ids: start_here, artifact_guide, reviewer_checklist" `
+    -Message "Handoff detail Markdown should render manifest signoff entrypoint ids."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "reviewer_manifest_scoped_project_template_trace" `
+    -Message "Handoff detail Markdown should render manifest signoff checklist marker."
 
 $actionChecklistItems = @(Get-ReleaseGovernanceActionItemChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{

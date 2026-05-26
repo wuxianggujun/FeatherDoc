@@ -406,6 +406,40 @@ Write-JsonFile -Path $schemaCalibrationPath -Value ([ordered]@{
 Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
     schema = "featherdoc.release_candidate_summary"
     pdf_visual_gate_summary_json = "output/pdf-visual-release-gate-current/report/summary.json"
+    manifest_signoff_entrypoints = [ordered]@{
+        status = "declared"
+        release_assets_manifest = "output\release-assets\v<version>\release_assets_manifest.json"
+        required_entrypoint_count = 3
+        entrypoints = @(
+            [ordered]@{
+                id = "start_here"
+                path_display = ".\output\release-candidate-checks\START_HERE.md"
+                required = $true
+            },
+            [ordered]@{
+                id = "artifact_guide"
+                path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+                required = $true
+            },
+            [ordered]@{
+                id = "reviewer_checklist"
+                path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+                required = $true
+            }
+        )
+        required_contracts = @(
+            "project_template_delivery_readiness_contract",
+            "project_template_onboarding_governance_contract"
+        )
+        required_fields = @(
+            "status",
+            "release_ready",
+            "schema_approval_status_summary",
+            "source_report_display",
+            "source_json_display"
+        )
+        checklist_marker = "reviewer_manifest_scoped_project_template_trace"
+    }
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -1002,6 +1036,30 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (@($releaseCandidateSourceReport.pdf_bounded_ctest_summary_json_display) -join ",") `
         -ExpectedText "pdf-ctest-bounded-regression-table-layout-current\summary.json" `
         -Message "Rollup should preserve PDF bounded CTest summary display paths."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.manifest_signoff_entrypoints_status) -Expected "declared" `
+        -Message "Rollup should preserve manifest signoff status from release candidate summaries."
+    Assert-ContainsText -Text ([string]$releaseCandidateSourceReport.manifest_signoff_entrypoints_release_assets_manifest_display) `
+        -ExpectedText "release_assets_manifest.json" `
+        -Message "Rollup should preserve reviewer-openable release assets manifest display path."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.manifest_signoff_entrypoints_required_entrypoint_count) -Expected 3 `
+        -Message "Rollup should preserve manifest signoff required entrypoint count."
+    Assert-ContainsText -Text (@($releaseCandidateSourceReport.manifest_signoff_entrypoints_entrypoint_ids) -join "`n") `
+        -ExpectedText "start_here" `
+        -Message "Rollup should preserve START_HERE manifest signoff entrypoint."
+    Assert-ContainsText -Text (@($releaseCandidateSourceReport.manifest_signoff_entrypoints_entrypoint_ids) -join "`n") `
+        -ExpectedText "artifact_guide" `
+        -Message "Rollup should preserve artifact guide manifest signoff entrypoint."
+    Assert-ContainsText -Text (@($releaseCandidateSourceReport.manifest_signoff_entrypoints_entrypoint_ids) -join "`n") `
+        -ExpectedText "reviewer_checklist" `
+        -Message "Rollup should preserve reviewer checklist manifest signoff entrypoint."
+    Assert-ContainsText -Text (@($releaseCandidateSourceReport.manifest_signoff_entrypoints_required_contracts) -join "`n") `
+        -ExpectedText "project_template_onboarding_governance_contract" `
+        -Message "Rollup should preserve manifest signoff required governance contracts."
+    Assert-ContainsText -Text (@($releaseCandidateSourceReport.manifest_signoff_entrypoints_required_fields) -join "`n") `
+        -ExpectedText "source_json_display" `
+        -Message "Rollup should preserve manifest signoff required traceability fields."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.manifest_signoff_entrypoints_checklist_marker) -Expected "reviewer_manifest_scoped_project_template_trace" `
+        -Message "Rollup should preserve manifest signoff reviewer checklist marker."
     $skeletonWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "document_skeleton.exemplar_catalog_missing" } |
         Select-Object -First 1)
@@ -1117,7 +1175,21 @@ if (Test-Scenario -Name "passing") {
         "pdf_bounded_ctest_subsets:",
         "regression-table-layout",
         "pdf_bounded_ctest_summary_json_display:",
-        "pdf-ctest-bounded-regression-business-samples-current\summary.json"
+        "pdf-ctest-bounded-regression-business-samples-current\summary.json",
+        "manifest_signoff_entrypoints_status: ``declared``",
+        "manifest_signoff_entrypoints_release_assets_manifest_display:",
+        "release_assets_manifest.json",
+        "manifest_signoff_entrypoints_required_entrypoint_count: ``3``",
+        "manifest_signoff_entrypoints_entrypoint_ids:",
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "manifest_signoff_entrypoints_required_contracts:",
+        "project_template_delivery_readiness_contract",
+        "manifest_signoff_entrypoints_required_fields:",
+        "source_json_display",
+        "manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``",
+        "``reviewer_checklist``: required=``True``"
     ) -Message "Markdown should keep release-candidate PDF visual source-report evidence in one Source Report Contracts block."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_status" `
         -Message "Markdown should include controlled PDF visual smoke status."
