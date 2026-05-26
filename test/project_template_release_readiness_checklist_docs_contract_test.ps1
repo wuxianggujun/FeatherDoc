@@ -149,6 +149,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_final_review_source_schema_identity_trace",
     "project_template_readiness_checklist_entrypoints_release_metadata_details_source_schema_identity_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_trace",
+    "project_template_readiness_checklist_entrypoints_release_entry_path_display_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_source_report_identity_trace",
     "project_template_readiness_checklist_entrypoints_packaged_material_safety_trace",
@@ -203,6 +204,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_final_review_source_schema_identity_trace",
     "project_template_readiness_checklist_entrypoints_release_metadata_details_source_schema_identity_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_trace",
+    "project_template_readiness_checklist_entrypoints_release_entry_path_display_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_source_report_identity_trace",
     "project_template_readiness_checklist_entrypoints_packaged_material_safety_trace",
@@ -482,6 +484,12 @@ Assert-ContainsText -Text $releaseBlockerMetadataHelpersScript -ExpectedText "Ge
     -Message "Release entry flow should have a compact checklist handoff evidence line helper."
 Assert-ContainsText -Text $releaseBlockerMetadataHelpersScript -ExpectedText "Project-template readiness checklist handoff evidence" `
     -Message "Release entry flow helper should render the checklist handoff evidence label."
+Assert-ContainsText -Text $releaseBlockerMetadataHelpersScript -ExpectedText "project_template_readiness_checklist_entrypoints_required_entrypoint_count" `
+    -Message "Compact checklist handoff evidence should render the required entrypoint count."
+Assert-ContainsText -Text $releaseBlockerMetadataHelpersScript -ExpectedText "project_template_readiness_checklist_entrypoints_entrypoints" `
+    -Message "Compact checklist handoff evidence should render entrypoint path_display details."
+Assert-ContainsText -Text $releaseBlockerMetadataHelpersScript -ExpectedText "entrypoint_paths=" `
+    -Message "Compact checklist handoff evidence should expose entrypoint_paths on one line."
 Assert-ContainsText -Text $releaseBlockerMetadataHelpersScript -ExpectedText "Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine" `
     -Message "Release entry flow should have a compact checklist packaged audit evidence line helper."
 Assert-ContainsText -Text $releaseBlockerMetadataHelpersScript -ExpectedText "Project-template readiness checklist packaged audit evidence" `
@@ -503,6 +511,12 @@ foreach ($scriptText in @($releaseBundleVersionTest)) {
         -Message "Release entry tests should lock the checklist handoff evidence label."
     Assert-ContainsText -Text $scriptText -ExpectedText "project_template_readiness_checklist_entrypoints_source_reports" `
         -Message "Release entry tests should expose checklist handoff source-report evidence."
+    Assert-ContainsText -Text $scriptText -ExpectedText "required_entrypoint_count=3" `
+        -Message "Release entry tests should lock checklist handoff required entrypoint count."
+    Assert-ContainsText -Text $scriptText -ExpectedText "entrypoint_paths=" `
+        -Message "Release entry tests should lock checklist handoff entrypoint path display trace."
+    Assert-ContainsText -Text $scriptText -ExpectedText "path_display=.\output\release-candidate-checks\START_HERE.md" `
+        -Message "Release entry tests should lock START_HERE path_display evidence."
     Assert-ContainsText -Text $scriptText -ExpectedText "source_report=.\output\release-candidate-checks\summary.json" `
         -Message "Release entry tests should lock checklist handoff evidence to the release-candidate summary source."
     Assert-ContainsText -Text $scriptText -ExpectedText "Project-template readiness checklist packaged audit evidence" `
@@ -546,6 +560,8 @@ foreach ($marker in @(
     "release-blocker-rollup",
     "featherdoc.release_candidate_summary",
     "project_template_readiness_checklist_entrypoints_checklist_path",
+    "required_entrypoint_count=3",
+    "entrypoint_paths=",
     "project_template_readiness_checklist_entrypoints_checklist_marker",
     "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker"
 )) {

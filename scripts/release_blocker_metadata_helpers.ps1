@@ -1572,8 +1572,21 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEviden
             ForEach-Object { [string]$_ } |
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     )
+    $entrypointPathParts = @(
+        Get-ReleaseBlockerArrayProperty -Object $report -Name "project_template_readiness_checklist_entrypoints_entrypoints" |
+            ForEach-Object {
+                $id = Get-ReleaseBlockerPropertyValue -Object $_ -Name "id"
+                if (-not [string]::IsNullOrWhiteSpace($id)) {
+                    $required = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "required")
+                    $pathDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display")
 
-    return "Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=$count, status=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "project_template_readiness_checklist_entrypoints_status")), checklist_path=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "project_template_readiness_checklist_entrypoints_checklist_path")), entrypoints=$(Get-ReleaseBlockerDisplayValue -Value ($entrypointIds -join ', ')), marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "project_template_readiness_checklist_entrypoints_checklist_marker")), source_report=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display"))"
+                    "${id}:required=${required}:path_display=${pathDisplay}"
+                }
+            } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+
+    return "Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=$count, status=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "project_template_readiness_checklist_entrypoints_status")), checklist_path=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "project_template_readiness_checklist_entrypoints_checklist_path")), required_entrypoint_count=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "project_template_readiness_checklist_entrypoints_required_entrypoint_count")), entrypoints=$(Get-ReleaseBlockerDisplayValue -Value ($entrypointIds -join ', ')), entrypoint_paths=$(Get-ReleaseBlockerDisplayValue -Value ($entrypointPathParts -join '; ')), marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "project_template_readiness_checklist_entrypoints_checklist_marker")), source_report=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display"))"
 }
 
 function Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine {

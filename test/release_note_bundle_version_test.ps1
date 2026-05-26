@@ -816,6 +816,23 @@ $summary = [ordered]@{
                     "artifact_guide",
                     "reviewer_checklist"
                 )
+                project_template_readiness_checklist_entrypoints_entrypoints = @(
+                    [ordered]@{
+                        id = "start_here"
+                        required = $true
+                        path_display = ".\output\release-candidate-checks\START_HERE.md"
+                    },
+                    [ordered]@{
+                        id = "artifact_guide"
+                        required = $true
+                        path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+                    },
+                    [ordered]@{
+                        id = "reviewer_checklist"
+                        required = $true
+                        path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+                    }
+                )
                 project_template_readiness_checklist_entrypoints_checklist_marker = "release_entry_project_template_readiness_checklist_trace"
             }
         )
@@ -1156,7 +1173,12 @@ foreach ($document in $checklistHandoffEntryDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'Project-template readiness checklist handoff evidence' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'project_template_readiness_checklist_entrypoints_source_reports=1' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'docs/project_template_release_readiness_checklist_zh.rst' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'required_entrypoint_count=3' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'start_here, artifact_guide, reviewer_checklist' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'entrypoint_paths=' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'release_entry_project_template_readiness_checklist_trace' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report=.\output\release-candidate-checks\summary.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'Project-template readiness checklist packaged audit evidence' -Label $document.Label

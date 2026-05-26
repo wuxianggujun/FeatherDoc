@@ -712,7 +712,7 @@ New-Item -ItemType Directory -Path $passEntryProjectTemplateChecklistHandoffEvid
 Set-Content -LiteralPath $passEntryProjectTemplateChecklistHandoffEvidencePath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, entrypoints=start_here, artifact_guide, reviewer_checklist, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-candidate-checks\summary.json
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-candidate-checks\summary.json
 "@
 
 & $auditScript -Path $passEntryProjectTemplateChecklistHandoffEvidencePath
@@ -723,7 +723,7 @@ New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistHandoffEvide
 Set-Content -LiteralPath $badEntryProjectTemplateChecklistHandoffEvidenceSplitPath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, entrypoints=start_here, artifact_guide, reviewer_checklist, source_report=.\output\release-candidate-checks\summary.json
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, source_report=.\output\release-candidate-checks\summary.json
 
 ## Detached notes
 
@@ -741,13 +741,33 @@ if (-not $badEntryProjectTemplateChecklistHandoffEvidenceSplitFailedAsExpected) 
     throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with project-template checklist handoff marker supplied only by detached notes."
 }
 
+$badEntryProjectTemplateChecklistHandoffEvidenceMissingPathsDir = Join-Path $failDir "entry-project-template-checklist-handoff-evidence-missing-paths"
+$badEntryProjectTemplateChecklistHandoffEvidenceMissingPathsPath = Join-Path $badEntryProjectTemplateChecklistHandoffEvidenceMissingPathsDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistHandoffEvidenceMissingPathsDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateChecklistHandoffEvidenceMissingPathsPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-candidate-checks\summary.json
+"@
+
+$badEntryProjectTemplateChecklistHandoffEvidenceMissingPathsFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateChecklistHandoffEvidenceMissingPathsPath
+} catch {
+    $badEntryProjectTemplateChecklistHandoffEvidenceMissingPathsFailedAsExpected = $true
+}
+
+if (-not $badEntryProjectTemplateChecklistHandoffEvidenceMissingPathsFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with project-template checklist handoff evidence missing entrypoint path_display values."
+}
+
 $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourceDir = Join-Path $failDir "entry-project-template-checklist-handoff-evidence-wrong-source"
 $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourcePath = Join-Path $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourceDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourceDir -Force | Out-Null
 Set-Content -LiteralPath $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourcePath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, entrypoints=start_here, artifact_guide, reviewer_checklist, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-blocker-rollup\summary.json
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-blocker-rollup\summary.json
 "@
 
 $badEntryProjectTemplateChecklistHandoffEvidenceWrongSourceFailedAsExpected = $false

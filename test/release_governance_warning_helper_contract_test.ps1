@@ -619,6 +619,23 @@ Add-ReleaseGovernanceHandoffMarkdownSection `
                     project_template_readiness_checklist_entrypoints_checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
                     project_template_readiness_checklist_entrypoints_required_entrypoint_count = 3
                     project_template_readiness_checklist_entrypoints_entrypoint_ids = @("start_here", "artifact_guide", "reviewer_checklist")
+                    project_template_readiness_checklist_entrypoints_entrypoints = @(
+                        [pscustomobject]@{
+                            id = "start_here"
+                            required = $true
+                            path_display = ".\output\release-candidate-checks\START_HERE.md"
+                        },
+                        [pscustomobject]@{
+                            id = "artifact_guide"
+                            required = $true
+                            path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+                        },
+                        [pscustomobject]@{
+                            id = "reviewer_checklist"
+                            required = $true
+                            path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+                        }
+                    )
                     project_template_readiness_checklist_entrypoints_checklist_marker = "release_entry_project_template_readiness_checklist_trace"
                 }
             )
@@ -672,8 +689,16 @@ Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "project_template
     -Message "Handoff detail Markdown should render project-template readiness checklist status."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "project_template_readiness_checklist_entrypoints_checklist_path: docs/project_template_release_readiness_checklist_zh.rst" `
     -Message "Handoff detail Markdown should render project-template readiness checklist path."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "project_template_readiness_checklist_entrypoints_required_entrypoint_count: 3" `
+    -Message "Handoff detail Markdown should render project-template readiness checklist required entrypoint count."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "project_template_readiness_checklist_entrypoints_entrypoint_ids: start_here, artifact_guide, reviewer_checklist" `
     -Message "Handoff detail Markdown should render project-template readiness checklist entrypoint ids."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "start_here: required=True path_display=.\output\release-candidate-checks\START_HERE.md" `
+    -Message "Handoff detail Markdown should render project-template readiness checklist START_HERE path."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "artifact_guide: required=True path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md" `
+    -Message "Handoff detail Markdown should render project-template readiness checklist artifact guide path."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "reviewer_checklist: required=True path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md" `
+    -Message "Handoff detail Markdown should render project-template readiness checklist reviewer checklist path."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "release_entry_project_template_readiness_checklist_trace" `
     -Message "Handoff detail Markdown should render project-template readiness checklist marker."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "Release-entry project-template readiness checklist material-safety audit source reports: 1" `
@@ -684,6 +709,54 @@ Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "release_entry_pr
     -Message "Handoff detail Markdown should render release-entry checklist material-safety audited entrypoints."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
     -Message "Handoff detail Markdown should render release-entry checklist material-safety marker."
+
+$projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary ([pscustomobject]@{
+        release_governance_handoff = [pscustomobject]@{
+            project_template_readiness_checklist_entrypoints_source_report_count = 1
+            project_template_readiness_checklist_entrypoints_source_reports = @(
+                [pscustomobject]@{
+                    path_display = ".\output\release-candidate-checks\summary.json"
+                    project_template_readiness_checklist_entrypoints_status = "declared"
+                    project_template_readiness_checklist_entrypoints_checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+                    project_template_readiness_checklist_entrypoints_required_entrypoint_count = 3
+                    project_template_readiness_checklist_entrypoints_entrypoint_ids = @("start_here", "artifact_guide", "reviewer_checklist")
+                    project_template_readiness_checklist_entrypoints_entrypoints = @(
+                        [pscustomobject]@{
+                            id = "start_here"
+                            required = $true
+                            path_display = ".\output\release-candidate-checks\START_HERE.md"
+                        },
+                        [pscustomobject]@{
+                            id = "artifact_guide"
+                            required = $true
+                            path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+                        },
+                        [pscustomobject]@{
+                            id = "reviewer_checklist"
+                            required = $true
+                            path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+                        }
+                    )
+                    project_template_readiness_checklist_entrypoints_checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+                }
+            )
+        }
+    })
+foreach ($expectedText in @(
+        "Project-template readiness checklist handoff evidence",
+        "project_template_readiness_checklist_entrypoints_source_reports=1",
+        "required_entrypoint_count=3",
+        "entrypoints=start_here, artifact_guide, reviewer_checklist",
+        "entrypoint_paths=",
+        "start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md",
+        "artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md",
+        "reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md",
+        "marker=release_entry_project_template_readiness_checklist_trace",
+        "source_report=.\output\release-candidate-checks\summary.json"
+    )) {
+    Assert-ContainsText -Text $projectTemplateChecklistHandoffEvidenceLine -ExpectedText $expectedText `
+        -Message "Compact project-template checklist handoff evidence line should include '$expectedText'."
+}
 
 $actionChecklistItems = @(Get-ReleaseGovernanceActionItemChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{

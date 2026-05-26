@@ -247,16 +247,18 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``project_template_readiness_checklist_entrypoints_source_reports``，并由
      ``release_governance_handoff.md``、``final_review.md``、``START_HERE.md``、
      ``ARTIFACT_GUIDE.md`` 和 ``REVIEWER_CHECKLIST.md`` 展示 ``status``、
-     ``checklist_label``、``checklist_path``、三个必需入口和
+     ``checklist_label``、``checklist_path``、``required_entrypoint_count=3``、
+     三个必需入口的 ``required=true`` / ``path_display`` 和
      ``release_entry_project_template_readiness_checklist_trace``。固定标记：
      ``project_template_readiness_checklist_entrypoints_governance_trace``。
      ``scripts/assert_release_material_safety.ps1`` 必须继续审计
      ``release_governance_handoff.md``、``final_review.md``、``release_handoff.md`` 与
      三个 release entry 文档中同一个 ``source_report`` 列表块是否同时携带
-     ``checklist_path``、三个必需入口和固定 checklist marker，不能把 marker 放到
-     detached notes 中补齐；同块还必须保留 ``featherdoc.release_candidate_summary``
-     schema 身份，避免 release blocker rollup 或其它报告冒充原始 release-candidate
-     证据。固定标记：
+     ``checklist_path``、``required_entrypoint_count=3``、三个必需入口的
+     ``required=true`` / ``path_display`` 和固定 checklist marker，不能把 marker
+     放到 detached notes 中补齐；同块还必须保留
+     ``featherdoc.release_candidate_summary`` schema 身份，避免 release blocker
+     rollup 或其它报告冒充原始 release-candidate 证据。固定标记：
      ``project_template_readiness_checklist_entrypoints_material_safety_trace``、
      ``project_template_readiness_checklist_entrypoints_handoff_source_schema_identity_trace``、
      ``project_template_readiness_checklist_entrypoints_final_review_source_schema_identity_trace``、
@@ -266,12 +268,16 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``scripts/write_release_reviewer_checklist.ps1`` 还必须把
      ``project_template_readiness_checklist_entrypoints_source_reports`` 的 compact evidence
      行展示到发布入口材料，让 reviewer 在 ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 和
-     ``REVIEWER_CHECKLIST.md`` 中直接看到 ``checklist_path``、三个入口和固定 marker。
+     ``REVIEWER_CHECKLIST.md`` 中直接看到 ``checklist_path``、
+     ``required_entrypoint_count=3``、``entrypoint_paths``、三个入口的
+     ``path_display`` 和固定 marker。
      固定标记：``project_template_readiness_checklist_entrypoints_release_entry_trace``。
      ``scripts/assert_release_material_safety.ps1`` 必须继续审计这条 compact evidence 行，
-     要求 count、status、``checklist_path``、三个入口、marker 和 ``source_report`` 保持在
+     要求 count、status、``checklist_path``、``required_entrypoint_count=3``、
+     ``entrypoint_paths``、三个入口的 ``path_display``、marker 和 ``source_report`` 保持在
      同一行，且 ``source_report`` 必须能识别 release-candidate summary 证据源，
      不能用 detached notes 或错误 source report 补齐。固定标记：
+     ``project_template_readiness_checklist_entrypoints_release_entry_path_display_trace``、
      ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``、
      ``project_template_readiness_checklist_entrypoints_release_entry_source_report_identity_trace``。
      ``scripts/package_release_assets.ps1`` 还必须在 staged release materials 阶段强制检查

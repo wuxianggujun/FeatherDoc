@@ -1079,10 +1079,15 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTra
         "project_template_readiness_checklist_entrypoints_source_reports=",
         "status=",
         "checklist_path=docs/project_template_release_readiness_checklist_zh.rst",
+        "required_entrypoint_count=3",
         "entrypoints=",
         "start_here",
         "artifact_guide",
         "reviewer_checklist",
+        "entrypoint_paths=",
+        "START_HERE.md",
+        "ARTIFACT_GUIDE.md",
+        "REVIEWER_CHECKLIST.md",
         "marker=release_entry_project_template_readiness_checklist_trace",
         "source_report="
     ))) {
@@ -1090,7 +1095,7 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTra
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release entry must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoints, marker, and source report on the same compact evidence line."
+            -Text "Release entry must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoint count, entrypoint ids, entrypoint paths, marker, and source report on the same compact evidence line."
     }
 
     if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `

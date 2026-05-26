@@ -188,16 +188,21 @@ function Assert-ProjectTemplateChecklistHandoffEvidenceLine {
         "project_template_readiness_checklist_entrypoints_source_reports=",
         "status=",
         "checklist_path=docs/project_template_release_readiness_checklist_zh.rst",
+        "required_entrypoint_count=3",
         "entrypoints=",
         "start_here",
         "artifact_guide",
         "reviewer_checklist",
+        "entrypoint_paths=",
+        "START_HERE.md",
+        "ARTIFACT_GUIDE.md",
+        "REVIEWER_CHECKLIST.md",
         "marker=release_entry_project_template_readiness_checklist_trace",
         "source_report="
     )
 
     if (-not (Test-TextLineContainsAll -Text $content -Needles $requiredFragments)) {
-        throw "$Label must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoints, marker, and source report on the same compact evidence line."
+        throw "$Label must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoint count, entrypoint ids, entrypoint paths, marker, and source report on the same compact evidence line."
     }
 }
 
