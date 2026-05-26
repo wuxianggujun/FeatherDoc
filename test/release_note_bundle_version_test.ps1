@@ -802,6 +802,23 @@ $summary = [ordered]@{
                 source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
             }
         )
+        project_template_readiness_checklist_entrypoints_source_report_count = 1
+        project_template_readiness_checklist_entrypoints_source_reports = @(
+            [ordered]@{
+                schema = "featherdoc.release_candidate_summary"
+                path_display = ".\output\release-candidate-checks\summary.json"
+                project_template_readiness_checklist_entrypoints_status = "declared"
+                project_template_readiness_checklist_entrypoints_checklist_label = "Project template release readiness checklist"
+                project_template_readiness_checklist_entrypoints_checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+                project_template_readiness_checklist_entrypoints_required_entrypoint_count = 3
+                project_template_readiness_checklist_entrypoints_entrypoint_ids = @(
+                    "start_here",
+                    "artifact_guide",
+                    "reviewer_checklist"
+                )
+                project_template_readiness_checklist_entrypoints_checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+            }
+        )
         governance_metric_count = 2
         governance_metrics = @(
             (New-NumberingGovernanceMetricFixture),
@@ -1110,6 +1127,19 @@ Assert-Contains -Path $manifestChecklistPath -ExpectedText 'project_template_onb
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'schema_approval_status_summary' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_report_display' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_json_display' -Label 'REVIEWER_CHECKLIST.md'
+$checklistHandoffEntryDocuments = @(
+    [pscustomobject]@{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+    [pscustomobject]@{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+    [pscustomobject]@{ Path = $startHerePath; Label = "START_HERE.md" }
+)
+foreach ($document in $checklistHandoffEntryDocuments) {
+    Assert-Contains -Path $document.Path -ExpectedText 'Project-template readiness checklist handoff evidence' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'project_template_readiness_checklist_entrypoints_source_reports=1' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'docs/project_template_release_readiness_checklist_zh.rst' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'start_here, artifact_guide, reviewer_checklist' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'release_entry_project_template_readiness_checklist_trace' -Label $document.Label
+}
+Assert-Contains -Path $checklistPath -ExpectedText 'Confirm release governance handoff carries project-template readiness checklist entrypoint evidence' -Label 'REVIEWER_CHECKLIST.md'
 foreach ($document in @(
         [pscustomobject]@{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
         [pscustomobject]@{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },

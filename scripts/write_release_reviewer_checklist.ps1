@@ -115,6 +115,7 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+$projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $artifactGuidePath = Get-OptionalPropertyValue -Object $summary -Name "artifact_guide"
 if ([string]::IsNullOrWhiteSpace($artifactGuidePath)) {
@@ -641,6 +642,9 @@ if ($pdfBoundedCtestEvidence.status -ne "not_available") {
 }
 Add-CheckboxLine -Lines $lines -Text 'Confirm the fixed PDF release readiness checklist has been reviewed before publishing: `docs/pdf_release_readiness_checklist_zh.rst`.'
 Add-CheckboxLine -Lines $lines -Text 'Confirm the fixed Project template release readiness checklist has been reviewed before publishing: `docs/project_template_release_readiness_checklist_zh.rst`.'
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm release governance handoff carries project-template readiness checklist entrypoint evidence: {0}.' -f $projectTemplateChecklistHandoffEvidenceLine)
+}
 Add-CheckboxLine -Lines $lines -Text 'For PDF/CJK-facing releases, manually verify a generated Chinese PDF can be copied and searched in at least one common reader, and record the reader/version in the release notes or final review.'
 
 if (-not [string]::IsNullOrWhiteSpace($consumerDocument)) {
@@ -679,6 +683,9 @@ Add-CheckboxLine -Lines $lines -Text 'Use `release_summary.zh-CN.md` for the Git
 Add-CheckboxLine -Lines $lines -Text 'Use `release_body.zh-CN.md` for the full release notes or translated handoff notes.'
 Add-CheckboxLine -Lines $lines -Text ('Generate or refresh the local public release ZIP files before publishing: `{0}`' -f $packageAssetsCommand)
 Add-CheckboxLine -Lines $lines -Text ('Confirm the packaged release manifest preserves project-template governance contracts before publishing: {0} must include `project_template_delivery_readiness_contract` and `project_template_onboarding_governance_contract` with `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display`.' -f $releaseAssetsManifestDisplayPath)
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the release governance handoff source-report evidence remains ready for publishing: {0}.' -f $projectTemplateChecklistHandoffEvidenceLine)
+}
 Add-CheckboxLine -Lines $lines -Text ('Sync the audited full release body into the GitHub Release notes: `{0}`' -f $syncReleaseNotesCommand)
 Add-CheckboxLine -Lines $lines -Text ('When all gates pass and the GitHub Release is ready to go live, publish it with: `{0}`' -f $publishReleaseCommand)
 Add-CheckboxLine -Lines $lines -Text ('Use the GitHub refresh flow to update ZIP assets plus audited notes without changing draft/public state: `{0}`' -f $publishWorkflowCommand)

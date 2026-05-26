@@ -255,6 +255,13 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``checklist_path``、三个必需入口和固定 checklist marker，不能把 marker 放到
      detached notes 中补齐。固定标记：
      ``project_template_readiness_checklist_entrypoints_material_safety_trace``。
+     ``scripts/write_release_metadata_start_here.ps1``、
+     ``scripts/write_release_artifact_guide.ps1`` 与
+     ``scripts/write_release_reviewer_checklist.ps1`` 还必须把
+     ``project_template_readiness_checklist_entrypoints_source_reports`` 的 compact evidence
+     行展示到发布入口材料，让 reviewer 在 ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 和
+     ``REVIEWER_CHECKLIST.md`` 中直接看到 ``checklist_path``、三个入口和固定 marker。
+     固定标记：``project_template_readiness_checklist_entrypoints_release_entry_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
      在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
      ``release_assets_manifest.json``，并核对
