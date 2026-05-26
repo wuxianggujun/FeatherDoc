@@ -1008,6 +1008,30 @@ if (Test-Scenario -Name "include_rollup") {
                     ".\build\pdf-ctest-bounded-regression-table-layout-current\summary.json"
                 )
             }
+            pdf_full_ctest_readiness = [ordered]@{
+                requested = $true
+                status = "pass"
+                verdict = "pass_with_warnings"
+                release_ready = $true
+                summary_json = "output/pdf-release-readiness-current/summary.json"
+                full_ctest_summary_json = "build/pdf-ctest-full-current/summary.json"
+                full_ctest_summary_json_display = ".\build\pdf-ctest-full-current\summary.json"
+                full_ctest_status = "timeout"
+                full_ctest_verdict = "not_complete"
+                outer_guard_status = "timed_out"
+                outer_guard_timed_out = $true
+                selected_test_count = 139
+                completed_test_count = 133
+                passed_test_count = 126
+                failed_test_count = 0
+                skipped_test_count = 7
+                not_run_test_count = 6
+                completion_percent = 95.7
+                remaining_test_count = 6
+                zero_failed_tests_observed = $true
+                boundary = "full_ctest_timeout_is_not_release_blocking_when_zero_failures_observed"
+                marker = "pdf_full_ctest_readiness_trace"
+            }
             pdf_visual_gate_attempt = [ordered]@{
                 status = "partial"
                 verdict = "not_complete"
@@ -1133,6 +1157,40 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_summary_json_display) -join ",") `
         -ExpectedText "pdf-ctest-bounded-regression-table-layout-current\summary.json" `
         -Message "Handoff summary should expose PDF bounded CTest summary display paths from the nested rollup."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_full_ctest_readiness_status) -Expected "pass" `
+        -Message "Handoff summary should expose PDF full CTest readiness status from the nested rollup."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_full_ctest_readiness_verdict) -Expected "pass_with_warnings" `
+        -Message "Handoff summary should expose PDF full CTest readiness verdict from the nested rollup."
+    Assert-Equal -Actual ([bool]$pdfEvidence.pdf_full_ctest_readiness_release_ready) -Expected $true `
+        -Message "Handoff summary should expose PDF full CTest release readiness from the nested rollup."
+    Assert-ContainsText -Text ([string]$pdfEvidence.pdf_full_ctest_readiness_summary_json_display) `
+        -ExpectedText "pdf-release-readiness-current\summary.json" `
+        -Message "Handoff summary should expose PDF release readiness summary display path."
+    Assert-ContainsText -Text ([string]$pdfEvidence.pdf_full_ctest_readiness_full_ctest_summary_json_display) `
+        -ExpectedText "pdf-ctest-full-current\summary.json" `
+        -Message "Handoff summary should expose PDF full CTest summary display path."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_full_ctest_readiness_full_ctest_status) -Expected "timeout" `
+        -Message "Handoff summary should expose PDF full CTest observed status."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_full_ctest_readiness_full_ctest_verdict) -Expected "not_complete" `
+        -Message "Handoff summary should expose PDF full CTest verdict."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_full_ctest_readiness_outer_guard_status) -Expected "timed_out" `
+        -Message "Handoff summary should expose PDF full CTest guard status."
+    Assert-Equal -Actual ([bool]$pdfEvidence.pdf_full_ctest_readiness_outer_guard_timed_out) -Expected $true `
+        -Message "Handoff summary should expose PDF full CTest guard timeout flag."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_full_ctest_readiness_selected_test_count) -Expected 139 `
+        -Message "Handoff summary should expose PDF full CTest selected count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_full_ctest_readiness_completed_test_count) -Expected 133 `
+        -Message "Handoff summary should expose PDF full CTest completed count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_full_ctest_readiness_failed_test_count) -Expected 0 `
+        -Message "Handoff summary should expose PDF full CTest observed failure count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_full_ctest_readiness_not_run_test_count) -Expected 6 `
+        -Message "Handoff summary should expose PDF full CTest not-run count."
+    Assert-Equal -Actual ([double]$pdfEvidence.pdf_full_ctest_readiness_completion_percent) -Expected 95.7 `
+        -Message "Handoff summary should expose PDF full CTest completion percent."
+    Assert-Equal -Actual ([bool]$pdfEvidence.pdf_full_ctest_readiness_zero_failed_tests_observed) -Expected $true `
+        -Message "Handoff summary should expose PDF full CTest zero-failure observation."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_full_ctest_readiness_marker) -Expected "pdf_full_ctest_readiness_trace" `
+        -Message "Handoff summary should expose PDF full CTest readiness marker."
     Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_attempt_status) -Expected "partial" `
         -Message "Handoff summary should expose PDF visual gate attempt status from the nested rollup."
     Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_attempt_verdict) -Expected "not_complete" `
@@ -1329,6 +1387,14 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Nested rollup should preserve packaged release-entry checklist material-safety audited entrypoints."
     Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema) -Expected "featherdoc.release_candidate_summary" `
         -Message "Nested rollup should preserve packaged release-entry checklist material-safety compact evidence source schema."
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.pdf_full_ctest_readiness_status) -Expected "pass" `
+        -Message "Nested rollup should preserve PDF full CTest readiness status."
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.pdf_full_ctest_readiness_full_ctest_status) -Expected "timeout" `
+        -Message "Nested rollup should preserve PDF full CTest observed status."
+    Assert-Equal -Actual ([int]$rollupReleaseCandidateSourceReport.pdf_full_ctest_readiness_completed_test_count) -Expected 133 `
+        -Message "Nested rollup should preserve PDF full CTest completed count."
+    Assert-Equal -Actual ([bool]$rollupReleaseCandidateSourceReport.pdf_full_ctest_readiness_zero_failed_tests_observed) -Expected $true `
+        -Message "Nested rollup should preserve PDF full CTest zero-failure observation."
     Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_status) -Expected "partial" `
         -Message "Nested rollup should preserve PDF visual gate attempt status."
     Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_verdict) -Expected "not_complete" `
@@ -1375,6 +1441,16 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should expose the PDF bounded CTest skipped test count."
     Assert-ContainsText -Text $markdown -ExpectedText "regression-business-samples" `
         -Message "Handoff Markdown should expose the PDF bounded CTest subset names."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_status: ``pass``" `
+        -Message "Handoff Markdown should expose PDF full CTest readiness status."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_verdict: ``pass_with_warnings``" `
+        -Message "Handoff Markdown should expose PDF full CTest readiness verdict."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_full_ctest_status: ``timeout``" `
+        -Message "Handoff Markdown should expose PDF full CTest observed status."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_completed_test_count: ``133``" `
+        -Message "Handoff Markdown should expose PDF full CTest completed count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_zero_failed_tests_observed: ``True``" `
+        -Message "Handoff Markdown should expose PDF full CTest zero-failure observation."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_status: ``partial``" `
         -Message "Handoff Markdown should expose the PDF visual gate attempt status."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_verdict: ``not_complete``" `
@@ -1460,6 +1536,22 @@ if (Test-Scenario -Name "include_rollup") {
         "regression-table-layout",
         "pdf_bounded_ctest_summary_json_display:",
         "pdf-ctest-bounded-regression-business-samples-current\summary.json",
+        "pdf_full_ctest_readiness_status: ``pass``",
+        "pdf_full_ctest_readiness_verdict: ``pass_with_warnings``",
+        "pdf_full_ctest_readiness_release_ready: ``True``",
+        "pdf_full_ctest_readiness_summary_json_display:",
+        "pdf-release-readiness-current\summary.json",
+        "pdf_full_ctest_readiness_full_ctest_summary_json_display:",
+        "pdf-ctest-full-current\summary.json",
+        "pdf_full_ctest_readiness_full_ctest_status: ``timeout``",
+        "pdf_full_ctest_readiness_full_ctest_verdict: ``not_complete``",
+        "pdf_full_ctest_readiness_selected_test_count: ``139``",
+        "pdf_full_ctest_readiness_completed_test_count: ``133``",
+        "pdf_full_ctest_readiness_failed_test_count: ``0``",
+        "pdf_full_ctest_readiness_not_run_test_count: ``6``",
+        "pdf_full_ctest_readiness_completion_percent: ``95.7``",
+        "pdf_full_ctest_readiness_zero_failed_tests_observed: ``True``",
+        "pdf_full_ctest_readiness_marker: ``pdf_full_ctest_readiness_trace``",
         "pdf_visual_gate_attempt_status: ``partial``",
         "pdf_visual_gate_attempt_verdict: ``not_complete``",
         "pdf_visual_gate_attempt_full_visual_gate_status: ``not_complete``",

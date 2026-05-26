@@ -425,6 +425,7 @@ $functionNames = @(
     "Get-PdfVisualGateAttemptSummaryInfo",
     "Get-PdfVisualSegmentedGateSummaryInfo",
     "Get-PdfBoundedCtestSummaryInfo",
+    "Get-PdfFullCtestReadinessSummaryInfo",
     "Convert-ReviewTimestamp",
     "Get-ReleaseCandidateDisplayValue",
     "Read-ReleaseBlockerRollupSummary",
@@ -591,6 +592,48 @@ if ($pdfBoundedCtestInfo.status -ne "pass" -or
     [int]$pdfBoundedCtestInfo.skipped_test_count -ne 0 -or
     @($pdfBoundedCtestInfo.subsets) -notcontains "regression-business-samples") {
     throw "PDF bounded CTest summaries were not aggregated as auxiliary release evidence."
+}
+
+$fullPdfCtestSummaryPath = Join-Path $boundedCtestDir "full-pdf-ctest-summary.json"
+Set-Content -LiteralPath $fullPdfCtestSummaryPath -Encoding UTF8 -Value "{}"
+$pdfReadinessSummaryPath = Join-Path $pdfSummaryDir "release-readiness-summary.json"
+([ordered]@{
+        status = "pass"
+        verdict = "pass_with_warnings"
+        release_ready = $true
+        full_ctest_status = "timeout"
+        full_ctest_verdict = "not_complete"
+        full_ctest_summary_json = $fullPdfCtestSummaryPath
+        full_ctest_summary_json_display = ".\build\pdf-ctest-full-current\summary.json"
+        full_ctest_outer_guard_status = "timed_out"
+        full_ctest_outer_guard_timed_out = $true
+        full_ctest_selected_test_count = 139
+        full_ctest_completed_test_count = 133
+        full_ctest_passed_test_count = 126
+        full_ctest_failed_test_count = 0
+        full_ctest_skipped_test_count = 7
+        full_ctest_not_run_test_count = 6
+        full_ctest_completion_percent = 95.7
+        full_ctest_remaining_test_count = 6
+        full_ctest_zero_failed_tests_observed = $true
+        boundary = "full_ctest_timeout_is_not_release_blocking_when_zero_failures_observed"
+        marker = "pdf_full_ctest_readiness_trace"
+    } | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $pdfReadinessSummaryPath -Encoding UTF8
+$pdfFullCtestReadinessInfo = Get-PdfFullCtestReadinessSummaryInfo `
+    -SummaryJson $pdfReadinessSummaryPath `
+    -RepoRoot $resolvedRepoRoot
+if ($pdfFullCtestReadinessInfo.status -ne "pass" -or
+    $pdfFullCtestReadinessInfo.verdict -ne "pass_with_warnings" -or
+    -not [bool]$pdfFullCtestReadinessInfo.release_ready -or
+    $pdfFullCtestReadinessInfo.full_ctest_status -ne "timeout" -or
+    $pdfFullCtestReadinessInfo.full_ctest_verdict -ne "not_complete" -or
+    [int]$pdfFullCtestReadinessInfo.selected_test_count -ne 139 -or
+    [int]$pdfFullCtestReadinessInfo.completed_test_count -ne 133 -or
+    [int]$pdfFullCtestReadinessInfo.failed_test_count -ne 0 -or
+    [int]$pdfFullCtestReadinessInfo.not_run_test_count -ne 6 -or
+    [double]$pdfFullCtestReadinessInfo.completion_percent -ne 95.7 -or
+    -not [bool]$pdfFullCtestReadinessInfo.zero_failed_tests_observed) {
+    throw "PDF full CTest readiness summary was not loaded as release governance evidence."
 }
 
 $completeReviewTaskSummary = Get-CompleteVisualGateReviewTaskSummary -Summary ([ordered]@{
@@ -874,7 +917,8 @@ New-Item -ItemType Directory -Path $releaseGovernanceSourceDir -Force | Out-Null
     -PdfVisualGateSummaryJson $pdfSummaryPath `
     -PdfVisualGateAttemptSummaryJson $pdfAttemptSummaryPath `
     -PdfVisualSegmentedGateSummaryJson $pdfSegmentedSummaryPath `
-    -PdfBoundedCtestSummaryJson @($boundedSmokePath, $boundedBusinessPath)
+    -PdfBoundedCtestSummaryJson @($boundedSmokePath, $boundedBusinessPath) `
+    -PdfReleaseReadinessSummaryJson $pdfReadinessSummaryPath
 if ($LASTEXITCODE -ne 0) {
     throw "Release candidate dry run with PDF visual gate summary failed with exit code $LASTEXITCODE."
 }
@@ -922,6 +966,22 @@ if ([int]$candidateSummary.steps.pdf_bounded_ctest.summary_count -ne 2 -or
     [int]$candidateSummary.steps.pdf_bounded_ctest.skipped_test_count -ne 0 -or
     @($candidateSummary.steps.pdf_bounded_ctest.subsets) -notcontains "regression-business-samples") {
     throw "Release candidate summary did not preserve PDF bounded CTest auxiliary evidence."
+}
+if ([string]$candidateSummary.pdf_release_readiness_summary_json -ne $pdfReadinessSummaryPath -or
+    [string]$candidateSummary.steps.pdf_full_ctest_readiness.summary_json -ne $pdfReadinessSummaryPath -or
+    [string]$candidateSummary.steps.pdf_full_ctest_readiness.status -ne "pass" -or
+    [string]$candidateSummary.steps.pdf_full_ctest_readiness.verdict -ne "pass_with_warnings" -or
+    -not [bool]$candidateSummary.steps.pdf_full_ctest_readiness.release_ready -or
+    [string]$candidateSummary.steps.pdf_full_ctest_readiness.full_ctest_status -ne "timeout" -or
+    [string]$candidateSummary.steps.pdf_full_ctest_readiness.full_ctest_verdict -ne "not_complete" -or
+    [string]$candidateSummary.steps.pdf_full_ctest_readiness.full_ctest_summary_json -ne $fullPdfCtestSummaryPath -or
+    [int]$candidateSummary.steps.pdf_full_ctest_readiness.selected_test_count -ne 139 -or
+    [int]$candidateSummary.steps.pdf_full_ctest_readiness.completed_test_count -ne 133 -or
+    [int]$candidateSummary.steps.pdf_full_ctest_readiness.failed_test_count -ne 0 -or
+    [int]$candidateSummary.steps.pdf_full_ctest_readiness.not_run_test_count -ne 6 -or
+    [double]$candidateSummary.steps.pdf_full_ctest_readiness.completion_percent -ne 95.7 -or
+    -not [bool]$candidateSummary.steps.pdf_full_ctest_readiness.zero_failed_tests_observed) {
+    throw "Release candidate summary did not preserve PDF full CTest readiness evidence."
 }
 if ($candidateSummary.steps.pdf_visual_gate_attempt.status -ne "partial" -or
     $candidateSummary.steps.pdf_visual_gate_attempt.verdict -ne "not_complete" -or
@@ -1093,14 +1153,21 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Key o
     "aggregate-contact-sheet.png",
     "PDF bounded CTest summaries:",
     "smoke-summary.json",
-    "business-summary.json"
-) -Message "final_review.md should keep PDF visual summary and aggregate contact sheet inside the Key outputs section."
+    "business-summary.json",
+    "PDF release readiness summary:",
+    "release-readiness-summary.json",
+    "PDF full CTest summary:",
+    "pdf-ctest-full-current\summary.json"
+) -Message "final_review.md should keep PDF visual and full CTest readiness outputs inside the Key outputs section."
 Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Step status" -Fragments @(
     "PDF bounded CTest summaries: 2 summaries, 2 pass",
     "PDF bounded CTest subsets: smoke-import, regression-business-samples",
     "PDF bounded CTest selected tests: 20",
-    "PDF bounded CTest skipped tests: 0"
-) -Message "final_review.md should expose bounded PDF CTest auxiliary evidence in the Step status section."
+    "PDF bounded CTest skipped tests: 0",
+    "PDF full CTest readiness: timeout (95.7% complete)",
+    "PDF full CTest progress: 133/139 completed, 6 not run",
+    "PDF full CTest observed failures: 0, zero failed observed True"
+) -Message "final_review.md should expose bounded and full PDF CTest auxiliary evidence in the Step status section."
 Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Project-template release entry evidence" -Fragments @(
     "Project-template readiness checklist handoff evidence",
     "project_template_readiness_checklist_entrypoints_source_reports=2",

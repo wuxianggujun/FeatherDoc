@@ -99,6 +99,7 @@ param(
     [string]$PdfVisualGateAttemptSummaryJson = "",
     [string]$PdfVisualSegmentedGateSummaryJson = "",
     [string[]]$PdfBoundedCtestSummaryJson = @(),
+    [string]$PdfReleaseReadinessSummaryJson = "",
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -820,6 +821,73 @@ function Get-PdfBoundedCtestSummaryInfo {
         error_count = $errorCount
         errors = @($errors.ToArray())
     }
+}
+
+function Get-PdfFullCtestReadinessSummaryInfo {
+    param(
+        [string]$SummaryJson,
+        [string]$RepoRoot
+    )
+
+    $info = [ordered]@{
+        requested = -not [string]::IsNullOrWhiteSpace($SummaryJson)
+        status = if ([string]::IsNullOrWhiteSpace($SummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $SummaryJson) { "available" } else { "missing" }
+        summary_json = $SummaryJson
+        summary_json_display = Get-RepoRelativePath -RepoRoot $RepoRoot -Path $SummaryJson
+        verdict = ""
+        release_ready = $false
+        full_ctest_status = ""
+        full_ctest_verdict = ""
+        full_ctest_summary_json = ""
+        full_ctest_summary_json_display = ""
+        outer_guard_status = ""
+        outer_guard_timed_out = $false
+        selected_test_count = 0
+        completed_test_count = 0
+        passed_test_count = 0
+        failed_test_count = 0
+        skipped_test_count = 0
+        not_run_test_count = 0
+        completion_percent = 0.0
+        remaining_test_count = 0
+        zero_failed_tests_observed = $false
+        boundary = ""
+        marker = ""
+        error = ""
+    }
+
+    if (-not [bool]$info.requested -or -not (Test-Path -LiteralPath $SummaryJson)) {
+        return $info
+    }
+
+    try {
+        $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $SummaryJson | ConvertFrom-Json
+        $info.status = [string](Get-OptionalPropertyValue -Object $summary -Name "status")
+        $info.verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "verdict")
+        $info.release_ready = [bool](Get-OptionalPropertyValue -Object $summary -Name "release_ready")
+        $info.full_ctest_status = [string](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_status")
+        $info.full_ctest_verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_verdict")
+        $info.full_ctest_summary_json = [string](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_summary_json")
+        $info.full_ctest_summary_json_display = [string](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_summary_json_display")
+        $info.outer_guard_status = [string](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_outer_guard_status")
+        $info.outer_guard_timed_out = [bool](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_outer_guard_timed_out")
+        $info.selected_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_selected_test_count")
+        $info.completed_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_completed_test_count")
+        $info.passed_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_passed_test_count")
+        $info.failed_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_failed_test_count")
+        $info.skipped_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_skipped_test_count")
+        $info.not_run_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_not_run_test_count")
+        $info.completion_percent = [double](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_completion_percent")
+        $info.remaining_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_remaining_test_count")
+        $info.zero_failed_tests_observed = [bool](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_zero_failed_tests_observed")
+        $info.boundary = [string](Get-OptionalPropertyValue -Object $summary -Name "boundary")
+        $info.marker = [string](Get-OptionalPropertyValue -Object $summary -Name "marker")
+    } catch {
+        $info.status = "unreadable"
+        $info.error = $_.Exception.Message
+    }
+
+    return $info
 }
 
 function Convert-ReviewTimestamp {
@@ -1856,6 +1924,18 @@ $resolvedPdfBoundedCtestSummaryJson = @(Resolve-PdfBoundedCtestSummaryPaths `
 $pdfBoundedCtestSummaryInfo = Get-PdfBoundedCtestSummaryInfo `
     -SummaryJson $resolvedPdfBoundedCtestSummaryJson `
     -RepoRoot $repoRoot
+$resolvedPdfReleaseReadinessSummaryJson = ""
+if (-not [string]::IsNullOrWhiteSpace($PdfReleaseReadinessSummaryJson)) {
+    $resolvedPdfReleaseReadinessSummaryJson = Resolve-FullPath -RepoRoot $repoRoot -InputPath $PdfReleaseReadinessSummaryJson
+} else {
+    $autoPdfReleaseReadinessSummaryJson = Join-Path $repoRoot "output\pdf-release-readiness-current\summary.json"
+    if (Test-Path -LiteralPath $autoPdfReleaseReadinessSummaryJson) {
+        $resolvedPdfReleaseReadinessSummaryJson = $autoPdfReleaseReadinessSummaryJson
+    }
+}
+$pdfFullCtestReadinessInfo = Get-PdfFullCtestReadinessSummaryInfo `
+    -SummaryJson $resolvedPdfReleaseReadinessSummaryJson `
+    -RepoRoot $repoRoot
 $installSmokeScript = Join-Path $repoRoot "scripts\run_install_find_package_smoke.ps1"
 $templateSchemaCheckScript = Join-Path $repoRoot "scripts\check_template_schema_baseline.ps1"
 $templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_schema_manifest.ps1"
@@ -2079,6 +2159,8 @@ $summary = [ordered]@{
     pdf_visual_segmented_gate_summary_json = $resolvedPdfVisualSegmentedGateSummaryJson
     pdf_visual_segmented_gate = $pdfVisualSegmentedGateSummaryInfo
     pdf_bounded_ctest = $pdfBoundedCtestSummaryInfo
+    pdf_release_readiness_summary_json = $resolvedPdfReleaseReadinessSummaryJson
+    pdf_full_ctest_readiness = $pdfFullCtestReadinessInfo
     release_blocker_rollup = [ordered]@{
         requested = $releaseBlockerRollupRequested
         status = if ($releaseBlockerRollupRequested) { "pending" } else { "not_requested" }
@@ -2259,6 +2341,7 @@ $summary = [ordered]@{
         pdf_visual_gate_attempt = $pdfVisualGateAttemptSummaryInfo
         pdf_visual_segmented_gate = $pdfVisualSegmentedGateSummaryInfo
         pdf_bounded_ctest = $pdfBoundedCtestSummaryInfo
+        pdf_full_ctest_readiness = $pdfFullCtestReadinessInfo
     }
 }
 
@@ -3164,6 +3247,12 @@ try {
     $pdfVisualGateAttemptContactSheetDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate_attempt.aggregate_contact_sheet
     $pdfVisualSegmentedGateSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_segmented_gate.summary_json
     $pdfVisualSegmentedGateContactSheetDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_segmented_gate.aggregate_contact_sheet
+    $pdfFullCtestReadinessSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_full_ctest_readiness.summary_json
+    $pdfFullCtestSummaryDisplayPath = if (-not [string]::IsNullOrWhiteSpace([string]$summary.steps.pdf_full_ctest_readiness.full_ctest_summary_json_display)) {
+        [string]$summary.steps.pdf_full_ctest_readiness.full_ctest_summary_json_display
+    } else {
+        Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_full_ctest_readiness.full_ctest_summary_json
+    }
     $pdfBoundedCtestSubsetsDisplay = if (@($summary.steps.pdf_bounded_ctest.subsets).Count -gt 0) {
         @($summary.steps.pdf_bounded_ctest.subsets) -join ", "
     } else {
@@ -3279,6 +3368,9 @@ try {
 - PDF bounded CTest subsets: $pdfBoundedCtestSubsetsDisplay
 - PDF bounded CTest selected tests: $($summary.steps.pdf_bounded_ctest.selected_test_count)
 - PDF bounded CTest skipped tests: $($summary.steps.pdf_bounded_ctest.skipped_test_count)
+- PDF full CTest readiness: $($summary.steps.pdf_full_ctest_readiness.full_ctest_status) ($($summary.steps.pdf_full_ctest_readiness.completion_percent)% complete)
+- PDF full CTest progress: $($summary.steps.pdf_full_ctest_readiness.completed_test_count)/$($summary.steps.pdf_full_ctest_readiness.selected_test_count) completed, $($summary.steps.pdf_full_ctest_readiness.not_run_test_count) not run
+- PDF full CTest observed failures: $($summary.steps.pdf_full_ctest_readiness.failed_test_count), zero failed observed $($summary.steps.pdf_full_ctest_readiness.zero_failed_tests_observed)
 - Release blocker rollup: $($summary.steps.release_blocker_rollup.status)
 - Release governance handoff: $($summary.steps.release_governance_handoff.status)
 $visualGateReviewTaskSummaryLine
@@ -3329,6 +3421,8 @@ $projectTemplateChecklistEvidenceMarkdown
 - PDF visual segmented gate summary: $pdfVisualSegmentedGateSummaryDisplayPath
 - PDF visual segmented gate contact sheet: $pdfVisualSegmentedGateContactSheetDisplayPath
 - PDF bounded CTest summaries: $pdfBoundedCtestSummaryDisplay
+- PDF release readiness summary: $pdfFullCtestReadinessSummaryDisplayPath
+- PDF full CTest summary: $pdfFullCtestSummaryDisplayPath
 "@
     $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 
@@ -3377,6 +3471,9 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisualSegmentedGateSummaryJson
 }
 if (@($resolvedPdfBoundedCtestSummaryJson).Count -gt 0) {
     Write-Host "PDF bounded CTest summaries: $($resolvedPdfBoundedCtestSummaryJson -join ', ')"
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedPdfReleaseReadinessSummaryJson)) {
+    Write-Host "PDF release readiness summary: $resolvedPdfReleaseReadinessSummaryJson"
 }
 if ($projectTemplateSmokeRequested) {
     Write-Host "Project template schema approval history JSON: $schemaApprovalHistoryJsonPath"

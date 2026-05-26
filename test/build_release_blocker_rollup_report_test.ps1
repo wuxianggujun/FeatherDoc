@@ -528,6 +528,30 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
                 ".\build\pdf-ctest-bounded-regression-table-layout-current\summary.json"
             )
         }
+        pdf_full_ctest_readiness = [ordered]@{
+            requested = $true
+            status = "pass"
+            verdict = "pass_with_warnings"
+            release_ready = $true
+            summary_json = "output/pdf-release-readiness-current/summary.json"
+            full_ctest_summary_json = "build/pdf-ctest-full-current/summary.json"
+            full_ctest_summary_json_display = ".\build\pdf-ctest-full-current\summary.json"
+            full_ctest_status = "timeout"
+            full_ctest_verdict = "not_complete"
+            outer_guard_status = "timed_out"
+            outer_guard_timed_out = $true
+            selected_test_count = 139
+            completed_test_count = 133
+            passed_test_count = 126
+            failed_test_count = 0
+            skipped_test_count = 7
+            not_run_test_count = 6
+            completion_percent = 95.7
+            remaining_test_count = 6
+            zero_failed_tests_observed = $true
+            boundary = "full_ctest_timeout_is_not_release_blocking_when_zero_failures_observed"
+            marker = "pdf_full_ctest_readiness_trace"
+        }
         pdf_visual_gate_attempt = [ordered]@{
             status = "partial"
             verdict = "not_complete"
@@ -1121,6 +1145,40 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (@($releaseCandidateSourceReport.pdf_bounded_ctest_summary_json_display) -join ",") `
         -ExpectedText "pdf-ctest-bounded-regression-table-layout-current\summary.json" `
         -Message "Rollup should preserve PDF bounded CTest summary display paths."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_full_ctest_readiness_status) -Expected "pass" `
+        -Message "Rollup should preserve PDF full CTest readiness status."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_full_ctest_readiness_verdict) -Expected "pass_with_warnings" `
+        -Message "Rollup should preserve PDF full CTest readiness verdict."
+    Assert-Equal -Actual ([bool]$releaseCandidateSourceReport.pdf_full_ctest_readiness_release_ready) -Expected $true `
+        -Message "Rollup should preserve PDF full CTest readiness release_ready."
+    Assert-ContainsText -Text ([string]$releaseCandidateSourceReport.pdf_full_ctest_readiness_summary_json_display) `
+        -ExpectedText "pdf-release-readiness-current\summary.json" `
+        -Message "Rollup should preserve PDF release readiness summary display path."
+    Assert-ContainsText -Text ([string]$releaseCandidateSourceReport.pdf_full_ctest_readiness_full_ctest_summary_json_display) `
+        -ExpectedText "pdf-ctest-full-current\summary.json" `
+        -Message "Rollup should preserve PDF full CTest summary display path."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_full_ctest_readiness_full_ctest_status) -Expected "timeout" `
+        -Message "Rollup should preserve PDF full CTest observed status."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_full_ctest_readiness_full_ctest_verdict) -Expected "not_complete" `
+        -Message "Rollup should preserve PDF full CTest verdict."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_full_ctest_readiness_outer_guard_status) -Expected "timed_out" `
+        -Message "Rollup should preserve PDF full CTest guard status."
+    Assert-Equal -Actual ([bool]$releaseCandidateSourceReport.pdf_full_ctest_readiness_outer_guard_timed_out) -Expected $true `
+        -Message "Rollup should preserve PDF full CTest guard timeout flag."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_full_ctest_readiness_selected_test_count) -Expected 139 `
+        -Message "Rollup should preserve PDF full CTest selected count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_full_ctest_readiness_completed_test_count) -Expected 133 `
+        -Message "Rollup should preserve PDF full CTest completed count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_full_ctest_readiness_failed_test_count) -Expected 0 `
+        -Message "Rollup should preserve PDF full CTest observed failure count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_full_ctest_readiness_not_run_test_count) -Expected 6 `
+        -Message "Rollup should preserve PDF full CTest not-run count."
+    Assert-Equal -Actual ([double]$releaseCandidateSourceReport.pdf_full_ctest_readiness_completion_percent) -Expected 95.7 `
+        -Message "Rollup should preserve PDF full CTest completion percent."
+    Assert-Equal -Actual ([bool]$releaseCandidateSourceReport.pdf_full_ctest_readiness_zero_failed_tests_observed) -Expected $true `
+        -Message "Rollup should preserve PDF full CTest zero-failure observation."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_full_ctest_readiness_marker) -Expected "pdf_full_ctest_readiness_trace" `
+        -Message "Rollup should preserve PDF full CTest readiness marker."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_status) -Expected "partial" `
         -Message "Rollup should preserve PDF visual gate attempt status."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_verdict) -Expected "not_complete" `
@@ -1349,6 +1407,16 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF bounded CTest skipped test count."
     Assert-ContainsText -Text $markdown -ExpectedText "regression-business-samples" `
         -Message "Markdown should include PDF bounded CTest subset names."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_status: ``pass``" `
+        -Message "Markdown should include PDF full CTest readiness status."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_verdict: ``pass_with_warnings``" `
+        -Message "Markdown should include PDF full CTest readiness verdict."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_full_ctest_status: ``timeout``" `
+        -Message "Markdown should include PDF full CTest observed status."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_completed_test_count: ``133``" `
+        -Message "Markdown should include PDF full CTest completed count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_zero_failed_tests_observed: ``True``" `
+        -Message "Markdown should include PDF full CTest zero-failure observation."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_status: ``partial``" `
         -Message "Markdown should include PDF visual gate attempt status."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_verdict: ``not_complete``" `
@@ -1391,6 +1459,22 @@ if (Test-Scenario -Name "passing") {
         "regression-table-layout",
         "pdf_bounded_ctest_summary_json_display:",
         "pdf-ctest-bounded-regression-business-samples-current\summary.json",
+        "pdf_full_ctest_readiness_status: ``pass``",
+        "pdf_full_ctest_readiness_verdict: ``pass_with_warnings``",
+        "pdf_full_ctest_readiness_release_ready: ``True``",
+        "pdf_full_ctest_readiness_summary_json_display:",
+        "pdf-release-readiness-current\summary.json",
+        "pdf_full_ctest_readiness_full_ctest_summary_json_display:",
+        "pdf-ctest-full-current\summary.json",
+        "pdf_full_ctest_readiness_full_ctest_status: ``timeout``",
+        "pdf_full_ctest_readiness_full_ctest_verdict: ``not_complete``",
+        "pdf_full_ctest_readiness_selected_test_count: ``139``",
+        "pdf_full_ctest_readiness_completed_test_count: ``133``",
+        "pdf_full_ctest_readiness_failed_test_count: ``0``",
+        "pdf_full_ctest_readiness_not_run_test_count: ``6``",
+        "pdf_full_ctest_readiness_completion_percent: ``95.7``",
+        "pdf_full_ctest_readiness_zero_failed_tests_observed: ``True``",
+        "pdf_full_ctest_readiness_marker: ``pdf_full_ctest_readiness_trace``",
         "pdf_visual_gate_attempt_status: ``partial``",
         "pdf_visual_gate_attempt_verdict: ``not_complete``",
         "pdf_visual_gate_attempt_full_visual_gate_status: ``not_complete``",

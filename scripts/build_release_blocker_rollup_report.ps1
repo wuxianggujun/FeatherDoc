@@ -593,6 +593,96 @@ function Add-PdfBoundedCtestEvidenceFields {
         -Value @(Get-JsonArray -Object $pdfBoundedCtest -Name "summary_json_display")
 }
 
+function Get-PdfFullCtestReadinessEvidenceObject {
+    param($Summary)
+
+    $readiness = Get-JsonProperty -Object $Summary -Name "pdf_full_ctest_readiness"
+    if ($null -ne $readiness) {
+        return $readiness
+    }
+
+    $steps = Get-JsonProperty -Object $Summary -Name "steps"
+    if ($null -eq $steps) {
+        return $null
+    }
+
+    return (Get-JsonProperty -Object $steps -Name "pdf_full_ctest_readiness")
+}
+
+function Add-PdfFullCtestReadinessEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary,
+        [string]$RepoRoot
+    )
+
+    $readiness = Get-PdfFullCtestReadinessEvidenceObject -Summary $Summary
+    if ($null -eq $readiness) {
+        return
+    }
+
+    $summaryJson = Get-FirstJsonString -Object $readiness -Names @("summary_json")
+    if ([string]::IsNullOrWhiteSpace($summaryJson)) {
+        $summaryJson = Get-FirstJsonString -Object $Summary -Names @("pdf_release_readiness_summary_json")
+    }
+    $fullCtestSummaryJson = Get-FirstJsonString -Object $readiness -Names @("full_ctest_summary_json")
+
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_requested" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("requested"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_status" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_verdict" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("verdict"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_release_ready" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("release_ready"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_summary_json" `
+        -Value $summaryJson
+    if (-not [string]::IsNullOrWhiteSpace($summaryJson)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_summary_json_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson)
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_full_ctest_summary_json" `
+        -Value $fullCtestSummaryJson
+    if (-not [string]::IsNullOrWhiteSpace($fullCtestSummaryJson)) {
+        $fullCtestSummaryJsonDisplay = Get-FirstJsonString -Object $readiness -Names @("full_ctest_summary_json_display")
+        if ([string]::IsNullOrWhiteSpace($fullCtestSummaryJsonDisplay)) {
+            $fullCtestSummaryJsonDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $fullCtestSummaryJson
+        }
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_full_ctest_summary_json_display" `
+            -Value $fullCtestSummaryJsonDisplay
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_full_ctest_status" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("full_ctest_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_full_ctest_verdict" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("full_ctest_verdict"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_outer_guard_status" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("outer_guard_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_outer_guard_timed_out" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("outer_guard_timed_out"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_selected_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("selected_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_completed_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("completed_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_passed_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("passed_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_failed_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("failed_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_skipped_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("skipped_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_not_run_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("not_run_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_completion_percent" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("completion_percent"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_remaining_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("remaining_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_zero_failed_tests_observed" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("zero_failed_tests_observed"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_boundary" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("boundary"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_marker" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("marker"))
+}
+
 function Get-PdfVisualGateAttemptEvidenceObject {
     param($Summary)
 
@@ -1220,6 +1310,27 @@ function New-ReportMarkdown {
                     "pdf_bounded_ctest_selected_test_count",
                     "pdf_bounded_ctest_subsets",
                     "pdf_bounded_ctest_summary_json_display",
+                    "pdf_full_ctest_readiness_requested",
+                    "pdf_full_ctest_readiness_status",
+                    "pdf_full_ctest_readiness_verdict",
+                    "pdf_full_ctest_readiness_release_ready",
+                    "pdf_full_ctest_readiness_summary_json_display",
+                    "pdf_full_ctest_readiness_full_ctest_summary_json_display",
+                    "pdf_full_ctest_readiness_full_ctest_status",
+                    "pdf_full_ctest_readiness_full_ctest_verdict",
+                    "pdf_full_ctest_readiness_outer_guard_status",
+                    "pdf_full_ctest_readiness_outer_guard_timed_out",
+                    "pdf_full_ctest_readiness_selected_test_count",
+                    "pdf_full_ctest_readiness_completed_test_count",
+                    "pdf_full_ctest_readiness_passed_test_count",
+                    "pdf_full_ctest_readiness_failed_test_count",
+                    "pdf_full_ctest_readiness_skipped_test_count",
+                    "pdf_full_ctest_readiness_not_run_test_count",
+                    "pdf_full_ctest_readiness_completion_percent",
+                    "pdf_full_ctest_readiness_remaining_test_count",
+                    "pdf_full_ctest_readiness_zero_failed_tests_observed",
+                    "pdf_full_ctest_readiness_boundary",
+                    "pdf_full_ctest_readiness_marker",
                     "pdf_visual_gate_attempt_status",
                     "pdf_visual_gate_attempt_verdict",
                     "pdf_visual_gate_attempt_full_visual_gate_status",
@@ -1748,6 +1859,7 @@ foreach ($path in @($inputPaths)) {
         )
     Add-PdfVisualGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-PdfBoundedCtestEvidenceFields -Target $sourceReport -Summary $summaryObject
+    Add-PdfFullCtestReadinessEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-PdfVisualGateAttemptEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-PdfVisualSegmentedGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-ManifestSignoffEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot

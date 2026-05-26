@@ -150,9 +150,11 @@ function Get-PdfVisualGateRollupEvidence {
             $verdict = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_verdict"
             $status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_status"
             $segmentedStatus = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_status"
+            $fullCtestReadinessStatus = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_status"
             if ([string]::IsNullOrWhiteSpace($verdict) -and
                 [string]::IsNullOrWhiteSpace($status) -and
-                [string]::IsNullOrWhiteSpace($segmentedStatus)) {
+                [string]::IsNullOrWhiteSpace($segmentedStatus) -and
+                [string]::IsNullOrWhiteSpace($fullCtestReadinessStatus)) {
                 continue
             }
 
@@ -176,6 +178,27 @@ function Get-PdfVisualGateRollupEvidence {
                 pdf_bounded_ctest_selected_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_bounded_ctest_selected_test_count")
                 pdf_bounded_ctest_subsets = @(Get-JsonArray -Object $sourceReport -Name "pdf_bounded_ctest_subsets")
                 pdf_bounded_ctest_summary_json_display = @(Get-JsonArray -Object $sourceReport -Name "pdf_bounded_ctest_summary_json_display")
+                pdf_full_ctest_readiness_requested = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_requested")
+                pdf_full_ctest_readiness_status = $fullCtestReadinessStatus
+                pdf_full_ctest_readiness_verdict = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_verdict"
+                pdf_full_ctest_readiness_release_ready = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_release_ready")
+                pdf_full_ctest_readiness_summary_json_display = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_summary_json_display"
+                pdf_full_ctest_readiness_full_ctest_summary_json_display = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_full_ctest_summary_json_display"
+                pdf_full_ctest_readiness_full_ctest_status = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_full_ctest_status"
+                pdf_full_ctest_readiness_full_ctest_verdict = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_full_ctest_verdict"
+                pdf_full_ctest_readiness_outer_guard_status = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_outer_guard_status"
+                pdf_full_ctest_readiness_outer_guard_timed_out = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_outer_guard_timed_out")
+                pdf_full_ctest_readiness_selected_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_selected_test_count")
+                pdf_full_ctest_readiness_completed_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_completed_test_count")
+                pdf_full_ctest_readiness_passed_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_passed_test_count")
+                pdf_full_ctest_readiness_failed_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_failed_test_count")
+                pdf_full_ctest_readiness_skipped_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_skipped_test_count")
+                pdf_full_ctest_readiness_not_run_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_not_run_test_count")
+                pdf_full_ctest_readiness_completion_percent = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_completion_percent")
+                pdf_full_ctest_readiness_remaining_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_remaining_test_count")
+                pdf_full_ctest_readiness_zero_failed_tests_observed = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_zero_failed_tests_observed")
+                pdf_full_ctest_readiness_boundary = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_boundary"
+                pdf_full_ctest_readiness_marker = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_marker"
                 pdf_visual_gate_attempt_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_status"
                 pdf_visual_gate_attempt_verdict = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_verdict"
                 pdf_visual_gate_attempt_full_visual_gate_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_full_visual_gate_status"
@@ -1013,6 +1036,28 @@ function New-ReportMarkdown {
             $lines.Add("    - pdf_bounded_ctest_selected_test_count: ``$($evidence.pdf_bounded_ctest_selected_test_count)``") | Out-Null
             $lines.Add("    - pdf_bounded_ctest_subsets: ``$(@($evidence.pdf_bounded_ctest_subsets) -join ', ')``") | Out-Null
             $lines.Add("    - pdf_bounded_ctest_summary_json_display: ``$(@($evidence.pdf_bounded_ctest_summary_json_display) -join ', ')``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$evidence.pdf_full_ctest_readiness_status)) {
+                $lines.Add("    - pdf_full_ctest_readiness_status: ``$($evidence.pdf_full_ctest_readiness_status)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_verdict: ``$($evidence.pdf_full_ctest_readiness_verdict)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_release_ready: ``$($evidence.pdf_full_ctest_readiness_release_ready)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_summary_json_display: ``$($evidence.pdf_full_ctest_readiness_summary_json_display)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_full_ctest_summary_json_display: ``$($evidence.pdf_full_ctest_readiness_full_ctest_summary_json_display)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_full_ctest_status: ``$($evidence.pdf_full_ctest_readiness_full_ctest_status)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_full_ctest_verdict: ``$($evidence.pdf_full_ctest_readiness_full_ctest_verdict)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_outer_guard_status: ``$($evidence.pdf_full_ctest_readiness_outer_guard_status)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_outer_guard_timed_out: ``$($evidence.pdf_full_ctest_readiness_outer_guard_timed_out)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_selected_test_count: ``$($evidence.pdf_full_ctest_readiness_selected_test_count)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_completed_test_count: ``$($evidence.pdf_full_ctest_readiness_completed_test_count)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_passed_test_count: ``$($evidence.pdf_full_ctest_readiness_passed_test_count)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_failed_test_count: ``$($evidence.pdf_full_ctest_readiness_failed_test_count)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_skipped_test_count: ``$($evidence.pdf_full_ctest_readiness_skipped_test_count)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_not_run_test_count: ``$($evidence.pdf_full_ctest_readiness_not_run_test_count)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_completion_percent: ``$($evidence.pdf_full_ctest_readiness_completion_percent)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_remaining_test_count: ``$($evidence.pdf_full_ctest_readiness_remaining_test_count)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_zero_failed_tests_observed: ``$($evidence.pdf_full_ctest_readiness_zero_failed_tests_observed)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_boundary: ``$($evidence.pdf_full_ctest_readiness_boundary)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_marker: ``$($evidence.pdf_full_ctest_readiness_marker)``") | Out-Null
+            }
             if (-not [string]::IsNullOrWhiteSpace([string]$evidence.pdf_visual_gate_attempt_status)) {
                 $lines.Add("    - pdf_visual_gate_attempt_status: ``$($evidence.pdf_visual_gate_attempt_status)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_verdict: ``$($evidence.pdf_visual_gate_attempt_verdict)``") | Out-Null
