@@ -305,6 +305,7 @@ $assetOutputDir = if ($releaseVersion) {
 } else {
     "output\release-assets\v<version>"
 }
+$releaseAssetsManifestPath = Join-Path $assetOutputDir "release_assets_manifest.json"
 $packageAssetsCommand = if ($releaseVersion) {
     'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -ReleaseVersion "{1}"' -f `
         $summaryCommandPath, $releaseVersion
@@ -466,6 +467,7 @@ if ($curatedVisualReviewEntries.Count -gt 0) {
 [void]$lines.Add("## Package Release Assets")
 [void]$lines.Add("")
 [void]$lines.Add("- Release assets output dir: $assetOutputDir")
+[void]$lines.Add(('- Project-template governance manifest signoff: open `{0}` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display` before refreshing or publishing GitHub Release assets.' -f $releaseAssetsManifestPath))
 [void]$lines.Add('```powershell')
 [void]$lines.Add($packageAssetsCommand)
 [void]$lines.Add('```')

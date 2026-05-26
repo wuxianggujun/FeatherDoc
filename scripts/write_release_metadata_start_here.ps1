@@ -335,6 +335,11 @@ $packageAssetsCommand = if ($releaseVersion) {
     'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
         $summaryCommandPath
 }
+$releaseAssetsManifestPath = if ($releaseVersion) {
+    Join-Path (Join-Path "output\release-assets" ("v{0}" -f $releaseVersion)) "release_assets_manifest.json"
+} else {
+    "output\release-assets\v<version>\release_assets_manifest.json"
+}
 $githubRefreshCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -SummaryJson "{0}"' -f `
     $summaryCommandPath
 if ($releaseVersion) {
@@ -514,6 +519,7 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add("")
 [void]$lines.Add('- Confirm `Execution status`, `Visual verdict`, and project-template visual verdict are all `pass`.')
 [void]$lines.Add("- Run the local packaging command first; it regenerates ZIP files and does not contact GitHub.")
+[void]$lines.Add(('- Open `{0}` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display` before refreshing or publishing GitHub Release assets.' -f $releaseAssetsManifestPath))
 [void]$lines.Add("- Use GitHub refresh to upload ZIP assets and sync audited release notes without flipping a draft release public.")
 [void]$lines.Add("- Use GitHub publish only after final signoff, because it can make the target release public.")
 [void]$lines.Add("")

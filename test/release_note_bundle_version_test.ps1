@@ -1089,6 +1089,19 @@ Assert-Contains -Path $guidePath -ExpectedText 'Run workflow' -Label 'ARTIFACT_G
 Assert-Contains -Path $startHerePath -ExpectedText 'Actions' -Label 'START_HERE.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'release-refresh-output' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'release-publish-output' -Label 'REVIEWER_CHECKLIST.md'
+$manifestEntryDocuments = @(
+    [pscustomobject]@{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+    [pscustomobject]@{ Path = $startHerePath; Label = "START_HERE.md" }
+)
+foreach ($document in $manifestEntryDocuments) {
+    Assert-Contains -Path $document.Path -ExpectedText 'release_assets_manifest.json' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'project_template_delivery_readiness_contract' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'project_template_onboarding_governance_contract' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'schema_approval_status_summary' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_report_display' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_json_display' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'before refreshing or publishing GitHub Release assets' -Label $document.Label
+}
 $manifestChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'Confirm the packaged release manifest preserves project-template governance contracts before publishing' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'release_assets_manifest.json must include' -Label 'REVIEWER_CHECKLIST.md'

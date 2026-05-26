@@ -228,13 +228,15 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``manifest_source_display_identity_trace``、
      ``manifest_status_release_ready_consistency_trace``、
      ``manifest_readiness_value_set_trace``。
-   * ``REVIEWER_CHECKLIST.md`` 必须在发布 ZIP 刷新步骤后显式提示 reviewer
-     打开打包后的 ``release_assets_manifest.json``，并核对
+   * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
+     在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
+     ``release_assets_manifest.json``，并核对
      ``project_template_delivery_readiness_contract`` 与
      ``project_template_onboarding_governance_contract`` 是否同时携带
      ``status``、``release_ready``、``schema_approval_status_summary``、
      ``source_report_display`` 和 ``source_json_display``。这条人工签核入口不能
-     只依赖 manifest 安全审计或缺失数为 0 的间接推断。固定标记：
+     只依赖 manifest 安全审计或缺失数为 0 的间接推断，首屏入口也不能只把核对项
+     留在 reviewer checklist 深处。固定标记：
      ``reviewer_manifest_scoped_project_template_trace``。
 
 
