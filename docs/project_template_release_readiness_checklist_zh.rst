@@ -358,6 +358,11 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``schema=featherdoc.release_candidate_summary`` 的 ``source_report:`` block 中，
      不能由 detached notes 补齐。固定标记：
      ``manifest_signoff_entrypoints_handoff_material_safety_trace``。
+     ``release_blocker_rollup.md`` 的 ``Source Report Contracts`` 也必须把同一组
+     manifest signoff 字段保留在 ``featherdoc.release_candidate_summary`` 列表块内，
+     不能让 release blocker rollup 自身 schema 或 detached notes 冒充原始
+     release-candidate signoff 证据。固定标记：
+     ``manifest_signoff_entrypoints_rollup_material_safety_trace``。
    * ``scripts/package_release_assets.ps1`` 写出的 ``release_assets_manifest.json`` 必须继续
      保留 ``manifest_signoff_entrypoints``，并由
      ``scripts/assert_release_material_safety.ps1`` 直接审计 ``status=declared``、

@@ -1592,6 +1592,87 @@ if (-not $badReleaseGovernanceHandoffPdfSegmentedWrongSchemaFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with PDF visual segmented gate evidence using a non-release-candidate source_report schema."
 }
 
+$passReleaseBlockerRollupManifestSignoffTraceDir = Join-Path $passDir "release-blocker-rollup-manifest-signoff-trace"
+$passReleaseBlockerRollupManifestSignoffTracePath = Join-Path $passReleaseBlockerRollupManifestSignoffTraceDir "release_blocker_rollup.md"
+New-Item -ItemType Directory -Path $passReleaseBlockerRollupManifestSignoffTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReleaseBlockerRollupManifestSignoffTracePath -Encoding UTF8 -Value @"
+# Release Blocker Rollup Report
+
+## Source Report Contracts
+
+- ``featherdoc.release_candidate_summary``: status=``ready`` ready=``True`` path=``.\output\release-candidate-checks\summary.json``
+  - manifest_signoff_entrypoints_status: ``declared``
+  - manifest_signoff_entrypoints_release_assets_manifest_display: ``.\output\release-assets\v<version>\release_assets_manifest.json``
+  - manifest_signoff_entrypoints_required_entrypoint_count: ``3``
+  - manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
+  - manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``
+  - manifest_signoff_entrypoints_required_fields: ``status, release_ready, schema_approval_status_summary, source_report_display, source_json_display``
+  - manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``
+"@
+
+& $auditScript -Path $passReleaseBlockerRollupManifestSignoffTracePath
+
+$badReleaseBlockerRollupManifestSignoffSplitDir = Join-Path $failDir "release-blocker-rollup-manifest-signoff-split"
+$badReleaseBlockerRollupManifestSignoffSplitPath = Join-Path $badReleaseBlockerRollupManifestSignoffSplitDir "release_blocker_rollup.md"
+New-Item -ItemType Directory -Path $badReleaseBlockerRollupManifestSignoffSplitDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBlockerRollupManifestSignoffSplitPath -Encoding UTF8 -Value @"
+# Release Blocker Rollup Report
+
+## Source Report Contracts
+
+- ``featherdoc.release_candidate_summary``: status=``ready`` ready=``True`` path=``.\output\release-candidate-checks\summary.json``
+  - manifest_signoff_entrypoints_status: ``declared``
+  - manifest_signoff_entrypoints_release_assets_manifest_display: ``.\output\release-assets\v<version>\release_assets_manifest.json``
+  - manifest_signoff_entrypoints_required_entrypoint_count: ``3``
+
+## Detached manifest signoff notes
+
+- manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
+- manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``
+- manifest_signoff_entrypoints_required_fields: ``status, release_ready, schema_approval_status_summary, source_report_display, source_json_display``
+- manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``
+"@
+
+$badReleaseBlockerRollupManifestSignoffSplitFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBlockerRollupManifestSignoffSplitPath
+} catch {
+    $badReleaseBlockerRollupManifestSignoffSplitFailedAsExpected = $true
+}
+
+if (-not $badReleaseBlockerRollupManifestSignoffSplitFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release blocker rollup with manifest signoff entrypoints split outside the release-candidate Source Report Contracts block."
+}
+
+$badReleaseBlockerRollupManifestSignoffWrongSchemaDir = Join-Path $failDir "release-blocker-rollup-manifest-signoff-wrong-schema"
+$badReleaseBlockerRollupManifestSignoffWrongSchemaPath = Join-Path $badReleaseBlockerRollupManifestSignoffWrongSchemaDir "release_blocker_rollup.md"
+New-Item -ItemType Directory -Path $badReleaseBlockerRollupManifestSignoffWrongSchemaDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseBlockerRollupManifestSignoffWrongSchemaPath -Encoding UTF8 -Value @"
+# Release Blocker Rollup Report
+
+## Source Report Contracts
+
+- ``featherdoc.release_blocker_rollup_report.v1``: status=``ready`` ready=``True`` path=``.\output\release-blocker-rollup\summary.json``
+  - manifest_signoff_entrypoints_status: ``declared``
+  - manifest_signoff_entrypoints_release_assets_manifest_display: ``.\output\release-assets\v<version>\release_assets_manifest.json``
+  - manifest_signoff_entrypoints_required_entrypoint_count: ``3``
+  - manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
+  - manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``
+  - manifest_signoff_entrypoints_required_fields: ``status, release_ready, schema_approval_status_summary, source_report_display, source_json_display``
+  - manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``
+"@
+
+$badReleaseBlockerRollupManifestSignoffWrongSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseBlockerRollupManifestSignoffWrongSchemaPath
+} catch {
+    $badReleaseBlockerRollupManifestSignoffWrongSchemaFailedAsExpected = $true
+}
+
+if (-not $badReleaseBlockerRollupManifestSignoffWrongSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release blocker rollup with manifest signoff entrypoints under a non-release-candidate Source Report Contracts schema."
+}
+
 $passReleaseGovernanceHandoffManifestSignoffTraceDir = Join-Path $passDir "release-governance-handoff-manifest-signoff-trace"
 $passReleaseGovernanceHandoffManifestSignoffTracePath = Join-Path $passReleaseGovernanceHandoffManifestSignoffTraceDir "release_governance_handoff.md"
 New-Item -ItemType Directory -Path $passReleaseGovernanceHandoffManifestSignoffTraceDir -Force | Out-Null

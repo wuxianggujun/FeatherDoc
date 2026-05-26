@@ -290,7 +290,12 @@ blocker rollup 的 source report contract evidence，并由 release governance h
 ``ARTIFACT_GUIDE.md`` 和 ``REVIEWER_CHECKLIST.md`` 都能展示 ``status``、
 ``release_assets_manifest``、三个必需入口、必需 governance contracts、必需字段和
 ``reviewer_manifest_scoped_project_template_trace``，避免 packaged manifest signoff
-只停留在打包产物层。``release_governance_handoff.md`` 中的
+只停留在打包产物层。``release_blocker_rollup.md`` 的
+``Source Report Contracts`` 必须先把同一组字段保留在
+``featherdoc.release_candidate_summary`` 列表块内，不能由 detached notes 或
+``featherdoc.release_blocker_rollup_report.v1`` 冒充原始 signoff 证据。固定标记：
+``manifest_signoff_entrypoints_rollup_material_safety_trace``。
+``release_governance_handoff.md`` 中的
 ``manifest_signoff_entrypoints_source_reports`` 必须继续把上述字段保留在同一个
 ``schema=featherdoc.release_candidate_summary`` 的 ``source_report:`` block 中，
 不能由 detached notes 补齐。固定标记：

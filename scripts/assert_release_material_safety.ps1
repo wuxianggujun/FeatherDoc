@@ -2554,6 +2554,72 @@ function Add-ReleaseGovernanceHandoffManifestSignoffEntrypointsTraceViolations {
     }
 }
 
+function Add-ReleaseBlockerRollupManifestSignoffEntrypointsTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_blocker_rollup.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "manifest_signoff_entrypoints_status",
+        "manifest_signoff_entrypoints_release_assets_manifest_display",
+        "reviewer_manifest_scoped_project_template_trace"
+    ))) {
+        return
+    }
+
+    $label = "release blocker rollup manifest signoff entrypoints trace"
+    if (-not $Content.Contains("Source Report Contracts")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release blocker rollup lost Source Report Contracts while carrying manifest signoff entrypoints evidence."
+    }
+
+    $sourceReportBlockNeedles = @(
+        "featherdoc.release_candidate_summary",
+        "manifest_signoff_entrypoints_status:",
+        "declared",
+        "manifest_signoff_entrypoints_release_assets_manifest_display:",
+        "release_assets_manifest.json",
+        "manifest_signoff_entrypoints_required_entrypoint_count:",
+        "3",
+        "manifest_signoff_entrypoints_entrypoint_ids:",
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "manifest_signoff_entrypoints_required_contracts:",
+        "project_template_delivery_readiness_contract",
+        "project_template_onboarding_governance_contract",
+        "manifest_signoff_entrypoints_required_fields:",
+        "status",
+        "release_ready",
+        "schema_approval_status_summary",
+        "source_report_display",
+        "source_json_display",
+        "manifest_signoff_entrypoints_checklist_marker:",
+        "reviewer_manifest_scoped_project_template_trace"
+    )
+    if (-not (Test-MarkdownAnyListBlockContainsAll `
+        -Text $Content `
+        -Anchor "featherdoc.release_candidate_summary" `
+        -Needles $sourceReportBlockNeedles)) {
+        $traceMarker = "manifest_signoff_entrypoints_rollup_material_safety_trace"
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release blocker rollup must keep manifest signoff status, release assets manifest path, required entrypoints, required contracts, required fields, fixed marker, and release-candidate source identity in the same Source Report Contracts block. Fixed marker: $traceMarker."
+    }
+}
+
 function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations {
     param(
         [string]$File,
@@ -4270,6 +4336,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseSummaryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseBodyProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseBodyPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseBlockerRollupManifestSignoffEntrypointsTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseHandoffPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseGovernanceHandoffProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
