@@ -373,6 +373,43 @@ $summary = [ordered]@{
     final_review = $finalReviewPath
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
+    manifest_signoff_entrypoints = [ordered]@{
+        status = "declared"
+        release_assets_manifest = (Join-Path $outputRoot "v1.6.4\release_assets_manifest.json")
+        required_entrypoint_count = 3
+        entrypoints = @(
+            [ordered]@{
+                id = "start_here"
+                path = $startHerePath
+                path_display = Convert-TestPathToRepoRelativeDisplay -Path $startHerePath -RepoRoot $resolvedRepoRoot
+                required = $true
+            },
+            [ordered]@{
+                id = "artifact_guide"
+                path = $artifactGuidePath
+                path_display = Convert-TestPathToRepoRelativeDisplay -Path $artifactGuidePath -RepoRoot $resolvedRepoRoot
+                required = $true
+            },
+            [ordered]@{
+                id = "reviewer_checklist"
+                path = $reviewerChecklistPath
+                path_display = Convert-TestPathToRepoRelativeDisplay -Path $reviewerChecklistPath -RepoRoot $resolvedRepoRoot
+                required = $true
+            }
+        )
+        required_contracts = @(
+            "project_template_delivery_readiness_contract",
+            "project_template_onboarding_governance_contract"
+        )
+        required_fields = @(
+            "status",
+            "release_ready",
+            "schema_approval_status_summary",
+            "source_report_display",
+            "source_json_display"
+        )
+        checklist_marker = "reviewer_manifest_scoped_project_template_trace"
+    }
     readme_gallery = [ordered]@{
         status = "visual_gate_skipped"
         assets_dir = (Join-Path $resolvedRepoRoot "docs\assets\readme")
@@ -428,6 +465,75 @@ if ([bool]$manifest.visual_gate_evidence_included) {
 
 if ($manifest.governance_metric_count -ne 3) {
     throw "Release assets manifest did not preserve governance_metric_count=3."
+}
+
+$manifestSignoffEntrypoints = $manifest.manifest_signoff_entrypoints
+if ($null -eq $manifestSignoffEntrypoints) {
+    throw "Release assets manifest lost manifest_signoff_entrypoints in AllowIncomplete mode."
+}
+if ([string]$manifestSignoffEntrypoints.status -ne "declared") {
+    throw "Release assets manifest lost manifest signoff status in AllowIncomplete mode."
+}
+if ([int]$manifestSignoffEntrypoints.required_entrypoint_count -ne 3) {
+    throw "Release assets manifest lost manifest signoff required entrypoint count in AllowIncomplete mode."
+}
+$expectedManifestDisplay = Convert-TestPathToRepoRelativeDisplay `
+    -Path $manifestPath `
+    -RepoRoot $resolvedRepoRoot
+if ([string]$manifestSignoffEntrypoints.release_assets_manifest -ne $expectedManifestDisplay) {
+    throw "Release assets manifest lost packaged manifest signoff path in AllowIncomplete mode."
+}
+foreach ($requiredContract in @(
+        "project_template_delivery_readiness_contract",
+        "project_template_onboarding_governance_contract"
+    )) {
+    if (-not (@($manifestSignoffEntrypoints.required_contracts | ForEach-Object { [string]$_ }) -contains $requiredContract)) {
+        throw "Release assets manifest lost manifest signoff required contract '$requiredContract' in AllowIncomplete mode."
+    }
+}
+foreach ($requiredField in @(
+        "status",
+        "release_ready",
+        "schema_approval_status_summary",
+        "source_report_display",
+        "source_json_display"
+    )) {
+    if (-not (@($manifestSignoffEntrypoints.required_fields | ForEach-Object { [string]$_ }) -contains $requiredField)) {
+        throw "Release assets manifest lost manifest signoff required field '$requiredField' in AllowIncomplete mode."
+    }
+}
+if ([string]$manifestSignoffEntrypoints.checklist_marker -ne "reviewer_manifest_scoped_project_template_trace") {
+    throw "Release assets manifest lost manifest signoff checklist marker in AllowIncomplete mode."
+}
+
+$manifestSignoffEntrypointsById = @{}
+foreach ($entrypoint in @($manifestSignoffEntrypoints.entrypoints)) {
+    $manifestSignoffEntrypointsById[[string]$entrypoint.id] = $entrypoint
+}
+foreach ($entrypointExpectation in @(
+        [ordered]@{ id = "start_here"; path = $startHerePath },
+        [ordered]@{ id = "artifact_guide"; path = $artifactGuidePath },
+        [ordered]@{ id = "reviewer_checklist"; path = $reviewerChecklistPath }
+    )) {
+    $entrypointId = [string]$entrypointExpectation.id
+    if (-not $manifestSignoffEntrypointsById.ContainsKey($entrypointId)) {
+        throw "Release assets manifest lost manifest signoff entrypoint '$entrypointId' in AllowIncomplete mode."
+    }
+
+    $entrypoint = $manifestSignoffEntrypointsById[$entrypointId]
+    if (-not [bool]$entrypoint.required) {
+        throw "Release assets manifest lost required=true for manifest signoff entrypoint '$entrypointId' in AllowIncomplete mode."
+    }
+
+    $expectedEntrypointDisplay = Convert-TestPathToRepoRelativeDisplay `
+        -Path ([string]$entrypointExpectation.path) `
+        -RepoRoot $resolvedRepoRoot
+    if ([string]$entrypoint.path -ne $expectedEntrypointDisplay) {
+        throw "Release assets manifest did not public-sanitize manifest signoff entrypoint '$entrypointId' path in AllowIncomplete mode."
+    }
+    if ([string]$entrypoint.path_display -ne $expectedEntrypointDisplay) {
+        throw "Release assets manifest lost manifest signoff entrypoint '$entrypointId' path_display in AllowIncomplete mode."
+    }
 }
 
 if ($manifest.governance_metrics.Count -ne 3) {

@@ -220,6 +220,40 @@ $pdfVisualGateEvidence = [ordered]@{
     unicode_font_log = ".\output\pdf-visual-release-gate-current\report\unicode-font.log"
     error = ""
 }
+$manifestSignoffEntrypoints = [ordered]@{
+    status = "declared"
+    release_assets_manifest = ".\output\release-assets\v1.6.4\release_assets_manifest.json"
+    required_entrypoint_count = 3
+    entrypoints = @(
+        [ordered]@{
+            id = "start_here"
+            path_display = ".\output\release-candidate-checks\START_HERE.md"
+            required = $true
+        },
+        [ordered]@{
+            id = "artifact_guide"
+            path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+            required = $true
+        },
+        [ordered]@{
+            id = "reviewer_checklist"
+            path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+            required = $true
+        }
+    )
+    required_contracts = @(
+        "project_template_delivery_readiness_contract",
+        "project_template_onboarding_governance_contract"
+    )
+    required_fields = @(
+        "status",
+        "release_ready",
+        "schema_approval_status_summary",
+        "source_report_display",
+        "source_json_display"
+    )
+    checklist_marker = "reviewer_manifest_scoped_project_template_trace"
+}
 
 function New-NumberingCatalogRealCorpusConfidenceMirror {
     param($GovernanceMetrics)
@@ -277,10 +311,71 @@ $passManifest = [ordered]@{
     )
     project_template_delivery_readiness_contract = $projectTemplateDeliveryReadinessContract
     project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
+    manifest_signoff_entrypoints = $manifestSignoffEntrypoints
 }
 ($passManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $passManifestPath -Encoding UTF8
 
 & $auditScript -Path @($passSummaryPath, $passManifestPath)
+
+$badManifestMissingSignoffDir = Join-Path $failDir "manifest-missing-signoff-entrypoints"
+$badManifestMissingSignoffPath = Join-Path $badManifestMissingSignoffDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingSignoffDir -Force | Out-Null
+$badManifestMissingSignoff = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingSignoff.PSObject.Properties.Remove("manifest_signoff_entrypoints")
+($badManifestMissingSignoff | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingSignoffPath -Encoding UTF8
+
+$missingSignoffFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingSignoffPath
+} catch {
+    $missingSignoffFailedAsExpected = $true
+}
+
+if (-not $missingSignoffFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing manifest_signoff_entrypoints."
+}
+
+$badManifestMissingSignoffReviewerDir = Join-Path $failDir "manifest-missing-signoff-reviewer-checklist"
+$badManifestMissingSignoffReviewerPath = Join-Path $badManifestMissingSignoffReviewerDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingSignoffReviewerDir -Force | Out-Null
+$badManifestMissingSignoffReviewer = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingSignoffReviewer.manifest_signoff_entrypoints.entrypoints = @(
+    $badManifestMissingSignoffReviewer.manifest_signoff_entrypoints.entrypoints |
+        Where-Object { [string]$_.id -ne "reviewer_checklist" }
+)
+($badManifestMissingSignoffReviewer | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingSignoffReviewerPath -Encoding UTF8
+
+$missingSignoffReviewerFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingSignoffReviewerPath
+} catch {
+    $missingSignoffReviewerFailedAsExpected = $true
+}
+
+if (-not $missingSignoffReviewerFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing reviewer_checklist signoff entrypoint."
+}
+
+$badManifestMissingSignoffFieldDir = Join-Path $failDir "manifest-missing-signoff-source-json-field"
+$badManifestMissingSignoffFieldPath = Join-Path $badManifestMissingSignoffFieldDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingSignoffFieldDir -Force | Out-Null
+$badManifestMissingSignoffField = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingSignoffField.manifest_signoff_entrypoints.required_fields = @(
+    $badManifestMissingSignoffField.manifest_signoff_entrypoints.required_fields |
+        Where-Object { [string]$_ -ne "source_json_display" }
+)
+($badManifestMissingSignoffField | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingSignoffFieldPath -Encoding UTF8
+
+$missingSignoffFieldFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingSignoffFieldPath
+} catch {
+    $missingSignoffFieldFailedAsExpected = $true
+}
+
+if (-not $missingSignoffFieldFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing source_json_display signoff field."
+}
 
 $badManifestMissingPdfEvidenceDir = Join-Path $failDir "manifest-missing-pdf-visual-evidence"
 $badManifestMissingPdfEvidencePath = Join-Path $badManifestMissingPdfEvidenceDir "release_assets_manifest.json"

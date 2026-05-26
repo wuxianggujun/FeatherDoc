@@ -245,6 +245,14 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``required_contracts``、``required_fields`` 和
      ``reviewer_manifest_scoped_project_template_trace``。固定标记：
      ``manifest_signoff_entrypoints_release_trace``。
+   * ``scripts/package_release_assets.ps1`` 写出的 ``release_assets_manifest.json`` 必须继续
+     保留 ``manifest_signoff_entrypoints``，并由
+     ``scripts/assert_release_material_safety.ps1`` 直接审计 ``status=declared``、
+     ``required_entrypoint_count=3``、三个人工签核入口的 ``required=true`` /
+     ``path_display``、两条 project-template contract、五个 required fields 与
+     ``reviewer_manifest_scoped_project_template_trace``。这样 packaged asset 层也能
+     作为发布准入证据，不能只依赖 release summary。固定标记：
+     ``manifest_signoff_entrypoints_manifest_trace``。
 
 
 推荐轻量验证

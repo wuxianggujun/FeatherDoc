@@ -130,7 +130,8 @@ foreach ($marker in @(
     "release_governance_handoff.md",
     "release_assets_manifest.json",
     "manifest_signoff_entrypoints",
-    "manifest_signoff_entrypoints_release_trace"
+    "manifest_signoff_entrypoints_release_trace",
+    "manifest_signoff_entrypoints_manifest_trace"
 )) {
     Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `
         -Message "Project-template release readiness checklist should preserve marker '$marker'."
@@ -309,6 +310,11 @@ foreach ($marker in @(
     "Add-FinalReviewProjectTemplateGovernanceTraceViolations",
     "Add-ProjectTemplateDeliveryReadinessContractViolations",
     "Add-ProjectTemplateOnboardingGovernanceContractViolations",
+    "Add-ManifestSignoffEntrypointsContractViolations",
+    "manifest_signoff_entrypoints",
+    "required_entrypoint_count",
+    "reviewer_checklist",
+    "source_json_display",
     "Test-ReleaseGovernanceHandoffProjectTemplateTraceBlockContainsAll",
     "Test-ReleaseHandoffProjectTemplateTraceBlockContainsAll",
     "Test-FinalReviewProjectTemplateTraceBlockContainsAll",
@@ -342,6 +348,7 @@ foreach ($marker in @(
     "manifest_readiness_value_set_trace",
     "reviewer_manifest_scoped_project_template_trace",
     "manifest_signoff_entrypoints_release_trace",
+    "manifest_signoff_entrypoints_manifest_trace",
     "line_scoped_release_note_project_template_trace",
     "line_scoped_release_note_source_identity_trace",
     "line_scoped_release_note_readiness_value_set_trace",

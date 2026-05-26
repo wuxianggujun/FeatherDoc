@@ -596,6 +596,43 @@ $summary = [ordered]@{
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
+    manifest_signoff_entrypoints = [ordered]@{
+        status = "declared"
+        release_assets_manifest = (Join-Path $outputRoot "v1.6.4\release_assets_manifest.json")
+        required_entrypoint_count = 3
+        entrypoints = @(
+            [ordered]@{
+                id = "start_here"
+                path = $startHerePath
+                path_display = Convert-TestPathToRepoRelativeDisplay -Path $startHerePath -RepoRoot $resolvedRepoRoot
+                required = $true
+            },
+            [ordered]@{
+                id = "artifact_guide"
+                path = $artifactGuidePath
+                path_display = Convert-TestPathToRepoRelativeDisplay -Path $artifactGuidePath -RepoRoot $resolvedRepoRoot
+                required = $true
+            },
+            [ordered]@{
+                id = "reviewer_checklist"
+                path = $reviewerChecklistPath
+                path_display = Convert-TestPathToRepoRelativeDisplay -Path $reviewerChecklistPath -RepoRoot $resolvedRepoRoot
+                required = $true
+            }
+        )
+        required_contracts = @(
+            "project_template_delivery_readiness_contract",
+            "project_template_onboarding_governance_contract"
+        )
+        required_fields = @(
+            "status",
+            "release_ready",
+            "schema_approval_status_summary",
+            "source_report_display",
+            "source_json_display"
+        )
+        checklist_marker = "reviewer_manifest_scoped_project_template_trace"
+    }
     pdf_visual_gate_summary_json = $pdfGateSummaryPath
     pdf_visual_gate = [ordered]@{
         requested = $true
@@ -1214,6 +1251,84 @@ if ([string]$manifestProjectTemplateOnboarding.source_report_display -ne $expect
 }
 if ([string]$manifestProjectTemplateOnboarding.source_json_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
     throw "release_assets_manifest.json lost project template onboarding governance source_json_display."
+}
+
+$manifestSignoffEntrypoints = $manifest.manifest_signoff_entrypoints
+if ($null -eq $manifestSignoffEntrypoints) {
+    throw "release_assets_manifest.json lost manifest_signoff_entrypoints."
+}
+if ([string]$manifestSignoffEntrypoints.status -ne "declared") {
+    throw "release_assets_manifest.json lost manifest signoff status."
+}
+$expectedManifestDisplay = Convert-TestPathToRepoRelativeDisplay `
+    -Path $manifestPath `
+    -RepoRoot $resolvedRepoRoot
+if ([string]$manifestSignoffEntrypoints.release_assets_manifest -ne $expectedManifestDisplay) {
+    throw "release_assets_manifest.json lost manifest signoff packaged manifest path."
+}
+if ([int]$manifestSignoffEntrypoints.required_entrypoint_count -ne 3) {
+    throw "release_assets_manifest.json lost manifest signoff required entrypoint count."
+}
+foreach ($requiredContract in @(
+        "project_template_delivery_readiness_contract",
+        "project_template_onboarding_governance_contract"
+    )) {
+    if (-not (@($manifestSignoffEntrypoints.required_contracts | ForEach-Object { [string]$_ }) -contains $requiredContract)) {
+        throw "release_assets_manifest.json lost manifest signoff required contract '$requiredContract'."
+    }
+}
+foreach ($requiredField in @(
+        "status",
+        "release_ready",
+        "schema_approval_status_summary",
+        "source_report_display",
+        "source_json_display"
+    )) {
+    if (-not (@($manifestSignoffEntrypoints.required_fields | ForEach-Object { [string]$_ }) -contains $requiredField)) {
+        throw "release_assets_manifest.json lost manifest signoff required field '$requiredField'."
+    }
+}
+if ([string]$manifestSignoffEntrypoints.checklist_marker -ne "reviewer_manifest_scoped_project_template_trace") {
+    throw "release_assets_manifest.json lost manifest signoff checklist marker."
+}
+
+$manifestSignoffEntrypointsById = @{}
+foreach ($entrypoint in @($manifestSignoffEntrypoints.entrypoints)) {
+    $manifestSignoffEntrypointsById[[string]$entrypoint.id] = $entrypoint
+}
+foreach ($entrypointExpectation in @(
+        [ordered]@{
+            id = "start_here"
+            path = $startHerePath
+        },
+        [ordered]@{
+            id = "artifact_guide"
+            path = $artifactGuidePath
+        },
+        [ordered]@{
+            id = "reviewer_checklist"
+            path = $reviewerChecklistPath
+        }
+    )) {
+    $entrypointId = [string]$entrypointExpectation.id
+    if (-not $manifestSignoffEntrypointsById.ContainsKey($entrypointId)) {
+        throw "release_assets_manifest.json lost manifest signoff entrypoint '$entrypointId'."
+    }
+
+    $entrypoint = $manifestSignoffEntrypointsById[$entrypointId]
+    if (-not [bool]$entrypoint.required) {
+        throw "release_assets_manifest.json lost required=true for manifest signoff entrypoint '$entrypointId'."
+    }
+
+    $expectedEntrypointDisplay = Convert-TestPathToRepoRelativeDisplay `
+        -Path ([string]$entrypointExpectation.path) `
+        -RepoRoot $resolvedRepoRoot
+    if ([string]$entrypoint.path -ne $expectedEntrypointDisplay) {
+        throw "release_assets_manifest.json did not public-sanitize manifest signoff entrypoint '$entrypointId' path."
+    }
+    if ([string]$entrypoint.path_display -ne $expectedEntrypointDisplay) {
+        throw "release_assets_manifest.json lost manifest signoff entrypoint '$entrypointId' path_display."
+    }
 }
 
 foreach ($zipPath in @($installZipPath, $galleryZipPath, $evidenceZipPath)) {

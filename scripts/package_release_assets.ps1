@@ -732,6 +732,8 @@ $tableLayoutDeliveryQuality = Get-TableLayoutDeliveryQuality -GovernanceMetrics 
 $contentControlRepairContracts = @(Get-ContentControlRepairContracts -RepoRoot $repoRoot -Summary $summary)
 $projectTemplateDeliveryReadinessContract = Get-ProjectTemplateDeliveryReadinessContract -RepoRoot $repoRoot -Summary $summary
 $projectTemplateOnboardingGovernanceContract = Get-ProjectTemplateOnboardingGovernanceContract -RepoRoot $repoRoot -Summary $summary
+$manifestSignoffEntrypoints = Get-OptionalPropertyObject -Object $summary -Name "manifest_signoff_entrypoints"
+$manifestSignoffEntrypointsPublic = Convert-StructuredValueToPublic -Value $manifestSignoffEntrypoints -RepoRoot $repoRoot
 $summaryGovernanceMetricCount = Get-OptionalPropertyValue -Object $summary -Name "governance_metric_count"
 $governanceMetricCount = if (-not [string]::IsNullOrWhiteSpace($summaryGovernanceMetricCount)) {
     [int]$summaryGovernanceMetricCount
@@ -996,6 +998,7 @@ $manifest = [ordered]@{
     content_control_repair_contracts = $contentControlRepairContracts
     project_template_delivery_readiness_contract = $projectTemplateDeliveryReadinessContract
     project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
+    manifest_signoff_entrypoints = $manifestSignoffEntrypointsPublic
     assets = @(
         (Get-AssetDescriptor -Path $installZipPath -Label "msvc_install")
         (Get-AssetDescriptor -Path $galleryZipPath -Label "visual_validation_gallery")

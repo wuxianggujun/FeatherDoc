@@ -2855,6 +2855,101 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
     }
 }
 
+function Add-ManifestSignoffEntrypointsContractViolations {
+    param(
+        [string]$File,
+        $Json,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_assets_manifest.json") {
+        return
+    }
+
+    $label = "manifest signoff entrypoints contract"
+    $signoff = Get-JsonPropertyValue -Object $Json -Name "manifest_signoff_entrypoints"
+    if ($null -eq $signoff) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "Missing manifest_signoff_entrypoints."
+        return
+    }
+
+    $status = Get-JsonPropertyValue -Object $signoff -Name "status"
+    if ([string]$status -ne "declared") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.status must be declared."
+    }
+
+    $manifestPath = Get-JsonPropertyValue -Object $signoff -Name "release_assets_manifest"
+    if ([string]::IsNullOrWhiteSpace([string]$manifestPath) -or
+        -not ([string]$manifestPath).Contains("release_assets_manifest.json")) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.release_assets_manifest must identify release_assets_manifest.json."
+    }
+
+    $requiredEntrypointCount = Get-JsonPropertyValue -Object $signoff -Name "required_entrypoint_count"
+    try {
+        if ([int]$requiredEntrypointCount -ne 3) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.required_entrypoint_count must be 3."
+        }
+    } catch {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.required_entrypoint_count must be an integer."
+    }
+
+    $entrypoints = @(Get-JsonArray -Object $signoff -Name "entrypoints")
+    $entrypointsById = @{}
+    foreach ($entrypoint in $entrypoints) {
+        $entrypointId = [string](Get-JsonPropertyValue -Object $entrypoint -Name "id")
+        if (-not [string]::IsNullOrWhiteSpace($entrypointId)) {
+            $entrypointsById[$entrypointId] = $entrypoint
+        }
+    }
+
+    foreach ($requiredEntrypointId in @("start_here", "artifact_guide", "reviewer_checklist")) {
+        if (-not $entrypointsById.ContainsKey($requiredEntrypointId)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.entrypoints is missing $requiredEntrypointId."
+            continue
+        }
+
+        $entrypoint = $entrypointsById[$requiredEntrypointId]
+        $entrypointRequired = Get-JsonPropertyValue -Object $entrypoint -Name "required"
+        if (-not (Test-StringValueInSet -Value $entrypointRequired -AllowedValues @("true"))) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.entrypoints.$requiredEntrypointId.required must be true."
+        }
+
+        $entrypointPathDisplay = Get-JsonPropertyValue -Object $entrypoint -Name "path_display"
+        if ([string]::IsNullOrWhiteSpace([string]$entrypointPathDisplay)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.entrypoints.$requiredEntrypointId.path_display is missing."
+        }
+    }
+
+    $requiredContracts = @(Get-JsonArray -Object $signoff -Name "required_contracts" | ForEach-Object { [string]$_ })
+    foreach ($requiredContract in @(
+        "project_template_delivery_readiness_contract",
+        "project_template_onboarding_governance_contract"
+    )) {
+        if (-not ($requiredContracts -contains $requiredContract)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.required_contracts is missing $requiredContract."
+        }
+    }
+
+    $requiredFields = @(Get-JsonArray -Object $signoff -Name "required_fields" | ForEach-Object { [string]$_ })
+    foreach ($requiredField in @(
+        "status",
+        "release_ready",
+        "schema_approval_status_summary",
+        "source_report_display",
+        "source_json_display"
+    )) {
+        if (-not ($requiredFields -contains $requiredField)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.required_fields is missing $requiredField."
+        }
+    }
+
+    $checklistMarker = Get-JsonPropertyValue -Object $signoff -Name "checklist_marker"
+    if ([string]$checklistMarker -ne "reviewer_manifest_scoped_project_template_trace") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.checklist_marker is invalid."
+    }
+}
+
 function Add-PdfVisualGateManifestContractViolations {
     param(
         [string]$File,
@@ -3038,6 +3133,7 @@ foreach ($file in $scanFiles) {
             Add-ContentControlRepairContractViolations -File $file -Json $json -Violations $violations
             Add-ProjectTemplateDeliveryReadinessContractViolations -File $file -Json $json -Violations $violations
             Add-ProjectTemplateOnboardingGovernanceContractViolations -File $file -Json $json -Violations $violations
+            Add-ManifestSignoffEntrypointsContractViolations -File $file -Json $json -Violations $violations
             Add-PdfVisualGateManifestContractViolations -File $file -Json $json -Violations $violations
         } catch {
             if ($leafName -eq "summary.json" -or $leafName -eq "release_assets_manifest.json") {
