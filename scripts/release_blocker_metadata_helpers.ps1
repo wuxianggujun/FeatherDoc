@@ -1576,6 +1576,30 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEviden
     return "Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=$count, status=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "project_template_readiness_checklist_entrypoints_status")), checklist_path=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "project_template_readiness_checklist_entrypoints_checklist_path")), entrypoints=$(Get-ReleaseBlockerDisplayValue -Value ($entrypointIds -join ', ')), marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "project_template_readiness_checklist_entrypoints_checklist_marker")), source_report=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display"))"
 }
 
+function Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine {
+    param([AllowNull()]$Summary)
+
+    $handoff = Get-ReleaseGovernanceHandoff -Summary $Summary
+    $reports = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports")
+    $count = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count"
+    if ([string]::IsNullOrWhiteSpace($count)) {
+        $count = [string]$reports.Count
+    }
+
+    if ($reports.Count -eq 0 -and $count -eq "0") {
+        return ""
+    }
+
+    $report = $reports | Select-Object -First 1
+    $auditedEntrypoints = @(
+        Get-ReleaseBlockerArrayProperty -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+
+    return "Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=$count, status=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_status")), audit_script=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_script")), audited_entrypoint_count=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count")), audited_entrypoints=$(Get-ReleaseBlockerDisplayValue -Value ($auditedEntrypoints -join ', ')), compact_evidence_label=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label")), compact_evidence_field=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field")), checklist_path=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path")), checklist_marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker")), material_safety_marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker")), source_report=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display"))"
+}
+
 function Get-ReleaseGovernanceChecklistSections {
     param([AllowNull()]$Summary)
 

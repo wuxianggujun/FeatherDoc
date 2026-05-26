@@ -290,6 +290,18 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      checklist path、checklist marker 和 material-safety marker 保持同块，不能用
      detached notes 补齐。固定标记：
      ``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_material_safety_trace``。
+     ``scripts/write_release_metadata_start_here.ps1``、
+     ``scripts/write_release_artifact_guide.ps1`` 与
+     ``scripts/write_release_reviewer_checklist.ps1`` 还必须把该 packaged audit 压缩成
+     ``Project-template readiness checklist packaged audit evidence`` 行，展示到三个最终
+     release entry summary 中，让 reviewer 不需要进入内部 handoff 才能看到 staged entry
+     materials 已经通过 material-safety 审计。固定标记：
+     ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_trace``。
+     ``scripts/assert_release_material_safety.ps1`` 必须继续审计这条 packaged audit
+     compact evidence 行，要求 count、status、audit script、三个 audited entrypoints、
+     compact evidence identity、checklist path、checklist marker、material-safety marker 和
+     ``source_report`` 保持同一行，不能用 detached notes 补齐。固定标记：
+     ``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace``。
    * ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 必须
      在发布 ZIP 刷新步骤前后显式提示 reviewer 打开打包后的
      ``release_assets_manifest.json``，并核对

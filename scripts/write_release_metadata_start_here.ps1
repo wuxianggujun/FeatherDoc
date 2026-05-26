@@ -121,6 +121,7 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
 $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
+$projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
 $releaseVersion = Get-OptionalPropertyValue -Object $summary -Name "release_version"
 $installDir = Get-OptionalPropertyValue -Object $summary -Name "install_dir"
 $templateSchemaSummary = Get-OptionalPropertyObject -Object $summary -Name "template_schema"
@@ -404,6 +405,9 @@ if ($ArtifactRootLayout) {
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
     [void]$lines.Add("- $projectTemplateChecklistHandoffEvidenceLine")
 }
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
+    [void]$lines.Add("- $projectTemplateChecklistMaterialSafetyAuditEvidenceLine")
+}
 [void]$lines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
     [void]$lines.Add("- $visualReviewTaskSummaryLine")
@@ -530,6 +534,9 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add('- Confirm the fixed Project template release readiness checklist has been reviewed: `docs/project_template_release_readiness_checklist_zh.rst`.')
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
     [void]$lines.Add("- Confirm release governance handoff carries project-template readiness checklist entrypoint evidence: $projectTemplateChecklistHandoffEvidenceLine.")
+}
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
+    [void]$lines.Add("- Confirm release governance handoff carries packaged project-template readiness checklist material-safety audit evidence: $projectTemplateChecklistMaterialSafetyAuditEvidenceLine.")
 }
 [void]$lines.Add("- Run the local packaging command first; it regenerates ZIP files and does not contact GitHub.")
 [void]$lines.Add(('- Open `{0}` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display` before refreshing or publishing GitHub Release assets.' -f $releaseAssetsManifestPath))

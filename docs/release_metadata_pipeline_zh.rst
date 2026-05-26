@@ -355,6 +355,17 @@ entrypoints、compact evidence field 和 material-safety marker，避免最终 s
 checklist path、checklist marker 与 material-safety marker 保持同块，避免 detached
 notes 补齐最终 handoff 证据。固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_material_safety_trace``。
+``write_release_metadata_start_here.ps1``、``write_release_artifact_guide.ps1`` 和
+``write_release_reviewer_checklist.ps1`` 还会把该 packaged audit 压缩成
+``Project-template readiness checklist packaged audit evidence`` 行，展示到三个最终
+release entry summary 中，让 reviewer 可以直接看到 staged entry materials 已经通过
+material-safety 审计。固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_trace``。
+``assert_release_material_safety.ps1`` 会继续审计这条 packaged audit compact evidence 行，
+要求 count、status、audit script、三个 audited entrypoints、compact evidence identity、
+checklist path、checklist marker、material-safety marker 和 ``source_report`` 保持同一行，
+避免 detached notes 补齐入口材料。固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace``。
 
 对 project-template governance，``final_review.md`` 和
 ``steps.release_governance_handoff`` 还必须同时保留

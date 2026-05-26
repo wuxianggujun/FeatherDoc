@@ -1067,8 +1067,8 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTra
     }
 
     if (-not (Test-TextContainsAny -Text $Content -Needles @(
-        "Project-template readiness checklist handoff evidence",
-        "project_template_readiness_checklist_entrypoints_source_reports"
+        "Project-template readiness checklist handoff evidence:",
+        "project_template_readiness_checklist_entrypoints_source_reports="
     ))) {
         return
     }
@@ -1091,6 +1091,52 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTra
             -File $File `
             -Label $label `
             -Text "Release entry must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoints, marker, and source report on the same compact evidence line."
+    }
+}
+
+function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -notin @("start_here.md", "artifact_guide.md", "reviewer_checklist.md")) {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "Project-template readiness checklist packaged audit evidence",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports="
+    ))) {
+        return
+    }
+
+    $label = "release entry project template readiness checklist packaged audit evidence trace"
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @(
+        "Project-template readiness checklist packaged audit evidence",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=",
+        "status=passed",
+        "audit_script=",
+        "assert_release_material_safety.ps1",
+        "audited_entrypoint_count=3",
+        "audited_entrypoints=",
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "compact_evidence_label=Project-template readiness checklist handoff evidence",
+        "compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports",
+        "checklist_path=docs/project_template_release_readiness_checklist_zh.rst",
+        "checklist_marker=release_entry_project_template_readiness_checklist_trace",
+        "material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
+        "source_report="
+    ))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry must keep packaged project-template readiness checklist material-safety audit count, status, audit script, audited entrypoints, compact evidence identity, checklist path, checklist marker, material-safety marker, and source report on the same compact evidence line."
     }
 }
 
@@ -3480,6 +3526,7 @@ foreach ($file in $scanFiles) {
         $content = Get-Content -Raw -LiteralPath $file
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseSummaryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations

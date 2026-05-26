@@ -741,6 +741,42 @@ if (-not $badEntryProjectTemplateChecklistHandoffEvidenceSplitFailedAsExpected) 
     throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with project-template checklist handoff marker supplied only by detached notes."
 }
 
+$passEntryProjectTemplateChecklistPackagedAuditEvidenceDir = Join-Path $passDir "entry-project-template-checklist-packaged-audit-evidence"
+$passEntryProjectTemplateChecklistPackagedAuditEvidencePath = Join-Path $passEntryProjectTemplateChecklistPackagedAuditEvidenceDir "START_HERE.md"
+New-Item -ItemType Directory -Path $passEntryProjectTemplateChecklistPackagedAuditEvidenceDir -Force | Out-Null
+Set-Content -LiteralPath $passEntryProjectTemplateChecklistPackagedAuditEvidencePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1, status=passed, audit_script=.\scripts\assert_release_material_safety.ps1, audited_entrypoint_count=3, audited_entrypoints=start_here, artifact_guide, reviewer_checklist, compact_evidence_label=Project-template readiness checklist handoff evidence, compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, checklist_marker=release_entry_project_template_readiness_checklist_trace, material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace, source_report=.\output\release-blocker-rollup\summary.json
+"@
+
+& $auditScript -Path $passEntryProjectTemplateChecklistPackagedAuditEvidencePath
+
+$badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitDir = Join-Path $failDir "entry-project-template-checklist-packaged-audit-evidence-split"
+$badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitPath = Join-Path $badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1, status=passed, audit_script=.\scripts\assert_release_material_safety.ps1, audited_entrypoint_count=3, compact_evidence_label=Project-template readiness checklist handoff evidence, compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, checklist_marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-blocker-rollup\summary.json
+
+## Detached packaged audit notes
+
+- audited_entrypoints=start_here, artifact_guide, reviewer_checklist
+- material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace
+"@
+
+$badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitPath
+} catch {
+    $badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitFailedAsExpected = $true
+}
+
+if (-not $badEntryProjectTemplateChecklistPackagedAuditEvidenceSplitFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with packaged checklist audit entrypoints and material-safety marker supplied only by detached notes."
+}
+
 $badStartHereProjectTemplateMissingChecklistDir = Join-Path $failDir "start-here-project-template-readiness-checklist-missing"
 $badStartHereProjectTemplateMissingChecklistPath = Join-Path $badStartHereProjectTemplateMissingChecklistDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badStartHereProjectTemplateMissingChecklistDir -Force | Out-Null
