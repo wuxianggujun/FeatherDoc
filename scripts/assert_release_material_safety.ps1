@@ -1054,6 +1054,46 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
     }
 }
 
+function Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -notin @("start_here.md", "artifact_guide.md", "reviewer_checklist.md")) {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "Project-template readiness checklist handoff evidence",
+        "project_template_readiness_checklist_entrypoints_source_reports"
+    ))) {
+        return
+    }
+
+    $label = "release entry project template readiness checklist handoff evidence trace"
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @(
+        "Project-template readiness checklist handoff evidence",
+        "project_template_readiness_checklist_entrypoints_source_reports=",
+        "status=",
+        "checklist_path=docs/project_template_release_readiness_checklist_zh.rst",
+        "entrypoints=",
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "marker=release_entry_project_template_readiness_checklist_trace",
+        "source_report="
+    ))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry must keep project-template readiness checklist handoff evidence count, status, checklist path, required entrypoints, marker, and source report on the same compact evidence line."
+    }
+}
+
 function Add-ReleaseEntryPdfVisualGateTraceViolations {
     param(
         [string]$File,
@@ -3318,6 +3358,7 @@ foreach ($file in $scanFiles) {
     if ([System.IO.Path]::GetExtension($file).ToLowerInvariant() -eq ".md") {
         $content = Get-Content -Raw -LiteralPath $file
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseSummaryProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseSummaryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations

@@ -146,6 +146,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_governance_trace",
     "project_template_readiness_checklist_entrypoints_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_trace",
+    "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
     "manifest_signoff_entrypoints",
     "manifest_signoff_entrypoints_release_trace",
     "manifest_signoff_entrypoints_manifest_trace"
@@ -185,6 +186,7 @@ foreach ($marker in @(
     "project_template_readiness_checklist_entrypoints_governance_trace",
     "project_template_readiness_checklist_entrypoints_material_safety_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_trace",
+    "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
     "block_scoped_governance_handoff_trace",
     "block_scoped_governance_handoff_project_template_status_trace",
     "project_template_onboarding.schema_approval",
@@ -456,6 +458,8 @@ Assert-ContainsText -Text $materialSafetyScript -ExpectedText "Missing project_t
 
 foreach ($marker in @(
     "Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypointsTraceViolations",
+    "Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations",
+    "Project-template readiness checklist handoff evidence",
     "Project-template readiness checklist entrypoints evidence source reports",
     "project_template_readiness_checklist_entrypoints_checklist_path",
     "project_template_readiness_checklist_entrypoints_checklist_marker"

@@ -676,6 +676,41 @@ Set-Content -LiteralPath $passEntryGovernanceTracePath -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passEntryGovernanceTracePath
 
+$passEntryProjectTemplateChecklistHandoffEvidenceDir = Join-Path $passDir "entry-project-template-checklist-handoff-evidence"
+$passEntryProjectTemplateChecklistHandoffEvidencePath = Join-Path $passEntryProjectTemplateChecklistHandoffEvidenceDir "START_HERE.md"
+New-Item -ItemType Directory -Path $passEntryProjectTemplateChecklistHandoffEvidenceDir -Force | Out-Null
+Set-Content -LiteralPath $passEntryProjectTemplateChecklistHandoffEvidencePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, entrypoints=start_here, artifact_guide, reviewer_checklist, marker=release_entry_project_template_readiness_checklist_trace, source_report=.\output\release-candidate-checks\summary.json
+"@
+
+& $auditScript -Path $passEntryProjectTemplateChecklistHandoffEvidencePath
+
+$badEntryProjectTemplateChecklistHandoffEvidenceSplitDir = Join-Path $failDir "entry-project-template-checklist-handoff-evidence-split"
+$badEntryProjectTemplateChecklistHandoffEvidenceSplitPath = Join-Path $badEntryProjectTemplateChecklistHandoffEvidenceSplitDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistHandoffEvidenceSplitDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryProjectTemplateChecklistHandoffEvidenceSplitPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, entrypoints=start_here, artifact_guide, reviewer_checklist, source_report=.\output\release-candidate-checks\summary.json
+
+## Detached notes
+
+- marker=release_entry_project_template_readiness_checklist_trace
+"@
+
+$badEntryProjectTemplateChecklistHandoffEvidenceSplitFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryProjectTemplateChecklistHandoffEvidenceSplitPath
+} catch {
+    $badEntryProjectTemplateChecklistHandoffEvidenceSplitFailedAsExpected = $true
+}
+
+if (-not $badEntryProjectTemplateChecklistHandoffEvidenceSplitFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with project-template checklist handoff marker supplied only by detached notes."
+}
+
 $badStartHereProjectTemplateMissingChecklistDir = Join-Path $failDir "start-here-project-template-readiness-checklist-missing"
 $badStartHereProjectTemplateMissingChecklistPath = Join-Path $badStartHereProjectTemplateMissingChecklistDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badStartHereProjectTemplateMissingChecklistDir -Force | Out-Null
