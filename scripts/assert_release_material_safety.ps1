@@ -2213,6 +2213,7 @@ function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypoint
     $sourceReportBlockNeedles = @(
         "source_report:",
         "schema=",
+        "featherdoc.release_candidate_summary",
         "project_template_readiness_checklist_entrypoints_status:",
         "project_template_readiness_checklist_entrypoints_checklist_label:",
         "Project template release readiness checklist",
@@ -2231,7 +2232,7 @@ function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistEntrypoint
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release governance handoff must keep project-template readiness checklist status, checklist path, required entrypoint ids, and fixed checklist marker in the same source_report block."
+            -Text "Release governance handoff must keep project-template readiness checklist release-candidate source identity, status, checklist path, required entrypoint ids, and fixed checklist marker in the same source_report block."
     }
 }
 
@@ -2267,6 +2268,7 @@ function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistMaterialSa
     $sourceReportBlockNeedles = @(
         "source_report:",
         "schema=",
+        "featherdoc.release_candidate_summary",
         "release_entry_project_template_readiness_checklist_material_safety_audit_status:",
         "passed",
         "release_entry_project_template_readiness_checklist_material_safety_audit_script:",
@@ -2293,7 +2295,7 @@ function Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistMaterialSa
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release governance handoff must keep release-entry project-template readiness checklist material-safety audit status, audit script, audited entrypoints, compact evidence identity, checklist path, checklist marker, and material-safety marker in the same source_report block."
+            -Text "Release governance handoff must keep release-entry project-template readiness checklist material-safety audit release-candidate source identity, status, audit script, audited entrypoints, compact evidence identity, checklist path, checklist marker, and material-safety marker in the same source_report block."
     }
 }
 

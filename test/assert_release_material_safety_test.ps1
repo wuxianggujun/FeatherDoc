@@ -1257,7 +1257,7 @@ Set-Content -LiteralPath $passReleaseGovernanceHandoffProjectTemplateChecklistTr
 
 - Status: ``blocked``
 - Project-template readiness checklist entrypoints evidence source reports: ``1``
-  - source_report: ``.\output\release-blocker-rollup\summary.json`` schema=``featherdoc.release_blocker_rollup_summary.v1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
     - project_template_readiness_checklist_entrypoints_status: ``declared``
     - project_template_readiness_checklist_entrypoints_checklist_label: ``Project template release readiness checklist``
     - project_template_readiness_checklist_entrypoints_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``
@@ -1278,7 +1278,7 @@ Set-Content -LiteralPath $badReleaseGovernanceHandoffProjectTemplateChecklistSpl
 
 - Status: ``blocked``
 - Project-template readiness checklist entrypoints evidence source reports: ``1``
-  - source_report: ``.\output\release-blocker-rollup\summary.json`` schema=``featherdoc.release_blocker_rollup_summary.v1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
     - project_template_readiness_checklist_entrypoints_status: ``declared``
     - project_template_readiness_checklist_entrypoints_checklist_label: ``Project template release readiness checklist``
     - project_template_readiness_checklist_entrypoints_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``
@@ -1299,6 +1299,36 @@ try {
 
 if (-not $badReleaseGovernanceHandoffProjectTemplateChecklistSplitFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with project-template checklist entrypoints split outside source_report block."
+}
+
+$badReleaseGovernanceHandoffProjectTemplateChecklistWrongSchemaDir = Join-Path $failDir "release-governance-handoff-project-template-checklist-wrong-schema"
+$badReleaseGovernanceHandoffProjectTemplateChecklistWrongSchemaPath = Join-Path $badReleaseGovernanceHandoffProjectTemplateChecklistWrongSchemaDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffProjectTemplateChecklistWrongSchemaDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffProjectTemplateChecklistWrongSchemaPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- Project-template readiness checklist entrypoints evidence source reports: ``1``
+  - source_report: ``.\output\release-blocker-rollup\summary.json`` schema=``featherdoc.release_blocker_rollup_report.v1``
+    - project_template_readiness_checklist_entrypoints_status: ``declared``
+    - project_template_readiness_checklist_entrypoints_checklist_label: ``Project template release readiness checklist``
+    - project_template_readiness_checklist_entrypoints_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``
+    - project_template_readiness_checklist_entrypoints_required_entrypoint_count: ``3``
+    - project_template_readiness_checklist_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
+    - project_template_readiness_checklist_entrypoints_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``
+"@
+
+$badReleaseGovernanceHandoffProjectTemplateChecklistWrongSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffProjectTemplateChecklistWrongSchemaPath
+} catch {
+    $badReleaseGovernanceHandoffProjectTemplateChecklistWrongSchemaFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffProjectTemplateChecklistWrongSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with project-template checklist entrypoints source_report using a non-release-candidate schema."
 }
 
 $passReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditTraceDir = Join-Path $passDir "release-governance-handoff-project-template-checklist-material-safety-audit-trace"
@@ -1359,6 +1389,39 @@ try {
 
 if (-not $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditSplitFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with release-entry project-template checklist material-safety audit evidence split outside source_report block."
+}
+
+$badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditWrongSchemaDir = Join-Path $failDir "release-governance-handoff-project-template-checklist-material-safety-audit-wrong-schema"
+$badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditWrongSchemaPath = Join-Path $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditWrongSchemaDir "release_governance_handoff.md"
+New-Item -ItemType Directory -Path $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditWrongSchemaDir -Force | Out-Null
+Set-Content -LiteralPath $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditWrongSchemaPath -Encoding UTF8 -Value @"
+# Release Governance Handoff
+
+## Release Blocker Rollup
+
+- Status: ``blocked``
+- Release-entry project-template readiness checklist material-safety audit source reports: ``1``
+  - source_report: ``.\output\release-blocker-rollup\summary.json`` schema=``featherdoc.release_blocker_rollup_report.v1``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_script: ``.\scripts\assert_release_material_safety.ps1``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count: ``3``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``start_here, artifact_guide, reviewer_checklist``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label: ``Project-template readiness checklist handoff evidence``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field: ``project_template_readiness_checklist_entrypoints_source_reports``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``
+    - release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``
+"@
+
+$badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditWrongSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditWrongSchemaPath
+} catch {
+    $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditWrongSchemaFailedAsExpected = $true
+}
+
+if (-not $badReleaseGovernanceHandoffProjectTemplateChecklistMaterialSafetyAuditWrongSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release governance handoff with release-entry project-template checklist material-safety audit source_report using a non-release-candidate schema."
 }
 
 $passFinalReviewTraceDir = Join-Path $passDir "final-review-project-template-trace"

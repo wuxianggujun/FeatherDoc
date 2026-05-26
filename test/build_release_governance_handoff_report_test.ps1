@@ -1351,6 +1351,13 @@ if (Test-Scenario -Name "include_rollup") {
     ) -Message "Handoff Markdown should keep PDF visual gate source-report evidence in one source_report block."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
         "schema=``featherdoc.release_candidate_summary``",
+        "project_template_readiness_checklist_entrypoints_status: ``declared``",
+        "project_template_readiness_checklist_entrypoints_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``",
+        "project_template_readiness_checklist_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``",
+        "project_template_readiness_checklist_entrypoints_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``"
+    ) -Message "Handoff Markdown should keep project-template checklist entrypoint evidence and release-candidate source identity in one source_report block."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
+        "schema=``featherdoc.release_candidate_summary``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``start_here, artifact_guide, reviewer_checklist``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``"
