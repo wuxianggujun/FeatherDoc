@@ -185,6 +185,9 @@ function Get-PdfVisualGateRollupEvidence {
                 pdf_visual_gate_attempt_passed_stage_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_passed_stage_count")
                 pdf_visual_gate_attempt_failed_stage_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_failed_stage_count")
                 pdf_visual_gate_attempt_incomplete_stage_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_incomplete_stage_count")
+                pdf_visual_gate_attempt_outer_guard_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_outer_guard_status"
+                pdf_visual_gate_attempt_outer_guard_timed_out = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_outer_guard_timed_out")
+                pdf_visual_gate_attempt_outer_guard_timeout_seconds = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_outer_guard_timeout_seconds")
                 pdf_visual_gate_attempt_pdf_cli_export_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_pdf_cli_export_status"
                 pdf_visual_gate_attempt_pdf_regression_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_pdf_regression_status"
                 pdf_visual_gate_attempt_pdf_regression_selected_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_pdf_regression_selected_test_count")
@@ -996,6 +999,9 @@ function New-ReportMarkdown {
                 $lines.Add("    - pdf_visual_gate_attempt_passed_stage_count: ``$($evidence.pdf_visual_gate_attempt_passed_stage_count)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_failed_stage_count: ``$($evidence.pdf_visual_gate_attempt_failed_stage_count)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_incomplete_stage_count: ``$($evidence.pdf_visual_gate_attempt_incomplete_stage_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_outer_guard_status: ``$($evidence.pdf_visual_gate_attempt_outer_guard_status)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_outer_guard_timed_out: ``$($evidence.pdf_visual_gate_attempt_outer_guard_timed_out)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_outer_guard_timeout_seconds: ``$($evidence.pdf_visual_gate_attempt_outer_guard_timeout_seconds)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_pdf_cli_export_status: ``$($evidence.pdf_visual_gate_attempt_pdf_cli_export_status)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_pdf_regression_status: ``$($evidence.pdf_visual_gate_attempt_pdf_regression_status)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_pdf_regression_selected_test_count: ``$($evidence.pdf_visual_gate_attempt_pdf_regression_selected_test_count)``") | Out-Null

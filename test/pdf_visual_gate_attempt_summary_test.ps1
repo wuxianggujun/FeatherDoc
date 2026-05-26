@@ -43,7 +43,9 @@ function Write-TextFile {
 function Invoke-AttemptSummaryScript {
     param(
         [string]$ReportDir,
-        [string]$OutputJson
+        [string]$OutputJson,
+        [switch]$OuterGuardTimedOut,
+        [int]$OuterGuardTimeoutSeconds = 0
     )
 
     $powerShellPath = (Get-Process -Id $PID).Path
@@ -59,10 +61,28 @@ function Invoke-AttemptSummaryScript {
     }
 
     $scriptPath = Join-Path $resolvedRepoRoot "scripts\write_pdf_visual_gate_attempt_summary.ps1"
-    $output = @(& $powerShellPath -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath `
-            -RepoRoot $resolvedRepoRoot `
-            -ReportDir $ReportDir `
-            -OutputJson $OutputJson 2>&1)
+    $arguments = @(
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        $scriptPath,
+        "-RepoRoot",
+        $resolvedRepoRoot,
+        "-ReportDir",
+        $ReportDir,
+        "-OutputJson",
+        $OutputJson
+    )
+    if ($OuterGuardTimedOut) {
+        $arguments += "-OuterGuardTimedOut"
+    }
+    if ($OuterGuardTimeoutSeconds -gt 0) {
+        $arguments += @("-OuterGuardTimeoutSeconds", [string]$OuterGuardTimeoutSeconds)
+    }
+
+    $output = @(& $powerShellPath @arguments 2>&1)
     $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
     if ($exitCode -ne 0) {
         throw "write_pdf_visual_gate_attempt_summary.ps1 failed: $($output -join [Environment]::NewLine)"
@@ -160,7 +180,9 @@ $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $partialFixture = New-AttemptFixture -Root (Join-Path $resolvedWorkingDir "partial") -FreshFullPass $false
-Invoke-AttemptSummaryScript -ReportDir $partialFixture.ReportDir -OutputJson $partialFixture.OutputJson
+Invoke-AttemptSummaryScript -ReportDir $partialFixture.ReportDir -OutputJson $partialFixture.OutputJson `
+    -OuterGuardTimedOut `
+    -OuterGuardTimeoutSeconds 60
 $partialSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $partialFixture.OutputJson | ConvertFrom-Json
 
 Assert-Equal -Actual $partialSummary.status -Expected "partial" `
@@ -189,6 +211,12 @@ Assert-Equal -Actual $partialSummary.aggregate_contact_sheet_status -Expected "s
     -Message "Attempt summary should not treat stale contact sheets as fresh attempt evidence."
 Assert-Equal -Actual $partialSummary.evidence_scope -Expected "bounded_attempt_auxiliary_only" `
     -Message "Attempt summary should declare its auxiliary scope."
+Assert-Equal -Actual $partialSummary.outer_guard_status -Expected "timed_out" `
+    -Message "Timed-out guarded attempts should preserve the outer guard status."
+Assert-True -Condition ([bool]$partialSummary.outer_guard_timed_out) `
+    -Message "Timed-out guarded attempts should preserve the outer guard timed-out flag."
+Assert-Equal -Actual ([int]$partialSummary.outer_guard_timeout_seconds) -Expected 60 `
+    -Message "Timed-out guarded attempts should preserve the outer guard timeout seconds."
 
 $passFixture = New-AttemptFixture -Root (Join-Path $resolvedWorkingDir "pass") -FreshFullPass $true
 Invoke-AttemptSummaryScript -ReportDir $passFixture.ReportDir -OutputJson $passFixture.OutputJson
@@ -202,3 +230,7 @@ Assert-Equal -Actual $passSummary.full_visual_gate_status -Expected "pass" `
     -Message "Fresh non-finalize full summary should preserve full_visual_gate_status=pass."
 Assert-True -Condition ([bool]$passSummary.full_summary_fresh_for_attempt) `
     -Message "Fresh full summary should be marked fresh for the attempt."
+Assert-Equal -Actual $passSummary.outer_guard_status -Expected "completed" `
+    -Message "Fresh non-finalize full pass should preserve a completed outer guard status."
+Assert-Equal -Actual ([bool]$passSummary.outer_guard_timed_out) -Expected $false `
+    -Message "Fresh non-finalize full pass should not mark the outer guard as timed out."

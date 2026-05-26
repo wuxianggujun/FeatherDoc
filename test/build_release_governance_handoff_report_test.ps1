@@ -1017,6 +1017,9 @@ if (Test-Scenario -Name "include_rollup") {
                 passed_stage_count = 4
                 failed_stage_count = 0
                 incomplete_stage_count = 2
+                outer_guard_status = "timed_out"
+                outer_guard_timed_out = $true
+                outer_guard_timeout_seconds = 60
                 pdf_cli_export_status = "pass"
                 pdf_regression_status = "pass"
                 pdf_regression_selected_test_count = 91
@@ -1146,6 +1149,12 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should expose PDF visual gate attempt passed stage count."
     Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_incomplete_stage_count) -Expected 2 `
         -Message "Handoff summary should expose PDF visual gate attempt incomplete stage count."
+    Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_attempt_outer_guard_status) -Expected "timed_out" `
+        -Message "Handoff summary should expose PDF visual gate attempt outer guard status."
+    Assert-Equal -Actual ([bool]$pdfEvidence.pdf_visual_gate_attempt_outer_guard_timed_out) -Expected $true `
+        -Message "Handoff summary should expose PDF visual gate attempt outer guard timeout flag."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_outer_guard_timeout_seconds) -Expected 60 `
+        -Message "Handoff summary should expose PDF visual gate attempt outer guard timeout seconds."
     Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_pdf_regression_selected_test_count) -Expected 91 `
         -Message "Handoff summary should expose PDF visual gate attempt pdf_regression selected count."
     Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_pdf_regression_failed_test_count) -Expected 0 `
@@ -1311,6 +1320,12 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Nested rollup should preserve PDF visual gate attempt status."
     Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_verdict) -Expected "not_complete" `
         -Message "Nested rollup should preserve PDF visual gate attempt verdict."
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_outer_guard_status) -Expected "timed_out" `
+        -Message "Nested rollup should preserve PDF visual gate attempt outer guard status."
+    Assert-Equal -Actual ([bool]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_outer_guard_timed_out) -Expected $true `
+        -Message "Nested rollup should preserve PDF visual gate attempt outer guard timeout flag."
+    Assert-Equal -Actual ([int]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_outer_guard_timeout_seconds) -Expected 60 `
+        -Message "Nested rollup should preserve PDF visual gate attempt outer guard timeout seconds."
     Assert-Equal -Actual ([int]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_pdf_regression_skipped_test_count) -Expected 7 `
         -Message "Nested rollup should preserve PDF visual gate attempt skipped count."
     Assert-Equal -Actual ([int]$rollupReleaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count) -Expected 22 `
@@ -1353,6 +1368,12 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should expose the PDF visual gate attempt verdict."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_evidence_scope: ``bounded_attempt_auxiliary_only``" `
         -Message "Handoff Markdown should expose the PDF visual gate attempt evidence scope."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_outer_guard_status: ``timed_out``" `
+        -Message "Handoff Markdown should expose the PDF visual gate attempt outer guard status."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_outer_guard_timed_out: ``True``" `
+        -Message "Handoff Markdown should expose the PDF visual gate attempt outer guard timeout flag."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_outer_guard_timeout_seconds: ``60``" `
+        -Message "Handoff Markdown should expose the PDF visual gate attempt outer guard timeout seconds."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_pdf_regression_skipped_test_count: ``7``" `
         -Message "Handoff Markdown should expose the PDF visual gate attempt skipped count."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``" `
@@ -1415,6 +1436,21 @@ if (Test-Scenario -Name "include_rollup") {
         "regression-table-layout",
         "pdf_bounded_ctest_summary_json_display:",
         "pdf-ctest-bounded-regression-business-samples-current\summary.json",
+        "pdf_visual_gate_attempt_status: ``partial``",
+        "pdf_visual_gate_attempt_verdict: ``not_complete``",
+        "pdf_visual_gate_attempt_full_visual_gate_status: ``not_complete``",
+        "pdf_visual_gate_attempt_evidence_scope: ``bounded_attempt_auxiliary_only``",
+        "pdf_visual_gate_attempt_summary_json_display:",
+        "attempt-summary.json",
+        "pdf_visual_gate_attempt_outer_guard_status: ``timed_out``",
+        "pdf_visual_gate_attempt_outer_guard_timed_out: ``True``",
+        "pdf_visual_gate_attempt_outer_guard_timeout_seconds: ``60``",
+        "pdf_visual_gate_attempt_pdf_regression_selected_test_count: ``91``",
+        "pdf_visual_gate_attempt_pdf_regression_failed_test_count: ``0``",
+        "pdf_visual_gate_attempt_pdf_regression_skipped_test_count: ``7``",
+        "pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``",
+        "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``",
+        "pdf_visual_gate_attempt_expected_visual_render_count: ``44``",
         "pdf_visual_segmented_gate_status: ``pass``",
         "pdf_visual_segmented_gate_verdict: ``pass``",
         "pdf_visual_segmented_gate_full_visual_gate_status: ``not_complete``",

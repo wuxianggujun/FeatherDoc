@@ -358,9 +358,17 @@ schema 为 `featherdoc.pdf_visual_gate_attempt_summary.v1`，并显式写出
 `pdf_visual_gate_attempt_pdf_regression_selected_test_count`、
 `pdf_visual_gate_attempt_pdf_regression_failed_test_count`、
 `pdf_visual_gate_attempt_pdf_regression_skipped_test_count`、
+`pdf_visual_gate_attempt_outer_guard_status`、
+`pdf_visual_gate_attempt_outer_guard_timed_out`、
+`pdf_visual_gate_attempt_outer_guard_timeout_seconds`、
 `pdf_visual_gate_attempt_visual_baseline_render_status` 和
 `pdf_visual_gate_attempt_aggregate_contact_sheet_status`。固定标记：
 `pdf_visual_gate_attempt_summary_trace`、`pdf_visual_gate_attempt_governance_trace`。
+如果外层 60 秒保护截断了本次尝试，必须写出
+`pdf_visual_gate_attempt_outer_guard_status = timed_out`、
+`pdf_visual_gate_attempt_outer_guard_timed_out = true` 和
+`pdf_visual_gate_attempt_outer_guard_timeout_seconds = 60`。固定标记：
+`pdf_visual_gate_attempt_outer_guard_trace`。
 `bounded_attempt_auxiliary_only` 只解释被截断尝试已经完成的子阶段，不能替代
 `full_visual_gate_status = pass` 或 full gate summary verdict。`assert_release_material_safety.ps1`
 会要求 `pdf_visual_gate_attempt_*` 字段与 `source_report:` 同块，避免 detached notes
@@ -850,6 +858,8 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
    `scripts/write_pdf_visual_gate_attempt_summary.ps1 -ReportDir .\output\pdf-visual-release-gate-current\report`，
    生成 `attempt-summary.json`，确认 `verdict = not_complete`、
    `full_visual_gate_status = not_complete` 和 `evidence_scope = bounded_attempt_auxiliary_only`
+   以及 `outer_guard_status = timed_out`、`outer_guard_timed_out = true`、
+   `outer_guard_timeout_seconds = 60`
    与已完成的 `pdf_cli_export`、`pdf_regression`、CJK copy/search、fresh baseline 计数同块出现。
 6. 受控切片：如果 fresh baseline render 阶段无法一次完成，运行
    `scripts/run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputDir .\output\pdf-visual-release-gate-current -VisualBaselineSliceOnly -VisualBaselineOffset 0 -VisualBaselineLimit 4 -SkipPreflight`，

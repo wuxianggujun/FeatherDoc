@@ -3,7 +3,9 @@ param(
     [string]$ReportDir = "output/pdf-visual-release-gate-current/report",
     [string]$OutputJson = "",
     [string]$ManifestPath = "test/pdf_regression_manifest.json",
-    [string]$AttemptStartedAfter = ""
+    [string]$AttemptStartedAfter = "",
+    [switch]$OuterGuardTimedOut,
+    [int]$OuterGuardTimeoutSeconds = 0
 )
 
 $ErrorActionPreference = "Stop"
@@ -347,6 +349,15 @@ $status = if ($freshNonFinalizeFullPass) {
 }
 $verdict = if ($status -eq "pass") { "pass" } elseif ($status -eq "fail") { "fail" } else { "not_complete" }
 $fullVisualGateStatus = if ($freshNonFinalizeFullPass) { "pass" } elseif ($status -eq "fail") { "fail" } else { "not_complete" }
+$outerGuardStatus = if ($OuterGuardTimedOut) {
+    "timed_out"
+} elseif ($freshNonFinalizeFullPass) {
+    "completed"
+} elseif ($status -eq "not_available") {
+    "not_available"
+} else {
+    "not_timed_out"
+}
 
 $summary = [ordered]@{
     schema = "featherdoc.pdf_visual_gate_attempt_summary.v1"
@@ -365,6 +376,9 @@ $summary = [ordered]@{
     full_summary_finalize_only = $fullSummaryFinalizeOnly
     full_summary_fresh_for_attempt = $fullSummaryFresh
     attempt_started_after = if ($null -ne $attemptStart) { $attemptStart.ToString("s") } else { "" }
+    outer_guard_status = $outerGuardStatus
+    outer_guard_timed_out = [bool]$OuterGuardTimedOut
+    outer_guard_timeout_seconds = $OuterGuardTimeoutSeconds
     stage_count = $stageEvidence.Count
     passed_stage_count = $passedStageCount
     failed_stage_count = $failedStageCount

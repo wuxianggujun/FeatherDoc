@@ -653,6 +653,12 @@ function Add-PdfVisualGateAttemptEvidenceFields {
         -Value (Get-FirstJsonProperty -Object $attempt -Names @("failed_stage_count"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_incomplete_stage_count" `
         -Value (Get-FirstJsonProperty -Object $attempt -Names @("incomplete_stage_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_outer_guard_status" `
+        -Value (Get-FirstJsonString -Object $attempt -Names @("outer_guard_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_outer_guard_timed_out" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("outer_guard_timed_out"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_outer_guard_timeout_seconds" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("outer_guard_timeout_seconds"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_pdf_cli_export_status" `
         -Value (Get-FirstJsonString -Object $attempt -Names @("pdf_cli_export_status"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_pdf_regression_status" `
@@ -1220,6 +1226,9 @@ function New-ReportMarkdown {
                     "pdf_visual_gate_attempt_passed_stage_count",
                     "pdf_visual_gate_attempt_failed_stage_count",
                     "pdf_visual_gate_attempt_incomplete_stage_count",
+                    "pdf_visual_gate_attempt_outer_guard_status",
+                    "pdf_visual_gate_attempt_outer_guard_timed_out",
+                    "pdf_visual_gate_attempt_outer_guard_timeout_seconds",
                     "pdf_visual_gate_attempt_pdf_cli_export_status",
                     "pdf_visual_gate_attempt_pdf_regression_status",
                     "pdf_visual_gate_attempt_pdf_regression_selected_test_count",

@@ -343,6 +343,9 @@ schema 为 ``featherdoc.pdf_visual_gate_attempt_summary.v1``，固定标记：
 ``pdf_visual_gate_attempt_pdf_regression_selected_test_count``、
 ``pdf_visual_gate_attempt_pdf_regression_failed_test_count``、
 ``pdf_visual_gate_attempt_pdf_regression_skipped_test_count``、
+``pdf_visual_gate_attempt_outer_guard_status``、
+``pdf_visual_gate_attempt_outer_guard_timed_out``、
+``pdf_visual_gate_attempt_outer_guard_timeout_seconds``、
 ``pdf_visual_gate_attempt_visual_baseline_render_status`` 和
 ``pdf_visual_gate_attempt_aggregate_contact_sheet_status`` 作为同一
 ``source_report:`` block 的辅助证据。``bounded_attempt_auxiliary_only`` 只能解释
@@ -350,7 +353,11 @@ schema 为 ``featherdoc.pdf_visual_gate_attempt_summary.v1``，固定标记：
 ``full_visual_gate_status = pass``。``assert_release_material_safety.ps1`` 会审计
 这些 ``pdf_visual_gate_attempt_*`` 字段必须与 ``source_report:`` 同块，避免
 detached notes 单独补齐被截断尝试的子阶段证据。固定标记：
-``pdf_visual_gate_attempt_material_safety_trace``。
+``pdf_visual_gate_attempt_material_safety_trace``。如果本次尝试由外层 60 秒保护截断，
+attempt summary 必须写出 ``outer_guard_status = timed_out``、
+``outer_guard_timed_out = true`` 和 ``outer_guard_timeout_seconds = 60``；这些字段
+只解释外层保护状态，不能替代 fresh full visual gate pass。固定标记：
+``pdf_visual_gate_attempt_outer_guard_trace``。
 
 如果 44 个 visual baseline 无法在单个 60 秒外层保护内一次性重渲染，可以使用
 ``scripts/run_pdf_visual_release_gate.ps1 -VisualBaselineSliceOnly`` 做受控切片。
