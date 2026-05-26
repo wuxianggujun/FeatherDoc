@@ -367,6 +367,28 @@ schema 为 `featherdoc.pdf_visual_gate_attempt_summary.v1`，并显式写出
 单独补齐被截断尝试的子阶段证据。固定标记：
 `pdf_visual_gate_attempt_material_safety_trace`。
 
+如果 44 个 visual baseline 无法在单个 60 秒外层保护内一次性重渲染，可以先用
+`scripts/run_pdf_visual_release_gate.ps1 -VisualBaselineSliceOnly -VisualBaselineOffset <n> -VisualBaselineLimit <m>`
+补跑受控切片。该模式会跳过 CTest、Unicode font 和 CJK copy/search，只重渲染选中的
+baseline，生成 `visual-baseline-slice-offset-<n>-limit-<m>-summary.json` 和对应
+contact sheet。slice summary 使用 `featherdoc.pdf_visual_baseline_slice.v1`，
+`evidence_scope = visual_baseline_slice_only`，并固定写出
+`full_visual_gate_status = not_complete` 与
+`slice_summary_does_not_replace_full_visual_gate_verdict`。固定标记：
+`pdf_visual_baseline_slice_summary_trace`。这些切片只能作为推进 fresh render 计数的辅助证据，
+不能替代 full gate summary verdict。
+
+当所有 baseline 已经由切片或完整运行生成，但 aggregate contact sheet 需要在 60 秒保护内单独刷新时，
+运行 `scripts/run_pdf_visual_release_gate.ps1 -RebuildAggregateContactSheetOnly`。该模式只读取现有
+baseline summary / page-01 PNG，重建 `report/aggregate-contact-sheet.png`，并写出
+`aggregate-contact-sheet-rebuild-summary.json`。该 summary 使用
+`featherdoc.pdf_visual_aggregate_contact_sheet_rebuild.v1`，
+`evidence_scope = aggregate_contact_sheet_rebuild_only`，并固定写出
+`full_visual_gate_status = not_complete` 与
+`aggregate_rebuild_summary_does_not_replace_full_visual_gate_verdict`。固定标记：
+`pdf_visual_aggregate_contact_sheet_rebuild_trace`。它只能证明 contact-sheet 重建阶段完成，
+不能替代 full gate summary verdict。
+
 默认 `PdfDocumentImporter` 遇到 `PdfParsedTableCandidate` 仍返回
 `table_candidates_detected`，避免把表格误扁平化成正文。只有显式设置
 `PdfDocumentImportOptions::import_table_candidates_as_tables=true` 时，才会尝试把简单
@@ -797,10 +819,24 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
    生成 `attempt-summary.json`，确认 `verdict = not_complete`、
    `full_visual_gate_status = not_complete` 和 `evidence_scope = bounded_attempt_auxiliary_only`
    与已完成的 `pdf_cli_export`、`pdf_regression`、CJK copy/search、fresh baseline 计数同块出现。
-6. 机器结论：`output/pdf-visual-release-gate-current/report/summary.json` 必须包含
+6. 受控切片：如果 fresh baseline render 阶段无法一次完成，运行
+   `scripts/run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputDir .\output\pdf-visual-release-gate-current -VisualBaselineSliceOnly -VisualBaselineOffset 0 -VisualBaselineLimit 4 -SkipPreflight`，
+   生成 `visual-baseline-slice-offset-0-limit-4-summary.json`，确认
+   `schema = featherdoc.pdf_visual_baseline_slice.v1`、
+   `evidence_scope = visual_baseline_slice_only` 和
+   `slice_summary_does_not_replace_full_visual_gate_verdict`。固定标记：
+   `pdf_visual_baseline_slice_summary_trace`。
+7. 汇总图：如需单独刷新 aggregate contact sheet，运行
+   `scripts/run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputDir .\output\pdf-visual-release-gate-current -RebuildAggregateContactSheetOnly -SkipPreflight`，
+   生成 `aggregate-contact-sheet-rebuild-summary.json`，确认
+   `schema = featherdoc.pdf_visual_aggregate_contact_sheet_rebuild.v1`、
+   `evidence_scope = aggregate_contact_sheet_rebuild_only` 和
+   `aggregate_rebuild_summary_does_not_replace_full_visual_gate_verdict`。固定标记：
+   `pdf_visual_aggregate_contact_sheet_rebuild_trace`。
+8. 机器结论：`output/pdf-visual-release-gate-current/report/summary.json` 必须包含
    `verdict = pass`、`baselines_count > 0`、`cjk_copy_search_count > 0` 和
    `aggregate_contact_sheet`。
-7. 发布治理：`scripts/run_release_candidate_checks.ps1` 的 summary / final review
+9. 发布治理：`scripts/run_release_candidate_checks.ps1` 的 summary / final review
    必须消费 PDF visual gate verdict、计数和 contact sheet 路径。
 7. 视觉证据：复用或生成的 `aggregate-contact-sheet.png` 必须非空，且抽检不是白图。
 8. 轻量验证：至少运行相关 PowerShell 契约测试；资源窗口允许时再运行

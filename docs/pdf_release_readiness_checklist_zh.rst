@@ -150,6 +150,27 @@ OCR 或任意视觉精确还原。
      ``pdf_visual_gate_attempt_summary_trace``、
      ``pdf_visual_gate_attempt_governance_trace``、
      ``pdf_visual_gate_attempt_material_safety_trace``。
+   * visual baseline render 阶段如果无法在单个 60 秒外层保护内完成，可以补跑
+     ``scripts/run_pdf_visual_release_gate.ps1 -VisualBaselineSliceOnly``。
+     该模式必须携带 ``VisualBaselineOffset`` 和 ``VisualBaselineLimit``，生成
+     ``visual-baseline-slice-offset-<n>-limit-<m>-summary.json`` 和对应 contact sheet；
+     summary 必须包含 ``schema = featherdoc.pdf_visual_baseline_slice.v1``、
+     ``evidence_scope = visual_baseline_slice_only``、
+     ``full_visual_gate_status = not_complete`` 和
+     ``slice_summary_does_not_replace_full_visual_gate_verdict``。固定标记：
+     ``pdf_visual_baseline_slice_summary_trace``。切片证据只能补强 fresh baseline render
+     计数，不能替代 full visual gate verdict。
+   * baseline 已经存在但 aggregate contact sheet 需要在 60 秒外层保护内单独刷新时，
+     可以运行 ``scripts/run_pdf_visual_release_gate.ps1 -RebuildAggregateContactSheetOnly``。
+     该模式只读取现有 baseline summary / ``page-01.png``，重建
+     ``report/aggregate-contact-sheet.png``，并写出
+     ``aggregate-contact-sheet-rebuild-summary.json``；summary 必须包含
+     ``schema = featherdoc.pdf_visual_aggregate_contact_sheet_rebuild.v1``、
+     ``evidence_scope = aggregate_contact_sheet_rebuild_only``、
+     ``full_visual_gate_status = not_complete`` 和
+     ``aggregate_rebuild_summary_does_not_replace_full_visual_gate_verdict``。固定标记：
+     ``pdf_visual_aggregate_contact_sheet_rebuild_trace``。该证据不能替代 full visual gate
+     verdict。
    * ``release_assets_manifest.json`` 中的 ``pdf_visual_gate_evidence`` 必须保留
      ``cjk_manifest_count >= 43``、``visual_baseline_manifest_count >= 42``，
      并且 ``verdict = pass`` 时 ``cjk_missing_text_count = 0``；不能只依赖

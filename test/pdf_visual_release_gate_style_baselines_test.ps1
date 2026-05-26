@@ -99,6 +99,26 @@ Assert-ContainsText -Text $scriptText -ExpectedText "visual_baseline_manifest_co
     -Message "PDF visual release gate summary should expose manifest visual baseline count."
 Assert-ContainsText -Text $scriptText -ExpectedText "baselines_count = `$renderedSamples.Count" `
     -Message "PDF visual release gate summary should expose rendered baseline evidence count."
+Assert-ContainsText -Text $scriptText -ExpectedText "[switch]`$VisualBaselineSliceOnly" `
+    -Message "PDF visual release gate should expose a bounded visual baseline slice mode."
+Assert-ContainsText -Text $scriptText -ExpectedText "featherdoc.pdf_visual_baseline_slice.v1" `
+    -Message "PDF visual release gate should write a machine-readable slice summary."
+Assert-ContainsText -Text $scriptText -ExpectedText "slice_summary_does_not_replace_full_visual_gate_verdict" `
+    -Message "PDF visual baseline slice evidence must not replace the full visual gate verdict."
+Assert-ContainsText -Text $scriptText -ExpectedText "VisualBaselineOffset" `
+    -Message "PDF visual baseline slice mode should support explicit offsets."
+Assert-ContainsText -Text $scriptText -ExpectedText "VisualBaselineLimit" `
+    -Message "PDF visual baseline slice mode should support explicit limits."
+Assert-ContainsText -Text $scriptText -ExpectedText "visual_baseline_slice_only" `
+    -Message "PDF visual baseline slice summary should carry an auxiliary evidence scope."
+Assert-ContainsText -Text $scriptText -ExpectedText "[switch]`$RebuildAggregateContactSheetOnly" `
+    -Message "PDF visual release gate should expose a bounded aggregate contact-sheet rebuild mode."
+Assert-ContainsText -Text $scriptText -ExpectedText "featherdoc.pdf_visual_aggregate_contact_sheet_rebuild.v1" `
+    -Message "PDF visual release gate should write a machine-readable aggregate rebuild summary."
+Assert-ContainsText -Text $scriptText -ExpectedText "aggregate_rebuild_summary_does_not_replace_full_visual_gate_verdict" `
+    -Message "PDF aggregate rebuild evidence must not replace the full visual gate verdict."
+Assert-ContainsText -Text $scriptText -ExpectedText "aggregate_contact_sheet_rebuild_only" `
+    -Message "PDF aggregate rebuild summary should carry an auxiliary evidence scope."
 Assert-ContainsText -Text $scriptText -ExpectedText "[switch]`$FinalizeOnly" `
     -Message "PDF visual release gate should expose a finalize-only mode for already rendered outputs."
 Assert-ContainsText -Text $scriptText -ExpectedText "Finalizing existing PDF visual release gate output" `

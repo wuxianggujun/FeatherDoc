@@ -18,6 +18,12 @@ param(
     [switch]$FinalizeOnly,
     [switch]$SkipPreflight,
     [switch]$SkipMemoryGuard,
+    [ValidateRange(0, 2147483647)]
+    [int]$VisualBaselineOffset = 0,
+    [ValidateRange(0, 2147483647)]
+    [int]$VisualBaselineLimit = 0,
+    [switch]$VisualBaselineSliceOnly,
+    [switch]$RebuildAggregateContactSheetOnly,
     [string]$CtestExecutable = "ctest"
 )
 
@@ -321,10 +327,28 @@ function Read-ExistingRenderedSample {
     }
 }
 
+function Select-VisualBaselineSlice {
+    param(
+        [object[]]$Samples,
+        [int]$Offset,
+        [int]$Limit
+    )
+
+    if ($Offset -ge $Samples.Count) {
+        throw "Visual baseline slice offset $Offset is outside the available sample count $($Samples.Count)."
+    }
+
+    $selectedCount = [Math]::Min($Limit, $Samples.Count - $Offset)
+    return @($Samples | Select-Object -Skip $Offset -First $selectedCount)
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir
-$resolvedCtestExecutable = Resolve-CtestExecutable -Executable $CtestExecutable
+$resolvedCtestExecutable = ""
+if (-not $FinalizeOnly -and -not $VisualBaselineSliceOnly -and -not $RebuildAggregateContactSheetOnly -and -not $PreflightOnly) {
+    $resolvedCtestExecutable = Resolve-CtestExecutable -Executable $CtestExecutable
+}
 $reportDir = Join-Path $resolvedOutputDir "report"
 $baselineDir = Join-Path $resolvedOutputDir "baseline"
 $unicodeOutputDir = Join-Path $resolvedOutputDir "unicode-font"
@@ -342,6 +366,34 @@ $summaryPath = Join-Path $reportDir "summary.json"
 
 if ($FinalizeOnly -and $PreflightOnly) {
     throw "-FinalizeOnly cannot be used with -PreflightOnly."
+}
+
+if ($VisualBaselineSliceOnly -and $FinalizeOnly) {
+    throw "-VisualBaselineSliceOnly cannot be used with -FinalizeOnly."
+}
+
+if ($RebuildAggregateContactSheetOnly -and $FinalizeOnly) {
+    throw "-RebuildAggregateContactSheetOnly cannot be used with -FinalizeOnly."
+}
+
+if ($RebuildAggregateContactSheetOnly -and $VisualBaselineSliceOnly) {
+    throw "-RebuildAggregateContactSheetOnly cannot be used with -VisualBaselineSliceOnly."
+}
+
+if ($VisualBaselineSliceOnly -and $PreflightOnly) {
+    throw "-VisualBaselineSliceOnly cannot be used with -PreflightOnly."
+}
+
+if ($RebuildAggregateContactSheetOnly -and $PreflightOnly) {
+    throw "-RebuildAggregateContactSheetOnly cannot be used with -PreflightOnly."
+}
+
+if ($VisualBaselineSliceOnly -and $VisualBaselineLimit -le 0) {
+    throw "-VisualBaselineSliceOnly requires -VisualBaselineLimit greater than 0."
+}
+
+if (-not $VisualBaselineSliceOnly -and ($VisualBaselineOffset -ne 0 -or $VisualBaselineLimit -ne 0)) {
+    throw "-VisualBaselineOffset and -VisualBaselineLimit require -VisualBaselineSliceOnly."
 }
 
 if (-not $SkipPreflight -and -not $FinalizeOnly) {
@@ -409,8 +461,15 @@ if ($visualManifestSamples.Count -eq 0) {
 }
 
 $cjkCopySearchResults = New-Object System.Collections.Generic.List[object]
+$renderPython = $null
 
-if ($FinalizeOnly) {
+if ($VisualBaselineSliceOnly) {
+    Write-Step "Rendering visual baseline slice only; skipping CTest, unicode font, CJK copy/search, and full-gate summary finalization"
+    $renderPython = Get-RenderPython -RepoRoot $repoRoot
+} elseif ($RebuildAggregateContactSheetOnly) {
+    Write-Step "Rebuilding aggregate contact sheet only; reusing existing rendered visual baselines"
+    $renderPython = Get-RenderPython -RepoRoot $repoRoot
+} elseif ($FinalizeOnly) {
     Write-Step "Finalizing existing PDF visual release gate output"
     foreach ($requiredPath in @($pdfCliExportLog, $pdfRegressionLog, $aggregateContactSheetPath)) {
         if (-not (Test-Path $requiredPath)) {
@@ -495,7 +554,7 @@ if ($FinalizeOnly) {
     }
 }
 
-$samples = @(
+$allVisualSamples = @(
     $visualManifestSamples | ForEach-Object {
         [ordered]@{
             name = $_.id
@@ -523,6 +582,12 @@ $samples = @(
     }
 )
 
+$samples = if ($VisualBaselineSliceOnly) {
+    Select-VisualBaselineSlice -Samples $allVisualSamples -Offset $VisualBaselineOffset -Limit $VisualBaselineLimit
+} else {
+    $allVisualSamples
+}
+
 $renderedSamples = New-Object System.Collections.Generic.List[object]
 foreach ($sample in $samples) {
     if (-not (Test-Path $sample.pdf)) {
@@ -533,6 +598,8 @@ foreach ($sample in $samples) {
         $styleFocus = @($sample.style_focus)
     }
     if ($FinalizeOnly) {
+        $renderedSamples.Add((Read-ExistingRenderedSample -Sample $sample)) | Out-Null
+    } elseif ($RebuildAggregateContactSheetOnly) {
         $renderedSamples.Add((Read-ExistingRenderedSample -Sample $sample)) | Out-Null
     } else {
         $renderedSamples.Add(
@@ -548,11 +615,99 @@ foreach ($sample in $samples) {
     }
 }
 
+if ($VisualBaselineSliceOnly) {
+    $sliceId = "visual-baseline-slice-offset-$VisualBaselineOffset-limit-$VisualBaselineLimit"
+    $sliceContactSheetPath = Join-Path $reportDir "$sliceId-contact-sheet.png"
+    $sliceSummaryPath = Join-Path $reportDir "$sliceId-summary.json"
+    $slicePagePaths = @()
+    $sliceLabels = @()
+    foreach ($entry in $renderedSamples) {
+        $slicePagePaths += $entry.first_page
+        $sliceLabels += $entry.sample
+    }
+
+    Write-Step "Building visual baseline slice contact sheet"
+    & $renderPython $contactSheetScriptPath `
+        --output $sliceContactSheetPath `
+        --columns 2 `
+        --thumb-width 420 `
+        --images $slicePagePaths `
+        --labels $sliceLabels
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to build visual baseline slice contact sheet."
+    }
+
+    $sliceSummary = [ordered]@{
+        schema = "featherdoc.pdf_visual_baseline_slice.v1"
+        generated_at = (Get-Date).ToString("s")
+        status = "pass"
+        verdict = "pass"
+        full_visual_gate_status = "not_complete"
+        evidence_scope = "visual_baseline_slice_only"
+        boundary = "slice_summary_does_not_replace_full_visual_gate_verdict"
+        repo_root = $repoRoot
+        build_dir = $resolvedBuildDir
+        output_dir = $resolvedOutputDir
+        report_dir = $reportDir
+        visual_baseline_offset = $VisualBaselineOffset
+        visual_baseline_limit = $VisualBaselineLimit
+        selected_baseline_count = $renderedSamples.Count
+        total_baseline_count = $allVisualSamples.Count
+        visual_baseline_manifest_count = $visualManifestSamples.Count
+        expected_visual_render_count = $allVisualSamples.Count
+        slice_contact_sheet = $sliceContactSheetPath
+        baselines = $renderedSamples
+    }
+
+    ($sliceSummary | ConvertTo-Json -Depth 8) | Set-Content -Path $sliceSummaryPath -Encoding UTF8
+    Write-Step "Visual baseline slice summary written to $sliceSummaryPath"
+    return
+}
+
 $aggregatePagePaths = @()
 $aggregateLabels = @()
 foreach ($entry in $renderedSamples) {
     $aggregatePagePaths += $entry.first_page
     $aggregateLabels += $entry.sample
+}
+
+if ($RebuildAggregateContactSheetOnly) {
+    $rebuildSummaryPath = Join-Path $reportDir "aggregate-contact-sheet-rebuild-summary.json"
+
+    Write-Step "Rebuilding aggregate contact sheet from existing rendered visual baselines"
+    & $renderPython $contactSheetScriptPath `
+        --output $aggregateContactSheetPath `
+        --columns 2 `
+        --thumb-width 420 `
+        --images $aggregatePagePaths `
+        --labels $aggregateLabels
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to rebuild aggregate contact sheet."
+    }
+
+    $rebuildSummary = [ordered]@{
+        schema = "featherdoc.pdf_visual_aggregate_contact_sheet_rebuild.v1"
+        generated_at = (Get-Date).ToString("s")
+        status = "pass"
+        verdict = "pass"
+        full_visual_gate_status = "not_complete"
+        evidence_scope = "aggregate_contact_sheet_rebuild_only"
+        boundary = "aggregate_rebuild_summary_does_not_replace_full_visual_gate_verdict"
+        repo_root = $repoRoot
+        build_dir = $resolvedBuildDir
+        output_dir = $resolvedOutputDir
+        report_dir = $reportDir
+        aggregate_contact_sheet = $aggregateContactSheetPath
+        selected_baseline_count = $renderedSamples.Count
+        total_baseline_count = $allVisualSamples.Count
+        visual_baseline_manifest_count = $visualManifestSamples.Count
+        expected_visual_render_count = $allVisualSamples.Count
+        baselines = $renderedSamples
+    }
+
+    ($rebuildSummary | ConvertTo-Json -Depth 8) | Set-Content -Path $rebuildSummaryPath -Encoding UTF8
+    Write-Step "Aggregate contact sheet rebuild summary written to $rebuildSummaryPath"
+    return
 }
 
 if ($FinalizeOnly) {

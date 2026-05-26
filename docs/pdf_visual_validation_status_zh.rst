@@ -352,6 +352,30 @@ schema 为 ``featherdoc.pdf_visual_gate_attempt_summary.v1``，固定标记：
 detached notes 单独补齐被截断尝试的子阶段证据。固定标记：
 ``pdf_visual_gate_attempt_material_safety_trace``。
 
+如果 44 个 visual baseline 无法在单个 60 秒外层保护内一次性重渲染，可以使用
+``scripts/run_pdf_visual_release_gate.ps1 -VisualBaselineSliceOnly`` 做受控切片。
+该模式必须携带 ``VisualBaselineOffset`` 和 ``VisualBaselineLimit``，只重渲染选中的
+baseline，并生成
+``visual-baseline-slice-offset-<n>-limit-<m>-summary.json`` 与对应 contact sheet。
+slice summary 的 schema 为 ``featherdoc.pdf_visual_baseline_slice.v1``，并固定写出
+``evidence_scope = visual_baseline_slice_only``、
+``full_visual_gate_status = not_complete`` 和
+``slice_summary_does_not_replace_full_visual_gate_verdict``。固定标记：
+``pdf_visual_baseline_slice_summary_trace``。这些切片只能推进 fresh baseline render
+证据，不能替代 ``full_visual_gate_status = pass`` 或 full gate summary verdict。
+
+当 baseline 已经存在但需要把 aggregate contact sheet 单独刷新进 60 秒外层保护时，
+可以运行 ``scripts/run_pdf_visual_release_gate.ps1 -RebuildAggregateContactSheetOnly``。
+该模式只读取现有 baseline summary / ``page-01.png``，重建
+``report/aggregate-contact-sheet.png``，并写出
+``aggregate-contact-sheet-rebuild-summary.json``。该 summary 的 schema 为
+``featherdoc.pdf_visual_aggregate_contact_sheet_rebuild.v1``，并固定写出
+``evidence_scope = aggregate_contact_sheet_rebuild_only``、
+``full_visual_gate_status = not_complete`` 和
+``aggregate_rebuild_summary_does_not_replace_full_visual_gate_verdict``。固定标记：
+``pdf_visual_aggregate_contact_sheet_rebuild_trace``。该证据只能证明 contact-sheet
+重建阶段完成，不能替代 full gate summary verdict。
+
 下一步
 ------
 
