@@ -43,6 +43,8 @@ $releaseChecklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "d
 $dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
 $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
 $governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
+$materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
+$materialSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 $doNotRunFullVisualGateMarker = [string]::Concat(@(
     [char]0x4E0D,
@@ -598,6 +600,42 @@ foreach ($marker in @(
 )) {
     Assert-ContainsText -Text $releaseChecklistDoc -ExpectedText $marker `
         -Message "PDF release readiness checklist should preserve marker '$marker'."
+}
+
+$finalReviewPdfAuxMaterialSafetyScriptMarkers = @(
+    "Add-FinalReviewPdfVisualGateAttemptTraceViolations",
+    "Add-FinalReviewPdfVisualSegmentedGateTraceViolations",
+    'Test-MarkdownSectionListRunContainsAll -Text $Content -Heading "## Step status" -Anchor "PDF visual gate attempt:"',
+    'Test-MarkdownSectionListRunContainsAll -Text $Content -Heading "## Step status" -Anchor "PDF visual segmented gate:"',
+    'Test-MarkdownSectionContainsAll -Text $Content -Heading "## Key outputs"',
+    "PDF visual gate attempt summary:",
+    "attempt-summary.json",
+    "PDF visual gate attempt contact sheet:",
+    "PDF visual segmented gate summary:",
+    "segmented-summary.json",
+    "PDF visual segmented gate contact sheet:"
+)
+
+foreach ($marker in $finalReviewPdfAuxMaterialSafetyScriptMarkers) {
+    Assert-ContainsText -Text $materialSafetyScript -ExpectedText $marker `
+        -Message "Material-safety audit should preserve final_review.md PDF auxiliary evidence marker '$marker'."
+}
+
+$finalReviewPdfAuxMaterialSafetyFixtureMarkers = @(
+    "final-review-pdf-visual-aux-trace",
+    "final-review-pdf-visual-attempt-step-status-supplied-by-detached-notes",
+    "final-review-pdf-visual-attempt-key-outputs-supplied-by-detached-notes",
+    "final-review-pdf-visual-segmented-step-status-supplied-by-detached-notes",
+    "final-review-pdf-visual-segmented-key-outputs-supplied-by-detached-notes",
+    "unexpectedly passed final_review.md with PDF visual attempt step-status markers supplied only by detached notes",
+    "unexpectedly passed final_review.md with PDF visual attempt Key outputs evidence supplied only by detached notes",
+    "unexpectedly passed final_review.md with PDF visual segmented gate step-status markers supplied only by detached notes",
+    "unexpectedly passed final_review.md with PDF visual segmented gate Key outputs evidence supplied only by detached notes"
+)
+
+foreach ($marker in $finalReviewPdfAuxMaterialSafetyFixtureMarkers) {
+    Assert-ContainsText -Text $materialSafetyTest -ExpectedText $marker `
+        -Message "Material-safety regression should preserve final_review.md PDF auxiliary fixture marker '$marker'."
 }
 
 $scriptMarkers = @(
