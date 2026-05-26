@@ -96,6 +96,21 @@ OCR 或任意视觉精确还原。
    ``pdf_full_ctest.not_completed_in_current_window``。固定标记：
    ``pdf_release_readiness_machine_gate_trace``。
 
+   如果已经运行 fresh 非 ``FinalizeOnly`` full visual gate 的受控尝试，必须通过
+   ``scripts/run_pdf_visual_full_gate_guarded.ps1`` 写出
+   ``output/pdf-visual-release-gate-current/report/full-visual-gate-guarded-summary.json``，
+   并让 readiness summary 保留
+   ``schema = featherdoc.pdf_visual_full_gate_guarded_summary.v1``、
+   ``visual_full_gate_status``、``visual_full_gate_verdict``、
+   ``visual_full_gate_full_visual_gate_status``、
+   ``visual_full_gate_outer_guard_status``、
+   ``visual_full_gate_outer_guard_timed_out`` 和
+   ``visual_full_gate_attempt_passed_stage_count``。当
+   ``outer_guard_status = timed_out`` 或 ``full_visual_gate_status != pass`` 时，
+   ``pdf_full_fresh_visual_gate.not_completed_in_current_window`` warning 必须携带这些计数，
+   不能只留下人工日志路径。固定标记：
+   ``pdf_visual_full_gate_guarded_summary_trace``。
+
    如果已经运行完整 PDF CTest 的受控尝试，必须通过
    ``scripts/run_pdf_full_ctest_guarded.ps1`` 写出
    ``output/pdf-ctest-current/summary.json``，并让 readiness summary 保留
@@ -487,6 +502,18 @@ OCR 或任意视觉精确还原。
    发布证据。
 
    资源窗口允许时再运行：
+
+   .. code-block:: powershell
+
+      powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_full_gate_guarded.ps1 `
+        -BuildDir .\.bpdf-roundtrip-msvc `
+        -OutputDir .\output\pdf-visual-release-gate-current
+
+   该入口内部执行 fresh 非 ``FinalizeOnly`` full visual gate，并额外记录 60 秒
+   外层保护状态。summary 必须包含
+   ``guarded_full_visual_gate_attempt_does_not_replace_completed_full_visual_gate``；
+   只有 ``status = pass``、``full_visual_gate_status = pass`` 且
+   ``outer_guard_status = completed`` 才能视为 fresh full visual gate 已完成。
 
    .. code-block:: powershell
 

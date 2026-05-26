@@ -13,6 +13,7 @@ param(
     [string]$VisualGateSummaryJson = "output/pdf-visual-release-gate-current/report/summary.json",
     [string]$ManifestJson = "test/pdf_regression_manifest.json",
     [string]$ReadinessChecklist = "docs/pdf_release_readiness_checklist_zh.rst",
+    [string]$VisualFullGateGuardedSummaryJson = "output/pdf-visual-release-gate-current/report/full-visual-gate-guarded-summary.json",
     [string]$FullCtestSummaryJson = "output/pdf-ctest-current/summary.json",
     [string]$OutputJson = "",
     [switch]$Strict
@@ -198,6 +199,7 @@ $resolvedPreflightSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $Pref
 $resolvedVisualGateSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $VisualGateSummaryJson -AllowMissing
 $resolvedManifestJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $ManifestJson -AllowMissing
 $resolvedReadinessChecklist = Resolve-RepoPath -RepoRoot $repoRoot -Path $ReadinessChecklist -AllowMissing
+$resolvedVisualFullGateGuardedSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $VisualFullGateGuardedSummaryJson -AllowMissing
 $resolvedFullCtestSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $FullCtestSummaryJson -AllowMissing
 $resolvedOutputJson = if ([string]::IsNullOrWhiteSpace($OutputJson)) {
     ""
@@ -212,6 +214,7 @@ $preflight = $null
 $visual = $null
 $manifest = $null
 $checklistText = ""
+$visualFullGateGuarded = $null
 $fullCtest = $null
 
 $preflightExists = Test-Path -LiteralPath $resolvedPreflightSummaryJson -PathType Leaf
@@ -244,6 +247,19 @@ Add-Check -Checks $checks -Name "readiness_checklist_exists" -Passed $checklistE
     -Details @{ path = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedReadinessChecklist }
 if ($checklistExists) {
     $checklistText = Get-Content -Raw -Encoding UTF8 -LiteralPath $resolvedReadinessChecklist
+}
+
+$visualFullGateGuardedSummaryExists = Test-Path -LiteralPath $resolvedVisualFullGateGuardedSummaryJson -PathType Leaf
+if ($visualFullGateGuardedSummaryExists) {
+    $visualFullGateGuarded = Read-JsonFile -Path $resolvedVisualFullGateGuardedSummaryJson
+    $visualFullGateGuardedSchema = [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "schema")
+    Add-Check -Checks $checks -Name "visual_full_gate_guarded_summary_schema" -Passed ($visualFullGateGuardedSchema -eq "featherdoc.pdf_visual_full_gate_guarded_summary.v1") `
+        -Message "Existing fresh full PDF visual gate guarded summary must use the stable schema." `
+        -Details @{
+            actual = $visualFullGateGuardedSchema
+            expected = "featherdoc.pdf_visual_full_gate_guarded_summary.v1"
+            path = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedVisualFullGateGuardedSummaryJson
+        }
 }
 
 $fullCtestSummaryExists = Test-Path -LiteralPath $resolvedFullCtestSummaryJson -PathType Leaf
@@ -364,8 +380,11 @@ if ($checklistText.Length -gt 0) {
     $requiredChecklistMarkers = @(
         "pdf_release_readiness_machine_gate_trace",
         "check_pdf_release_readiness.ps1",
+        "run_pdf_visual_full_gate_guarded.ps1",
         "run_pdf_full_ctest_guarded.ps1",
         "featherdoc.pdf_release_readiness_check.v1",
+        "featherdoc.pdf_visual_full_gate_guarded_summary.v1",
+        "pdf_visual_full_gate_guarded_summary_trace",
         "featherdoc.pdf_full_ctest_guarded_summary.v1",
         "pdf_full_ctest_guarded_summary_trace",
         "pdf_visual_gate_evidence",
@@ -379,8 +398,34 @@ if ($checklistText.Length -gt 0) {
     }
 }
 
-Add-Warning -Warnings $warnings -Id "pdf_full_fresh_visual_gate.not_completed_in_current_window" `
-    -Message "A fresh non-FinalizeOnly full visual gate is still required before claiming a new end-to-end render pass; this check only validates current persisted release evidence."
+$visualFullGateStatus = if ($null -eq $visualFullGateGuarded) { "missing" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "status") }
+$visualFullGateVerdict = if ($null -eq $visualFullGateGuarded) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "verdict") }
+$visualFullGateFullStatus = if ($null -eq $visualFullGateGuarded) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "full_visual_gate_status") }
+$visualFullGateOuterGuardStatus = if ($null -eq $visualFullGateGuarded) { "not_run" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_status") }
+$visualFullGateOuterGuardTimedOut = if ($null -eq $visualFullGateGuarded) { $false } else { [bool](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_timed_out") }
+$visualFullGateAttemptSummaryJson = if ($null -eq $visualFullGateGuarded) { "" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_summary_json_display") }
+$visualFullGateAttemptStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_stage_count" }
+$visualFullGateAttemptPassedStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_passed_stage_count" }
+$visualFullGateAttemptFailedStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_failed_stage_count" }
+$visualFullGateAttemptIncompleteStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_incomplete_stage_count" }
+$visualFullGateCompleted = ($visualFullGateStatus -eq "pass" -and $visualFullGateVerdict -eq "pass" -and $visualFullGateFullStatus -eq "pass" -and $visualFullGateOuterGuardStatus -eq "completed" -and -not $visualFullGateOuterGuardTimedOut)
+if (-not $visualFullGateCompleted) {
+    Add-Warning -Warnings $warnings -Id "pdf_full_fresh_visual_gate.not_completed_in_current_window" `
+        -Message "A fresh non-FinalizeOnly full visual gate is still required before claiming a new end-to-end render pass; current guarded-attempt evidence is retained for reviewer traceability." `
+        -Details @{
+            status = $visualFullGateStatus
+            verdict = $visualFullGateVerdict
+            full_visual_gate_status = $visualFullGateFullStatus
+            outer_guard_status = $visualFullGateOuterGuardStatus
+            outer_guard_timed_out = $visualFullGateOuterGuardTimedOut
+            attempt_stage_count = $visualFullGateAttemptStageCount
+            attempt_passed_stage_count = $visualFullGateAttemptPassedStageCount
+            attempt_failed_stage_count = $visualFullGateAttemptFailedStageCount
+            attempt_incomplete_stage_count = $visualFullGateAttemptIncompleteStageCount
+            attempt_summary_json = $visualFullGateAttemptSummaryJson
+            summary_json = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedVisualFullGateGuardedSummaryJson
+        }
+}
 
 $fullCtestStatus = if ($null -eq $fullCtest) { "missing" } else { [string](Get-OptionalPropertyValue -Object $fullCtest -Name "status") }
 $fullCtestVerdict = if ($null -eq $fullCtest) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $fullCtest -Name "verdict") }
@@ -435,6 +480,19 @@ $summary = [ordered]@{
     manifest_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedManifestJson
     readiness_checklist = $resolvedReadinessChecklist
     readiness_checklist_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedReadinessChecklist
+    visual_full_gate_guarded_summary_json = $resolvedVisualFullGateGuardedSummaryJson
+    visual_full_gate_guarded_summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedVisualFullGateGuardedSummaryJson
+    visual_full_gate_guarded_summary_exists = $visualFullGateGuardedSummaryExists
+    visual_full_gate_status = $visualFullGateStatus
+    visual_full_gate_verdict = $visualFullGateVerdict
+    visual_full_gate_full_visual_gate_status = $visualFullGateFullStatus
+    visual_full_gate_outer_guard_status = $visualFullGateOuterGuardStatus
+    visual_full_gate_outer_guard_timed_out = $visualFullGateOuterGuardTimedOut
+    visual_full_gate_attempt_summary_json = $visualFullGateAttemptSummaryJson
+    visual_full_gate_attempt_stage_count = $visualFullGateAttemptStageCount
+    visual_full_gate_attempt_passed_stage_count = $visualFullGateAttemptPassedStageCount
+    visual_full_gate_attempt_failed_stage_count = $visualFullGateAttemptFailedStageCount
+    visual_full_gate_attempt_incomplete_stage_count = $visualFullGateAttemptIncompleteStageCount
     full_ctest_summary_json = $resolvedFullCtestSummaryJson
     full_ctest_summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedFullCtestSummaryJson
     full_ctest_summary_exists = $fullCtestSummaryExists

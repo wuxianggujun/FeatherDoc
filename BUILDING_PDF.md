@@ -936,6 +936,16 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    `pdf_full_fresh_visual_gate.not_completed_in_current_window` 和
    `pdf_full_ctest.not_completed_in_current_window` 是剩余 heavy gate warning，
    不能被解释为 fresh full gate 已完成。若已执行
+   `scripts/run_pdf_visual_full_gate_guarded.ps1`，该 readiness summary 还必须读取
+   `output/pdf-visual-release-gate-current/report/full-visual-gate-guarded-summary.json`，
+   保留 `schema = featherdoc.pdf_visual_full_gate_guarded_summary.v1`、
+   `visual_full_gate_status`、`visual_full_gate_verdict`、
+   `visual_full_gate_full_visual_gate_status`、
+   `visual_full_gate_outer_guard_status`、
+   `visual_full_gate_outer_guard_timed_out` 和
+   `visual_full_gate_attempt_passed_stage_count`，并把这些字段附到
+   `pdf_full_fresh_visual_gate.not_completed_in_current_window` warning 上。固定标记：
+   `pdf_visual_full_gate_guarded_summary_trace`。若已执行
    `scripts/run_pdf_full_ctest_guarded.ps1`，该 readiness summary 还必须读取
    `output/pdf-ctest-current/summary.json`，保留
    `schema = featherdoc.pdf_full_ctest_guarded_summary.v1`、
@@ -954,6 +964,21 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
 
 如需直接尝试完整 `pdf_` 套件，优先使用受控入口，避免临时命令的日志脱离
 release readiness：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_full_gate_guarded.ps1 `
+  -BuildDir .\.bpdf-roundtrip-msvc `
+  -OutputDir .\output\pdf-visual-release-gate-current
+```
+
+summary 必须写出 `schema = featherdoc.pdf_visual_full_gate_guarded_summary.v1`、
+`status`、`verdict`、`full_visual_gate_status`、`outer_guard_status`、
+`outer_guard_timed_out`、`outer_guard_timeout_seconds`、`attempt_summary_json`、
+`attempt_passed_stage_count` 和
+`guarded_full_visual_gate_attempt_does_not_replace_completed_full_visual_gate`。固定标记：
+`pdf_visual_full_gate_guarded_summary_trace`。只有 `status = pass` 且
+`full_visual_gate_status = pass` 且 `outer_guard_status = completed` 才能视为 fresh
+非 `FinalizeOnly` full visual gate 完成；超时只能作为可追溯 attempt evidence。
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_full_ctest_guarded.ps1 `

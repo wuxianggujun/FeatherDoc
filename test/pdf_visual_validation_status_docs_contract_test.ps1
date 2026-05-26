@@ -44,6 +44,7 @@ $pdfImportScopeDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "doc
 $dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
 $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
 $releaseReadinessScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_release_readiness.ps1"
+$visualFullGateGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_visual_full_gate_guarded.ps1"
 $fullCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_full_ctest_guarded.ps1"
 $governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
 $materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
@@ -172,6 +173,10 @@ $statusMarkers = @(
     "pdf_visual_gate_attempt_material_safety_trace",
     "pdf_visual_gate_attempt_rollup_material_safety_trace",
     "pdf_visual_gate_attempt_final_review_material_safety_trace",
+    "run_pdf_visual_full_gate_guarded.ps1",
+    "featherdoc.pdf_visual_full_gate_guarded_summary.v1",
+    "visual_full_gate_attempt_passed_stage_count",
+    "pdf_visual_full_gate_guarded_summary_trace",
     "featherdoc.pdf_visual_baseline_slice.v1",
     "VisualBaselineSliceOnly",
     "VisualBaselineOffset",
@@ -331,6 +336,10 @@ $buildingPdfFixtureMarkers = @(
     "persisted_pdf_release_evidence_only",
     "pdf_release_readiness_machine_gate_trace",
     "pdf_full_fresh_visual_gate.not_completed_in_current_window",
+    "run_pdf_visual_full_gate_guarded.ps1",
+    "featherdoc.pdf_visual_full_gate_guarded_summary.v1",
+    "visual_full_gate_attempt_passed_stage_count",
+    "pdf_visual_full_gate_guarded_summary_trace",
     "pdf_full_ctest.not_completed_in_current_window",
     "visual baseline manifest",
     "run_pdf_ctest_bounded_subset.ps1",
@@ -594,6 +603,10 @@ foreach ($marker in @(
     "persisted_pdf_release_evidence_only",
     "pdf_release_readiness_machine_gate_trace",
     "pdf_full_fresh_visual_gate.not_completed_in_current_window",
+    "run_pdf_visual_full_gate_guarded.ps1",
+    "featherdoc.pdf_visual_full_gate_guarded_summary.v1",
+    "visual_full_gate_attempt_passed_stage_count",
+    "pdf_visual_full_gate_guarded_summary_trace",
     "pdf_full_ctest.not_completed_in_current_window",
     "release_entry_pdf_readiness_checklist_trace",
     "pdf_real_business_sample_release_entry_trace",
@@ -798,6 +811,13 @@ $releaseReadinessMachineGateMarkers = @(
     "pass_with_warnings",
     "release_ready",
     "pdf_release_readiness_machine_gate_trace",
+    "run_pdf_visual_full_gate_guarded.ps1",
+    "featherdoc.pdf_visual_full_gate_guarded_summary.v1",
+    "pdf_visual_full_gate_guarded_summary_trace",
+    "visual_full_gate_status",
+    "visual_full_gate_verdict",
+    "visual_full_gate_outer_guard_status",
+    "visual_full_gate_attempt_passed_stage_count",
     "run_pdf_full_ctest_guarded.ps1",
     "featherdoc.pdf_full_ctest_guarded_summary.v1",
     "pdf_full_ctest_guarded_summary_trace",
@@ -817,6 +837,22 @@ $releaseReadinessMachineGateMarkers = @(
 foreach ($marker in $releaseReadinessMachineGateMarkers) {
     Assert-ContainsText -Text $releaseReadinessScript -ExpectedText $marker `
         -Message "PDF release readiness script should preserve machine gate marker '$marker'."
+}
+
+foreach ($marker in @(
+    "featherdoc.pdf_visual_full_gate_guarded_summary.v1",
+    "guarded_full_pdf_visual_gate_attempt",
+    "full_visual_gate_status",
+    "outer_guard_status",
+    "outer_guard_timed_out",
+    "outer_guard_timeout_seconds",
+    "attempt_summary_json",
+    "attempt_passed_stage_count",
+    "guarded_full_visual_gate_attempt_does_not_replace_completed_full_visual_gate",
+    "pdf_visual_full_gate_guarded_summary_trace"
+)) {
+    Assert-ContainsText -Text $visualFullGateGuardedScript -ExpectedText $marker `
+        -Message "PDF visual full gate guarded script should preserve marker '$marker'."
 }
 
 foreach ($marker in @(
@@ -887,6 +923,8 @@ foreach ($marker in @(
     "pdf_real_business_sample_manifest_contract_test.ps1",
     "pdf_release_readiness_check",
     "pdf_release_readiness_check_test.ps1",
+    "pdf_visual_full_gate_guarded",
+    "pdf_visual_full_gate_guarded_test.ps1",
     "pdf_full_ctest_guarded",
     "pdf_full_ctest_guarded_test.ps1",
     "TIMEOUT 60"

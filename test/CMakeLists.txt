@@ -1459,6 +1459,25 @@ if(WIN32)
 
         add_test(
             NAME
+            pdf_visual_full_gate_guarded
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_full_gate_guarded_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_full_gate_guarded
+        )
+        set_tests_properties(pdf_visual_full_gate_guarded
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        add_test(
+            NAME
             pdf_full_ctest_guarded
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
