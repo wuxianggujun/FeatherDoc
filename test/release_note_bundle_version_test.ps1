@@ -1089,6 +1089,14 @@ Assert-Contains -Path $guidePath -ExpectedText 'Run workflow' -Label 'ARTIFACT_G
 Assert-Contains -Path $startHerePath -ExpectedText 'Actions' -Label 'START_HERE.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'release-refresh-output' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'release-publish-output' -Label 'REVIEWER_CHECKLIST.md'
+$manifestChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'Confirm the packaged release manifest preserves project-template governance contracts before publishing' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'release_assets_manifest.json must include' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'project_template_delivery_readiness_contract' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'project_template_onboarding_governance_contract' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'schema_approval_status_summary' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_report_display' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_json_display' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Smoke verdict: pass' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Fixed-grid verdict: undetermined' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Section page setup verdict: pass' -Label 'ARTIFACT_GUIDE.md'
@@ -1345,6 +1353,7 @@ $unknownActionBlocker.source = "custom_gate"
 $unknownActionBlocker.action = "investigate_custom_gate"
 ($unknownActionSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $unknownActionSummaryPath -Encoding UTF8
 & $bundleScript -SummaryJson $unknownActionSummaryPath -SkipMaterialSafetyAudit
+$checklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 Assert-Contains -Path $checklistPath -ExpectedText 'Unregistered release blocker action `investigate_custom_gate`: add a fixed checklist runbook in `release_blocker_metadata_helpers.ps1`' -Label 'REVIEWER_CHECKLIST.md'
 
 $bodyContent = Get-Content -Raw -LiteralPath $bodyPath

@@ -373,6 +373,12 @@ $packageAssetsCommand = if ($releaseVersion) {
     'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
         $summaryCommandPath
 }
+$releaseAssetsManifestDisplayPath = if ($releaseVersion) {
+    $versionedManifestPath = Join-Path (Join-Path "output\release-assets" ("v{0}" -f $releaseVersion)) "release_assets_manifest.json"
+    Get-DisplayPath -RepoRoot $repoRoot -Path $versionedManifestPath
+} else {
+    ".\output\release-assets\v<version>\release_assets_manifest.json"
+}
 $syncReleaseNotesCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_github_release_notes.ps1 -SummaryJson "{0}"' -f `
     $summaryCommandPath
 if ($releaseVersion) {
@@ -670,6 +676,7 @@ if ($readmeGalleryStatus -eq "completed") {
 Add-CheckboxLine -Lines $lines -Text 'Use `release_summary.zh-CN.md` for the GitHub Release first-screen bullets.'
 Add-CheckboxLine -Lines $lines -Text 'Use `release_body.zh-CN.md` for the full release notes or translated handoff notes.'
 Add-CheckboxLine -Lines $lines -Text ('Generate or refresh the local public release ZIP files before publishing: `{0}`' -f $packageAssetsCommand)
+Add-CheckboxLine -Lines $lines -Text ('Confirm the packaged release manifest preserves project-template governance contracts before publishing: {0} must include `project_template_delivery_readiness_contract` and `project_template_onboarding_governance_contract` with `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display`.' -f $releaseAssetsManifestDisplayPath)
 Add-CheckboxLine -Lines $lines -Text ('Sync the audited full release body into the GitHub Release notes: `{0}`' -f $syncReleaseNotesCommand)
 Add-CheckboxLine -Lines $lines -Text ('When all gates pass and the GitHub Release is ready to go live, publish it with: `{0}`' -f $publishReleaseCommand)
 Add-CheckboxLine -Lines $lines -Text ('Use the GitHub refresh flow to update ZIP assets plus audited notes without changing draft/public state: `{0}`' -f $publishWorkflowCommand)

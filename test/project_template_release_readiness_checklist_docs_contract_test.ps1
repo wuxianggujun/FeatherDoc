@@ -324,6 +324,7 @@ foreach ($marker in @(
     "manifest_source_display_identity_trace",
     "manifest_status_release_ready_consistency_trace",
     "manifest_readiness_value_set_trace",
+    "reviewer_manifest_scoped_project_template_trace",
     "line_scoped_release_note_project_template_trace",
     "line_scoped_release_note_source_identity_trace",
     "line_scoped_release_note_readiness_value_set_trace",
