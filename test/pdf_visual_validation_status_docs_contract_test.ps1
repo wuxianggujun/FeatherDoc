@@ -299,6 +299,28 @@ foreach ($marker in $statusMarkers) {
         -Message "PDF visual validation status doc should preserve memory-gate and blocker status marker."
 }
 
+$segmentedCurrentStatusMarkers = @(
+    "generated_at = 2026-05-27T04:36:21",
+    "``status = pass``",
+    "``verdict = pass``",
+    "``full_visual_gate_status = not_complete``",
+    "``slice_summary_count = 6``",
+    "``slice_pass_count = 6``",
+    "``slice_failed_count = 0``",
+    "``attempt_stage_count = 6``",
+    "``attempt_passed_stage_count = 6``",
+    "visual_baseline_render_status = pass",
+    "``aggregate_contact_sheet_status = pass``",
+    "``aggregate_contact_sheet_bytes = 1822428``",
+    "``aggregate_rebuild_status = pass``",
+    "``aggregate_rebuild_selected_baseline_count = 44``"
+)
+
+foreach ($marker in $segmentedCurrentStatusMarkers) {
+    Assert-ContainsText -Text $statusDoc -ExpectedText $marker `
+        -Message "PDF visual validation status doc should preserve current segmented gate pass marker '$marker'."
+}
+
 $buildingPdfFixtureMarkers = @(
     "check_pdf_dependency_inputs.ps1",
     "-PdfioSourceDir",

@@ -595,14 +595,14 @@ detached notes 不能补齐这些 reviewer-facing 入口证据。固定标记：
 
 2026-05-27 当前 ``segmented-summary.json`` 已刷新为可审计的分段辅助证据：
 
-* ``generated_at = 2026-05-27T04:10:37``。
-* ``status = partial``、``verdict = not_complete``、``full_visual_gate_status = not_complete``。
+* ``generated_at = 2026-05-27T04:36:21``。
+* ``status = pass``、``verdict = pass``、``full_visual_gate_status = not_complete``。
 * ``evidence_scope = segmented_visual_gate_auxiliary_only``。
-* ``slice_summary_count = 5``、``slice_pass_count = 5``、``slice_failed_count = 0``。
+* ``slice_summary_count = 6``、``slice_pass_count = 6``、``slice_failed_count = 0``。
 * ``covered_baseline_count = 44``、``expected_visual_render_count = 44``。
-* ``attempt_stage_count = 6``、``attempt_passed_stage_count = 4``。
-* ``visual_baseline_render_status = partial``。
-* ``aggregate_contact_sheet_status = stale``、``aggregate_contact_sheet_bytes = 1822428``。
+* ``attempt_stage_count = 6``、``attempt_passed_stage_count = 6``。
+* ``visual_baseline_render_status = pass``。
+* ``aggregate_contact_sheet_status = pass``、``aggregate_contact_sheet_bytes = 1822428``。
 * ``aggregate_rebuild_status = pass``、``aggregate_rebuild_selected_baseline_count = 44``。
 
 ``scripts/check_pdf_release_readiness.ps1`` 现在会读取
