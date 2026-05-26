@@ -552,6 +552,31 @@ function Add-PdfVisualGateEvidenceShortSummaryBullets {
     )
 }
 
+function Add-PdfBoundedCtestEvidenceShortSummaryBullets {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$PdfBoundedCtestEvidence
+    )
+
+    if ($null -eq $PdfBoundedCtestEvidence) {
+        return
+    }
+
+    $status = Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "status"
+    if ([string]::IsNullOrWhiteSpace($status) -or $status -eq "not_available") {
+        return
+    }
+
+    Add-UniqueLine -Lines $Lines -Line (
+        'PDF bounded CTest 辅助证据已进入短摘要：status={0} summaries={1} pass={2} selected_tests={3} skipped_tests={4}；该证据只补充资源受限复核，不替代 full visual gate verdict。' -f `
+            (Get-DisplayValue -Value $status),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "summary_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "pass_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "selected_test_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "skipped_test_count"))
+    )
+}
+
 function Normalize-ReleaseFacingText {
     param([string]$Text)
 
@@ -1059,6 +1084,7 @@ $pageNumberFieldsReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $s
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary)
 $pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
 $pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath
+$pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 
 $installedDataDir = ""
 $installedQuickstartZh = ""
@@ -1133,6 +1159,7 @@ foreach ($shortSummaryBullet in $shortSummaryBulletResults) {
 }
 Add-ProjectTemplateGovernanceContractShortSummaryBullets -Lines $shortSummaryBullets -Summary $summary
 Add-PdfVisualGateEvidenceShortSummaryBullets -Lines $shortSummaryBullets -PdfVisualGateEvidence $pdfVisualGateEvidence -RepoRoot $repoRoot
+Add-PdfBoundedCtestEvidenceShortSummaryBullets -Lines $shortSummaryBullets -PdfBoundedCtestEvidence $pdfBoundedCtestEvidence
 
 $releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1"
 $releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
@@ -1184,6 +1211,12 @@ if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.status)) {
     } elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.error)) {
         [void]$lines.Add("- PDF visual gate evidence error：$($pdfVisualGateEvidence.error)")
     }
+}
+if ($pdfBoundedCtestEvidence.status -ne "not_available") {
+    [void]$lines.Add("- PDF bounded CTest auxiliary evidence：status=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status), summaries=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.summary_count), pass=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.pass_count), selected_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.selected_test_count), skipped_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.skipped_test_count)")
+    [void]$lines.Add("- PDF bounded CTest auxiliary subsets：$(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.subsets) -join ', '))")
+    [void]$lines.Add("- PDF bounded CTest auxiliary summaries：$(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+    [void]$lines.Add("- PDF bounded CTest boundary：辅助证据不能替代 full visual gate verdict。")
 }
 [void]$lines.Add("- Smoke verdict：$(Get-DisplayValue -Value $smokeVerdict)")
 [void]$lines.Add("- Smoke review status：$(Get-DisplayValue -Value $smokeReviewStatus)")

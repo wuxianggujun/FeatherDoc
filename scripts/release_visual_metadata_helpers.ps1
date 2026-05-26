@@ -316,6 +316,59 @@ function Get-PdfVisualGateEvidence {
     return [pscustomobject]$evidence
 }
 
+function Get-PdfBoundedCtestEvidenceObject {
+    param($Summary)
+
+    $topLevelEvidence = Get-OptionalPropertyObject -Object $Summary -Name "pdf_bounded_ctest"
+    if ($null -ne $topLevelEvidence) {
+        return $topLevelEvidence
+    }
+
+    $steps = Get-OptionalPropertyObject -Object $Summary -Name "steps"
+    return Get-OptionalPropertyObject -Object $steps -Name "pdf_bounded_ctest"
+}
+
+function Get-PdfBoundedCtestEvidence {
+    param($Summary)
+
+    $source = Get-PdfBoundedCtestEvidenceObject -Summary $Summary
+    $evidence = [ordered]@{
+        status = "not_available"
+        summary_count = ""
+        pass_count = ""
+        skipped_test_count = ""
+        selected_test_count = ""
+        subsets = @()
+        summary_json = @()
+        summary_json_display = @()
+        error_count = ""
+        errors = @()
+        summaries = @()
+        auxiliary_scope = "bounded_ctest_auxiliary_only"
+    }
+
+    if ($null -eq $source) {
+        return [pscustomobject]$evidence
+    }
+
+    $status = Get-OptionalPropertyValue -Object $source -Name "status"
+    if (-not [string]::IsNullOrWhiteSpace($status)) {
+        $evidence.status = $status
+    }
+    $evidence.summary_count = Get-OptionalPropertyValue -Object $source -Name "summary_count"
+    $evidence.pass_count = Get-OptionalPropertyValue -Object $source -Name "pass_count"
+    $evidence.skipped_test_count = Get-OptionalPropertyValue -Object $source -Name "skipped_test_count"
+    $evidence.selected_test_count = Get-OptionalPropertyValue -Object $source -Name "selected_test_count"
+    $evidence.subsets = @(Get-OptionalPropertyArray -Object $source -Name "subsets")
+    $evidence.summary_json = @(Get-OptionalPropertyArray -Object $source -Name "summary_json")
+    $evidence.summary_json_display = @(Get-OptionalPropertyArray -Object $source -Name "summary_json_display")
+    $evidence.error_count = Get-OptionalPropertyValue -Object $source -Name "error_count"
+    $evidence.errors = @(Get-OptionalPropertyArray -Object $source -Name "errors")
+    $evidence.summaries = @(Get-OptionalPropertyArray -Object $source -Name "summaries")
+
+    return [pscustomobject]$evidence
+}
+
 function Get-OptionalPropertyArray {
     param(
         $Object,

@@ -305,6 +305,7 @@ $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke 
 $consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "consumer_document"
 $gateSummaryPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "summary_json"
 $gateFinalReviewPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "final_review"
+$pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 
 $visualVerdict = ""
 $readmeGalleryStatus = ""
@@ -431,6 +432,11 @@ if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
     } elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.error)) {
         [void]$lines.Add("- PDF visual gate evidence error: $($pdfVisualGateEvidence.error)")
     }
+}
+if ($pdfBoundedCtestEvidence.status -ne "not_available") {
+    [void]$lines.Add("- PDF bounded CTest auxiliary evidence: status=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status), summaries=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.summary_count), pass=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.pass_count), selected_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.selected_test_count), skipped_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.skipped_test_count)")
+    [void]$lines.Add("- PDF bounded CTest auxiliary subsets: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.subsets) -join ', '))")
+    [void]$lines.Add("- PDF bounded CTest auxiliary summaries: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
 }
 [void]$lines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
 [void]$lines.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")
@@ -616,6 +622,16 @@ if ($pdfVisualGateEvidence.status -eq "loaded") {
             $pdfVisualGateEvidence.visual_baseline_count)
 } elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
     Add-CheckboxLine -Lines $lines -Text ('Stop here until the PDF visual gate evidence summary is readable: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json))
+}
+if ($pdfBoundedCtestEvidence.status -ne "not_available") {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the PDF bounded CTest auxiliary evidence is recorded separately from the full visual gate: status `{0}`, summaries `{1}`, pass `{2}`, selected tests `{3}`, skipped tests `{4}`, subsets `{5}`.' -f `
+            $pdfBoundedCtestEvidence.status,
+            $pdfBoundedCtestEvidence.summary_count,
+            $pdfBoundedCtestEvidence.pass_count,
+            $pdfBoundedCtestEvidence.selected_test_count,
+            $pdfBoundedCtestEvidence.skipped_test_count,
+            (@($pdfBoundedCtestEvidence.subsets) -join ', '))
+    Add-CheckboxLine -Lines $lines -Text ('Open the bounded CTest summary list when you need to verify the auxiliary evidence source set: {0}' -f (Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', ')))
 }
 Add-CheckboxLine -Lines $lines -Text 'For PDF/CJK-facing releases, manually verify a generated Chinese PDF can be copied and searched in at least one common reader, and record the reader/version in the release notes or final review.'
 

@@ -105,6 +105,26 @@ $pdfGateCliExportLogPath = Join-Path $pdfGateReportDir "pdf-cli-export-test.log"
 $pdfGateRegressionLogPath = Join-Path $pdfGateReportDir "pdf-regression-test.log"
 $pdfGateUnicodeLogPath = Join-Path $pdfGateReportDir "unicode-font.log"
 $pdfGateUnicodeContactSheetPath = Join-Path $pdfGateUnicodeReportDir "full-contact-sheet.png"
+$pdfBoundedCtestSubsets = @(
+    "smoke-import",
+    "contract-static",
+    "cjk-flow-static",
+    "regression-basic-text",
+    "regression-styled-document",
+    "regression-business-samples",
+    "regression-table-layout"
+)
+$pdfBoundedCtestSummaryJsonDisplay = @(
+    ".\build\pdf-ctest-bounded-subset-current\summary.json",
+    ".\build\pdf-ctest-bounded-contract-static-current\summary.json",
+    ".\build\pdf-ctest-bounded-cjk-flow-static-current\summary.json",
+    ".\build\pdf-ctest-bounded-regression-basic-text-current\summary.json",
+    ".\build\pdf-ctest-bounded-regression-styled-document-current\summary.json",
+    ".\build\pdf-ctest-bounded-regression-business-samples-current\summary.json",
+    ".\build\pdf-ctest-bounded-regression-table-layout-current\summary.json"
+)
+$pdfBoundedCtestSubsetsText = $pdfBoundedCtestSubsets -join ', '
+$pdfBoundedCtestSummaryJsonDisplayText = $pdfBoundedCtestSummaryJsonDisplay -join ', '
 $summaryPath = Join-Path $reportDir "summary.json"
 $installedReadmePath = Join-Path $installPrefix "share\FeatherDoc\README.md"
 $installedChangelogPath = Join-Path $installPrefix "share\FeatherDoc\CHANGELOG.md"
@@ -197,6 +217,12 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
     - pdf_visual_gate_cjk_copy_search_count: ``2``
     - pdf_visual_gate_visual_baseline_manifest_count: ``42``
     - pdf_visual_gate_visual_baseline_count: ``3``
+    - pdf_bounded_ctest_summary_count: ``7``
+    - pdf_bounded_ctest_pass_count: ``7``
+    - pdf_bounded_ctest_skipped_test_count: ``0``
+    - pdf_bounded_ctest_selected_test_count: ``70``
+    - pdf_bounded_ctest_subsets: ``$pdfBoundedCtestSubsetsText``
+    - pdf_bounded_ctest_summary_json_display: ``$pdfBoundedCtestSummaryJsonDisplayText``
 "@
 
 Set-Content -LiteralPath $releaseBodyPath -Encoding UTF8 -Value @"
@@ -597,6 +623,15 @@ $summary = [ordered]@{
             status = "available"
             summary_json = $pdfGateSummaryPath
         }
+        pdf_bounded_ctest = [ordered]@{
+            status = "pass"
+            summary_count = 7
+            pass_count = 7
+            skipped_test_count = 0
+            selected_test_count = 70
+            subsets = $pdfBoundedCtestSubsets
+            summary_json_display = $pdfBoundedCtestSummaryJsonDisplay
+        }
     }
 }
 ($summary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
@@ -689,6 +724,12 @@ Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gat
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_cjk_copy_search_count: `2`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_visual_baseline_manifest_count: `42`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_visual_gate_visual_baseline_count: `3`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_bounded_ctest_summary_count: `7`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_bounded_ctest_pass_count: `7`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_bounded_ctest_skipped_test_count: `0`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_bounded_ctest_selected_test_count: `70`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText "pdf_bounded_ctest_subsets: ``$pdfBoundedCtestSubsetsText``" -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText "pdf_bounded_ctest_summary_json_display: ``$pdfBoundedCtestSummaryJsonDisplayText``" -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness_contract:' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'source_schema: featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_handoff.md'
@@ -907,6 +948,36 @@ if ([string]$manifest.pdf_visual_gate_evidence.visual_baseline_count -ne "3") {
 }
 if ([string]$manifest.pdf_visual_gate_evidence.visual_baseline_manifest_count -ne "42") {
     throw "release_assets_manifest.json lost the PDF visual baseline manifest sample count."
+}
+if (-not [bool]$manifest.pdf_bounded_ctest_evidence_included) {
+    throw "release_assets_manifest.json did not record PDF bounded CTest evidence as included."
+}
+if ([string]$manifest.pdf_bounded_ctest_evidence.status -ne "pass") {
+    throw "release_assets_manifest.json lost the bounded PDF CTest pass status."
+}
+if ([string]$manifest.pdf_bounded_ctest_evidence.summary_count -ne "7") {
+    throw "release_assets_manifest.json lost the bounded PDF CTest summary_count."
+}
+if ([string]$manifest.pdf_bounded_ctest_evidence.pass_count -ne "7") {
+    throw "release_assets_manifest.json lost the bounded PDF CTest pass_count."
+}
+if ([string]$manifest.pdf_bounded_ctest_evidence.selected_test_count -ne "70") {
+    throw "release_assets_manifest.json lost the bounded PDF CTest selected_test_count."
+}
+if ([string]$manifest.pdf_bounded_ctest_evidence.skipped_test_count -ne "0") {
+    throw "release_assets_manifest.json lost the bounded PDF CTest skipped_test_count."
+}
+$manifestPdfBoundedCtestSubsets = @($manifest.pdf_bounded_ctest_evidence.subsets | ForEach-Object { [string]$_ })
+foreach ($expectedSubset in $pdfBoundedCtestSubsets) {
+    if (-not ($manifestPdfBoundedCtestSubsets -contains $expectedSubset)) {
+        throw "release_assets_manifest.json lost bounded PDF CTest subset '$expectedSubset'."
+    }
+}
+$manifestPdfBoundedCtestSummaryJsonDisplay = @($manifest.pdf_bounded_ctest_evidence.summary_json_display | ForEach-Object { [string]$_ })
+foreach ($expectedDisplay in $pdfBoundedCtestSummaryJsonDisplay) {
+    if (-not ($manifestPdfBoundedCtestSummaryJsonDisplay -contains $expectedDisplay)) {
+        throw "release_assets_manifest.json lost bounded PDF CTest summary display '$expectedDisplay'."
+    }
 }
 if ([string]$manifest.workspace -ne ".") {
     throw "release_assets_manifest.json did not rewrite workspace to a public relative path."

@@ -185,6 +185,26 @@ $pdfVisualGateCliExportLogPath = Join-Path $pdfVisualGateReportDir "pdf-cli-expo
 $pdfVisualGateRegressionLogPath = Join-Path $pdfVisualGateReportDir "pdf-regression-test.log"
 $pdfVisualGateCopySearchLogDir = Join-Path $pdfVisualGateReportDir "cjk-copy-search"
 $pdfVisualGateUnicodeFontLogPath = Join-Path $pdfVisualGateReportDir "unicode-font.log"
+$pdfBoundedCtestSubsets = @(
+    "smoke-import",
+    "contract-static",
+    "cjk-flow-static",
+    "regression-basic-text",
+    "regression-styled-document",
+    "regression-business-samples",
+    "regression-table-layout"
+)
+$pdfBoundedCtestSummaryJsonDisplay = @(
+    ".\build\pdf-ctest-bounded-subset-current\summary.json",
+    ".\build\pdf-ctest-bounded-contract-static-current\summary.json",
+    ".\build\pdf-ctest-bounded-cjk-flow-static-current\summary.json",
+    ".\build\pdf-ctest-bounded-regression-basic-text-current\summary.json",
+    ".\build\pdf-ctest-bounded-regression-styled-document-current\summary.json",
+    ".\build\pdf-ctest-bounded-regression-business-samples-current\summary.json",
+    ".\build\pdf-ctest-bounded-regression-table-layout-current\summary.json"
+)
+$pdfBoundedCtestSubsetsText = $pdfBoundedCtestSubsets -join ', '
+$pdfBoundedCtestSummaryJsonDisplayText = $pdfBoundedCtestSummaryJsonDisplay -join ', '
 
 foreach ($path in @(
         $reportDir,
@@ -411,6 +431,15 @@ $summary = [ordered]@{
             status = "completed"
             summary_json = $pdfVisualGateSummaryPath
         }
+        pdf_bounded_ctest = [ordered]@{
+            status = "pass"
+            summary_count = 7
+            pass_count = 7
+            skipped_test_count = 0
+            selected_test_count = 70
+            subsets = $pdfBoundedCtestSubsets
+            summary_json_display = $pdfBoundedCtestSummaryJsonDisplay
+        }
     }
 }
 ($summary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
@@ -458,6 +487,42 @@ foreach ($assertion in @(
         @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
         @{ Path = $startHerePath; Label = "START_HERE.md" }
     )) {
+    Assert-Contains -Path $assertion.Path -ExpectedText "PDF bounded CTest auxiliary evidence" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "status=pass" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "summaries=7" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "pass=7" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "selected_tests=70" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "skipped_tests=0" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "regression-business-samples" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "pdf-ctest-bounded-regression-business-samples-current\summary.json" -Label $assertion.Label
+}
+
+foreach ($assertion in @(
+        @{ Path = $handoffPath; Label = "release_handoff.md" },
+        @{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+        @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        @{ Path = $startHerePath; Label = "START_HERE.md" }
+    )) {
+    Assert-MarkdownListRunContainsAll -Path $assertion.Path -Anchor "PDF bounded CTest auxiliary evidence" -Fragments @(
+        "PDF bounded CTest auxiliary evidence",
+        "status=pass",
+        "summaries=7",
+        "pass=7",
+        "selected_tests=70",
+        "skipped_tests=0",
+        "PDF bounded CTest auxiliary subsets",
+        "regression-business-samples",
+        "PDF bounded CTest auxiliary summaries",
+        "pdf-ctest-bounded-regression-business-samples-current\summary.json"
+    ) -Label $assertion.Label
+}
+
+foreach ($assertion in @(
+        @{ Path = $handoffPath; Label = "release_handoff.md" },
+        @{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+        @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        @{ Path = $startHerePath; Label = "START_HERE.md" }
+    )) {
     Assert-MarkdownListRunContainsAll -Path $assertion.Path -Anchor "PDF visual gate summary:" -Fragments @(
         "PDF visual gate summary:",
         "pdf-visual-gate\report\summary.json",
@@ -486,6 +551,14 @@ foreach ($fragments in @(
     )) {
     Assert-LineContainsAll -Path $bodyPath -Fragments $fragments -Label "release_body.zh-CN.md"
 }
+foreach ($fragments in @(
+        @("PDF bounded CTest auxiliary evidence", "status=pass", "summaries=7", "pass=7", "selected_tests=70", "skipped_tests=0"),
+        @("PDF bounded CTest auxiliary subsets", "regression-business-samples"),
+        @("PDF bounded CTest auxiliary summaries", "pdf-ctest-bounded-regression-business-samples-current\summary.json"),
+        @("PDF bounded CTest boundary", "full visual gate verdict")
+    )) {
+    Assert-LineContainsAll -Path $bodyPath -Fragments $fragments -Label "release_body.zh-CN.md"
+}
 Assert-Contains -Path $checklistPath -ExpectedText 'Confirm the PDF visual gate finalize evidence is signed off: verdict `pass`' -Label "REVIEWER_CHECKLIST.md"
 Assert-Contains -Path $checklistPath -ExpectedText 'CJK manifest samples `43`' -Label "REVIEWER_CHECKLIST.md"
 Assert-Contains -Path $checklistPath -ExpectedText 'visual baseline manifest samples `42`' -Label "REVIEWER_CHECKLIST.md"
@@ -501,6 +574,19 @@ Assert-LineContainsAll -Path $checklistPath -Fragments @(
     'missing text `0`',
     'visual baseline manifest samples `42`',
     'visual baselines `3`'
+) -Label "REVIEWER_CHECKLIST.md"
+Assert-LineContainsAll -Path $checklistPath -Fragments @(
+    'Confirm the PDF bounded CTest auxiliary evidence is recorded separately from the full visual gate',
+    'status `pass`',
+    'summaries `7`',
+    'pass `7`',
+    'selected tests `70`',
+    'skipped tests `0`',
+    'regression-business-samples'
+) -Label "REVIEWER_CHECKLIST.md"
+Assert-LineContainsAll -Path $checklistPath -Fragments @(
+    'Open the bounded CTest summary list',
+    'pdf-ctest-bounded-regression-business-samples-current\summary.json'
 ) -Label "REVIEWER_CHECKLIST.md"
 
 foreach ($assertion in @(
@@ -612,6 +698,17 @@ foreach ($fragment in @(
     )) {
     Assert-Contains -Path $shortPath -ExpectedText $fragment -Label "release_summary.zh-CN.md"
 }
+foreach ($fragment in @(
+        'PDF bounded CTest',
+        'status=pass',
+        'summaries=7',
+        'pass=7',
+        'selected_tests=70',
+        'skipped_tests=0',
+        'full visual gate verdict'
+    )) {
+    Assert-Contains -Path $shortPath -ExpectedText $fragment -Label "release_summary.zh-CN.md"
+}
 Assert-LineContainsAll -Path $shortPath -Fragments @(
     'PDF visual gate',
     'verdict=pass',
@@ -623,6 +720,15 @@ Assert-LineContainsAll -Path $shortPath -Fragments @(
     'cjk_copy_search_count=2',
     'visual_baseline_manifest_count=42',
     'visual_baseline_count=3'
+) -Label "release_summary.zh-CN.md"
+Assert-LineContainsAll -Path $shortPath -Fragments @(
+    'PDF bounded CTest',
+    'status=pass',
+    'summaries=7',
+    'pass=7',
+    'selected_tests=70',
+    'skipped_tests=0',
+    'full visual gate verdict'
 ) -Label "release_summary.zh-CN.md"
 
 Write-Host "Release note bundle visual verdict metadata regression passed."

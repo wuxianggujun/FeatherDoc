@@ -722,6 +722,10 @@ $hasPdfVisualGateEvidence = (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisua
     (Test-Path -LiteralPath $resolvedPdfVisualGateRoot) -and
     $pdfVisualGateStatus -eq "loaded"
 $pdfVisualGateManifestEvidence = Convert-StructuredValueToPublic -Value $pdfVisualGateEvidence -RepoRoot $repoRoot
+$pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
+$pdfBoundedCtestStatus = Get-OptionalPropertyValue -Object $pdfBoundedCtestEvidence -Name "status"
+$hasPdfBoundedCtestEvidence = $pdfBoundedCtestStatus -ne "not_available"
+$pdfBoundedCtestManifestEvidence = Convert-StructuredValueToPublic -Value $pdfBoundedCtestEvidence -RepoRoot $repoRoot
 $governanceMetrics = @(Get-GovernanceMetrics -Summary $summary)
 $numberingCatalogRealCorpusConfidence = Get-NumberingCatalogRealCorpusConfidence -GovernanceMetrics $governanceMetrics
 $tableLayoutDeliveryQuality = Get-TableLayoutDeliveryQuality -GovernanceMetrics $governanceMetrics
@@ -982,6 +986,8 @@ $manifest = [ordered]@{
     pdf_visual_gate_output_dir = $resolvedPdfVisualGateRoot
     pdf_visual_gate_evidence_included = $hasPdfVisualGateEvidence
     pdf_visual_gate_evidence = $pdfVisualGateManifestEvidence
+    pdf_bounded_ctest_evidence_included = $hasPdfBoundedCtestEvidence
+    pdf_bounded_ctest_evidence = $pdfBoundedCtestManifestEvidence
     governance_metric_count = $governanceMetricCount
     governance_metrics = $governanceMetrics
     numbering_catalog_real_corpus_confidence = $numberingCatalogRealCorpusConfidence
