@@ -467,12 +467,14 @@ if ($Scenario -eq "markdown_counts") {
     Assert-True -Condition (Test-Path -LiteralPath $markdownPath) `
         -Message "Pipeline markdown-counts run should write Markdown."
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
-    Assert-MatchesText -Text $markdown -Pattern "Failed stages: ``\d+``" `
-        -Message "Pipeline Markdown should include failed stage count."
-    Assert-MatchesText -Text $markdown -Pattern "Missing reports: ``\d+``" `
-        -Message "Pipeline Markdown should include missing report count."
-    Assert-ContainsText -Text $markdown -ExpectedText "status=``failed``" `
-        -Message "Pipeline Markdown should expose failed stage status."
+    Assert-ContainsText -Text $markdown -ExpectedText "Failed stages: ``0``" `
+        -Message "Pipeline Markdown should keep missing default inputs as warnings, not failed stages."
+    Assert-ContainsText -Text $markdown -ExpectedText "Missing reports: ``0``" `
+        -Message "Pipeline Markdown should show that default stage summaries were still written."
+    Assert-ContainsText -Text $markdown -ExpectedText "Status: ``needs_review``" `
+        -Message "Pipeline Markdown should expose needs-review status for empty input roots."
+    Assert-ContainsText -Text $markdown -ExpectedText "status=``needs_review``" `
+        -Message "Pipeline Markdown should expose needs-review stage status."
     Assert-MatchesText -Text $markdown -Pattern "missing_reports=``\d+``" `
         -Message "Pipeline Markdown should include stage missing report counts."
     Assert-MatchesText -Text $markdown -Pattern "failed_reports=``\d+``" `
@@ -481,8 +483,10 @@ if ($Scenario -eq "markdown_counts") {
         -Message "Pipeline Markdown should include stage source failure counts."
     Assert-MatchesText -Text $markdown -Pattern "source_failure_count=``\d+``" `
         -Message "Pipeline Markdown should expose machine-readable stage source failure counts."
-    Assert-ContainsText -Text $markdown -ExpectedText "error:" `
-        -Message "Pipeline Markdown should include failed stage error details."
+    Assert-ContainsText -Text $markdown -ExpectedText "warning ``document_skeleton_governance_rollup_missing``" `
+        -Message "Pipeline Markdown should preserve missing default input warnings."
+    Assert-ContainsText -Text $markdown -ExpectedText "warning ``word_visual_smoke.pending_manual_review``" `
+        -Message "Pipeline Markdown should preserve DOCX visual review warnings in empty-input runs."
     Write-Host "Release governance pipeline markdown count regression passed."
     return
 }

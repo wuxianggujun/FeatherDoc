@@ -117,6 +117,18 @@ function Get-JsonArray {
     return @($value)
 }
 
+function Select-ExistingInputJson {
+    param([string[]]$Paths)
+
+    $existing = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($path in @($Paths)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$path) -and (Test-Path -LiteralPath $path)) {
+            $existing.Add([string]$path) | Out-Null
+        }
+    }
+    return @($existing.ToArray())
+}
+
 function Get-StageDisplayPath {
     param([string]$RepoRoot, [string]$Path)
 
@@ -567,26 +579,28 @@ $docxReadinessOutputDir = Join-Path $outputGovernanceRoot "docx-functional-smoke
 $handoffOutputDir = Join-Path $resolvedOutputRoot "release-governance-handoff"
 $rollupOutputDir = Join-Path $resolvedOutputRoot "release-blocker-rollup"
 
-$numberingInputs = @(
+$numberingInputs = Select-ExistingInputJson -Paths @(
     Join-Path $resolvedInputRoot "document-skeleton-governance-rollup\summary.json"
     Join-Path $resolvedInputRoot "numbering-catalog-manifest-checks\summary.json"
 )
-$tableInputs = @(
+$tableInputs = Select-ExistingInputJson -Paths @(
     Join-Path $resolvedInputRoot "table-layout-delivery-rollup\summary.json"
 )
-$contentControlInputs = @(
+$contentControlInputs = Select-ExistingInputJson -Paths @(
     Join-Path $resolvedInputRoot "content-control-data-binding\inspect-content-controls.json"
     Join-Path $resolvedInputRoot "content-control-data-binding\sync-content-controls-from-custom-xml.json"
     Join-Path $resolvedInputRoot "content-control-data-binding-governance\summary.json"
 )
-$projectInputs = @(
+$projectInputs = Select-ExistingInputJson -Paths @(
     Join-Path $resolvedInputRoot "project-template-onboarding-governance\summary.json"
     Join-Path $resolvedInputRoot "project-template-schema-approval-history\history.json"
 )
-$calibrationInputs = @(
+$calibrationInputs = Select-ExistingInputJson -Paths @(
     Join-Path $resolvedInputRoot "project-template-smoke\summary.json"
     Join-Path $resolvedInputRoot "project-template-schema-approval-history\history.json"
-) | Where-Object { Test-Path -LiteralPath $_ }
+)
+$calibrationInputRoot = Join-Path $resolvedInputRoot "project-template-smoke"
+# Keep schema calibration scoped; broad output roots can include invalid test fixtures.
 
 $stages = New-Object 'System.Collections.Generic.List[object]'
 $stages.Add((Invoke-PipelineStage `
@@ -624,7 +638,7 @@ $stages.Add((Invoke-PipelineStage `
             -ScriptPath (Join-Path $scriptsDir "write_schema_patch_confidence_calibration_report.ps1") `
             -OutputDir $calibrationOutputDir `
             -InputJson $calibrationInputs `
-            -ExtraArguments @("-InputRoot", $resolvedInputRoot))) | Out-Null
+            -ExtraArguments @("-InputRoot", $calibrationInputRoot))) | Out-Null
 $stages.Add((Invoke-PipelineStage `
             -RepoRoot $repoRoot `
             -Id "docx_functional_smoke_readiness" `
