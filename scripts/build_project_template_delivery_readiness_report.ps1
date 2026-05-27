@@ -4,10 +4,10 @@ Builds a project-template delivery readiness report from onboarding evidence.
 
 .DESCRIPTION
 Reads project-template onboarding governance summaries, direct onboarding
-summaries, onboarding plans, project-template-smoke manifest descriptions, and
-schema approval history reports, then writes a single JSON/Markdown delivery
-gate report. The script is read-only for source artifacts and does not rerun
-smoke, CMake, Word, or visual automation.
+summaries, onboarding plans, project-template-smoke summaries, smoke manifest
+descriptions, and schema approval history reports, then writes a single
+JSON/Markdown delivery gate report. The script is read-only for source
+artifacts and does not rerun smoke, CMake, Word, or visual automation.
 #>
 param(
     [string[]]$InputJson = @(),
@@ -25,6 +25,7 @@ $ErrorActionPreference = "Stop"
 
 $deliveryReadinessSchema = "featherdoc.project_template_delivery_readiness_report.v1"
 $onboardingGovernanceSchema = "featherdoc.project_template_onboarding_governance_report.v1"
+$projectTemplateSmokeSummarySchema = "featherdoc.project_template_smoke_summary.v1"
 $deliveryReadinessOpenCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
 
 function Write-Step {
@@ -148,6 +149,7 @@ function Get-InputJsonPaths {
             "output/project-template-onboarding-governance",
             "output/project-template-onboarding",
             "output/project-template-smoke-onboarding-plan",
+            "output/project-template-smoke",
             "output/project-template-smoke-manifest",
             "output/project-template-schema-approval-history"
         )
@@ -186,6 +188,15 @@ function Get-EvidenceKind {
     }
     if ($schema -eq "featherdoc.project_template_smoke_manifest_description.v1") {
         return "project_template_smoke_manifest_description"
+    }
+    if ($schema -eq $projectTemplateSmokeSummarySchema) {
+        return "project_template_smoke_summary"
+    }
+    if ($null -ne (Get-JsonProperty -Object $Json -Name "manifest_path") -and
+        $null -ne (Get-JsonProperty -Object $Json -Name "entry_count") -and
+        $null -ne (Get-JsonProperty -Object $Json -Name "overall_status") -and
+        $null -ne (Get-JsonProperty -Object $Json -Name "entries")) {
+        return "project_template_smoke_summary"
     }
     if ($null -ne (Get-JsonProperty -Object $Json -Name "onboarding_entry_count") -and
         $null -ne (Get-JsonProperty -Object $Json -Name "entries")) {
@@ -244,8 +255,16 @@ function New-ProjectTemplateSmokeSummaryMissingWarning {
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
+    $groupItems = @(
+        foreach ($item in @($Items)) {
+            [pscustomobject]@{
+                Value = Get-JsonString -Object $item -Name $PropertyName -DefaultValue "unknown"
+            }
+        }
+    )
+
     return @(
-        foreach ($group in @($Items | Group-Object $PropertyName |
+        foreach ($group in @($groupItems | Group-Object Value |
             Sort-Object -Property @{ Expression = "Count"; Descending = $true }, @{ Expression = "Name"; Ascending = $true })) {
             $summary = [ordered]@{}
             $summary[$OutputName] = [string]$group.Name
@@ -296,6 +315,9 @@ function Get-DefaultSourceSchema {
 
     if ($SourceKind -eq "onboarding_governance_report") {
         return $onboardingGovernanceSchema
+    }
+    if ($SourceKind -eq "project_template_smoke_summary") {
+        return $projectTemplateSmokeSummarySchema
     }
     return $deliveryReadinessSchema
 }
@@ -458,6 +480,122 @@ function Convert-OnboardingPlanToTemplates {
                 -ReleaseBlockers (Get-JsonArray -Object $entry -Name "release_blockers") `
                 -ActionItems (Get-JsonArray -Object $entry -Name "action_items") `
                 -ManualReviewRecommendations (Get-JsonArray -Object $entry -Name "manual_review_recommendations")
+        }
+    )
+}
+
+function New-SchemaApprovalStateFromSmokeEntry {
+    param($Entry, $SchemaPatchApproval = $null)
+
+    $entryPassed = Get-JsonBool -Object $Entry -Name "passed"
+    if ($null -ne $SchemaPatchApproval) {
+        $status = Get-JsonString -Object $SchemaPatchApproval -Name "status" -DefaultValue "pending_review"
+        $decision = Get-JsonString -Object $SchemaPatchApproval -Name "decision"
+        $action = Get-JsonString -Object $SchemaPatchApproval -Name "action" -DefaultValue "review_schema_update_candidate"
+        $complianceIssueCount = Get-JsonInt -Object $SchemaPatchApproval -Name "compliance_issue_count"
+        if ($status -eq "approved" -or $decision -eq "approved") {
+            $stateStatus = "approved"
+            $gateStatus = "passed"
+        } elseif ($status -eq "not_required" -or $decision -eq "not_required") {
+            $stateStatus = "not_required"
+            $gateStatus = "not_required"
+            $action = "none"
+        } elseif ($status -in @("rejected", "needs_changes", "invalid_result", "blocked") -or
+            $decision -in @("rejected", "needs_changes") -or $complianceIssueCount -gt 0) {
+            $stateStatus = "blocked"
+            $gateStatus = "blocked"
+            if ([string]::IsNullOrWhiteSpace($action) -or $action -eq "none") {
+                $action = "fix_schema_patch_approval_result"
+            }
+        } else {
+            $stateStatus = "pending_review"
+            $gateStatus = "pending"
+            if ([string]::IsNullOrWhiteSpace($action) -or $action -eq "none") {
+                $action = "review_schema_update_candidate"
+            }
+        }
+    } elseif ($entryPassed) {
+        $stateStatus = "not_required"
+        $gateStatus = "not_required"
+        $action = "none"
+    } else {
+        $stateStatus = "blocked"
+        $gateStatus = "blocked"
+        $action = "review_project_template_smoke_failure"
+    }
+
+    return [ordered]@{
+        schema = "featherdoc.project_template_onboarding_schema_approval_state.v1"
+        status = $stateStatus
+        gate_status = $gateStatus
+        release_blocked = ($stateStatus -in @("not_evaluated", "pending_review", "blocked"))
+        smoke_summary_available = $true
+        smoke_entry_status = Get-JsonString -Object $Entry -Name "status"
+        smoke_entry_passed = $entryPassed
+        action = $action
+    }
+}
+
+function New-ProjectTemplateSmokeEntryBlocker {
+    param(
+        [string]$RepoRoot,
+        [string]$Path,
+        $Entry,
+        $SchemaApprovalState
+    )
+
+    $issues = @(Get-JsonArray -Object $Entry -Name "issues" | ForEach-Object { [string]$_ })
+    $message = if ($issues.Count -gt 0) {
+        "Project-template smoke entry failed: " + ($issues -join "; ")
+    } else {
+        "Project-template smoke entry is not release-ready."
+    }
+
+    return New-ReleaseBlocker `
+        -Id "project_template_smoke.entry_not_release_ready" `
+        -Source "project_template_smoke_summary" `
+        -Status (Get-JsonString -Object $SchemaApprovalState -Name "status" -DefaultValue "blocked") `
+        -Action (Get-JsonString -Object $SchemaApprovalState -Name "action" -DefaultValue "review_project_template_smoke_failure") `
+        -Message $message `
+        -SourceSchema $projectTemplateSmokeSummarySchema `
+        -SourceJson $Path `
+        -SourceJsonDisplay (Get-DisplayPath -RepoRoot $RepoRoot -Path $Path) `
+        -SourceReport $Path `
+        -SourceReportDisplay (Get-DisplayPath -RepoRoot $RepoRoot -Path $Path)
+}
+
+function Convert-ProjectTemplateSmokeSummaryToTemplates {
+    param([string]$RepoRoot, [string]$Path, $Json)
+
+    return @(
+        foreach ($entry in @(Get-JsonArray -Object $Json -Name "entries")) {
+            $checks = Get-JsonProperty -Object $entry -Name "checks"
+            $schemaBaseline = Get-JsonProperty -Object $checks -Name "schema_baseline"
+            $schemaPatchApproval = Get-JsonProperty -Object $schemaBaseline -Name "schema_patch_approval"
+            $schemaApprovalState = New-SchemaApprovalStateFromSmokeEntry `
+                -Entry $entry `
+                -SchemaPatchApproval $schemaPatchApproval
+            $releaseBlockers = @()
+            if (Get-JsonBool -Object $schemaApprovalState -Name "release_blocked") {
+                $releaseBlockers = @(
+                    New-ProjectTemplateSmokeEntryBlocker `
+                        -RepoRoot $RepoRoot `
+                        -Path $Path `
+                        -Entry $entry `
+                        -SchemaApprovalState $schemaApprovalState
+                )
+            }
+            $defaultOnboardingStatus = if (Get-JsonBool -Object $entry -Name "passed") { "ready" } else { "blocked" }
+
+            New-ReadinessTemplate `
+                -RepoRoot $RepoRoot `
+                -TemplateName (Get-JsonString -Object $entry -Name "name" -DefaultValue "project-template") `
+                -InputDocx (Get-JsonString -Object $entry -Name "input_docx") `
+                -SourceKind "project_template_smoke_summary" `
+                -SourceJson $Path `
+                -SchemaApprovalState $schemaApprovalState `
+                -OnboardingStatus (Get-JsonString -Object $entry -Name "status" -DefaultValue $defaultOnboardingStatus) `
+                -ReleaseBlockers $releaseBlockers
         }
     )
 }
@@ -684,6 +822,7 @@ Write-Step "Reading $($inputPaths.Count) input JSON file(s)"
 $templates = New-Object 'System.Collections.Generic.List[object]'
 $histories = New-Object 'System.Collections.Generic.List[object]'
 $manifestDescriptions = New-Object 'System.Collections.Generic.List[object]'
+$smokeSummaries = New-Object 'System.Collections.Generic.List[object]'
 $sourceFiles = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
 
@@ -711,6 +850,13 @@ foreach ($path in @($inputPaths)) {
                 foreach ($template in @(Convert-OnboardingPlanToTemplates -RepoRoot $repoRoot -Path $path -Json $json)) {
                     $templates.Add($template) | Out-Null
                 }
+                $status = "loaded"
+            }
+            "project_template_smoke_summary" {
+                foreach ($template in @(Convert-ProjectTemplateSmokeSummaryToTemplates -RepoRoot $repoRoot -Path $path -Json $json)) {
+                    $templates.Add($template) | Out-Null
+                }
+                $smokeSummaries.Add($json) | Out-Null
                 $status = "loaded"
             }
             "schema_approval_history" {
@@ -933,6 +1079,7 @@ $summary = [ordered]@{
     source_file_count = $sourceFiles.Count
     source_failure_count = $sourceFailureCount
     source_files = @($sourceFiles.ToArray())
+    smoke_summary_count = $smokeSummaries.Count
     manifest_description_count = $manifestDescriptions.Count
     schema_history_count = $histories.Count
     latest_schema_approval_gate_status = $latestGateStatus

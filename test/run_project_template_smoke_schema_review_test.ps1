@@ -90,6 +90,8 @@ Assert-True -Condition (Test-Path -LiteralPath $summaryMarkdownPath) `
     -Message "Smoke run should write summary.md."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.project_template_smoke_summary.v1" `
+    -Message "Summary should expose the stable project-template smoke summary schema."
 Assert-Equal -Actual ([int]$summary.schema_patch_review_count) -Expected 1 `
     -Message "Summary should aggregate one schema patch review."
 Assert-Equal -Actual ([int]$summary.schema_patch_review_changed_count) -Expected 1 `

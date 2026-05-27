@@ -26,6 +26,8 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
 . (Join-Path $PSScriptRoot "project_template_smoke_manifest_common.ps1")
 
+$projectTemplateSmokeSummarySchema = "featherdoc.project_template_smoke_summary.v1"
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[project-template-smoke] $Message"
@@ -1057,6 +1059,7 @@ $manifest = Get-Content -Raw -LiteralPath $resolvedManifestPath | ConvertFrom-Js
 $entries = @($manifest.entries)
 if ($entries.Count -eq 0) {
     $emptySummary = [ordered]@{
+        schema = $projectTemplateSmokeSummarySchema
         generated_at = (Get-Date).ToString("s")
         manifest_path = $resolvedManifestPath
         workspace = $repoRoot
@@ -1606,6 +1609,7 @@ $overallStatus = Get-ProjectTemplateSmokeOverallStatus `
     -VisualReviewUndeterminedCount $visualReviewUndeterminedCount
 
 $summary = [ordered]@{
+    schema = $projectTemplateSmokeSummarySchema
     generated_at = (Get-Date).ToString("s")
     manifest_path = $resolvedManifestPath
     workspace = $repoRoot

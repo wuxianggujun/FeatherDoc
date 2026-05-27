@@ -47,6 +47,10 @@ approval、content-control 和 release governance 报告之间手工拼结论。
    * ``scripts/run_project_template_smoke.ps1`` 生成的
      ``schema_patch_review.json`` 和 ``schema_patch_approval_result.json`` 不能
      只停留在临时输出目录里。
+   * ``output/project-template-smoke/summary.json`` 必须保留
+     ``featherdoc.project_template_smoke_summary.v1``；delivery readiness
+     可以把 ``project_template_smoke_summary`` 作为模板 smoke 证据消费，
+     但它仍不能替代 reviewer 对 schema approval history 的追溯。
    * ``scripts/sync_project_template_schema_approval.ps1`` 必须把 reviewer
      决策同步回 smoke summary 或 release summary。
    * ``scripts/write_project_template_schema_approval_history.ps1`` 必须生成
@@ -67,6 +71,11 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      readiness 只能给出
      ``project_template_smoke_summary_missing`` warning，不能把 manifest
      本身当作模板已通过 smoke 的证据。
+   * 一旦加载到 ``featherdoc.project_template_smoke_summary.v1``，
+     ``build_project_template_delivery_readiness_report.ps1`` 必须把每个
+     smoke entry 映射为 readiness template，并保留
+     ``source_json_display`` / ``source_report_display`` 指向原始 smoke
+     summary。
    * ``release_ready``、``status``、``template_count``、
      ``ready_template_count``、``blocked_template_count``、
      ``release_blocker_count``、``latest_schema_approval_gate_status`` 和
