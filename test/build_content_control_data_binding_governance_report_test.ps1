@@ -477,6 +477,14 @@ Assert-ContainsText -Text ([string]$emptyEvidenceWarning.source_json) -ExpectedT
     -Message "Empty evidence warnings should keep source_json on the governance summary."
 Assert-ContainsText -Text ([string]$emptyEvidenceWarning.source_json_display) -ExpectedText "report\summary.json" `
     -Message "Empty evidence warnings should keep source_json_display on the governance summary."
+Assert-Equal -Actual ([string]$emptyEvidenceWarning.repair_strategy) -Expected "collect_content_control_data_binding_evidence" `
+    -Message "Empty evidence warnings should expose a repair strategy."
+Assert-ContainsText -Text ([string]$emptyEvidenceWarning.repair_hint) -ExpectedText "Custom XML sync evidence" `
+    -Message "Empty evidence warnings should explain the missing evidence boundary."
+Assert-ContainsText -Text ([string]$emptyEvidenceWarning.command_template) -ExpectedText "inspect-content-controls" `
+    -Message "Empty evidence warnings should include the inspect command template."
+Assert-ContainsText -Text ([string]$emptyEvidenceWarning.command_template) -ExpectedText "sync-content-controls-from-custom-xml" `
+    -Message "Empty evidence warnings should include the sync command template."
 
 $readyDir = Join-Path $resolvedWorkingDir "ready"
 $readyInputDir = Join-Path $readyDir "input"

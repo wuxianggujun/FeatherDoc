@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "clean", "alignment_gap", "malformed", "fail_on_blocker")]
+    [ValidateSet("all", "aggregate", "clean", "alignment_gap", "malformed", "fail_on_blocker", "missing_inputs")]
     [string]$Scenario = "all"
 )
 
@@ -417,6 +417,37 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include source report display fields."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
         -Message "Markdown should include source JSON display fields."
+}
+
+if (Test-Scenario -Name "missing_inputs") {
+    $missingInputRoot = Join-Path $resolvedWorkingDir "missing-inputs"
+    $missingOutputDir = Join-Path $resolvedWorkingDir "missing-inputs-report"
+    New-Item -ItemType Directory -Path $missingInputRoot -Force | Out-Null
+    $result = Invoke-GovernanceScript -Arguments @(
+        "-InputRoot", $missingInputRoot,
+        "-OutputDir", $missingOutputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Missing input governance report should pass with actionable warnings. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $missingOutputDir "summary.json"
+    $markdownPath = Join-Path $missingOutputDir "numbering_catalog_governance.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
+        -Message "Missing input report should warn for skeleton rollup and manifest summary."
+
+    $manifestWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "numbering_catalog_manifest_summary_missing" })[0]
+    Assert-True -Condition ($null -ne $manifestWarning) `
+        -Message "Missing input report should include numbering_catalog_manifest_summary_missing."
+    Assert-Equal -Actual ([string]$manifestWarning.repair_strategy) -Expected "rebuild_numbering_catalog_manifest_summary" `
+        -Message "Manifest warning should expose the repair strategy."
+    Assert-ContainsText -Text ([string]$manifestWarning.repair_hint) -ExpectedText "do not synthesize" `
+        -Message "Manifest warning should preserve the evidence-boundary repair hint."
+    Assert-ContainsText -Text ([string]$manifestWarning.command_template) -ExpectedText "check_numbering_catalog_manifest.ps1" `
+        -Message "Manifest warning should include the manifest-check command template."
+    Assert-ContainsText -Text $markdown -ExpectedText "command_template:" `
+        -Message "Missing input Markdown should expose warning command templates."
 }
 
 if (Test-Scenario -Name "clean") {

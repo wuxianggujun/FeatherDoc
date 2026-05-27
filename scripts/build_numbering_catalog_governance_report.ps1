@@ -550,6 +550,18 @@ function New-ReportMarkdown {
     } else {
         foreach ($warning in @($Summary.warnings)) {
             $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)`` source_json_display=``$($warning.source_json_display)`` message=$($warning.message)") | Out-Null
+            $repairStrategy = Get-JsonString -Object $warning -Name "repair_strategy"
+            $repairHint = Get-JsonString -Object $warning -Name "repair_hint"
+            $commandTemplate = Get-JsonString -Object $warning -Name "command_template"
+            if (-not [string]::IsNullOrWhiteSpace($repairStrategy)) {
+                $lines.Add("  - repair_strategy: ``$repairStrategy``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($repairHint)) {
+                $lines.Add("  - repair_hint: $repairHint") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
+                $lines.Add("  - command_template: ``$commandTemplate``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -776,6 +788,9 @@ if ($skeletonRollupCount -eq 0) {
     $warnings.Add([ordered]@{
         id = "document_skeleton_governance_rollup_missing"
         action = "rebuild_document_skeleton_governance_rollup"
+        repair_strategy = "rebuild_document_skeleton_governance_rollup"
+        repair_hint = "Generate the document skeleton governance rollup from current document skeleton summaries, then rerun numbering catalog governance."
+        command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -OutputDir .\output\document-skeleton-governance-rollup"
         source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
         source_json = $summaryPath
         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
@@ -788,6 +803,9 @@ if ($manifestSummaryCount -eq 0) {
     $warnings.Add([ordered]@{
         id = "numbering_catalog_manifest_summary_missing"
         action = "rebuild_numbering_catalog_manifest_summary"
+        repair_strategy = "rebuild_numbering_catalog_manifest_summary"
+        repair_hint = "Restore the numbering catalog manifest and generate a real manifest check summary; do not synthesize a pass summary when the manifest or catalog outputs are absent."
+        command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir <build-dir> -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild"
         source_schema = "featherdoc.numbering_catalog_manifest_summary.v1"
         source_json = $summaryPath
         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath

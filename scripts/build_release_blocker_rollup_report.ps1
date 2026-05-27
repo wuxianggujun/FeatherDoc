@@ -1508,6 +1508,18 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - $($warning.message)") | Out-Null
             }
+            $repairStrategy = Get-JsonString -Object $warning -Name "repair_strategy"
+            $repairHint = Get-JsonString -Object $warning -Name "repair_hint"
+            $commandTemplate = Get-JsonString -Object $warning -Name "command_template"
+            if (-not [string]::IsNullOrWhiteSpace($repairStrategy)) {
+                $lines.Add("  - repair_strategy: ``$repairStrategy``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($repairHint)) {
+                $lines.Add("  - repair_hint: $repairHint") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
+                $lines.Add("  - command_template: ``$commandTemplate``") | Out-Null
+            }
         }
     }
     return @($lines)
@@ -1792,6 +1804,9 @@ foreach ($path in @($inputPaths)) {
                 template_name = Get-JsonString -Object $warning -Name "template_name"
                 candidate_type = Get-JsonString -Object $warning -Name "candidate_type"
                 action = Get-JsonString -Object $warning -Name "action" -DefaultValue "review_release_governance_warning"
+                repair_strategy = Get-JsonString -Object $warning -Name "repair_strategy"
+                repair_hint = Get-JsonString -Object $warning -Name "repair_hint"
+                command_template = Get-JsonString -Object $warning -Name "command_template"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 origin_source_report = $originSourceReport

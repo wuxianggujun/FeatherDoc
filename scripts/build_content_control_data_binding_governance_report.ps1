@@ -890,6 +890,18 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - message: $($warning.message)") | Out-Null
             }
+            $repairStrategy = Get-JsonString -Object $warning -Name "repair_strategy"
+            $repairHint = Get-JsonString -Object $warning -Name "repair_hint"
+            $commandTemplate = Get-JsonString -Object $warning -Name "command_template"
+            if (-not [string]::IsNullOrWhiteSpace($repairStrategy)) {
+                $lines.Add("  - repair_strategy: ``$repairStrategy``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($repairHint)) {
+                $lines.Add("  - repair_hint: $repairHint") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
+                $lines.Add("  - command_template: ``$commandTemplate``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -1233,6 +1245,9 @@ if ($contentControls.Count -eq 0 -and $syncItems.Count -eq 0 -and $syncIssues.Co
     $warnings.Add([ordered]@{
         id = "content_control_binding_evidence_missing"
         action = "collect_content_control_data_binding_evidence"
+        repair_strategy = "collect_content_control_data_binding_evidence"
+        repair_hint = "Run content-control inspection and Custom XML sync evidence collection for the target DOCX/template, then rerun this governance report; do not treat an empty governance summary as binding evidence."
+        command_template = "featherdoc_cli inspect-content-controls <input.docx> --json; featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
         source_schema = $contentControlGovernanceSchema
         source_json = $summaryPath
         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath

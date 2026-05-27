@@ -588,6 +588,18 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - message: $($warning.message)") | Out-Null
             }
+            $repairStrategy = Get-JsonString -Object $warning -Name "repair_strategy"
+            $repairHint = Get-JsonString -Object $warning -Name "repair_hint"
+            $commandTemplate = Get-JsonString -Object $warning -Name "command_template"
+            if (-not [string]::IsNullOrWhiteSpace($repairStrategy)) {
+                $lines.Add("  - repair_strategy: ``$repairStrategy``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($repairHint)) {
+                $lines.Add("  - repair_hint: $repairHint") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
+                $lines.Add("  - command_template: ``$commandTemplate``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -705,6 +717,9 @@ if ($templates.Count -eq 0) {
     $warnings.Add([ordered]@{
         id = "template_evidence_missing"
         action = "collect_project_template_onboarding_governance_evidence"
+        repair_strategy = "collect_project_template_onboarding_governance_evidence"
+        repair_hint = "Run or restore project-template onboarding governance evidence for the release templates, including schema approval history where applicable; do not treat an empty feeder summary as template evidence."
+        command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\project-template-onboarding-governance"
         source_schema = $deliveryReadinessSchema
         source_json = $summaryPath
         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath

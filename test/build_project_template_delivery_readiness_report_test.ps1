@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "ready", "malformed", "fail_on_blocker")]
+    [ValidateSet("all", "aggregate", "ready", "malformed", "fail_on_blocker", "missing_inputs")]
     [string]$Scenario = "all"
 )
 
@@ -353,6 +353,34 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include source report display fields."
     Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
         -Message "Markdown should include action item open commands."
+}
+
+if (Test-Scenario -Name "missing_inputs") {
+    $missingInputRoot = Join-Path $resolvedWorkingDir "missing-inputs"
+    $missingOutputDir = Join-Path $resolvedWorkingDir "missing-inputs-report"
+    New-Item -ItemType Directory -Path $missingInputRoot -Force | Out-Null
+    $result = Invoke-ReadinessScript -Arguments @(
+        "-InputRoot", $missingInputRoot,
+        "-OutputDir", $missingOutputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Missing template evidence run should pass with actionable warnings. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $missingOutputDir "summary.json"
+    $markdownPath = Join-Path $missingOutputDir "project_template_delivery_readiness.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    $warning = @($summary.warnings | Where-Object { [string]$_.id -eq "template_evidence_missing" })[0]
+    Assert-True -Condition ($null -ne $warning) `
+        -Message "Missing template evidence should emit template_evidence_missing."
+    Assert-Equal -Actual ([string]$warning.repair_strategy) -Expected "collect_project_template_onboarding_governance_evidence" `
+        -Message "Template warning should expose a repair strategy."
+    Assert-ContainsText -Text ([string]$warning.repair_hint) -ExpectedText "empty feeder summary" `
+        -Message "Template warning should preserve the no-synthetic-evidence boundary."
+    Assert-ContainsText -Text ([string]$warning.command_template) -ExpectedText "build_project_template_onboarding_governance_report.ps1" `
+        -Message "Template warning should include the onboarding governance command template."
+    Assert-ContainsText -Text $markdown -ExpectedText "command_template:" `
+        -Message "Missing template Markdown should expose warning command templates."
 }
 
 if (Test-Scenario -Name "ready") {

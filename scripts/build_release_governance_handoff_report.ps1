@@ -856,6 +856,9 @@ function Add-NormalizedWarnings {
             candidate_type = Get-JsonString -Object $warning -Name "candidate_type"
             action = Get-JsonString -Object $warning -Name "action" -DefaultValue "review_release_governance_warning"
             message = Get-JsonString -Object $warning -Name "message"
+            repair_strategy = Get-JsonString -Object $warning -Name "repair_strategy"
+            repair_hint = Get-JsonString -Object $warning -Name "repair_hint"
+            command_template = Get-JsonString -Object $warning -Name "command_template"
             source_schema = Get-JsonString -Object $warning -Name "source_schema" -DefaultValue ([string]$Report.schema)
             source_report = $sourceReport
             source_report_display = $sourceReportDisplay
@@ -1317,6 +1320,18 @@ function New-ReportMarkdown {
             $lines.Add("- ``$($warning.report_id)`` / ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` candidate=``$($warning.candidate_type)`` action=``$($warning.action)`` schema=``$($warning.source_schema)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - $($warning.message)") | Out-Null
+            }
+            $repairStrategy = Get-JsonString -Object $warning -Name "repair_strategy"
+            $repairHint = Get-JsonString -Object $warning -Name "repair_hint"
+            $commandTemplate = Get-JsonString -Object $warning -Name "command_template"
+            if (-not [string]::IsNullOrWhiteSpace($repairStrategy)) {
+                $lines.Add("  - repair_strategy: ``$repairStrategy``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($repairHint)) {
+                $lines.Add("  - repair_hint: $repairHint") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
+                $lines.Add("  - command_template: ``$commandTemplate``") | Out-Null
             }
             Add-TraceabilityMarkdownLines -Lines $lines -Item $warning
             $lines.Add("  - source_report_display: ``$($warning.source_report_display)``") | Out-Null

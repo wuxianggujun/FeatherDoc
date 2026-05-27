@@ -294,6 +294,9 @@ Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
         [ordered]@{
             id = "custom_xml_sync_evidence_missing"
             action = "run_content_control_custom_xml_sync"
+            repair_strategy = "run_content_control_custom_xml_sync"
+            repair_hint = "Run Custom XML sync evidence collection before treating the content-control binding governance summary as release evidence."
+            command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
             message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
             source_json = "output/content-control-data-binding-governance/summary.json"
             source_json_display = ".\output\content-control-data-binding-governance\summary.json"
@@ -736,7 +739,8 @@ Assert-Equal -Actual $autoDiscoverExitCode -Expected 0 `
 $autoDiscoverSummaryPath = Join-Path $autoDiscoverOutputDir "report\summary.json"
 $autoDiscoverFinalReviewPath = Join-Path $autoDiscoverOutputDir "report\final_review.md"
 $autoDiscoverRollupSummaryPath = Join-Path $autoDiscoverOutputDir "report\release-blocker-rollup\summary.json"
-foreach ($path in @($autoDiscoverSummaryPath, $autoDiscoverFinalReviewPath, $autoDiscoverRollupSummaryPath)) {
+$autoDiscoverRollupMarkdownPath = Join-Path $autoDiscoverOutputDir "report\release-blocker-rollup\release_blocker_rollup.md"
+foreach ($path in @($autoDiscoverSummaryPath, $autoDiscoverFinalReviewPath, $autoDiscoverRollupSummaryPath, $autoDiscoverRollupMarkdownPath)) {
     Assert-True -Condition (Test-Path -LiteralPath $path) `
         -Message "Expected auto-discovered release candidate artifact to exist: $path"
 }
@@ -765,6 +769,14 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.warnings
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
     -Message "Auto-discovered rollup should surface calibration warnings."
+$autoDiscoverContentControlWarning = @($autoDiscoverSummary.release_blocker_rollup.warnings |
+    Where-Object { [string]$_.id -eq "custom_xml_sync_evidence_missing" })[0]
+Assert-Equal -Actual ([string]$autoDiscoverContentControlWarning.repair_strategy) -Expected "run_content_control_custom_xml_sync" `
+    -Message "Auto-discovered rollup should preserve warning repair strategy."
+Assert-ContainsText -Text ([string]$autoDiscoverContentControlWarning.repair_hint) -ExpectedText "Custom XML sync evidence" `
+    -Message "Auto-discovered rollup should preserve warning repair hints."
+Assert-ContainsText -Text ([string]$autoDiscoverContentControlWarning.command_template) -ExpectedText "sync-content-controls-from-custom-xml" `
+    -Message "Auto-discovered rollup should preserve warning command templates."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.content_control_data_binding_governance_report.v1" `
     -Message "Auto-discovered rollup should carry content-control source schema."
@@ -821,6 +833,11 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_i
     -Message "Auto-discovered rollup should carry calibration action open command."
 
 $autoDiscoverFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverFinalReviewPath
+$autoDiscoverRollupMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverRollupMarkdownPath
+Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "repair_hint:" `
+    -Message "Auto-discovered rollup Markdown should include warning repair hints."
+Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "sync-content-controls-from-custom-xml" `
+    -Message "Auto-discovered rollup Markdown should include warning command templates."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "Release blocker rollup details" `
     -Message "Auto-discovered final review should include release blocker rollup details."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "project_template_onboarding.schema_approval" `

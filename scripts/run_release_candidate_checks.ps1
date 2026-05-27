@@ -1628,7 +1628,8 @@ function Get-ReleaseBlockerRollupAutoDiscoveredInputJson {
         "table-layout-delivery-governance/summary.json",
         "content-control-data-binding-governance/summary.json",
         "project-template-delivery-readiness/summary.json",
-        "schema-patch-confidence-calibration/summary.json"
+        "schema-patch-confidence-calibration/summary.json",
+        "docx-functional-smoke-readiness/summary.json"
     )
     $resolvedInputRoot = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $InputRoot
 

@@ -160,6 +160,9 @@ function Write-GovernanceFixtures {
         warnings = @(
             [ordered]@{
                 id = "numbering_catalog_manifest_summary_missing"
+                repair_strategy = "rebuild_numbering_catalog_manifest_summary"
+                repair_hint = "Restore the numbering catalog manifest and generate a real manifest check summary; do not synthesize a pass summary when the manifest or catalog outputs are absent."
+                command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir <build-dir> -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild"
                 message = "No numbering catalog manifest summary was loaded."
             }
         )
@@ -530,6 +533,14 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
         -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Aggregate handoff should preserve warning source JSON display."
+    $numberingWarning = @($summary.warnings |
+        Where-Object { [string]$_.id -eq "numbering_catalog_manifest_summary_missing" })[0]
+    Assert-Equal -Actual ([string]$numberingWarning.repair_strategy) -Expected "rebuild_numbering_catalog_manifest_summary" `
+        -Message "Aggregate handoff should preserve warning repair strategy."
+    Assert-ContainsText -Text ([string]$numberingWarning.repair_hint) -ExpectedText "do not synthesize" `
+        -Message "Aggregate handoff should preserve warning repair hints."
+    Assert-ContainsText -Text ([string]$numberingWarning.command_template) -ExpectedText "check_numbering_catalog_manifest.ps1" `
+        -Message "Aggregate handoff should preserve warning command templates."
     $calibrationBlocker = ($summary.release_blockers |
         Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.pending_schema_approvals" } |
         Select-Object -First 1)
@@ -690,6 +701,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include warning id."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display" `
         -Message "Markdown should include warning source JSON display."
+    Assert-ContainsText -Text $markdown -ExpectedText "repair_hint:" `
+        -Message "Markdown should include warning repair hints."
+    Assert-ContainsText -Text $markdown -ExpectedText "check_numbering_catalog_manifest.ps1" `
+        -Message "Markdown should include warning command templates."
     Assert-ContainsText -Text $markdown -ExpectedText "source_failures=``0``" `
         -Message "Markdown should include per-report source failure counts."
     Assert-ContainsText -Text $markdown -ExpectedText "source_report:" `
