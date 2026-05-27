@@ -71,6 +71,57 @@ function Get-DisplayPath {
     return $resolved
 }
 
+function Convert-ReleaseMaterialString {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()][string]$Text
+    )
+
+    if ($null -eq $Text -or [string]::IsNullOrWhiteSpace($RepoRoot)) {
+        return $Text
+    }
+
+    $normalized = [string]$Text
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $repoRootForms = @(
+        $resolvedRepoRoot,
+        ($resolvedRepoRoot -replace '\\', '/'),
+        ($resolvedRepoRoot -replace '\\', '\\')
+    ) | Sort-Object -Unique
+
+    foreach ($rootForm in $repoRootForms) {
+        if ([string]::IsNullOrWhiteSpace($rootForm)) {
+            continue
+        }
+
+        $pattern = [regex]::Escape($rootForm) + '(?<suffix>\\\\|[\\/]|(?=$|[\s"''`<>|;,)]+))'
+        $normalized = [regex]::Replace(
+            $normalized,
+            $pattern,
+            '.${suffix}',
+            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    }
+
+    return $normalized.Replace('./', '.\')
+}
+
+function Write-ReleaseMaterialFiles {
+    param(
+        [AllowNull()]$Summary,
+        [string]$SummaryPath,
+        [string]$MarkdownPath,
+        [int]$JsonDepth
+    )
+
+    $summaryJson = $Summary | ConvertTo-Json -Depth $JsonDepth
+    (Convert-ReleaseMaterialString -RepoRoot $repoRoot -Text $summaryJson) |
+        Set-Content -LiteralPath $SummaryPath -Encoding UTF8
+
+    $markdown = @(New-ReportMarkdown -Summary $Summary) -join [Environment]::NewLine
+    (Convert-ReleaseMaterialString -RepoRoot $repoRoot -Text $markdown) |
+        Set-Content -LiteralPath $MarkdownPath -Encoding UTF8
+}
+
 function Get-JsonProperty {
     param($Object, [string]$Name)
 
@@ -801,14 +852,19 @@ function Add-NormalizedActions {
                 $onboardingSourceJsonDisplay = Get-JsonString -Object $ProjectTemplateOnboardingGovernanceContract -Name "source_json_display"
             }
         }
+        $actionId = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
+        $action = Get-JsonString -Object $item -Name "action"
+        if ([string]::IsNullOrWhiteSpace($action)) {
+            $action = $actionId
+        }
         $Collection.Add([ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
-            id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
+            id = $actionId
             project_id = Get-JsonString -Object $item -Name "project_id"
             template_name = Get-JsonString -Object $item -Name "template_name"
             candidate_type = Get-JsonString -Object $item -Name "candidate_type"
-            action = Get-JsonString -Object $item -Name "action"
+            action = $action
             title = Get-JsonString -Object $item -Name "title"
             command = Get-JsonString -Object $item -Name "command"
             open_command = $openCommand
@@ -1615,8 +1671,7 @@ $summary = [ordered]@{
     next_commands = @($nextCommands.ToArray())
 }
 
-($summary | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
-(New-ReportMarkdown -Summary $summary) | Set-Content -LiteralPath $markdownPath -Encoding UTF8
+Write-ReleaseMaterialFiles -Summary $summary -SummaryPath $summaryPath -MarkdownPath $markdownPath -JsonDepth 32
 
 if ($IncludeReleaseBlockerRollup) {
     $loadedReports = @($reports.ToArray() | Where-Object { $_.status -notin @("missing", "failed") })
@@ -1661,8 +1716,7 @@ if ($IncludeReleaseBlockerRollup) {
     $releaseEntryChecklistAuditEvidence = @(Get-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditRollupEvidence -RollupSummary $rollupSummary)
     $summary.release_blocker_rollup.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = @($releaseEntryChecklistAuditEvidence).Count
     $summary.release_blocker_rollup.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @($releaseEntryChecklistAuditEvidence)
-    ($summary | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
-    (New-ReportMarkdown -Summary $summary) | Set-Content -LiteralPath $markdownPath -Encoding UTF8
+    Write-ReleaseMaterialFiles -Summary $summary -SummaryPath $summaryPath -MarkdownPath $markdownPath -JsonDepth 32
 }
 
 Write-Step "Summary JSON: $summaryPath"

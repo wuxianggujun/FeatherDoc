@@ -150,7 +150,6 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
     action_items = @(
         [ordered]@{
             id = "preview_style_numbering_repair"
-            action = "preview_style_numbering_repair"
             title = "Preview style numbering repair"
             command = "featherdoc_cli repair-style-numbering input.docx --plan-only --json"
         }
@@ -499,7 +498,7 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
             aggregate_contact_sheet = "output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png"
             cjk_manifest_count = 43
             cjk_copy_search_count = 43
-            cjk_missing_text_count = 0
+            cjk_copy_search_missing_text_count = 0
             visual_baseline_manifest_count = 42
             visual_baseline_count = 44
         }
@@ -978,6 +977,8 @@ if (Test-Scenario -Name "passing") {
         Select-Object -First 1)
     Assert-ContainsText -Text ([string]$skeletonAction.open_command) -ExpectedText "repair-style-numbering" `
         -Message "Rollup should expose action item open command."
+    Assert-Equal -Actual ([string]$skeletonAction.action) -Expected "preview_style_numbering_repair" `
+        -Message "Rollup should fall back to action item id when action is absent."
     $contentControlBlocker = ($summary.release_blockers |
         Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" } |
         Select-Object -First 1)

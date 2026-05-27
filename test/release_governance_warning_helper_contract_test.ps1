@@ -247,6 +247,17 @@ Assert-ContainsText -Text ([string]$normalizedActionItems[0].repair_hint) -Expec
     -Message "Normalized action item should preserve repair hints."
 Assert-ContainsText -Text ([string]$normalizedActionItems[0].command_template) -ExpectedText "restore-style-merge <input.docx>" `
     -Message "Normalized action item should preserve command templates."
+$actionFallbackItem = [pscustomobject]@{
+    id = "review_missing_action_metadata"
+    title = "Review action metadata"
+    source_schema = "featherdoc.test.v1"
+    source_report_display = ".\output\release-candidate-checks\summary.json"
+    source_json_display = ".\output\release-candidate-checks\summary.json"
+    open_command = "pwsh -File .\scripts\review-action-metadata.ps1"
+}
+$normalizedFallbackAction = @(Get-NormalizedReleaseGovernanceActionItems -ActionItems @($actionFallbackItem))[0]
+Assert-Equal -Actual ([string]$normalizedFallbackAction.action) -Expected "review_missing_action_metadata" `
+    -Message "Normalized action item should fall back to id when action is absent."
 Assert-Equal -Actual (Get-ReleaseGovernanceActionItemCount -SummaryObject ([pscustomobject]@{ action_item_count = 7; action_items = @($restoreAuditActionItem) })) -Expected 7 `
     -Message "Declared action_item_count should win over materialized action items."
 
@@ -765,11 +776,14 @@ foreach ($expectedText in @(
 
 $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary ([pscustomobject]@{
         release_governance_handoff = [pscustomobject]@{
+            release_blocker_rollup = [pscustomobject]@{
+                report_markdown_display = ".\output\release-governance-handoff\release-blocker-rollup\release_blocker_rollup.md"
+            }
             release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = 1
             release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @(
                 [pscustomobject]@{
                     schema = "featherdoc.release_candidate_summary"
-                    path_display = ".\output\release-blocker-rollup\summary.json"
+                    path_display = ".\output\release-candidate-checks\report\summary.json"
                     release_entry_project_template_readiness_checklist_material_safety_audit_status = "passed"
                     release_entry_project_template_readiness_checklist_material_safety_audit_script = ".\scripts\assert_release_material_safety.ps1"
                     release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count = 3
@@ -791,7 +805,7 @@ foreach ($expectedText in @(
         "compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports",
         "compact_evidence_source_schema=featherdoc.release_candidate_summary",
         "source_schema=featherdoc.release_candidate_summary",
-        "source_report=.\output\release-blocker-rollup\summary.json"
+        "source_report=.\output\release-governance-handoff\release-blocker-rollup\release_blocker_rollup.md"
     )) {
     Assert-ContainsText -Text $projectTemplateChecklistMaterialSafetyAuditEvidenceLine -ExpectedText $expectedText `
         -Message "Compact project-template checklist packaged audit evidence line should include '$expectedText'."

@@ -18,6 +18,30 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-DoesNotContainText {
+    param(
+        [string]$Text,
+        [string]$UnexpectedText,
+        [string]$Message
+    )
+
+    if ($Text -match [regex]::Escape($UnexpectedText)) {
+        throw $Message
+    }
+}
+
+function Assert-Equal {
+    param(
+        $Actual,
+        $Expected,
+        [string]$Message
+    )
+
+    if ($Actual -ne $Expected) {
+        throw "$Message Expected='$Expected' Actual='$Actual'."
+    }
+}
+
 function Assert-LineContainsAll {
     param(
         [string]$Text,
@@ -125,6 +149,19 @@ function Assert-MarkdownSectionContainsAll {
     }
 
     throw $Message
+}
+
+function Write-TestJson {
+    param(
+        [string]$Path,
+        [object]$Value
+    )
+
+    $parent = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+    ($Value | ConvertTo-Json -Depth 16) | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
@@ -452,7 +489,9 @@ $functionNames = @(
     "Read-ReleaseBlockerRollupSummary",
     "Get-CompleteVisualGateReviewTaskSummary",
     "Get-VisualGateReviewTaskSummaryLine",
-    "Get-VisualGateReviewSummaryMarkdown"
+    "Get-VisualGateReviewSummaryMarkdown",
+    "Convert-ReleaseMaterialString",
+    "Convert-ReleaseMaterialObject"
 )
 $functionAsts = $scriptAst.FindAll({
         param($Node)
@@ -481,16 +520,59 @@ $pdfSummaryPath = Join-Path $pdfSummaryDir "summary.json"
         visual_baseline_manifest_count = 42
         baselines_count = 44
     } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $pdfSummaryPath -Encoding UTF8
+$pdfComputedSummaryPath = Join-Path $pdfSummaryDir "computed-summary.json"
+([ordered]@{
+        verdict = "pass"
+        aggregate_contact_sheet = $pdfContactSheetPath
+        cjk_manifest_count = 43
+        cjk_copy_search_count = 43
+        cjk_copy_search = @(
+            [ordered]@{ missing_text = @() },
+            [ordered]@{ missing_text = @("missing sample text") }
+        )
+        visual_baseline_manifest_count = 42
+        baselines_count = 44
+    } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $pdfComputedSummaryPath -Encoding UTF8
+
+$repoRootCommandText = 'pwsh -ExecutionPolicy Bypass -File "{0}" -SummaryOutputDir "{1}"' -f `
+    (Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"),
+    (Join-Path $resolvedRepoRoot "output\release-candidate-checks")
+$sanitizedCommandText = Convert-ReleaseMaterialString -RepoRoot $resolvedRepoRoot -Text $repoRootCommandText
+Assert-DoesNotContainText -Text $sanitizedCommandText -UnexpectedText $resolvedRepoRoot `
+    -Message "Release material string sanitizer should remove repo-root absolute paths from embedded commands."
+Assert-ContainsText -Text $sanitizedCommandText -ExpectedText ".\scripts\run_release_candidate_checks.ps1" `
+    -Message "Release material string sanitizer should keep embedded script paths repo-relative."
+Assert-ContainsText -Text $sanitizedCommandText -ExpectedText ".\output\release-candidate-checks" `
+    -Message "Release material string sanitizer should keep embedded output paths repo-relative."
+
+$sanitizedObject = Convert-ReleaseMaterialObject -RepoRoot $resolvedRepoRoot -Value ([ordered]@{
+        path = $pdfSummaryPath
+        nested = @(
+            [pscustomobject]@{
+                command = $repoRootCommandText
+            }
+        )
+    })
+Assert-Equal -Actual ([string]$sanitizedObject.path) -Expected (Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfSummaryPath) `
+    -Message "Release material object sanitizer should rewrite repo-root paths recursively."
+Assert-DoesNotContainText -Text ([string]$sanitizedObject.nested[0].command) -UnexpectedText $resolvedRepoRoot `
+    -Message "Release material object sanitizer should rewrite nested command strings."
 
 $pdfVisualGateInfo = Get-PdfVisualGateSummaryInfo -SummaryJson $pdfSummaryPath
 if ($pdfVisualGateInfo.status -ne "loaded" -or
     $pdfVisualGateInfo.verdict -ne "pass" -or
     [int]$pdfVisualGateInfo.cjk_manifest_count -ne 43 -or
     [int]$pdfVisualGateInfo.cjk_copy_search_count -ne 43 -or
+    [int]$pdfVisualGateInfo.cjk_copy_search_missing_text_count -ne 0 -or
     [int]$pdfVisualGateInfo.visual_baseline_manifest_count -ne 42 -or
     [int]$pdfVisualGateInfo.visual_baseline_count -ne 44 -or
     -not [bool]$pdfVisualGateInfo.finalizable) {
     throw "PDF visual gate summary metadata was not loaded into a finalizable release summary object."
+}
+
+$computedPdfVisualGateInfo = Get-PdfVisualGateSummaryInfo -SummaryJson $pdfComputedSummaryPath
+if ([int]$computedPdfVisualGateInfo.cjk_copy_search_missing_text_count -ne 1) {
+    throw "PDF visual gate summary metadata should derive missing CJK text count from cjk_copy_search entries."
 }
 
 $missingPdfVisualGateInfo = Get-PdfVisualGateSummaryInfo -SummaryJson (Join-Path $resolvedWorkingDir "missing-summary.json")
@@ -874,6 +956,120 @@ $releaseGovernanceSourceDir = Join-Path $resolvedWorkingDir "release-candidate-g
 $releaseGovernanceSourcePath = Join-Path $releaseGovernanceSourceDir "summary.json"
 New-Item -ItemType Directory -Path $releaseGovernanceHandoffInputRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $releaseGovernanceSourceDir -Force | Out-Null
+Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "numbering-catalog-governance\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.numbering_catalog_governance_report.v1"
+        status = "ready"
+        release_ready = $true
+        release_blocker_count = 0
+        release_blockers = @()
+        action_item_count = 0
+        action_items = @()
+        warning_count = 0
+        warnings = @()
+        source_failure_count = 0
+        real_corpus_confidence_score = 100
+        real_corpus_confidence_level = "high"
+        real_corpus_confidence = [ordered]@{
+            document_count = 2
+            matched_document_count = 2
+            coverage_score = 100
+        }
+    })
+Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "table-layout-delivery-governance\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.table_layout_delivery_governance_report.v1"
+        status = "ready"
+        release_ready = $true
+        release_blocker_count = 0
+        release_blockers = @()
+        action_item_count = 0
+        action_items = @()
+        warning_count = 0
+        warnings = @()
+        source_failure_count = 0
+    })
+Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "content-control-data-binding-governance\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.content_control_data_binding_governance_report.v1"
+        status = "ready"
+        release_ready = $true
+        release_blocker_count = 0
+        release_blockers = @()
+        action_item_count = 0
+        action_items = @()
+        warning_count = 0
+        warnings = @()
+        source_failure_count = 0
+    })
+Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "project-template-delivery-readiness\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.project_template_delivery_readiness_report.v1"
+        status = "ready"
+        release_ready = $true
+        latest_schema_approval_gate_status = "not_required"
+        schema_approval_status_summary = @(
+            [ordered]@{
+                status = "not_required"
+                count = 3
+            }
+        )
+        template_count = 3
+        ready_template_count = 3
+        blocked_template_count = 0
+        release_blocker_count = 0
+        release_blockers = @()
+        action_item_count = 0
+        action_items = @()
+        warning_count = 0
+        warnings = @()
+        source_failure_count = 0
+    })
+Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "project-template-onboarding-governance\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.project_template_onboarding_governance_report.v1"
+        status = "ready"
+        release_ready = $true
+        schema_approval_status_summary = @(
+            [ordered]@{
+                status = "not_required"
+                count = 3
+            }
+        )
+        entry_count = 3
+        blocked_entry_count = 0
+        pending_review_entry_count = 0
+        not_evaluated_entry_count = 0
+        approved_entry_count = 0
+        not_required_entry_count = 3
+        release_blocker_count = 0
+        release_blockers = @()
+        action_item_count = 0
+        action_items = @()
+        warning_count = 0
+        warnings = @()
+        source_failure_count = 0
+    })
+Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "schema-patch-confidence-calibration\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+        status = "ready"
+        release_ready = $true
+        release_blocker_count = 0
+        release_blockers = @()
+        action_item_count = 0
+        action_items = @()
+        warning_count = 0
+        warnings = @()
+        source_failure_count = 0
+    })
+Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "docx-functional-smoke-readiness\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.docx_functional_smoke_readiness.v1"
+        status = "pass"
+        verdict = "pass"
+        release_ready = $true
+        release_blocker_count = 0
+        release_blockers = @()
+        action_item_count = 0
+        action_items = @()
+        warning_count = 0
+        warnings = @()
+        source_failure_count = 0
+    })
 ([ordered]@{
         schema = "featherdoc.release_candidate_summary"
         status = "ready"
@@ -962,6 +1158,12 @@ if (-not (Test-Path -LiteralPath $candidateSummaryPath)) {
 }
 
 $candidateSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateSummaryPath | ConvertFrom-Json
+$expectedPdfSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfSummaryPath
+$expectedPdfContactSheetPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfContactSheetPath
+$expectedPdfAttemptSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfAttemptSummaryPath
+$expectedPdfSegmentedSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfSegmentedSummaryPath
+$expectedPdfReadinessSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfReadinessSummaryPath
+$expectedFullPdfCtestSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $fullPdfCtestSummaryPath
 if ($candidateSummary.execution_status -ne "pass") {
     throw "Release candidate dry run should pass when all heavy flows are skipped."
 }
@@ -972,12 +1174,14 @@ if ($candidateSummary.steps.pdf_visual_gate.status -ne "loaded" -or
 }
 if ([int]$candidateSummary.steps.pdf_visual_gate.cjk_manifest_count -ne 43 -or
     [int]$candidateSummary.steps.pdf_visual_gate.cjk_copy_search_count -ne 43 -or
+    [int]$candidateSummary.steps.pdf_visual_gate.cjk_copy_search_missing_text_count -ne 0 -or
     [int]$candidateSummary.steps.pdf_visual_gate.visual_baseline_manifest_count -ne 42 -or
     [int]$candidateSummary.steps.pdf_visual_gate.visual_baseline_count -ne 44) {
     throw "Release candidate summary did not preserve PDF visual gate sample counts."
 }
-if ([string]$candidateSummary.steps.pdf_visual_gate.summary_json -ne $pdfSummaryPath -or
-    [string]$candidateSummary.steps.pdf_visual_gate.aggregate_contact_sheet -ne $pdfContactSheetPath) {
+if ([string]$candidateSummary.pdf_visual_gate_summary_json -ne $expectedPdfSummaryPath -or
+    [string]$candidateSummary.steps.pdf_visual_gate.summary_json -ne $expectedPdfSummaryPath -or
+    [string]$candidateSummary.steps.pdf_visual_gate.aggregate_contact_sheet -ne $expectedPdfContactSheetPath) {
     throw "Release candidate summary did not preserve PDF visual gate evidence paths."
 }
 if ($candidateSummary.steps.pdf_visual_segmented_gate.status -ne "pass" -or
@@ -986,11 +1190,12 @@ if ($candidateSummary.steps.pdf_visual_segmented_gate.status -ne "pass" -or
     $candidateSummary.steps.pdf_visual_segmented_gate.evidence_scope -ne "segmented_visual_gate_auxiliary_only") {
     throw "Release candidate summary did not preserve segmented PDF visual gate auxiliary status."
 }
-if ([int]$candidateSummary.steps.pdf_visual_segmented_gate.slice_pass_count -ne 4 -or
+if ([string]$candidateSummary.pdf_visual_segmented_gate_summary_json -ne $expectedPdfSegmentedSummaryPath -or
+    [int]$candidateSummary.steps.pdf_visual_segmented_gate.slice_pass_count -ne 4 -or
     [int]$candidateSummary.steps.pdf_visual_segmented_gate.covered_baseline_count -ne 44 -or
     [int]$candidateSummary.steps.pdf_visual_segmented_gate.expected_visual_render_count -ne 44 -or
-    [string]$candidateSummary.steps.pdf_visual_segmented_gate.summary_json -ne $pdfSegmentedSummaryPath -or
-    [string]$candidateSummary.steps.pdf_visual_segmented_gate.aggregate_contact_sheet -ne $pdfContactSheetPath) {
+    [string]$candidateSummary.steps.pdf_visual_segmented_gate.summary_json -ne $expectedPdfSegmentedSummaryPath -or
+    [string]$candidateSummary.steps.pdf_visual_segmented_gate.aggregate_contact_sheet -ne $expectedPdfContactSheetPath) {
     throw "Release candidate summary did not preserve segmented PDF visual gate counts or paths."
 }
 if ([int]$candidateSummary.steps.pdf_bounded_ctest.summary_count -ne 2 -or
@@ -1000,8 +1205,8 @@ if ([int]$candidateSummary.steps.pdf_bounded_ctest.summary_count -ne 2 -or
     @($candidateSummary.steps.pdf_bounded_ctest.subsets) -notcontains "regression-business-samples") {
     throw "Release candidate summary did not preserve PDF bounded CTest auxiliary evidence."
 }
-if ([string]$candidateSummary.pdf_release_readiness_summary_json -ne $pdfReadinessSummaryPath -or
-    [string]$candidateSummary.steps.pdf_full_ctest_readiness.summary_json -ne $pdfReadinessSummaryPath -or
+if ([string]$candidateSummary.pdf_release_readiness_summary_json -ne $expectedPdfReadinessSummaryPath -or
+    [string]$candidateSummary.steps.pdf_full_ctest_readiness.summary_json -ne $expectedPdfReadinessSummaryPath -or
     [string]$candidateSummary.steps.pdf_full_ctest_readiness.status -ne "pass" -or
     [string]$candidateSummary.steps.pdf_full_ctest_readiness.verdict -ne "pass_with_warnings" -or
     -not [bool]$candidateSummary.steps.pdf_full_ctest_readiness.release_ready -or
@@ -1012,7 +1217,7 @@ if ([string]$candidateSummary.pdf_release_readiness_summary_json -ne $pdfReadine
     [string]$candidateSummary.steps.pdf_full_ctest_readiness.visual_full_gate_status -ne "timeout" -or
     [string]$candidateSummary.steps.pdf_full_ctest_readiness.full_ctest_status -ne "timeout" -or
     [string]$candidateSummary.steps.pdf_full_ctest_readiness.full_ctest_verdict -ne "not_complete" -or
-    [string]$candidateSummary.steps.pdf_full_ctest_readiness.full_ctest_summary_json -ne $fullPdfCtestSummaryPath -or
+    [string]$candidateSummary.steps.pdf_full_ctest_readiness.full_ctest_summary_json -ne $expectedFullPdfCtestSummaryPath -or
     [int]$candidateSummary.steps.pdf_full_ctest_readiness.selected_test_count -ne 139 -or
     [int]$candidateSummary.steps.pdf_full_ctest_readiness.completed_test_count -ne 133 -or
     [int]$candidateSummary.steps.pdf_full_ctest_readiness.failed_test_count -ne 0 -or
@@ -1037,7 +1242,8 @@ $pdfAttemptWarning = @($candidateSummary.warnings) |
 if ($null -eq $pdfAttemptWarning -or
     [string]$pdfAttemptWarning.action -ne "review_pdf_visual_gate_attempt_and_finalize_evidence" -or
     [string]$pdfAttemptWarning.source_schema -ne "featherdoc.release_candidate_summary" -or
-    [string]$pdfAttemptWarning.source_json -ne $pdfAttemptSummaryPath -or
+    [string]$candidateSummary.pdf_visual_gate_attempt_summary_json -ne $expectedPdfAttemptSummaryPath -or
+    [string]$pdfAttemptWarning.source_json -ne $expectedPdfAttemptSummaryPath -or
     [string]$pdfAttemptWarning.source_json_display -notmatch [regex]::Escape("attempt-summary.json") -or
     [string]$pdfAttemptWarning.outer_guard_status -ne "timed_out" -or
     -not [bool]$pdfAttemptWarning.outer_guard_timed_out -or
@@ -1130,8 +1336,27 @@ if ($acceptedSegmentedAttemptWarnings.Count -ne 0) {
 }
 
 if ([int]$candidateSummary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count -ne 2 -or
-    [int]$candidateSummary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 1) {
+    [int]$candidateSummary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 2) {
     throw "Release candidate summary did not consume project-template release entry evidence from release governance handoff."
+}
+if ([int]$candidateSummary.governance_metric_count -ne 1 -or @($candidateSummary.governance_metrics).Count -ne 1) {
+    throw "Release candidate summary did not expose a single release governance metric as top-level material safety evidence."
+}
+$singleMetric = @($candidateSummary.governance_metrics) |
+    Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_confidence" } |
+    Select-Object -First 1
+if ($null -eq $singleMetric -or [string]::IsNullOrWhiteSpace([string]$singleMetric.level) -or $null -eq $singleMetric.score) {
+    throw "Release candidate summary lost the single governance metric."
+}
+if ([int]$candidateSummary.release_governance_handoff.report_count -ne 6 -or
+    @($candidateSummary.release_governance_handoff.reports).Count -ne 6) {
+    throw "Release candidate summary did not preserve release governance source reports for material rendering."
+}
+if ($null -eq $candidateSummary.release_governance_handoff.project_template_delivery_readiness_contract -or
+    [string]$candidateSummary.release_governance_handoff.project_template_delivery_readiness_contract.status -ne "ready" -or
+    $null -eq $candidateSummary.release_governance_handoff.project_template_onboarding_governance_contract -or
+    [string]$candidateSummary.release_governance_handoff.project_template_onboarding_governance_contract.status -ne "ready") {
+    throw "Release candidate summary did not preserve project-template governance contracts from handoff."
 }
 $manifestSignoff = $candidateSummary.manifest_signoff_entrypoints
 $expectedReleaseAssetsManifest = "output\release-assets\v$($candidateSummary.release_version)\release_assets_manifest.json"
@@ -1298,13 +1523,59 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Proje
     "release_entry_project_template_readiness_checklist_trace",
     "source_schema=featherdoc.release_candidate_summary",
     "Project-template readiness checklist packaged audit evidence",
-    "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1",
+    "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=2",
     "assert_release_material_safety.ps1",
     "audited_entrypoints=start_here, artifact_guide, reviewer_checklist",
     "compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports",
     "compact_evidence_source_schema=featherdoc.release_candidate_summary",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
 ) -Message "final_review.md should expose project-template checklist handoff and packaged audit evidence consumed from release governance handoff."
+Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "project_template_delivery_readiness / project_template_onboarding.schema_approval" -Fragments @(
+    "project_template_delivery_readiness / project_template_onboarding.schema_approval",
+    "project_template_onboarding_governance_contract",
+    "featherdoc.project_template_onboarding_governance_report.v1",
+    "schema_approval_status_summary=not_required=3",
+    "readiness_status: ready",
+    "readiness_release_ready: True",
+    "source_report_display:",
+    "project-template-onboarding-governance",
+    "source_json_display:",
+    "project-template-onboarding-governance"
+) -Message "final_review.md should keep project-template readiness and onboarding governance contracts in one material-safety block."
+
+foreach ($assertion in @(
+        @{ Path = $candidateReleaseHandoffPath; Label = "release_handoff.md" },
+        @{ Path = $candidateArtifactGuidePath; Label = "ARTIFACT_GUIDE.md" },
+        @{ Path = $candidateReviewerChecklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        @{ Path = $candidateStartHerePath; Label = "START_HERE.md" }
+    )) {
+    $content = Get-Content -Raw -Encoding UTF8 -LiteralPath $assertion.Path
+    Assert-MarkdownListRunContainsAll -Text $content -Anchor "project_template_delivery_readiness:" -Fragments @(
+        "project_template_delivery_readiness",
+        "project_template_delivery_readiness_contract",
+        "featherdoc.project_template_delivery_readiness_report.v1",
+        "status: ready",
+        "release_ready: True",
+        "latest_schema_approval_gate_status",
+        "schema_approval_status_summary=not_required=3",
+        "source_report_display:",
+        "project-template-delivery-readiness",
+        "source_json_display:",
+        "project-template-delivery-readiness"
+    ) -Message ("{0} should keep project-template delivery readiness contract evidence in one list block." -f $assertion.Label)
+    Assert-MarkdownListRunContainsAll -Text $content -Anchor "project_template_onboarding.schema_approval" -Fragments @(
+        "project_template_onboarding.schema_approval",
+        "project_template_onboarding_governance_contract",
+        "featherdoc.project_template_onboarding_governance_report.v1",
+        "status: ready",
+        "release_ready: True",
+        "schema_approval_status_summary=not_required=3",
+        "source_report_display:",
+        "project-template-onboarding-governance",
+        "source_json_display:",
+        "project-template-onboarding-governance"
+    ) -Message ("{0} should keep project-template onboarding governance contract evidence in one list block." -f $assertion.Label)
+}
 
 $candidateReleaseBody = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseBodyPath
 foreach ($fragments in @(
@@ -1377,5 +1648,22 @@ Assert-LineContainsAll -Text $candidateReviewerChecklist -Fragments @(
     'visual baseline manifest samples `42`',
     'visual baselines `44`'
 ) -Message "REVIEWER_CHECKLIST.md should keep PDF visual finalize verdict, paths, and counts on one reviewer signoff line."
+
+$localAbsolutePathPattern = '(?i)\b[a-z]:(?:\\\\|\\)[^\s"''`<>|]+|(?<!\w)/(?:Users|home)/[^\s"''`<>|]+'
+foreach ($releaseMaterialPath in @(
+        $candidateSummaryPath,
+        $candidateFinalReviewPath,
+        $candidateReleaseBodyPath,
+        $candidateReleaseSummaryPath,
+        $candidateReleaseHandoffPath,
+        $candidateArtifactGuidePath,
+        $candidateReviewerChecklistPath,
+        $candidateStartHerePath
+    )) {
+    $pathLeak = Select-String -LiteralPath $releaseMaterialPath -Pattern $localAbsolutePathPattern -AllMatches | Select-Object -First 1
+    if ($null -ne $pathLeak) {
+        throw "Release material contains a local absolute path leak: $releaseMaterialPath"
+    }
+}
 
 Write-Host "Release candidate visual verdict passthrough regression passed."

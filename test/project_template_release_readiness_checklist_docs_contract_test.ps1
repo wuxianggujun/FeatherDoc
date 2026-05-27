@@ -679,7 +679,7 @@ foreach ($marker in @(
     "Project-template release entry evidence",
     "Project-template readiness checklist handoff evidence",
     "project_template_readiness_checklist_entrypoints_source_report_count -ne 2",
-    "release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 1",
+    "release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 2",
     "compact_evidence_source_schema=featherdoc.release_candidate_summary",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
 )) {

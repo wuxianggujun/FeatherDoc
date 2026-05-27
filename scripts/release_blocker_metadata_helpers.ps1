@@ -1109,6 +1109,77 @@ function Add-ProjectTemplateOnboardingGovernanceContractLines {
     }
 }
 
+function Test-ProjectTemplateOnboardingGovernanceReport {
+    param([AllowNull()]$Report)
+
+    $schema = Get-ReleaseBlockerPropertyValue -Object $Report -Name "schema"
+    $sourceSchema = Get-ReleaseBlockerPropertyValue -Object $Report -Name "source_schema"
+
+    return (
+        [string]::Equals($schema, "featherdoc.project_template_onboarding_governance_report.v1", [System.StringComparison]::OrdinalIgnoreCase) -or
+        [string]::Equals($sourceSchema, "featherdoc.project_template_onboarding_governance_report.v1", [System.StringComparison]::OrdinalIgnoreCase)
+    )
+}
+
+function Add-ProjectTemplateOnboardingGovernanceReportContractLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Report,
+        [string]$SourceReportDisplay,
+        [string]$SourceJsonDisplay
+    )
+
+    if (-not (Test-ProjectTemplateOnboardingGovernanceReport -Report $Report)) {
+        return
+    }
+
+    $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+        -Value (Get-ReleaseBlockerPropertyObject -Object $Report -Name "schema_approval_status_summary") `
+        -Fallback (Get-ReleaseBlockerPropertyValue -Object $Report -Name "status")
+    if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+        $schemaApprovalSummary = "unknown"
+    }
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Report -Name "status"
+    $releaseReady = Get-ReleaseBlockerPropertyValue -Object $Report -Name "release_ready"
+
+    [void]$Lines.Add("  - project_template_onboarding.schema_approval:")
+    [void]$Lines.Add("    - project_template_onboarding_governance_contract:")
+    [void]$Lines.Add("      - source_schema: featherdoc.project_template_onboarding_governance_report.v1")
+    if (-not [string]::IsNullOrWhiteSpace($status)) {
+        [void]$Lines.Add("      - status: $status")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($releaseReady)) {
+        [void]$Lines.Add("      - release_ready: $releaseReady")
+    }
+    [void]$Lines.Add("      - schema_approval_status_summary: $schemaApprovalSummary")
+    [void]$Lines.Add("      - schema_approval_status_summary_marker: schema_approval_status_summary=$schemaApprovalSummary")
+    if (-not [string]::IsNullOrWhiteSpace($SourceReportDisplay)) {
+        [void]$Lines.Add("      - source_report_display: $SourceReportDisplay")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($SourceJsonDisplay)) {
+        [void]$Lines.Add("      - source_json_display: $SourceJsonDisplay")
+    }
+
+    foreach ($fieldName in @(
+            "entry_count",
+            "blocked_entry_count",
+            "pending_review_entry_count",
+            "not_evaluated_entry_count",
+            "approved_entry_count",
+            "not_required_entry_count",
+            "release_blocker_count",
+            "action_item_count",
+            "warning_count",
+            "source_failure_count"
+        )) {
+        $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Report -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+            [void]$Lines.Add("      - ${fieldName}: $fieldValue")
+        }
+    }
+}
+
 function Add-ReleaseGovernanceProvenanceLines {
     param(
         [System.Collections.Generic.List[string]]$Lines,
@@ -1246,6 +1317,11 @@ function Add-ReleaseGovernanceReportIssueLines {
             -Report $report `
             -SourceReportDisplay $sourceReportDisplay `
             -SourceJsonDisplay $sourceJsonDisplay
+        Add-ProjectTemplateOnboardingGovernanceReportContractLines `
+            -Lines $Lines `
+            -Report $report `
+            -SourceReportDisplay $sourceReportDisplay `
+            -SourceJsonDisplay $sourceJsonDisplay
 
         $errorText = Get-ReleaseBlockerPropertyValue -Object $report -Name "error"
         if (-not [string]::IsNullOrWhiteSpace($errorText)) {
@@ -1316,6 +1392,7 @@ function Add-ProjectTemplateDeliveryReadinessContractLines {
                 -Value (Get-ReleaseBlockerPropertyObject -Object $Report -Name "schema_approval_status_summary")
             if (-not [string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
                 [void]$Lines.Add("    - schema_approval_status_summary: $schemaApprovalSummary")
+                [void]$Lines.Add("    - schema_approval_status_summary_marker: schema_approval_status_summary=$schemaApprovalSummary")
             }
         }
     }
@@ -1383,6 +1460,11 @@ function Add-ReleaseGovernanceSourceReportContractLines {
             -Report $report `
             -SourceReportDisplay $sourceReportDisplay `
             -SourceJsonDisplay $sourceJsonDisplay
+        Add-ProjectTemplateOnboardingGovernanceReportContractLines `
+            -Lines $Lines `
+            -Report $report `
+            -SourceReportDisplay $sourceReportDisplay `
+            -SourceJsonDisplay $sourceJsonDisplay
         Add-ReleaseGovernanceManifestSignoffSourceReportLines `
             -Lines $Lines `
             -Report $report `
@@ -1415,6 +1497,74 @@ function Add-ReleaseGovernanceSourceReportContractLines {
                 [void]$Lines.Add("  - ${label}: $fieldValue")
             }
         }
+    }
+}
+
+function Add-ProjectTemplateGovernanceCombinedContractLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$ReadinessReport,
+        [AllowNull()]$OnboardingReport
+    )
+
+    if (-not (Test-ProjectTemplateDeliveryReadinessReport -Report $ReadinessReport) -or
+        -not (Test-ProjectTemplateOnboardingGovernanceReport -Report $OnboardingReport)) {
+        return
+    }
+
+    $readinessStatus = Get-ReleaseBlockerPropertyValue -Object $ReadinessReport -Name "status"
+    $readinessReleaseReady = Get-ReleaseBlockerPropertyValue -Object $ReadinessReport -Name "release_ready"
+    $onboardingStatus = Get-ReleaseBlockerPropertyValue -Object $OnboardingReport -Name "status"
+    $onboardingReleaseReady = Get-ReleaseBlockerPropertyValue -Object $OnboardingReport -Name "release_ready"
+    $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+        -Value (Get-ReleaseBlockerPropertyObject -Object $OnboardingReport -Name "schema_approval_status_summary") `
+        -Fallback $onboardingStatus
+    if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+        $schemaApprovalSummary = "unknown"
+    }
+
+    $readinessSourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $ReadinessReport -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($readinessSourceReportDisplay)) {
+        $readinessSourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $ReadinessReport -Name "expected_summary_display"
+    }
+    $readinessSourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $ReadinessReport -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($readinessSourceJsonDisplay)) {
+        $readinessSourceJsonDisplay = $readinessSourceReportDisplay
+    }
+
+    $onboardingSourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $OnboardingReport -Name "source_report_display"
+    $onboardingSourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $OnboardingReport -Name "source_json_display"
+
+    [void]$Lines.Add("- project_template_delivery_readiness / project_template_onboarding.schema_approval:")
+    [void]$Lines.Add("  - project_template_delivery_readiness_contract:")
+    [void]$Lines.Add("    - source_schema: featherdoc.project_template_delivery_readiness_report.v1")
+    if (-not [string]::IsNullOrWhiteSpace($readinessStatus)) {
+        [void]$Lines.Add("    - readiness_status: $readinessStatus")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($readinessReleaseReady)) {
+        [void]$Lines.Add("    - readiness_release_ready: $readinessReleaseReady")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($readinessSourceReportDisplay)) {
+        [void]$Lines.Add("    - readiness_source_report_display: $readinessSourceReportDisplay")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($readinessSourceJsonDisplay)) {
+        [void]$Lines.Add("    - readiness_source_json_display: $readinessSourceJsonDisplay")
+    }
+    [void]$Lines.Add("  - project_template_onboarding_governance_contract:")
+    [void]$Lines.Add("    - source_schema: featherdoc.project_template_onboarding_governance_report.v1")
+    if (-not [string]::IsNullOrWhiteSpace($onboardingStatus)) {
+        [void]$Lines.Add("    - status: $onboardingStatus")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($onboardingReleaseReady)) {
+        [void]$Lines.Add("    - release_ready: $onboardingReleaseReady")
+    }
+    [void]$Lines.Add("    - schema_approval_status_summary: $schemaApprovalSummary")
+    [void]$Lines.Add("    - schema_approval_status_summary_marker: schema_approval_status_summary=$schemaApprovalSummary")
+    if (-not [string]::IsNullOrWhiteSpace($onboardingSourceReportDisplay)) {
+        [void]$Lines.Add("    - source_report_display: $onboardingSourceReportDisplay")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($onboardingSourceJsonDisplay)) {
+        [void]$Lines.Add("    - source_json_display: $onboardingSourceJsonDisplay")
     }
 }
 
@@ -1613,13 +1763,25 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAud
     }
 
     $report = $reports | Select-Object -First 1
+    $rollup = Get-ReleaseBlockerPropertyObject -Object $handoff -Name "release_blocker_rollup"
+    $sourceReport = ""
+    foreach ($fieldName in @("report_markdown_display", "report_markdown", "summary_json_display", "summary_json")) {
+        $sourceReport = Get-ReleaseBlockerPropertyValue -Object $rollup -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($sourceReport)) {
+            break
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($sourceReport)) {
+        $sourceReport = Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display"
+    }
+
     $auditedEntrypoints = @(
         Get-ReleaseBlockerArrayProperty -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints" |
             ForEach-Object { [string]$_ } |
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     )
 
-    return "Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=$count, status=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_status")), audit_script=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_script")), audited_entrypoint_count=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count")), audited_entrypoints=$(Get-ReleaseBlockerDisplayValue -Value ($auditedEntrypoints -join ', ')), compact_evidence_label=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label")), compact_evidence_field=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field")), compact_evidence_source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema")), checklist_path=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path")), checklist_marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker")), material_safety_marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker")), source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")), source_report=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display"))"
+    return "Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=$count, status=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_status")), audit_script=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_script")), audited_entrypoint_count=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count")), audited_entrypoints=$(Get-ReleaseBlockerDisplayValue -Value ($auditedEntrypoints -join ', ')), compact_evidence_label=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label")), compact_evidence_field=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field")), compact_evidence_source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema")), checklist_path=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path")), checklist_marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker")), material_safety_marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker")), source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")), source_report=$(Get-ReleaseBlockerDisplayValue -Value $sourceReport)"
 }
 
 function Get-ReleaseGovernanceChecklistSections {
@@ -1750,12 +1912,21 @@ function Get-NormalizedReleaseGovernanceActionItems {
             continue
         }
 
+        $itemId = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "id")
+        if ([string]::IsNullOrWhiteSpace($itemId)) {
+            $itemId = "action_item"
+        }
+        $itemAction = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "action")
+        if ([string]::IsNullOrWhiteSpace($itemAction)) {
+            $itemAction = $itemId
+        }
+
         $entry = [ordered]@{
-            id = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "id")
+            id = $itemId
             project_id = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "project_id")
             template_name = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "template_name")
             candidate_type = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "candidate_type")
-            action = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "action")
+            action = $itemAction
             title = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "title")
             source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_schema")
             source_report = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_report")
@@ -2715,6 +2886,21 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
     [void]$Lines.Add("- Blockers: $($releaseBlockers.Count)")
     [void]$Lines.Add("- Warnings: $($warnings.Count)")
     [void]$Lines.Add("- Action items: $($actionItems.Count)")
+    $handoffReports = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "reports")
+    Add-ReleaseGovernanceSourceReportContractLines `
+        -Lines $Lines `
+        -Reports $handoffReports `
+        -Heading "### Handoff Source Report Contracts" `
+        -IdPropertyName "id" `
+        -PathPropertyName "expected_summary" `
+        -DisplayPropertyName "expected_summary_display" `
+        -RepoRoot $RepoRoot
+
+    Add-ProjectTemplateGovernanceCombinedContractLines `
+        -Lines $Lines `
+        -ReadinessReport (Get-ReleaseBlockerPropertyObject -Object $handoff -Name "project_template_delivery_readiness_contract") `
+        -OnboardingReport (Get-ReleaseBlockerPropertyObject -Object $handoff -Name "project_template_onboarding_governance_contract")
+
     $manifestSignoffReports = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "manifest_signoff_entrypoints_source_reports")
     $manifestSignoffCount = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "manifest_signoff_entrypoints_source_report_count"
     if ([string]::IsNullOrWhiteSpace($manifestSignoffCount)) {
@@ -2771,7 +2957,7 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
 
     Add-ReleaseGovernanceReportIssueLines `
         -Lines $Lines `
-        -Reports @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "reports") `
+        -Reports $handoffReports `
         -Heading "### Handoff Report Issues" `
         -IdPropertyName "id" `
         -PathPropertyName "expected_summary" `

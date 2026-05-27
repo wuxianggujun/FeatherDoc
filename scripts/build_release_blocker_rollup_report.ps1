@@ -68,6 +68,57 @@ function Get-DisplayPath {
     return $resolved
 }
 
+function Convert-ReleaseMaterialString {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()][string]$Text
+    )
+
+    if ($null -eq $Text -or [string]::IsNullOrWhiteSpace($RepoRoot)) {
+        return $Text
+    }
+
+    $normalized = [string]$Text
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $repoRootForms = @(
+        $resolvedRepoRoot,
+        ($resolvedRepoRoot -replace '\\', '/'),
+        ($resolvedRepoRoot -replace '\\', '\\')
+    ) | Sort-Object -Unique
+
+    foreach ($rootForm in $repoRootForms) {
+        if ([string]::IsNullOrWhiteSpace($rootForm)) {
+            continue
+        }
+
+        $pattern = [regex]::Escape($rootForm) + '(?<suffix>\\\\|[\\/]|(?=$|[\s"''`<>|;,)]+))'
+        $normalized = [regex]::Replace(
+            $normalized,
+            $pattern,
+            '.${suffix}',
+            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    }
+
+    return $normalized.Replace('./', '.\')
+}
+
+function Write-ReleaseMaterialFiles {
+    param(
+        [AllowNull()]$Summary,
+        [string]$SummaryPath,
+        [string]$MarkdownPath,
+        [int]$JsonDepth
+    )
+
+    $summaryJson = $Summary | ConvertTo-Json -Depth $JsonDepth
+    (Convert-ReleaseMaterialString -RepoRoot $repoRoot -Text $summaryJson) |
+        Set-Content -LiteralPath $SummaryPath -Encoding UTF8
+
+    $markdown = @(New-ReportMarkdown -Summary $Summary) -join [Environment]::NewLine
+    (Convert-ReleaseMaterialString -RepoRoot $repoRoot -Text $markdown) |
+        Set-Content -LiteralPath $MarkdownPath -Encoding UTF8
+}
+
 function Resolve-RepoPathFromDisplayPath {
     param([string]$RepoRoot, [string]$DisplayPath)
 
@@ -545,7 +596,7 @@ function Add-PdfVisualGateEvidenceFields {
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_cjk_copy_search_count" `
         -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("cjk_copy_search_count"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_cjk_missing_text_count" `
-        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("cjk_missing_text_count"))
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("cjk_copy_search_missing_text_count", "cjk_missing_text_count"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_visual_baseline_manifest_count" `
         -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("visual_baseline_manifest_count"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_visual_baseline_count" `
@@ -1735,7 +1786,7 @@ foreach ($path in @($inputPaths)) {
                     Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 }
                 source_schema = Get-FirstJsonString -Object $item -Names @("source_schema") -DefaultValue $kind
-                action = Get-JsonString -Object $item -Name "action"
+                action = Get-FirstJsonString -Object $item -Names @("action", "id") -DefaultValue "action_item"
                 title = Get-JsonString -Object $item -Name "title"
                 command = Get-JsonString -Object $item -Name "command"
                 open_command = Get-FirstJsonString -Object $item -Names @("open_command", "command")
@@ -1928,8 +1979,7 @@ $summary = [ordered]@{
     warnings = @($warnings.ToArray())
 }
 
-($summary | ConvertTo-Json -Depth 24) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
-(New-ReportMarkdown -Summary $summary) | Set-Content -LiteralPath $markdownPath -Encoding UTF8
+Write-ReleaseMaterialFiles -Summary $summary -SummaryPath $summaryPath -MarkdownPath $markdownPath -JsonDepth 24
 
 Write-Step "Summary JSON: $summaryPath"
 Write-Step "Report Markdown: $markdownPath"

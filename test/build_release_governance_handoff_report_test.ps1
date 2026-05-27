@@ -33,6 +33,13 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-DoesNotContainText {
+    param([string]$Text, [string]$UnexpectedText, [string]$Message)
+    if ($Text -match [regex]::Escape($UnexpectedText)) {
+        throw "$Message Unexpected='$UnexpectedText'."
+    }
+}
+
 function Assert-MarkdownListBlockContainsAll {
     param(
         [string]$Text,
@@ -153,7 +160,6 @@ function Write-GovernanceFixtures {
         action_items = @(
             [ordered]@{
                 id = "preview_style_numbering_repair"
-                action = "preview_style_numbering_repair"
                 title = "Preview style numbering repair"
             }
         )
@@ -588,6 +594,8 @@ if (Test-Scenario -Name "aggregate") {
         Select-Object -First 1)
     Assert-ContainsText -Text ([string]$numberingAction.open_command) -ExpectedText "build_numbering_catalog_governance_report.ps1" `
         -Message "Aggregate handoff should provide a reviewer open command when numbering action input omits one."
+    Assert-Equal -Actual ([string]$numberingAction.action) -Expected "preview_style_numbering_repair" `
+        -Message "Aggregate handoff should fall back to action item id when action is absent."
     $tableVisualAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "run_table_style_quality_visual_regression" } |
         Select-Object -First 1)
@@ -1133,11 +1141,13 @@ if (Test-Scenario -Name "include_rollup") {
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([bool]$summary.release_blocker_rollup.included) -Expected $true `
         -Message "Handoff summary should record the included rollup."
-    Assert-Equal -Actual ([string]$summary.release_blocker_rollup.summary_json) -Expected $rollupSummaryPath `
-        -Message "Handoff summary should expose nested rollup summary path."
+    Assert-ContainsText -Text ([string]$summary.release_blocker_rollup.summary_json) -ExpectedText "release-blocker-rollup\summary.json" `
+        -Message "Handoff summary should expose nested rollup summary display path."
+    Assert-DoesNotContainText -Text ([string]$summary.release_blocker_rollup.summary_json) -UnexpectedText $resolvedRepoRoot `
+        -Message "Handoff summary should not expose a local absolute nested rollup summary path."
     Assert-Equal -Actual ([string]$summary.release_blocker_rollup.status) -Expected "blocked" `
         -Message "Handoff summary should consume nested rollup status."
-    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.source_report_count) -Expected 6 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.source_report_count) -Expected 7 `
         -Message "Handoff summary should consume nested rollup source report count."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.release_blocker_count) -Expected 4 `
         -Message "Handoff summary should consume nested rollup blocker count."
@@ -1365,7 +1375,7 @@ if (Test-Scenario -Name "include_rollup") {
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
         -Message "Nested rollup should expose release blocker rollup schema."
-    Assert-Equal -Actual ([int]$rollupSummary.source_report_count) -Expected 6 `
+    Assert-Equal -Actual ([int]$rollupSummary.source_report_count) -Expected 7 `
         -Message "Nested rollup should consume all loaded governance reports and explicit release-candidate evidence."
     Assert-Equal -Actual ([int]$rollupSummary.release_blocker_count) -Expected 4 `
         -Message "Nested rollup should preserve blocker count."

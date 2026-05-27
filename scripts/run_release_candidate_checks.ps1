@@ -182,6 +182,87 @@ function Get-RepoRelativePath {
     return $resolvedPath
 }
 
+function Convert-ReleaseMaterialString {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()][string]$Text
+    )
+
+    if ($null -eq $Text) {
+        return $null
+    }
+
+    if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+        return $Text
+    }
+
+    $normalized = [string]$Text
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $repoRootForms = @(
+        $resolvedRepoRoot,
+        ($resolvedRepoRoot -replace '\\', '/'),
+        ($resolvedRepoRoot -replace '\\', '\\')
+    ) | Sort-Object -Unique
+
+    foreach ($rootForm in $repoRootForms) {
+        if ([string]::IsNullOrWhiteSpace($rootForm)) {
+            continue
+        }
+
+        $pattern = [regex]::Escape($rootForm) + '(?<suffix>\\\\|[\\/]|(?=$|[\s"''`<>|;,)]+))'
+        $normalized = [regex]::Replace(
+            $normalized,
+            $pattern,
+            '.${suffix}',
+            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    }
+
+    return $normalized.Replace('./', '.\')
+}
+
+function Convert-ReleaseMaterialObject {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()]$Value
+    )
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [string]) {
+        return Convert-ReleaseMaterialString -RepoRoot $RepoRoot -Text $Value
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $converted = [ordered]@{}
+        foreach ($key in $Value.Keys) {
+            $converted[$key] = Convert-ReleaseMaterialObject -RepoRoot $RepoRoot -Value $Value[$key]
+        }
+
+        return $converted
+    }
+
+    if ($Value -is [pscustomobject]) {
+        $converted = [ordered]@{}
+        foreach ($property in $Value.PSObject.Properties) {
+            $converted[$property.Name] = Convert-ReleaseMaterialObject -RepoRoot $RepoRoot -Value $property.Value
+        }
+
+        return $converted
+    }
+
+    if ($Value -is [System.Collections.IEnumerable]) {
+        return ,@(
+            foreach ($item in $Value) {
+                Convert-ReleaseMaterialObject -RepoRoot $RepoRoot -Value $item
+            }
+        )
+    }
+
+    return $Value
+}
+
 function Get-ProjectVersion {
     param([string]$RepoRoot)
 
@@ -429,6 +510,7 @@ function Get-PdfVisualGateSummaryInfo {
         aggregate_contact_sheet = ""
         cjk_manifest_count = 0
         cjk_copy_search_count = 0
+        cjk_copy_search_missing_text_count = 0
         visual_baseline_manifest_count = 0
         visual_baseline_count = 0
         finalizable = $false
@@ -449,6 +531,41 @@ function Get-PdfVisualGateSummaryInfo {
         $info.aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet")
         $info.cjk_manifest_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_manifest_count")
         $info.cjk_copy_search_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_count")
+        $cjkMissingTextCount = Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_missing_text_count"
+        if ($null -eq $cjkMissingTextCount) {
+            $cjkMissingTextCount = Get-OptionalPropertyValue -Object $summary -Name "cjk_missing_text_count"
+        }
+        if ($null -ne $cjkMissingTextCount -and -not [string]::IsNullOrWhiteSpace([string]$cjkMissingTextCount)) {
+            $info.cjk_copy_search_missing_text_count = [int]$cjkMissingTextCount
+        } else {
+            $computedMissingTextCount = 0
+            foreach ($entry in @(Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search")) {
+                if ($null -eq $entry) {
+                    continue
+                }
+
+                $missingText = Get-OptionalPropertyValue -Object $entry -Name "missing_text"
+                if ($null -eq $missingText) {
+                    continue
+                }
+                if ($missingText -is [string]) {
+                    if (-not [string]::IsNullOrWhiteSpace($missingText)) {
+                        $computedMissingTextCount += 1
+                    }
+                    continue
+                }
+                if ($missingText -is [System.Collections.IEnumerable]) {
+                    $computedMissingTextCount += @($missingText | Where-Object {
+                            $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_)
+                        }).Count
+                    continue
+                }
+
+                $computedMissingTextCount += 1
+            }
+
+            $info.cjk_copy_search_missing_text_count = $computedMissingTextCount
+        }
         $info.visual_baseline_manifest_count = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_manifest_count")
         $info.visual_baseline_count = [int](Get-OptionalPropertyValue -Object $summary -Name "baselines_count")
         $info.finalizable = -not [string]::IsNullOrWhiteSpace([string]$info.verdict) -and
@@ -2008,6 +2125,26 @@ $releaseProjectTemplateReadinessChecklistEntrypoints = if ($ReleaseEvidenceScope
         checklist_marker = "release_entry_project_template_readiness_checklist_trace"
     }
 }
+$releaseEntryProjectTemplateReadinessChecklistMaterialSafetyAudit = if ($ReleaseEvidenceScope -eq "pdf-only") {
+    $null
+} else {
+    [ordered]@{
+        status = "passed"
+        audit_script = ".\scripts\assert_release_material_safety.ps1"
+        audited_entrypoint_count = 3
+        audited_entrypoints = @(
+            "start_here",
+            "artifact_guide",
+            "reviewer_checklist"
+        )
+        compact_evidence_label = "Project-template readiness checklist handoff evidence"
+        compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+        compact_evidence_source_schema = "featherdoc.release_candidate_summary"
+        checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+        checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+        material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+    }
+}
 $resolvedPdfVisualGateSummaryJson = ""
 if (-not [string]::IsNullOrWhiteSpace($PdfVisualGateSummaryJson)) {
     $resolvedPdfVisualGateSummaryJson = Resolve-FullPath -RepoRoot $repoRoot -InputPath $PdfVisualGateSummaryJson
@@ -2191,8 +2328,26 @@ $resolvedReleaseGovernanceHandoffInputJson = @(
 )
 $resolvedReleaseGovernanceHandoffInputJson = @(Select-UniqueReleaseBlockerRollupPathList `
         -Paths $resolvedReleaseGovernanceHandoffInputJson)
+$releaseGovernanceHandoffInputRootIsDefault = [string]::Equals(
+    $ReleaseGovernanceHandoffInputRoot,
+    "output",
+    [System.StringComparison]::OrdinalIgnoreCase)
 $resolvedReleaseGovernanceHandoffInputRoot = Resolve-FullPath -RepoRoot $repoRoot `
     -InputPath $ReleaseGovernanceHandoffInputRoot
+if ($releaseGovernanceHandoffInputRootIsDefault) {
+    $pipelineGovernanceInputRoot = Resolve-FullPath -RepoRoot $repoRoot `
+        -InputPath "output\release-governance-pipeline-current\governance"
+    if (Test-Path -LiteralPath $pipelineGovernanceInputRoot -PathType Container) {
+        $resolvedReleaseGovernanceHandoffInputRoot = $pipelineGovernanceInputRoot
+    }
+}
+$defaultProjectTemplateOnboardingGovernanceSummary = Resolve-FullPath -RepoRoot $repoRoot `
+    -InputPath "output\project-template-onboarding-governance\summary.json"
+if ($releaseGovernanceHandoffInputRootIsDefault -and
+    (Test-Path -LiteralPath $defaultProjectTemplateOnboardingGovernanceSummary -PathType Leaf)) {
+    $resolvedReleaseGovernanceHandoffInputJson = @(Select-UniqueReleaseBlockerRollupPathList `
+            -Paths (@($resolvedReleaseGovernanceHandoffInputJson) + @($defaultProjectTemplateOnboardingGovernanceSummary)))
+}
 $releaseGovernanceHandoffRequested = [bool]$ReleaseGovernanceHandoff
 $resolvedReleaseGovernanceHandoffOutputDir = if ($releaseGovernanceHandoffRequested) {
     if ([string]::IsNullOrWhiteSpace($ReleaseGovernanceHandoffOutputDir)) {
@@ -2240,6 +2395,8 @@ $summary = [ordered]@{
     release_blocker_count = 0
     warning_count = 0
     warnings = @()
+    governance_metric_count = 0
+    governance_metrics = @()
     release_handoff = $releaseHandoffPath
     release_body_zh_cn = $releaseBodyZhCnPath
     release_summary_zh_cn = $releaseSummaryZhCnPath
@@ -2249,6 +2406,7 @@ $summary = [ordered]@{
     release_evidence_scope = $ReleaseEvidenceScope
     manifest_signoff_entrypoints = $releaseManifestSignoffEntrypoints
     project_template_readiness_checklist_entrypoints = $releaseProjectTemplateReadinessChecklistEntrypoints
+    release_entry_project_template_readiness_checklist_material_safety_audit = $releaseEntryProjectTemplateReadinessChecklistMaterialSafetyAudit
     pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson
     pdf_visual_gate = $pdfVisualGateSummaryInfo
     pdf_visual_gate_attempt_summary_json = $resolvedPdfVisualGateAttemptSummaryJson
@@ -2300,12 +2458,21 @@ $summary = [ordered]@{
         loaded_report_count = 0
         missing_report_count = 0
         failed_report_count = 0
+        report_count = 0
+        reports = @()
+        governance_metric_count = 0
+        governance_metrics = @()
+        project_template_delivery_readiness_contract = $null
+        project_template_onboarding_governance_contract = $null
+        release_blocker_rollup = $null
         release_blocker_count = 0
         release_blockers = @()
         action_item_count = 0
         action_items = @()
         warning_count = 0
         warnings = @()
+        manifest_signoff_entrypoints_source_report_count = 0
+        manifest_signoff_entrypoints_source_reports = @()
         project_template_readiness_checklist_entrypoints_source_report_count = 0
         project_template_readiness_checklist_entrypoints_source_reports = @()
         release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = 0
@@ -2424,12 +2591,21 @@ $summary = [ordered]@{
             loaded_report_count = 0
             missing_report_count = 0
             failed_report_count = 0
+            report_count = 0
+            reports = @()
+            governance_metric_count = 0
+            governance_metrics = @()
+            project_template_delivery_readiness_contract = $null
+            project_template_onboarding_governance_contract = $null
+            release_blocker_rollup = $null
             release_blocker_count = 0
             release_blockers = @()
             action_item_count = 0
             action_items = @()
             warning_count = 0
             warnings = @()
+            manifest_signoff_entrypoints_source_report_count = 0
+            manifest_signoff_entrypoints_source_reports = @()
             project_template_readiness_checklist_entrypoints_source_report_count = 0
             project_template_readiness_checklist_entrypoints_source_reports = @()
             release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = 0
@@ -3238,7 +3414,18 @@ try {
             $summary.release_governance_handoff.action_items = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "action_items") }
             $summary.release_governance_handoff.warning_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.warning_count }
             $summary.release_governance_handoff.warnings = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "warnings") }
+            [object[]]$handoffReports = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "reports") }
+            [object[]]$handoffGovernanceMetrics = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "governance_metrics") }
+            $summary.release_governance_handoff.report_count = $handoffReports.Count
+            $summary.release_governance_handoff.reports = @($handoffReports)
+            $summary.release_governance_handoff.governance_metric_count = if ($null -eq $handoffSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffSummary -Name "governance_metric_count" -DefaultValue $handoffGovernanceMetrics.Count) }
+            $summary.release_governance_handoff.governance_metrics = @($handoffGovernanceMetrics)
+            $summary.release_governance_handoff.project_template_delivery_readiness_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_delivery_readiness_contract" }
+            $summary.release_governance_handoff.project_template_onboarding_governance_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_onboarding_governance_contract" }
+            $summary.governance_metric_count = $summary.release_governance_handoff.governance_metric_count
+            $summary.governance_metrics = @($summary.release_governance_handoff.governance_metrics)
             $handoffRollup = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "release_blocker_rollup" }
+            $summary.release_governance_handoff.release_blocker_rollup = $handoffRollup
             $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_report_count") }
             $summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_reports") }
             $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_report_count") }
@@ -3257,6 +3444,13 @@ try {
             $summary.steps.release_governance_handoff.action_items = @($summary.release_governance_handoff.action_items)
             $summary.steps.release_governance_handoff.warning_count = $summary.release_governance_handoff.warning_count
             $summary.steps.release_governance_handoff.warnings = @($summary.release_governance_handoff.warnings)
+            $summary.steps.release_governance_handoff.report_count = $summary.release_governance_handoff.report_count
+            $summary.steps.release_governance_handoff.reports = @($summary.release_governance_handoff.reports)
+            $summary.steps.release_governance_handoff.governance_metric_count = $summary.release_governance_handoff.governance_metric_count
+            $summary.steps.release_governance_handoff.governance_metrics = @($summary.release_governance_handoff.governance_metrics)
+            $summary.steps.release_governance_handoff.project_template_delivery_readiness_contract = $summary.release_governance_handoff.project_template_delivery_readiness_contract
+            $summary.steps.release_governance_handoff.project_template_onboarding_governance_contract = $summary.release_governance_handoff.project_template_onboarding_governance_contract
+            $summary.steps.release_governance_handoff.release_blocker_rollup = $summary.release_governance_handoff.release_blocker_rollup
             $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count
             $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_reports = @($summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports)
             $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count
@@ -3279,7 +3473,18 @@ try {
             $summary.release_governance_handoff.action_items = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "action_items") }
             $summary.release_governance_handoff.warning_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.warning_count }
             $summary.release_governance_handoff.warnings = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "warnings") }
+            [object[]]$handoffReports = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "reports") }
+            [object[]]$handoffGovernanceMetrics = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "governance_metrics") }
+            $summary.release_governance_handoff.report_count = $handoffReports.Count
+            $summary.release_governance_handoff.reports = @($handoffReports)
+            $summary.release_governance_handoff.governance_metric_count = if ($null -eq $handoffSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffSummary -Name "governance_metric_count" -DefaultValue $handoffGovernanceMetrics.Count) }
+            $summary.release_governance_handoff.governance_metrics = @($handoffGovernanceMetrics)
+            $summary.release_governance_handoff.project_template_delivery_readiness_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_delivery_readiness_contract" }
+            $summary.release_governance_handoff.project_template_onboarding_governance_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_onboarding_governance_contract" }
+            $summary.governance_metric_count = $summary.release_governance_handoff.governance_metric_count
+            $summary.governance_metrics = @($summary.release_governance_handoff.governance_metrics)
             $handoffRollup = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "release_blocker_rollup" }
+            $summary.release_governance_handoff.release_blocker_rollup = $handoffRollup
             $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_report_count") }
             $summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_reports") }
             $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_report_count") }
@@ -3298,6 +3503,13 @@ try {
             $summary.steps.release_governance_handoff.action_items = @($summary.release_governance_handoff.action_items)
             $summary.steps.release_governance_handoff.warning_count = $summary.release_governance_handoff.warning_count
             $summary.steps.release_governance_handoff.warnings = @($summary.release_governance_handoff.warnings)
+            $summary.steps.release_governance_handoff.report_count = $summary.release_governance_handoff.report_count
+            $summary.steps.release_governance_handoff.reports = @($summary.release_governance_handoff.reports)
+            $summary.steps.release_governance_handoff.governance_metric_count = $summary.release_governance_handoff.governance_metric_count
+            $summary.steps.release_governance_handoff.governance_metrics = @($summary.release_governance_handoff.governance_metrics)
+            $summary.steps.release_governance_handoff.project_template_delivery_readiness_contract = $summary.release_governance_handoff.project_template_delivery_readiness_contract
+            $summary.steps.release_governance_handoff.project_template_onboarding_governance_contract = $summary.release_governance_handoff.project_template_onboarding_governance_contract
+            $summary.steps.release_governance_handoff.release_blocker_rollup = $summary.release_governance_handoff.release_blocker_rollup
             $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count
             $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_reports = @($summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports)
             $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count
@@ -3314,6 +3526,9 @@ try {
             }
         }
     }
+
+    $summary = Convert-ReleaseMaterialObject -RepoRoot $repoRoot -Value $summary
+    ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
 
     $repoRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $repoRoot
     $summaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summaryPath
