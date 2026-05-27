@@ -1081,6 +1081,45 @@ if ($passAttemptWarnings.Count -ne 0) {
     throw "Passing PDF visual attempt with pass-summary-before-timeout evidence should not emit a fresh-attempt warning."
 }
 
+$acceptedSegmentedAttemptWarnings = @(Get-PdfVisualGateAttemptReleaseWarnings -ReleaseSummary ([ordered]@{
+            pdf_visual_gate_attempt = [ordered]@{
+                status = "partial"
+                verdict = "not_complete"
+                full_visual_gate_status = "not_complete"
+                evidence_scope = "bounded_attempt_auxiliary_only"
+                stage_count = 6
+                passed_stage_count = 6
+                failed_stage_count = 0
+                incomplete_stage_count = 0
+                pdf_regression_status = "pass"
+                pdf_regression_failed_test_count = 0
+                cjk_copy_search_status = "pass"
+                cjk_copy_search_missing_text_count = 0
+                visual_baseline_render_status = "pass"
+                visual_baseline_fresh_rendered_count = 44
+                expected_visual_render_count = 44
+                aggregate_contact_sheet_status = "pass"
+                outer_guard_status = "timed_out"
+                outer_guard_timed_out = $true
+                outer_guard_timeout_seconds = 60
+            }
+            pdf_full_ctest_readiness = [ordered]@{
+                release_ready = $true
+                verdict = "pass_with_warnings"
+                visual_gate_release_evidence_accepted = $true
+                visual_gate_fresh_full_guarded_evidence = $false
+                visual_gate_pass_summary_before_outer_timeout = $false
+                visual_gate_segmented_full_coverage_evidence = $true
+            }
+            pdf_visual_gate = [ordered]@{
+                finalize_only = $false
+                skip_preflight = $false
+            }
+        }) -RepoRoot $resolvedRepoRoot)
+if ($acceptedSegmentedAttemptWarnings.Count -ne 0) {
+    throw "Completed auxiliary PDF visual attempt with accepted segmented full coverage should not occupy release warning_count."
+}
+
 if ([int]$candidateSummary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count -ne 2 -or
     [int]$candidateSummary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 1) {
     throw "Release candidate summary did not consume project-template release entry evidence from release governance handoff."

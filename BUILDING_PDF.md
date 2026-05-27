@@ -974,7 +974,9 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    `aggregate_rebuild_status = pass` 时，readiness summary 必须写出
    `visual_gate_segmented_full_coverage_evidence = true`，并允许
    `visual_gate_release_evidence_accepted = true`；该状态只解释分段辅助证据覆盖情况，
-   不能替代 fresh 非 `FinalizeOnly` full visual gate pass。若已执行
+   不能替代 fresh 非 `FinalizeOnly` full visual gate pass。若 `attempt-summary.json`
+   也已补齐阶段全 pass、0 failed、44/44 fresh baseline 和 contact sheet pass，
+   release candidate / governance 不再把该边界计入 `warning_count`。若已执行
    `scripts/run_pdf_full_ctest_guarded.ps1`，该 readiness summary 还必须读取
    `output/pdf-ctest-current/summary.json`，保留
    `schema = featherdoc.pdf_full_ctest_guarded_summary.v1`、

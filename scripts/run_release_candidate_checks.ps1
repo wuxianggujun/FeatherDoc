@@ -560,6 +560,29 @@ function Get-PdfVisualGateAttemptReleaseWarnings {
     $renderStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_render_status")
     $contactSheetStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "aggregate_contact_sheet_status")
     $attemptPassed = ($attemptStatus -eq "pass" -and $attemptVerdict -eq "pass" -and $attemptFullStatus -eq "pass")
+    $attemptStageCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "stage_count")
+    $attemptPassedStageCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "passed_stage_count")
+    $attemptFailedStageCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "failed_stage_count")
+    $attemptIncompleteStageCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "incomplete_stage_count")
+    $renderedCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_fresh_rendered_count")
+    $expectedRenderCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "expected_visual_render_count")
+    $pdfRegressionStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_status")
+    $pdfRegressionSelected = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_selected_test_count")
+    $pdfRegressionFailed = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_failed_test_count")
+    $pdfRegressionSkipped = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_skipped_test_count")
+    $cjkCopySearchStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_status")
+    $cjkCopySearchCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_count")
+    $cjkMissingTextCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_missing_text_count")
+    $readiness = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "pdf_full_ctest_readiness"
+    $visualGate = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "pdf_visual_gate"
+    $readinessReleaseReady = [bool](Get-OptionalPropertyValue -Object $readiness -Name "release_ready")
+    $visualReleaseEvidenceAccepted = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_release_evidence_accepted")
+    $freshFullGuardedEvidence = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_fresh_full_guarded_evidence")
+    $passSummaryBeforeOuterTimeout = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_pass_summary_before_outer_timeout")
+    $segmentedFullCoverageEvidence = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_segmented_full_coverage_evidence")
+    $finalizeOnlyEvidence = [bool](Get-OptionalPropertyValue -Object $visualGate -Name "finalize_only")
+    $skipPreflightEvidence = [bool](Get-OptionalPropertyValue -Object $visualGate -Name "skip_preflight")
+    $readinessVerdict = [string](Get-OptionalPropertyValue -Object $readiness -Name "verdict")
     $needsWarning = (-not $attemptPassed) -and (
         $attemptStatus -eq "partial" -or
         $attemptVerdict -eq "not_complete" -or
@@ -572,25 +595,32 @@ function Get-PdfVisualGateAttemptReleaseWarnings {
         return @()
     }
 
+    $attemptAuxiliaryEvidenceComplete = (
+        $attemptStageCount -gt 0 -and
+        $attemptPassedStageCount -eq $attemptStageCount -and
+        $attemptFailedStageCount -eq 0 -and
+        $attemptIncompleteStageCount -eq 0 -and
+        $pdfRegressionStatus -eq "pass" -and
+        $pdfRegressionFailed -eq 0 -and
+        $cjkCopySearchStatus -eq "pass" -and
+        $cjkMissingTextCount -eq 0 -and
+        $renderStatus -eq "pass" -and
+        $expectedRenderCount -gt 0 -and
+        $renderedCount -ge $expectedRenderCount -and
+        $contactSheetStatus -eq "pass"
+    )
+    $segmentedReleaseEvidenceAccepted = (
+        $readinessReleaseReady -and
+        $visualReleaseEvidenceAccepted -and
+        $segmentedFullCoverageEvidence
+    )
+    if ($segmentedReleaseEvidenceAccepted -and $attemptAuxiliaryEvidenceComplete) {
+        return @()
+    }
+
     $summaryJsonPath = [string](Get-OptionalPropertyValue -Object $attempt -Name "summary_json")
     $summaryJsonDisplay = Get-RepoRelativePath -RepoRoot $RepoRoot -Path $summaryJsonPath
-    $renderedCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_fresh_rendered_count")
-    $expectedRenderCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "expected_visual_render_count")
-    $pdfRegressionSelected = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_selected_test_count")
-    $pdfRegressionFailed = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_failed_test_count")
-    $pdfRegressionSkipped = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_skipped_test_count")
-    $cjkCopySearchCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_count")
-    $cjkMissingTextCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_missing_text_count")
     $outerGuardTimeoutSeconds = [int](Get-OptionalPropertyValue -Object $attempt -Name "outer_guard_timeout_seconds")
-    $readiness = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "pdf_full_ctest_readiness"
-    $visualGate = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "pdf_visual_gate"
-    $visualReleaseEvidenceAccepted = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_release_evidence_accepted")
-    $freshFullGuardedEvidence = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_fresh_full_guarded_evidence")
-    $passSummaryBeforeOuterTimeout = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_pass_summary_before_outer_timeout")
-    $segmentedFullCoverageEvidence = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_segmented_full_coverage_evidence")
-    $finalizeOnlyEvidence = [bool](Get-OptionalPropertyValue -Object $visualGate -Name "finalize_only")
-    $skipPreflightEvidence = [bool](Get-OptionalPropertyValue -Object $visualGate -Name "skip_preflight")
-    $readinessVerdict = [string](Get-OptionalPropertyValue -Object $readiness -Name "verdict")
     $message = if ($segmentedFullCoverageEvidence) {
         "Fresh non-FinalizeOnly PDF visual gate attempt did not complete within the 60-second outer guard; release evidence is accepted through strict segmented full-coverage visual evidence, but this does not replace a completed single-run full visual gate."
     } elseif ($freshFullGuardedEvidence) {
