@@ -79,14 +79,20 @@ OCR 或任意视觉精确还原。
    manifest 中 ``expect_visual_baseline=true`` 的样本数，``baselines_count``
    对应 full gate 当前渲染并汇总的 baseline 产物数。
 
-   发布证据允许两种闭合形态：资源受限复核路径必须显示
+   发布证据允许三种可解释形态：资源受限复核路径必须显示
    ``finalize_only = true`` 和 ``skip_preflight = true``；fresh 非
    ``FinalizeOnly`` full visual gate 完整通过时，必须由
    ``run_pdf_visual_full_gate_guarded.ps1`` 写出
    ``full-visual-gate-guarded-summary.json``，并同时满足 ``status = pass``、
    ``verdict = pass``、``full_visual_gate_status = pass``、
    ``outer_guard_status = completed`` 和 ``outer_guard_timed_out = false``。
-   ``check_pdf_release_readiness.ps1`` 必须把后一种情况消化为
+   如果单次 fresh full gate 被 60 秒外层保护截断，但分段 visual gate 已经给出
+   44/44 baseline 覆盖、0 failed slice、contact sheet pass 和 aggregate rebuild pass，
+   ``check_pdf_release_readiness.ps1`` 必须把它消化为
+   ``visual_gate_segmented_full_coverage_evidence = true``。该路径只能证明分段
+   visual evidence 已完整覆盖，不能把 ``full_visual_gate_status = not_complete``
+   改写为 full gate pass。``check_pdf_release_readiness.ps1`` 还必须把 fresh full gate
+   完整通过消化为
    ``visual_gate_fresh_full_guarded_evidence = true`` 和
    ``visual_gate_release_evidence_accepted = true``。
 
@@ -103,7 +109,8 @@ OCR 或任意视觉精确还原。
    ``status = pass``、``release_ready = true``、
    ``evidence_scope = persisted_pdf_release_evidence_only``、
    ``visual_gate_release_evidence_accepted`` 和
-   ``visual_gate_fresh_full_guarded_evidence``。当 fresh full visual gate 和
+   ``visual_gate_fresh_full_guarded_evidence``、``visual_gate_segmented_full_coverage_evidence``。
+   当 fresh full visual gate 和
    full PDF CTest 组合证据都已闭合时，``verdict`` 应为 ``pass`` 且
    ``warning_count = 0``；如果任一重型证据只达到可追溯但未完整闭合，
    ``verdict`` 才应为 ``pass_with_warnings``，并携带
@@ -153,7 +160,11 @@ OCR 或任意视觉精确还原。
    warning 必须同步携带 ``segmented_gate_covered_baseline_count`` 和
    ``segmented_gate_aggregate_contact_sheet_bytes``，让 reviewer 不必打开 ignored JSON
    才能看到分段覆盖情况。固定标记：
-   ``pdf_visual_segmented_gate_summary_trace``。这些字段只能解释
+   ``pdf_visual_segmented_gate_summary_trace``。当该分段证据满足 44/44 baseline、
+   0 failed slice、``aggregate_contact_sheet_status = pass`` 和
+   ``aggregate_rebuild_status = pass`` 时，readiness 可以写出
+   ``visual_gate_segmented_full_coverage_evidence = true`` 并接受为发布证据；
+   warning 仍必须保留 fresh full gate 未完整闭合的事实。这些字段只能解释
    ``segmented_visual_gate_auxiliary_only`` 辅助证据，不能替代 fresh 非
    ``FinalizeOnly`` full visual gate pass。
 
@@ -296,9 +307,13 @@ OCR 或任意视觉精确还原。
      从 2026-05-26 起，``scripts/run_release_candidate_checks.ps1`` 还必须把这类
      fresh attempt 未完成事实上提为顶层 ``warnings[]``，稳定 id 为
      ``pdf_visual_gate_attempt.incomplete_fresh_render``。warning 必须直接携带
-     ``attempt-summary.json`` 路径和 outer guard ``timed_out`` / ``true`` / ``60``，
-     并明确说明当前发布结论仍依赖 ``FinalizeOnly`` summary / contact-sheet
-     复核证据；它是 reviewer-facing warning，不是新的 release blocker。
+     ``attempt-summary.json`` 路径、outer guard ``timed_out`` / ``true`` / ``60``、
+     ``visual_gate_release_evidence_accepted``、
+     ``visual_gate_fresh_full_guarded_evidence``、
+     ``visual_gate_segmented_full_coverage_evidence`` 和 ``visual_gate_finalize_only``，
+     并明确说明当前发布结论是依赖 segmented full-coverage、fresh guarded full gate
+     还是 explicit ``FinalizeOnly`` 复核证据；它是 reviewer-facing warning，
+     不是新的 release blocker。
      ``final_review.md`` 中的 attempt summary/contact sheet reviewer 入口也必须经过
      line/section scoped 审计。固定标记：
      ``pdf_visual_gate_attempt_final_review_material_safety_trace``。
@@ -574,7 +589,9 @@ OCR 或任意视觉精确还原。
    外层保护状态。summary 必须包含
    ``guarded_full_visual_gate_attempt_does_not_replace_completed_full_visual_gate``；
    只有 ``status = pass``、``full_visual_gate_status = pass`` 且
-   ``outer_guard_status = completed`` 才能视为 fresh full visual gate 已完成。
+   ``outer_guard_status = completed`` 才能视为 fresh full visual gate 已完成；若只达到
+   ``visual_gate_segmented_full_coverage_evidence = true``，只能说明分段可视化证据已被
+   release readiness 接受，不能声称单次 full gate 已完成。
 
    .. code-block:: powershell
 

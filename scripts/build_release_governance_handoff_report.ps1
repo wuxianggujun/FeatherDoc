@@ -184,6 +184,9 @@ function Get-PdfVisualGateRollupEvidence {
                 pdf_full_ctest_readiness_status = $fullCtestReadinessStatus
                 pdf_full_ctest_readiness_verdict = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_verdict"
                 pdf_full_ctest_readiness_release_ready = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_release_ready")
+                pdf_full_ctest_readiness_visual_gate_release_evidence_accepted = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_visual_gate_release_evidence_accepted")
+                pdf_full_ctest_readiness_visual_gate_fresh_full_guarded_evidence = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_visual_gate_fresh_full_guarded_evidence")
+                pdf_full_ctest_readiness_visual_gate_segmented_full_coverage_evidence = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_visual_gate_segmented_full_coverage_evidence")
                 pdf_full_ctest_readiness_summary_json_display = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_summary_json_display"
                 pdf_full_ctest_readiness_full_ctest_summary_json_display = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_full_ctest_summary_json_display"
                 pdf_full_ctest_readiness_full_ctest_status = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_full_ctest_status"
@@ -1042,6 +1045,9 @@ function New-ReportMarkdown {
                 $lines.Add("    - pdf_full_ctest_readiness_status: ``$($evidence.pdf_full_ctest_readiness_status)``") | Out-Null
                 $lines.Add("    - pdf_full_ctest_readiness_verdict: ``$($evidence.pdf_full_ctest_readiness_verdict)``") | Out-Null
                 $lines.Add("    - pdf_full_ctest_readiness_release_ready: ``$($evidence.pdf_full_ctest_readiness_release_ready)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_visual_gate_release_evidence_accepted: ``$($evidence.pdf_full_ctest_readiness_visual_gate_release_evidence_accepted)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_visual_gate_fresh_full_guarded_evidence: ``$($evidence.pdf_full_ctest_readiness_visual_gate_fresh_full_guarded_evidence)``") | Out-Null
+                $lines.Add("    - pdf_full_ctest_readiness_visual_gate_segmented_full_coverage_evidence: ``$($evidence.pdf_full_ctest_readiness_visual_gate_segmented_full_coverage_evidence)``") | Out-Null
                 $lines.Add("    - pdf_full_ctest_readiness_summary_json_display: ``$($evidence.pdf_full_ctest_readiness_summary_json_display)``") | Out-Null
                 $lines.Add("    - pdf_full_ctest_readiness_full_ctest_summary_json_display: ``$($evidence.pdf_full_ctest_readiness_full_ctest_summary_json_display)``") | Out-Null
                 $lines.Add("    - pdf_full_ctest_readiness_full_ctest_status: ``$($evidence.pdf_full_ctest_readiness_full_ctest_status)``") | Out-Null

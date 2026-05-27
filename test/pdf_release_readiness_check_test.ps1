@@ -95,8 +95,8 @@ function New-PassingFixture {
         generated_at = "2026-05-26T12:03:21"
         status = "pass"
         verdict = "pass"
-        finalize_only = $true
-        skip_preflight = $false
+        finalize_only = $false
+        skip_preflight = $true
         visual_baseline_manifest_count = 42
         baselines_count = 44
         cjk_manifest_count = 43
@@ -207,6 +207,7 @@ featherdoc.pdf_visual_segmented_gate_summary.v1
 featherdoc.pdf_full_ctest_guarded_summary.v1
 featherdoc.pdf_ctest_remaining_guarded_summary.v1
 pdf_visual_gate_evidence
+visual_gate_segmented_full_coverage_evidence
 pdf_bounded_ctest_evidence
 release_entry_pdf_readiness_checklist_trace
 pdf_release_readiness_machine_gate_trace
@@ -256,6 +257,12 @@ Assert-Equal -Actual ([bool]$fixtureSummary.release_ready) -Expected $true `
     -Message "Release-ready flag should be true when required persisted evidence is coherent."
 Assert-Equal -Actual ([int]$fixtureSummary.failed_check_count) -Expected 0 `
     -Message "Passing fixture should not have failed checks."
+Assert-Equal -Actual ([bool]$fixtureSummary.visual_gate_finalize_only) -Expected $false `
+    -Message "Passing fixture should exercise non-finalize visual release evidence."
+Assert-Equal -Actual ([bool]$fixtureSummary.visual_gate_segmented_full_coverage_evidence) -Expected $true `
+    -Message "Passing fixture should accept strict segmented full-coverage visual evidence."
+Assert-Equal -Actual ([bool]$fixtureSummary.visual_gate_release_evidence_accepted) -Expected $true `
+    -Message "Passing fixture should accept segmented full-coverage visual evidence for release readiness."
 Assert-Equal -Actual ([int]$fixtureSummary.aggregate_contact_sheet_bytes) -Expected 12 `
     -Message "Passing fixture should record aggregate contact sheet bytes."
 Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_status) -Expected "timeout" `
@@ -353,6 +360,8 @@ Assert-Equal -Actual ([string]$visualFullGateWarning.details.segmented_gate_stat
     -Message "Fresh full visual gate warning should carry segmented visual gate status."
 Assert-Equal -Actual ([string]$visualFullGateWarning.details.segmented_gate_verdict) -Expected "pass" `
     -Message "Fresh full visual gate warning should carry segmented visual gate verdict."
+Assert-Equal -Actual ([bool]$visualFullGateWarning.details.segmented_full_coverage_evidence) -Expected $true `
+    -Message "Fresh full visual gate warning should carry segmented full-coverage acceptance state."
 Assert-Equal -Actual ([string]$visualFullGateWarning.details.segmented_gate_evidence_scope) -Expected "segmented_visual_gate_auxiliary_only" `
     -Message "Fresh full visual gate warning should carry segmented visual gate auxiliary scope."
 Assert-Equal -Actual ([int]$visualFullGateWarning.details.segmented_gate_covered_baseline_count) -Expected 44 `
@@ -546,7 +555,9 @@ foreach ($expectedText in @(
         "attempt_summary_visual_baseline_fresh_rendered_count",
         "visual_gate_release_evidence",
         "visual_gate_fresh_full_guarded_evidence",
+        "visual_gate_segmented_full_coverage_evidence",
         "visual_gate_release_evidence_accepted",
+        "segmented_full_coverage_evidence",
         "featherdoc.pdf_visual_segmented_gate_summary.v1",
         "pdf_visual_segmented_gate_summary_trace",
         "visual_segmented_gate_status",

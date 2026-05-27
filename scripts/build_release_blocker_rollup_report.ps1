@@ -635,6 +635,12 @@ function Add-PdfFullCtestReadinessEvidenceFields {
         -Value (Get-FirstJsonString -Object $readiness -Names @("verdict"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_release_ready" `
         -Value (Get-FirstJsonProperty -Object $readiness -Names @("release_ready"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_visual_gate_release_evidence_accepted" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("visual_gate_release_evidence_accepted"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_visual_gate_fresh_full_guarded_evidence" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("visual_gate_fresh_full_guarded_evidence"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_visual_gate_segmented_full_coverage_evidence" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("visual_gate_segmented_full_coverage_evidence"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_summary_json" `
         -Value $summaryJson
     if (-not [string]::IsNullOrWhiteSpace($summaryJson)) {
@@ -1314,6 +1320,9 @@ function New-ReportMarkdown {
                     "pdf_full_ctest_readiness_status",
                     "pdf_full_ctest_readiness_verdict",
                     "pdf_full_ctest_readiness_release_ready",
+                    "pdf_full_ctest_readiness_visual_gate_release_evidence_accepted",
+                    "pdf_full_ctest_readiness_visual_gate_fresh_full_guarded_evidence",
+                    "pdf_full_ctest_readiness_visual_gate_segmented_full_coverage_evidence",
                     "pdf_full_ctest_readiness_summary_json_display",
                     "pdf_full_ctest_readiness_full_ctest_summary_json_display",
                     "pdf_full_ctest_readiness_full_ctest_status",

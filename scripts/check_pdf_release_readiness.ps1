@@ -299,6 +299,26 @@ if ($visualSegmentedGateSummaryExists) {
         }
 }
 
+$visualSegmentedGateStatus = if ($null -eq $visualSegmentedGate) { "missing" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "status") }
+$visualSegmentedGateVerdict = if ($null -eq $visualSegmentedGate) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "verdict") }
+$visualSegmentedGateFullStatus = if ($null -eq $visualSegmentedGate) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "full_visual_gate_status") }
+$visualSegmentedGateEvidenceScope = if ($null -eq $visualSegmentedGate) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "evidence_scope") }
+$visualSegmentedGateBoundary = if ($null -eq $visualSegmentedGate) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "boundary") }
+$visualSegmentedGateSummaryJsonDisplay = if ($null -eq $visualSegmentedGate) { "" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "summary_json_display") }
+$visualSegmentedGateSliceSummaryCount = if ($null -eq $visualSegmentedGate) { 0 } else { Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "slice_summary_count" }
+$visualSegmentedGateSlicePassCount = if ($null -eq $visualSegmentedGate) { 0 } else { Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "slice_pass_count" }
+$visualSegmentedGateSliceFailedCount = if ($null -eq $visualSegmentedGate) { 0 } else { Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "slice_failed_count" }
+$visualSegmentedGateCoveredBaselineCount = if ($null -eq $visualSegmentedGate) { 0 } else { Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "covered_baseline_count" }
+$visualSegmentedGateExpectedVisualRenderCount = if ($null -eq $visualSegmentedGate) { 0 } else { Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "expected_visual_render_count" }
+$visualSegmentedGateAttemptStageCount = if ($null -eq $visualSegmentedGate) { 0 } else { Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "attempt_stage_count" }
+$visualSegmentedGateAttemptPassedStageCount = if ($null -eq $visualSegmentedGate) { 0 } else { Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "attempt_passed_stage_count" }
+$visualSegmentedGateVisualBaselineRenderStatus = if ($null -eq $visualSegmentedGate) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "visual_baseline_render_status") }
+$visualSegmentedGateAggregateContactSheetStatus = if ($null -eq $visualSegmentedGate) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "aggregate_contact_sheet_status") }
+$visualSegmentedGateAggregateContactSheetDisplay = if ($null -eq $visualSegmentedGate) { "" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "aggregate_contact_sheet_display") }
+$visualSegmentedGateAggregateContactSheetBytes = if ($null -eq $visualSegmentedGate) { 0 } else { Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "aggregate_contact_sheet_bytes" }
+$visualSegmentedGateAggregateRebuildStatus = if ($null -eq $visualSegmentedGate) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "aggregate_rebuild_status") }
+$visualSegmentedGateAggregateRebuildSelectedBaselineCount = if ($null -eq $visualSegmentedGate) { 0 } else { Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "aggregate_rebuild_selected_baseline_count" }
+
 $fullCtestSummaryExists = Test-Path -LiteralPath $resolvedFullCtestSummaryJson -PathType Leaf
 if ($fullCtestSummaryExists) {
     $fullCtest = Read-JsonFile -Path $resolvedFullCtestSummaryJson
@@ -382,6 +402,7 @@ $contactSheetBytes = 0
 $visualGateFinalizeOnly = $false
 $visualGateSkipPreflight = $false
 $visualGateFreshFullGuardedEvidence = $false
+$visualGateSegmentedFullCoverageEvidence = $false
 $visualGateReleaseEvidenceAccepted = $false
 if ($null -ne $visual) {
     $status = [string](Get-OptionalPropertyValue -Object $visual -Name "status")
@@ -395,6 +416,17 @@ if ($null -ne $visual) {
     $guardedFullStatus = if ($null -eq $visualFullGateGuarded) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "full_visual_gate_status") }
     $guardedOuterStatus = if ($null -eq $visualFullGateGuarded) { "not_run" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_status") }
     $guardedOuterTimedOut = if ($null -eq $visualFullGateGuarded) { $false } else { [bool](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_timed_out") }
+    $guardedAttemptFailedStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_failed_stage_count" }
+    $guardedAttemptFailedStageCountInt = Convert-ToIntOrZero -Value $guardedAttemptFailedStageCount
+    $segmentedSliceSummaryCountInt = Convert-ToIntOrZero -Value $visualSegmentedGateSliceSummaryCount
+    $segmentedSlicePassCountInt = Convert-ToIntOrZero -Value $visualSegmentedGateSlicePassCount
+    $segmentedSliceFailedCountInt = Convert-ToIntOrZero -Value $visualSegmentedGateSliceFailedCount
+    $segmentedCoveredBaselineCountInt = Convert-ToIntOrZero -Value $visualSegmentedGateCoveredBaselineCount
+    $segmentedExpectedVisualRenderCountInt = Convert-ToIntOrZero -Value $visualSegmentedGateExpectedVisualRenderCount
+    $segmentedAttemptStageCountInt = Convert-ToIntOrZero -Value $visualSegmentedGateAttemptStageCount
+    $segmentedAttemptPassedStageCountInt = Convert-ToIntOrZero -Value $visualSegmentedGateAttemptPassedStageCount
+    $segmentedContactSheetBytesInt = Convert-ToIntOrZero -Value $visualSegmentedGateAggregateContactSheetBytes
+    $segmentedAggregateRebuildSelectedBaselineCountInt = Convert-ToIntOrZero -Value $visualSegmentedGateAggregateRebuildSelectedBaselineCount
     $visualGateFreshFullGuardedEvidence = (
         $guardedStatus -eq "pass" -and
         $guardedVerdict -eq "pass" -and
@@ -402,7 +434,28 @@ if ($null -ne $visual) {
         $guardedOuterStatus -eq "completed" -and
         -not $guardedOuterTimedOut
     )
-    $visualGateReleaseEvidenceAccepted = ($finalizeOnly -or $visualGateFreshFullGuardedEvidence)
+    $visualGateSegmentedFullCoverageEvidence = (
+        $visualSegmentedGateSummaryExists -and
+        $visualSegmentedGateStatus -eq "pass" -and
+        $visualSegmentedGateVerdict -eq "pass" -and
+        $visualSegmentedGateFullStatus -eq "not_complete" -and
+        $visualSegmentedGateEvidenceScope -eq "segmented_visual_gate_auxiliary_only" -and
+        $visualSegmentedGateBoundary -eq "segmented_summary_does_not_replace_full_visual_gate_verdict" -and
+        $segmentedSliceSummaryCountInt -gt 0 -and
+        $segmentedSlicePassCountInt -eq $segmentedSliceSummaryCountInt -and
+        $segmentedSliceFailedCountInt -eq 0 -and
+        $segmentedCoveredBaselineCountInt -ge 42 -and
+        $segmentedCoveredBaselineCountInt -eq $segmentedExpectedVisualRenderCountInt -and
+        $segmentedAttemptStageCountInt -gt 0 -and
+        $segmentedAttemptPassedStageCountInt -ge $segmentedAttemptStageCountInt -and
+        $visualSegmentedGateVisualBaselineRenderStatus -eq "pass" -and
+        $visualSegmentedGateAggregateContactSheetStatus -eq "pass" -and
+        $segmentedContactSheetBytesInt -gt 0 -and
+        $visualSegmentedGateAggregateRebuildStatus -eq "pass" -and
+        $segmentedAggregateRebuildSelectedBaselineCountInt -eq $segmentedExpectedVisualRenderCountInt -and
+        $guardedAttemptFailedStageCountInt -eq 0
+    )
+    $visualGateReleaseEvidenceAccepted = ($finalizeOnly -or $visualGateFreshFullGuardedEvidence -or $visualGateSegmentedFullCoverageEvidence)
     $visualBaselineManifestCount = Get-OptionalPropertyValue -Object $visual -Name "visual_baseline_manifest_count"
     $baselinesCount = Get-OptionalPropertyValue -Object $visual -Name "baselines_count"
     $cjkManifestCount = Get-OptionalPropertyValue -Object $visual -Name "cjk_manifest_count"
@@ -415,15 +468,28 @@ if ($null -ne $visual) {
         -Message "Current PDF visual gate summary verdict must pass." `
         -Details @{ actual = $verdict; expected = "pass" }
     Add-Check -Checks $checks -Name "visual_gate_release_evidence" -Passed $visualGateReleaseEvidenceAccepted `
-        -Message "Current PDF visual gate summary must be backed by either explicit finalize evidence or a fresh guarded full visual gate pass." `
+        -Message "Current PDF visual gate summary must be backed by explicit finalize evidence, a fresh guarded full visual gate pass, or segmented full-coverage visual evidence." `
         -Details @{
             finalize_only = $finalizeOnly
             fresh_full_guarded_evidence = $visualGateFreshFullGuardedEvidence
+            segmented_full_coverage_evidence = $visualGateSegmentedFullCoverageEvidence
             guarded_status = $guardedStatus
             guarded_verdict = $guardedVerdict
             guarded_full_visual_gate_status = $guardedFullStatus
             guarded_outer_guard_status = $guardedOuterStatus
             guarded_outer_guard_timed_out = $guardedOuterTimedOut
+            guarded_attempt_failed_stage_count = $guardedAttemptFailedStageCount
+            segmented_gate_status = $visualSegmentedGateStatus
+            segmented_gate_verdict = $visualSegmentedGateVerdict
+            segmented_gate_evidence_scope = $visualSegmentedGateEvidenceScope
+            segmented_gate_boundary = $visualSegmentedGateBoundary
+            segmented_gate_slice_failed_count = $visualSegmentedGateSliceFailedCount
+            segmented_gate_covered_baseline_count = $visualSegmentedGateCoveredBaselineCount
+            segmented_gate_expected_visual_render_count = $visualSegmentedGateExpectedVisualRenderCount
+            segmented_gate_visual_baseline_render_status = $visualSegmentedGateVisualBaselineRenderStatus
+            segmented_gate_aggregate_contact_sheet_status = $visualSegmentedGateAggregateContactSheetStatus
+            segmented_gate_aggregate_contact_sheet_bytes = $visualSegmentedGateAggregateContactSheetBytes
+            segmented_gate_aggregate_rebuild_status = $visualSegmentedGateAggregateRebuildStatus
         }
     Add-Check -Checks $checks -Name "visual_gate_manifest_counts" -Passed ((Test-IntegerEquals -Value $visualBaselineManifestCount -Expected 42) -and (Test-IntegerAtLeast -Value $baselinesCount -Minimum 42) -and (Test-IntegerEquals -Value $cjkManifestCount -Expected 43) -and (Test-IntegerEquals -Value $cjkCopySearchCount -Expected 43)) `
         -Message "Current PDF visual gate summary must preserve release manifest counts." `
@@ -471,6 +537,7 @@ if ($checklistText.Length -gt 0) {
         "featherdoc.pdf_ctest_remaining_guarded_summary.v1",
         "pdf_ctest_remaining_guarded_summary_trace",
         "pdf_visual_gate_evidence",
+        "visual_gate_segmented_full_coverage_evidence",
         "pdf_bounded_ctest_evidence",
         "release_entry_pdf_readiness_checklist_trace"
     )
@@ -577,6 +644,7 @@ if (-not $visualFullGateCompleted) {
             attempt_summary_aggregate_contact_sheet_bytes = $visualFullGateAttemptSummaryContactSheetBytes
             segmented_gate_status = $visualSegmentedGateStatus
             segmented_gate_verdict = $visualSegmentedGateVerdict
+            segmented_full_coverage_evidence = $visualGateSegmentedFullCoverageEvidence
             segmented_gate_full_visual_gate_status = $visualSegmentedGateFullStatus
             segmented_gate_evidence_scope = $visualSegmentedGateEvidenceScope
             segmented_gate_boundary = $visualSegmentedGateBoundary
@@ -731,6 +799,7 @@ $summary = [ordered]@{
     visual_gate_finalize_only = $visualGateFinalizeOnly
     visual_gate_skip_preflight = $visualGateSkipPreflight
     visual_gate_fresh_full_guarded_evidence = $visualGateFreshFullGuardedEvidence
+    visual_gate_segmented_full_coverage_evidence = $visualGateSegmentedFullCoverageEvidence
     visual_gate_release_evidence_accepted = $visualGateReleaseEvidenceAccepted
     aggregate_contact_sheet = $contactSheetPath
     aggregate_contact_sheet_display = if ([string]::IsNullOrWhiteSpace($contactSheetPath)) { "" } else { Get-DisplayPath -RepoRoot $repoRoot -Path $contactSheetPath }

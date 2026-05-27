@@ -967,7 +967,11 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    `segmented_gate_covered_baseline_count` 与
    `segmented_gate_aggregate_contact_sheet_bytes` 附到
    `pdf_full_fresh_visual_gate.not_completed_in_current_window` warning 上。固定标记：
-   `pdf_visual_segmented_gate_summary_trace`。这些字段只解释分段辅助证据覆盖情况，
+   `pdf_visual_segmented_gate_summary_trace`。当分段证据满足 44/44 baseline、
+   0 failed slice、`aggregate_contact_sheet_status = pass` 和
+   `aggregate_rebuild_status = pass` 时，readiness summary 必须写出
+   `visual_gate_segmented_full_coverage_evidence = true`，并允许
+   `visual_gate_release_evidence_accepted = true`；该状态只解释分段辅助证据覆盖情况，
    不能替代 fresh 非 `FinalizeOnly` full visual gate pass。若已执行
    `scripts/run_pdf_full_ctest_guarded.ps1`，该 readiness summary 还必须读取
    `output/pdf-ctest-current/summary.json`，保留

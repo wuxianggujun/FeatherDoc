@@ -851,6 +851,8 @@ $releaseReadinessMachineGateMarkers = @(
     "visual_full_gate_attempt_aggregate_contact_sheet_status",
     "visual_full_gate_attempt_summary_aggregate_contact_sheet_status",
     "attempt_summary_aggregate_contact_sheet_status",
+    "visual_gate_segmented_full_coverage_evidence",
+    "segmented_full_coverage_evidence",
     "write_pdf_visual_segmented_gate_summary.ps1",
     "featherdoc.pdf_visual_segmented_gate_summary.v1",
     "pdf_visual_segmented_gate_summary_trace",
