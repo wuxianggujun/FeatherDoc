@@ -115,6 +115,7 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+$requiresProjectTemplateGovernanceSignoff = Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary
 $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
 $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
 $reportDir = Split-Path -Parent $resolvedSummaryPath
@@ -686,7 +687,9 @@ if ($readmeGalleryStatus -eq "completed") {
 Add-CheckboxLine -Lines $lines -Text 'Use `release_summary.zh-CN.md` for the GitHub Release first-screen bullets.'
 Add-CheckboxLine -Lines $lines -Text 'Use `release_body.zh-CN.md` for the full release notes or translated handoff notes.'
 Add-CheckboxLine -Lines $lines -Text ('Generate or refresh the local public release ZIP files before publishing: `{0}`' -f $packageAssetsCommand)
-Add-CheckboxLine -Lines $lines -Text ('Confirm the packaged release manifest preserves project-template governance contracts before publishing: {0} must include `project_template_delivery_readiness_contract` and `project_template_onboarding_governance_contract` with `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display`.' -f $releaseAssetsManifestDisplayPath)
+if ($requiresProjectTemplateGovernanceSignoff) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the packaged release manifest preserves project-template governance contracts before publishing: {0} must include `project_template_delivery_readiness_contract` and `project_template_onboarding_governance_contract` with `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display`.' -f $releaseAssetsManifestDisplayPath)
+}
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm the release governance handoff source-report evidence remains ready for publishing: {0}.' -f $projectTemplateChecklistHandoffEvidenceLine)
 }

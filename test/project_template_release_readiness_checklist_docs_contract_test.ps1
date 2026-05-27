@@ -66,6 +66,7 @@ $releaseChecksScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "s
 $releaseBlockerRollupScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_blocker_rollup_report.ps1"
 $releaseGovernanceHandoffScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_governance_handoff_report.ps1"
 $releaseBlockerMetadataHelpersScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\release_blocker_metadata_helpers.ps1"
+$releaseVisualMetadataHelpersScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\release_visual_metadata_helpers.ps1"
 $packageAssetsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\package_release_assets.ps1"
 $materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
 $startHereScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_metadata_start_here.ps1"
@@ -344,10 +345,44 @@ foreach ($marker in @(
     "ProjectTemplateSmokeManifestPath",
     "project_template_smoke",
     "ReleaseBlockerRollupInputJson",
-    "ReleaseGovernanceHandoffInputJson"
+    "ReleaseGovernanceHandoffInputJson",
+    "ReleaseGovernanceHandoffExpectedReportProfile",
+    "ReleaseEvidenceScope",
+    '$releaseManifestSignoffEntrypoints = if ($ReleaseEvidenceScope -eq "pdf-only")',
+    'manifest_signoff_entrypoints = $releaseManifestSignoffEntrypoints'
 )) {
     Assert-ContainsText -Text $releaseChecksScript -ExpectedText $marker `
         -Message "Release candidate checks should keep governance handoff marker '$marker'."
+}
+
+foreach ($marker in @(
+    "ExpectedReportProfile",
+    "explicit-only",
+    '$expectedReports = @(',
+    '$knownExpectedReportById'
+)) {
+    Assert-ContainsText -Text $releaseGovernanceHandoffScript -ExpectedText $marker `
+        -Message "Release governance handoff should keep expected-report profile marker '$marker'."
+}
+
+foreach ($marker in @(
+    "Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance",
+    "project_template_delivery_readiness_contract",
+    "project_template_onboarding_governance_contract"
+)) {
+    Assert-ContainsText -Text $releaseVisualMetadataHelpersScript -ExpectedText $marker `
+        -Message "Release visual metadata helpers should keep project-template signoff scope marker '$marker'."
+}
+
+foreach ($scriptInfo in @(
+    [pscustomobject]@{ Name = "write_release_metadata_start_here.ps1"; Text = $startHereScript },
+    [pscustomobject]@{ Name = "write_release_artifact_guide.ps1"; Text = $artifactGuideScript },
+    [pscustomobject]@{ Name = "write_release_reviewer_checklist.ps1"; Text = $reviewerChecklistScript }
+)) {
+    Assert-ContainsText -Text $scriptInfo.Text -ExpectedText 'Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary' `
+        -Message "$($scriptInfo.Name) should gate project-template signoff text on explicit manifest contracts."
+    Assert-ContainsText -Text $scriptInfo.Text -ExpectedText 'if ($requiresProjectTemplateGovernanceSignoff)' `
+        -Message "$($scriptInfo.Name) should skip project-template signoff placeholders for PDF-only releases."
 }
 
 foreach ($marker in @(
@@ -614,7 +649,7 @@ foreach ($marker in @(
     "ReleaseGovernanceHandoffIncludeRollup",
     "Project-template release entry evidence",
     "Project-template readiness checklist handoff evidence",
-    "project_template_readiness_checklist_entrypoints_source_report_count -ne 1",
+    "project_template_readiness_checklist_entrypoints_source_report_count -ne 2",
     "release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 1",
     "compact_evidence_source_schema=featherdoc.release_candidate_summary",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"

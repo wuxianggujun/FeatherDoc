@@ -14,6 +14,8 @@ param(
     [string]$OutputDir = "output/release-governance-handoff",
     [string]$SummaryJson = "",
     [string]$ReportMarkdown = "",
+    [ValidateSet("full", "explicit-only")]
+    [string]$ExpectedReportProfile = "full",
     [switch]$IncludeReleaseBlockerRollup,
     [switch]$FailOnMissing,
     [switch]$FailOnBlocker,
@@ -1349,7 +1351,7 @@ $releaseBlockerRollupOutputDir = Join-Path $resolvedOutputDir "release-blocker-r
 $releaseBlockerRollupSummaryPath = Join-Path $releaseBlockerRollupOutputDir "summary.json"
 $releaseBlockerRollupMarkdownPath = Join-Path $releaseBlockerRollupOutputDir "release_blocker_rollup.md"
 
-$expectedReports = @(
+$defaultExpectedReports = @(
     New-ExpectedReport `
         -Id "numbering_catalog_governance" `
         -Title "Numbering Catalog Governance" `
@@ -1376,9 +1378,18 @@ $expectedReports = @(
         -RelativeSummary "schema-patch-confidence-calibration/summary.json" `
         -BuildCommand "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1 -InputJson .\output\project-template-smoke\summary.json,.\output\project-template-schema-approval-history\history.json -OutputDir .\output\schema-patch-confidence-calibration"
 )
+$expectedReports = @(
+    if ($ExpectedReportProfile -ne "explicit-only") {
+        $defaultExpectedReports
+    }
+)
 
 $reports = New-Object 'System.Collections.Generic.List[object]'
 $reportById = @{}
+$knownExpectedReportById = @{}
+foreach ($expected in @($defaultExpectedReports)) {
+    $knownExpectedReportById[[string]$expected.id] = $expected
+}
 $explicitWarningReports = New-Object 'System.Collections.Generic.List[object]'
 foreach ($expected in @($expectedReports)) {
     $path = Join-Path $resolvedInputRoot ([string]$expected.relative_summary)
@@ -1428,7 +1439,7 @@ foreach ($input in @(Expand-InputPathList -Paths $InputJson)) {
     try {
         $json = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
         $kind = Get-ReportKind -Summary $json
-        if (-not $reportById.ContainsKey($kind)) {
+        if (-not $knownExpectedReportById.ContainsKey($kind)) {
             if ([string]::Equals($kind, "featherdoc.release_candidate_summary", [System.StringComparison]::OrdinalIgnoreCase)) {
                 $explicitWarningReports.Add((New-ExplicitReleaseCandidateWarningReport `
                             -RepoRoot $repoRoot `
@@ -1438,7 +1449,7 @@ foreach ($input in @(Expand-InputPathList -Paths $InputJson)) {
             }
             continue
         }
-        $expected = @($expectedReports | Where-Object { $_.id -eq $kind } | Select-Object -First 1)
+        $expected = $knownExpectedReportById[$kind]
         $entry = New-ReportEntry `
             -RepoRoot $repoRoot `
             -Id ([string]$expected.id) `
@@ -1448,11 +1459,16 @@ foreach ($input in @(Expand-InputPathList -Paths $InputJson)) {
             -Source "explicit" `
             -Json $json `
             -Status "loaded"
+        $replacedDefaultReport = $false
         for ($index = 0; $index -lt $reports.Count; $index++) {
             if ([string]$reports[$index].id -eq [string]$expected.id) {
                 $reports[$index] = $entry
+                $replacedDefaultReport = $true
                 break
             }
+        }
+        if (-not $replacedDefaultReport) {
+            $reports.Add($entry) | Out-Null
         }
         $reportById[[string]$expected.id] = $entry
     } catch {
@@ -1530,6 +1546,7 @@ $summary = [ordered]@{
     summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
     report_markdown = $markdownPath
     report_markdown_display = Get-DisplayPath -RepoRoot $repoRoot -Path $markdownPath
+    expected_report_profile = $ExpectedReportProfile
     release_blocker_rollup = [ordered]@{
         included = [bool]$IncludeReleaseBlockerRollup
         status = if ($IncludeReleaseBlockerRollup) { "pending" } else { "not_requested" }

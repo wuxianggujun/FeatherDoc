@@ -95,6 +95,10 @@ param(
     [switch]$ReleaseGovernanceHandoffFailOnMissing,
     [switch]$ReleaseGovernanceHandoffFailOnBlocker,
     [switch]$ReleaseGovernanceHandoffFailOnWarning,
+    [ValidateSet("full", "explicit-only")]
+    [string]$ReleaseGovernanceHandoffExpectedReportProfile = "full",
+    [ValidateSet("full", "pdf-only")]
+    [string]$ReleaseEvidenceScope = "full",
     [string]$PdfVisualGateSummaryJson = "",
     [string]$PdfVisualGateAttemptSummaryJson = "",
     [string]$PdfVisualSegmentedGateSummaryJson = "",
@@ -1633,6 +1637,7 @@ function Invoke-ReleaseGovernanceHandoff {
         [string]$OutputDir,
         [string]$SummaryJson,
         [string]$ReportMarkdown,
+        [string]$ExpectedReportProfile,
         [bool]$IncludeRollup,
         [bool]$FailOnMissing,
         [bool]$FailOnBlocker,
@@ -1648,6 +1653,8 @@ function Invoke-ReleaseGovernanceHandoff {
         $SummaryJson
         "-ReportMarkdown"
         $ReportMarkdown
+        "-ExpectedReportProfile"
+        $ExpectedReportProfile
     )
     $cleanInputJson = @($InputJson | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($cleanInputJson.Count -gt 0) {
@@ -1888,6 +1895,40 @@ $manifestSignoffEntrypoints = @(
         required = $true
     }
 )
+$releaseManifestSignoffEntrypoints = if ($ReleaseEvidenceScope -eq "pdf-only") {
+    $null
+} else {
+    [ordered]@{
+        status = "declared"
+        release_assets_manifest = $releaseAssetsManifestSignoffPath
+        required_entrypoint_count = @($manifestSignoffEntrypoints).Count
+        entrypoints = @($manifestSignoffEntrypoints)
+        required_contracts = @(
+            "project_template_delivery_readiness_contract",
+            "project_template_onboarding_governance_contract"
+        )
+        required_fields = @(
+            "status",
+            "release_ready",
+            "schema_approval_status_summary",
+            "source_report_display",
+            "source_json_display"
+        )
+        checklist_marker = "reviewer_manifest_scoped_project_template_trace"
+    }
+}
+$releaseProjectTemplateReadinessChecklistEntrypoints = if ($ReleaseEvidenceScope -eq "pdf-only") {
+    $null
+} else {
+    [ordered]@{
+        status = "declared"
+        checklist_label = "Project template release readiness checklist"
+        checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+        required_entrypoint_count = @($manifestSignoffEntrypoints).Count
+        entrypoints = @($manifestSignoffEntrypoints)
+        checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+    }
+}
 $resolvedPdfVisualGateSummaryJson = ""
 if (-not [string]::IsNullOrWhiteSpace($PdfVisualGateSummaryJson)) {
     $resolvedPdfVisualGateSummaryJson = Resolve-FullPath -RepoRoot $repoRoot -InputPath $PdfVisualGateSummaryJson
@@ -2126,32 +2167,9 @@ $summary = [ordered]@{
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
-    manifest_signoff_entrypoints = [ordered]@{
-        status = "declared"
-        release_assets_manifest = $releaseAssetsManifestSignoffPath
-        required_entrypoint_count = @($manifestSignoffEntrypoints).Count
-        entrypoints = @($manifestSignoffEntrypoints)
-        required_contracts = @(
-            "project_template_delivery_readiness_contract",
-            "project_template_onboarding_governance_contract"
-        )
-        required_fields = @(
-            "status",
-            "release_ready",
-            "schema_approval_status_summary",
-            "source_report_display",
-            "source_json_display"
-        )
-        checklist_marker = "reviewer_manifest_scoped_project_template_trace"
-    }
-    project_template_readiness_checklist_entrypoints = [ordered]@{
-        status = "declared"
-        checklist_label = "Project template release readiness checklist"
-        checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
-        required_entrypoint_count = @($manifestSignoffEntrypoints).Count
-        entrypoints = @($manifestSignoffEntrypoints)
-        checklist_marker = "release_entry_project_template_readiness_checklist_trace"
-    }
+    release_evidence_scope = $ReleaseEvidenceScope
+    manifest_signoff_entrypoints = $releaseManifestSignoffEntrypoints
+    project_template_readiness_checklist_entrypoints = $releaseProjectTemplateReadinessChecklistEntrypoints
     pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson
     pdf_visual_gate = $pdfVisualGateSummaryInfo
     pdf_visual_gate_attempt_summary_json = $resolvedPdfVisualGateAttemptSummaryJson
@@ -2198,6 +2216,7 @@ $summary = [ordered]@{
         fail_on_missing = [bool]$ReleaseGovernanceHandoffFailOnMissing
         fail_on_blocker = [bool]$ReleaseGovernanceHandoffFailOnBlocker
         fail_on_warning = [bool]$ReleaseGovernanceHandoffFailOnWarning
+        expected_report_profile = $ReleaseGovernanceHandoffExpectedReportProfile
         expected_report_count = 0
         loaded_report_count = 0
         missing_report_count = 0
@@ -2321,6 +2340,7 @@ $summary = [ordered]@{
             status = if ($releaseGovernanceHandoffRequested) { "pending" } else { "not_requested" }
             summary_json = $releaseGovernanceHandoffSummaryPath
             report_markdown = $releaseGovernanceHandoffMarkdownPath
+            expected_report_profile = $ReleaseGovernanceHandoffExpectedReportProfile
             expected_report_count = 0
             loaded_report_count = 0
             missing_report_count = 0
@@ -3122,6 +3142,7 @@ try {
                 -OutputDir $resolvedReleaseGovernanceHandoffOutputDir `
                 -SummaryJson $releaseGovernanceHandoffSummaryPath `
                 -ReportMarkdown $releaseGovernanceHandoffMarkdownPath `
+                -ExpectedReportProfile $ReleaseGovernanceHandoffExpectedReportProfile `
                 -IncludeRollup ([bool]$ReleaseGovernanceHandoffIncludeRollup) `
                 -FailOnMissing ([bool]$ReleaseGovernanceHandoffFailOnMissing) `
                 -FailOnBlocker ([bool]$ReleaseGovernanceHandoffFailOnBlocker) `

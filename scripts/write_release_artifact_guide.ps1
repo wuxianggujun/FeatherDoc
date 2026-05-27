@@ -106,6 +106,7 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+$requiresProjectTemplateGovernanceSignoff = Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary
 $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
 $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
 $reportDir = Split-Path -Parent $resolvedSummaryPath
@@ -477,7 +478,9 @@ if ($curatedVisualReviewEntries.Count -gt 0) {
 [void]$lines.Add("## Package Release Assets")
 [void]$lines.Add("")
 [void]$lines.Add("- Release assets output dir: $assetOutputDir")
-[void]$lines.Add(('- Project-template governance manifest signoff: open `{0}` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display` before refreshing or publishing GitHub Release assets.' -f $releaseAssetsManifestPath))
+if ($requiresProjectTemplateGovernanceSignoff) {
+    [void]$lines.Add(('- Project-template governance manifest signoff: open `{0}` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display` before refreshing or publishing GitHub Release assets.' -f $releaseAssetsManifestPath))
+}
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
     [void]$lines.Add("- Project-template readiness checklist handoff signoff: $projectTemplateChecklistHandoffEvidenceLine.")
 }

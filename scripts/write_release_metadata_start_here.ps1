@@ -120,6 +120,7 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+$requiresProjectTemplateGovernanceSignoff = Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary
 $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
 $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
 $releaseVersion = Get-OptionalPropertyValue -Object $summary -Name "release_version"
@@ -539,7 +540,9 @@ if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAud
     [void]$lines.Add("- Confirm release governance handoff carries packaged project-template readiness checklist material-safety audit evidence: $projectTemplateChecklistMaterialSafetyAuditEvidenceLine.")
 }
 [void]$lines.Add("- Run the local packaging command first; it regenerates ZIP files and does not contact GitHub.")
-[void]$lines.Add(('- Open `{0}` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display` before refreshing or publishing GitHub Release assets.' -f $releaseAssetsManifestPath))
+if ($requiresProjectTemplateGovernanceSignoff) {
+    [void]$lines.Add(('- Open `{0}` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display` before refreshing or publishing GitHub Release assets.' -f $releaseAssetsManifestPath))
+}
 [void]$lines.Add("- Use GitHub refresh to upload ZIP assets and sync audited release notes without flipping a draft release public.")
 [void]$lines.Add("- Use GitHub publish only after final signoff, because it can make the target release public.")
 [void]$lines.Add("")

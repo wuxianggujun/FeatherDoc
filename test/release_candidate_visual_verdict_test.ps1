@@ -210,10 +210,24 @@ foreach ($name in @(
         "ReleaseBlockerRollupInputRoot",
         "ReleaseBlockerRollupOutputDir",
         "ReleaseBlockerRollupFailOnBlocker",
-        "ReleaseBlockerRollupFailOnWarning"
+        "ReleaseBlockerRollupFailOnWarning",
+        "ReleaseGovernanceHandoffExpectedReportProfile",
+        "ReleaseEvidenceScope"
     )) {
     Assert-ContainsText -Text $scriptText -ExpectedText $name `
         -Message ("Release preflight should expose {0}." -f $name)
+}
+
+foreach ($marker in @(
+    '[ValidateSet("full", "explicit-only")]',
+    '[ValidateSet("full", "pdf-only")]',
+    '$releaseManifestSignoffEntrypoints = if ($ReleaseEvidenceScope -eq "pdf-only")',
+    'release_evidence_scope = $ReleaseEvidenceScope',
+    'manifest_signoff_entrypoints = $releaseManifestSignoffEntrypoints',
+    '-ExpectedReportProfile $ReleaseGovernanceHandoffExpectedReportProfile'
+)) {
+    Assert-ContainsText -Text $scriptText -ExpectedText $marker `
+        -Message "Release preflight should keep PDF-only release governance scope marker '$marker'."
 }
 
 Assert-ContainsText -Text $scriptText -ExpectedText 'build_release_blocker_rollup_report.ps1' `

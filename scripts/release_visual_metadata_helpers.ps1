@@ -383,6 +383,48 @@ function Get-OptionalPropertyArray {
     return @($propertyValue)
 }
 
+function Get-OptionalPropertyArrayValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $propertyValue = Get-OptionalPropertyObject -Object $Object -Name $Name
+    if ($null -eq $propertyValue) {
+        return @()
+    }
+    if ($propertyValue -is [string]) {
+        return @($propertyValue)
+    }
+    if ($propertyValue -is [System.Collections.IEnumerable]) {
+        return @($propertyValue | Where-Object { $null -ne $_ })
+    }
+
+    return @($propertyValue)
+}
+
+function Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance {
+    param($Summary)
+
+    $signoff = Get-OptionalPropertyObject -Object $Summary -Name "manifest_signoff_entrypoints"
+    if ($null -eq $signoff) {
+        return $false
+    }
+
+    $status = Get-OptionalPropertyValue -Object $signoff -Name "status"
+    if ($status -ne "declared") {
+        return $false
+    }
+
+    $requiredContracts = @(
+        Get-OptionalPropertyArrayValue -Object $signoff -Name "required_contracts" |
+            ForEach-Object { [string]$_ }
+    )
+
+    return ($requiredContracts -contains "project_template_delivery_readiness_contract" -and
+        $requiredContracts -contains "project_template_onboarding_governance_contract")
+}
+
 function Get-OrCreateCuratedVisualReviewEntry {
     param(
         [hashtable]$EntryMap,
