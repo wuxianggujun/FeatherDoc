@@ -119,6 +119,9 @@
   同步 issue、绑定占位符和重复绑定复核接入发布治理 pipeline；这些治理项现在会携带
   ``source_schema``、``source_json_display`` 与 action item ``open_command``，
   供发布面板直接展开证据与复核命令
+- ``check_docx_functional_smoke_readiness.ps1`` 作为低资源 DOCX 功能 smoke
+  只读入口，统一确认样本 DOCX 包完整性、段落/表格/图片/section/header/footer/
+  content-control/字段/模板渲染证据，以及复用 Word visual smoke PNG 非空证据
 - ``run_project_template_smoke.ps1``
 
 接下来更值得补的是：

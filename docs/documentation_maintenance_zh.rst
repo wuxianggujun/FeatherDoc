@@ -36,7 +36,7 @@
 3. 样式、编号和真实语料置信度校准。
 4. 表格与版式交付质量。
 5. Release governance 材料一致性。
-6. Word 最小可视化 smoke 和后续受控 release gate。
+6. Word 最小可视化 smoke、``check_docx_functional_smoke_readiness.ps1`` 和后续受控 release gate。
 7. PDF CJK 仅做保守维护、文档衔接和最终验证，不扩展为当前主线。
 
 

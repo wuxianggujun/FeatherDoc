@@ -22,6 +22,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    table_style_definition_zh
    document_governance_acceptance_zh
    document_api_mainline_status_zh
+   docx_functional_smoke_readiness_zh
    documentation_maintenance_zh
    branch_recovery_and_governance_sync_zh
    stale_codex_branch_inventory_zh
