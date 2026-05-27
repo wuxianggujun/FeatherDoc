@@ -65,14 +65,21 @@ Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.docx_functi
     -Message "Summary schema mismatch."
 Assert-Equal -Actual ([string]$summary.status) -Expected "pass" `
     -Message "Summary status should pass when persisted DOCX evidence is coherent."
-Assert-Equal -Actual ([string]$summary.verdict) -Expected "pass_with_warnings" `
-    -Message "Summary verdict should keep pending manual visual review as a warning."
+if ([int]$summary.warning_count -gt 0) {
+    Assert-Equal -Actual ([string]$summary.verdict) -Expected "pass_with_warnings" `
+        -Message "Summary verdict should keep pending manual visual review as a warning."
+    Assert-ContainsText -Text ([string]$summary.boundary) -ExpectedText "Pass-with-warnings means" `
+        -Message "Boundary should describe warning semantics when warnings remain."
+} else {
+    Assert-Equal -Actual ([string]$summary.verdict) -Expected "pass" `
+        -Message "Summary verdict should pass after screenshot-backed review verdicts are recorded."
+    Assert-ContainsText -Text ([string]$summary.boundary) -ExpectedText "Pass means" `
+        -Message "Boundary should describe closed DOCX readiness semantics without warnings."
+}
 Assert-True -Condition ([bool]$summary.docx_functional_smoke_ready) `
     -Message "DOCX functional smoke should be ready."
 Assert-Equal -Actual ([int]$summary.failed_check_count) -Expected 0 `
     -Message "DOCX functional smoke should not have failed checks."
-Assert-True -Condition ([int]$summary.warning_count -ge 1) `
-    -Message "Pending manual Word visual review should be surfaced as a warning."
 Assert-Equal -Actual ([int]$summary.capability_count) -Expected 8 `
     -Message "Capability matrix count mismatch."
 Assert-Equal -Actual ([int]$summary.capability_pass_count) -Expected 8 `

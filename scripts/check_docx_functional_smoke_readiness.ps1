@@ -451,6 +451,13 @@ $verdictValue = if ($failedChecks.Count -gt 0) {
 } else {
     "pass"
 }
+$boundaryValue = if ($failedChecks.Count -gt 0) {
+    "Fail means required persisted DOCX functional or visual evidence is missing and must be restored before release."
+} elseif ($warningArray.Count -gt 0) {
+    "Pass-with-warnings means persisted DOCX functional evidence is coherent and visual PNGs are non-empty, but visual review has not fully closed; it does not claim a fresh Word COM render."
+} else {
+    "Pass means persisted DOCX functional evidence is coherent, reused visual PNGs are non-empty, and screenshot-backed review verdicts are pass; it does not claim a fresh Word COM render."
+}
 
 $summaryObject = [ordered]@{
     schema = "featherdoc.docx_functional_smoke_readiness.v1"
@@ -482,7 +489,7 @@ $summaryObject = [ordered]@{
     release_blockers = @($releaseBlockers)
     action_items = @($actionItems)
     warnings = @($warningArray)
-    boundary = "Pass-with-warnings means persisted DOCX functional evidence is coherent and visual PNGs are non-empty; it does not claim a fresh Word COM render or completed human visual review."
+    boundary = $boundaryValue
     marker = "docx_functional_smoke_readiness_trace"
 }
 
