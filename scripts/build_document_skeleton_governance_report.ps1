@@ -350,7 +350,7 @@ $styleNumberingResult = Invoke-CliJson -ExecutablePath $resolvedCliPath -Command
 )
 
 Write-Step "Collecting style usage"
-$styleUsageResult = Invoke-CliJson -ExecutablePath $resolvedCliPath -Command "inspect-styles" -Arguments @(
+$styleUsageResult = Invoke-CliJson -ExecutablePath $resolvedCliPath -Arguments @(
     "inspect-styles",
     $resolvedInputDocx,
     "--usage",

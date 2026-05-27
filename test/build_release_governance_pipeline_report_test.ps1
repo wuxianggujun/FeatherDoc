@@ -237,6 +237,45 @@ function New-OnboardingGovernance {
     }
 }
 
+function New-ProjectTemplateSmokeSummary {
+    return [ordered]@{
+        schema = "featherdoc.project_template_smoke_summary.v1"
+        manifest_path = "samples/project_template_smoke.manifest.json"
+        entry_count = 1
+        overall_status = "passed"
+        passed = $true
+        failed_entry_count = 0
+        entries = @(
+            [ordered]@{
+                name = "smoke-ready-template"
+                input_docx = "samples/contract.docx"
+                status = "passed"
+                passed = $true
+                checks = [ordered]@{}
+            }
+        )
+        schema_patch_review_count = 1
+        schema_patch_review_changed_count = 0
+        schema_patch_reviews = @(
+            [ordered]@{
+                name = "smoke-ready-template"
+                project_id = "project-finance"
+                template_name = "smoke-ready-template"
+                changed = $false
+                baseline_slot_count = 2
+                generated_slot_count = 2
+                upsert_slot_count = 0
+                remove_target_count = 0
+                remove_slot_count = 0
+                rename_slot_count = 0
+                update_slot_count = 0
+                inserted_slots = 0
+                replaced_slots = 0
+            }
+        )
+    }
+}
+
 function New-SchemaApprovalHistory {
     return [ordered]@{
         schema = "featherdoc.project_template_schema_approval_history.v1"
@@ -247,6 +286,22 @@ function New-SchemaApprovalHistory {
         pending_run_count = 1
         passed_run_count = 0
         entry_histories = @(
+            [ordered]@{
+                name = "smoke-ready-template"
+                project_id = "project-finance"
+                template_name = "smoke-ready-template"
+                run_count = 1
+                blocked_run_count = 0
+                pending_run_count = 0
+                approved_run_count = 1
+                latest_generated_at = "2026-05-03T00:01:00"
+                latest_status = "approved"
+                latest_decision = "approved"
+                latest_action = "none"
+                latest_summary_json = "output/project-template-smoke/summary.json"
+                issue_keys = @()
+                runs = @()
+            },
             [ordered]@{
                 name = "contract-template"
                 project_id = "project-finance"
@@ -427,6 +482,7 @@ function New-InputFixture {
     Write-JsonFile -Path (Join-Path $Root "content-control-data-binding\inspect-content-controls.json") -Value (New-ContentControlInspection)
     Write-JsonFile -Path (Join-Path $Root "content-control-data-binding\sync-content-controls-from-custom-xml.json") -Value (New-ContentControlSyncResult)
     Write-JsonFile -Path (Join-Path $Root "project-template-onboarding-governance\summary.json") -Value (New-OnboardingGovernance)
+    Write-JsonFile -Path (Join-Path $Root "project-template-smoke\summary.json") -Value (New-ProjectTemplateSmokeSummary)
     Write-JsonFile -Path (Join-Path $Root "project-template-schema-approval-history\history.json") -Value (New-SchemaApprovalHistory)
     Write-JsonFile -Path (Join-Path $Root "pdf-visual-release-gate-preflight-governance\summary.json") -Value (New-PdfPreflightGovernance)
 }
@@ -637,6 +693,9 @@ Assert-ContainsText -Text (($projectStage.action_items | ForEach-Object { [strin
 Assert-ContainsText -Text (($projectStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "build_project_template_delivery_readiness_report.ps1" `
     -Message "Pipeline project stage should expose reviewer open command."
+Assert-ContainsText -Text (($projectStage.input_json | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "project-template-smoke\summary.json" `
+    -Message "Pipeline project stage should pass real smoke summary evidence into delivery readiness."
 
 $calibrationStage = Get-StageById -Summary $summary -Id "schema_patch_confidence_calibration"
 Assert-ContainsText -Text (($calibrationStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `

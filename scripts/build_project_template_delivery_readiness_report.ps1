@@ -386,6 +386,7 @@ function New-ReadinessTemplate {
         onboarding_governance_source_json = ""
         onboarding_governance_source_json_display = ""
         schema_approval_state = $SchemaApprovalState
+        schema_approval_history_required = Get-JsonBool -Object $SchemaApprovalState -Name "history_required" -DefaultValue $true
         schema_history_available = $false
         schema_history = [ordered]@{
             status = "not_available"
@@ -524,11 +525,14 @@ function New-SchemaApprovalStateFromSmokeEntry {
         $action = "review_project_template_smoke_failure"
     }
 
+    $historyRequired = ($null -ne $SchemaPatchApproval)
+
     return [ordered]@{
         schema = "featherdoc.project_template_onboarding_schema_approval_state.v1"
         status = $stateStatus
         gate_status = $gateStatus
         release_blocked = ($stateStatus -in @("not_evaluated", "pending_review", "blocked"))
+        history_required = $historyRequired
         smoke_summary_available = $true
         smoke_entry_status = Get-JsonString -Object $Entry -Name "status"
         smoke_entry_passed = $entryPassed
@@ -636,6 +640,9 @@ function Add-HistoryToTemplates {
     foreach ($template in @($Templates)) {
         $key = ([string]$template.template_name).ToLowerInvariant()
         if (-not $historyByName.ContainsKey($key)) {
+            if (-not (Get-JsonBool -Object $template -Name "schema_approval_history_required" -DefaultValue $true)) {
+                continue
+            }
             $Warnings.Add([ordered]@{
                 id = "schema_approval_history_missing_for_template"
                 template_name = [string]$template.template_name

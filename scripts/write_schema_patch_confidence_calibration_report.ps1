@@ -123,17 +123,35 @@ function Get-NullableJsonInt {
     return $null
 }
 
+function Expand-CalibrationArgumentList {
+    param([string[]]$Values)
+
+    return @(
+        foreach ($value in @($Values)) {
+            if ([string]::IsNullOrWhiteSpace([string]$value)) {
+                continue
+            }
+            foreach ($part in ([string]$value -split ",")) {
+                $trimmed = $part.Trim()
+                if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
+                    $trimmed
+                }
+            }
+        }
+    )
+}
+
 function Get-InputJsonPaths {
     param([string]$RepoRoot, [string[]]$ExplicitPaths, [string[]]$Roots)
 
     $paths = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($path in @($ExplicitPaths)) {
+    foreach ($path in @(Expand-CalibrationArgumentList -Values $ExplicitPaths)) {
         if (-not [string]::IsNullOrWhiteSpace($path)) {
             $paths.Add((Resolve-RepoPath -RepoRoot $RepoRoot -Path $path)) | Out-Null
         }
     }
 
-    $scanRoots = @($Roots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $scanRoots = @(Expand-CalibrationArgumentList -Values $Roots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($paths.Count -eq 0 -and $scanRoots.Count -eq 0) {
         $scanRoots = @("output/project-template-smoke", "output/project-template-onboarding")
     }
@@ -288,6 +306,56 @@ function New-SchemaPatchOperationSummary {
     }
 }
 
+function Test-SchemaPatchReviewHasCandidateChanges {
+    param($Review)
+
+    if ((Get-JsonBool -Object $Review -Name "changed")) {
+        return $true
+    }
+
+    $operationCount = 0
+    foreach ($name in @(
+            "upsert_slot_count",
+            "remove_target_count",
+            "remove_slot_count",
+            "rename_slot_count",
+            "update_slot_count",
+            "inserted_slots",
+            "replaced_slots"
+        )) {
+        $operationCount += Get-JsonInt -Object $Review -Name $name
+    }
+    if ($operationCount -gt 0) {
+        return $true
+    }
+
+    $baselineSlotCount = Get-NullableJsonInt -Object $Review -Name "baseline_slot_count"
+    $generatedSlotCount = Get-NullableJsonInt -Object $Review -Name "generated_slot_count"
+    return ($null -ne $baselineSlotCount -and
+        $null -ne $generatedSlotCount -and
+        $baselineSlotCount -ne $generatedSlotCount)
+}
+
+function Test-SchemaPatchApprovalRequiresCalibration {
+    param($Review, $Approval)
+
+    if (Test-SchemaPatchReviewHasCandidateChanges -Review $Review) {
+        return $true
+    }
+
+    if ((Get-JsonBool -Object $Approval -Name "required") -or
+        (Get-JsonBool -Object $Approval -Name "pending") -or
+        (Get-JsonBool -Object $Approval -Name "approved") -or
+        (Get-JsonInt -Object $Approval -Name "compliance_issue_count") -gt 0) {
+        return $true
+    }
+
+    $status = Get-JsonString -Object $Approval -Name "status"
+    $decision = Get-JsonString -Object $Approval -Name "decision"
+    return ($status -in @("pending_review", "approved", "rejected", "needs_changes", "blocked", "invalid_result") -or
+        $decision -in @("pending", "approved", "rejected", "needs_changes"))
+}
+
 function New-EntryFromReviewAndApproval {
     param(
         [string]$SummaryJson,
@@ -399,6 +467,9 @@ function Add-EntriesFromSmokeSummary {
 
     if ($approvals.Count -eq 0) {
         foreach ($review in $reviews) {
+            if (-not (Test-SchemaPatchReviewHasCandidateChanges -Review $review)) {
+                continue
+            }
             $Entries.Add((New-EntryFromReviewAndApproval -SummaryJson $Path -Name (Get-JsonString -Object $review -Name "name" -DefaultValue "schema_patch_review") -Review $review -Approval ([ordered]@{ status = "unknown"; decision = "unknown" }) -ProjectId $summaryProjectId -TemplateName $summaryTemplateName)) | Out-Null
         }
         return
@@ -418,6 +489,9 @@ function Add-EntriesFromSmokeSummary {
         }
         if ($null -eq $matchingReview) {
             $matchingReview = [ordered]@{ changed = $true }
+        }
+        if (-not (Test-SchemaPatchApprovalRequiresCalibration -Review $matchingReview -Approval $approval)) {
+            continue
         }
         $Entries.Add((New-EntryFromReviewAndApproval -SummaryJson $Path -Name $name -Review $matchingReview -Approval $approval -ProjectId $summaryProjectId -TemplateName $summaryTemplateName)) | Out-Null
     }

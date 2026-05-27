@@ -69,6 +69,7 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $fixtureRoot = Join-Path $resolvedWorkingDir "fixtures"
 $smokeSummaryPath = Join-Path $fixtureRoot "smoke\summary.json"
+$noopSmokeSummaryPath = Join-Path $fixtureRoot "noop-smoke\summary.json"
 $historyPath = Join-Path $fixtureRoot "history\project_template_schema_approval_history.json"
 
 Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
@@ -219,6 +220,42 @@ Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
     )
 })
 
+Write-JsonFile -Path $noopSmokeSummaryPath -Value ([ordered]@{
+    schema = "featherdoc.project_template_smoke_summary.v1"
+    manifest_path = "samples/project_template_smoke.manifest.json"
+    entry_count = 1
+    overall_status = "passed"
+    passed = $true
+    failed_entry_count = 0
+    entries = @(
+        [ordered]@{
+            name = "unchanged-contract-template"
+            input_docx = "samples/unchanged-contract.docx"
+            status = "passed"
+            passed = $true
+        }
+    )
+    schema_patch_review_count = 1
+    schema_patch_review_changed_count = 0
+    schema_patch_reviews = @(
+        [ordered]@{
+            name = "unchanged-contract-template"
+            project_id = "project-legal"
+            template_name = "unchanged-contract-template"
+            changed = $false
+            baseline_slot_count = 5
+            generated_slot_count = 5
+            upsert_slot_count = 0
+            remove_target_count = 0
+            remove_slot_count = 0
+            rename_slot_count = 0
+            update_slot_count = 0
+            inserted_slots = 0
+            replaced_slots = 0
+        }
+    )
+})
+
 Write-JsonFile -Path $historyPath -Value ([ordered]@{
     schema = "featherdoc.project_template_schema_approval_history.v1"
     entry_histories = @(
@@ -289,7 +326,9 @@ if (Test-Scenario -Name "aggregate") {
     Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
         -Message "Invalid approval records should block the report."
     Assert-Equal -Actual ([int]$summary.entry_count) -Expected 5 `
-        -Message "Summary should aggregate entries from smoke and history."
+        -Message "Summary should aggregate only real schema patch candidates from smoke and history."
+    Assert-Equal -Actual (@($summary.entries | Where-Object { [string]$_.name -eq "unchanged-contract-template" }).Count) -Expected 0 `
+        -Message "No-op schema baseline reviews should not become calibration candidates."
     Assert-Equal -Actual ([string]$summary.confidence_source) -Expected "mixed" `
         -Message "Summary should detect mixed explicit and unscored confidence."
     Assert-Equal -Actual ([int]$summary.recommended_min_confidence) -Expected 96 `

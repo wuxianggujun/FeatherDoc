@@ -623,18 +623,23 @@ function Get-SchemaPatchApprovalGateStatus {
     param(
         [int]$PendingCount,
         [int]$ApprovalItemCount,
+        [int]$ApprovedCount = 0,
+        [int]$RejectedCount = 0,
         [int]$InvalidResultCount,
         [int]$ComplianceIssueCount
     )
 
-    if ($ComplianceIssueCount -gt 0 -or $InvalidResultCount -gt 0) {
+    if ($ComplianceIssueCount -gt 0 -or $InvalidResultCount -gt 0 -or $RejectedCount -gt 0) {
         return "blocked"
     }
     if ($PendingCount -gt 0) {
         return "pending"
     }
-    if ($ApprovalItemCount -gt 0) {
+    if ($ApprovedCount -gt 0) {
         return "passed"
+    }
+    if ($ApprovalItemCount -gt 0) {
+        return "not_required"
     }
 
     return "not_required"
@@ -1082,12 +1087,24 @@ if ($entries.Count -eq 0) {
     exit 0
 }
 
-$sampleTargets = @(
-    $entries |
-        ForEach-Object { Resolve-OptionalManifestPropertyValue -Entry $_ -Name "prepare_sample_target" } |
-        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-        Sort-Object -Unique
-)
+$sampleTargets = @(@(
+    foreach ($entry in $entries) {
+        $sampleTarget = Resolve-OptionalManifestPropertyValue -Entry $entry -Name "prepare_sample_target"
+        if ([string]::IsNullOrWhiteSpace($sampleTarget)) {
+            continue
+        }
+
+        $entryInputDocx = Resolve-ManifestInputDocxPath `
+            -RepoRoot $repoRoot `
+            -ResolvedBuildDir $resolvedBuildDir `
+            -Entry $entry
+        if ($SkipBuild -and [System.IO.File]::Exists($entryInputDocx)) {
+            continue
+        }
+
+        $sampleTarget
+    }
+) | Sort-Object -Unique)
 
 if (-not $SkipBuild) {
     $vcvarsPath = Get-TemplateSchemaVcvarsPath
@@ -1170,20 +1187,25 @@ foreach ($entry in $entries) {
                 -RepoRoot $repoRoot `
                 -ResolvedInputDocx $resolvedInputDocx `
                 -Entry $entry
-            Ensure-PathParent -Path $prepareArgument
-            Write-Step "Preparing '$name' via $prepareSampleTarget"
-            $prepareOutput = @(& $sampleTargetExecutables[$prepareSampleTarget] $prepareArgument 2>&1)
-            $prepareExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
-            $prepareLines = @($prepareOutput | ForEach-Object { $_.ToString() })
-            $prepareLogPath = Join-Path $entryDir "prepare.log"
-            Write-CommandOutput -OutputPath $prepareLogPath -Lines $prepareLines
-            if ($prepareExitCode -ne 0) {
-                $joined = if ($prepareLines.Count -gt 0) {
-                    $prepareLines -join [System.Environment]::NewLine
-                } else {
-                    "(no output)"
+            if ($SkipBuild -and [System.IO.File]::Exists($resolvedInputDocx) -and
+                -not $sampleTargetExecutables.ContainsKey($prepareSampleTarget)) {
+                Write-Step "Reusing existing prepared input for '$name': $resolvedInputDocx"
+            } else {
+                Ensure-PathParent -Path $prepareArgument
+                Write-Step "Preparing '$name' via $prepareSampleTarget"
+                $prepareOutput = @(& $sampleTargetExecutables[$prepareSampleTarget] $prepareArgument 2>&1)
+                $prepareExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+                $prepareLines = @($prepareOutput | ForEach-Object { $_.ToString() })
+                $prepareLogPath = Join-Path $entryDir "prepare.log"
+                Write-CommandOutput -OutputPath $prepareLogPath -Lines $prepareLines
+                if ($prepareExitCode -ne 0) {
+                    $joined = if ($prepareLines.Count -gt 0) {
+                        $prepareLines -join [System.Environment]::NewLine
+                    } else {
+                        "(no output)"
+                    }
+                    throw "Sample target '$prepareSampleTarget' failed with exit code $prepareExitCode. Output:`n$joined"
                 }
-                throw "Sample target '$prepareSampleTarget' failed with exit code $prepareExitCode. Output:`n$joined"
             }
         }
 
@@ -1579,7 +1601,7 @@ $schemaPatchApprovalItems = @(
         $checks = Get-OptionalObjectPropertyObject -Object $result -Name "checks"
         $schemaBaseline = Get-OptionalObjectPropertyObject -Object $checks -Name "schema_baseline"
         $schemaPatchApproval = Get-OptionalObjectPropertyObject -Object $schemaBaseline -Name "schema_patch_approval"
-        if ($null -ne $schemaPatchApproval -and [bool]$schemaPatchApproval.required) {
+        if ($null -ne $schemaPatchApproval) {
             $schemaPatchApproval
         }
     }
@@ -1599,6 +1621,8 @@ $schemaPatchApprovalItemCount = @($schemaPatchApprovalItems).Count
 $schemaPatchApprovalGateStatus = Get-SchemaPatchApprovalGateStatus `
     -PendingCount $schemaPatchApprovalPendingCount `
     -ApprovalItemCount $schemaPatchApprovalItemCount `
+    -ApprovedCount $schemaPatchApprovalApprovedCount `
+    -RejectedCount $schemaPatchApprovalRejectedCount `
     -InvalidResultCount $schemaPatchApprovalInvalidResultCount `
     -ComplianceIssueCount $schemaPatchApprovalComplianceIssueCount
 $schemaPatchApprovalGateBlocked = $schemaPatchApprovalGateStatus -eq "blocked"

@@ -116,7 +116,7 @@ switch (`$command) {
         exit 0
     }
     "inspect-styles" {
-        Write-Output '{"command":"inspect-styles","style_count":3,"entries":[{"style":{"style_id":"Heading1"},"usage":{"style_id":"Heading1","paragraph_count":2,"run_count":0,"table_count":0,"total_count":2,"hits":[]}},{"style":{"style_id":"BodyText"},"usage":{"style_id":"BodyText","paragraph_count":1,"run_count":1,"table_count":1,"total_count":3,"hits":[]}}]}'
+        Write-Output '{"style_count":3,"entries":[{"style":{"style_id":"Heading1"},"usage":{"style_id":"Heading1","paragraph_count":2,"run_count":0,"table_count":0,"total_count":2,"hits":[]}},{"style":{"style_id":"BodyText"},"usage":{"style_id":"BodyText","paragraph_count":1,"run_count":1,"table_count":1,"total_count":3,"hits":[]}}]}'
         exit 0
     }
     "suggest-style-merges" {

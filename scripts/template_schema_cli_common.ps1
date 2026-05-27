@@ -244,8 +244,29 @@ function Invoke-TemplateSchemaCli {
     )
 
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $startInfo.FileName = $ExecutablePath
-    $startInfo.Arguments = ConvertTo-TemplateSchemaProcessArgumentString -Arguments $Arguments
+    $processArguments = @($Arguments)
+    if ([System.IO.Path]::GetExtension($ExecutablePath) -ieq ".ps1") {
+        $powerShellCommand = Get-Command powershell.exe -ErrorAction SilentlyContinue
+        if (-not $powerShellCommand) {
+            $powerShellCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+        }
+        if (-not $powerShellCommand) {
+            throw "Could not find powershell.exe or pwsh to invoke PowerShell CLI script $ExecutablePath."
+        }
+
+        $startInfo.FileName = $powerShellCommand.Source
+        $processArguments = @(
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            $ExecutablePath
+        ) + $processArguments
+    } else {
+        $startInfo.FileName = $ExecutablePath
+    }
+    $startInfo.Arguments = ConvertTo-TemplateSchemaProcessArgumentString -Arguments $processArguments
     $startInfo.UseShellExecute = $false
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
