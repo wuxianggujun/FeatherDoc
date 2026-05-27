@@ -229,7 +229,7 @@ if (-not $completed) {
 }
 $finishedAt = Get-Date
 
-$processExitCode = if (-not $completed) {
+$rawProcessExitCode = if (-not $completed) {
     124
 } elseif ($null -ne $process.ExitCode) {
     [int]$process.ExitCode
@@ -253,13 +253,14 @@ $attemptFullVisualGateStatus = if ($null -eq $attemptSummary) { "not_available" 
 $attemptEvidenceScope = if ($null -eq $attemptSummary) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $attemptSummary -Name "evidence_scope") }
 
 $attemptPassed = ($attemptVerdict -eq "pass" -and $attemptFullVisualGateStatus -eq "pass")
-$exitCode = if (-not $completed) {
+$effectiveProcessExitCode = if (-not $completed) {
     124
 } elseif ($attemptPassed) {
     0
 } else {
-    $processExitCode
+    $rawProcessExitCode
 }
+$exitCode = $effectiveProcessExitCode
 
 $status = if (-not $completed) {
     "timeout"
@@ -295,7 +296,8 @@ $summary = [ordered]@{
     outer_guard_timed_out = -not $completed
     outer_guard_timeout_seconds = $OuterTimeoutSeconds
     exit_code = $exitCode
-    process_exit_code = $processExitCode
+    process_exit_code = $effectiveProcessExitCode
+    raw_process_exit_code = $rawProcessExitCode
     stdout_log = $stdoutLog
     stdout_log_display = Get-DisplayPath -RepoRoot $repoRoot -Path $stdoutLog
     stderr_log = $stderrLog

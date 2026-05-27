@@ -73,12 +73,22 @@ OCR 或任意视觉精确还原。
         -SkipPreflight
 
    ``report/summary.json`` 必须包含 ``status = pass``、``verdict = pass``、
-   ``finalize_only = true``、``skip_preflight = true``、
    ``visual_baseline_manifest_count = 42``、``baselines_count = 44``、
    ``cjk_manifest_count = 43``、``cjk_copy_search_count = 43`` 和
    ``aggregate_contact_sheet``。其中 ``visual_baseline_manifest_count`` 对应
    manifest 中 ``expect_visual_baseline=true`` 的样本数，``baselines_count``
    对应 full gate 当前渲染并汇总的 baseline 产物数。
+
+   发布证据允许两种闭合形态：资源受限复核路径必须显示
+   ``finalize_only = true`` 和 ``skip_preflight = true``；fresh 非
+   ``FinalizeOnly`` full visual gate 完整通过时，必须由
+   ``run_pdf_visual_full_gate_guarded.ps1`` 写出
+   ``full-visual-gate-guarded-summary.json``，并同时满足 ``status = pass``、
+   ``verdict = pass``、``full_visual_gate_status = pass``、
+   ``outer_guard_status = completed`` 和 ``outer_guard_timed_out = false``。
+   ``check_pdf_release_readiness.ps1`` 必须把后一种情况消化为
+   ``visual_gate_fresh_full_guarded_evidence = true`` 和
+   ``visual_gate_release_evidence_accepted = true``。
 
 6. 机器准入结论已生成：
 
@@ -90,9 +100,14 @@ OCR 或任意视觉精确还原。
    该入口只读取现有 preflight、visual gate、manifest、contact-sheet 和本清单，
    不运行 CMake、CTest、Ninja、MSBuild、Office、LibreOffice、浏览器、PDF 渲染或
    PDF 生成。summary 必须包含 ``schema = featherdoc.pdf_release_readiness_check.v1``、
-   ``status = pass``、``verdict = pass_with_warnings``、
-   ``release_ready = true``、``evidence_scope = persisted_pdf_release_evidence_only``、
-   ``pdf_full_fresh_visual_gate.not_completed_in_current_window`` 和
+   ``status = pass``、``release_ready = true``、
+   ``evidence_scope = persisted_pdf_release_evidence_only``、
+   ``visual_gate_release_evidence_accepted`` 和
+   ``visual_gate_fresh_full_guarded_evidence``。当 fresh full visual gate 和
+   full PDF CTest 组合证据都已闭合时，``verdict`` 应为 ``pass`` 且
+   ``warning_count = 0``；如果任一重型证据只达到可追溯但未完整闭合，
+   ``verdict`` 才应为 ``pass_with_warnings``，并携带
+   ``pdf_full_fresh_visual_gate.not_completed_in_current_window`` 或
    ``pdf_full_ctest.not_completed_in_current_window``。固定标记：
    ``pdf_release_readiness_machine_gate_trace``。
 

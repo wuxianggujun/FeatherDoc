@@ -661,7 +661,7 @@ if ($VisualBaselineSliceOnly) {
 
     ($sliceSummary | ConvertTo-Json -Depth 8) | Set-Content -Path $sliceSummaryPath -Encoding UTF8
     Write-Step "Visual baseline slice summary written to $sliceSummaryPath"
-    return
+    exit 0
 }
 
 $aggregatePagePaths = @()
@@ -707,7 +707,7 @@ if ($RebuildAggregateContactSheetOnly) {
 
     ($rebuildSummary | ConvertTo-Json -Depth 8) | Set-Content -Path $rebuildSummaryPath -Encoding UTF8
     Write-Step "Aggregate contact sheet rebuild summary written to $rebuildSummaryPath"
-    return
+    exit 0
 }
 
 if ($FinalizeOnly) {
@@ -756,3 +756,4 @@ $summary = [ordered]@{
 
 ($summary | ConvertTo-Json -Depth 8) | Set-Content -Path $summaryPath -Encoding UTF8
 Write-Step "Visual gate summary written to $summaryPath"
+exit 0

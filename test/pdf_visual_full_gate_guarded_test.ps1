@@ -79,6 +79,22 @@ New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 exit 0
 '@
 
+$fakeVisualNativeNonZeroPass = Join-Path $resolvedWorkingDir "fake-visual-native-nonzero-pass.ps1"
+Write-TextFile -Path $fakeVisualNativeNonZeroPass -Text @'
+param(
+    [string]$BuildDir,
+    [string]$OutputDir,
+    [int]$Dpi,
+    [int]$MinFreeMemoryMB,
+    [string]$CtestExecutable
+)
+
+$reportDir = Join-Path $OutputDir "report"
+New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+"fake visual gate pass with stale native exit code BuildDir=$BuildDir"
+exit 1
+'@
+
 $fakeVisualTimeout = Join-Path $resolvedWorkingDir "fake-visual-timeout.ps1"
 Write-TextFile -Path $fakeVisualTimeout -Text @'
 param(
@@ -159,6 +175,31 @@ Assert-Equal -Actual ([string]$passSummary.outer_guard_status) -Expected "comple
     -Message "Pass fixture should record completed outer guard."
 Assert-True -Condition ([bool]$passSummary.attempt_summary_exists) `
     -Message "Pass fixture should write attempt summary evidence."
+
+$nativeNonZeroBuildDir = Join-Path $resolvedWorkingDir "build-native-nonzero"
+$nativeNonZeroOutputDir = Join-Path $resolvedWorkingDir "output-native-nonzero"
+$nativeNonZeroSummaryPath = Join-Path $resolvedWorkingDir "native-nonzero-summary.json"
+New-Item -ItemType Directory -Path $nativeNonZeroBuildDir -Force | Out-Null
+$nativeNonZeroResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
+    "-BuildDir", $nativeNonZeroBuildDir,
+    "-OutputDir", $nativeNonZeroOutputDir,
+    "-OutputJson", $nativeNonZeroSummaryPath,
+    "-VisualGateScript", $fakeVisualNativeNonZeroPass,
+    "-AttemptSummaryScript", $fakeAttemptSummary,
+    "-OuterTimeoutSeconds", "10",
+    "-MinFreeMemoryMB", "1"
+)
+Assert-Equal -Actual $nativeNonZeroResult.ExitCode -Expected 0 `
+    -Message "Guarded visual full gate should trust pass attempt evidence even if the child process inherited a stale native exit code. Output: $($nativeNonZeroResult.Text)"
+$nativeNonZeroSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $nativeNonZeroSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$nativeNonZeroSummary.status) -Expected "pass" `
+    -Message "Native non-zero fixture should still report pass status from attempt evidence."
+Assert-Equal -Actual ([int]$nativeNonZeroSummary.exit_code) -Expected 0 `
+    -Message "Native non-zero fixture should expose effective exit_code 0."
+Assert-Equal -Actual ([int]$nativeNonZeroSummary.process_exit_code) -Expected 0 `
+    -Message "Native non-zero fixture should expose effective process_exit_code 0."
+Assert-Equal -Actual ([int]$nativeNonZeroSummary.raw_process_exit_code) -Expected 1 `
+    -Message "Native non-zero fixture should preserve the raw child process exit code."
 
 $timeoutBuildDir = Join-Path $resolvedWorkingDir "build-timeout"
 $timeoutOutputDir = Join-Path $resolvedWorkingDir "output-timeout"

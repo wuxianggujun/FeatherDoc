@@ -379,11 +379,30 @@ if ($null -ne $preflight) {
 $contactSheetPath = ""
 $contactSheetExists = $false
 $contactSheetBytes = 0
+$visualGateFinalizeOnly = $false
+$visualGateSkipPreflight = $false
+$visualGateFreshFullGuardedEvidence = $false
+$visualGateReleaseEvidenceAccepted = $false
 if ($null -ne $visual) {
     $status = [string](Get-OptionalPropertyValue -Object $visual -Name "status")
     $verdict = [string](Get-OptionalPropertyValue -Object $visual -Name "verdict")
     $finalizeOnly = [bool](Get-OptionalPropertyValue -Object $visual -Name "finalize_only")
     $skipPreflight = [bool](Get-OptionalPropertyValue -Object $visual -Name "skip_preflight")
+    $visualGateFinalizeOnly = $finalizeOnly
+    $visualGateSkipPreflight = $skipPreflight
+    $guardedStatus = if ($null -eq $visualFullGateGuarded) { "missing" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "status") }
+    $guardedVerdict = if ($null -eq $visualFullGateGuarded) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "verdict") }
+    $guardedFullStatus = if ($null -eq $visualFullGateGuarded) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "full_visual_gate_status") }
+    $guardedOuterStatus = if ($null -eq $visualFullGateGuarded) { "not_run" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_status") }
+    $guardedOuterTimedOut = if ($null -eq $visualFullGateGuarded) { $false } else { [bool](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_timed_out") }
+    $visualGateFreshFullGuardedEvidence = (
+        $guardedStatus -eq "pass" -and
+        $guardedVerdict -eq "pass" -and
+        $guardedFullStatus -eq "pass" -and
+        $guardedOuterStatus -eq "completed" -and
+        -not $guardedOuterTimedOut
+    )
+    $visualGateReleaseEvidenceAccepted = ($finalizeOnly -or $visualGateFreshFullGuardedEvidence)
     $visualBaselineManifestCount = Get-OptionalPropertyValue -Object $visual -Name "visual_baseline_manifest_count"
     $baselinesCount = Get-OptionalPropertyValue -Object $visual -Name "baselines_count"
     $cjkManifestCount = Get-OptionalPropertyValue -Object $visual -Name "cjk_manifest_count"
@@ -395,9 +414,17 @@ if ($null -ne $visual) {
     Add-Check -Checks $checks -Name "visual_gate_verdict_pass" -Passed ($verdict -eq "pass") `
         -Message "Current PDF visual gate summary verdict must pass." `
         -Details @{ actual = $verdict; expected = "pass" }
-    Add-Check -Checks $checks -Name "visual_gate_finalize_evidence" -Passed $finalizeOnly `
-        -Message "Current PDF visual gate summary must be an explicit finalize evidence summary." `
-        -Details @{ actual = $finalizeOnly; expected = $true }
+    Add-Check -Checks $checks -Name "visual_gate_release_evidence" -Passed $visualGateReleaseEvidenceAccepted `
+        -Message "Current PDF visual gate summary must be backed by either explicit finalize evidence or a fresh guarded full visual gate pass." `
+        -Details @{
+            finalize_only = $finalizeOnly
+            fresh_full_guarded_evidence = $visualGateFreshFullGuardedEvidence
+            guarded_status = $guardedStatus
+            guarded_verdict = $guardedVerdict
+            guarded_full_visual_gate_status = $guardedFullStatus
+            guarded_outer_guard_status = $guardedOuterStatus
+            guarded_outer_guard_timed_out = $guardedOuterTimedOut
+        }
     Add-Check -Checks $checks -Name "visual_gate_manifest_counts" -Passed ((Test-IntegerEquals -Value $visualBaselineManifestCount -Expected 42) -and (Test-IntegerAtLeast -Value $baselinesCount -Minimum 42) -and (Test-IntegerEquals -Value $cjkManifestCount -Expected 43) -and (Test-IntegerEquals -Value $cjkCopySearchCount -Expected 43)) `
         -Message "Current PDF visual gate summary must preserve release manifest counts." `
         -Details @{
@@ -407,7 +434,7 @@ if ($null -ne $visual) {
             cjk_copy_search_count = $cjkCopySearchCount
         }
 
-    if (-not $skipPreflight) {
+    if ($finalizeOnly -and -not $skipPreflight) {
         Add-Warning -Warnings $warnings -Id "pdf_visual_gate_finalize_summary.did_not_skip_preflight" `
             -Message "Current visual gate summary is finalize evidence, but skip_preflight is false; rely on the separate current preflight summary for preflight freshness." `
             -Details @{ visual_gate_summary_json = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedVisualGateSummaryJson }
@@ -701,6 +728,10 @@ $summary = [ordered]@{
     preflight_summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedPreflightSummaryJson
     visual_gate_summary_json = $resolvedVisualGateSummaryJson
     visual_gate_summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedVisualGateSummaryJson
+    visual_gate_finalize_only = $visualGateFinalizeOnly
+    visual_gate_skip_preflight = $visualGateSkipPreflight
+    visual_gate_fresh_full_guarded_evidence = $visualGateFreshFullGuardedEvidence
+    visual_gate_release_evidence_accepted = $visualGateReleaseEvidenceAccepted
     aggregate_contact_sheet = $contactSheetPath
     aggregate_contact_sheet_display = if ([string]::IsNullOrWhiteSpace($contactSheetPath)) { "" } else { Get-DisplayPath -RepoRoot $repoRoot -Path $contactSheetPath }
     aggregate_contact_sheet_bytes = $contactSheetBytes

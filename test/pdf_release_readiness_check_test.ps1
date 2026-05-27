@@ -452,6 +452,7 @@ $completedVisualFull.outer_guard_timed_out = $false
 Write-JsonFile -Path $completedVisualFullPath -Value $completedVisualFull
 $completedVisualSummaryPath = Join-Path $completedRoot "output\pdf-visual-release-gate-current\report\summary.json"
 $completedVisualSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $completedVisualSummaryPath | ConvertFrom-Json
+$completedVisualSummary.finalize_only = $false
 $completedVisualSummary.skip_preflight = $true
 Write-JsonFile -Path $completedVisualSummaryPath -Value $completedVisualSummary
 $completedCtestPath = Join-Path $completedRoot "output\pdf-ctest-current\summary.json"
@@ -486,6 +487,12 @@ Assert-Equal -Actual ([int]$completedSummary.failed_check_count) -Expected 0 `
     -Message "Completed fixture should not carry failed checks."
 Assert-Equal -Actual ([string]$completedSummary.visual_full_gate_status) -Expected "pass" `
     -Message "Completed fixture should preserve completed visual full-gate status."
+Assert-Equal -Actual ([bool]$completedSummary.visual_gate_finalize_only) -Expected $false `
+    -Message "Completed fixture should not require finalize-only evidence when a fresh full guarded visual gate passed."
+Assert-Equal -Actual ([bool]$completedSummary.visual_gate_fresh_full_guarded_evidence) -Expected $true `
+    -Message "Completed fixture should expose fresh full guarded visual evidence."
+Assert-Equal -Actual ([bool]$completedSummary.visual_gate_release_evidence_accepted) -Expected $true `
+    -Message "Completed fixture should accept fresh full guarded visual evidence for release readiness."
 Assert-Equal -Actual ([string]$completedSummary.full_ctest_status) -Expected "pass" `
     -Message "Completed fixture should preserve completed full CTest status."
 Assert-Equal -Actual ([bool]$completedSummary.full_ctest_single_run_completed) -Expected $true `
@@ -537,6 +544,9 @@ foreach ($expectedText in @(
         "attempt_visual_baseline_fresh_rendered_count",
         "attempt_aggregate_contact_sheet_status",
         "attempt_summary_visual_baseline_fresh_rendered_count",
+        "visual_gate_release_evidence",
+        "visual_gate_fresh_full_guarded_evidence",
+        "visual_gate_release_evidence_accepted",
         "featherdoc.pdf_visual_segmented_gate_summary.v1",
         "pdf_visual_segmented_gate_summary_trace",
         "visual_segmented_gate_status",

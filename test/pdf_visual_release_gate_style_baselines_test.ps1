@@ -18,6 +18,24 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-SuccessExitAfter {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string]$Message
+    )
+
+    $anchorIndex = $Text.IndexOf($Anchor, [System.StringComparison]::Ordinal)
+    if ($anchorIndex -lt 0) {
+        throw "$Message Missing anchor='$Anchor'."
+    }
+
+    $tail = $Text.Substring($anchorIndex, [Math]::Min(360, $Text.Length - $anchorIndex))
+    if ($tail -notmatch [regex]::Escape("exit 0")) {
+        throw "$Message Missing explicit success exit after anchor='$Anchor'."
+    }
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
@@ -119,6 +137,12 @@ Assert-ContainsText -Text $scriptText -ExpectedText "aggregate_rebuild_summary_d
     -Message "PDF aggregate rebuild evidence must not replace the full visual gate verdict."
 Assert-ContainsText -Text $scriptText -ExpectedText "aggregate_contact_sheet_rebuild_only" `
     -Message "PDF aggregate rebuild summary should carry an auxiliary evidence scope."
+Assert-SuccessExitAfter -Text $scriptText -Anchor 'Write-Step "Visual baseline slice summary written to $sliceSummaryPath"' `
+    -Message "PDF visual release gate slice mode should not inherit stale native exit codes after writing pass evidence."
+Assert-SuccessExitAfter -Text $scriptText -Anchor 'Write-Step "Aggregate contact sheet rebuild summary written to $rebuildSummaryPath"' `
+    -Message "PDF visual release gate aggregate rebuild mode should not inherit stale native exit codes after writing pass evidence."
+Assert-SuccessExitAfter -Text $scriptText -Anchor 'Write-Step "Visual gate summary written to $summaryPath"' `
+    -Message "PDF visual release gate full mode should not inherit stale native exit codes after writing pass evidence."
 Assert-ContainsText -Text $scriptText -ExpectedText "[switch]`$FinalizeOnly" `
     -Message "PDF visual release gate should expose a finalize-only mode for already rendered outputs."
 Assert-ContainsText -Text $scriptText -ExpectedText "Finalizing existing PDF visual release gate output" `
