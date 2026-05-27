@@ -30,7 +30,8 @@ param(
     [switch]$SkipPreflight,
     [switch]$SkipMemoryGuard,
     [switch]$PlanOnly,
-    [switch]$NoAggregateRebuild
+    [switch]$NoAggregateRebuild,
+    [switch]$AllowPartialSuccessExitZero
 )
 
 Set-StrictMode -Version Latest
@@ -264,6 +265,12 @@ $slicePlan = if ($resumeNeeded -and $resumeLimit -gt 0) {
 } else {
     @()
 }
+$totalResumeSliceCount = if ($resumeNeeded -and $resumeLimit -gt 0) {
+    [int][Math]::Ceiling([double]$resumeLimit / [double]$ChunkSize)
+} else {
+    0
+}
+$resumeTailFullyPlanned = $MaxSlices -le 0 -or @($slicePlan).Count -ge $totalResumeSliceCount
 
 $powerShellPath = Get-PowerShellExecutable
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -370,6 +377,7 @@ $allExecutedSlicesPassed = @($sliceResultArray | Where-Object { $_.status -ne "p
 if (-not $PlanOnly -and
     [string]::IsNullOrWhiteSpace($blockedReason) -and
     @($slicePlan).Count -gt 0 -and
+    $resumeTailFullyPlanned -and
     $allPlannedSlicesExecuted -and
     $allExecutedSlicesPassed -and
     -not $NoAggregateRebuild) {
@@ -443,7 +451,7 @@ $status = if ($PlanOnly) {
     "fail"
 } elseif ($timeoutSliceCount -gt 0 -or $aggregateStatus -eq "timeout" -or $segmentedStatus -eq "timeout") {
     "timeout"
-} elseif (@($slicePlan).Count -eq 0 -or ($allPlannedSlicesExecuted -and $allExecutedSlicesPassed -and ($NoAggregateRebuild -or $aggregateStatus -eq "pass"))) {
+} elseif (@($slicePlan).Count -eq 0 -or ($resumeTailFullyPlanned -and $allPlannedSlicesExecuted -and $allExecutedSlicesPassed -and ($NoAggregateRebuild -or $aggregateStatus -eq "pass"))) {
     "pass"
 } else {
     "partial"
@@ -471,6 +479,7 @@ $summary = [ordered]@{
     plan_only = [bool]$PlanOnly
     skip_preflight = [bool]$SkipPreflight
     skip_memory_guard = [bool]$SkipMemoryGuard
+    allow_partial_success_exit_zero = [bool]$AllowPartialSuccessExitZero
     min_free_memory_mb = $MinFreeMemoryMB
     per_slice_timeout_seconds = $PerSliceTimeoutSeconds
     chunk_size = $ChunkSize
@@ -480,6 +489,8 @@ $summary = [ordered]@{
     resume_limit = $resumeLimit
     expected_visual_render_count = $expectedVisualRenderCount
     attempt_fresh_rendered_count = $freshRenderedCount
+    total_resume_slice_count = $totalResumeSliceCount
+    resume_tail_fully_planned = $resumeTailFullyPlanned
     planned_slice_count = @($slicePlan).Count
     executed_slice_count = $sliceResultArray.Count
     passed_slice_count = $passedSliceCount
@@ -499,6 +510,9 @@ New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($resolved
 $summary | ConvertTo-Json -Depth 12
 
 if ($status -in @("pass", "planned")) {
+    exit 0
+}
+if ($status -eq "partial" -and $AllowPartialSuccessExitZero) {
     exit 0
 }
 if ($status -eq "timeout") {

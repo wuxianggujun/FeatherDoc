@@ -184,6 +184,10 @@ Assert-Equal -Actual ([string]$planSummary.status) -Expected "planned" `
     -Message "Plan-only run should report planned status."
 Assert-Equal -Actual ([int]$planSummary.planned_slice_count) -Expected 3 `
     -Message "Plan-only run should split resume tail into chunks."
+Assert-Equal -Actual ([int]$planSummary.total_resume_slice_count) -Expected 3 `
+    -Message "Plan-only run should expose the total resume slice count."
+Assert-Equal -Actual ([bool]$planSummary.resume_tail_fully_planned) -Expected $true `
+    -Message "Plan-only run should mark the full tail planned when MaxSlices is not set."
 Assert-Equal -Actual ([int]$planSummary.planned_slices[0].offset) -Expected 3 `
     -Message "Plan should start at the attempt resume offset."
 Assert-Equal -Actual ([int]$planSummary.planned_slices[2].limit) -Expected 1 `
@@ -218,6 +222,8 @@ Assert-Equal -Actual ([string]$runSummary.boundary) -Expected "segmented_resume_
     -Message "Segmented resume should preserve the full-gate boundary."
 Assert-Equal -Actual ([int]$runSummary.planned_slice_count) -Expected 3 `
     -Message "Segmented resume should preserve planned slice count."
+Assert-Equal -Actual ([bool]$runSummary.resume_tail_fully_planned) -Expected $true `
+    -Message "Segmented resume should mark a full-tail run when MaxSlices is not set."
 Assert-Equal -Actual ([int]$runSummary.executed_slice_count) -Expected 3 `
     -Message "Segmented resume should execute all fake slices."
 Assert-Equal -Actual ([int]$runSummary.passed_slice_count) -Expected 3 `
@@ -228,5 +234,60 @@ Assert-Equal -Actual ([string]$runSummary.segmented_summary_status) -Expected "p
     -Message "Segmented resume should refresh segmented summary after aggregate rebuild."
 Assert-True -Condition ((Test-Path -LiteralPath (Join-Path $reportDir "segmented-summary.json")) -and (Test-Path -LiteralPath (Join-Path $reportDir "aggregate-contact-sheet.png"))) `
     -Message "Segmented resume should leave aggregate and segmented evidence files."
+
+$partialSummaryPath = Join-Path $reportDir "segmented-resume-partial-summary.json"
+$partialResult = Invoke-Script -ScriptPath $scriptPath -Arguments @(
+    "-BuildDir", $buildDir,
+    "-OutputDir", $outputDir,
+    "-AttemptSummaryJson", $attemptSummaryPath,
+    "-OutputJson", $partialSummaryPath,
+    "-VisualGateScript", $fakeVisualGate,
+    "-SegmentedSummaryScript", $fakeSegmentedSummary,
+    "-ChunkSize", "2",
+    "-MaxSlices", "1",
+    "-PerSliceTimeoutSeconds", "10",
+    "-SkipPreflight",
+    "-NoAggregateRebuild"
+)
+Assert-Equal -Actual $partialResult.ExitCode -Expected 1 `
+    -Message "Partial segmented resume should remain a non-zero release gate result by default. Output: $($partialResult.Text)"
+$partialSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $partialSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$partialSummary.status) -Expected "partial" `
+    -Message "MaxSlices should report partial when the full resume tail is not planned."
+Assert-Equal -Actual ([bool]$partialSummary.resume_tail_fully_planned) -Expected $false `
+    -Message "MaxSlices should keep the full-tail flag false when slices remain."
+Assert-Equal -Actual ([int]$partialSummary.total_resume_slice_count) -Expected 3 `
+    -Message "Partial run should still expose the total resume slice count."
+Assert-Equal -Actual ([int]$partialSummary.planned_slice_count) -Expected 1 `
+    -Message "Partial run should only plan the requested slice count."
+Assert-Equal -Actual ([int]$partialSummary.executed_slice_count) -Expected 1 `
+    -Message "Partial run should execute the requested slice."
+Assert-Equal -Actual ([int]$partialSummary.passed_slice_count) -Expected 1 `
+    -Message "Partial run should count the passing slice."
+Assert-Equal -Actual ([string]$partialSummary.aggregate_rebuild_status) -Expected "skipped" `
+    -Message "Partial run should skip aggregate rebuild when the full tail is incomplete."
+
+$partialExitZeroPath = Join-Path $reportDir "segmented-resume-partial-exit-zero-summary.json"
+$partialExitZeroResult = Invoke-Script -ScriptPath $scriptPath -Arguments @(
+    "-BuildDir", $buildDir,
+    "-OutputDir", $outputDir,
+    "-AttemptSummaryJson", $attemptSummaryPath,
+    "-OutputJson", $partialExitZeroPath,
+    "-VisualGateScript", $fakeVisualGate,
+    "-SegmentedSummaryScript", $fakeSegmentedSummary,
+    "-ChunkSize", "2",
+    "-MaxSlices", "1",
+    "-PerSliceTimeoutSeconds", "10",
+    "-SkipPreflight",
+    "-NoAggregateRebuild",
+    "-AllowPartialSuccessExitZero"
+)
+Assert-Equal -Actual $partialExitZeroResult.ExitCode -Expected 0 `
+    -Message "Partial segmented resume should support explicit zero exit for bounded manual continuation. Output: $($partialExitZeroResult.Text)"
+$partialExitZeroSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $partialExitZeroPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$partialExitZeroSummary.status) -Expected "partial" `
+    -Message "Partial exit-zero mode must not change the summary status."
+Assert-Equal -Actual ([bool]$partialExitZeroSummary.allow_partial_success_exit_zero) -Expected $true `
+    -Message "Partial exit-zero mode should be visible in evidence."
 
 Write-Host "PDF visual segmented resume regression passed."
