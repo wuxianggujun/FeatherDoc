@@ -235,6 +235,74 @@ function New-SlicePlan {
     return @($slices.ToArray())
 }
 
+function New-ResumeSummary {
+    param(
+        [string]$Status,
+        [string]$SegmentedStatus,
+        [object[]]$SliceResultArray,
+        [int]$PassedSliceCount,
+        [int]$FailedSliceCount,
+        [int]$TimeoutSliceCount,
+        [string]$AggregateStatus,
+        [string]$BlockedReason
+    )
+
+    return [ordered]@{
+        schema = "featherdoc.pdf_visual_segmented_resume_summary.v1"
+        generated_at = (Get-Date).ToString("s")
+        status = $Status
+        verdict = if ($Status -eq "pass") { "pass" } elseif ($Status -eq "fail") { "fail" } else { "not_complete" }
+        full_visual_gate_status = "not_complete"
+        evidence_scope = "visual_segmented_resume_auxiliary_only"
+        boundary = "segmented_resume_does_not_replace_full_visual_gate_verdict"
+        repo_root = $repoRoot
+        build_dir = $resolvedBuildDir
+        build_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedBuildDir
+        output_dir = $resolvedOutputDir
+        output_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedOutputDir
+        report_dir = $resolvedReportDir
+        report_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedReportDir
+        attempt_summary_json = $resolvedAttemptSummaryJson
+        attempt_summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedAttemptSummaryJson
+        output_json = $resolvedOutputJson
+        output_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedOutputJson
+        plan_only = [bool]$PlanOnly
+        skip_preflight = [bool]$SkipPreflight
+        skip_memory_guard = [bool]$SkipMemoryGuard
+        allow_partial_success_exit_zero = [bool]$AllowPartialSuccessExitZero
+        min_free_memory_mb = $MinFreeMemoryMB
+        per_slice_timeout_seconds = $PerSliceTimeoutSeconds
+        chunk_size = $ChunkSize
+        max_slices = $MaxSlices
+        resume_needed = $resumeNeeded
+        resume_offset = $resumeOffset
+        resume_limit = $resumeLimit
+        expected_visual_render_count = $expectedVisualRenderCount
+        attempt_fresh_rendered_count = $freshRenderedCount
+        total_resume_slice_count = $totalResumeSliceCount
+        resume_tail_fully_planned = $resumeTailFullyPlanned
+        planned_slice_count = @($slicePlan).Count
+        executed_slice_count = $SliceResultArray.Count
+        passed_slice_count = $PassedSliceCount
+        failed_slice_count = $FailedSliceCount
+        timeout_slice_count = $TimeoutSliceCount
+        blocked_reason = $BlockedReason
+        preflight_status = if ($null -eq $preflightResult) { if ($SkipPreflight -or $PlanOnly) { "skipped" } else { "not_run" } } else { [string]$preflightResult.status }
+        aggregate_rebuild_status = $AggregateStatus
+        segmented_summary_status = $SegmentedStatus
+        slices = @($SliceResultArray)
+        planned_slices = @($slicePlan)
+        marker = "pdf_visual_segmented_resume_summary_trace"
+    }
+}
+
+function Write-ResumeSummary {
+    param([object]$Summary)
+
+    New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($resolvedOutputJson)) -Force | Out-Null
+    ($Summary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $resolvedOutputJson -Encoding UTF8
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -Path $BuildDir
 $resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -Path $OutputDir -AllowMissing
@@ -374,6 +442,9 @@ if (-not $PlanOnly -and [string]::IsNullOrWhiteSpace($blockedReason)) {
 $sliceResultArray = @($sliceResults.ToArray())
 $allPlannedSlicesExecuted = $sliceResultArray.Count -eq @($slicePlan).Count
 $allExecutedSlicesPassed = @($sliceResultArray | Where-Object { $_.status -ne "pass" }).Count -eq 0
+$passedSliceCount = @($sliceResultArray | Where-Object { $_.status -eq "pass" }).Count
+$failedSliceCount = @($sliceResultArray | Where-Object { $_.status -eq "fail" }).Count
+$timeoutSliceCount = @($sliceResultArray | Where-Object { $_.status -eq "timeout" }).Count
 if (-not $PlanOnly -and
     [string]::IsNullOrWhiteSpace($blockedReason) -and
     @($slicePlan).Count -gt 0 -and
@@ -411,6 +482,17 @@ if (-not $PlanOnly -and
         -TimeoutSeconds $PerSliceTimeoutSeconds
 
     if ($aggregateResult.status -eq "pass" -and (Test-Path -LiteralPath $resolvedSegmentedSummaryScript)) {
+        $interimSummary = New-ResumeSummary `
+            -Status "pass" `
+            -SegmentedStatus "not_run" `
+            -SliceResultArray $sliceResultArray `
+            -PassedSliceCount $passedSliceCount `
+            -FailedSliceCount $failedSliceCount `
+            -TimeoutSliceCount $timeoutSliceCount `
+            -AggregateStatus ([string]$aggregateResult.status) `
+            -BlockedReason $blockedReason
+        Write-ResumeSummary -Summary $interimSummary
+
         $segmentedArgs = @(
             "-NoProfile",
             "-ExecutionPolicy",
@@ -457,56 +539,16 @@ $status = if ($PlanOnly) {
     "partial"
 }
 
-$summary = [ordered]@{
-    schema = "featherdoc.pdf_visual_segmented_resume_summary.v1"
-    generated_at = (Get-Date).ToString("s")
-    status = $status
-    verdict = if ($status -eq "pass") { "pass" } elseif ($status -eq "fail") { "fail" } else { "not_complete" }
-    full_visual_gate_status = "not_complete"
-    evidence_scope = "visual_segmented_resume_auxiliary_only"
-    boundary = "segmented_resume_does_not_replace_full_visual_gate_verdict"
-    repo_root = $repoRoot
-    build_dir = $resolvedBuildDir
-    build_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedBuildDir
-    output_dir = $resolvedOutputDir
-    output_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedOutputDir
-    report_dir = $resolvedReportDir
-    report_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedReportDir
-    attempt_summary_json = $resolvedAttemptSummaryJson
-    attempt_summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedAttemptSummaryJson
-    output_json = $resolvedOutputJson
-    output_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedOutputJson
-    plan_only = [bool]$PlanOnly
-    skip_preflight = [bool]$SkipPreflight
-    skip_memory_guard = [bool]$SkipMemoryGuard
-    allow_partial_success_exit_zero = [bool]$AllowPartialSuccessExitZero
-    min_free_memory_mb = $MinFreeMemoryMB
-    per_slice_timeout_seconds = $PerSliceTimeoutSeconds
-    chunk_size = $ChunkSize
-    max_slices = $MaxSlices
-    resume_needed = $resumeNeeded
-    resume_offset = $resumeOffset
-    resume_limit = $resumeLimit
-    expected_visual_render_count = $expectedVisualRenderCount
-    attempt_fresh_rendered_count = $freshRenderedCount
-    total_resume_slice_count = $totalResumeSliceCount
-    resume_tail_fully_planned = $resumeTailFullyPlanned
-    planned_slice_count = @($slicePlan).Count
-    executed_slice_count = $sliceResultArray.Count
-    passed_slice_count = $passedSliceCount
-    failed_slice_count = $failedSliceCount
-    timeout_slice_count = $timeoutSliceCount
-    blocked_reason = $blockedReason
-    preflight_status = if ($null -eq $preflightResult) { if ($SkipPreflight -or $PlanOnly) { "skipped" } else { "not_run" } } else { [string]$preflightResult.status }
-    aggregate_rebuild_status = $aggregateStatus
-    segmented_summary_status = $segmentedStatus
-    slices = @($sliceResultArray)
-    planned_slices = @($slicePlan)
-    marker = "pdf_visual_segmented_resume_summary_trace"
-}
-
-New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($resolvedOutputJson)) -Force | Out-Null
-($summary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $resolvedOutputJson -Encoding UTF8
+$summary = New-ResumeSummary `
+    -Status $status `
+    -SegmentedStatus $segmentedStatus `
+    -SliceResultArray $sliceResultArray `
+    -PassedSliceCount $passedSliceCount `
+    -FailedSliceCount $failedSliceCount `
+    -TimeoutSliceCount $timeoutSliceCount `
+    -AggregateStatus $aggregateStatus `
+    -BlockedReason $blockedReason
+Write-ResumeSummary -Summary $summary
 $summary | ConvertTo-Json -Depth 12
 
 if ($status -in @("pass", "planned")) {
