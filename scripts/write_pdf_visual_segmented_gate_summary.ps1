@@ -174,11 +174,16 @@ $expectedVisualRenderCount = @(
     $aggregateExpectedVisualRenderCount,
     $sliceExpectedVisualRenderCount
 ) | Measure-Object -Maximum | ForEach-Object { [int]$_.Maximum }
-$coveredBaselineCount = @(
+$rawCoveredBaselineCount = @(
     $attemptFreshRenderedCount,
     $aggregateSelectedBaselineCount,
     $sliceSelectedBaselineCount
 ) | Measure-Object -Maximum | ForEach-Object { [int]$_.Maximum }
+$coveredBaselineCount = if ($expectedVisualRenderCount -gt 0 -and $rawCoveredBaselineCount -gt $expectedVisualRenderCount) {
+    $expectedVisualRenderCount
+} else {
+    $rawCoveredBaselineCount
+}
 
 $contactSheetBytes = 0
 if (-not [string]::IsNullOrWhiteSpace($aggregateContactSheet) -and (Test-Path -LiteralPath $aggregateContactSheet)) {

@@ -253,24 +253,32 @@ $attemptFullVisualGateStatus = if ($null -eq $attemptSummary) { "not_available" 
 $attemptEvidenceScope = if ($null -eq $attemptSummary) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $attemptSummary -Name "evidence_scope") }
 
 $attemptPassed = ($attemptVerdict -eq "pass" -and $attemptFullVisualGateStatus -eq "pass")
-$effectiveProcessExitCode = if (-not $completed) {
-    124
-} elseif ($attemptPassed) {
+$passSummaryBeforeOuterTimeout = (-not $completed -and $attemptPassed)
+$effectiveProcessExitCode = if ($attemptPassed) {
     0
+} elseif (-not $completed) {
+    124
 } else {
     $rawProcessExitCode
 }
 $exitCode = $effectiveProcessExitCode
 
-$status = if (-not $completed) {
-    "timeout"
-} elseif ($attemptPassed) {
+$status = if ($attemptPassed) {
     "pass"
+} elseif (-not $completed) {
+    "timeout"
 } else {
     "fail"
 }
 $verdict = if ($status -eq "pass") { "pass" } elseif ($status -eq "timeout") { "not_complete" } else { "fail" }
 $fullVisualGateStatus = if ($status -eq "pass") { "pass" } elseif ($status -eq "fail") { "fail" } else { "not_complete" }
+$outerGuardStatus = if ($completed) {
+    "completed"
+} elseif ($passSummaryBeforeOuterTimeout) {
+    "timed_out_after_pass_summary"
+} else {
+    "timed_out"
+}
 
 $summary = [ordered]@{
     schema = "featherdoc.pdf_visual_full_gate_guarded_summary.v1"
@@ -292,9 +300,10 @@ $summary = [ordered]@{
     visual_gate_script_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedVisualGateScript
     attempt_summary_script = $resolvedAttemptSummaryScript
     attempt_summary_script_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedAttemptSummaryScript
-    outer_guard_status = if ($completed) { "completed" } else { "timed_out" }
+    outer_guard_status = $outerGuardStatus
     outer_guard_timed_out = -not $completed
     outer_guard_timeout_seconds = $OuterTimeoutSeconds
+    pass_summary_before_outer_timeout = $passSummaryBeforeOuterTimeout
     exit_code = $exitCode
     process_exit_code = $effectiveProcessExitCode
     raw_process_exit_code = $rawProcessExitCode

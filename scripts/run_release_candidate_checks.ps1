@@ -559,11 +559,14 @@ function Get-PdfVisualGateAttemptReleaseWarnings {
     $outerGuardStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "outer_guard_status")
     $renderStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_render_status")
     $contactSheetStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "aggregate_contact_sheet_status")
-    $needsWarning = $attemptStatus -eq "partial" -or
+    $attemptPassed = ($attemptStatus -eq "pass" -and $attemptVerdict -eq "pass" -and $attemptFullStatus -eq "pass")
+    $needsWarning = (-not $attemptPassed) -and (
+        $attemptStatus -eq "partial" -or
         $attemptVerdict -eq "not_complete" -or
         $attemptFullStatus -eq "not_complete" -or
         $outerGuardTimedOut -or
         $outerGuardStatus -eq "timed_out"
+    )
 
     if (-not $needsWarning) {
         return @()
@@ -583,6 +586,7 @@ function Get-PdfVisualGateAttemptReleaseWarnings {
     $visualGate = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "pdf_visual_gate"
     $visualReleaseEvidenceAccepted = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_release_evidence_accepted")
     $freshFullGuardedEvidence = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_fresh_full_guarded_evidence")
+    $passSummaryBeforeOuterTimeout = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_pass_summary_before_outer_timeout")
     $segmentedFullCoverageEvidence = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_segmented_full_coverage_evidence")
     $finalizeOnlyEvidence = [bool](Get-OptionalPropertyValue -Object $visualGate -Name "finalize_only")
     $skipPreflightEvidence = [bool](Get-OptionalPropertyValue -Object $visualGate -Name "skip_preflight")
@@ -618,6 +622,7 @@ function Get-PdfVisualGateAttemptReleaseWarnings {
             pdf_release_readiness_verdict = $readinessVerdict
             visual_gate_release_evidence_accepted = $visualReleaseEvidenceAccepted
             visual_gate_fresh_full_guarded_evidence = $freshFullGuardedEvidence
+            visual_gate_pass_summary_before_outer_timeout = $passSummaryBeforeOuterTimeout
             visual_gate_segmented_full_coverage_evidence = $segmentedFullCoverageEvidence
             visual_gate_finalize_only = $finalizeOnlyEvidence
             visual_gate_skip_preflight = $skipPreflightEvidence
@@ -867,6 +872,7 @@ function Get-PdfFullCtestReadinessSummaryInfo {
         warning_count = 0
         visual_gate_release_evidence_accepted = $false
         visual_gate_fresh_full_guarded_evidence = $false
+        visual_gate_pass_summary_before_outer_timeout = $false
         visual_gate_segmented_full_coverage_evidence = $false
         visual_full_gate_status = ""
         visual_full_gate_verdict = ""
@@ -902,6 +908,7 @@ function Get-PdfFullCtestReadinessSummaryInfo {
         $info.warning_count = [int](Get-OptionalPropertyValue -Object $summary -Name "warning_count")
         $info.visual_gate_release_evidence_accepted = [bool](Get-OptionalPropertyValue -Object $summary -Name "visual_gate_release_evidence_accepted")
         $info.visual_gate_fresh_full_guarded_evidence = [bool](Get-OptionalPropertyValue -Object $summary -Name "visual_gate_fresh_full_guarded_evidence")
+        $info.visual_gate_pass_summary_before_outer_timeout = [bool](Get-OptionalPropertyValue -Object $summary -Name "visual_gate_pass_summary_before_outer_timeout")
         $info.visual_gate_segmented_full_coverage_evidence = [bool](Get-OptionalPropertyValue -Object $summary -Name "visual_gate_segmented_full_coverage_evidence")
         $info.visual_full_gate_status = [string](Get-OptionalPropertyValue -Object $summary -Name "visual_full_gate_status")
         $info.visual_full_gate_verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "visual_full_gate_verdict")
@@ -3421,7 +3428,7 @@ try {
 - PDF visual segmented gate scope: $($summary.steps.pdf_visual_segmented_gate.evidence_scope)
 - PDF visual segmented gate slices: $($summary.steps.pdf_visual_segmented_gate.slice_pass_count)/$($summary.steps.pdf_visual_segmented_gate.slice_summary_count) pass
 - PDF visual segmented gate coverage: $($summary.steps.pdf_visual_segmented_gate.covered_baseline_count)/$($summary.steps.pdf_visual_segmented_gate.expected_visual_render_count) baselines, contact sheet $($summary.steps.pdf_visual_segmented_gate.aggregate_contact_sheet_status)
-- PDF visual release evidence accepted: $($summary.steps.pdf_full_ctest_readiness.visual_gate_release_evidence_accepted) (fresh full guarded $($summary.steps.pdf_full_ctest_readiness.visual_gate_fresh_full_guarded_evidence), segmented full coverage $($summary.steps.pdf_full_ctest_readiness.visual_gate_segmented_full_coverage_evidence))
+- PDF visual release evidence accepted: $($summary.steps.pdf_full_ctest_readiness.visual_gate_release_evidence_accepted) (fresh full guarded $($summary.steps.pdf_full_ctest_readiness.visual_gate_fresh_full_guarded_evidence), pass summary before outer timeout $($summary.steps.pdf_full_ctest_readiness.visual_gate_pass_summary_before_outer_timeout), segmented full coverage $($summary.steps.pdf_full_ctest_readiness.visual_gate_segmented_full_coverage_evidence))
 - PDF bounded CTest summaries: $($summary.steps.pdf_bounded_ctest.summary_count) summaries, $($summary.steps.pdf_bounded_ctest.pass_count) pass
 - PDF bounded CTest subsets: $pdfBoundedCtestSubsetsDisplay
 - PDF bounded CTest selected tests: $($summary.steps.pdf_bounded_ctest.selected_test_count)

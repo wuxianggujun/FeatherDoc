@@ -104,8 +104,8 @@ function New-SegmentedFixture {
     })
 
     foreach ($slice in @(
-            [ordered]@{ Offset = 22; Limit = 4; Selected = 4 },
-            [ordered]@{ Offset = 26; Limit = 18; Selected = 18 }
+            [ordered]@{ Offset = 0; Limit = 28; Selected = 28 },
+            [ordered]@{ Offset = 22; Limit = 25; Selected = 25 }
         )) {
         $sliceId = "visual-baseline-slice-offset-$($slice.Offset)-limit-$($slice.Limit)"
         $sliceContactSheet = Join-Path $reportDir "$sliceId-contact-sheet.png"

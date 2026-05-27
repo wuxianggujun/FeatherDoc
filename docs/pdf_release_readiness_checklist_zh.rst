@@ -85,7 +85,10 @@ OCR 或任意视觉精确还原。
    ``run_pdf_visual_full_gate_guarded.ps1`` 写出
    ``full-visual-gate-guarded-summary.json``，并同时满足 ``status = pass``、
    ``verdict = pass``、``full_visual_gate_status = pass``、
-   ``outer_guard_status = completed`` 和 ``outer_guard_timed_out = false``。
+   且满足 ``outer_guard_status = completed`` / ``outer_guard_timed_out = false``，
+   或 ``outer_guard_status = timed_out_after_pass_summary`` /
+   ``pass_summary_before_outer_timeout = true``。后者只表示 pass summary 已先于
+   外层退出保护落盘，不能和普通 ``outer_guard_status = timed_out`` 混淆。
    如果单次 fresh full gate 被 60 秒外层保护截断，但分段 visual gate 已经给出
    44/44 baseline 覆盖、0 failed slice、contact sheet pass 和 aggregate rebuild pass，
    ``check_pdf_release_readiness.ps1`` 必须把它消化为
@@ -109,7 +112,9 @@ OCR 或任意视觉精确还原。
    ``status = pass``、``release_ready = true``、
    ``evidence_scope = persisted_pdf_release_evidence_only``、
    ``visual_gate_release_evidence_accepted`` 和
-   ``visual_gate_fresh_full_guarded_evidence``、``visual_gate_segmented_full_coverage_evidence``。
+   ``visual_gate_fresh_full_guarded_evidence``、
+   ``visual_gate_pass_summary_before_outer_timeout``、
+   ``visual_gate_segmented_full_coverage_evidence``。
    当 fresh full visual gate 和
    full PDF CTest 组合证据都已闭合时，``verdict`` 应为 ``pass`` 且
    ``warning_count = 0``；如果任一重型证据只达到可追溯但未完整闭合，
@@ -126,7 +131,8 @@ OCR 或任意视觉精确还原。
    ``visual_full_gate_status``、``visual_full_gate_verdict``、
    ``visual_full_gate_full_visual_gate_status``、
    ``visual_full_gate_outer_guard_status``、
-   ``visual_full_gate_outer_guard_timed_out`` 和
+   ``visual_full_gate_outer_guard_timed_out``、
+   ``visual_full_gate_pass_summary_before_outer_timeout`` 和
    ``visual_full_gate_attempt_passed_stage_count``、
    ``visual_full_gate_attempt_visual_baseline_fresh_rendered_count``、
    ``visual_full_gate_attempt_aggregate_contact_sheet_status``。当
@@ -310,6 +316,7 @@ OCR 或任意视觉精确还原。
      ``attempt-summary.json`` 路径、outer guard ``timed_out`` / ``true`` / ``60``、
      ``visual_gate_release_evidence_accepted``、
      ``visual_gate_fresh_full_guarded_evidence``、
+     ``visual_gate_pass_summary_before_outer_timeout``、
      ``visual_gate_segmented_full_coverage_evidence`` 和 ``visual_gate_finalize_only``，
      并明确说明当前发布结论是依赖 segmented full-coverage、fresh guarded full gate
      还是 explicit ``FinalizeOnly`` 复核证据；它是 reviewer-facing warning，
@@ -588,8 +595,11 @@ OCR 或任意视觉精确还原。
    该入口内部执行 fresh 非 ``FinalizeOnly`` full visual gate，并额外记录 60 秒
    外层保护状态。summary 必须包含
    ``guarded_full_visual_gate_attempt_does_not_replace_completed_full_visual_gate``；
-   只有 ``status = pass``、``full_visual_gate_status = pass`` 且
-   ``outer_guard_status = completed`` 才能视为 fresh full visual gate 已完成；若只达到
+   只有 ``status = pass``、``full_visual_gate_status = pass``，且
+   ``outer_guard_status = completed`` 或
+   ``outer_guard_status = timed_out_after_pass_summary`` /
+   ``pass_summary_before_outer_timeout = true``，才能视为 fresh full visual gate
+   已形成可发布 pass 证据；若只达到
    ``visual_gate_segmented_full_coverage_evidence = true``，只能说明分段可视化证据已被
    release readiness 接受，不能声称单次 full gate 已完成。
 

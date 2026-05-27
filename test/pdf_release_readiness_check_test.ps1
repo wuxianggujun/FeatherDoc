@@ -140,6 +140,7 @@ function New-PassingFixture {
         outer_guard_status = "timed_out"
         outer_guard_timed_out = $true
         outer_guard_timeout_seconds = 60
+        pass_summary_before_outer_timeout = $false
         attempt_summary_json_display = ".\output\pdf-visual-release-gate-current\report\attempt-summary.json"
         attempt_stage_count = 6
         attempt_passed_stage_count = 2
@@ -207,6 +208,7 @@ featherdoc.pdf_visual_segmented_gate_summary.v1
 featherdoc.pdf_full_ctest_guarded_summary.v1
 featherdoc.pdf_ctest_remaining_guarded_summary.v1
 pdf_visual_gate_evidence
+visual_gate_pass_summary_before_outer_timeout
 visual_gate_segmented_full_coverage_evidence
 pdf_bounded_ctest_evidence
 release_entry_pdf_readiness_checklist_trace
@@ -261,6 +263,8 @@ Assert-Equal -Actual ([bool]$fixtureSummary.visual_gate_finalize_only) -Expected
     -Message "Passing fixture should exercise non-finalize visual release evidence."
 Assert-Equal -Actual ([bool]$fixtureSummary.visual_gate_segmented_full_coverage_evidence) -Expected $true `
     -Message "Passing fixture should accept strict segmented full-coverage visual evidence."
+Assert-Equal -Actual ([bool]$fixtureSummary.visual_gate_pass_summary_before_outer_timeout) -Expected $false `
+    -Message "Passing fixture should not claim pass-summary-before-timeout evidence for a timed-out guarded attempt."
 Assert-Equal -Actual ([bool]$fixtureSummary.visual_gate_release_evidence_accepted) -Expected $true `
     -Message "Passing fixture should accept segmented full-coverage visual evidence for release readiness."
 Assert-Equal -Actual ([int]$fixtureSummary.aggregate_contact_sheet_bytes) -Expected 12 `
@@ -273,6 +277,8 @@ Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_full_visual_gate_
     -Message "Passing fixture should preserve guarded full visual gate status."
 Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_outer_guard_status) -Expected "timed_out" `
     -Message "Passing fixture should preserve guarded full visual gate outer guard status."
+Assert-Equal -Actual ([bool]$fixtureSummary.visual_full_gate_pass_summary_before_outer_timeout) -Expected $false `
+    -Message "Passing fixture should preserve missing pass-summary-before-timeout state."
 Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_passed_stage_count) -Expected 2 `
     -Message "Passing fixture should preserve guarded full visual gate attempt stage count."
 Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_visual_baseline_fresh_rendered_count) -Expected 3 `
@@ -346,6 +352,8 @@ $visualFullGateWarning = @($fixtureSummary.warnings) |
     Select-Object -First 1
 Assert-Equal -Actual ([string]$visualFullGateWarning.details.status) -Expected "timeout" `
     -Message "Fresh full visual gate warning should carry the guarded attempt status."
+Assert-Equal -Actual ([bool]$visualFullGateWarning.details.pass_summary_before_outer_timeout) -Expected $false `
+    -Message "Fresh full visual gate warning should carry pass-summary-before-timeout state."
 Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_passed_stage_count) -Expected 2 `
     -Message "Fresh full visual gate warning should carry guarded attempt stage counts."
 Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_visual_baseline_fresh_rendered_count) -Expected 3 `
@@ -500,6 +508,8 @@ Assert-Equal -Actual ([bool]$completedSummary.visual_gate_finalize_only) -Expect
     -Message "Completed fixture should not require finalize-only evidence when a fresh full guarded visual gate passed."
 Assert-Equal -Actual ([bool]$completedSummary.visual_gate_fresh_full_guarded_evidence) -Expected $true `
     -Message "Completed fixture should expose fresh full guarded visual evidence."
+Assert-Equal -Actual ([bool]$completedSummary.visual_gate_pass_summary_before_outer_timeout) -Expected $false `
+    -Message "Completed fixture should not require pass-summary-before-timeout evidence."
 Assert-Equal -Actual ([bool]$completedSummary.visual_gate_release_evidence_accepted) -Expected $true `
     -Message "Completed fixture should accept fresh full guarded visual evidence for release readiness."
 Assert-Equal -Actual ([string]$completedSummary.full_ctest_status) -Expected "pass" `
@@ -512,6 +522,50 @@ Assert-Equal -Actual ([double]$completedSummary.full_ctest_completion_percent) -
     -Message "Completed fixture should expose full CTest completion percent."
 Assert-Equal -Actual ([int]$completedSummary.full_ctest_remaining_test_count) -Expected 0 `
     -Message "Completed fixture should expose zero remaining full CTest tests."
+
+$passSummaryTimeoutRoot = Join-Path $resolvedWorkingDir "fixture-pass-summary-timeout"
+New-PassingFixture -Root $passSummaryTimeoutRoot -ScriptPath $scriptPath
+$passSummaryTimeoutVisualFullPath = Join-Path $passSummaryTimeoutRoot "output\pdf-visual-release-gate-current\report\full-visual-gate-guarded-summary.json"
+$passSummaryTimeoutVisualFull = Get-Content -Raw -Encoding UTF8 -LiteralPath $passSummaryTimeoutVisualFullPath | ConvertFrom-Json
+$passSummaryTimeoutVisualFull.status = "pass"
+$passSummaryTimeoutVisualFull.verdict = "pass"
+$passSummaryTimeoutVisualFull.full_visual_gate_status = "pass"
+$passSummaryTimeoutVisualFull.outer_guard_status = "timed_out_after_pass_summary"
+$passSummaryTimeoutVisualFull.outer_guard_timed_out = $true
+$passSummaryTimeoutVisualFull.pass_summary_before_outer_timeout = $true
+Write-JsonFile -Path $passSummaryTimeoutVisualFullPath -Value $passSummaryTimeoutVisualFull
+$passSummaryTimeoutCtestPath = Join-Path $passSummaryTimeoutRoot "output\pdf-ctest-current\summary.json"
+$passSummaryTimeoutCtest = Get-Content -Raw -Encoding UTF8 -LiteralPath $passSummaryTimeoutCtestPath | ConvertFrom-Json
+$passSummaryTimeoutCtest.status = "pass"
+$passSummaryTimeoutCtest.verdict = "pass"
+$passSummaryTimeoutCtest.full_ctest_status = "pass"
+$passSummaryTimeoutCtest.outer_guard_status = "completed"
+$passSummaryTimeoutCtest.outer_guard_timed_out = $false
+$passSummaryTimeoutCtest.completed_test_count = 139
+$passSummaryTimeoutCtest.passed_test_count = 132
+$passSummaryTimeoutCtest.skipped_test_count = 7
+$passSummaryTimeoutCtest.not_run_test_count = 0
+Write-JsonFile -Path $passSummaryTimeoutCtestPath -Value $passSummaryTimeoutCtest
+$passSummaryTimeoutScript = Join-Path $passSummaryTimeoutRoot "scripts\check_pdf_release_readiness.ps1"
+$passSummaryTimeoutSummaryPath = Join-Path $resolvedWorkingDir "pass-summary-timeout-readiness-summary.json"
+$passSummaryTimeoutResult = Invoke-PowerShellScript -ScriptPath $passSummaryTimeoutScript -Arguments @(
+    "-OutputJson", $passSummaryTimeoutSummaryPath
+)
+Assert-Equal -Actual $passSummaryTimeoutResult.ExitCode -Expected 0 `
+    -Message "Pass-summary-before-timeout readiness check should pass. Output: $($passSummaryTimeoutResult.Text)"
+$passSummaryTimeoutSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $passSummaryTimeoutSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$passSummaryTimeoutSummary.verdict) -Expected "pass" `
+    -Message "Pass-summary-before-timeout fixture with full CTest pass should not retain visual warning debt."
+Assert-Equal -Actual ([int]$passSummaryTimeoutSummary.warning_count) -Expected 0 `
+    -Message "Pass-summary-before-timeout fixture should not carry warning debt."
+Assert-Equal -Actual ([bool]$passSummaryTimeoutSummary.visual_gate_fresh_full_guarded_evidence) -Expected $true `
+    -Message "Pass-summary-before-timeout fixture should count as fresh guarded full visual evidence."
+Assert-Equal -Actual ([bool]$passSummaryTimeoutSummary.visual_gate_pass_summary_before_outer_timeout) -Expected $true `
+    -Message "Pass-summary-before-timeout fixture should expose the readiness-level marker."
+Assert-Equal -Actual ([string]$passSummaryTimeoutSummary.visual_full_gate_outer_guard_status) -Expected "timed_out_after_pass_summary" `
+    -Message "Pass-summary-before-timeout fixture should preserve the guarded outer status."
+Assert-Equal -Actual ([bool]$passSummaryTimeoutSummary.visual_full_gate_pass_summary_before_outer_timeout) -Expected $true `
+    -Message "Pass-summary-before-timeout fixture should expose the guarded summary marker."
 
 $blockedRoot = Join-Path $resolvedWorkingDir "fixture-blocked"
 New-PassingFixture -Root $blockedRoot -ScriptPath $scriptPath
@@ -549,6 +603,10 @@ foreach ($expectedText in @(
         "visual_full_gate_attempt_visual_baseline_fresh_rendered_count",
         "visual_full_gate_attempt_aggregate_contact_sheet_status",
         "visual_full_gate_attempt_summary_aggregate_contact_sheet_status",
+        "visual_gate_pass_summary_before_outer_timeout",
+        "visual_full_gate_pass_summary_before_outer_timeout",
+        "pass_summary_before_outer_timeout",
+        "timed_out_after_pass_summary",
         "attempt_summary_aggregate_contact_sheet_status",
         "attempt_visual_baseline_fresh_rendered_count",
         "attempt_aggregate_contact_sheet_status",

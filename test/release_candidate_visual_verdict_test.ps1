@@ -440,6 +440,7 @@ $functionNames = @(
     "Get-OptionalPropertyValue",
     "Get-PdfVisualGateSummaryInfo",
     "Get-PdfVisualGateAttemptSummaryInfo",
+    "Get-PdfVisualGateAttemptReleaseWarnings",
     "Get-PdfVisualSegmentedGateSummaryInfo",
     "Get-PdfBoundedCtestSummaryInfo",
     "Get-PdfFullCtestReadinessSummaryInfo",
@@ -621,6 +622,7 @@ $pdfReadinessSummaryPath = Join-Path $pdfSummaryDir "release-readiness-summary.j
         warning_count = 1
         visual_gate_release_evidence_accepted = $true
         visual_gate_fresh_full_guarded_evidence = $false
+        visual_gate_pass_summary_before_outer_timeout = $false
         visual_gate_segmented_full_coverage_evidence = $true
         visual_full_gate_status = "timeout"
         visual_full_gate_verdict = "not_complete"
@@ -650,6 +652,7 @@ if ($pdfFullCtestReadinessInfo.status -ne "pass" -or
     -not [bool]$pdfFullCtestReadinessInfo.release_ready -or
     -not [bool]$pdfFullCtestReadinessInfo.visual_gate_release_evidence_accepted -or
     [bool]$pdfFullCtestReadinessInfo.visual_gate_fresh_full_guarded_evidence -or
+    [bool]$pdfFullCtestReadinessInfo.visual_gate_pass_summary_before_outer_timeout -or
     -not [bool]$pdfFullCtestReadinessInfo.visual_gate_segmented_full_coverage_evidence -or
     $pdfFullCtestReadinessInfo.visual_full_gate_status -ne "timeout" -or
     $pdfFullCtestReadinessInfo.full_ctest_status -ne "timeout" -or
@@ -1001,6 +1004,7 @@ if ([string]$candidateSummary.pdf_release_readiness_summary_json -ne $pdfReadine
     -not [bool]$candidateSummary.steps.pdf_full_ctest_readiness.release_ready -or
     -not [bool]$candidateSummary.steps.pdf_full_ctest_readiness.visual_gate_release_evidence_accepted -or
     [bool]$candidateSummary.steps.pdf_full_ctest_readiness.visual_gate_fresh_full_guarded_evidence -or
+    [bool]$candidateSummary.steps.pdf_full_ctest_readiness.visual_gate_pass_summary_before_outer_timeout -or
     -not [bool]$candidateSummary.steps.pdf_full_ctest_readiness.visual_gate_segmented_full_coverage_evidence -or
     [string]$candidateSummary.steps.pdf_full_ctest_readiness.visual_full_gate_status -ne "timeout" -or
     [string]$candidateSummary.steps.pdf_full_ctest_readiness.full_ctest_status -ne "timeout" -or
@@ -1037,6 +1041,7 @@ if ($null -eq $pdfAttemptWarning -or
     [int]$pdfAttemptWarning.outer_guard_timeout_seconds -ne 60 -or
     -not [bool]$pdfAttemptWarning.visual_gate_release_evidence_accepted -or
     [bool]$pdfAttemptWarning.visual_gate_fresh_full_guarded_evidence -or
+    [bool]$pdfAttemptWarning.visual_gate_pass_summary_before_outer_timeout -or
     -not [bool]$pdfAttemptWarning.visual_gate_segmented_full_coverage_evidence -or
     [bool]$pdfAttemptWarning.visual_gate_finalize_only -or
     [string]$pdfAttemptWarning.visual_baseline_render_status -ne "partial" -or
@@ -1048,6 +1053,34 @@ Assert-ContainsText -Text ([string]$pdfAttemptWarning.message) -ExpectedText "se
 if ([string]$pdfAttemptWarning.message -match "relies on FinalizeOnly") {
     throw "PDF fresh-attempt warning should not claim FinalizeOnly evidence when segmented full coverage is accepted."
 }
+
+$passAttemptWarnings = @(Get-PdfVisualGateAttemptReleaseWarnings -ReleaseSummary ([ordered]@{
+            pdf_visual_gate_attempt = [ordered]@{
+                status = "pass"
+                verdict = "pass"
+                full_visual_gate_status = "pass"
+                outer_guard_status = "timed_out_after_pass_summary"
+                outer_guard_timed_out = $true
+                outer_guard_timeout_seconds = 60
+                visual_baseline_render_status = "pass"
+                aggregate_contact_sheet_status = "pass"
+            }
+            pdf_full_ctest_readiness = [ordered]@{
+                verdict = "pass"
+                visual_gate_release_evidence_accepted = $true
+                visual_gate_fresh_full_guarded_evidence = $true
+                visual_gate_pass_summary_before_outer_timeout = $true
+                visual_gate_segmented_full_coverage_evidence = $false
+            }
+            pdf_visual_gate = [ordered]@{
+                finalize_only = $false
+                skip_preflight = $true
+            }
+        }) -RepoRoot $resolvedRepoRoot)
+if ($passAttemptWarnings.Count -ne 0) {
+    throw "Passing PDF visual attempt with pass-summary-before-timeout evidence should not emit a fresh-attempt warning."
+}
+
 if ([int]$candidateSummary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count -ne 2 -or
     [int]$candidateSummary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 1) {
     throw "Release candidate summary did not consume project-template release entry evidence from release governance handoff."
@@ -1202,7 +1235,7 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Step 
     "PDF bounded CTest subsets: smoke-import, regression-business-samples",
     "PDF bounded CTest selected tests: 20",
     "PDF bounded CTest skipped tests: 0",
-    "PDF visual release evidence accepted: True (fresh full guarded False, segmented full coverage True)",
+    "PDF visual release evidence accepted: True (fresh full guarded False, pass summary before outer timeout False, segmented full coverage True)",
     "PDF full CTest readiness: timeout (95.7% complete)",
     "PDF full CTest progress: 133/139 completed, 6 not run",
     "PDF full CTest observed failures: 0, zero failed observed True"

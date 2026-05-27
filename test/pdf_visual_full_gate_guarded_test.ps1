@@ -149,6 +149,43 @@ New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($OutputJs
 exit 0
 '@
 
+$fakeAttemptSummaryPassOnTimeout = Join-Path $resolvedWorkingDir "fake-attempt-summary-pass-on-timeout.ps1"
+Write-TextFile -Path $fakeAttemptSummaryPassOnTimeout -Text @'
+param(
+    [string]$RepoRoot,
+    [string]$ReportDir,
+    [string]$OutputJson,
+    [string]$AttemptStartedAfter,
+    [switch]$OuterGuardTimedOut,
+    [int]$OuterGuardTimeoutSeconds
+)
+
+$summary = [ordered]@{
+    schema = "featherdoc.pdf_visual_gate_attempt_summary.v1"
+    generated_at = (Get-Date).ToString("s")
+    status = "pass"
+    verdict = "pass"
+    full_visual_gate_status = "pass"
+    evidence_scope = "bounded_attempt_auxiliary_only"
+    report_dir = $ReportDir
+    attempt_started_after = $AttemptStartedAfter
+    outer_guard_status = if ($OuterGuardTimedOut) { "timed_out" } else { "completed" }
+    outer_guard_timed_out = [bool]$OuterGuardTimedOut
+    outer_guard_timeout_seconds = $OuterGuardTimeoutSeconds
+    stage_count = 6
+    passed_stage_count = 6
+    failed_stage_count = 0
+    incomplete_stage_count = 0
+    visual_baseline_fresh_rendered_count = 44
+    expected_visual_render_count = 44
+    aggregate_contact_sheet_status = "pass"
+    marker = "pdf_visual_gate_attempt_summary_trace"
+}
+New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($OutputJson)) -Force | Out-Null
+($summary | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $OutputJson -Encoding UTF8
+exit 0
+'@
+
 $passBuildDir = Join-Path $resolvedWorkingDir "build-pass"
 $passOutputDir = Join-Path $resolvedWorkingDir "output-pass"
 $passSummaryPath = Join-Path $resolvedWorkingDir "pass-summary.json"
@@ -201,6 +238,37 @@ Assert-Equal -Actual ([int]$nativeNonZeroSummary.process_exit_code) -Expected 0 
 Assert-Equal -Actual ([int]$nativeNonZeroSummary.raw_process_exit_code) -Expected 1 `
     -Message "Native non-zero fixture should preserve the raw child process exit code."
 
+$timeoutAfterPassBuildDir = Join-Path $resolvedWorkingDir "build-timeout-after-pass"
+$timeoutAfterPassOutputDir = Join-Path $resolvedWorkingDir "output-timeout-after-pass"
+$timeoutAfterPassSummaryPath = Join-Path $resolvedWorkingDir "timeout-after-pass-summary.json"
+New-Item -ItemType Directory -Path $timeoutAfterPassBuildDir -Force | Out-Null
+$timeoutAfterPassResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
+    "-BuildDir", $timeoutAfterPassBuildDir,
+    "-OutputDir", $timeoutAfterPassOutputDir,
+    "-OutputJson", $timeoutAfterPassSummaryPath,
+    "-VisualGateScript", $fakeVisualTimeout,
+    "-AttemptSummaryScript", $fakeAttemptSummaryPassOnTimeout,
+    "-OuterTimeoutSeconds", "1",
+    "-MinFreeMemoryMB", "1"
+)
+Assert-Equal -Actual $timeoutAfterPassResult.ExitCode -Expected 0 `
+    -Message "Guarded visual full gate should exit 0 when a pass summary is available before the outer timeout is observed. Output: $($timeoutAfterPassResult.Text)"
+$timeoutAfterPassSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $timeoutAfterPassSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$timeoutAfterPassSummary.status) -Expected "pass" `
+    -Message "Pass-before-timeout fixture should report pass status."
+Assert-Equal -Actual ([string]$timeoutAfterPassSummary.verdict) -Expected "pass" `
+    -Message "Pass-before-timeout fixture should report pass verdict."
+Assert-Equal -Actual ([string]$timeoutAfterPassSummary.full_visual_gate_status) -Expected "pass" `
+    -Message "Pass-before-timeout fixture should preserve pass full visual gate status."
+Assert-Equal -Actual ([string]$timeoutAfterPassSummary.outer_guard_status) -Expected "timed_out_after_pass_summary" `
+    -Message "Pass-before-timeout fixture should distinguish process-exit timeout from render incompletion."
+Assert-Equal -Actual ([bool]$timeoutAfterPassSummary.outer_guard_timed_out) -Expected $true `
+    -Message "Pass-before-timeout fixture should keep the outer timeout trace."
+Assert-Equal -Actual ([bool]$timeoutAfterPassSummary.pass_summary_before_outer_timeout) -Expected $true `
+    -Message "Pass-before-timeout fixture should expose the explicit pass-summary marker."
+Assert-Equal -Actual ([int]$timeoutAfterPassSummary.exit_code) -Expected 0 `
+    -Message "Pass-before-timeout fixture should expose effective exit_code 0."
+
 $timeoutBuildDir = Join-Path $resolvedWorkingDir "build-timeout"
 $timeoutOutputDir = Join-Path $resolvedWorkingDir "output-timeout"
 $timeoutSummaryPath = Join-Path $resolvedWorkingDir "timeout-summary.json"
@@ -242,6 +310,8 @@ foreach ($expectedText in @(
         "outer_guard_status",
         "outer_guard_timed_out",
         "outer_guard_timeout_seconds",
+        "timed_out_after_pass_summary",
+        "pass_summary_before_outer_timeout",
         "attempt_summary_json",
         "attempt_passed_stage_count",
         "guarded_full_visual_gate_attempt_does_not_replace_completed_full_visual_gate",

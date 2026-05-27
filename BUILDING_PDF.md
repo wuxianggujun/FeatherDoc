@@ -942,13 +942,15 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    `visual_full_gate_status`、`visual_full_gate_verdict`、
    `visual_full_gate_full_visual_gate_status`、
    `visual_full_gate_outer_guard_status`、
-   `visual_full_gate_outer_guard_timed_out` 和
+   `visual_full_gate_outer_guard_timed_out`、
+   `visual_full_gate_pass_summary_before_outer_timeout` 和
    `visual_full_gate_attempt_passed_stage_count`、
    `visual_full_gate_attempt_visual_baseline_fresh_rendered_count`、
    `visual_full_gate_attempt_aggregate_contact_sheet_status`，并把这些字段附到
    `pdf_full_fresh_visual_gate.not_completed_in_current_window` warning 上。固定标记：
    `pdf_visual_full_gate_guarded_summary_trace`。如果超时后又重写
    `attempt-summary.json` 并重建 aggregate contact sheet，readiness summary 还必须保留
+   `visual_gate_pass_summary_before_outer_timeout`、
    `visual_full_gate_attempt_summary_visual_baseline_fresh_rendered_count` 和
    `visual_full_gate_attempt_summary_aggregate_contact_sheet_status`，并把
    `attempt_summary_visual_baseline_fresh_rendered_count` 与
@@ -1002,13 +1004,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_full_gate_guar
 
 summary 必须写出 `schema = featherdoc.pdf_visual_full_gate_guarded_summary.v1`、
 `status`、`verdict`、`full_visual_gate_status`、`outer_guard_status`、
-`outer_guard_timed_out`、`outer_guard_timeout_seconds`、`attempt_summary_json`、
+`outer_guard_timed_out`、`outer_guard_timeout_seconds`、`pass_summary_before_outer_timeout`、
+`attempt_summary_json`、
 `attempt_passed_stage_count`、`attempt_visual_baseline_fresh_rendered_count`、
 `attempt_aggregate_contact_sheet_status` 和
 `guarded_full_visual_gate_attempt_does_not_replace_completed_full_visual_gate`。固定标记：
 `pdf_visual_full_gate_guarded_summary_trace`。只有 `status = pass` 且
-`full_visual_gate_status = pass` 且 `outer_guard_status = completed` 才能视为 fresh
-非 `FinalizeOnly` full visual gate 完成；超时只能作为可追溯 attempt evidence。
+`full_visual_gate_status = pass`，并且 `outer_guard_status = completed`，或
+`outer_guard_status = timed_out_after_pass_summary` 且
+`pass_summary_before_outer_timeout = true` 时，才能视为 fresh 非 `FinalizeOnly`
+full visual gate 已写出可发布 pass 结论。后者表示渲染 summary 已经 pass，只是外层在进程退出阶段
+观察到超时；普通 `outer_guard_status = timed_out` 仍只能作为可追溯 attempt evidence。
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_full_ctest_guarded.ps1 `

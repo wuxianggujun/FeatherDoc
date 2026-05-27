@@ -402,6 +402,7 @@ $contactSheetBytes = 0
 $visualGateFinalizeOnly = $false
 $visualGateSkipPreflight = $false
 $visualGateFreshFullGuardedEvidence = $false
+$visualGatePassSummaryBeforeOuterTimeout = $false
 $visualGateSegmentedFullCoverageEvidence = $false
 $visualGateReleaseEvidenceAccepted = $false
 if ($null -ne $visual) {
@@ -416,6 +417,7 @@ if ($null -ne $visual) {
     $guardedFullStatus = if ($null -eq $visualFullGateGuarded) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "full_visual_gate_status") }
     $guardedOuterStatus = if ($null -eq $visualFullGateGuarded) { "not_run" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_status") }
     $guardedOuterTimedOut = if ($null -eq $visualFullGateGuarded) { $false } else { [bool](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_timed_out") }
+    $guardedPassSummaryBeforeOuterTimeout = if ($null -eq $visualFullGateGuarded) { $false } else { [bool](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "pass_summary_before_outer_timeout") }
     $guardedAttemptFailedStageCount = if ($null -eq $visualFullGateGuarded) { 0 } else { Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_failed_stage_count" }
     $guardedAttemptFailedStageCountInt = Convert-ToIntOrZero -Value $guardedAttemptFailedStageCount
     $segmentedSliceSummaryCountInt = Convert-ToIntOrZero -Value $visualSegmentedGateSliceSummaryCount
@@ -427,12 +429,19 @@ if ($null -ne $visual) {
     $segmentedAttemptPassedStageCountInt = Convert-ToIntOrZero -Value $visualSegmentedGateAttemptPassedStageCount
     $segmentedContactSheetBytesInt = Convert-ToIntOrZero -Value $visualSegmentedGateAggregateContactSheetBytes
     $segmentedAggregateRebuildSelectedBaselineCountInt = Convert-ToIntOrZero -Value $visualSegmentedGateAggregateRebuildSelectedBaselineCount
+    $visualGatePassSummaryBeforeOuterTimeout = (
+        $guardedPassSummaryBeforeOuterTimeout -and
+        $guardedOuterStatus -eq "timed_out_after_pass_summary" -and
+        $guardedOuterTimedOut
+    )
     $visualGateFreshFullGuardedEvidence = (
         $guardedStatus -eq "pass" -and
         $guardedVerdict -eq "pass" -and
         $guardedFullStatus -eq "pass" -and
-        $guardedOuterStatus -eq "completed" -and
-        -not $guardedOuterTimedOut
+        (
+            ($guardedOuterStatus -eq "completed" -and -not $guardedOuterTimedOut) -or
+            $visualGatePassSummaryBeforeOuterTimeout
+        )
     )
     $visualGateSegmentedFullCoverageEvidence = (
         $visualSegmentedGateSummaryExists -and
@@ -472,12 +481,14 @@ if ($null -ne $visual) {
         -Details @{
             finalize_only = $finalizeOnly
             fresh_full_guarded_evidence = $visualGateFreshFullGuardedEvidence
+            pass_summary_before_outer_timeout = $visualGatePassSummaryBeforeOuterTimeout
             segmented_full_coverage_evidence = $visualGateSegmentedFullCoverageEvidence
             guarded_status = $guardedStatus
             guarded_verdict = $guardedVerdict
             guarded_full_visual_gate_status = $guardedFullStatus
             guarded_outer_guard_status = $guardedOuterStatus
             guarded_outer_guard_timed_out = $guardedOuterTimedOut
+            guarded_pass_summary_before_outer_timeout = $guardedPassSummaryBeforeOuterTimeout
             guarded_attempt_failed_stage_count = $guardedAttemptFailedStageCount
             segmented_gate_status = $visualSegmentedGateStatus
             segmented_gate_verdict = $visualSegmentedGateVerdict
@@ -553,6 +564,7 @@ $visualFullGateVerdict = if ($null -eq $visualFullGateGuarded) { "not_available"
 $visualFullGateFullStatus = if ($null -eq $visualFullGateGuarded) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "full_visual_gate_status") }
 $visualFullGateOuterGuardStatus = if ($null -eq $visualFullGateGuarded) { "not_run" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_status") }
 $visualFullGateOuterGuardTimedOut = if ($null -eq $visualFullGateGuarded) { $false } else { [bool](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "outer_guard_timed_out") }
+$visualFullGatePassSummaryBeforeOuterTimeout = if ($null -eq $visualFullGateGuarded) { $false } else { [bool](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "pass_summary_before_outer_timeout") }
 $visualFullGateAttemptSummaryJsonRaw = if ($null -eq $visualFullGateGuarded) { "" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_summary_json") }
 $visualFullGateAttemptSummaryJson = if ($null -eq $visualFullGateGuarded) { "" } else { [string](Get-OptionalPropertyValue -Object $visualFullGateGuarded -Name "attempt_summary_json_display") }
 $visualFullGateAttemptSummaryPathInput = if (-not [string]::IsNullOrWhiteSpace($visualFullGateAttemptSummaryJsonRaw)) {
@@ -613,7 +625,15 @@ $visualSegmentedGateAggregateContactSheetDisplay = if ($null -eq $visualSegmente
 $visualSegmentedGateAggregateContactSheetBytes = if ($null -eq $visualSegmentedGate) { 0 } else { Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "aggregate_contact_sheet_bytes" }
 $visualSegmentedGateAggregateRebuildStatus = if ($null -eq $visualSegmentedGate) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "aggregate_rebuild_status") }
 $visualSegmentedGateAggregateRebuildSelectedBaselineCount = if ($null -eq $visualSegmentedGate) { 0 } else { Get-OptionalPropertyValue -Object $visualSegmentedGate -Name "aggregate_rebuild_selected_baseline_count" }
-$visualFullGateCompleted = ($visualFullGateStatus -eq "pass" -and $visualFullGateVerdict -eq "pass" -and $visualFullGateFullStatus -eq "pass" -and $visualFullGateOuterGuardStatus -eq "completed" -and -not $visualFullGateOuterGuardTimedOut)
+$visualFullGateCompleted = (
+    $visualFullGateStatus -eq "pass" -and
+    $visualFullGateVerdict -eq "pass" -and
+    $visualFullGateFullStatus -eq "pass" -and
+    (
+        ($visualFullGateOuterGuardStatus -eq "completed" -and -not $visualFullGateOuterGuardTimedOut) -or
+        ($visualFullGatePassSummaryBeforeOuterTimeout -and $visualFullGateOuterGuardStatus -eq "timed_out_after_pass_summary" -and $visualFullGateOuterGuardTimedOut)
+    )
+)
 if (-not $visualFullGateCompleted) {
     Add-Warning -Warnings $warnings -Id "pdf_full_fresh_visual_gate.not_completed_in_current_window" `
         -Message "A fresh non-FinalizeOnly full visual gate is still required before claiming a new end-to-end render pass; current guarded-attempt evidence is retained for reviewer traceability." `
@@ -623,6 +643,7 @@ if (-not $visualFullGateCompleted) {
             full_visual_gate_status = $visualFullGateFullStatus
             outer_guard_status = $visualFullGateOuterGuardStatus
             outer_guard_timed_out = $visualFullGateOuterGuardTimedOut
+            pass_summary_before_outer_timeout = $visualFullGatePassSummaryBeforeOuterTimeout
             attempt_stage_count = $visualFullGateAttemptStageCount
             attempt_passed_stage_count = $visualFullGateAttemptPassedStageCount
             attempt_failed_stage_count = $visualFullGateAttemptFailedStageCount
@@ -799,6 +820,7 @@ $summary = [ordered]@{
     visual_gate_finalize_only = $visualGateFinalizeOnly
     visual_gate_skip_preflight = $visualGateSkipPreflight
     visual_gate_fresh_full_guarded_evidence = $visualGateFreshFullGuardedEvidence
+    visual_gate_pass_summary_before_outer_timeout = $visualGatePassSummaryBeforeOuterTimeout
     visual_gate_segmented_full_coverage_evidence = $visualGateSegmentedFullCoverageEvidence
     visual_gate_release_evidence_accepted = $visualGateReleaseEvidenceAccepted
     aggregate_contact_sheet = $contactSheetPath
@@ -816,6 +838,7 @@ $summary = [ordered]@{
     visual_full_gate_full_visual_gate_status = $visualFullGateFullStatus
     visual_full_gate_outer_guard_status = $visualFullGateOuterGuardStatus
     visual_full_gate_outer_guard_timed_out = $visualFullGateOuterGuardTimedOut
+    visual_full_gate_pass_summary_before_outer_timeout = $visualFullGatePassSummaryBeforeOuterTimeout
     visual_full_gate_attempt_summary_json = $visualFullGateAttemptSummaryJson
     visual_full_gate_attempt_summary_exists = $visualFullGateAttemptSummaryExists
     visual_full_gate_attempt_summary_status = $visualFullGateAttemptSummaryStatus

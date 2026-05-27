@@ -365,10 +365,14 @@ CTest pass。
 summary schema 为 ``featherdoc.pdf_visual_full_gate_guarded_summary.v1``，必须保留
 ``visual_full_gate_status``、``visual_full_gate_verdict``、
 ``visual_full_gate_outer_guard_status``、``visual_full_gate_outer_guard_timed_out``、
+``visual_full_gate_pass_summary_before_outer_timeout``、
 ``visual_full_gate_attempt_passed_stage_count``、
 ``visual_full_gate_attempt_visual_baseline_fresh_rendered_count``、
 ``visual_full_gate_attempt_aggregate_contact_sheet_status`` 和 ``attempt_summary_json``。固定标记：
-``pdf_visual_full_gate_guarded_summary_trace``。如果外层保护超时，该 summary 只能作为
+``pdf_visual_full_gate_guarded_summary_trace``。如果 summary 同时满足 ``status = pass``、
+``full_visual_gate_status = pass``、``outer_guard_status = timed_out_after_pass_summary`` 和
+``pass_summary_before_outer_timeout = true``，表示 pass summary 已先于外层退出保护落盘，
+可作为 fresh full visual gate pass 证据；普通 ``outer_guard_status = timed_out`` 仍只能作为
 attempt evidence，不能替代 fresh full visual gate pass。
 如果超时后通过 ``write_pdf_visual_gate_attempt_summary.ps1`` 与 aggregate contact-sheet
 rebuild 补齐辅助证据，readiness summary 必须额外暴露
@@ -482,6 +486,7 @@ fresh 非 ``FinalizeOnly`` attempt 未完成的事实写成顶层 ``warnings[]``
 ``attempt-summary.json`` 路径、outer guard ``timed_out`` / ``true`` / ``60``、
 ``visual_gate_release_evidence_accepted``、
 ``visual_gate_fresh_full_guarded_evidence``、
+``visual_gate_pass_summary_before_outer_timeout``、
 ``visual_gate_segmented_full_coverage_evidence`` 和 ``visual_gate_finalize_only``，
 并按当前 evidence path 说明发布结论依赖 segmented full-coverage、fresh guarded
 full gate 或 explicit ``FinalizeOnly`` 证据；

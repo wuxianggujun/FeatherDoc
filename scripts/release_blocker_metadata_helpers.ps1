@@ -1028,7 +1028,15 @@ function Add-ReleaseGovernanceRollupSourceLines {
     foreach ($fieldName in @("source_report", "source_json")) {
         $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
         if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
-            [void]$Lines.Add("  - ${fieldName}: $fieldValue")
+            $displayValue = if ($fieldName -eq "source_report") {
+                $sourceReportDisplay
+            } else {
+                $sourceJsonDisplay
+            }
+            if ([string]::IsNullOrWhiteSpace($displayValue)) {
+                $displayValue = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $fieldValue
+            }
+            [void]$Lines.Add("  - ${fieldName}: $displayValue")
         }
     }
 
