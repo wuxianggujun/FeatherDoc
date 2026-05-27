@@ -103,6 +103,17 @@ function New-AttemptFixture {
     $attemptStart = Get-Date "2026-05-26T12:50:00"
     $oldTime = Get-Date "2026-05-26T12:00:00"
     $freshTime = Get-Date "2026-05-26T12:55:00"
+    $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json") | ConvertFrom-Json
+    $visualSampleNames = @(
+        $manifest.samples |
+            Where-Object {
+                $property = $_.PSObject.Properties["expect_visual_baseline"]
+                $null -ne $property -and $property.Value -eq $true
+            } |
+            ForEach-Object { [string]$_.id }
+        "cli-font-map-source"
+        "cli-cjk-font-source"
+    )
 
     Write-JsonFile -Path (Join-Path $reportDir "preflight-summary.json") -Value ([ordered]@{
         status = "ready"
@@ -147,13 +158,13 @@ Visual summary written to output/pdf-visual-release-gate-current/unicode-font/re
         (Get-Item -LiteralPath $summaryPath).LastWriteTime = $freshTime
     }
 
-    foreach ($index in 1..44) {
-        $sampleDir = Join-Path $baselineDir ("sample-{0:D2}" -f $index)
+    for ($index = 0; $index -lt $visualSampleNames.Count; $index++) {
+        $sampleDir = Join-Path $baselineDir $visualSampleNames[$index]
         $summaryPath = Join-Path $sampleDir "summary.json"
         Write-JsonFile -Path $summaryPath -Value ([ordered]@{
             page_count = 1
         })
-        $timestamp = if ($FreshFullPass -or $index -le 22) { $freshTime } else { $oldTime }
+        $timestamp = if ($FreshFullPass -or $index -lt 22) { $freshTime } else { $oldTime }
         (Get-Item -LiteralPath $summaryPath).LastWriteTime = $timestamp
     }
 
@@ -207,6 +218,22 @@ Assert-Equal -Actual $partialSummary.visual_baseline_render_status -Expected "pa
     -Message "Attempt summary should identify incomplete visual baseline rendering."
 Assert-Equal -Actual ([int]$partialSummary.visual_baseline_fresh_rendered_count) -Expected 22 `
     -Message "Attempt summary should count only fresh rendered baselines for the attempt."
+Assert-Equal -Actual ([int]$partialSummary.visual_baseline_expected_sample_count) -Expected 44 `
+    -Message "Attempt summary should expose the expected visual baseline sample count."
+Assert-Equal -Actual ([int]$partialSummary.visual_baseline_fresh_missing_sample_count) -Expected 22 `
+    -Message "Attempt summary should expose how many baselines remain stale for the current attempt."
+Assert-Equal -Actual ([bool]$partialSummary.visual_baseline_resume_needed) -Expected $true `
+    -Message "Partial visual baseline evidence should mark that a slice resume is needed."
+Assert-Equal -Actual ([int]$partialSummary.visual_baseline_resume_slice_offset) -Expected 22 `
+    -Message "Attempt summary should point to the first non-fresh baseline slice offset."
+Assert-Equal -Actual ([int]$partialSummary.visual_baseline_resume_slice_limit) -Expected 22 `
+    -Message "Attempt summary should expose the remaining tail slice size."
+Assert-True -Condition ((@($partialSummary.visual_baseline_fresh_missing_sample_names)).Count -eq 22) `
+    -Message "Attempt summary should list the current-attempt fresh-missing baseline names."
+Assert-True -Condition ([string]$partialSummary.visual_baseline_resume_slice_command_template -match "VisualBaselineOffset 22") `
+    -Message "Attempt summary should include a resume command template with the next slice offset."
+Assert-True -Condition ([string]$partialSummary.visual_baseline_resume_slice_command_template -match "VisualBaselineLimit 22") `
+    -Message "Attempt summary should include a resume command template with the remaining slice limit."
 Assert-Equal -Actual $partialSummary.aggregate_contact_sheet_status -Expected "stale" `
     -Message "Attempt summary should not treat stale contact sheets as fresh attempt evidence."
 Assert-Equal -Actual $partialSummary.evidence_scope -Expected "bounded_attempt_auxiliary_only" `
@@ -234,3 +261,7 @@ Assert-Equal -Actual $passSummary.outer_guard_status -Expected "completed" `
     -Message "Fresh non-finalize full pass should preserve a completed outer guard status."
 Assert-Equal -Actual ([bool]$passSummary.outer_guard_timed_out) -Expected $false `
     -Message "Fresh non-finalize full pass should not mark the outer guard as timed out."
+Assert-Equal -Actual ([int]$passSummary.visual_baseline_fresh_missing_sample_count) -Expected 0 `
+    -Message "Fresh non-finalize full pass should not report fresh-missing baselines."
+Assert-Equal -Actual ([bool]$passSummary.visual_baseline_resume_needed) -Expected $false `
+    -Message "Fresh non-finalize full pass should not require slice resume."

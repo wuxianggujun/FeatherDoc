@@ -3416,9 +3416,9 @@ try {
             $summary.release_governance_handoff.warnings = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "warnings") }
             [object[]]$handoffReports = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "reports") }
             [object[]]$handoffGovernanceMetrics = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "governance_metrics") }
-            $summary.release_governance_handoff.report_count = $handoffReports.Count
+            $summary.release_governance_handoff.report_count = @($handoffReports).Count
             $summary.release_governance_handoff.reports = @($handoffReports)
-            $summary.release_governance_handoff.governance_metric_count = if ($null -eq $handoffSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffSummary -Name "governance_metric_count" -DefaultValue $handoffGovernanceMetrics.Count) }
+            $summary.release_governance_handoff.governance_metric_count = if ($null -eq $handoffSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffSummary -Name "governance_metric_count" -DefaultValue @($handoffGovernanceMetrics).Count) }
             $summary.release_governance_handoff.governance_metrics = @($handoffGovernanceMetrics)
             $summary.release_governance_handoff.project_template_delivery_readiness_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_delivery_readiness_contract" }
             $summary.release_governance_handoff.project_template_onboarding_governance_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_onboarding_governance_contract" }
@@ -3475,9 +3475,9 @@ try {
             $summary.release_governance_handoff.warnings = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "warnings") }
             [object[]]$handoffReports = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "reports") }
             [object[]]$handoffGovernanceMetrics = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "governance_metrics") }
-            $summary.release_governance_handoff.report_count = $handoffReports.Count
+            $summary.release_governance_handoff.report_count = @($handoffReports).Count
             $summary.release_governance_handoff.reports = @($handoffReports)
-            $summary.release_governance_handoff.governance_metric_count = if ($null -eq $handoffSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffSummary -Name "governance_metric_count" -DefaultValue $handoffGovernanceMetrics.Count) }
+            $summary.release_governance_handoff.governance_metric_count = if ($null -eq $handoffSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffSummary -Name "governance_metric_count" -DefaultValue @($handoffGovernanceMetrics).Count) }
             $summary.release_governance_handoff.governance_metrics = @($handoffGovernanceMetrics)
             $summary.release_governance_handoff.project_template_delivery_readiness_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_delivery_readiness_contract" }
             $summary.release_governance_handoff.project_template_onboarding_governance_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_onboarding_governance_contract" }

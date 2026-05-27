@@ -190,7 +190,8 @@ function Get-VisualBaselineEvidence {
     param(
         [string]$Path,
         [int]$ExpectedCount,
-        $AttemptStart
+        $AttemptStart,
+        [string[]]$ExpectedSampleNames = @()
     )
 
     $summaryFiles = @()
@@ -199,10 +200,52 @@ function Get-VisualBaselineEvidence {
     }
 
     $freshCount = 0
+    $renderedSampleNames = New-Object System.Collections.Generic.List[string]
+    $freshRenderedSampleNames = New-Object System.Collections.Generic.List[string]
+    $staleRenderedSampleNames = New-Object System.Collections.Generic.List[string]
     foreach ($file in $summaryFiles) {
+        $sampleName = Split-Path -Leaf (Split-Path -Parent $file.FullName)
+        if (-not [string]::IsNullOrWhiteSpace($sampleName)) {
+            $renderedSampleNames.Add($sampleName) | Out-Null
+        }
+
         if ($null -ne $AttemptStart -and $file.LastWriteTime -ge $AttemptStart) {
             $freshCount++
+            if (-not [string]::IsNullOrWhiteSpace($sampleName)) {
+                $freshRenderedSampleNames.Add($sampleName) | Out-Null
+            }
+        } elseif (-not [string]::IsNullOrWhiteSpace($sampleName)) {
+            $staleRenderedSampleNames.Add($sampleName) | Out-Null
         }
+    }
+
+    $expectedNames = @($ExpectedSampleNames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $renderedLookup = @{}
+    foreach ($name in @($renderedSampleNames.ToArray())) {
+        $renderedLookup[$name] = $true
+    }
+
+    $freshLookup = @{}
+    foreach ($name in @($freshRenderedSampleNames.ToArray())) {
+        $freshLookup[$name] = $true
+    }
+
+    $missingSampleNames = @($expectedNames | Where-Object { -not $renderedLookup.ContainsKey($_) })
+    $freshMissingSampleNames = @($expectedNames | Where-Object { -not $freshLookup.ContainsKey($_) })
+    $firstFreshMissingOffset = -1
+    for ($index = 0; $index -lt $expectedNames.Count; $index++) {
+        if (-not $freshLookup.ContainsKey($expectedNames[$index])) {
+            $firstFreshMissingOffset = $index
+            break
+        }
+    }
+
+    $resumeNeeded = $freshMissingSampleNames.Count -gt 0
+    $resumeOffset = if ($resumeNeeded -and $firstFreshMissingOffset -ge 0) { $firstFreshMissingOffset } else { 0 }
+    $resumeLimit = if ($resumeNeeded -and $firstFreshMissingOffset -ge 0) {
+        $expectedNames.Count - $firstFreshMissingOffset
+    } else {
+        0
     }
 
     $attemptCount = if ($null -ne $AttemptStart) { $freshCount } else { $summaryFiles.Count }
@@ -221,6 +264,18 @@ function Get-VisualBaselineEvidence {
         rendered_summary_count = $summaryFiles.Count
         fresh_rendered_summary_count = $freshCount
         expected_rendered_summary_count = $ExpectedCount
+        expected_sample_count = $expectedNames.Count
+        expected_sample_names = @($expectedNames)
+        rendered_sample_names = @($renderedSampleNames.ToArray() | Sort-Object)
+        fresh_rendered_sample_names = @($freshRenderedSampleNames.ToArray())
+        stale_rendered_sample_names = @($staleRenderedSampleNames.ToArray() | Sort-Object)
+        missing_sample_count = $missingSampleNames.Count
+        missing_sample_names = @($missingSampleNames)
+        fresh_missing_sample_count = $freshMissingSampleNames.Count
+        fresh_missing_sample_names = @($freshMissingSampleNames)
+        resume_needed = $resumeNeeded
+        resume_slice_offset = $resumeOffset
+        resume_slice_limit = $resumeLimit
     }
 }
 
@@ -298,15 +353,35 @@ $attemptStart = Get-AttemptStart -ReportPath $resolvedReportDir -ExplicitStart $
 
 $manifest = Read-JsonFile -Path $resolvedManifestPath
 $manifestSamples = @(Get-JsonArray -Object $manifest -Name "samples")
-$cjkManifestCount = @($manifestSamples | Where-Object { $_.expect_cjk -eq $true }).Count
-$visualBaselineManifestCount = @($manifestSamples | Where-Object { $_.expect_visual_baseline -eq $true }).Count
-$expectedRenderedVisualCount = if ($visualBaselineManifestCount -gt 0) { $visualBaselineManifestCount + 2 } else { 0 }
+$cjkManifestCount = @($manifestSamples | Where-Object {
+        $property = $_.PSObject.Properties["expect_cjk"]
+        $null -ne $property -and $property.Value -eq $true
+    }).Count
+$visualBaselineManifestCount = @($manifestSamples | Where-Object {
+        $property = $_.PSObject.Properties["expect_visual_baseline"]
+        $null -ne $property -and $property.Value -eq $true
+    }).Count
+$expectedVisualBaselineSampleNames = @(
+    $manifestSamples |
+        Where-Object {
+            $property = $_.PSObject.Properties["expect_visual_baseline"]
+            $null -ne $property -and $property.Value -eq $true
+        } |
+        ForEach-Object { [string]$_.id }
+    "cli-font-map-source"
+    "cli-cjk-font-source"
+)
+$expectedRenderedVisualCount = if ($expectedVisualBaselineSampleNames.Count -gt 0) { $expectedVisualBaselineSampleNames.Count } else { 0 }
 
 $pdfCliExport = Get-CtestLogEvidence -Path $pdfCliExportLog
 $pdfRegression = Get-CtestLogEvidence -Path $pdfRegressionLog
 $unicodeFont = Get-CtestLogEvidence -Path $unicodeFontLog
 $cjkCopySearch = Get-CjkCopySearchEvidence -Path $cjkCopySearchDir -ExpectedCount $cjkManifestCount -AttemptStart $attemptStart
-$visualBaseline = Get-VisualBaselineEvidence -Path $baselineDir -ExpectedCount $expectedRenderedVisualCount -AttemptStart $attemptStart
+$visualBaseline = Get-VisualBaselineEvidence `
+    -Path $baselineDir `
+    -ExpectedCount $expectedRenderedVisualCount `
+    -AttemptStart $attemptStart `
+    -ExpectedSampleNames $expectedVisualBaselineSampleNames
 $contactSheet = Get-FileEvidence -Path $aggregateContactSheet -AttemptStart $attemptStart
 
 $fullSummary = Read-JsonFile -Path $summaryJson
@@ -358,6 +433,12 @@ $outerGuardStatus = if ($OuterGuardTimedOut) {
 } else {
     "not_timed_out"
 }
+$outputDirDisplay = Get-RepoRelativePath -Root $resolvedRepoRoot -Path $outputDir
+$resumeSliceCommandTemplate = if ([bool]$visualBaseline.resume_needed) {
+    "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir <build-dir> -OutputDir $outputDirDisplay -VisualBaselineSliceOnly -VisualBaselineOffset $($visualBaseline.resume_slice_offset) -VisualBaselineLimit $($visualBaseline.resume_slice_limit) -SkipPreflight"
+} else {
+    ""
+}
 
 $summary = [ordered]@{
     schema = "featherdoc.pdf_visual_gate_attempt_summary.v1"
@@ -405,6 +486,19 @@ $summary = [ordered]@{
     visual_baseline_render_status = $visualBaseline.status
     visual_baseline_rendered_count = $visualBaseline.rendered_summary_count
     visual_baseline_fresh_rendered_count = $visualBaseline.fresh_rendered_summary_count
+    visual_baseline_expected_sample_count = $visualBaseline.expected_sample_count
+    visual_baseline_expected_sample_names = @($visualBaseline.expected_sample_names)
+    visual_baseline_rendered_sample_names = @($visualBaseline.rendered_sample_names)
+    visual_baseline_fresh_rendered_sample_names = @($visualBaseline.fresh_rendered_sample_names)
+    visual_baseline_stale_rendered_sample_names = @($visualBaseline.stale_rendered_sample_names)
+    visual_baseline_missing_sample_count = $visualBaseline.missing_sample_count
+    visual_baseline_missing_sample_names = @($visualBaseline.missing_sample_names)
+    visual_baseline_fresh_missing_sample_count = $visualBaseline.fresh_missing_sample_count
+    visual_baseline_fresh_missing_sample_names = @($visualBaseline.fresh_missing_sample_names)
+    visual_baseline_resume_needed = $visualBaseline.resume_needed
+    visual_baseline_resume_slice_offset = $visualBaseline.resume_slice_offset
+    visual_baseline_resume_slice_limit = $visualBaseline.resume_slice_limit
+    visual_baseline_resume_slice_command_template = $resumeSliceCommandTemplate
     aggregate_contact_sheet_status = $contactSheet.status
     aggregate_contact_sheet = $aggregateContactSheet
     aggregate_contact_sheet_display = Get-RepoRelativePath -Root $resolvedRepoRoot -Path $aggregateContactSheet
