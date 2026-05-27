@@ -46,6 +46,7 @@ $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scrip
 $releaseReadinessScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_release_readiness.ps1"
 $visualFullGateGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_visual_full_gate_guarded.ps1"
 $fullCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_full_ctest_guarded.ps1"
+$remainingCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_ctest_remaining_guarded.ps1"
 $governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
 $materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
 $materialSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
@@ -866,6 +867,9 @@ $releaseReadinessMachineGateMarkers = @(
     "run_pdf_full_ctest_guarded.ps1",
     "featherdoc.pdf_full_ctest_guarded_summary.v1",
     "pdf_full_ctest_guarded_summary_trace",
+    "run_pdf_ctest_remaining_guarded.ps1",
+    "featherdoc.pdf_ctest_remaining_guarded_summary.v1",
+    "pdf_ctest_remaining_guarded_summary_trace",
     "full_ctest_status",
     "full_ctest_verdict",
     "full_ctest_outer_guard_status",
@@ -874,6 +878,9 @@ $releaseReadinessMachineGateMarkers = @(
     "full_ctest_completion_percent",
     "full_ctest_remaining_test_count",
     "full_ctest_zero_failed_tests_observed",
+    "full_ctest_combined_evidence_completed",
+    "full_ctest_remaining_tail_covers_previous_remaining",
+    "combined_tail_covers_previous_remaining",
     "zero_failed_tests_observed",
     "pdf_full_fresh_visual_gate.not_completed_in_current_window",
     "pdf_full_ctest.not_completed_in_current_window",
@@ -920,6 +927,21 @@ foreach ($marker in @(
 )) {
     Assert-ContainsText -Text $fullCtestGuardedScript -ExpectedText $marker `
         -Message "PDF full CTest guarded script should preserve marker '$marker'."
+}
+
+foreach ($marker in @(
+    "featherdoc.pdf_ctest_remaining_guarded_summary.v1",
+    "remaining_pdf_ctest_tail_evidence",
+    "selected_test_count",
+    "completed_test_count",
+    "combined_completed_test_count",
+    "combined_not_run_test_count",
+    "combined_tail_covers_previous_remaining",
+    "remaining_ctest_tail_evidence_does_not_replace_single_full_ctest",
+    "pdf_ctest_remaining_guarded_summary_trace"
+)) {
+    Assert-ContainsText -Text $remainingCtestGuardedScript -ExpectedText $marker `
+        -Message "PDF remaining-tail CTest guarded script should preserve marker '$marker'."
 }
 
 foreach ($marker in $scriptMarkers) {
@@ -978,6 +1000,8 @@ foreach ($marker in @(
     "pdf_visual_full_gate_guarded_test.ps1",
     "pdf_full_ctest_guarded",
     "pdf_full_ctest_guarded_test.ps1",
+    "pdf_ctest_remaining_guarded",
+    "pdf_ctest_remaining_guarded_test.ps1",
     "TIMEOUT 60"
 )) {
     Assert-ContainsText -Text $cmakeLists -ExpectedText $marker `

@@ -200,10 +200,12 @@ check_pdf_release_readiness.ps1
 run_pdf_visual_full_gate_guarded.ps1
 write_pdf_visual_segmented_gate_summary.ps1
 run_pdf_full_ctest_guarded.ps1
+run_pdf_ctest_remaining_guarded.ps1
 featherdoc.pdf_release_readiness_check.v1
 featherdoc.pdf_visual_full_gate_guarded_summary.v1
 featherdoc.pdf_visual_segmented_gate_summary.v1
 featherdoc.pdf_full_ctest_guarded_summary.v1
+featherdoc.pdf_ctest_remaining_guarded_summary.v1
 pdf_visual_gate_evidence
 pdf_bounded_ctest_evidence
 release_entry_pdf_readiness_checklist_trace
@@ -211,6 +213,7 @@ pdf_release_readiness_machine_gate_trace
 pdf_visual_full_gate_guarded_summary_trace
 pdf_visual_segmented_gate_summary_trace
 pdf_full_ctest_guarded_summary_trace
+pdf_ctest_remaining_guarded_summary_trace
 "@ | Set-Content -LiteralPath (Join-Path $Root "docs\pdf_release_readiness_checklist_zh.rst") -Encoding UTF8
 }
 
@@ -321,6 +324,12 @@ Assert-Equal -Actual ([int]$fixtureSummary.full_ctest_remaining_test_count) -Exp
     -Message "Passing fixture should expose guarded full PDF CTest remaining test count."
 Assert-Equal -Actual ([bool]$fixtureSummary.full_ctest_zero_failed_tests_observed) -Expected $true `
     -Message "Passing fixture should expose guarded full PDF CTest zero-failure observation."
+Assert-Equal -Actual ([bool]$fixtureSummary.full_ctest_single_run_completed) -Expected $false `
+    -Message "Passing fixture should not claim a single full PDF CTest run completed."
+Assert-Equal -Actual ([bool]$fixtureSummary.full_ctest_combined_evidence_completed) -Expected $false `
+    -Message "Passing fixture should not claim combined PDF CTest evidence without remaining-tail evidence."
+Assert-Equal -Actual ([bool]$fixtureSummary.full_ctest_remaining_summary_exists) -Expected $false `
+    -Message "Passing fixture should report missing remaining-tail PDF CTest evidence."
 Assert-True -Condition ((@($fixtureSummary.warnings | ForEach-Object { [string]$_.id }) -contains "pdf_full_fresh_visual_gate.not_completed_in_current_window")) `
     -Message "Readiness summary should keep fresh full visual gate debt visible."
 Assert-True -Condition ((@($fixtureSummary.warnings | ForEach-Object { [string]$_.id }) -contains "pdf_full_ctest.not_completed_in_current_window")) `
@@ -367,6 +376,69 @@ Assert-Equal -Actual ([int]$fullCtestWarning.details.remaining_test_count) -Expe
     -Message "Full PDF CTest warning should carry the guarded attempt remaining count."
 Assert-Equal -Actual ([bool]$fullCtestWarning.details.zero_failed_tests_observed) -Expected $true `
     -Message "Full PDF CTest warning should carry the zero-failure observation."
+Assert-Equal -Actual ([bool]$fullCtestWarning.details.remaining_summary_exists) -Expected $false `
+    -Message "Full PDF CTest warning should expose missing remaining-tail evidence."
+
+$tailRoot = Join-Path $resolvedWorkingDir "fixture-tail-combined"
+New-PassingFixture -Root $tailRoot -ScriptPath $scriptPath
+Write-JsonFile -Path (Join-Path $tailRoot "output\pdf-ctest-current\remaining-summary.json") -Value ([ordered]@{
+    schema = "featherdoc.pdf_ctest_remaining_guarded_summary.v1"
+    generated_at = "2026-05-27T06:10:00"
+    status = "pass"
+    verdict = "pass"
+    remaining_ctest_status = "pass"
+    evidence_scope = "remaining_pdf_ctest_tail_evidence"
+    outer_guard_status = "completed"
+    outer_guard_timed_out = $false
+    selected_test_count = 37
+    completed_test_count = 37
+    failed_test_count = 0
+    skipped_test_count = 0
+    not_run_test_count = 0
+    completion_percent = 100.0
+    combined_selected_test_count = 139
+    combined_completed_test_count = 139
+    combined_failed_test_count = 0
+    combined_skipped_test_count = 6
+    combined_not_run_test_count = 0
+    combined_completion_percent = 100.0
+    combined_zero_failed_tests_observed = $true
+    combined_tail_covers_previous_remaining = $true
+    boundary = "remaining_ctest_tail_evidence_does_not_replace_single_full_ctest"
+    marker = "pdf_ctest_remaining_guarded_summary_trace"
+})
+$tailScript = Join-Path $tailRoot "scripts\check_pdf_release_readiness.ps1"
+$tailSummaryPath = Join-Path $resolvedWorkingDir "tail-readiness-summary.json"
+$tailResult = Invoke-PowerShellScript -ScriptPath $tailScript -Arguments @(
+    "-OutputJson", $tailSummaryPath
+)
+Assert-Equal -Actual $tailResult.ExitCode -Expected 0 `
+    -Message "Tail-combined PDF release readiness check should pass. Output: $($tailResult.Text)"
+$tailSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $tailSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$tailSummary.status) -Expected "pass" `
+    -Message "Tail-combined fixture should report pass status."
+Assert-Equal -Actual ([string]$tailSummary.verdict) -Expected "pass_with_warnings" `
+    -Message "Tail-combined fixture should retain visual warning verdict boundary."
+Assert-Equal -Actual ([bool]$tailSummary.full_ctest_single_run_completed) -Expected $false `
+    -Message "Tail-combined fixture should not claim single full PDF CTest completion."
+Assert-Equal -Actual ([bool]$tailSummary.full_ctest_combined_evidence_completed) -Expected $true `
+    -Message "Tail-combined fixture should report combined PDF CTest evidence completion."
+Assert-Equal -Actual ([bool]$tailSummary.full_ctest_remaining_summary_exists) -Expected $true `
+    -Message "Tail-combined fixture should detect remaining-tail PDF CTest evidence."
+Assert-Equal -Actual ([string]$tailSummary.full_ctest_remaining_status) -Expected "pass" `
+    -Message "Tail-combined fixture should preserve remaining-tail status."
+Assert-Equal -Actual ([int]$tailSummary.full_ctest_remaining_selected_test_count) -Expected 37 `
+    -Message "Tail-combined fixture should preserve remaining-tail selected count."
+Assert-Equal -Actual ([int]$tailSummary.full_ctest_combined_completed_test_count) -Expected 139 `
+    -Message "Tail-combined fixture should preserve combined completed count."
+Assert-Equal -Actual ([int]$tailSummary.full_ctest_combined_not_run_test_count) -Expected 0 `
+    -Message "Tail-combined fixture should preserve zero combined not-run count."
+Assert-Equal -Actual ([bool]$tailSummary.full_ctest_remaining_tail_covers_previous_remaining) -Expected $true `
+    -Message "Tail-combined fixture should mark tail coverage."
+Assert-True -Condition ((@($tailSummary.warnings | ForEach-Object { [string]$_.id }) -contains "pdf_full_fresh_visual_gate.not_completed_in_current_window")) `
+    -Message "Tail-combined readiness summary should keep visual full-gate warning visible."
+Assert-True -Condition (-not ((@($tailSummary.warnings | ForEach-Object { [string]$_.id }) -contains "pdf_full_ctest.not_completed_in_current_window"))) `
+    -Message "Tail-combined readiness summary should clear full PDF CTest warning."
 
 $completedRoot = Join-Path $resolvedWorkingDir "fixture-completed"
 New-PassingFixture -Root $completedRoot -ScriptPath $scriptPath
@@ -416,6 +488,10 @@ Assert-Equal -Actual ([string]$completedSummary.visual_full_gate_status) -Expect
     -Message "Completed fixture should preserve completed visual full-gate status."
 Assert-Equal -Actual ([string]$completedSummary.full_ctest_status) -Expected "pass" `
     -Message "Completed fixture should preserve completed full CTest status."
+Assert-Equal -Actual ([bool]$completedSummary.full_ctest_single_run_completed) -Expected $true `
+    -Message "Completed fixture should report single full PDF CTest completion."
+Assert-Equal -Actual ([bool]$completedSummary.full_ctest_combined_evidence_completed) -Expected $true `
+    -Message "Completed fixture should report CTest completion without tail evidence."
 Assert-Equal -Actual ([double]$completedSummary.full_ctest_completion_percent) -Expected 100.0 `
     -Message "Completed fixture should expose full CTest completion percent."
 Assert-Equal -Actual ([int]$completedSummary.full_ctest_remaining_test_count) -Expected 0 `
@@ -470,10 +546,16 @@ foreach ($expectedText in @(
         "segmented_gate_aggregate_contact_sheet_bytes",
         "featherdoc.pdf_full_ctest_guarded_summary.v1",
         "pdf_full_ctest_guarded_summary_trace",
+        "run_pdf_ctest_remaining_guarded.ps1",
+        "featherdoc.pdf_ctest_remaining_guarded_summary.v1",
+        "pdf_ctest_remaining_guarded_summary_trace",
         "full_ctest_completed_test_count",
         "full_ctest_completion_percent",
         "full_ctest_remaining_test_count",
         "full_ctest_zero_failed_tests_observed",
+        "full_ctest_combined_evidence_completed",
+        "full_ctest_remaining_tail_covers_previous_remaining",
+        "remaining_summary_exists",
         "zero_failed_tests_observed",
         "pdf_full_fresh_visual_gate.not_completed_in_current_window",
         "pdf_full_ctest.not_completed_in_current_window",

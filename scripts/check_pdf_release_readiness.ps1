@@ -16,6 +16,7 @@ param(
     [string]$VisualFullGateGuardedSummaryJson = "output/pdf-visual-release-gate-current/report/full-visual-gate-guarded-summary.json",
     [string]$VisualSegmentedGateSummaryJson = "output/pdf-visual-release-gate-current/report/segmented-summary.json",
     [string]$FullCtestSummaryJson = "output/pdf-ctest-current/summary.json",
+    [string]$FullCtestRemainingSummaryJson = "output/pdf-ctest-current/remaining-summary.json",
     [string]$OutputJson = "",
     [switch]$Strict
 )
@@ -221,6 +222,7 @@ $resolvedReadinessChecklist = Resolve-RepoPath -RepoRoot $repoRoot -Path $Readin
 $resolvedVisualFullGateGuardedSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $VisualFullGateGuardedSummaryJson -AllowMissing
 $resolvedVisualSegmentedGateSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $VisualSegmentedGateSummaryJson -AllowMissing
 $resolvedFullCtestSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $FullCtestSummaryJson -AllowMissing
+$resolvedFullCtestRemainingSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -Path $FullCtestRemainingSummaryJson -AllowMissing
 $resolvedOutputJson = if ([string]::IsNullOrWhiteSpace($OutputJson)) {
     ""
 } else {
@@ -237,6 +239,7 @@ $checklistText = ""
 $visualFullGateGuarded = $null
 $visualSegmentedGate = $null
 $fullCtest = $null
+$fullCtestRemaining = $null
 
 $preflightExists = Test-Path -LiteralPath $resolvedPreflightSummaryJson -PathType Leaf
 Add-Check -Checks $checks -Name "preflight_summary_exists" -Passed $preflightExists `
@@ -306,6 +309,19 @@ if ($fullCtestSummaryExists) {
             actual = $fullCtestSchema
             expected = "featherdoc.pdf_full_ctest_guarded_summary.v1"
             path = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedFullCtestSummaryJson
+        }
+}
+
+$fullCtestRemainingSummaryExists = Test-Path -LiteralPath $resolvedFullCtestRemainingSummaryJson -PathType Leaf
+if ($fullCtestRemainingSummaryExists) {
+    $fullCtestRemaining = Read-JsonFile -Path $resolvedFullCtestRemainingSummaryJson
+    $fullCtestRemainingSchema = [string](Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "schema")
+    Add-Check -Checks $checks -Name "full_ctest_remaining_guarded_summary_schema" -Passed ($fullCtestRemainingSchema -eq "featherdoc.pdf_ctest_remaining_guarded_summary.v1") `
+        -Message "Existing remaining-tail PDF CTest guarded summary must use the stable schema." `
+        -Details @{
+            actual = $fullCtestRemainingSchema
+            expected = "featherdoc.pdf_ctest_remaining_guarded_summary.v1"
+            path = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedFullCtestRemainingSummaryJson
         }
 }
 
@@ -417,6 +433,7 @@ if ($checklistText.Length -gt 0) {
         "run_pdf_visual_full_gate_guarded.ps1",
         "write_pdf_visual_segmented_gate_summary.ps1",
         "run_pdf_full_ctest_guarded.ps1",
+        "run_pdf_ctest_remaining_guarded.ps1",
         "featherdoc.pdf_release_readiness_check.v1",
         "featherdoc.pdf_visual_full_gate_guarded_summary.v1",
         "pdf_visual_full_gate_guarded_summary_trace",
@@ -424,6 +441,8 @@ if ($checklistText.Length -gt 0) {
         "pdf_visual_segmented_gate_summary_trace",
         "featherdoc.pdf_full_ctest_guarded_summary.v1",
         "pdf_full_ctest_guarded_summary_trace",
+        "featherdoc.pdf_ctest_remaining_guarded_summary.v1",
+        "pdf_ctest_remaining_guarded_summary_trace",
         "pdf_visual_gate_evidence",
         "pdf_bounded_ctest_evidence",
         "release_entry_pdf_readiness_checklist_trace"
@@ -566,9 +585,54 @@ $fullCtestCompletionPercent = if ($fullCtestSelectedCountInt -gt 0) { [Math]::Ro
 $fullCtestRemainingTestCount = [Math]::Max(0, $fullCtestNotRunCountInt)
 $fullCtestZeroFailedTestsObserved = ($fullCtestSummaryExists -and $fullCtestSelectedCountInt -gt 0 -and $fullCtestFailedCountInt -eq 0)
 $fullCtestCompleted = ($fullCtestStatus -eq "pass" -and $fullCtestVerdict -eq "pass" -and $fullCtestOuterGuardStatus -eq "completed" -and -not $fullCtestOuterGuardTimedOut)
-if (-not $fullCtestCompleted) {
+
+$fullCtestRemainingStatus = if ($null -eq $fullCtestRemaining) { "missing" } else { [string](Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "status") }
+$fullCtestRemainingVerdict = if ($null -eq $fullCtestRemaining) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "verdict") }
+$fullCtestRemainingOuterGuardStatus = if ($null -eq $fullCtestRemaining) { "not_run" } else { [string](Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "outer_guard_status") }
+$fullCtestRemainingOuterGuardTimedOut = if ($null -eq $fullCtestRemaining) { $false } else { [bool](Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "outer_guard_timed_out") }
+$fullCtestRemainingSelectedCount = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "selected_test_count" }
+$fullCtestRemainingCompletedCount = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "completed_test_count" }
+$fullCtestRemainingFailedCount = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "failed_test_count" }
+$fullCtestRemainingSkippedCount = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "skipped_test_count" }
+$fullCtestRemainingNotRunCount = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "not_run_test_count" }
+$fullCtestRemainingCompletionPercent = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "completion_percent" }
+$fullCtestRemainingCombinedSelectedCount = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "combined_selected_test_count" }
+$fullCtestRemainingCombinedCompletedCount = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "combined_completed_test_count" }
+$fullCtestRemainingCombinedFailedCount = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "combined_failed_test_count" }
+$fullCtestRemainingCombinedSkippedCount = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "combined_skipped_test_count" }
+$fullCtestRemainingCombinedNotRunCount = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "combined_not_run_test_count" }
+$fullCtestRemainingCombinedCompletionPercent = if ($null -eq $fullCtestRemaining) { 0 } else { Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "combined_completion_percent" }
+$fullCtestRemainingCombinedZeroFailed = if ($null -eq $fullCtestRemaining) { $false } else { [bool](Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "combined_zero_failed_tests_observed") }
+$fullCtestRemainingTailCoversPreviousRemaining = if ($null -eq $fullCtestRemaining) { $false } else { [bool](Get-OptionalPropertyValue -Object $fullCtestRemaining -Name "combined_tail_covers_previous_remaining") }
+$fullCtestRemainingSelectedCountInt = Convert-ToIntOrZero -Value $fullCtestRemainingSelectedCount
+$fullCtestRemainingCompletedCountInt = Convert-ToIntOrZero -Value $fullCtestRemainingCompletedCount
+$fullCtestRemainingFailedCountInt = Convert-ToIntOrZero -Value $fullCtestRemainingFailedCount
+$fullCtestRemainingNotRunCountInt = Convert-ToIntOrZero -Value $fullCtestRemainingNotRunCount
+$fullCtestRemainingCombinedSelectedCountInt = Convert-ToIntOrZero -Value $fullCtestRemainingCombinedSelectedCount
+$fullCtestRemainingCombinedCompletedCountInt = Convert-ToIntOrZero -Value $fullCtestRemainingCombinedCompletedCount
+$fullCtestRemainingCombinedFailedCountInt = Convert-ToIntOrZero -Value $fullCtestRemainingCombinedFailedCount
+$fullCtestRemainingCombinedNotRunCountInt = Convert-ToIntOrZero -Value $fullCtestRemainingCombinedNotRunCount
+$fullCtestCombinedEvidenceCompleted = (
+    $fullCtestCompleted -or (
+        $fullCtestRemainingSummaryExists -and
+        $fullCtestRemainingStatus -eq "pass" -and
+        $fullCtestRemainingVerdict -eq "pass" -and
+        $fullCtestRemainingOuterGuardStatus -eq "completed" -and
+        -not $fullCtestRemainingOuterGuardTimedOut -and
+        $fullCtestRemainingSelectedCountInt -gt 0 -and
+        $fullCtestRemainingCompletedCountInt -eq $fullCtestRemainingSelectedCountInt -and
+        $fullCtestRemainingFailedCountInt -eq 0 -and
+        $fullCtestRemainingNotRunCountInt -eq 0 -and
+        $fullCtestRemainingTailCoversPreviousRemaining -and
+        $fullCtestRemainingCombinedSelectedCountInt -gt 0 -and
+        $fullCtestRemainingCombinedCompletedCountInt -ge $fullCtestRemainingCombinedSelectedCountInt -and
+        $fullCtestRemainingCombinedFailedCountInt -eq 0 -and
+        $fullCtestRemainingCombinedNotRunCountInt -eq 0
+    )
+)
+if (-not $fullCtestCombinedEvidenceCompleted) {
     Add-Warning -Warnings $warnings -Id "pdf_full_ctest.not_completed_in_current_window" `
-        -Message "A full ctest -R pdf_ run is still required when resources allow; bounded/static evidence does not replace the full PDF CTest suite." `
+        -Message "A full ctest -R pdf_ run or guarded full-attempt plus remaining-tail completion evidence is still required when resources allow; bounded/static evidence does not replace the full PDF CTest suite." `
         -Details @{
             status = $fullCtestStatus
             verdict = $fullCtestVerdict
@@ -584,6 +648,26 @@ if (-not $fullCtestCompleted) {
             remaining_test_count = $fullCtestRemainingTestCount
             zero_failed_tests_observed = $fullCtestZeroFailedTestsObserved
             summary_json = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedFullCtestSummaryJson
+            remaining_summary_exists = $fullCtestRemainingSummaryExists
+            remaining_status = $fullCtestRemainingStatus
+            remaining_verdict = $fullCtestRemainingVerdict
+            remaining_outer_guard_status = $fullCtestRemainingOuterGuardStatus
+            remaining_outer_guard_timed_out = $fullCtestRemainingOuterGuardTimedOut
+            remaining_selected_test_count = $fullCtestRemainingSelectedCount
+            remaining_completed_test_count = $fullCtestRemainingCompletedCount
+            remaining_failed_test_count = $fullCtestRemainingFailedCount
+            remaining_skipped_test_count = $fullCtestRemainingSkippedCount
+            remaining_not_run_test_count = $fullCtestRemainingNotRunCount
+            remaining_completion_percent = $fullCtestRemainingCompletionPercent
+            combined_selected_test_count = $fullCtestRemainingCombinedSelectedCount
+            combined_completed_test_count = $fullCtestRemainingCombinedCompletedCount
+            combined_failed_test_count = $fullCtestRemainingCombinedFailedCount
+            combined_skipped_test_count = $fullCtestRemainingCombinedSkippedCount
+            combined_not_run_test_count = $fullCtestRemainingCombinedNotRunCount
+            combined_completion_percent = $fullCtestRemainingCombinedCompletionPercent
+            combined_zero_failed_tests_observed = $fullCtestRemainingCombinedZeroFailed
+            combined_tail_covers_previous_remaining = $fullCtestRemainingTailCoversPreviousRemaining
+            remaining_summary_json = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedFullCtestRemainingSummaryJson
         }
 }
 
@@ -602,7 +686,7 @@ $boundary = if ($failedChecks.Count -ne 0) {
 } elseif ($warnings.Count -gt 0) {
     "Pass-with-warnings means current persisted release evidence is coherent; it does not claim a fresh non-FinalizeOnly full visual gate or full pdf_ CTest run completed in this resource window."
 } else {
-    "Pass means current persisted release evidence is coherent and no full visual gate or full pdf_ CTest completion warnings remain."
+    "Pass means current persisted release evidence is coherent and no full visual gate or full pdf_ CTest completion warnings remain; combined CTest tail evidence is reported separately from single full-run completion."
 }
 
 $summary = [ordered]@{
@@ -688,6 +772,29 @@ $summary = [ordered]@{
     full_ctest_completion_percent = $fullCtestCompletionPercent
     full_ctest_remaining_test_count = $fullCtestRemainingTestCount
     full_ctest_zero_failed_tests_observed = $fullCtestZeroFailedTestsObserved
+    full_ctest_single_run_completed = $fullCtestCompleted
+    full_ctest_combined_evidence_completed = $fullCtestCombinedEvidenceCompleted
+    full_ctest_remaining_summary_json = $resolvedFullCtestRemainingSummaryJson
+    full_ctest_remaining_summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedFullCtestRemainingSummaryJson
+    full_ctest_remaining_summary_exists = $fullCtestRemainingSummaryExists
+    full_ctest_remaining_status = $fullCtestRemainingStatus
+    full_ctest_remaining_verdict = $fullCtestRemainingVerdict
+    full_ctest_remaining_outer_guard_status = $fullCtestRemainingOuterGuardStatus
+    full_ctest_remaining_outer_guard_timed_out = $fullCtestRemainingOuterGuardTimedOut
+    full_ctest_remaining_selected_test_count = $fullCtestRemainingSelectedCount
+    full_ctest_remaining_completed_test_count = $fullCtestRemainingCompletedCount
+    full_ctest_remaining_failed_test_count = $fullCtestRemainingFailedCount
+    full_ctest_remaining_skipped_test_count = $fullCtestRemainingSkippedCount
+    full_ctest_remaining_not_run_test_count = $fullCtestRemainingNotRunCount
+    full_ctest_remaining_completion_percent = $fullCtestRemainingCompletionPercent
+    full_ctest_combined_selected_test_count = $fullCtestRemainingCombinedSelectedCount
+    full_ctest_combined_completed_test_count = $fullCtestRemainingCombinedCompletedCount
+    full_ctest_combined_failed_test_count = $fullCtestRemainingCombinedFailedCount
+    full_ctest_combined_skipped_test_count = $fullCtestRemainingCombinedSkippedCount
+    full_ctest_combined_not_run_test_count = $fullCtestRemainingCombinedNotRunCount
+    full_ctest_combined_completion_percent = $fullCtestRemainingCombinedCompletionPercent
+    full_ctest_combined_zero_failed_tests_observed = $fullCtestRemainingCombinedZeroFailed
+    full_ctest_remaining_tail_covers_previous_remaining = $fullCtestRemainingTailCoversPreviousRemaining
     check_count = $checks.Count
     failed_check_count = $failedChecks.Count
     warning_count = $warnings.Count

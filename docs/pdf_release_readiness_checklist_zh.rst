@@ -156,6 +156,19 @@ OCR 或任意视觉精确还原。
    结论，不能只留下人工日志路径。固定标记：
    ``pdf_full_ctest_guarded_summary_trace``。
 
+   如果 60 秒外层保护已经留下一个接近完成但超时的完整 PDF CTest 尝试，可以用
+   ``scripts/run_pdf_ctest_remaining_guarded.ps1`` 只补跑该尝试未完成的尾段测试，并写出
+   ``output/pdf-ctest-current/remaining-summary.json``。该 remaining summary 必须使用
+   ``schema = featherdoc.pdf_ctest_remaining_guarded_summary.v1``，保留
+   ``selected_test_count``、``completed_test_count``、``combined_completed_test_count``、
+   ``combined_not_run_test_count``、``combined_tail_covers_previous_remaining`` 和
+   ``remaining_ctest_tail_evidence_does_not_replace_single_full_ctest`` 边界。
+   ``scripts/check_pdf_release_readiness.ps1`` 必须消费该 tail summary，并在
+   readiness summary 中显式写出 ``full_ctest_combined_evidence_completed`` 和
+   ``full_ctest_remaining_tail_covers_previous_remaining``；该组合证据只能证明
+   “受控 full attempt + tail 补跑”共同覆盖，不能伪装成单次完整 ``ctest -R pdf_``。
+   固定标记：``pdf_ctest_remaining_guarded_summary_trace``。
+
 7. 发布治理已消费 PDF 结论：
 
    * ``scripts/run_release_candidate_checks.ps1`` 的 summary / final review
