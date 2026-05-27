@@ -16,6 +16,13 @@ function Assert-Equal {
     if ($Actual -ne $Expected) { throw "$Message Expected='$Expected' Actual='$Actual'." }
 }
 
+function Assert-ContainsText {
+    param([string]$Text, [string]$ExpectedText, [string]$Message)
+    if ($Text -notmatch [regex]::Escape($ExpectedText)) {
+        throw "$Message Missing='$ExpectedText'."
+    }
+}
+
 function Invoke-PowerShellScript {
     param([string]$ScriptPath, [string[]]$Arguments)
 
@@ -211,6 +218,7 @@ pdf_visual_gate_evidence
 visual_gate_pass_summary_before_outer_timeout
 visual_gate_segmented_full_coverage_evidence
 pdf_bounded_ctest_evidence
+pdf_visual_gate_release_owner_acceptance_trace
 release_entry_pdf_readiness_checklist_trace
 pdf_release_readiness_machine_gate_trace
 pdf_visual_full_gate_guarded_summary_trace
@@ -380,6 +388,16 @@ Assert-Equal -Actual ([string]$visualFullGateWarning.details.segmented_gate_aggr
     -Message "Fresh full visual gate warning should carry segmented contact sheet status."
 Assert-Equal -Actual ([int]$visualFullGateWarning.details.segmented_gate_aggregate_contact_sheet_bytes) -Expected 1822428 `
     -Message "Fresh full visual gate warning should carry segmented contact sheet bytes."
+Assert-Equal -Actual ([bool]$visualFullGateWarning.details.release_owner_acceptance_required) -Expected $true `
+    -Message "Fresh full visual gate warning should require explicit release-owner acceptance."
+Assert-Equal -Actual ([string]$visualFullGateWarning.details.release_owner_acceptance_boundary) -Expected "acceptance_does_not_replace_fresh_single_run_full_visual_gate" `
+    -Message "Fresh full visual gate warning should preserve the acceptance boundary."
+Assert-ContainsText -Text ([string]$visualFullGateWarning.details.release_owner_acceptance_policy) -ExpectedText "segmented_full_coverage" `
+    -Message "Fresh full visual gate warning should describe the segmented-evidence acceptance policy."
+Assert-ContainsText -Text ([string]$visualFullGateWarning.details.release_owner_acceptance_command_template) -ExpectedText "check_pdf_release_readiness.ps1" `
+    -Message "Fresh full visual gate warning should include a release-owner acceptance command template."
+Assert-ContainsText -Text ((@($visualFullGateWarning.details.release_owner_acceptance_required_evidence) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "visual_gate_segmented_full_coverage_evidence" `
+    -Message "Fresh full visual gate warning should enumerate required acceptance evidence."
 $fullCtestWarning = @($fixtureSummary.warnings) |
     Where-Object { [string]$_.id -eq "pdf_full_ctest.not_completed_in_current_window" } |
     Select-Object -First 1
@@ -614,6 +632,10 @@ foreach ($expectedText in @(
         "visual_gate_release_evidence",
         "visual_gate_fresh_full_guarded_evidence",
         "visual_gate_segmented_full_coverage_evidence",
+        "release_owner_acceptance_required",
+        "release_owner_acceptance_policy",
+        "release_owner_acceptance_boundary",
+        "release_owner_acceptance_command_template",
         "visual_gate_release_evidence_accepted",
         "segmented_full_coverage_evidence",
         "featherdoc.pdf_visual_segmented_gate_summary.v1",
@@ -638,6 +660,7 @@ foreach ($expectedText in @(
         "zero_failed_tests_observed",
         "pdf_full_fresh_visual_gate.not_completed_in_current_window",
         "pdf_full_ctest.not_completed_in_current_window",
+        "pdf_visual_gate_release_owner_acceptance_trace",
         "pass_with_warnings",
         "does not run CMake, CTest, rendering, Office, LibreOffice, browsers, or PDF generation"
     )) {

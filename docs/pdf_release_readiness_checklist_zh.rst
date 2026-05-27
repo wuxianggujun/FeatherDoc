@@ -606,6 +606,16 @@ OCR 或任意视觉精确还原。
    ``visual_gate_segmented_full_coverage_evidence = true``，只能说明分段可视化证据已被
    release readiness 接受，不能声称单次 full gate 已完成。
 
+   如果发布负责人决定接受该分段证据继续发版，readiness warning 必须保留
+   ``release_owner_acceptance_required = true``、
+   ``release_owner_acceptance_policy``、
+   ``release_owner_acceptance_boundary`` 和
+   ``release_owner_acceptance_command_template``。该 signoff 只接受
+   ``segmented_full_coverage`` 与 contact-sheet 非空等辅助证据，不能改写
+   ``full_visual_gate_status``，也不能删除
+   ``pdf_full_fresh_visual_gate.not_completed_in_current_window``。固定标记：
+   ``pdf_visual_gate_release_owner_acceptance_trace``。
+
    .. code-block:: powershell
 
       powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_full_ctest_guarded.ps1 `

@@ -670,6 +670,11 @@ function Get-PdfVisualGateAttemptReleaseWarnings {
             expected_visual_render_count = $expectedRenderCount
             aggregate_contact_sheet_status = $contactSheetStatus
             aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $attempt -Name "aggregate_contact_sheet")
+            release_owner_acceptance_required = $true
+            release_owner_acceptance_policy = "release_owner_may_accept_segmented_full_coverage_with_explicit_single_run_debt"
+            release_owner_acceptance_boundary = "acceptance_does_not_replace_fresh_single_run_full_visual_gate"
+            release_owner_acceptance_command_template = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 -PdfReleaseReadinessSummaryJson <summary.json>; document release-owner acceptance in final_review.md without changing full_visual_gate_status."
+            release_owner_acceptance_trace_marker = "pdf_visual_gate_release_owner_acceptance_trace"
         })
 
     return @($warnings.ToArray())

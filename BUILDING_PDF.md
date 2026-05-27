@@ -977,6 +977,13 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    不能替代 fresh 非 `FinalizeOnly` full visual gate pass。若 `attempt-summary.json`
    也已补齐阶段全 pass、0 failed、44/44 fresh baseline 和 contact sheet pass，
    release candidate / governance 不再把该边界计入 `warning_count`。若已执行
+   release-owner acceptance 继续发版，summary / handoff 必须保留
+   `release_owner_acceptance_required = true`、`release_owner_acceptance_policy`、
+   `release_owner_acceptance_boundary` 和 `release_owner_acceptance_command_template`。
+   该 acceptance 只接受 segmented full coverage、aggregate contact sheet 非空和
+   bounded CTest 等辅助证据；不能改写 `full_visual_gate_status`，也不能删除
+   `pdf_full_fresh_visual_gate.not_completed_in_current_window` 的单次 full gate debt。
+   固定标记：`pdf_visual_gate_release_owner_acceptance_trace`。若已执行
    `scripts/run_pdf_full_ctest_guarded.ps1`，该 readiness summary 还必须读取
    `output/pdf-ctest-current/summary.json`，保留
    `schema = featherdoc.pdf_full_ctest_guarded_summary.v1`、

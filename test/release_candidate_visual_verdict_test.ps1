@@ -254,6 +254,9 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-PdfVisualGateA
 Assert-ContainsText -Text $scriptText -ExpectedText 'id = "pdf_visual_gate_attempt.incomplete_fresh_render"' `
     -Message "Release warnings should include a stable id for incomplete fresh PDF visual gate attempts."
 
+Assert-ContainsText -Text $scriptText -ExpectedText 'release_owner_acceptance_boundary' `
+    -Message "Release warnings should keep the release-owner acceptance boundary explicit."
+
 Assert-ContainsText -Text $scriptText -ExpectedText 'warning_count = 0' `
     -Message "Release summary should expose a top-level warning count."
 
@@ -1044,12 +1047,18 @@ if ($null -eq $pdfAttemptWarning -or
     [bool]$pdfAttemptWarning.visual_gate_pass_summary_before_outer_timeout -or
     -not [bool]$pdfAttemptWarning.visual_gate_segmented_full_coverage_evidence -or
     [bool]$pdfAttemptWarning.visual_gate_finalize_only -or
+    -not [bool]$pdfAttemptWarning.release_owner_acceptance_required -or
+    [string]$pdfAttemptWarning.release_owner_acceptance_boundary -ne "acceptance_does_not_replace_fresh_single_run_full_visual_gate" -or
     [string]$pdfAttemptWarning.visual_baseline_render_status -ne "partial" -or
     [string]$pdfAttemptWarning.aggregate_contact_sheet_status -ne "stale") {
     throw "Release candidate summary did not materialize the PDF fresh-attempt warning with reviewer-facing evidence."
 }
 Assert-ContainsText -Text ([string]$pdfAttemptWarning.message) -ExpectedText "segmented full-coverage visual evidence" `
     -Message "PDF fresh-attempt warning should explain that release evidence is accepted through segmented coverage."
+Assert-ContainsText -Text ([string]$pdfAttemptWarning.release_owner_acceptance_policy) -ExpectedText "segmented_full_coverage" `
+    -Message "PDF fresh-attempt warning should expose the release-owner acceptance policy."
+Assert-ContainsText -Text ([string]$pdfAttemptWarning.release_owner_acceptance_command_template) -ExpectedText "run_release_candidate_checks.ps1" `
+    -Message "PDF fresh-attempt warning should expose the release-owner acceptance command template."
 if ([string]$pdfAttemptWarning.message -match "relies on FinalizeOnly") {
     throw "PDF fresh-attempt warning should not claim FinalizeOnly evidence when segmented full coverage is accepted."
 }

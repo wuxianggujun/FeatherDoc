@@ -679,6 +679,18 @@ if (-not $visualFullGateCompleted) {
             segmented_gate_aggregate_contact_sheet_status = $visualSegmentedGateAggregateContactSheetStatus
             segmented_gate_aggregate_contact_sheet_display = $visualSegmentedGateAggregateContactSheetDisplay
             segmented_gate_aggregate_contact_sheet_bytes = $visualSegmentedGateAggregateContactSheetBytes
+            release_owner_acceptance_required = $true
+            release_owner_acceptance_policy = "release_owner_may_accept_segmented_full_coverage_with_explicit_single_run_debt"
+            release_owner_acceptance_boundary = "acceptance_does_not_replace_fresh_single_run_full_visual_gate"
+            release_owner_acceptance_required_evidence = @(
+                "preflight_status_ready",
+                "visual_gate_summary_pass",
+                "visual_gate_segmented_full_coverage_evidence",
+                "aggregate_contact_sheet_non_empty",
+                "pdf_bounded_ctest_evidence"
+            )
+            release_owner_acceptance_command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pdf_release_readiness.ps1 -OutputJson .\output\pdf-release-readiness-current\summary.json; document release-owner acceptance in the release handoff without changing full_visual_gate_status."
+            release_owner_acceptance_trace_marker = "pdf_visual_gate_release_owner_acceptance_trace"
             summary_json = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedVisualFullGateGuardedSummaryJson
         }
 }
@@ -800,7 +812,7 @@ $releaseReady = ($failedChecks.Count -eq 0)
 $boundary = if ($failedChecks.Count -ne 0) {
     "Blocked means required PDF release evidence failed one or more machine checks."
 } elseif ($warnings.Count -gt 0) {
-    "Pass-with-warnings means current persisted release evidence is coherent; it does not claim a fresh non-FinalizeOnly full visual gate or full pdf_ CTest run completed in this resource window."
+    "Pass-with-warnings means current persisted release evidence is coherent; it does not claim a fresh non-FinalizeOnly full visual gate or full pdf_ CTest run completed in this resource window. Any release-owner acceptance of segmented visual evidence must keep the single-run full visual gate debt explicit."
 } else {
     "Pass means current persisted release evidence is coherent and no full visual gate or full pdf_ CTest completion warnings remain; combined CTest tail evidence is reported separately from single full-run completion."
 }
