@@ -87,7 +87,9 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      project template delivery readiness 和 content-control governance。
    * ``scripts/build_release_governance_pipeline_report.ps1`` 的 ``stages[]`` 必须保留
      ``project_template_delivery_readiness`` 和
-     ``content_control_data_binding_governance``。
+     ``content_control_data_binding_governance``；同时必须保留
+     ``docx_functional_smoke_readiness``，让 DOCX 功能 smoke 与复用 Word visual PNG
+     非空证据进入同一条 release governance 证据链。
    * ``scripts/build_release_governance_handoff_report.ps1`` 必须把同一批
      blocker / warning / action item 明细继续写入 handoff。
    * ``scripts/run_release_candidate_checks.ps1`` 生成的 summary / final review

@@ -95,6 +95,7 @@ $autoDiscoverTableSummaryPath = Join-Path $autoDiscoverOutputRoot "table-layout-
 $autoDiscoverContentControlSummaryPath = Join-Path $autoDiscoverOutputRoot "content-control-data-binding-governance\summary.json"
 $autoDiscoverProjectSummaryPath = Join-Path $autoDiscoverOutputRoot "project-template-delivery-readiness\summary.json"
 $autoDiscoverCalibrationSummaryPath = Join-Path $autoDiscoverOutputRoot "schema-patch-confidence-calibration\summary.json"
+$autoDiscoverDocxReadinessSummaryPath = Join-Path $autoDiscoverOutputRoot "docx-functional-smoke-readiness\summary.json"
 
 Write-JsonFile -Path $documentSkeletonRollupPath -Value ([ordered]@{
     schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
@@ -387,6 +388,20 @@ Write-JsonFile -Path $autoDiscoverCalibrationSummaryPath -Value ([ordered]@{
     )
 })
 
+Write-JsonFile -Path $autoDiscoverDocxReadinessSummaryPath -Value ([ordered]@{
+    schema = "featherdoc.docx_functional_smoke_readiness.v1"
+    status = "pass"
+    verdict = "pass"
+    release_ready = $true
+    docx_functional_smoke_ready = $true
+    release_blocker_count = 0
+    release_blockers = @()
+    action_item_count = 0
+    action_items = @()
+    warning_count = 0
+    warnings = @()
+})
+
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
 
 if ($Scenario -eq "handoff") {
@@ -433,15 +448,15 @@ if ($Scenario -eq "handoff") {
         -Message "Handoff-only release candidate run should not require MSVC discovery."
     Assert-Equal -Actual ([string]$handoffReleaseSummary.release_governance_handoff.status) -Expected "blocked" `
         -Message "Release candidate summary should surface governance handoff status."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.expected_report_count) -Expected 5 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.expected_report_count) -Expected 6 `
         -Message "Release candidate summary should surface handoff expected report count."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.loaded_report_count) -Expected 5 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.loaded_report_count) -Expected 6 `
         -Message "Release candidate summary should surface handoff loaded report count."
     Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.release_blocker_count) -Expected 5 `
         -Message "Release candidate summary should surface handoff blocker count."
     Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.action_item_count) -Expected 5 `
         -Message "Release candidate summary should surface handoff action count."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.warning_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.warning_count) -Expected 2 `
         -Message "Release candidate summary should surface handoff warning count."
     Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
@@ -456,8 +471,8 @@ if ($Scenario -eq "handoff") {
         -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
         -Message "Release candidate summary should carry handoff warning ids."
     Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
-        -ExpectedText "pdf_visual_gate_attempt.incomplete_fresh_render" `
-        -Message "Release candidate summary should carry the current PDF visual gate attempt warning."
+        -ExpectedText "custom_xml_sync_evidence_missing" `
+        -Message "Release candidate summary should carry content-control governance warnings."
     Assert-ContainsText -Text (($handoffReleaseSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Release candidate step summary should carry handoff action open command."
@@ -479,7 +494,7 @@ if ($Scenario -eq "handoff") {
     $handoffFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffFinalReviewPath
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "- Release governance handoff: blocked" `
         -Message "Final review should include release governance handoff step status."
-    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff counts: 5/5 reports, 0 missing, 5 blockers, 5 actions" `
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff counts: 6/6 reports, 0 missing, 5 blockers, 5 actions" `
         -Message "Final review should include release governance handoff counts."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff details" `
         -Message "Final review should include release governance handoff details."
@@ -541,15 +556,15 @@ if ($Scenario -eq "handoff") {
     $handoffFailOnSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffFailOnSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$handoffFailOnSummary.release_governance_handoff.status) -Expected "failed" `
         -Message "Fail-on-blocker handoff run should mark handoff as failed in release summary."
-    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.expected_report_count) -Expected 5 `
+    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.expected_report_count) -Expected 6 `
         -Message "Fail-on-blocker handoff summary should preserve expected report count."
-    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.loaded_report_count) -Expected 5 `
+    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.loaded_report_count) -Expected 6 `
         -Message "Fail-on-blocker handoff summary should preserve loaded report count."
     Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.release_blocker_count) -Expected 5 `
         -Message "Fail-on-blocker handoff summary should preserve blocker count."
     Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.action_item_count) -Expected 5 `
         -Message "Fail-on-blocker handoff summary should preserve action count."
-    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.warning_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$handoffFailOnSummary.release_governance_handoff.warning_count) -Expected 2 `
         -Message "Fail-on-blocker handoff summary should preserve warning count."
     Assert-ContainsText -Text (($handoffFailOnSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "project_template_onboarding.schema_approval" `
@@ -564,8 +579,8 @@ if ($Scenario -eq "handoff") {
         -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
         -Message "Fail-on-blocker handoff summary should keep warnings written before child failure."
     Assert-ContainsText -Text (($handoffFailOnSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
-        -ExpectedText "pdf_visual_gate_attempt.incomplete_fresh_render" `
-        -Message "Fail-on-blocker handoff summary should keep the current PDF visual gate attempt warning."
+        -ExpectedText "custom_xml_sync_evidence_missing" `
+        -Message "Fail-on-blocker handoff summary should keep content-control governance warnings."
     Assert-ContainsText -Text (($handoffFailOnSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Fail-on-blocker handoff step summary should keep action open commands."
@@ -731,10 +746,10 @@ Assert-Equal -Actual ([string]$autoDiscoverSummary.release_blocker_rollup.status
     -Message "Auto-discovered rollup should surface the blocker status."
 Assert-Equal -Actual ([bool]$autoDiscoverSummary.release_blocker_rollup.auto_discover) -Expected $true `
     -Message "Release summary should record that auto-discovery was enabled."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.auto_discovered_input_json.Count) -Expected 6 `
-    -Message "Release summary should record all six auto-discovered governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.source_report_count) -Expected 6 `
-    -Message "Auto-discovered rollup should aggregate the six default governance reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.auto_discovered_input_json.Count) -Expected 7 `
+    -Message "Release summary should record all seven auto-discovered governance reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.source_report_count) -Expected 7 `
+    -Message "Auto-discovered rollup should aggregate the seven default governance reports."
 Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_blocker_count) -Expected 6 `
     -Message "Auto-discovered rollup should surface blocker count from default governance reports."
 Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 6 `
@@ -839,6 +854,9 @@ Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
     -ExpectedText "schema-patch-confidence-calibration" `
     -Message "Auto-discovered rollup should include schema patch confidence calibration."
+Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
+    -ExpectedText "docx-functional-smoke-readiness" `
+    -Message "Auto-discovered rollup should include DOCX functional smoke readiness."
 
 $emptyAutoDiscoverRoot = Join-Path $resolvedWorkingDir "empty-auto-discover-output"
 $emptyAutoDiscoverOutputDir = Join-Path $resolvedWorkingDir "release-candidate-empty-auto-discover"

@@ -64,7 +64,9 @@ $deliveryScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "script
 $contentControlScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
 $releaseChecksScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_release_candidate_checks.ps1"
 $releaseBlockerRollupScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_blocker_rollup_report.ps1"
+$releaseGovernancePipelineScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_governance_pipeline_report.ps1"
 $releaseGovernanceHandoffScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_governance_handoff_report.ps1"
+$docxReadinessScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_docx_functional_smoke_readiness.ps1"
 $releaseBlockerMetadataHelpersScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\release_blocker_metadata_helpers.ps1"
 $releaseVisualMetadataHelpersScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\release_visual_metadata_helpers.ps1"
 $packageAssetsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\package_release_assets.ps1"
@@ -194,6 +196,8 @@ foreach ($marker in @(
 foreach ($marker in @(
     "featherdoc.project_template_delivery_readiness_report.v1",
     "featherdoc.content_control_data_binding_governance_report.v1",
+    "featherdoc.docx_functional_smoke_readiness.v1",
+    "docx_functional_smoke_readiness",
     "content_control_data_binding.bound_placeholder",
     "sync_bound_content_control",
     "input_docx",
@@ -359,10 +363,32 @@ foreach ($marker in @(
     "ExpectedReportProfile",
     "explicit-only",
     '$expectedReports = @(',
-    '$knownExpectedReportById'
+    '$knownExpectedReportById',
+    "docx_functional_smoke_readiness",
+    "featherdoc.docx_functional_smoke_readiness.v1"
 )) {
     Assert-ContainsText -Text $releaseGovernanceHandoffScript -ExpectedText $marker `
         -Message "Release governance handoff should keep expected-report profile marker '$marker'."
+}
+
+foreach ($marker in @(
+    "docx_functional_smoke_readiness",
+    "check_docx_functional_smoke_readiness.ps1",
+    "docx-functional-smoke-readiness"
+)) {
+    Assert-ContainsText -Text $releaseGovernancePipelineScript -ExpectedText $marker `
+        -Message "Release governance pipeline should keep DOCX readiness stage marker '$marker'."
+}
+
+foreach ($marker in @(
+    "OutputDir",
+    "SummaryJson",
+    "ReportMarkdown",
+    "release_blocker_count",
+    "report_markdown_display"
+)) {
+    Assert-ContainsText -Text $docxReadinessScript -ExpectedText $marker `
+        -Message "DOCX readiness script should keep release-governance compatible marker '$marker'."
 }
 
 foreach ($marker in @(

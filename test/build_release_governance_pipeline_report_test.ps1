@@ -527,9 +527,9 @@ Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
     -Message "Pipeline should be blocked by fixture governance reports."
 Assert-Equal -Actual ([string]$summary.governance_detail_source) -Expected "release_blocker_rollup" `
     -Message "Pipeline should expose final rollup as the top-level governance detail source."
-Assert-Equal -Actual ([int]$summary.stage_count) -Expected 7 `
-    -Message "Pipeline should run seven read-only stages."
-Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 7 `
+Assert-Equal -Actual ([int]$summary.stage_count) -Expected 8 `
+    -Message "Pipeline should run eight read-only stages."
+Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 8 `
     -Message "Pipeline should complete every stage."
 Assert-Equal -Actual ([int]$summary.failed_stage_count) -Expected 0 `
     -Message "Pipeline should not record stage failures."
@@ -554,6 +554,7 @@ foreach ($expectedStage in @(
         "content_control_data_binding_governance",
         "project_template_delivery_readiness",
         "schema_patch_confidence_calibration",
+        "docx_functional_smoke_readiness",
         "release_governance_handoff",
         "release_blocker_rollup"
     )) {
@@ -661,6 +662,17 @@ Assert-ContainsText -Text (($calibrationStage.action_items | ForEach-Object { [s
 Assert-ContainsText -Text (($calibrationStage.warnings | ForEach-Object { [string]$_.candidate_type }) -join "`n") `
     -ExpectedText "rename" `
     -Message "Pipeline calibration stage should preserve warning candidate type."
+
+$docxStage = Get-StageById -Summary $summary -Id "docx_functional_smoke_readiness"
+Assert-ContainsText -Text ([string]$docxStage.summary_json_display) `
+    -ExpectedText "docx-functional-smoke-readiness\summary.json" `
+    -Message "Pipeline DOCX stage should write a governance-consumable summary."
+Assert-ContainsText -Text (($docxStage.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "word_visual_smoke.pending_manual_review" `
+    -Message "Pipeline DOCX stage should preserve pending visual review warnings."
+Assert-ContainsText -Text (($docxStage.warnings | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+    -ExpectedText "featherdoc.docx_functional_smoke_readiness.v1" `
+    -Message "Pipeline DOCX stage should expose DOCX readiness warning source schema."
 
 $handoffSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$handoffSummary.schema) -Expected "featherdoc.release_governance_handoff_report.v1" `

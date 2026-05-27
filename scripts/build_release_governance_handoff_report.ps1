@@ -490,6 +490,7 @@ function Get-ReportKind {
         "featherdoc.content_control_data_binding_governance_report.v1" { return "content_control_data_binding_governance" }
         "featherdoc.project_template_delivery_readiness_report.v1" { return "project_template_delivery_readiness" }
         "featherdoc.schema_patch_confidence_calibration_report.v1" { return "schema_patch_confidence_calibration" }
+        "featherdoc.docx_functional_smoke_readiness.v1" { return "docx_functional_smoke_readiness" }
         default { return $schema }
     }
 }
@@ -1383,6 +1384,11 @@ $defaultExpectedReports = @(
         -Title "Schema Patch Confidence Calibration" `
         -RelativeSummary "schema-patch-confidence-calibration/summary.json" `
         -BuildCommand "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1 -InputJson .\output\project-template-smoke\summary.json,.\output\project-template-schema-approval-history\history.json -OutputDir .\output\schema-patch-confidence-calibration"
+    New-ExpectedReport `
+        -Id "docx_functional_smoke_readiness" `
+        -Title "DOCX Functional Smoke Readiness" `
+        -RelativeSummary "docx-functional-smoke-readiness/summary.json" `
+        -BuildCommand "pwsh -ExecutionPolicy Bypass -File .\scripts\check_docx_functional_smoke_readiness.ps1 -OutputDir .\output\docx-functional-smoke-readiness"
 )
 $expectedReports = @(
     if ($ExpectedReportProfile -ne "explicit-only") {

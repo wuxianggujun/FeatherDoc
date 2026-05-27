@@ -430,16 +430,25 @@ function Invoke-PipelineStage {
     $markdownPath = Join-Path $OutputDir ("{0}.md" -f $Id)
     Ensure-Directory -Path $OutputDir
 
-    $arguments = @(
-        "-InputJson"
-        (@($InputJson) -join ",")
-        "-OutputDir"
-        $OutputDir
-        "-SummaryJson"
-        $summaryPath
-        "-ReportMarkdown"
+    $inputJsonItems = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($input in @($InputJson)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$input)) {
+            $inputJsonItems.Add([string]$input) | Out-Null
+        }
+    }
+    $arguments = @()
+    if ($inputJsonItems.Count -gt 0) {
+        $arguments += @("-InputJson", ($inputJsonItems.ToArray() -join ","))
+    }
+    $arguments += @(
+        "-OutputDir",
+        $OutputDir,
+        "-SummaryJson",
+        $summaryPath,
+        "-ReportMarkdown",
         $markdownPath
-    ) + @($ExtraArguments)
+    )
+    $arguments += @($ExtraArguments)
 
     $exitCode = 0
     $errorMessage = ""
@@ -554,6 +563,7 @@ $tableOutputDir = Join-Path $outputGovernanceRoot "table-layout-delivery-governa
 $contentControlOutputDir = Join-Path $outputGovernanceRoot "content-control-data-binding-governance"
 $projectOutputDir = Join-Path $outputGovernanceRoot "project-template-delivery-readiness"
 $calibrationOutputDir = Join-Path $outputGovernanceRoot "schema-patch-confidence-calibration"
+$docxReadinessOutputDir = Join-Path $outputGovernanceRoot "docx-functional-smoke-readiness"
 $handoffOutputDir = Join-Path $resolvedOutputRoot "release-governance-handoff"
 $rollupOutputDir = Join-Path $resolvedOutputRoot "release-blocker-rollup"
 
@@ -615,6 +625,13 @@ $stages.Add((Invoke-PipelineStage `
             -OutputDir $calibrationOutputDir `
             -InputJson $calibrationInputs `
             -ExtraArguments @("-InputRoot", $resolvedInputRoot))) | Out-Null
+$stages.Add((Invoke-PipelineStage `
+            -RepoRoot $repoRoot `
+            -Id "docx_functional_smoke_readiness" `
+            -Title "DOCX Functional Smoke Readiness" `
+            -ScriptPath (Join-Path $scriptsDir "check_docx_functional_smoke_readiness.ps1") `
+            -OutputDir $docxReadinessOutputDir `
+            -InputJson @())) | Out-Null
 
 $handoffInputs = @(
     Join-Path $numberingOutputDir "summary.json"
@@ -622,6 +639,7 @@ $handoffInputs = @(
     Join-Path $contentControlOutputDir "summary.json"
     Join-Path $projectOutputDir "summary.json"
     Join-Path $calibrationOutputDir "summary.json"
+    Join-Path $docxReadinessOutputDir "summary.json"
 )
 $pdfPreflightGovernanceSummary = Join-Path $resolvedInputRoot "pdf-visual-release-gate-preflight-governance\summary.json"
 if (Test-Path -LiteralPath $pdfPreflightGovernanceSummary) {

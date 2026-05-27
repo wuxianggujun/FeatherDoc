@@ -12,6 +12,10 @@ browsers, or document rendering.
 param(
     [string]$RepoRoot = "",
     [string]$OutputJson = "output/docx-functional-smoke-readiness-current/summary.json",
+    [string]$OutputDir = "",
+    [string]$SummaryJson = "",
+    [string]$ReportMarkdown = "",
+    [string[]]$InputJson = @(),
     [string[]]$VisualSmokeRoots = @(
         "output/word-visual-smoke-minimal-20260519",
         "output/word-visual-smoke-rerun-20260519"
@@ -213,8 +217,30 @@ function Read-JsonOrNull {
 }
 
 $repoRootPath = Resolve-RepoRoot
-$resolvedOutputJson = Resolve-RepoPath -Root $repoRootPath -Path $OutputJson
+$effectiveOutputJson = if (-not [string]::IsNullOrWhiteSpace($SummaryJson)) {
+    $SummaryJson
+} elseif (-not [string]::IsNullOrWhiteSpace($OutputDir)) {
+    Join-Path $OutputDir "summary.json"
+} else {
+    $OutputJson
+}
+$resolvedOutputJson = Resolve-RepoPath -Root $repoRootPath -Path $effectiveOutputJson
 Ensure-Directory -Path $resolvedOutputJson
+$resolvedOutputDir = if (-not [string]::IsNullOrWhiteSpace($OutputDir)) {
+    Resolve-RepoPath -Root $repoRootPath -Path $OutputDir
+} else {
+    Split-Path -Parent $resolvedOutputJson
+}
+$resolvedReportMarkdown = if (-not [string]::IsNullOrWhiteSpace($ReportMarkdown)) {
+    Resolve-RepoPath -Root $repoRootPath -Path $ReportMarkdown
+} elseif (-not [string]::IsNullOrWhiteSpace($OutputDir)) {
+    Join-Path $resolvedOutputDir "docx_functional_smoke_readiness.md"
+} else {
+    ""
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedReportMarkdown)) {
+    Ensure-Directory -Path $resolvedReportMarkdown
+}
 
 $checks = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
@@ -400,6 +426,23 @@ Add-Check -Checks $checks -Name "word_visual_smoke_reused_evidence" -Status $(if
 
 $failedChecks = @($checks.ToArray() | Where-Object { [string]$_.status -eq "fail" -and [bool]$_.required })
 $warningArray = @($warnings.ToArray())
+$releaseBlockers = @(
+    foreach ($failedCheck in @($failedChecks)) {
+        [ordered]@{
+            id = "docx_functional_smoke.$([string]$failedCheck.name)"
+            severity = "error"
+            status = "open"
+            action = "restore_docx_functional_smoke_evidence"
+            message = [string]$failedCheck.message
+            source_schema = "featherdoc.docx_functional_smoke_readiness.v1"
+            source_report = $resolvedOutputJson
+            source_report_display = Get-DisplayPath -Root $repoRootPath -Path $resolvedOutputJson
+            source_json = $resolvedOutputJson
+            source_json_display = Get-DisplayPath -Root $repoRootPath -Path $resolvedOutputJson
+        }
+    }
+)
+$actionItems = @()
 $statusValue = if ($failedChecks.Count -gt 0) { "fail" } else { "pass" }
 $verdictValue = if ($failedChecks.Count -gt 0) {
     "fail"
@@ -416,20 +459,63 @@ $summaryObject = [ordered]@{
     verdict = $verdictValue
     docx_functional_smoke_ready = ($failedChecks.Count -eq 0)
     release_ready = ($failedChecks.Count -eq 0 -and $warningArray.Count -eq 0)
+    output_dir = $resolvedOutputDir
+    output_dir_display = Get-DisplayPath -Root $repoRootPath -Path $resolvedOutputDir
+    summary_json = $resolvedOutputJson
+    summary_json_display = Get-DisplayPath -Root $repoRootPath -Path $resolvedOutputJson
+    report_markdown = $resolvedReportMarkdown
+    report_markdown_display = Get-DisplayPath -Root $repoRootPath -Path $resolvedReportMarkdown
+    input_json = @($InputJson)
     evidence_scope = "persisted_docx_functional_smoke_evidence_only"
     evidence_scope_note = "This read-only gate does not run CMake, CTest, Word, LibreOffice, browsers, or document rendering."
     check_count = $checks.Count
     failed_check_count = $failedChecks.Count
     warning_count = $warningArray.Count
+    release_blocker_count = @($releaseBlockers).Count
+    action_item_count = @($actionItems).Count
     capability_count = @($capabilitySummaries).Count
     capability_pass_count = @($capabilitySummaries | Where-Object { [string]$_.status -eq "pass" }).Count
     capabilities = @($capabilitySummaries)
     visual_smoke_reused_evidence = @($visualSmokeSummaries)
     checks = @($checks.ToArray())
     failed_checks = @($failedChecks)
+    release_blockers = @($releaseBlockers)
+    action_items = @($actionItems)
     warnings = @($warningArray)
     boundary = "Pass-with-warnings means persisted DOCX functional evidence is coherent and visual PNGs are non-empty; it does not claim a fresh Word COM render or completed human visual review."
     marker = "docx_functional_smoke_readiness_trace"
+}
+
+if (-not [string]::IsNullOrWhiteSpace($resolvedReportMarkdown)) {
+    $markdownLines = New-Object 'System.Collections.Generic.List[string]'
+    [void]$markdownLines.Add("# DOCX Functional Smoke Readiness")
+    [void]$markdownLines.Add("")
+    [void]$markdownLines.Add("- Status: ``$statusValue``")
+    [void]$markdownLines.Add("- Verdict: ``$verdictValue``")
+    [void]$markdownLines.Add("- DOCX functional smoke ready: ``$($summaryObject.docx_functional_smoke_ready)``")
+    [void]$markdownLines.Add("- Failed checks: ``$($summaryObject.failed_check_count)``")
+    [void]$markdownLines.Add("- Warnings: ``$($summaryObject.warning_count)``")
+    [void]$markdownLines.Add("- Capability evidence: ``$($summaryObject.capability_pass_count)/$($summaryObject.capability_count)``")
+    [void]$markdownLines.Add("- Summary JSON: ``$($summaryObject.summary_json_display)``")
+    [void]$markdownLines.Add("")
+    [void]$markdownLines.Add("## Reused Word Visual Smoke Evidence")
+    [void]$markdownLines.Add("")
+    foreach ($visualEvidence in @($visualSmokeSummaries)) {
+        [void]$markdownLines.Add("- ``$($visualEvidence.root_display)``: status=``$($visualEvidence.status)``, review_verdict=``$($visualEvidence.review_verdict)``, contact_sheet_non_empty=``$($visualEvidence.contact_sheet_non_empty_visual)``, page_image_non_empty=``$($visualEvidence.page_image_non_empty_visual)``")
+    }
+    [void]$markdownLines.Add("")
+    [void]$markdownLines.Add("## Boundary")
+    [void]$markdownLines.Add("")
+    [void]$markdownLines.Add($summaryObject.boundary)
+    if ($warningArray.Count -gt 0) {
+        [void]$markdownLines.Add("")
+        [void]$markdownLines.Add("## Warnings")
+        [void]$markdownLines.Add("")
+        foreach ($warning in @($warningArray)) {
+            [void]$markdownLines.Add("- ``$($warning.id)``: $($warning.message) root=``$($warning.root_display)`` review_verdict=``$($warning.review_verdict)``")
+        }
+    }
+    ($markdownLines -join [System.Environment]::NewLine) | Set-Content -LiteralPath $resolvedReportMarkdown -Encoding UTF8
 }
 
 ($summaryObject | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $resolvedOutputJson -Encoding UTF8

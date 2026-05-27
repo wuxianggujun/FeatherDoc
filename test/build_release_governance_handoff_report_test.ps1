@@ -387,6 +387,20 @@ function Write-GovernanceFixtures {
             )
         })
     }
+
+    Write-JsonFile -Path (Join-Path $Root "docx-functional-smoke-readiness\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.docx_functional_smoke_readiness.v1"
+        status = "pass"
+        verdict = "pass"
+        release_ready = $true
+        docx_functional_smoke_ready = $true
+        release_blocker_count = 0
+        release_blockers = @()
+        action_item_count = 0
+        action_items = @()
+        warning_count = 0
+        warnings = @()
+    })
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
@@ -419,8 +433,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should expose release governance handoff schema."
     Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
         -Message "Aggregate handoff should be blocked when source blockers exist."
-    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 5 `
-        -Message "Aggregate handoff should load all five default reports."
+    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 6 `
+        -Message "Aggregate handoff should load all six default reports."
     Assert-Equal -Actual ([int]$summary.missing_report_count) -Expected 0 `
         -Message "Aggregate handoff should not mark default reports missing."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 4 `
@@ -867,7 +881,7 @@ if (Test-Scenario -Name "explicit_input") {
         -Message "Explicit handoff should accept an explicit replacement report. Output: $($result.Text)"
 
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
-    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 5 `
+    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 6 `
         -Message "Explicit handoff should count loaded defaults plus the explicit project-template report."
     Assert-Equal -Actual ([int]$summary.missing_report_count) -Expected 0 `
         -Message "Explicit handoff should replace the default project-template report without missing defaults."
