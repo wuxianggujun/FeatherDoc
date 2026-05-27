@@ -593,6 +593,7 @@ $contentControlInputs = Select-ExistingInputJson -Paths @(
 )
 $projectInputs = Select-ExistingInputJson -Paths @(
     Join-Path $resolvedInputRoot "project-template-onboarding-governance\summary.json"
+    Join-Path $resolvedInputRoot "project-template-smoke-manifest\summary.json"
     Join-Path $resolvedInputRoot "project-template-schema-approval-history\history.json"
 )
 $calibrationInputs = Select-ExistingInputJson -Paths @(

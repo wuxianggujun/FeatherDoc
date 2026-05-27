@@ -4,9 +4,10 @@ Builds a project-template delivery readiness report from onboarding evidence.
 
 .DESCRIPTION
 Reads project-template onboarding governance summaries, direct onboarding
-summaries, onboarding plans, and schema approval history reports, then writes a
-single JSON/Markdown delivery gate report. The script is read-only for source
-artifacts and does not rerun smoke, CMake, Word, or visual automation.
+summaries, onboarding plans, project-template-smoke manifest descriptions, and
+schema approval history reports, then writes a single JSON/Markdown delivery
+gate report. The script is read-only for source artifacts and does not rerun
+smoke, CMake, Word, or visual automation.
 #>
 param(
     [string[]]$InputJson = @(),
@@ -147,6 +148,7 @@ function Get-InputJsonPaths {
             "output/project-template-onboarding-governance",
             "output/project-template-onboarding",
             "output/project-template-smoke-onboarding-plan",
+            "output/project-template-smoke-manifest",
             "output/project-template-schema-approval-history"
         )
     }
@@ -182,6 +184,9 @@ function Get-EvidenceKind {
     if ($schema -eq "featherdoc.project_template_schema_approval_history.v1") {
         return "schema_approval_history"
     }
+    if ($schema -eq "featherdoc.project_template_smoke_manifest_description.v1") {
+        return "project_template_smoke_manifest_description"
+    }
     if ($null -ne (Get-JsonProperty -Object $Json -Name "onboarding_entry_count") -and
         $null -ne (Get-JsonProperty -Object $Json -Name "entries")) {
         return "onboarding_plan"
@@ -193,6 +198,47 @@ function Get-EvidenceKind {
         return "onboarding_summary"
     }
     return "unknown"
+}
+
+function New-ProjectTemplateSmokeSummaryMissingWarning {
+    param(
+        [string]$RepoRoot,
+        [string]$SummaryPath,
+        [object[]]$ManifestDescriptions
+    )
+
+    $latestDescription = @($ManifestDescriptions | Sort-Object @{ Expression = { Get-JsonString -Object $_ -Name "generated_at" } })[-1]
+    $sourceJson = Get-JsonString -Object $latestDescription -Name "source_json" -DefaultValue $SummaryPath
+    $sourceJsonDisplay = Get-JsonString -Object $latestDescription -Name "source_json_display" -DefaultValue (Get-DisplayPath -RepoRoot $RepoRoot -Path $sourceJson)
+    $manifestPathDisplay = Get-JsonString -Object $latestDescription -Name "manifest_path_display"
+    if ([string]::IsNullOrWhiteSpace($manifestPathDisplay)) {
+        $manifestPathDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path (Get-JsonString -Object $latestDescription -Name "manifest_path")
+    }
+
+    $registeredTemplateCount = Get-JsonInt -Object $latestDescription -Name "registered_entry_count" -DefaultValue (Get-JsonInt -Object $latestDescription -Name "entry_count")
+    $latestMissingEntryCount = Get-JsonInt -Object $latestDescription -Name "latest_missing_entry_count" -DefaultValue $registeredTemplateCount
+
+    return [ordered]@{
+        id = "project_template_smoke_summary_missing"
+        action = "run_project_template_smoke_for_registered_manifest"
+        repair_strategy = "run_project_template_smoke_for_registered_manifest"
+        repair_hint = "A project-template-smoke manifest is registered, but no smoke/onboarding summary was loaded as release evidence. Run or restore the smoke summary before treating these templates as delivery-ready."
+        command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -OutputDir .\output\project-template-smoke -SkipBuild"
+        source_schema = $deliveryReadinessSchema
+        source_json = $sourceJson
+        source_json_display = $sourceJsonDisplay
+        source_report = $sourceJson
+        source_report_display = $sourceJsonDisplay
+        manifest_path = Get-JsonString -Object $latestDescription -Name "manifest_path"
+        manifest_path_display = $manifestPathDisplay
+        registered_template_count = $registeredTemplateCount
+        schema_validation_entry_count = Get-JsonInt -Object $latestDescription -Name "schema_validation_entry_count"
+        schema_baseline_entry_count = Get-JsonInt -Object $latestDescription -Name "schema_baseline_entry_count"
+        visual_smoke_entry_count = Get-JsonInt -Object $latestDescription -Name "visual_smoke_entry_count"
+        latest_summary_available = Get-JsonBool -Object $latestDescription -Name "latest_summary_available"
+        latest_missing_entry_count = $latestMissingEntryCount
+        message = "Project-template-smoke manifest has registered entries, but no project-template smoke or onboarding readiness summary was loaded."
+    }
 }
 
 function Add-SummaryGroup {
@@ -637,6 +683,7 @@ Write-Step "Reading $($inputPaths.Count) input JSON file(s)"
 
 $templates = New-Object 'System.Collections.Generic.List[object]'
 $histories = New-Object 'System.Collections.Generic.List[object]'
+$manifestDescriptions = New-Object 'System.Collections.Generic.List[object]'
 $sourceFiles = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
 
@@ -670,6 +717,12 @@ foreach ($path in @($inputPaths)) {
                 $json | Add-Member -NotePropertyName "source_json" -NotePropertyValue $path -Force
                 $json | Add-Member -NotePropertyName "source_json_display" -NotePropertyValue (Get-DisplayPath -RepoRoot $repoRoot -Path $path) -Force
                 $histories.Add($json) | Out-Null
+                $status = "loaded"
+            }
+            "project_template_smoke_manifest_description" {
+                $json | Add-Member -NotePropertyName "source_json" -NotePropertyValue $path -Force
+                $json | Add-Member -NotePropertyName "source_json_display" -NotePropertyValue (Get-DisplayPath -RepoRoot $repoRoot -Path $path) -Force
+                $manifestDescriptions.Add($json) | Out-Null
                 $status = "loaded"
             }
             "project_template_delivery_readiness_report" {
@@ -714,19 +767,26 @@ foreach ($path in @($inputPaths)) {
 }
 
 if ($templates.Count -eq 0) {
-    $warnings.Add([ordered]@{
-        id = "template_evidence_missing"
-        action = "collect_project_template_onboarding_governance_evidence"
-        repair_strategy = "collect_project_template_onboarding_governance_evidence"
-        repair_hint = "Run or restore project-template onboarding governance evidence for the release templates, including schema approval history where applicable; do not treat an empty feeder summary as template evidence."
-        command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\project-template-onboarding-governance"
-        source_schema = $deliveryReadinessSchema
-        source_json = $summaryPath
-        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
-        source_report = $summaryPath
-        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
-        message = "No onboarding template evidence was loaded."
-    }) | Out-Null
+    if ($manifestDescriptions.Count -gt 0) {
+        $warnings.Add((New-ProjectTemplateSmokeSummaryMissingWarning `
+                    -RepoRoot $repoRoot `
+                    -SummaryPath $summaryPath `
+                    -ManifestDescriptions $manifestDescriptions.ToArray())) | Out-Null
+    } else {
+        $warnings.Add([ordered]@{
+            id = "template_evidence_missing"
+            action = "collect_project_template_onboarding_governance_evidence"
+            repair_strategy = "collect_project_template_onboarding_governance_evidence"
+            repair_hint = "Run or restore project-template onboarding governance evidence for the release templates, including schema approval history where applicable; do not treat an empty feeder summary as template evidence."
+            command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\project-template-onboarding-governance"
+            source_schema = $deliveryReadinessSchema
+            source_json = $summaryPath
+            source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+            source_report = $summaryPath
+            source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+            message = "No onboarding template evidence was loaded."
+        }) | Out-Null
+    }
 }
 
 Add-HistoryToTemplates -Templates $templates.ToArray() -Histories $histories.ToArray() -Warnings $warnings
@@ -873,6 +933,7 @@ $summary = [ordered]@{
     source_file_count = $sourceFiles.Count
     source_failure_count = $sourceFailureCount
     source_files = @($sourceFiles.ToArray())
+    manifest_description_count = $manifestDescriptions.Count
     schema_history_count = $histories.Count
     latest_schema_approval_gate_status = $latestGateStatus
     schema_history_blocked_run_count = $historyBlockedRunCount

@@ -59,6 +59,14 @@ approval、content-control 和 release governance 报告之间手工拼结论。
    * 运行或复用 ``scripts/build_project_template_delivery_readiness_report.ps1``。
    * ``summary.json`` 必须包含
      ``featherdoc.project_template_delivery_readiness_report.v1``。
+   * 若只有 ``samples/project_template_smoke.manifest.json`` 这类注册清单，
+     但还没有 ``output/project-template-smoke/summary.json`` 或 onboarding
+     summary，必须先用
+     ``scripts/describe_project_template_smoke_manifest.ps1 -Json`` 生成
+     ``featherdoc.project_template_smoke_manifest_description.v1`` 作为清单诊断；
+     readiness 只能给出
+     ``project_template_smoke_summary_missing`` warning，不能把 manifest
+     本身当作模板已通过 smoke 的证据。
    * ``release_ready``、``status``、``template_count``、
      ``ready_template_count``、``blocked_template_count``、
      ``release_blocker_count``、``latest_schema_approval_gate_status`` 和

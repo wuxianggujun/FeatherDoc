@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "ready", "malformed", "fail_on_blocker", "missing_inputs")]
+    [ValidateSet("all", "aggregate", "ready", "malformed", "fail_on_blocker", "missing_inputs", "manifest_description")]
     [string]$Scenario = "all"
 )
 
@@ -381,6 +381,71 @@ if (Test-Scenario -Name "missing_inputs") {
         -Message "Template warning should include the onboarding governance command template."
     Assert-ContainsText -Text $markdown -ExpectedText "command_template:" `
         -Message "Missing template Markdown should expose warning command templates."
+}
+
+if (Test-Scenario -Name "manifest_description") {
+    $manifestRoot = Join-Path $resolvedWorkingDir "manifest-description"
+    $manifestPath = Join-Path $manifestRoot "summary.json"
+    $outputDir = Join-Path $resolvedWorkingDir "manifest-description-report"
+    Write-JsonFile -Path $manifestPath -Value ([ordered]@{
+        schema = "featherdoc.project_template_smoke_manifest_description.v1"
+        generated_at = "2026-05-27T12:00:00"
+        manifest_path = "samples/project_template_smoke.manifest.json"
+        manifest_path_display = ".\samples\project_template_smoke.manifest.json"
+        summary_json = ""
+        summary_json_display = ""
+        latest_summary_available = $false
+        entry_count = 3
+        registered_entry_count = 3
+        schema_validation_entry_count = 2
+        schema_baseline_entry_count = 2
+        visual_smoke_entry_count = 2
+        latest_available_entry_count = 0
+        latest_missing_entry_count = 3
+        entries = @(
+            [ordered]@{ name = "contract-template"; latest_available = $false },
+            [ordered]@{ name = "invoice-template"; latest_available = $false },
+            [ordered]@{ name = "report-template"; latest_available = $false }
+        )
+    })
+
+    $result = Invoke-ReadinessScript -Arguments @(
+        "-InputJson", $manifestPath,
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Manifest-only readiness run should pass with a specific warning. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $markdownPath = Join-Path $outputDir "project_template_delivery_readiness.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-Equal -Actual ([int]$summary.template_count) -Expected 0 `
+        -Message "Manifest descriptions should not be treated as template readiness evidence."
+    Assert-Equal -Actual ([int]$summary.manifest_description_count) -Expected 1 `
+        -Message "Summary should count manifest description evidence."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Manifest-only readiness should emit one warning."
+    Assert-Equal -Actual ([string]$summary.source_files[0].kind) -Expected "project_template_smoke_manifest_description" `
+        -Message "Manifest description input should be loaded as a known evidence kind."
+
+    $missingSmokeWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "project_template_smoke_summary_missing" })[0]
+    Assert-True -Condition ($null -ne $missingSmokeWarning) `
+        -Message "Manifest-only readiness should emit project_template_smoke_summary_missing."
+    Assert-Equal -Actual ([string]$missingSmokeWarning.repair_strategy) -Expected "run_project_template_smoke_for_registered_manifest" `
+        -Message "Manifest-only warning should expose a smoke-run repair strategy."
+    Assert-Equal -Actual ([int]$missingSmokeWarning.registered_template_count) -Expected 3 `
+        -Message "Manifest-only warning should preserve registered template count."
+    Assert-Equal -Actual ([int]$missingSmokeWarning.latest_missing_entry_count) -Expected 3 `
+        -Message "Manifest-only warning should preserve missing latest summary count."
+    Assert-ContainsText -Text ([string]$missingSmokeWarning.command_template) -ExpectedText "run_project_template_smoke.ps1" `
+        -Message "Manifest-only warning should include the smoke command template."
+    Assert-ContainsText -Text ([string]$missingSmokeWarning.source_json_display) -ExpectedText "manifest-description\summary.json" `
+        -Message "Manifest-only warning should point at the manifest description source JSON."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_smoke_summary_missing" `
+        -Message "Manifest-only Markdown should surface the specific smoke summary warning."
+    Assert-ContainsText -Text $markdown -ExpectedText "run_project_template_smoke.ps1" `
+        -Message "Manifest-only Markdown should surface the smoke command template."
 }
 
 if (Test-Scenario -Name "ready") {

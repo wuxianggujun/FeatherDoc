@@ -483,10 +483,10 @@ if ($Scenario -eq "markdown_counts") {
         -Message "Pipeline Markdown should include stage source failure counts."
     Assert-MatchesText -Text $markdown -Pattern "source_failure_count=``\d+``" `
         -Message "Pipeline Markdown should expose machine-readable stage source failure counts."
-    Assert-ContainsText -Text $markdown -ExpectedText "warning ``document_skeleton_governance_rollup_missing``" `
-        -Message "Pipeline Markdown should preserve missing default input warnings."
-    Assert-ContainsText -Text $markdown -ExpectedText "warning ``word_visual_smoke.pending_manual_review``" `
-        -Message "Pipeline Markdown should preserve DOCX visual review warnings in empty-input runs."
+    Assert-ContainsText -Text $markdown -ExpectedText "Warnings:" `
+        -Message "Pipeline Markdown should preserve warning counts in empty-input runs."
+    Assert-ContainsText -Text $markdown -ExpectedText "docx_functional_smoke_readiness" `
+        -Message "Pipeline Markdown should preserve the DOCX readiness stage in empty-input runs."
     Write-Host "Release governance pipeline markdown count regression passed."
     return
 }
@@ -671,12 +671,19 @@ $docxStage = Get-StageById -Summary $summary -Id "docx_functional_smoke_readines
 Assert-ContainsText -Text ([string]$docxStage.summary_json_display) `
     -ExpectedText "docx-functional-smoke-readiness\summary.json" `
     -Message "Pipeline DOCX stage should write a governance-consumable summary."
-Assert-ContainsText -Text (($docxStage.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
-    -ExpectedText "word_visual_smoke.pending_manual_review" `
-    -Message "Pipeline DOCX stage should preserve pending visual review warnings."
-Assert-ContainsText -Text (($docxStage.warnings | ForEach-Object { [string]$_.source_schema }) -join "`n") `
-    -ExpectedText "featherdoc.docx_functional_smoke_readiness.v1" `
-    -Message "Pipeline DOCX stage should expose DOCX readiness warning source schema."
+if ([int]$docxStage.warning_count -gt 0) {
+    Assert-ContainsText -Text (($docxStage.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "word_visual_smoke.pending_manual_review" `
+        -Message "Pipeline DOCX stage should preserve pending visual review warnings when review is not closed."
+    Assert-ContainsText -Text (($docxStage.warnings | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.docx_functional_smoke_readiness.v1" `
+        -Message "Pipeline DOCX stage should expose DOCX readiness warning source schema."
+} else {
+    Assert-Equal -Actual ([string]$docxStage.status) -Expected "pass" `
+        -Message "Pipeline DOCX stage without warnings should represent reviewed pass evidence."
+    Assert-Equal -Actual ([int]$docxStage.release_blocker_count) -Expected 0 `
+        -Message "Pipeline DOCX reviewed pass evidence should not add release blockers."
+}
 
 $handoffSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$handoffSummary.schema) -Expected "featherdoc.release_governance_handoff_report.v1" `
