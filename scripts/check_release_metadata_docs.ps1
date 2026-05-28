@@ -351,6 +351,8 @@ $checklistExpectedMarkers = @(
     "source_report_display",
     "source_json_display",
     "style_merge_suggestion_count",
+    "ReleaseBlockerRollupFailOnWarning",
+    "ReleaseGovernanceHandoffFailOnWarning",
     "build_project_template_delivery_readiness_report_test.ps1",
     "build_content_control_data_binding_governance_report_test.ps1",
     "build_numbering_catalog_governance_report_test.ps1",
