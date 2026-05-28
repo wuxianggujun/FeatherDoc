@@ -44,7 +44,14 @@
         "Bold italic text",
         "Underlined text"
       ],
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "font-size",
+        "color",
+        "bold-italic",
+        "underline"
+      ]
     },
     {
       "id": "font-size-text",
@@ -79,6 +86,13 @@
         "Bold text",
         "Italic text",
         "Bold italic underline"
+      ],
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "plain",
+        "bold",
+        "italic",
+        "bold-italic-underline"
       ]
     },
     {
@@ -120,7 +134,15 @@
       ],
       "expect_cjk": true,
       "expect_unicode": true,
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "document-style-inheritance",
+        "cjk-font-mapping",
+        "bold",
+        "color",
+        "underline-signature"
+      ]
     },
     {
       "id": "three-page-text",
@@ -193,6 +215,186 @@
         "Underlined line 2",
         "Bold underlined line",
         "Italic underlined line"
+      ],
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "underline",
+        "bold-underline",
+        "italic-underline"
+      ]
+    },
+    {
+      "id": "strikethrough-text",
+      "kind": "strikethrough_text",
+      "output_file": "featherdoc-pdf-regression-strikethrough-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Strikethrough sample",
+        "Direct strikethrough demonstrates run formatting.",
+        "Style strikethrough demonstrates inherited style formatting."
+      ],
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "strikethrough",
+        "style-strikethrough"
+      ]
+    },
+    {
+      "id": "superscript-subscript-text",
+      "kind": "superscript_subscript_text",
+      "output_file": "featherdoc-pdf-regression-superscript-subscript-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Superscript and subscript sample",
+        "E = mc2 demonstrates superscript support.",
+        "H2O demonstrates subscript support."
+      ],
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "superscript",
+        "subscript"
+      ]
+    },
+    {
+      "id": "style-superscript-subscript-text",
+      "kind": "style_superscript_subscript_text",
+      "output_file": "featherdoc-pdf-regression-style-superscript-subscript-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Style superscript and subscript sample",
+        "Style E = mc2 inherits superscript style.",
+        "Style H2O inherits subscript style."
+      ],
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "style-superscript",
+        "style-subscript"
+      ]
+    },
+    {
+      "id": "document-style-gallery-text",
+      "kind": "document_style_gallery_text",
+      "output_file": "featherdoc-pdf-regression-document-style-gallery-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document style gallery sample",
+        "Style coverage:",
+        "bold italic blue 16pt",
+        "underlined note",
+        "Right-aligned summary marker",
+        "Hanging indent paragraph wraps",
+        "First line indent paragraph keeps"
+      ],
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "bold-italic-color",
+        "underline-color",
+        "right-alignment",
+        "hanging-indent",
+        "first-line-indent"
+      ]
+    },
+    {
+      "id": "document-rtl-bidi-text",
+      "kind": "document_rtl_bidi_text",
+      "output_file": "featherdoc-pdf-regression-document-rtl-bidi-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document RTL bidi sample",
+        "Arabic paragraph:",
+        "مرحبا بكم في FeatherDoc 2026",
+        "Mixed order:",
+        "النسخة",
+        "FE-2048",
+        "جاهزة للمراجعة"
+      ],
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "rtl-paragraph",
+        "mixed-bidi-run"
+      ]
+    },
+    {
+      "id": "document-font-matrix-text",
+      "kind": "document_font_matrix_text",
+      "output_file": "featherdoc-pdf-regression-document-font-matrix-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document font matrix sample",
+        "Body matrix:",
+        "中文",
+        "مرحبا بالمراجعين",
+        "Identifier matrix:",
+        "FE-300",
+        "编号",
+        "Header matrix",
+        "页眉",
+        "Footer matrix",
+        "页脚",
+        "Cell",
+        "单元"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "font-mapping-cjk",
+        "font-mapping-rtl",
+        "header-footer-font-map",
+        "table-cell-font-map"
+      ]
+    },
+    {
+      "id": "document-table-font-matrix-text",
+      "kind": "document_table_font_matrix_text",
+      "output_file": "featherdoc-pdf-regression-document-table-font-matrix-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document table font matrix sample",
+        "Table matrix:",
+        "涓枃琛ㄦ牸",
+        "FE-420",
+        "Table matrix header",
+        "Table matrix footer",
+        "FE-421",
+        "FE-422",
+        "FE-423",
+        "Body cell",
+        "Bidi cell",
+        "Search cell",
+        "鍗曞厓"
+      ],
+      "text_layer_expected_text": [
+        "Document table font matrix sample",
+        "Table matrix:",
+        "中文表格",
+        "FE-420",
+        "Table matrix header",
+        "Table matrix footer",
+        "FE-421",
+        "FE-422",
+        "FE-423",
+        "Body cell",
+        "Bidi cell",
+        "Search cell",
+        "单元"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "table-font-mapping-cjk",
+        "table-font-mapping-rtl",
+        "table-header-footer-font-map",
+        "table-bidi-cell-font-map"
       ]
     },
     {
@@ -279,6 +481,57 @@
         "Document header area",
         "Header footer sample",
         "Page 1 footer marker"
+      ]
+    },
+    {
+      "id": "header-footer-rtl-text",
+      "kind": "header_footer_rtl_text",
+      "output_file": "featherdoc-pdf-regression-header-footer-rtl-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Header footer RTL bidi sample",
+        "Body anchor paragraph keeps header and footer rendering active.",
+        "Header mixed:",
+        "النسخة",
+        "HF-2048",
+        "جاهزة للمراجعة",
+        "Footer page",
+        "مراجعة نهائية"
+      ],
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "visual_style_focus": [
+        "rtl-header",
+        "rtl-footer"
+      ]
+    },
+    {
+      "id": "header-footer-rtl-variants-text",
+      "kind": "header_footer_rtl_variants_text",
+      "output_file": "featherdoc-pdf-regression-header-footer-rtl-variants-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Header footer RTL variants sample",
+        "First header",
+        "HF-101",
+        "Even header",
+        "HF-202",
+        "Default header",
+        "HF-303",
+        "First footer page",
+        "Even footer page",
+        "Default footer page",
+        "1 / 3",
+        "2 / 3",
+        "3 / 3"
+      ],
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "rtl-first-page-header",
+        "rtl-even-page-header",
+        "rtl-default-footer"
       ]
     },
     {
@@ -409,11 +662,21 @@
         "East Asia run mapping:",
         "中文样式映射 ABC 123",
         "East Asia note style:",
-        "蓝色 14pt 中文备注"
+        "蓝色 14pt 中文备注",
+        "East Asia symbol probe:",
+        "※ ㊟ ㊣"
       ],
       "expect_cjk": true,
       "expect_unicode": true,
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 1,
+      "visual_style_focus": [
+        "east-asia-font-mapping",
+        "cjk-color",
+        "bold-italic",
+        "underline"
+      ]
     },
     {
       "id": "document-image-semantics-text",
@@ -427,7 +690,9 @@
         "Square wrap text",
         "Behind text image anchor"
       ],
-      "expected_image_count": 3
+      "expected_image_count": 3,
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 0
     },
     {
       "id": "document-table-semantics-text",
@@ -454,7 +719,8 @@
         "Long flow paragraph 120 keeps pagination",
         "Page 1 of 5",
         "Page 5 of 5"
-      ]
+      ],
+      "expect_visual_baseline": true
     },
     {
       "id": "document-invoice-table-text",
@@ -470,7 +736,1296 @@
         "Visual validation",
         "Grand total",
         "USD 135"
+      ],
+      "expect_visual_baseline": true
+    },
+    {
+      "id": "mixed-cjk-punctuation-text",
+      "kind": "mixed_cjk_punctuation_text",
+      "output_file": "featherdoc-pdf-regression-mixed-cjk-punctuation-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "中英混排标点样本",
+        "FeatherDoc，PDF；office 123。",
+        "括号（中文）与引号“mixed”。"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_visual_baseline": true
+    },
+    {
+      "id": "latin-ligature-text",
+      "kind": "latin_ligature_text",
+      "output_file": "featherdoc-pdf-regression-latin-ligature-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "office affinity flow",
+        "file fixture flings",
+        "efficient workflow"
+      ],
+      "expect_visual_baseline": true
+    },
+    {
+      "id": "document-table-header-footer-variants-text",
+      "kind": "document_table_header_footer_variants_text",
+      "output_file": "featherdoc-pdf-regression-document-table-header-footer-variants-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Document table header footer",
+        "variants sample",
+        "Paged table keeps header footer",
+        "variants visible across table",
+        "First variant HF-101 page 1",
+        "Even variant HF-202 page 2",
+        "Variant header HF-303 page 3",
+        "First footer 1 / 3",
+        "Even footer 2 / 3",
+        "Default footer 3 / 3",
+        "Item",
+        "Status",
+        "FE-501",
+        "FE-504",
+        "FE-507",
+        "Release ready"
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 3
+    },
+    {
+      "id": "document-table-wrap-flow-text",
+      "kind": "document_table_wrap_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-table-wrap-flow-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Document table wrap flow sample",
+        "Long table cells must wrap cleanly",
+        "Wrap first W-101 page 1",
+        "Wrap even W-202 page 2",
+        "Wrap header W-303 page 3",
+        "Wrap first footer 1 / 3",
+        "Wrap even footer 2 / 3",
+        "Wrap footer 3 / 3",
+        "FE-601",
+        "FE-603",
+        "FE-605",
+        "Release ready evidence"
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 3
+    },
+    {
+      "id": "document-table-cjk-wrap-flow-text",
+      "kind": "document_table_cjk_wrap_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-table-cjk-wrap-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document table CJK wrap flow sample",
+        "CW-101",
+        "CJK wrap first CW-101 page 1",
+        "CJK wrap footer 1 / 1",
+        "CW-201",
+        "CW-202",
+        "CW-303",
+        "FE-CW-303",
+        "CW-999",
+        "ABC 123"
+      ],
+      "text_layer_expected_text": [
+        "Document table CJK wrap flow sample",
+        "CW-101",
+        "CJK wrap first CW-101 page 1",
+        "CJK wrap first footer 1 / 1",
+        "CW-201",
+        "CW-202",
+        "CW-303",
+        "FE-CW-303",
+        "CW-999",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "table-cjk-wrap",
+        "table-cjk-header-footer",
+        "table-cjk-repeat-header",
+        "table-cjk-cant-split"
       ]
+    },
+    {
+      "id": "document-table-cjk-vertical-merged-cant-split-text",
+      "kind": "document_table_cjk_vertical_merged_cant_split_text",
+      "output_file": "featherdoc-pdf-regression-document-table-cjk-vertical-merged-cant-split-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document table CJK vertical merged cant split sample",
+        "CVC-101",
+        "CJK vertical merge first CVC-101 page 1",
+        "CJK vertical merge footer 1 / 1",
+        "CVC-202",
+        "CVC-303",
+        "FE-CVC-404",
+        "CVC-999",
+        "ABC 123"
+      ],
+      "text_layer_expected_text": [
+        "Document table CJK vertical merged cant split sample",
+        "CVC-101",
+        "CJK vertical merge first CVC-101 page 1",
+        "CJK vertical merge first footer 1 / 1",
+        "CVC-202",
+        "CVC-303",
+        "FE-CVC-404",
+        "CVC-999",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "table-cjk-vertical-merge",
+        "table-cjk-horizontal-merge",
+        "table-cjk-repeat-header",
+        "table-cjk-cant-split"
+      ]
+    },
+    {
+      "id": "document-table-cjk-merged-repeat-text",
+      "kind": "document_table_cjk_merged_repeat_text",
+      "output_file": "featherdoc-pdf-regression-document-table-cjk-merged-repeat-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document table CJK merged repeat sample",
+        "MR-CJK-101",
+        "CJK merged repeat first MR-CJK-101 page 1",
+        "CJK merged repeat footer 1 / 1",
+        "MR-CJK-201",
+        "MR-CJK-303",
+        "FE-MR-CJK-303",
+        "MR-CJK-999",
+        "ABC 123"
+      ],
+      "text_layer_expected_text": [
+        "Document table CJK merged repeat sample",
+        "MR-CJK-101",
+        "CJK merged repeat first MR-CJK-101 page 1",
+        "CJK merged repeat first footer 1 / 1",
+        "MR-CJK-201",
+        "MR-CJK-303",
+        "FE-MR-CJK-303",
+        "MR-CJK-999",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "table-cjk-merged-header",
+        "table-cjk-vertical-merge",
+        "table-cjk-repeat-header",
+        "table-cjk-cant-split"
+      ]
+    },
+    {
+      "id": "document-table-cant-split-text",
+      "kind": "document_table_cant_split_text",
+      "output_file": "featherdoc-pdf-regression-document-table-cant-split-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Document table cant split sample",
+        "A tall no-split row must move as a single block",
+        "Cant split first S-101 page 1",
+        "Cant split even S-202 page 2",
+        "Cant split header S-303 page 3",
+        "Cant split first footer 1 / 3",
+        "Cant split even footer 2 / 3",
+        "Cant split footer 3 / 3",
+        "FE-801",
+        "FE-802",
+        "FE-803",
+        "must move as a single block"
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 3
+    },
+    {
+      "id": "document-table-merged-cells-text",
+      "kind": "document_table_merged_cells_text",
+      "output_file": "featherdoc-pdf-regression-document-table-merged-cells-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document table merged cells sample",
+        "Merged table cells should keep borders",
+        "Merged cells header M-101 page 1",
+        "Merged cells footer 1 / 1",
+        "Program summary",
+        "Owner block",
+        "FE-901",
+        "FE-902",
+        "Tail",
+        "Merged footer row stays readable"
+      ],
+      "expect_visual_baseline": true
+    },
+    {
+      "id": "document-table-merged-header-repeat-text",
+      "kind": "document_table_merged_header_repeat_text",
+      "output_file": "featherdoc-pdf-regression-document-table-merged-header-repeat-text.pdf",
+      "expected_pages": 4,
+      "expected_text": [
+        "Document table merged repeat sample",
+        "Repeated header rows with merged",
+        "cells should stay aligned across",
+        "page breaks in the rendered PDF.",
+        "Merged repeat header R-303 page 1",
+        "Merged repeat header R-303 page 2",
+        "Merged repeat header R-303 page 3",
+        "Merged repeat header R-303 page 4",
+        "Merged repeat footer 1 / 4",
+        "Merged repeat footer 2 / 4",
+        "Merged repeat footer 3 / 4",
+        "Merged repeat footer 4 / 4",
+        "Release board",
+        "MR-01",
+        "MR-05",
+        "Cluster",
+        "Search",
+        "Docs",
+        "Tail",
+        "Merged owner",
+        "block stays",
+        "Merged milestone row stays readable.",
+        "Page 3 repeats the board header."
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 4
+    },
+    {
+      "id": "document-table-merged-header-footer-variants-text",
+      "kind": "document_table_merged_header_footer_variants_text",
+      "output_file": "featherdoc-pdf-regression-document-table-merged-header-footer-variants-text.pdf",
+      "expected_pages": 4,
+      "expected_text": [
+        "Document table merged header footer variants sample",
+        "Merged cells should stay aligned",
+        "while first, even, and default",
+        "section headers and footers",
+        "alternate across pages.",
+        "Merged variant first header V-101 page 1",
+        "Merged variant even header V-202 page 2",
+        "Merged variant header V-303 page 3",
+        "V-101 1/4",
+        "V-202 2/4",
+        "V-303 3/4",
+        "V-202 4/4",
+        "Release board",
+        "Case",
+        "Owner",
+        "Status",
+        "MR-01",
+        "MR-05",
+        "Cluster",
+        "Search",
+        "Docs",
+        "Tail",
+        "Merged owner",
+        "block stays",
+        "Merged milestone row",
+        "stays readable.",
+        "Page 3 repeats",
+        "the board header."
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 4
+    },
+    {
+      "id": "document-table-merged-cant-split-text",
+      "kind": "document_table_merged_cant_split_text",
+      "output_file": "featherdoc-pdf-regression-document-table-merged-cant-split-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Merged cant split table sample",
+        "Repeated headers must keep the merged",
+        "row intact after the page break.",
+        "Merged cant split header T-404 page 1",
+        "Merged cant split header T-404 page 2",
+        "Merged cant split header T-404 page 3",
+        "Merged cant split footer 1 / 3",
+        "Merged cant split footer 2 / 3",
+        "Merged cant split footer 3 / 3",
+        "Release gate",
+        "Case",
+        "Owner",
+        "Notes",
+        "MCS-01",
+        "MCS-02",
+        "MCS-03",
+        "MCS-04",
+        "Queue",
+        "QA",
+        "Archive",
+        "Merged cant-split row must",
+        "restart beneath the repeated",
+        "Page numbering stays stable."
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 3
+    },
+    {
+      "id": "document-table-vertical-merged-cant-split-text",
+      "kind": "document_table_vertical_merged_cant_split_text",
+      "output_file": "featherdoc-pdf-regression-document-table-vertical-merged-cant-split-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Vertical merged cant split sample",
+        "Repeated headers must keep a vertical merged owner block intact",
+        "Vertical merged header V-505 page 1",
+        "Vertical merged header V-505 page 2",
+        "Vertical merged header V-505 page 3",
+        "Vertical merged header V-505 page 4",
+        "Vertical merged footer 1 / 4",
+        "Vertical merged footer 2 / 4",
+        "Vertical merged footer 3 / 4",
+        "Vertical merged footer 4 / 4",
+        "Delivery board",
+        "Case",
+        "Owner",
+        "Notes",
+        "VMC-01",
+        "VMC-02",
+        "VMC-03",
+        "VMC-04",
+        "VMC-05",
+        "Cluster",
+        "Short remainder.",
+        "Owner block restarts below header.",
+        "Second note stays with owner.",
+        "Tail row confirms clean flow resumes.",
+        "Page numbering stays stable."
+      ],
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "table-vertical-merge",
+        "table-repeat-header",
+        "table-cant-split",
+        "table-page-numbering"
+      ]
+    },
+    {
+      "id": "document-cjk-bullet-list-text",
+      "kind": "document_cjk_bullet_list_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-bullet-list-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK bullet list sample",
+        "\u9879\u76ee\u7b26\u53f7\u5217\u8868\u5f00\u59cb",
+        "BL-101 \u9879\u76ee\u7b26\u53f7\u68c0\u7d22\u952e",
+        "BL-102 \u9879\u76ee\u7b26\u53f7\u5b57\u4f53\u56de\u9000",
+        "BL-103 East Asia bullet fallback",
+        "BL-104 \u4e2d\u82f1\u6df7\u6392 bullet ABC 123",
+        "bullet ABC 123",
+        "\u9879\u76ee\u7b26\u53f7\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true
+    },
+    {
+      "id": "document-cjk-numbered-list-text",
+      "kind": "document_cjk_numbered_list_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-numbered-list-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK numbered list sample",
+        "\u7f16\u53f7\u5217\u8868\u5f00\u59cb",
+        "NL-101 \u7f16\u53f7\u68c0\u7d22\u952e",
+        "NL-102 \u7f16\u53f7\u5b57\u4f53\u56de\u9000",
+        "NL-103 East Asia numbering fallback",
+        "NL-104 \u4e2d\u82f1\u6df7\u6392 numbering ABC 123",
+        "numbering ABC 123",
+        "\u7f16\u53f7\u5217\u8868\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true
+    },
+    {
+      "id": "document-cjk-numbered-list-page-flow-lite-text",
+      "kind": "document_cjk_numbered_list_page_flow_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-numbered-list-page-flow-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK numbered list page flow lite sample",
+        "Numbered list flow lite:",
+        "NL-101 \u7f16\u53f7\u91cd\u542f",
+        "FE-NL-202 \u5d4c\u5957\u5217\u8868",
+        "NL-888 \u7f16\u53f7\u68c0\u7d22\u952e",
+        "FE-NL-921 \u7b2c 1 \u9879 CJK \u7f16\u53f7\u6d41",
+        "NL-A-03 \u7f16\u53f7\u5206\u9875\u8868",
+        "FE-NL-961",
+        "FE-NL-999 \u7ec8\u9875\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-bullet-overlay-lite-text",
+      "kind": "document_cjk_bullet_overlay_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-bullet-overlay-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK bullet overlay lite sample",
+        "Bullet overlay lite:",
+        "BO-101 \u9879\u76ee\u7b26\u53f7\u4e0a\u6807",
+        "BO-202 \u9879\u76ee\u7b26\u53f7\u4e0b\u6807",
+        "BO-303 \u6837\u5f0f\u53e0\u52a0 bullet \u68c0\u7d22",
+        "BO-404 \u4e2d\u82f1\u6df7\u6392 bullet ABC 123",
+        "BO-777 \u8986\u76d6\u5217\u8868\u56de\u8bfb",
+        "FE-BO-999 \u8986\u76d6\u6536\u53e3"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-copy-search-lite-text",
+      "kind": "document_cjk_copy_search_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-copy-search-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK copy search lite sample",
+        "Copy search lite:",
+        "CS-101 \u590d\u5236\u68c0\u7d22\u952e",
+        "CS-202 \u4e2d\u82f1\u6df7\u6392 copy search ABC 123",
+        "CS-999 \u6587\u672c\u5c42\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-copy-search-matrix-text",
+      "kind": "document_cjk_copy_search_matrix_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-copy-search-matrix-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK copy search matrix sample",
+        "Copy search matrix:",
+        "CS-101 \u68c0\u7d22\u951a\u70b9\u7532",
+        "FE-CS-901",
+        "CS-202 \u9875\u7801\u77e9\u9635 ABC 123",
+        "\u68c0\u7d22\u9996\u9875\u9875\u7709 CS-101 \u7b2c 1 \u9875",
+        "Search marker:",
+        "FE-CS-921",
+        "FE-CS-931",
+        "CS-303",
+        "FE-CS-941",
+        "CS-999",
+        "FE-CS-999 \u6587\u672c\u5c42\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-copy-search-matrix",
+        "cjk-header-footer-search",
+        "cjk-table-search-keys"
+      ]
+    },
+    {
+      "id": "document-cjk-font-embed-lite-text",
+      "kind": "document_cjk_font_embed_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-font-embed-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK font embed lite sample",
+        "Font embed lite:",
+        "FE-101 \u5d4c\u5b57\u77e9\u9635\u7532",
+        "FE-202 \u5b57\u5bbd\u6821\u9a8c copy search",
+        "FE-999 \u7ec8\u9875\u5d4c\u5b57"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-font-embed-matrix-text",
+      "kind": "document_cjk_font_embed_matrix_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-font-embed-matrix-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK font embed matrix sample",
+        "Font embed matrix:",
+        "FM-101 \u5d4c\u5b57\u77e9\u9635\u7532",
+        "FE-FM-901",
+        "FM-202 \u590d\u5236\u641c\u7d22\u8def\u5f84",
+        "Embed first header FM-101 page 1",
+        "Metrics marker:",
+        "FE-FM-921",
+        "FE-FM-922",
+        "Run scale:",
+        "FE-FM-931",
+        "FE-FM-932",
+        "FE-FM-933 \u7ec8\u9875\u5d4c\u5b57 ABC 123",
+        "FE-FM-941",
+        "FM-303",
+        "FE-FM-951",
+        "FE-FM-961",
+        "FE-FM-971",
+        "Embed close:",
+        "FE-FM-999 \u5b57\u5bbd\u56de\u8bfb"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-font-embed-matrix",
+        "cjk-header-footer-font",
+        "cjk-table-font-keys"
+      ]
+    },
+    {
+      "id": "document-cjk-anchor-font-matrix-boundary-text",
+      "kind": "document_cjk_anchor_font_matrix_boundary_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-anchor-font-matrix-boundary-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK anchor font matrix boundary sample",
+        "Anchor font matrix:",
+        "AM-101 \u8de8\u754c\u951a\u70b9",
+        "FE-AM-901",
+        "AM-202 \u5b57\u4f53\u5bc6\u5ea6\u77e9\u9635",
+        "Anchor matrix first header AM-101 page 1",
+        "Anchor matrix stripe:",
+        "AM-303 \u5b57\u53f7\u8054\u6d4b",
+        "FE-AM-921 \u68c0\u7d22\u5bc6\u6392 ABC 123",
+        "Run ladder:",
+        "\u6ce8\u8bb0\u56de\u8bfb",
+        "\u5408\u540c\u77e9\u9635",
+        "\u5927\u5b57\u5d4c\u5b57",
+        "\u951a\u70b9\u77e9\u9635\u8868",
+        "AM-A-04",
+        "Boundary checkpoint A:",
+        "\u8de8\u8868\u5207\u6362",
+        "AM-B-04",
+        "Boundary checkpoint B:",
+        "\u53f3\u4fa7\u6536\u53e3",
+        "Boundary close:",
+        "FE-AM-999 \u6062\u590d\u6574\u680f \u56fe\u7247\u4e0b\u65b9\u5168\u5bbd"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-anchor-font-matrix-boundary",
+        "cjk-header-footer-anchor",
+        "cjk-boundary-table-keys"
+      ]
+    },
+    {
+      "id": "document-cjk-style-overlay-lite-text",
+      "kind": "document_cjk_style_overlay_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-style-overlay-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK style overlay lite sample",
+        "Style overlay lite:",
+        "SO-101 \u6837\u5f0f\u4e0a\u6807",
+        "SO-202 \u6837\u5f0f\u4e0b\u6807",
+        "SO-303 \u5220\u9664\u7ebf\u4ecd\u53ef\u641c",
+        "SO-999 \u6837\u5f0f\u53e0\u52a0\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-style-overlay-page-flow-text",
+      "kind": "document_cjk_style_overlay_page_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-style-overlay-page-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK style overlay page flow sample",
+        "Style overlay flow:",
+        "\u6df7\u6392\u53e0\u52a0",
+        "\u4e0a\u4e0b\u6807\u590d\u5236",
+        "\u4e0a\u6807SO1",
+        "\u4e0b\u6807SO2",
+        "Overlay first header SO-101 \u6837\u5f0f\u68c0\u7d22\u952e page 1",
+        "Overlay header SO-303 \u6837\u5f0f\u68c0\u7d22\u952e",
+        "Overlay first footer SO-888 \u6837\u5f0f\u68c0\u7d22\u952e",
+        "Overlay footer SO-888 \u6837\u5f0f\u68c0\u7d22\u952e",
+        "Overlay matrix:",
+        "SO-888 \u6837\u5f0f\u68c0\u7d22\u952e",
+        "\u4e0a\u6807A1",
+        "\u4e0b\u6807B2",
+        "\u5220\u9664\u7ebf\u4ecd\u53ef\u641c",
+        "\u7b2c 1 \u7ec4\u6837\u5f0f\u53e0\u52a0\u5206\u9875\u9a8c\u8bc1",
+        "FE-SO-921",
+        "Overlay header contract:",
+        "SO-202 \u5076\u6570\u9875\u6837\u5f0f\u952e",
+        "SO-303 \u9ed8\u8ba4\u9875\u6837\u5f0f\u952e",
+        "SO-A-03",
+        "ABC 123",
+        "FE-SO-961",
+        "FE-SO-981",
+        "Overlay close:",
+        "FE-SO-999",
+        "Overlay settle:"
+      ],
+      "text_layer_expected_text": [
+        "Document CJK style overlay page flow sample",
+        "Style overlay flow:",
+        "\u6df7\u6392\u53e0\u52a0",
+        "\u4e0a\u4e0b\u6807\u590d\u5236",
+        "\u4e0a\u6807SO1",
+        "\u4e0b\u6807SO2",
+        "Overlay first header SO-101 \u6837\u5f0f\u68c0\u7d22\u952e page 1",
+        "Overlay first footer SO-888 \u6837\u5f0f\u68c0\u7d22\u952e 1 / 1",
+        "Overlay matrix:",
+        "SO-888 \u6837\u5f0f\u68c0\u7d22\u952e",
+        "\u4e0a\u6807A1",
+        "\u4e0b\u6807B2",
+        "\u5220\u9664\u7ebf\u4ecd\u53ef\u641c",
+        "\u7b2c 1 \u7ec4\u6837\u5f0f\u53e0\u52a0\u5206\u9875\u9a8c\u8bc1",
+        "FE-SO-921",
+        "Overlay header contract:",
+        "SO-202 \u5076\u6570\u9875\u6837\u5f0f\u952e",
+        "SO-303 \u9ed8\u8ba4\u9875\u6837\u5f0f\u952e",
+        "SO-A-03",
+        "ABC 123",
+        "FE-SO-961",
+        "FE-SO-981",
+        "Overlay close:",
+        "FE-SO-999",
+        "Overlay settle:"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-style-overlay-page-flow",
+        "cjk-overlay-header-footer",
+        "cjk-overlay-table-keys"
+      ]
+    },
+    {
+      "id": "document-cjk-complex-layout-text",
+      "kind": "document_cjk_complex_layout_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-complex-layout-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK complex layout sample",
+        "Complex layout overview:",
+        "\u9875\u7709\u9875\u811a\u5206\u9875\u53d8\u4f53",
+        "\u591a\u951a\u70b9\u56fe\u6587\u6df7\u6392",
+        "FE-CL-901",
+        "Complex first header CL-101 page 1",
+        "Complex footer",
+        "Wrap matrix:",
+        "\u56fe\u6587\u951a\u70b9",
+        "\u88c1\u526a\u73af\u7ed5",
+        "FE-CL-902",
+        "Top-bottom \u6d6e\u52a8\u56fe\u4e4b\u540e\u7684\u6b63\u6587",
+        "\u4e2d\u6587\u68c0\u7d22\u56fe\u5c42",
+        "FE-CL-903",
+        "\u7b2c 1 \u6bb5\u7ee7\u7eed\u9a8c\u8bc1\u590d\u6742\u7248\u5f0f\u7a33\u5b9a\u6027",
+        "FE-CL-921",
+        "\u7b2c 18 \u6bb5\u7ee7\u7eed\u9a8c\u8bc1\u590d\u6742\u7248\u5f0f\u7a33\u5b9a\u6027",
+        "Complex header contract:",
+        "CL-202",
+        "CL-303",
+        "FE-CL-941",
+        "FE-CL-951",
+        "FE-CL-999",
+        "ABC 123",
+        "Complex close:"
+      ],
+      "text_layer_expected_text": [
+        "Document CJK complex layout sample",
+        "Complex layout overview:",
+        "\u9875\u7709\u9875\u811a\u5206\u9875\u53d8\u4f53",
+        "\u591a\u951a\u70b9\u56fe\u6587\u6df7\u6392",
+        "FE-CL-901",
+        "Complex first header CL-101 page 1",
+        "Complex first footer 1 / 1",
+        "Wrap matrix:",
+        "\u56fe\u6587\u951a\u70b9",
+        "\u88c1\u526a\u73af\u7ed5",
+        "FE-CL-902",
+        "Top-bottom \u6d6e\u52a8\u56fe\u4e4b\u540e\u7684\u6b63\u6587",
+        "\u4e2d\u6587\u68c0\u7d22\u56fe\u5c42",
+        "FE-CL-903",
+        "\u7b2c 1 \u6bb5\u7ee7\u7eed\u9a8c\u8bc1\u590d\u6742\u7248\u5f0f\u7a33\u5b9a\u6027",
+        "FE-CL-921",
+        "\u7b2c 18 \u6bb5\u7ee7\u7eed\u9a8c\u8bc1\u590d\u6742\u7248\u5f0f\u7a33\u5b9a\u6027",
+        "Complex header contract:",
+        "CL-202",
+        "CL-303",
+        "FE-CL-941",
+        "FE-CL-951",
+        "FE-CL-999",
+        "ABC 123",
+        "Complex close:"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-complex-layout-flow",
+        "cjk-complex-header-footer",
+        "cjk-complex-table-keys"
+      ]
+    },
+    {
+      "id": "document-cjk-image-wrap-stress-text",
+      "kind": "document_cjk_image_wrap_stress_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-image-wrap-stress-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK image wrap stress sample",
+        "Image wrap stress:",
+        "\u591a\u951a\u70b9\u56fe\u50cf\u6d41",
+        "\u88c1\u526a\u73af\u7ed5\u77e9\u9635",
+        "FE-IW-901",
+        "Image first header IW-101 page 1",
+        "Image even header IW-202 page 2",
+        "Image header IW-303 page 3",
+        "Image first footer 1 / 4",
+        "Image even footer 2 / 4",
+        "Image footer 4 / 4",
+        "Search stripe:",
+        "\u56de\u8bfb\u70ed\u533a",
+        "\u7ec8\u9875\u951a\u70b9",
+        "\u7b2c 1 \u7ec4\u56fe\u50cf\u73af\u7ed5\u9a8c\u8bc1",
+        "FE-IW-921",
+        "\u7b2c 18 \u7ec4\u56fe\u50cf\u73af\u7ed5\u9a8c\u8bc1",
+        "FE-IW-938",
+        "\u7b2c 36 \u7ec4\u56fe\u50cf\u73af\u7ed5\u9a8c\u8bc1",
+        "FE-IW-956",
+        "Closing matrix:",
+        "FE-IW-999",
+        "\u88c1\u526a\u56de\u6d41",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-image-wrap-stress-flow",
+        "cjk-image-wrap-header-footer",
+        "cjk-image-wrap-table-keys"
+      ]
+    },
+    {
+      "id": "document-cjk-extreme-page-breaks-text",
+      "kind": "document_cjk_extreme_page_breaks_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-extreme-page-breaks-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK extreme page breaks sample",
+        "Extreme page breaks:",
+        "\u4e34\u754c\u5206\u9875\u8fb9\u754c",
+        "\u6bb5\u843d\u56de\u6d41\u77e9\u9635",
+        "FE-PB-901",
+        "Break first header PB-101 page 1",
+        "Break even header PB-202 page 2",
+        "Break header PB-303 page 3",
+        "Break first footer 1 / 5",
+        "Break even footer 2 / 5",
+        "Break footer 5 / 5",
+        "Boundary stripe:",
+        "\u7ec8\u9875\u6536\u53e3",
+        "\u56de\u6d41\u68c0\u6d4b",
+        "\u7b2c 1 \u7ec4\u5206\u9875\u8fb9\u754c\u9a8c\u8bc1",
+        "FE-PB-921",
+        "\u7b2c 12 \u7ec4\u5206\u9875\u8fb9\u754c\u9a8c\u8bc1",
+        "FE-PB-932",
+        "\u7b2c 18 \u7ec4\u5206\u9875\u8fb9\u754c\u9a8c\u8bc1",
+        "FE-PB-938",
+        "Boundary close:",
+        "FE-PB-999",
+        "\u672b\u9875\u6536\u53e3",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-extreme-page-break-flow",
+        "cjk-extreme-page-break-header-footer",
+        "cjk-extreme-page-break-table-keys"
+      ]
+    },
+    {
+      "id": "document-cjk-vertical-merge-wrap-cant-split-text",
+      "kind": "document_cjk_vertical_merge_wrap_cant_split_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-vertical-merge-wrap-cant-split-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK vertical merge wrap sample",
+        "Vertical merge wrap:",
+        "\u7eb5\u5411\u5408\u5e76\u8054\u52a8",
+        "\u5c0f\u9875\u9ad8\u5206\u9875",
+        "FE-VM-901",
+        "Vertical first header VM-101 page 1",
+        "Vertical even header VM-202 page 2",
+        "Vertical header VM-303 page 3",
+        "Vertical first footer 1 / 4",
+        "Vertical even footer 2 / 4",
+        "Vertical footer 4 / 4",
+        "Merge stripe:",
+        "\u7eb5\u5411\u5757",
+        "\u6574\u5757\u8fc1\u79fb",
+        "\u7b2c 1 \u7ec4\u7eb5\u5411\u8054\u52a8\u9a8c\u8bc1",
+        "FE-VM-921",
+        "\u4ea4\u4ed8\u77e9\u9635",
+        "\u8d1f\u8d23\u4eba",
+        "CVM-04",
+        "Vertical checkpoint:",
+        "\u8868\u540e\u56de\u6d41",
+        "\u6574\u5757\u843d\u9875",
+        "\u7b2c 5 \u7ec4\u8868\u540e\u56de\u6d41\u9a8c\u8bc1",
+        "Vertical close:",
+        "FE-VM-999",
+        "\u6574\u5757\u590d\u68c0",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-vertical-merge-wrap-flow",
+        "cjk-vertical-merge-header-footer",
+        "cjk-vertical-merge-cant-split-table"
+      ]
+    },
+    {
+      "id": "document-cjk-anchor-matrix-lite-text",
+      "kind": "document_cjk_anchor_matrix_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-anchor-matrix-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK anchor matrix lite sample",
+        "Anchor matrix lite:",
+        "AM-101 \u8de8\u754c\u951a\u70b9",
+        "AM-202 \u5b57\u4f53\u5bc6\u5ea6\u77e9\u9635",
+        "AM-303 \u68c0\u7d22\u5bc6\u6392 ABC 123",
+        "AM-999 \u951a\u70b9\u77e9\u9635\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-font-search-density-flow-text",
+      "kind": "document_cjk_font_search_density_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-font-search-density-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK font search density flow sample",
+        "Font search density:",
+        "SD-101 \u5bc6\u6392\u68c0\u7d22",
+        "FE-SD-901",
+        "SD-202 \u5b57\u53f7\u56de\u8bfb\u77e9\u9635",
+        "Search density first header SD-101 page 1",
+        "Density stripe:",
+        "SD-303 \u5b57\u5bbd\u8054\u6d4b",
+        "FE-SD-921 \u590d\u5236\u56de\u8bfb ABC 123",
+        "Density ladder:",
+        "\u6ce8\u8bb0\u56de\u8bfb",
+        "\u5408\u540c\u77e9\u9635",
+        "\u5927\u5b57\u5d4c\u5b57",
+        "FE-SD-931",
+        "FE-SD-932",
+        "\u68c0\u7d22\u5bc6\u5ea6\u8868",
+        "SD-A-04",
+        "Density checkpoint A:",
+        "SD-B-04",
+        "Density checkpoint B:",
+        "\u56de\u8bfb\u590d\u68c0",
+        "Density close:",
+        "FE-SD-999 \u56de\u8bfb\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-font-search-density-flow",
+        "cjk-header-footer-density",
+        "cjk-density-table-keys"
+      ]
+    },
+    {
+      "id": "document-cjk-search-density-lite-text",
+      "kind": "document_cjk_search_density_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-search-density-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK search density lite sample",
+        "Search density lite:",
+        "SD-101 \u5bc6\u6392\u68c0\u7d22",
+        "SD-202 \u5b57\u5bbd\u8054\u6d4b copy search",
+        "SD-303 \u6ce8\u8bb0\u56de\u8bfb ABC 123",
+        "SD-999 \u5bc6\u5ea6\u56de\u8bfb\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-repeated-key-lite-text",
+      "kind": "document_cjk_repeated_key_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-repeated-key-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK repeated key lite sample",
+        "Repeated key lite:",
+        "RK-101 \u8de8\u533a\u68c0\u7d22\u952e",
+        "RK-777 \u5171\u7528\u68c0\u7d22\u952e",
+        "RK-777 \u5171\u7528\u68c0\u7d22\u952e ABC 123",
+        "RK-999 \u91cd\u590d\u952e\u7ed3\u675f"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-repeated-key-boundary-flow-text",
+      "kind": "document_cjk_repeated_key_boundary_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-repeated-key-boundary-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK repeated key boundary flow sample",
+        "Repeated key flow:",
+        "RK-101 \u8de8\u533a\u68c0\u7d22\u952e",
+        "FE-RK-901",
+        "RK-202 \u8fb9\u754c\u590d\u73b0\u77e9\u9635",
+        "RK-303",
+        "Repeat key first header RK-101 \u8de8\u533a page 1",
+        "Repeat marker:",
+        "RK-777 \u5171\u7528\u68c0\u7d22\u952e",
+        "FE-RK-911",
+        "\u6b63\u6587\u590d\u73b0",
+        "\u540c\u952e\u590d\u73b0\u8868",
+        "RK-A-01",
+        "Repeat checkpoint:",
+        "FE-RK-941",
+        "RK-A-04",
+        "FE-RK-951",
+        "RK-A-06",
+        "FE-RK-961",
+        "FE-RK-981",
+        "Repeat settle:",
+        "ABC 123",
+        "Repeat close:",
+        "FE-RK-999",
+        "\u7ec8\u9875\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-repeated-key-boundary-flow",
+        "cjk-header-footer-repeated-key",
+        "cjk-table-repeated-key"
+      ]
+    },
+    {
+      "id": "document-cjk-vertical-merge-lite-text",
+      "kind": "document_cjk_vertical_merge_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-vertical-merge-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK vertical merge lite sample",
+        "VM-101 \u7eb5\u5411\u5408\u5e76\u8054\u52a8",
+        "VM-202",
+        "\u7edf\u7b79\u5757",
+        "VM-303",
+        "VM-777 \u8868\u540e\u56de\u6d41\u68c0\u7d22\u952e",
+        "VM-999"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-table-wrap-lite-text",
+      "kind": "document_cjk_table_wrap_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-table-wrap-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK table wrap lite sample",
+        "TW-101 \u957f\u6587\u672c\u5355\u5143\u683c\u6362\u884c",
+        "TW-202",
+        "\u590d\u5236\u6821\u9a8c",
+        "TW-303",
+        "TW-404",
+        "\u8868\u683c\u6d41\u8f6c\u770b\u677f\u7ee7\u7eed\u56de\u8bfb ABC 123",
+        "TW-999"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-table-wrap-page-flow-text",
+      "kind": "document_cjk_table_wrap_page_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-table-wrap-page-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK table wrap page flow sample",
+        "Table wrap page flow:",
+        "TF-101",
+        "Flow first header TF-101 page 1",
+        "TF-202",
+        "TF-303",
+        "Flow footer 1 / 1",
+        "Flow stripe:",
+        "FE-TF-921",
+        "TF-A-05",
+        "Flow checkpoint A:",
+        "TF-B-03",
+        "Flow checkpoint B:",
+        "Flow settle:",
+        "FE-TF-999",
+        "ABC 123"
+      ],
+      "text_layer_expected_text": [
+        "Document CJK table wrap page flow sample",
+        "Table wrap page flow:",
+        "TF-101",
+        "Flow first header TF-101 page 1",
+        "TF-A-01",
+        "Flow first footer 1 / 1",
+        "Flow stripe:",
+        "FE-TF-921",
+        "TF-A-05",
+        "Flow checkpoint A:",
+        "TF-B-03",
+        "Flow checkpoint B:",
+        "Flow settle:",
+        "FE-TF-999",
+        "ABC 123"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-table-wrap-page-flow",
+        "cjk-table-repeat-header",
+        "cjk-table-vertical-merge",
+        "cjk-header-footer-flow"
+      ]
+    },
+    {
+      "id": "document-cjk-font-embed-wrap-mix-lite-text",
+      "kind": "document_cjk_font_embed_wrap_mix_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-font-embed-wrap-mix-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK font embed wrap mix lite sample",
+        "Font embed wrap mix lite:",
+        "WM-101 \u5d4c\u5b57\u73af\u7ed5\u7532",
+        "FE-WM-202 \u957f\u53e5\u6362\u884c\u4fdd\u7559 copy search ABC 123",
+        "WM-303 \u5927\u5b57\u5d4c\u5b57\u56de\u8bfb",
+        "FE-WM-999 \u73af\u7ed5\u77e9\u9635\u6536\u53e3"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-font-embed-wrap-mix-text",
+      "kind": "document_cjk_font_embed_wrap_mix_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-font-embed-wrap-mix-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK font embed wrap mix sample",
+        "Font embed wrap mix:",
+        "WM-101 \u5d4c\u5b57\u73af\u7ed5\u7532",
+        "FE-WM-901",
+        "WM-202 \u88c1\u526a\u56de\u8bfb\u77e9\u9635",
+        "Wrap first header WM-101 page 1",
+        "Embed wrap stripe:",
+        "FE-WM-911 \u5b57\u4f53\u56de\u8bfb ABC 123",
+        "Wrap scale:",
+        "WM-303 \u5927\u5b57\u5d4c\u5b57",
+        "FE-WM-921",
+        "\u73af\u7ed5\u77e9\u9635\u8868",
+        "FE-WM-941",
+        "Wrap checkpoint A:",
+        "\u5b57\u5bbd\u6821\u9a8c",
+        "FE-WM-951",
+        "Wrap checkpoint B:",
+        "\u7ec8\u9875\u951a\u70b9",
+        "FE-WM-961",
+        "\u7b2c 1 \u7ec4\u73af\u7ed5\u5d4c\u5b57\u9a8c\u8bc1",
+        "Wrap close:",
+        "FE-WM-999 \u5b57\u5bbd\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-font-embed-wrap-mix",
+        "cjk-header-footer-wrap",
+        "cjk-table-wrap-font-keys"
+      ]
+    },
+    {
+      "id": "document-cjk-multi-anchor-table-flow-lite-text",
+      "kind": "document_cjk_multi_anchor_table_flow_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-multi-anchor-table-flow-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK multi anchor table flow lite sample",
+        "Multi anchor flow lite:",
+        "MA-101 \u8fde\u7eed\u6587\u6863\u6d41",
+        "FE-MA-202 \u951a\u70b9\u5207\u6362\u77e9\u9635",
+        "MA-303 \u6837\u5f0f\u53e0\u52a0\u56de\u8bfb",
+        "MA-A-04",
+        "FE-MA-404",
+        "MA-B-04",
+        "FE-MA-999 \u56de\u8bfb\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-multi-anchor-table-flow-text",
+      "kind": "document_cjk_multi_anchor_table_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-multi-anchor-table-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK multi anchor table flow sample",
+        "Multi anchor flow:",
+        "MA-101 \u8fde\u7eed\u6587\u6863\u6d41",
+        "MA-202",
+        "FE-MA-901 \u951a\u70b9\u5207\u6362\u77e9\u9635",
+        "Multi first header MA-101 page 1",
+        "MA-303 \u6837\u5f0f\u53e0\u52a0\u56de\u8bfb ABC 123",
+        "MA-A-04",
+        "Anchor checkpoint A:",
+        "FE-MA-951",
+        "MA-B-04",
+        "Anchor checkpoint B:",
+        "FE-MA-971",
+        "FE-MA-981",
+        "Anchor settle:",
+        "Anchor close:",
+        "FE-MA-999 \u56de\u8bfb\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_style_focus": [
+        "cjk-multi-anchor-table-flow",
+        "cjk-table-repeat-header",
+        "cjk-table-vertical-merge",
+        "cjk-header-footer-flow"
+      ]
+    },
+    {
+      "id": "document-cjk-page-boundary-lite-text",
+      "kind": "document_cjk_page_boundary_lite_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-page-boundary-lite-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK page boundary lite sample",
+        "Page boundary lite:",
+        "PB-101 \u4e34\u754c\u5206\u9875\u8fb9\u754c",
+        "FE-PB-202 \u9875\u7709\u9875\u811a\u56de\u6d41",
+        "PB-404 \u5185\u8054\u56fe\u7247\u524d\u7684 CJK \u6b63\u6587\u4fdd\u7559 copy search",
+        "FE-PB-505 \u5185\u8054\u56fe\u7247\u540e\u6bb5\u843d\u7acb\u5373\u6062\u590d\u6574\u680f\u5bbd\u5ea6",
+        "PB-601 \u56fe\u50cf\u73af\u7ed5\u5206\u9875 lite \u6bb5\u843d ABC 123 \u4fdd\u7559\u68c0\u7d22\u952e",
+        "PB-604 \u56fe\u50cf\u73af\u7ed5\u5206\u9875 lite \u6bb5\u843d ABC 123 \u4fdd\u7559\u68c0\u7d22\u952e",
+        "Boundary close lite:",
+        "FE-PB-999 \u672b\u9875\u6536\u53e3"
+      ],
+      "expected_image_count": 2,
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-numbered-list-page-flow-text",
+      "kind": "document_cjk_numbered_list_page_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-numbered-list-page-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK numbered list page flow sample",
+        "Numbered list flow:",
+        "NL-101 \u7f16\u53f7\u91cd\u542f",
+        "FE-NL-202 \u5d4c\u5957\u5217\u8868",
+        "List header NL-303",
+        "List footer NL-888",
+        "NL-888 \u7f16\u53f7\u68c0\u7d22\u952e",
+        "FE-NL-921 \u7b2c 1 \u9879 CJK \u7f16\u53f7\u6d41",
+        "NL-A-03",
+        "FE-NL-999 \u7ec8\u9875\u590d\u68c0"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-bullet-page-flow-text",
+      "kind": "document_cjk_bullet_page_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-bullet-page-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK bullet page flow sample",
+        "Bullet flow:",
+        "BL-101 \u9879\u76ee\u7b26\u53f7\u68c0\u7d22\u952e",
+        "FE-BL-202",
+        "Bullet header BL-303",
+        "Bullet footer BL-777",
+        "BL-777 \u9879\u76ee\u7b26\u53f7\u68c0\u7d22\u952e",
+        "FE-BL-921 \u7b2c 1 \u7ec4 CJK \u9879\u76ee\u7b26\u53f7\u6d41",
+        "BL-A-03",
+        "FE-BL-999 \u9879\u76ee\u7b26\u53f7\u6536\u53e3"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-cjk-bullet-overlay-page-flow-text",
+      "kind": "document_cjk_bullet_overlay_page_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-cjk-bullet-overlay-page-flow-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document CJK bullet overlay page flow sample",
+        "Bullet overlay flow:",
+        "BO-101 \u9879\u76ee\u7b26\u53f7\u4e0a\u6807",
+        "BO-202 \u9879\u76ee\u7b26\u53f7\u4e0b\u6807",
+        "Bullet overlay header BO-303",
+        "Bullet overlay footer BO-777",
+        "BO-777 \u53e0\u52a0\u9879\u76ee\u7b26\u53f7\u68c0\u7d22\u952e",
+        "FE-BO-921 \u7b2c 1 \u7ec4 CJK \u9879\u76ee\u7b26\u53f7\u6d41",
+        "BO-A-03",
+        "FE-BO-999 \u8986\u76d6\u6536\u53e3"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }

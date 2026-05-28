@@ -37,7 +37,10 @@ summarize_run_handle(const featherdoc::Run &run_handle, std::size_t run_index) {
     summary.text_color = run_handle.text_color();
     summary.bold = run_handle.bold();
     summary.italic = run_handle.italic();
+    summary.strikethrough = run_handle.strikethrough();
     summary.underline = run_handle.underline();
+    summary.superscript = run_handle.superscript();
+    summary.subscript = run_handle.subscript();
     summary.font_size_points = run_handle.font_size_points();
     summary.language = run_handle.language();
     summary.east_asia_language = run_handle.east_asia_language();
@@ -69,11 +72,13 @@ wrap_table_cell_runs(featherdoc::Table *table_handle,
     std::vector<TextToken> tokens;
     auto paragraph = cell_handle->paragraphs();
     auto saw_paragraph = false;
+    auto cell_bidi = false;
     for (; paragraph.has_next(); paragraph.next()) {
         if (saw_paragraph) {
             append_hard_break_token(tokens);
         }
         saw_paragraph = true;
+        cell_bidi = cell_bidi || paragraph.bidi().value_or(false);
 
         auto run = paragraph.runs();
         for (std::size_t run_index = 0U; run.has_next();
@@ -95,7 +100,11 @@ wrap_table_cell_runs(featherdoc::Table *table_handle,
         return std::vector<LineState>{LineState{}};
     }
 
-    return wrap_run_tokens(tokens, max_width_points);
+    auto lines = wrap_run_tokens(tokens, max_width_points);
+    for (auto &line : lines) {
+        line.bidi = cell_bidi || line.bidi || line_contains_rtl_fragments(line);
+    }
+    return lines;
 }
 
 [[nodiscard]] std::size_t table_row_count(
@@ -231,6 +240,82 @@ table_origin_x_points(const featherdoc::table_inspection_summary &table,
         height = std::max(height, line.width_points);
     }
     return height > 0.0 ? height : fallback_line_height_points;
+}
+
+struct CellVerticalPadding {
+    double top_points{0.0};
+    double bottom_points{0.0};
+};
+
+void consume_padding(double &primary, double &secondary,
+                     double deficit_points) noexcept {
+    const auto primary_consumed = std::min(primary, deficit_points);
+    primary -= primary_consumed;
+    deficit_points -= primary_consumed;
+
+    const auto secondary_consumed = std::min(secondary, deficit_points);
+    secondary -= secondary_consumed;
+}
+
+[[nodiscard]] CellVerticalPadding fitted_cell_vertical_padding(
+    const TableCellLayout &cell, double row_top, double row_bottom) noexcept {
+    CellVerticalPadding padding{cell.padding_top_points,
+                                cell.padding_bottom_points};
+    const auto total_height = std::max(0.0, row_top - row_bottom);
+
+    const auto reduce_padding = [&](double deficit_points) {
+        if (deficit_points <= 0.0) {
+            return;
+        }
+
+        const auto alignment =
+            cell.cell.vertical_alignment.value_or(
+                featherdoc::cell_vertical_alignment::top);
+        switch (alignment) {
+        case featherdoc::cell_vertical_alignment::bottom:
+            consume_padding(padding.top_points, padding.bottom_points,
+                            deficit_points);
+            break;
+        case featherdoc::cell_vertical_alignment::center:
+        case featherdoc::cell_vertical_alignment::both: {
+            const auto target = deficit_points / 2.0;
+            consume_padding(padding.top_points, padding.bottom_points, target);
+            consume_padding(padding.bottom_points, padding.top_points,
+                            deficit_points / 2.0);
+            const auto remaining =
+                deficit_points - (cell.padding_top_points - padding.top_points) -
+                (cell.padding_bottom_points - padding.bottom_points);
+            if (remaining > 0.0) {
+                if (padding.top_points >= padding.bottom_points) {
+                    consume_padding(padding.top_points, padding.bottom_points,
+                                    remaining);
+                } else {
+                    consume_padding(padding.bottom_points, padding.top_points,
+                                    remaining);
+                }
+            }
+            break;
+        }
+        case featherdoc::cell_vertical_alignment::top:
+        default:
+            consume_padding(padding.bottom_points, padding.top_points,
+                            deficit_points);
+            break;
+        }
+    };
+
+    const auto total_padding = padding.top_points + padding.bottom_points;
+    if (total_padding > total_height) {
+        reduce_padding(total_padding - total_height);
+    }
+
+    const auto available_height = std::max(
+        0.0, total_height - padding.top_points - padding.bottom_points);
+    if (available_height < cell.content_height_points) {
+        reduce_padding(cell.content_height_points - available_height);
+    }
+
+    return padding;
 }
 
 } // namespace
@@ -493,23 +578,31 @@ build_table_column_widths(const featherdoc::table_inspection_summary &table,
 [[nodiscard]] double cell_content_top(const TableCellLayout &cell,
                                       double row_top,
                                       double row_bottom) noexcept {
+    const auto padding = fitted_cell_vertical_padding(cell, row_top, row_bottom);
     const auto available_height =
-        std::max(0.0, row_top - row_bottom - cell.padding_top_points -
-                          cell.padding_bottom_points);
+        std::max(0.0, row_top - row_bottom - padding.top_points -
+                          padding.bottom_points);
     const auto extra_height =
         std::max(0.0, available_height - cell.content_height_points);
 
     if (cell.cell.vertical_alignment ==
         featherdoc::cell_vertical_alignment::bottom) {
-        return row_top - cell.padding_top_points - extra_height;
+        return row_top - padding.top_points - extra_height;
     }
     if (cell.cell.vertical_alignment ==
             featherdoc::cell_vertical_alignment::center ||
         cell.cell.vertical_alignment ==
             featherdoc::cell_vertical_alignment::both) {
-        return row_top - cell.padding_top_points - extra_height / 2.0;
+        return row_top - padding.top_points - extra_height / 2.0;
     }
-    return row_top - cell.padding_top_points;
+    return row_top - padding.top_points;
+}
+
+[[nodiscard]] double cell_minimum_baseline_y(const TableCellLayout &cell,
+                                             double row_top,
+                                             double row_bottom) noexcept {
+    const auto padding = fitted_cell_vertical_padding(cell, row_top, row_bottom);
+    return row_bottom + padding.bottom_points;
 }
 
 [[nodiscard]] double spanned_row_bottom(const std::vector<TableRowLayout> &rows,

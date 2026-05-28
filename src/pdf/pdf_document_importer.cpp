@@ -587,7 +587,9 @@ enum class TableAppendResult { failed, created, merged };
         }
 
         if (std::isspace(ch) || ch == '-' || ch == '_' || ch == '/' ||
-            ch == '\\' || ch == ':' || ch == '.') {
+            ch == '\\' || ch == ':' || ch == '.' || ch == ',' ||
+            ch == ';' || ch == '(' || ch == ')' || ch == '[' ||
+            ch == ']') {
             pending_space = !normalized.empty();
             continue;
         }
@@ -602,8 +604,69 @@ enum class TableAppendResult { failed, created, merged };
     return normalized;
 }
 
-[[nodiscard]] bool header_cell_texts_match(std::string_view left,
-                                           std::string_view right) {
+[[nodiscard]] std::string canonicalize_header_match_token(
+    std::string_view token) {
+    if (token == "qty" || token == "quantity" ||
+        token == "quantities") {
+        return "quantity";
+    }
+    if (token == "amt" || token == "amount" || token == "amounts") {
+        return "amount";
+    }
+    if (token == "desc" || token == "description" ||
+        token == "descriptions") {
+        return "description";
+    }
+    if (token == "no" || token == "num" || token == "number" ||
+        token == "numbers") {
+        return "number";
+    }
+
+    return std::string{token};
+}
+
+[[nodiscard]] std::vector<std::string> collect_canonical_header_match_tokens(
+    std::string_view text) {
+    std::vector<std::string> tokens;
+
+    std::size_t token_start = 0U;
+    while (token_start < text.size()) {
+        const auto token_end = text.find(' ', token_start);
+        const auto token =
+            text.substr(token_start,
+                        token_end == std::string_view::npos
+                            ? std::string_view::npos
+                            : token_end - token_start);
+        if (!token.empty()) {
+            tokens.push_back(canonicalize_header_match_token(token));
+        }
+
+        if (token_end == std::string_view::npos) {
+            break;
+        }
+        token_start = token_end + 1U;
+    }
+
+    return tokens;
+}
+
+[[nodiscard]] std::string canonicalize_header_match_text(
+    std::string_view text) {
+    const auto tokens = collect_canonical_header_match_tokens(text);
+    std::string canonical;
+    canonical.reserve(text.size());
+    for (const auto &token : tokens) {
+        if (!canonical.empty()) {
+            canonical.push_back(' ');
+        }
+        canonical += token;
+    }
+
+    return canonical;
+}
+
+[[nodiscard]] bool header_texts_match_exact_or_plural_variant(
+    std::string_view left, std::string_view right) {
     if (left == right) {
         return true;
     }
@@ -617,6 +680,80 @@ enum class TableAppendResult { failed, created, merged };
 
     const auto suffix = longer.substr(shorter.size());
     return suffix == "s" || suffix == "es";
+}
+
+[[nodiscard]] bool header_tokens_match_in_any_order(std::string_view left,
+                                                    std::string_view right) {
+    auto left_tokens = collect_canonical_header_match_tokens(left);
+    auto right_tokens = collect_canonical_header_match_tokens(right);
+    if (left_tokens.size() != right_tokens.size() ||
+        left_tokens.size() < 2U || left_tokens.size() > 4U) {
+        return false;
+    }
+
+    std::sort(left_tokens.begin(), left_tokens.end());
+    std::sort(right_tokens.begin(), right_tokens.end());
+    return left_tokens == right_tokens;
+}
+
+[[nodiscard]] int header_match_kind_rank(
+    PdfTableContinuationHeaderMatchKind kind) {
+    switch (kind) {
+    case PdfTableContinuationHeaderMatchKind::none:
+    case PdfTableContinuationHeaderMatchKind::not_required:
+        return 0;
+    case PdfTableContinuationHeaderMatchKind::exact:
+        return 1;
+    case PdfTableContinuationHeaderMatchKind::normalized_text:
+        return 2;
+    case PdfTableContinuationHeaderMatchKind::plural_variant:
+        return 3;
+    case PdfTableContinuationHeaderMatchKind::canonical_text:
+        return 4;
+    case PdfTableContinuationHeaderMatchKind::token_set:
+        return 5;
+    }
+
+    return 0;
+}
+
+[[nodiscard]] PdfTableContinuationHeaderMatchKind strongest_header_match_kind(
+    PdfTableContinuationHeaderMatchKind left,
+    PdfTableContinuationHeaderMatchKind right) {
+    return header_match_kind_rank(left) >= header_match_kind_rank(right)
+               ? left
+               : right;
+}
+
+[[nodiscard]] PdfTableContinuationHeaderMatchKind header_cell_text_match_kind(
+    std::string_view left, std::string_view right) {
+    if (left == right) {
+        return PdfTableContinuationHeaderMatchKind::exact;
+    }
+
+    const auto normalized_left = normalize_header_match_text(left);
+    const auto normalized_right = normalize_header_match_text(right);
+    if (normalized_left == normalized_right) {
+        return PdfTableContinuationHeaderMatchKind::normalized_text;
+    }
+    if (header_texts_match_exact_or_plural_variant(normalized_left,
+                                                   normalized_right)) {
+        return PdfTableContinuationHeaderMatchKind::plural_variant;
+    }
+
+    const auto canonical_left = canonicalize_header_match_text(normalized_left);
+    const auto canonical_right =
+        canonicalize_header_match_text(normalized_right);
+    if (canonical_left == canonical_right ||
+        header_texts_match_exact_or_plural_variant(canonical_left,
+                                                   canonical_right)) {
+        return PdfTableContinuationHeaderMatchKind::canonical_text;
+    }
+    if (header_tokens_match_in_any_order(canonical_left, canonical_right)) {
+        return PdfTableContinuationHeaderMatchKind::token_set;
+    }
+
+    return PdfTableContinuationHeaderMatchKind::none;
 }
 
 [[nodiscard]] bool is_header_label_text(std::string_view text) {
@@ -658,6 +795,24 @@ enum class TableAppendResult { failed, created, merged };
     }
 
     return has_alpha;
+}
+
+[[nodiscard]] bool has_body_spanning_summary_row(
+    const PdfParsedTableCandidate &source) {
+    if (source.rows.size() < 2U) {
+        return false;
+    }
+
+    return std::any_of(source.rows.begin() + 1U, source.rows.end(),
+                       [](const PdfParsedTableRow &row) {
+                           return count_text_cells(row) >= 2U &&
+                                  std::any_of(
+                                      row.cells.begin(), row.cells.end(),
+                                      [](const PdfParsedTableCell &cell) {
+                                          return cell.has_text &&
+                                                 cell.column_span > 1U;
+                                      });
+                       });
 }
 
 [[nodiscard]] bool should_mark_repeating_header_row(
@@ -734,30 +889,39 @@ enum class TableAppendResult { failed, created, merged };
     const double body_average_length =
         static_cast<double>(body_text_length) /
         static_cast<double>(body_text_cell_count);
-    return body_average_length >= header_average_length * 1.5 ||
-           (body_average_length >= header_average_length * 1.15 &&
-            body_rows_with_longer_text >= 2U &&
-            body_longer_than_header_count >= header_row.cells.size());
-}
-
-[[nodiscard]] bool row_cell_texts_match(
-    const std::vector<std::string> &left, const PdfParsedTableRow &right) {
-    if (left.size() != right.cells.size()) {
-        return false;
+    if (body_average_length >= header_average_length * 1.5 ||
+        (body_average_length >= header_average_length * 1.15 &&
+         body_rows_with_longer_text >= 2U &&
+         body_longer_than_header_count >= header_row.cells.size())) {
+        return true;
     }
 
+    return has_body_spanning_summary_row(source) &&
+           body_average_length >= header_average_length * 1.15 &&
+           body_rows_with_longer_text >= 2U &&
+           body_longer_than_header_count + 1U >= header_text_cell_count;
+}
+
+[[nodiscard]] PdfTableContinuationHeaderMatchKind row_cell_texts_match_kind(
+    const std::vector<std::string> &left, const PdfParsedTableRow &right) {
+    if (left.size() != right.cells.size()) {
+        return PdfTableContinuationHeaderMatchKind::none;
+    }
+
+    auto match_kind = PdfTableContinuationHeaderMatchKind::exact;
     for (std::size_t cell_index = 0U; cell_index < left.size(); ++cell_index) {
         const auto &right_cell = right.cells[cell_index];
         const auto right_text =
             right_cell.has_text ? right_cell.text : std::string{};
-        if (!header_cell_texts_match(
-                normalize_header_match_text(left[cell_index]),
-                normalize_header_match_text(right_text))) {
-            return false;
+        const auto cell_match_kind =
+            header_cell_text_match_kind(left[cell_index], right_text);
+        if (cell_match_kind == PdfTableContinuationHeaderMatchKind::none) {
+            return PdfTableContinuationHeaderMatchKind::none;
         }
+        match_kind = strongest_header_match_kind(match_kind, cell_match_kind);
     }
 
-    return true;
+    return match_kind;
 }
 
 [[nodiscard]] bool configure_imported_table(featherdoc::Table &table,
@@ -891,10 +1055,16 @@ enum class TableAppendResult { failed, created, merged };
         diagnostic.has_previous_table &&
         have_compatible_column_anchors(cursor.table_column_anchor_x_points,
                                        source.column_anchor_x_points);
+    if (!diagnostic.previous_has_repeating_header ||
+        !diagnostic.source_has_repeating_header) {
+        diagnostic.header_match_kind =
+            PdfTableContinuationHeaderMatchKind::not_required;
+    } else {
+        diagnostic.header_match_kind = row_cell_texts_match_kind(
+            cursor.table_header_cell_texts, source.rows.front());
+    }
     diagnostic.header_matches_previous =
-        !diagnostic.previous_has_repeating_header ||
-        !diagnostic.source_has_repeating_header ||
-        row_cell_texts_match(cursor.table_header_cell_texts, source.rows.front());
+        diagnostic.header_match_kind != PdfTableContinuationHeaderMatchKind::none;
 
     if (!diagnostic.has_previous_table) {
         diagnostic.disposition = PdfTableContinuationDisposition::created_new_table;
@@ -1114,7 +1284,7 @@ populate_document_from_parsed_pdf(featherdoc::Document &document,
             PdfDocumentImportFailureKind::table_candidates_detected;
         result.error_message =
             "PDF text import detected table-like structure candidates; "
-            "table import is not supported yet";
+            "enable table-candidate import to import them as DOCX tables";
         return result;
     }
 

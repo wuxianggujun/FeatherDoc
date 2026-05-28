@@ -6,6 +6,14 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = Join-Path $RepoRoot "build\export_render_data_mapping_draft_test"
+}
+
 function Assert-True {
     param(
         [bool]$Condition,
@@ -171,5 +179,36 @@ Assert-Equal -Actual $visibilityEntry.section -Expected 0 `
     -Message "Visibility selector section was not preserved."
 Assert-Equal -Actual $visibilityEntry.kind -Expected "even" `
     -Message "Visibility selector kind was not preserved."
+
+$escapedSourcePlan = Join-Path $resolvedWorkingDir "escaped-source.render-plan.json"
+$escapedSourceOutput = Join-Path $resolvedWorkingDir "escaped-source.render_data_mapping.draft.json"
+$escapedSourceSummary = Join-Path $resolvedWorkingDir "escaped-source.render_data_mapping.draft.summary.json"
+
+Set-Content -LiteralPath $escapedSourcePlan -Encoding UTF8 -Value @'
+{
+  "bookmark_text": [
+    {
+      "bookmark_name": "items[0].title",
+      "text": "TODO: items[0].title"
+    }
+  ]
+}
+'@
+
+& $scriptPath `
+    -InputPlan $escapedSourcePlan `
+    -OutputMapping $escapedSourceOutput `
+    -SummaryJson $escapedSourceSummary `
+    -SourceRoot "data"
+
+if ($LASTEXITCODE -ne 0) {
+    throw "export_render_data_mapping_draft.ps1 failed for escaped source fixture."
+}
+
+$escapedSourceMapping = Get-Content -Raw -Encoding UTF8 -LiteralPath $escapedSourceOutput | ConvertFrom-Json
+$escapedSourceEntry = $escapedSourceMapping.bookmark_text[0]
+
+Assert-Equal -Actual $escapedSourceEntry.source -Expected "data.items_0_title" `
+    -Message "Bracket and dot characters should be escaped out of bookmark-derived source paths."
 
 Write-Host "Render-data mapping draft export regression passed."

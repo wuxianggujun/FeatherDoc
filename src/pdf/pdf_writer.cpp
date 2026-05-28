@@ -5,9 +5,13 @@
 #include <featherdoc/pdf/pdf_writer.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -16,6 +20,9 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
 extern "C" {
 #include <pdfio-content.h>
@@ -26,6 +33,7 @@ namespace featherdoc::pdf {
 namespace {
 
 constexpr double kPi = 3.14159265358979323846;
+constexpr double kGlyphPositionTolerance = 0.0001;
 
 struct PdfioErrorState {
     std::string message;
@@ -61,13 +69,14 @@ struct FontResourceKey {
     bool bold{false};
     bool italic{false};
     bool unicode{false};
+    bool shaped_glyphs{false};
 
     [[nodiscard]] friend bool operator<(const FontResourceKey &left,
                                         const FontResourceKey &right) {
         return std::tie(left.family, left.file_path, left.bold, left.italic,
-                        left.unicode) < std::tie(right.family, right.file_path,
-                                                 right.bold, right.italic,
-                                                 right.unicode);
+                        left.unicode, left.shaped_glyphs) <
+               std::tie(right.family, right.file_path, right.bold,
+                        right.italic, right.unicode, right.shaped_glyphs);
     }
 };
 
@@ -97,6 +106,53 @@ struct FontSubsetStorage {
     std::vector<std::vector<unsigned char>> buffers;
 };
 
+struct GlyphCidEntry {
+    std::uint16_t cid{0U};
+    std::uint16_t glyph_id{0U};
+    double width_1000{0.0};
+    std::string unicode_text;
+};
+
+struct GlyphFontResource {
+    std::vector<GlyphCidEntry> entries;
+    std::vector<std::uint32_t> glyph_ids;
+};
+
+using GlyphFontResources = std::map<FontResourceKey, GlyphFontResource>;
+
+struct FreeTypeFaceOwner {
+    FT_Library library{nullptr};
+    FT_Face face{nullptr};
+
+    explicit FreeTypeFaceOwner(const std::filesystem::path &font_file_path) {
+        if (FT_Init_FreeType(&library) != 0) {
+            library = nullptr;
+            return;
+        }
+
+        const auto font_path = font_file_path.string();
+        if (FT_New_Face(library, font_path.c_str(), 0, &face) != 0) {
+            face = nullptr;
+        }
+    }
+
+    ~FreeTypeFaceOwner() {
+        if (face != nullptr) {
+            FT_Done_Face(face);
+        }
+        if (library != nullptr) {
+            FT_Done_FreeType(library);
+        }
+    }
+
+    FreeTypeFaceOwner(const FreeTypeFaceOwner &) = delete;
+    FreeTypeFaceOwner &operator=(const FreeTypeFaceOwner &) = delete;
+
+    [[nodiscard]] bool valid() const noexcept {
+        return library != nullptr && face != nullptr;
+    }
+};
+
 [[nodiscard]] std::string build_error(std::string fallback,
                                       const PdfioErrorState &state) {
     if (!state.message.empty()) {
@@ -106,6 +162,69 @@ struct FontSubsetStorage {
     return fallback;
 }
 
+[[nodiscard]] bool is_utf8_codepoint_boundary(std::string_view text,
+                                              std::size_t index) noexcept {
+    if (index == 0U || index == text.size()) {
+        return true;
+    }
+    if (index > text.size()) {
+        return false;
+    }
+
+    const auto byte = static_cast<unsigned char>(text[index]);
+    return (byte & 0xC0U) != 0x80U;
+}
+
+[[nodiscard]] bool
+can_write_shaped_glyph_run(const PdfTextRun &text_run) noexcept {
+    if (text_run.text.empty() || text_run.font_file_path.empty() ||
+        text_run.font_size_points <= 0.0 ||
+        !std::isfinite(text_run.font_size_points) ||
+        !text_run.glyph_run.used_harfbuzz ||
+        !text_run.glyph_run.error_message.empty() ||
+        text_run.glyph_run.glyphs.empty() ||
+        text_run.glyph_run.direction != PdfGlyphDirection::left_to_right ||
+        text_run.glyph_run.text != text_run.text ||
+        text_run.glyph_run.font_file_path != text_run.font_file_path ||
+        std::abs(text_run.glyph_run.font_size_points -
+                 text_run.font_size_points) > kGlyphPositionTolerance) {
+        return false;
+    }
+
+    std::uint32_t previous_cluster = 0U;
+    bool has_previous_cluster = false;
+    for (const auto &glyph : text_run.glyph_run.glyphs) {
+        if (glyph.glyph_id == 0U ||
+            glyph.glyph_id > std::numeric_limits<std::uint16_t>::max() ||
+            glyph.cluster >= text_run.glyph_run.text.size() ||
+            !is_utf8_codepoint_boundary(text_run.glyph_run.text,
+                                        glyph.cluster) ||
+            (has_previous_cluster && glyph.cluster < previous_cluster) ||
+            !std::isfinite(glyph.x_advance_points) ||
+            !std::isfinite(glyph.y_advance_points) ||
+            !std::isfinite(glyph.x_offset_points) ||
+            !std::isfinite(glyph.y_offset_points)) {
+            return false;
+        }
+        previous_cluster = glyph.cluster;
+        has_previous_cluster = true;
+    }
+
+    return true;
+}
+
+[[nodiscard]] bool
+needs_positioned_shaped_glyph_show(const PdfTextRun &text_run) noexcept {
+    for (const auto &glyph : text_run.glyph_run.glyphs) {
+        if (std::abs(glyph.x_offset_points) > kGlyphPositionTolerance ||
+            std::abs(glyph.y_offset_points) > kGlyphPositionTolerance ||
+            std::abs(glyph.y_advance_points) > kGlyphPositionTolerance) {
+            return true;
+        }
+    }
+    return false;
+}
+
 [[nodiscard]] FontResourceKey make_font_key(const PdfTextRun &text_run) {
     return FontResourceKey{
         text_run.font_family.empty() ? "Helvetica" : text_run.font_family,
@@ -113,6 +232,7 @@ struct FontSubsetStorage {
         text_run.bold,
         text_run.italic,
         text_run.unicode,
+        can_write_shaped_glyph_run(text_run),
     };
 }
 
@@ -154,10 +274,11 @@ struct FontSubsetStorage {
 }
 
 [[nodiscard]] std::string font_label(const FontResourceKey &key) {
+    const std::string suffix = key.shaped_glyphs ? " shaped glyphs" : "";
     if (!key.file_path.empty()) {
-        return key.file_path.string();
+        return key.file_path.string() + suffix;
     }
-    return base_font_family_name(key);
+    return base_font_family_name(key) + suffix;
 }
 
 [[nodiscard]] std::string image_label(const ImageResourceKey &key) {
@@ -305,6 +426,499 @@ void append_utf16be_hex_unit(std::string &output, std::uint16_t value) {
     return hex;
 }
 
+[[nodiscard]] std::string utf16be_hex_payload_from_utf8(std::string_view text) {
+    std::string hex;
+    for (std::size_t index = 0U; index < text.size();) {
+        auto codepoint = decode_utf8_codepoint(text, index);
+        if (codepoint > 0x10FFFFU ||
+            (codepoint >= 0xD800U && codepoint <= 0xDFFFU)) {
+            codepoint = 0xFFFDU;
+        }
+
+        if (codepoint <= 0xFFFFU) {
+            append_utf16be_hex_unit(hex, static_cast<std::uint16_t>(codepoint));
+        } else {
+            codepoint -= 0x10000U;
+            append_utf16be_hex_unit(
+                hex, static_cast<std::uint16_t>(0xD800U +
+                                                ((codepoint >> 10U) & 0x3FFU)));
+            append_utf16be_hex_unit(hex, static_cast<std::uint16_t>(
+                                             0xDC00U + (codepoint & 0x3FFU)));
+        }
+    }
+    return hex;
+}
+
+[[nodiscard]] std::vector<unsigned char>
+read_binary_file(const std::filesystem::path &path) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        return {};
+    }
+
+    return {std::istreambuf_iterator<char>(input),
+            std::istreambuf_iterator<char>()};
+}
+
+[[nodiscard]] double font_unit_to_1000(FT_Face face, FT_Pos value) noexcept {
+    if (face == nullptr || face->units_per_EM <= 0) {
+        return 0.0;
+    }
+
+    return static_cast<double>(value) * 1000.0 /
+           static_cast<double>(face->units_per_EM);
+}
+
+[[nodiscard]] std::string sanitized_pdf_font_name(std::string_view value) {
+    std::string name;
+    name.reserve(value.size());
+    for (const auto byte : value) {
+        const auto ch = static_cast<unsigned char>(byte);
+        if (std::isalnum(ch) != 0 || ch == '-' || ch == '_') {
+            name.push_back(static_cast<char>(ch));
+        } else if (!name.empty() && name.back() != '-') {
+            name.push_back('-');
+        }
+    }
+
+    while (!name.empty() && name.back() == '-') {
+        name.pop_back();
+    }
+    if (name.empty()) {
+        name = "Font";
+    }
+    return "FeatherDocGlyph-" + name;
+}
+
+[[nodiscard]] std::string base_font_name_for(FT_Face face,
+                                             const FontResourceKey &key) {
+    if (face != nullptr) {
+        if (const char *postscript_name = FT_Get_Postscript_Name(face);
+            postscript_name != nullptr && postscript_name[0] != '\0') {
+            return sanitized_pdf_font_name(postscript_name);
+        }
+        if (face->family_name != nullptr && face->family_name[0] != '\0') {
+            return sanitized_pdf_font_name(face->family_name);
+        }
+    }
+
+    return sanitized_pdf_font_name(base_font_family_name(key));
+}
+
+[[nodiscard]] std::string glyph_cluster_text(const PdfGlyphRun &glyph_run,
+                                             std::size_t glyph_index) {
+    if (glyph_index >= glyph_run.glyphs.size()) {
+        return {};
+    }
+
+    const auto cluster = glyph_run.glyphs[glyph_index].cluster;
+    if (cluster >= glyph_run.text.size()) {
+        return {};
+    }
+
+    for (std::size_t index = 0U; index < glyph_index; ++index) {
+        if (glyph_run.glyphs[index].cluster == cluster) {
+            return {};
+        }
+    }
+
+    auto next_cluster = static_cast<std::uint32_t>(glyph_run.text.size());
+    for (const auto &glyph : glyph_run.glyphs) {
+        if (glyph.cluster > cluster && glyph.cluster < next_cluster) {
+            next_cluster = glyph.cluster;
+        }
+    }
+
+    if (next_cluster <= cluster || next_cluster > glyph_run.text.size()) {
+        return {};
+    }
+    return glyph_run.text.substr(cluster, next_cluster - cluster);
+}
+
+[[nodiscard]] bool collect_shaped_glyph_font_resources(
+    const PdfPageLayout &page, GlyphFontResources &glyph_resources,
+    std::string &error_message) {
+    constexpr auto kMaxCid = std::numeric_limits<std::uint16_t>::max();
+    for (const auto &text_run : page.text_runs) {
+        const auto font_key = make_font_key(text_run);
+        if (!font_key.shaped_glyphs) {
+            continue;
+        }
+
+        auto &resource = glyph_resources[font_key];
+        for (std::size_t index = 0U; index < text_run.glyph_run.glyphs.size();
+             ++index) {
+            if (resource.entries.size() >= kMaxCid) {
+                error_message =
+                    "Too many shaped PDF glyphs for one font resource: " +
+                    font_label(font_key);
+                return false;
+            }
+
+            const auto &glyph = text_run.glyph_run.glyphs[index];
+            const double width_1000 =
+                std::isfinite(glyph.x_advance_points)
+                    ? std::max(0.0, glyph.x_advance_points * 1000.0 /
+                                        text_run.font_size_points)
+                    : 0.0;
+            resource.entries.push_back(GlyphCidEntry{
+                static_cast<std::uint16_t>(resource.entries.size() + 1U),
+                static_cast<std::uint16_t>(glyph.glyph_id),
+                width_1000,
+                glyph_cluster_text(text_run.glyph_run, index),
+            });
+            resource.glyph_ids.push_back(
+                static_cast<std::uint32_t>(glyph.glyph_id));
+        }
+    }
+
+    return true;
+}
+
+[[nodiscard]] pdfio_obj_t *
+create_stream_object_from_bytes(pdfio_file_t *pdf, pdfio_dict_t *dict,
+                                const unsigned char *data, std::size_t size,
+                                std::string_view label,
+                                std::string &error_message) {
+    if (dict == nullptr) {
+        error_message = "Unable to create PDF stream dictionary: " +
+                        std::string{label};
+        return nullptr;
+    }
+
+    pdfio_obj_t *object = pdfioFileCreateObj(pdf, dict);
+    if (object == nullptr) {
+        error_message =
+            "Unable to create PDF stream object: " + std::string{label};
+        return nullptr;
+    }
+
+    std::unique_ptr<pdfio_stream_t, PdfioStreamCloser> stream(
+        pdfioObjCreateStream(object, PDFIO_FILTER_FLATE));
+    if (!stream) {
+        error_message =
+            "Unable to open PDF stream object: " + std::string{label};
+        return nullptr;
+    }
+
+    if (size > 0U && !pdfioStreamWrite(stream.get(), data, size)) {
+        error_message =
+            "Unable to write PDF stream object: " + std::string{label};
+        return nullptr;
+    }
+
+    if (!pdfioStreamClose(stream.release())) {
+        error_message =
+            "Unable to close PDF stream object: " + std::string{label};
+        return nullptr;
+    }
+
+    return object;
+}
+
+[[nodiscard]] pdfio_obj_t *
+create_stream_object_from_text(pdfio_file_t *pdf, pdfio_dict_t *dict,
+                               const std::string &text,
+                               std::string_view label,
+                               std::string &error_message) {
+    return create_stream_object_from_bytes(
+        pdf, dict, reinterpret_cast<const unsigned char *>(text.data()),
+        text.size(), label, error_message);
+}
+
+[[nodiscard]] pdfio_obj_t *
+create_font_file_object(pdfio_file_t *pdf, const FontResourceKey &key,
+                        std::string &error_message) {
+    auto font_data = read_binary_file(key.file_path);
+    if (font_data.empty()) {
+        error_message = "Unable to read PDF glyph font file: " +
+                        key.file_path.string();
+        return nullptr;
+    }
+
+    pdfio_dict_t *dict = pdfioDictCreate(pdf);
+    if (dict != nullptr) {
+        pdfioDictSetName(dict, "Filter", "FlateDecode");
+    }
+    return create_stream_object_from_bytes(pdf, dict, font_data.data(),
+                                           font_data.size(), font_label(key),
+                                           error_message);
+}
+
+[[nodiscard]] pdfio_obj_t *
+create_cid_to_gid_map_object(pdfio_file_t *pdf,
+                             const GlyphFontResource &resource,
+                             std::string_view label,
+                             std::string &error_message) {
+    const std::size_t byte_count = (resource.entries.size() + 1U) * 2U;
+    std::vector<unsigned char> cid_to_gid(byte_count, 0U);
+    for (const auto &entry : resource.entries) {
+        const auto offset = static_cast<std::size_t>(entry.cid) * 2U;
+        cid_to_gid[offset] = static_cast<unsigned char>(entry.glyph_id >> 8U);
+        cid_to_gid[offset + 1U] =
+            static_cast<unsigned char>(entry.glyph_id & 0xFFU);
+    }
+
+    pdfio_dict_t *dict = pdfioDictCreate(pdf);
+    if (dict != nullptr) {
+        pdfioDictSetName(dict, "Filter", "FlateDecode");
+    }
+    return create_stream_object_from_bytes(pdf, dict, cid_to_gid.data(),
+                                           cid_to_gid.size(), label,
+                                           error_message);
+}
+
+[[nodiscard]] pdfio_obj_t *
+create_to_unicode_object(pdfio_file_t *pdf, const GlyphFontResource &resource,
+                         std::string_view label,
+                         std::string &error_message) {
+    std::string cmap;
+    cmap += "/CIDInit /ProcSet findresource begin\n";
+    cmap += "12 dict begin\n";
+    cmap += "begincmap\n";
+    cmap += "/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) "
+            "/Supplement 0 >> def\n";
+    cmap += "/CMapName /FeatherDocGlyphToUnicode def\n";
+    cmap += "/CMapType 2 def\n";
+    cmap += "1 begincodespacerange\n";
+    cmap += "<0000> <FFFF>\n";
+    cmap += "endcodespacerange\n";
+
+    std::vector<const GlyphCidEntry *> unicode_entries;
+    unicode_entries.reserve(resource.entries.size());
+    for (const auto &entry : resource.entries) {
+        if (entry.unicode_text.empty()) {
+            continue;
+        }
+        unicode_entries.push_back(&entry);
+    }
+
+    constexpr std::size_t kEntriesPerChunk = 100U;
+    for (std::size_t offset = 0U; offset < unicode_entries.size();
+         offset += kEntriesPerChunk) {
+        const auto end =
+            std::min(unicode_entries.size(), offset + kEntriesPerChunk);
+        cmap += std::to_string(end - offset);
+        cmap += " beginbfchar\n";
+
+        for (std::size_t index = offset; index < end; ++index) {
+            const auto &entry = *unicode_entries[index];
+            cmap += "<";
+            append_utf16be_hex_unit(cmap, entry.cid);
+            cmap += "> <";
+            cmap += utf16be_hex_payload_from_utf8(entry.unicode_text);
+            cmap += ">\n";
+        }
+        cmap += "endbfchar\n";
+    }
+
+    cmap += "endcmap\n";
+    cmap += "CMapName currentdict /CMap defineresource pop\n";
+    cmap += "end\n";
+    cmap += "end\n";
+
+    pdfio_dict_t *dict = pdfioDictCreate(pdf);
+    if (dict != nullptr) {
+        pdfioDictSetName(dict, "Type", "CMap");
+        pdfioDictSetName(dict, "CMapName", "FeatherDocGlyphToUnicode");
+        pdfioDictSetName(dict, "Filter", "FlateDecode");
+    }
+    return create_stream_object_from_text(pdf, dict, cmap, label,
+                                          error_message);
+}
+
+[[nodiscard]] pdfio_array_t *
+create_shaped_width_array(pdfio_file_t *pdf,
+                          const GlyphFontResource &resource) {
+    pdfio_array_t *widths = pdfioArrayCreate(pdf);
+    if (widths == nullptr) {
+        return nullptr;
+    }
+
+    constexpr std::size_t kWidthsPerChunk = 256U;
+    for (std::size_t offset = 0U; offset < resource.entries.size();
+         offset += kWidthsPerChunk) {
+        pdfioArrayAppendNumber(widths, resource.entries[offset].cid);
+
+        pdfio_array_t *chunk = pdfioArrayCreate(pdf);
+        if (chunk == nullptr) {
+            return nullptr;
+        }
+
+        const auto end =
+            std::min(resource.entries.size(), offset + kWidthsPerChunk);
+        for (std::size_t index = offset; index < end; ++index) {
+            pdfioArrayAppendNumber(chunk, resource.entries[index].width_1000);
+        }
+        pdfioArrayAppendArray(widths, chunk);
+    }
+
+    return widths;
+}
+
+[[nodiscard]] pdfio_obj_t *
+create_shaped_glyph_font(pdfio_file_t *pdf, const FontResourceKey &key,
+                         const GlyphFontResource &resource,
+                         bool subset_unicode_fonts,
+                         std::string &error_message) {
+    if (resource.entries.empty()) {
+        error_message = "Shaped PDF glyph font has no glyphs: " +
+                        font_label(key);
+        return nullptr;
+    }
+
+    FreeTypeFaceOwner face_owner(key.file_path);
+    if (!face_owner.valid()) {
+        error_message =
+            "Unable to load shaped PDF glyph font: " + key.file_path.string();
+        return nullptr;
+    }
+
+    pdfio_obj_t *font_file = nullptr;
+    std::vector<unsigned char> subset_font_data;
+#if defined(FEATHERDOC_ENABLE_PDF_FONT_SUBSET)
+    if (subset_unicode_fonts && !resource.glyph_ids.empty()) {
+        const auto subset_result =
+            subset_font_file_for_glyph_ids(key.file_path, resource.glyph_ids);
+        if (subset_result.success && !subset_result.font_data.empty()) {
+            subset_font_data = std::move(subset_result.font_data);
+            pdfio_dict_t *dict = pdfioDictCreate(pdf);
+            if (dict != nullptr) {
+                pdfioDictSetName(dict, "Filter", "FlateDecode");
+            }
+            font_file = create_stream_object_from_bytes(
+                pdf, dict, subset_font_data.data(), subset_font_data.size(),
+                font_label(key), error_message);
+        }
+    }
+#else
+    (void)subset_unicode_fonts;
+#endif
+    if (font_file == nullptr) {
+        font_file = create_font_file_object(pdf, key, error_message);
+    }
+    if (font_file == nullptr) {
+        return nullptr;
+    }
+
+    const auto base_font = base_font_name_for(face_owner.face, key);
+    pdfio_array_t *bbox = pdfioArrayCreate(pdf);
+    if (bbox == nullptr) {
+        error_message = "Unable to create shaped PDF font bounding box";
+        return nullptr;
+    }
+    pdfioArrayAppendNumber(bbox, font_unit_to_1000(face_owner.face,
+                                                   face_owner.face->bbox.xMin));
+    pdfioArrayAppendNumber(bbox, font_unit_to_1000(face_owner.face,
+                                                   face_owner.face->bbox.yMin));
+    pdfioArrayAppendNumber(bbox, font_unit_to_1000(face_owner.face,
+                                                   face_owner.face->bbox.xMax));
+    pdfioArrayAppendNumber(bbox, font_unit_to_1000(face_owner.face,
+                                                   face_owner.face->bbox.yMax));
+
+    pdfio_dict_t *descriptor = pdfioDictCreate(pdf);
+    if (descriptor == nullptr) {
+        error_message = "Unable to create shaped PDF font descriptor";
+        return nullptr;
+    }
+    pdfioDictSetName(descriptor, "Type", "FontDescriptor");
+    pdfioDictSetName(descriptor, "FontName", base_font.c_str());
+    pdfioDictSetObj(descriptor, "FontFile2", font_file);
+    pdfioDictSetNumber(descriptor, "Flags", key.italic ? 0x60 : 0x20);
+    pdfioDictSetArray(descriptor, "FontBBox", bbox);
+    pdfioDictSetNumber(descriptor, "ItalicAngle", key.italic ? -12.0 : 0.0);
+    pdfioDictSetNumber(descriptor, "Ascent",
+                       font_unit_to_1000(face_owner.face,
+                                         face_owner.face->ascender));
+    pdfioDictSetNumber(descriptor, "Descent",
+                       font_unit_to_1000(face_owner.face,
+                                         face_owner.face->descender));
+    pdfioDictSetNumber(descriptor, "CapHeight",
+                       font_unit_to_1000(face_owner.face,
+                                         face_owner.face->ascender));
+    pdfioDictSetNumber(descriptor, "StemV", key.bold ? 120.0 : 80.0);
+
+    pdfio_obj_t *descriptor_obj = pdfioFileCreateObj(pdf, descriptor);
+    if (descriptor_obj == nullptr || !pdfioObjClose(descriptor_obj)) {
+        error_message = "Unable to create shaped PDF font descriptor object";
+        return nullptr;
+    }
+
+    pdfio_obj_t *cid_to_gid =
+        create_cid_to_gid_map_object(pdf, resource, font_label(key),
+                                     error_message);
+    if (cid_to_gid == nullptr) {
+        return nullptr;
+    }
+
+    pdfio_obj_t *to_unicode =
+        create_to_unicode_object(pdf, resource, font_label(key), error_message);
+    if (to_unicode == nullptr) {
+        return nullptr;
+    }
+
+    pdfio_array_t *widths = create_shaped_width_array(pdf, resource);
+    if (widths == nullptr) {
+        error_message = "Unable to create shaped PDF glyph widths";
+        return nullptr;
+    }
+
+    pdfio_dict_t *system_info = pdfioDictCreate(pdf);
+    if (system_info == nullptr) {
+        error_message = "Unable to create shaped PDF CID system info";
+        return nullptr;
+    }
+    pdfioDictSetString(system_info, "Registry", "Adobe");
+    pdfioDictSetString(system_info, "Ordering", "Identity");
+    pdfioDictSetNumber(system_info, "Supplement", 0.0);
+
+    pdfio_dict_t *cid_font = pdfioDictCreate(pdf);
+    if (cid_font == nullptr) {
+        error_message = "Unable to create shaped PDF CID font";
+        return nullptr;
+    }
+    pdfioDictSetName(cid_font, "Type", "Font");
+    pdfioDictSetName(cid_font, "Subtype", "CIDFontType2");
+    pdfioDictSetName(cid_font, "BaseFont", base_font.c_str());
+    pdfioDictSetDict(cid_font, "CIDSystemInfo", system_info);
+    pdfioDictSetObj(cid_font, "CIDToGIDMap", cid_to_gid);
+    pdfioDictSetObj(cid_font, "FontDescriptor", descriptor_obj);
+    pdfioDictSetArray(cid_font, "W", widths);
+
+    pdfio_obj_t *cid_font_obj = pdfioFileCreateObj(pdf, cid_font);
+    if (cid_font_obj == nullptr || !pdfioObjClose(cid_font_obj)) {
+        error_message = "Unable to create shaped PDF CID font object";
+        return nullptr;
+    }
+
+    pdfio_array_t *descendants = pdfioArrayCreate(pdf);
+    if (descendants == nullptr ||
+        !pdfioArrayAppendObj(descendants, cid_font_obj)) {
+        error_message = "Unable to create shaped PDF descendant font list";
+        return nullptr;
+    }
+
+    pdfio_dict_t *type0 = pdfioDictCreate(pdf);
+    if (type0 == nullptr) {
+        error_message = "Unable to create shaped PDF Type0 font";
+        return nullptr;
+    }
+    pdfioDictSetName(type0, "Type", "Font");
+    pdfioDictSetName(type0, "Subtype", "Type0");
+    pdfioDictSetName(type0, "BaseFont", base_font.c_str());
+    pdfioDictSetArray(type0, "DescendantFonts", descendants);
+    pdfioDictSetName(type0, "Encoding", "Identity-H");
+    pdfioDictSetObj(type0, "ToUnicode", to_unicode);
+
+    pdfio_obj_t *font = pdfioFileCreateObj(pdf, type0);
+    if (font != nullptr && pdfioObjClose(font)) {
+        return font;
+    }
+
+    error_message = "Unable to create shaped PDF Type0 font object";
+    return nullptr;
+}
+
 [[nodiscard]] bool write_actual_text_begin(pdfio_stream_t *stream,
                                            std::string_view text,
                                            std::string &error_message) {
@@ -366,24 +980,253 @@ void append_utf16be_hex_unit(std::string &output, std::uint16_t value) {
     return true;
 }
 
-[[nodiscard]] bool set_text_run_matrix(pdfio_stream_t *stream,
-                                       const PdfTextRun &text_run) {
-    if (std::abs(text_run.rotation_degrees) <= 0.0001) {
-        return pdfioContentTextMoveTo(stream,
-                                      text_run.baseline_origin.x_points,
-                                      text_run.baseline_origin.y_points);
+[[nodiscard]] bool write_text_strikethrough(pdfio_stream_t *stream,
+                                            const PdfTextRun &text_run,
+                                            std::string &error_message) {
+    if (!text_run.strikethrough || text_run.text.empty() ||
+        text_run.font_size_points <= 0.0 ||
+        std::abs(text_run.rotation_degrees) > 0.0001) {
+        return true;
+    }
+
+    const auto strikethrough_width = measure_text_width_points(
+        text_run.text, text_run.font_size_points,
+        PdfTextMetricsOptions{text_run.font_family, text_run.font_file_path});
+    if (strikethrough_width <= 0.0) {
+        return true;
+    }
+
+    const double strikethrough_y =
+        text_run.baseline_origin.y_points + text_run.font_size_points * 0.30;
+    const double line_width = std::max(0.5, text_run.font_size_points / 16.0);
+
+    if (!pdfioContentSetStrokeColorDeviceRGB(stream, text_run.fill_color.red,
+                                             text_run.fill_color.green,
+                                             text_run.fill_color.blue) ||
+        !pdfioContentSetLineWidth(stream, line_width) ||
+        !pdfioContentSetLineCap(stream, PDFIO_LINECAP_BUTT) ||
+        !pdfioContentSetDashPattern(stream, 0.0, 0.0, 0.0) ||
+        !pdfioContentPathMoveTo(stream, text_run.baseline_origin.x_points,
+                                strikethrough_y) ||
+        !pdfioContentPathLineTo(
+            stream,
+            text_run.baseline_origin.x_points + strikethrough_width,
+            strikethrough_y) ||
+        !pdfioContentStroke(stream)) {
+        error_message = "Unable to write PDF text strikethrough";
+        return false;
+    }
+
+    return true;
+}
+
+struct TextRunTransform {
+    double a{1.0};
+    double b{0.0};
+    double c{0.0};
+    double d{1.0};
+};
+
+[[nodiscard]] TextRunTransform text_run_transform(
+    const PdfTextRun &text_run) noexcept {
+    if (std::abs(text_run.rotation_degrees) <= kGlyphPositionTolerance) {
+        if (text_run.synthetic_italic && text_run.italic) {
+            constexpr double kSyntheticItalicDegrees = 12.0;
+            return TextRunTransform{
+                1.0, 0.0,
+                std::tan(kSyntheticItalicDegrees * kPi / 180.0), 1.0};
+        }
+        return {};
     }
 
     const auto radians = text_run.rotation_degrees * kPi / 180.0;
     const auto cosine = std::cos(radians);
     const auto sine = std::sin(radians);
+    return TextRunTransform{cosine, sine, -sine, cosine};
+}
+
+[[nodiscard]] bool set_text_matrix_at(pdfio_stream_t *stream,
+                                      const PdfTextRun &text_run,
+                                      double local_x,
+                                      double local_y) {
+    const auto transform = text_run_transform(text_run);
     pdfio_matrix_t matrix = {
-        {cosine, sine},
-        {-sine, cosine},
-        {text_run.baseline_origin.x_points,
-         text_run.baseline_origin.y_points},
+        {transform.a, transform.b},
+        {transform.c, transform.d},
+        {text_run.baseline_origin.x_points + transform.a * local_x +
+             transform.c * local_y,
+         text_run.baseline_origin.y_points + transform.b * local_x +
+             transform.d * local_y},
     };
     return pdfioContentSetTextMatrix(stream, matrix);
+}
+
+[[nodiscard]] bool set_text_run_matrix(pdfio_stream_t *stream,
+                                       const PdfTextRun &text_run) {
+    if (std::abs(text_run.rotation_degrees) <= kGlyphPositionTolerance) {
+        if (text_run.synthetic_italic && text_run.italic) {
+            return set_text_matrix_at(stream, text_run, 0.0, 0.0);
+        }
+        return pdfioContentTextMoveTo(stream,
+                                      text_run.baseline_origin.x_points,
+                                      text_run.baseline_origin.y_points);
+    }
+
+    return set_text_matrix_at(stream, text_run, 0.0, 0.0);
+}
+
+[[nodiscard]] bool set_text_rendering_style(pdfio_stream_t *stream,
+                                            const PdfTextRun &text_run) {
+    const bool synthetic_bold = text_run.synthetic_bold && text_run.bold;
+    if (!pdfioContentSetTextRenderingMode(
+            stream, synthetic_bold ? PDFIO_TEXTRENDERING_FILL_AND_STROKE
+                                   : PDFIO_TEXTRENDERING_FILL)) {
+        return false;
+    }
+
+    if (!synthetic_bold) {
+        return true;
+    }
+
+    const double stroke_width =
+        std::max(0.2, text_run.font_size_points / 48.0);
+    return pdfioContentSetStrokeColorDeviceRGB(
+               stream, text_run.fill_color.red, text_run.fill_color.green,
+               text_run.fill_color.blue) &&
+           pdfioContentSetLineWidth(stream, stroke_width);
+}
+
+[[nodiscard]] bool write_shaped_glyph_cid_show(pdfio_stream_t *stream,
+                                               std::uint16_t cid,
+                                               std::string &error_message) {
+    std::string command;
+    command.reserve(11U);
+    command.push_back('<');
+    append_utf16be_hex_unit(command, cid);
+    command += "> Tj\n";
+
+    if (!pdfioStreamPuts(stream, command.c_str())) {
+        error_message = "Unable to write shaped PDF glyph text";
+        return false;
+    }
+    return true;
+}
+
+[[nodiscard]] bool write_shaped_glyph_text_show(
+    pdfio_stream_t *stream, const PdfTextRun &text_run,
+    const GlyphFontResources &glyph_resources,
+    std::map<FontResourceKey, std::size_t> &glyph_offsets,
+    std::string &error_message) {
+    const auto font_key = make_font_key(text_run);
+    const auto resource = glyph_resources.find(font_key);
+    if (resource == glyph_resources.end()) {
+        error_message =
+            "Missing shaped PDF glyph resource: " + font_label(font_key);
+        return false;
+    }
+
+    auto &offset = glyph_offsets[font_key];
+    const auto glyph_count = text_run.glyph_run.glyphs.size();
+    if (offset + glyph_count > resource->second.entries.size()) {
+        error_message =
+            "Shaped PDF glyph resource is shorter than its text run: " +
+            font_label(font_key);
+        return false;
+    }
+
+    if (needs_positioned_shaped_glyph_show(text_run)) {
+        double pen_x = 0.0;
+        double pen_y = 0.0;
+        for (std::size_t index = 0U; index < glyph_count; ++index) {
+            const auto &entry = resource->second.entries[offset + index];
+            const auto &glyph = text_run.glyph_run.glyphs[index];
+            if (entry.glyph_id != glyph.glyph_id) {
+                error_message =
+                    "Shaped PDF glyph resource no longer matches text run: " +
+                    font_label(font_key);
+                return false;
+            }
+
+            if (!set_text_matrix_at(stream, text_run,
+                                    pen_x + glyph.x_offset_points,
+                                    pen_y + glyph.y_offset_points)) {
+                error_message = "Unable to position shaped PDF glyph text";
+                return false;
+            }
+            if (!write_shaped_glyph_cid_show(stream, entry.cid,
+                                             error_message)) {
+                return false;
+            }
+
+            pen_x += glyph.x_advance_points;
+            pen_y += glyph.y_advance_points;
+        }
+
+        offset += glyph_count;
+        return true;
+    }
+
+    std::string command;
+    command.reserve(2U + glyph_count * 4U + 5U);
+    command.push_back('<');
+    for (std::size_t index = 0U; index < glyph_count; ++index) {
+        const auto &entry = resource->second.entries[offset + index];
+        const auto &glyph = text_run.glyph_run.glyphs[index];
+        if (entry.glyph_id != glyph.glyph_id) {
+            error_message =
+                "Shaped PDF glyph resource no longer matches text run: " +
+                font_label(font_key);
+            return false;
+        }
+        append_utf16be_hex_unit(command, entry.cid);
+    }
+    command += "> Tj\n";
+    offset += glyph_count;
+
+    if (!pdfioStreamPuts(stream, command.c_str())) {
+        error_message = "Unable to write shaped PDF glyph text";
+        return false;
+    }
+    return true;
+}
+
+[[nodiscard]] bool write_text_run_content(
+    pdfio_stream_t *stream, const PdfTextRun &text_run,
+    const std::string &font_resource_name,
+    const GlyphFontResources &glyph_resources,
+    std::map<FontResourceKey, std::size_t> &glyph_offsets,
+    std::string &error_message) {
+    const auto font_key = make_font_key(text_run);
+    if (!pdfioContentTextBegin(stream) ||
+        !pdfioContentSetFillColorDeviceRGB(
+            stream, text_run.fill_color.red, text_run.fill_color.green,
+            text_run.fill_color.blue) ||
+        !pdfioContentSetTextFont(stream, font_resource_name.c_str(),
+                                 text_run.font_size_points) ||
+        !set_text_rendering_style(stream, text_run) ||
+        !set_text_run_matrix(stream, text_run)) {
+        error_message = "Unable to begin PDF text run";
+        return false;
+    }
+
+    const bool wrote_text =
+        font_key.shaped_glyphs
+            ? write_shaped_glyph_text_show(stream, text_run, glyph_resources,
+                                           glyph_offsets, error_message)
+            : pdfioContentTextShow(stream, text_run.unicode,
+                                   text_run.text.c_str());
+    if (!wrote_text) {
+        if (error_message.empty()) {
+            error_message = "Unable to write PDF text run";
+        }
+        return false;
+    }
+
+    if (!pdfioContentTextEnd(stream)) {
+        error_message = "Unable to end PDF text run";
+        return false;
+    }
+    return true;
 }
 
 [[nodiscard]] pdfio_rect_t
@@ -539,9 +1382,18 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
         return false;
     }
 
+    GlyphFontResources glyph_font_resources;
+    if (!collect_shaped_glyph_font_resources(page, glyph_font_resources,
+                                             error_message)) {
+        return false;
+    }
+
     std::map<FontResourceKey, std::string> used_text_by_font;
     for (const auto &text_run : page.text_runs) {
-        used_text_by_font[make_font_key(text_run)] += text_run.text;
+        const auto font_key = make_font_key(text_run);
+        if (!font_key.shaped_glyphs) {
+            used_text_by_font[font_key] += text_run.text;
+        }
     }
 
     std::map<FontResourceKey, std::string> font_resources;
@@ -558,6 +1410,35 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
         if (pdf_resource_name == nullptr) {
             return false;
         }
+        if (font_key.shaped_glyphs) {
+            const auto glyph_resource = glyph_font_resources.find(font_key);
+            if (glyph_resource == glyph_font_resources.end()) {
+                error_message =
+                    "Missing shaped PDF glyph resource: " + font_label(font_key);
+                return false;
+            }
+            pdfio_obj_t *font = create_shaped_glyph_font(
+                pdf, font_key, glyph_resource->second,
+                options.subset_unicode_fonts, error_message);
+            if (font == nullptr) {
+                if (error_message.empty()) {
+                    error_message =
+                        "Unable to create shaped PDF glyph font: " +
+                        font_label(font_key);
+                }
+                return false;
+            }
+
+            if (!pdfioPageDictAddFont(page_dict, pdf_resource_name, font)) {
+                error_message =
+                    "Unable to add PDF font resource: " + font_label(font_key);
+                return false;
+            }
+
+            font_resources.emplace(font_key, resource_name);
+            continue;
+        }
+
         if (font_key.unicode && font_key.file_path.empty()) {
             error_message =
                 "Unicode PDF text requires an embedded font file: " +
@@ -703,6 +1584,7 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
         return false;
     }
 
+    std::map<FontResourceKey, std::size_t> glyph_resource_offsets;
     for (const auto &text_run : page.text_runs) {
         const auto font_key = make_font_key(text_run);
         const auto font_resource = font_resources.find(font_key);
@@ -717,18 +1599,10 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
             return false;
         }
 
-        if (!pdfioContentTextBegin(stream.get()) ||
-            !pdfioContentSetFillColorDeviceRGB(
-                stream.get(), text_run.fill_color.red,
-                text_run.fill_color.green, text_run.fill_color.blue) ||
-            !pdfioContentSetTextFont(stream.get(),
-                                     font_resource->second.c_str(),
-                                     text_run.font_size_points) ||
-            !set_text_run_matrix(stream.get(), text_run) ||
-            !pdfioContentTextShow(stream.get(), text_run.unicode,
-                                  text_run.text.c_str()) ||
-            !pdfioContentTextEnd(stream.get())) {
-            error_message = "Unable to write PDF text run";
+        if (!write_text_run_content(stream.get(), text_run,
+                                    font_resource->second,
+                                    glyph_font_resources,
+                                    glyph_resource_offsets, error_message)) {
             return false;
         }
 
@@ -737,6 +1611,10 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
         }
 
         if (!write_text_underline(stream.get(), text_run, error_message)) {
+            return false;
+        }
+        if (!write_text_strikethrough(stream.get(), text_run,
+                                      error_message)) {
             return false;
         }
     }

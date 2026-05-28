@@ -22,6 +22,10 @@ function(featherdoc_set_test_labels test_name)
         LABELS
         "${ARGN}"
     )
+    if("pdf" IN_LIST ARGN)
+        # PDF tests may touch font, renderer, or fixture stacks; keep CTest bounded.
+        set_tests_properties(${test_name} PROPERTIES TIMEOUT 60)
+    endif()
 endfunction()
 
 function(featherdoc_get_runtime_dir out_var target_name)
@@ -209,6 +213,18 @@ if(TARGET FeatherDocPdf)
     endif()
 
     featherdoc_add_cpp_test(
+        pdf_text_shaper_tests
+        pdf_text_shaper
+        pdf_text_shaper_tests.cpp
+    )
+    target_link_libraries(pdf_text_shaper_tests PRIVATE FeatherDoc::Pdf)
+    featherdoc_set_test_labels(pdf_text_shaper core smoke pdf)
+    if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+        set_tests_properties(pdf_text_shaper PROPERTIES
+            ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    endif()
+
+    featherdoc_add_cpp_test(
         pdf_document_adapter_font_tests
         pdf_document_adapter_font
         pdf_document_adapter_font_tests.cpp
@@ -231,6 +247,26 @@ if(TARGET FeatherDocPdf)
     if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
         set_tests_properties(pdf_document_adapter_font PROPERTIES
             ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    endif()
+
+    if(TARGET FeatherDocPdfImport)
+        set(FEATHERDOC_PDF_CLI_IMPORT_FIXTURE_DIR
+            "${CMAKE_CURRENT_BINARY_DIR}/pdf-fixtures")
+        file(MAKE_DIRECTORY "${FEATHERDOC_PDF_CLI_IMPORT_FIXTURE_DIR}")
+        foreach(pdf_cli_import_fixture IN ITEMS
+            featherdoc-adapter-cjk-roundtrip.pdf
+            featherdoc-adapter-table-roundtrip.pdf
+        )
+            set(pdf_cli_import_fixture_source
+                "${PROJECT_SOURCE_DIR}/${pdf_cli_import_fixture}")
+            if(EXISTS "${pdf_cli_import_fixture_source}")
+                configure_file(
+                    "${pdf_cli_import_fixture_source}"
+                    "${FEATHERDOC_PDF_CLI_IMPORT_FIXTURE_DIR}/${pdf_cli_import_fixture}"
+                    COPYONLY
+                )
+            endif()
+        endforeach()
     endif()
 
     if(TARGET featherdoc_cli)
@@ -258,6 +294,32 @@ if(TARGET FeatherDocPdf)
         if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
             set_tests_properties(pdf_cli_export PROPERTIES
                 ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
+    endif()
+
+    if(TARGET featherdoc_cli AND TARGET FeatherDocPdfImport)
+        featherdoc_add_cpp_test(
+            pdf_cli_import_tests
+            pdf_cli_import
+            pdf_cli_import_tests.cpp
+        )
+        target_include_directories(
+            pdf_cli_import_tests
+            PRIVATE ${PROJECT_SOURCE_DIR}/cli
+        )
+        target_link_libraries(
+            pdf_cli_import_tests
+            PRIVATE FeatherDoc::Pdf
+        )
+        add_dependencies(pdf_cli_import_tests featherdoc_cli)
+        featherdoc_set_test_labels(pdf_cli_import cli smoke pdf import)
+        if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdf_cli_import PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
+        if(TARGET pdf_document_adapter_font_tests)
+            set_tests_properties(pdf_cli_import PROPERTIES
+                DEPENDS pdf_document_adapter_font)
         endif()
     endif()
 endif()
@@ -357,7 +419,6 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
     target_compile_definitions(
         pdf_regression_manifest_tests
         PRIVATE "${FEATHERDOC_PDF_REGRESSION_MANIFEST_DEFINE}")
-    set_tests_properties(pdf_regression_manifest PROPERTIES TIMEOUT 60)
 
     add_executable(featherdoc_pdf_regression_sample
         ../samples/pdf_regression_sample.cpp
@@ -366,6 +427,12 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
         featherdoc_pdf_regression_sample
         PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
     )
+    if(DEFINED FEATHERDOC_PDFIUM_TARGET AND NOT FEATHERDOC_PDFIUM_TARGET STREQUAL "")
+        target_link_libraries(
+            featherdoc_pdf_regression_sample
+            PRIVATE ${FEATHERDOC_PDFIUM_TARGET}
+        )
+    endif()
     if(DEFINED FEATHERDOC_PDFIUM_SOURCE_DIR AND NOT FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
         target_include_directories(
             featherdoc_pdf_regression_sample
@@ -422,11 +489,51 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
                 --expect-image-count "${sample_expected_image_count}")
         endif()
         if(sample_kind STREQUAL "cjk_text" OR
+           sample_kind STREQUAL "mixed_cjk_punctuation_text" OR
            sample_kind STREQUAL "cjk_image_report_text" OR
            sample_kind STREQUAL "cjk_report_text" OR
            sample_kind STREQUAL "contract_cjk_style" OR
            sample_kind STREQUAL "document_contract_cjk_style" OR
-           sample_kind STREQUAL "document_eastasia_style_probe")
+           sample_kind STREQUAL "document_cjk_anchor_font_matrix_boundary_text" OR
+           sample_kind STREQUAL "document_cjk_anchor_matrix_lite_text" OR
+           sample_kind STREQUAL "document_cjk_bullet_list_text" OR
+           sample_kind STREQUAL "document_cjk_bullet_overlay_lite_text" OR
+           sample_kind STREQUAL "document_cjk_bullet_overlay_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_bullet_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_complex_layout_text" OR
+           sample_kind STREQUAL "document_cjk_extreme_page_breaks_text" OR
+           sample_kind STREQUAL "document_cjk_image_wrap_stress_text" OR
+           sample_kind STREQUAL "document_cjk_copy_search_lite_text" OR
+           sample_kind STREQUAL "document_cjk_copy_search_matrix_text" OR
+           sample_kind STREQUAL "document_cjk_font_embed_lite_text" OR
+           sample_kind STREQUAL "document_cjk_font_embed_matrix_text" OR
+           sample_kind STREQUAL "document_cjk_font_embed_wrap_mix_lite_text" OR
+           sample_kind STREQUAL "document_cjk_font_embed_wrap_mix_text" OR
+           sample_kind STREQUAL "document_cjk_font_search_density_flow_text" OR
+           sample_kind STREQUAL "document_cjk_multi_anchor_table_flow_lite_text" OR
+           sample_kind STREQUAL "document_cjk_multi_anchor_table_flow_text" OR
+           sample_kind STREQUAL "document_cjk_numbered_list_text" OR
+           sample_kind STREQUAL "document_cjk_numbered_list_page_flow_lite_text" OR
+           sample_kind STREQUAL "document_cjk_numbered_list_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_page_boundary_lite_text" OR
+           sample_kind STREQUAL "document_cjk_repeated_key_boundary_flow_text" OR
+           sample_kind STREQUAL "document_cjk_repeated_key_lite_text" OR
+           sample_kind STREQUAL "document_cjk_search_density_lite_text" OR
+           sample_kind STREQUAL "document_cjk_style_overlay_lite_text" OR
+           sample_kind STREQUAL "document_cjk_style_overlay_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_table_wrap_lite_text" OR
+           sample_kind STREQUAL "document_cjk_table_wrap_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_vertical_merge_wrap_cant_split_text" OR
+           sample_kind STREQUAL "document_cjk_vertical_merge_lite_text" OR
+           sample_kind STREQUAL "document_eastasia_style_probe" OR
+           sample_kind STREQUAL "document_font_matrix_text" OR
+           sample_kind STREQUAL "document_rtl_bidi_text" OR
+           sample_kind STREQUAL "document_table_cjk_merged_repeat_text" OR
+           sample_kind STREQUAL "document_table_cjk_wrap_flow_text" OR
+           sample_kind STREQUAL "document_table_cjk_vertical_merged_cant_split_text" OR
+           sample_kind STREQUAL "document_table_font_matrix_text" OR
+           sample_kind STREQUAL "header_footer_rtl_text" OR
+           sample_kind STREQUAL "header_footer_rtl_variants_text")
             list(APPEND sample_command --require-cjk-font)
         endif()
 
@@ -434,25 +541,77 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
         add_test(NAME ${test_name} COMMAND ${sample_command})
         if(FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
             set_tests_properties(${test_name}
-                PROPERTIES TIMEOUT 60 LABELS "pdf;smoke;regression")
+                PROPERTIES
+                    TIMEOUT 60
+                    SKIP_RETURN_CODE 77
+                    LABELS "pdf;smoke;regression")
         else()
             set_tests_properties(${test_name}
                 PROPERTIES
                     TIMEOUT 60
+                    SKIP_RETURN_CODE 77
                     LABELS "pdf;smoke;regression"
                     ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
         endif()
         if(sample_kind STREQUAL "cjk_text" OR
+           sample_kind STREQUAL "mixed_cjk_punctuation_text" OR
            sample_kind STREQUAL "cjk_image_report_text" OR
            sample_kind STREQUAL "cjk_report_text" OR
            sample_kind STREQUAL "contract_cjk_style" OR
            sample_kind STREQUAL "document_contract_cjk_style" OR
-           sample_kind STREQUAL "document_eastasia_style_probe")
+           sample_kind STREQUAL "document_cjk_anchor_font_matrix_boundary_text" OR
+           sample_kind STREQUAL "document_cjk_anchor_matrix_lite_text" OR
+           sample_kind STREQUAL "document_cjk_bullet_list_text" OR
+           sample_kind STREQUAL "document_cjk_bullet_overlay_lite_text" OR
+           sample_kind STREQUAL "document_cjk_bullet_overlay_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_bullet_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_complex_layout_text" OR
+           sample_kind STREQUAL "document_cjk_extreme_page_breaks_text" OR
+           sample_kind STREQUAL "document_cjk_image_wrap_stress_text" OR
+           sample_kind STREQUAL "document_cjk_copy_search_lite_text" OR
+           sample_kind STREQUAL "document_cjk_copy_search_matrix_text" OR
+           sample_kind STREQUAL "document_cjk_font_embed_lite_text" OR
+           sample_kind STREQUAL "document_cjk_font_embed_matrix_text" OR
+           sample_kind STREQUAL "document_cjk_font_embed_wrap_mix_lite_text" OR
+           sample_kind STREQUAL "document_cjk_font_embed_wrap_mix_text" OR
+           sample_kind STREQUAL "document_cjk_font_search_density_flow_text" OR
+           sample_kind STREQUAL "document_cjk_multi_anchor_table_flow_lite_text" OR
+           sample_kind STREQUAL "document_cjk_multi_anchor_table_flow_text" OR
+           sample_kind STREQUAL "document_cjk_numbered_list_text" OR
+           sample_kind STREQUAL "document_cjk_numbered_list_page_flow_lite_text" OR
+           sample_kind STREQUAL "document_cjk_numbered_list_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_page_boundary_lite_text" OR
+           sample_kind STREQUAL "document_cjk_repeated_key_boundary_flow_text" OR
+           sample_kind STREQUAL "document_cjk_repeated_key_lite_text" OR
+           sample_kind STREQUAL "document_cjk_search_density_lite_text" OR
+           sample_kind STREQUAL "document_cjk_style_overlay_lite_text" OR
+           sample_kind STREQUAL "document_cjk_style_overlay_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_table_wrap_lite_text" OR
+           sample_kind STREQUAL "document_cjk_table_wrap_page_flow_text" OR
+           sample_kind STREQUAL "document_cjk_vertical_merge_wrap_cant_split_text" OR
+           sample_kind STREQUAL "document_cjk_vertical_merge_lite_text" OR
+           sample_kind STREQUAL "document_eastasia_style_probe" OR
+           sample_kind STREQUAL "document_font_matrix_text" OR
+           sample_kind STREQUAL "document_table_cjk_merged_repeat_text" OR
+           sample_kind STREQUAL "document_table_cjk_wrap_flow_text" OR
+           sample_kind STREQUAL "document_table_cjk_vertical_merged_cant_split_text" OR
+           sample_kind STREQUAL "document_table_font_matrix_text")
             set_tests_properties(${test_name}
                 PROPERTIES
                     SKIP_RETURN_CODE 77
                     LABELS "pdf;smoke;regression;pdf-cjk")
             list(APPEND FEATHERDOC_PDF_REGRESSION_CJK_TESTS ${test_name})
+        endif()
+        if(sample_kind STREQUAL "document_font_matrix_text" OR
+           sample_kind STREQUAL "document_rtl_bidi_text" OR
+           sample_kind STREQUAL "document_table_font_matrix_text" OR
+           sample_kind STREQUAL "header_footer_rtl_text" OR
+           sample_kind STREQUAL "header_footer_rtl_variants_text")
+            set_tests_properties(${test_name}
+                PROPERTIES
+                    SKIP_RETURN_CODE 77
+                    LABELS "pdf;smoke;regression;pdf-rtl")
+            list(APPEND FEATHERDOC_PDF_REGRESSION_RTL_TESTS ${test_name})
         endif()
     endforeach()
 endif()
@@ -482,18 +641,30 @@ featherdoc_add_cpp_test(
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_usage.cpp
 )
 target_include_directories(cli_usage_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+if(TARGET FeatherDocPdfImport)
+    target_compile_definitions(
+        cli_usage_tests
+        PRIVATE FEATHERDOC_CLI_ENABLE_PDF_IMPORT=1
+    )
+endif()
 featherdoc_set_test_labels(cli_usage cli smoke cli_smoke)
 
 if(WIN32)
     find_program(FEATHERDOC_POWERSHELL_EXECUTABLE NAMES pwsh powershell)
     if(FEATHERDOC_POWERSHELL_EXECUTABLE)
-        find_program(FEATHERDOC_PYTHON_EXECUTABLE NAMES python python3)
+        set(FEATHERDOC_POWERSHELL_TEST_COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -NoLogo
+            -NoProfile
+            -NonInteractive
+        )
+        find_program(FEATHERDOC_PYTHON_EXECUTABLE NAMES python python3 py)
 
         add_test(
             NAME
             release_note_bundle_version
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -508,7 +679,7 @@ if(WIN32)
             NAME
             release_note_bundle_visual_verdict_metadata
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -523,7 +694,7 @@ if(WIN32)
             NAME
             release_blocker_action_registry
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -536,9 +707,102 @@ if(WIN32)
 
         add_test(
             NAME
+            run_reused_build_check_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/run_reused_build_check_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/run_reused_build_check_contract
+        )
+        set_tests_properties(run_reused_build_check_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;governance;smoke")
+
+        add_test(
+            NAME
+            release_governance_warning_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_governance_warning_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_governance_warning_contract
+        )
+        set_tests_properties(release_governance_warning_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;governance;smoke")
+
+        add_test(
+            NAME
+            release_governance_warning_helper_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_governance_warning_helper_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_governance_warning_helper_contract
+        )
+        set_tests_properties(release_governance_warning_helper_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;governance;smoke")
+
+        add_test(
+            NAME
+            release_governance_metrics_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_governance_metrics_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_governance_metrics_contract
+        )
+        set_tests_properties(release_governance_metrics_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;governance;smoke")
+
+        add_test(
+            NAME
+            release_governance_detail_rollup_static_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_governance_detail_rollup_static_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(release_governance_detail_rollup_static_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;governance;smoke")
+
+        add_test(
+            NAME
             package_release_assets_safety
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -548,12 +812,16 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/package_release_assets_safety
         )
+        set_tests_properties(package_release_assets_safety
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;package;smoke")
 
         add_test(
             NAME
             package_release_assets_allow_incomplete
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -563,12 +831,16 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/package_release_assets_allow_incomplete
         )
+        set_tests_properties(package_release_assets_allow_incomplete
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;package;smoke")
 
         add_test(
             NAME
             public_release_wording_regression
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -577,13 +849,473 @@ if(WIN32)
             ${PROJECT_SOURCE_DIR}
         )
 
+        add_test(
+            NAME
+            pdf_import_docs_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_import_docs_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_import_docs_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;docs;smoke")
+
+        add_test(
+            NAME
+            pdf_ctest_timeout_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_ctest_timeout_contract_test.ps1
+            -CTestTestfile
+            ${CMAKE_CURRENT_BINARY_DIR}/CTestTestfile.cmake
+        )
+        set_tests_properties(pdf_ctest_timeout_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;ctest;smoke")
+
+        add_test(
+            NAME
+            pdf_ctest_label_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_ctest_label_contract_test.ps1
+            -CTestTestfile
+            ${CMAKE_CURRENT_BINARY_DIR}/CTestTestfile.cmake
+        )
+        set_tests_properties(pdf_ctest_label_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;ctest;smoke")
+
+        add_test(
+            NAME
+            pdf_bidi_line_layout_static_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_bidi_line_layout_static_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_bidi_line_layout_static_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_document_style_gallery_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_document_style_gallery_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_document_style_gallery_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_document_font_matrix_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_document_font_matrix_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_document_font_matrix_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_document_table_font_matrix_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_document_table_font_matrix_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_document_table_font_matrix_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_copy_search_matrix_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_copy_search_matrix_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_copy_search_matrix_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_font_embed_matrix_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_font_embed_matrix_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_font_embed_matrix_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_anchor_font_matrix_boundary_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_anchor_font_matrix_boundary_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_anchor_font_matrix_boundary_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_font_search_density_flow_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_font_search_density_flow_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_font_search_density_flow_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_font_embed_wrap_mix_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_font_embed_wrap_mix_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_font_embed_wrap_mix_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_repeated_key_boundary_flow_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_repeated_key_boundary_flow_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_repeated_key_boundary_flow_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_style_overlay_page_flow_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_style_overlay_page_flow_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_style_overlay_page_flow_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_complex_layout_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_complex_layout_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_complex_layout_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_image_wrap_stress_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_image_wrap_stress_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_image_wrap_stress_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_extreme_page_breaks_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_extreme_page_breaks_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_extreme_page_breaks_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_vertical_merge_wrap_cant_split_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_vertical_merge_wrap_cant_split_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_vertical_merge_wrap_cant_split_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_document_table_cjk_wrap_flow_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_document_table_cjk_wrap_flow_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_document_table_cjk_wrap_flow_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_document_table_cjk_vertical_merged_cant_split_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_document_table_cjk_vertical_merged_cant_split_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(
+            pdf_document_table_cjk_vertical_merged_cant_split_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_document_table_cjk_merged_repeat_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_document_table_cjk_merged_repeat_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_document_table_cjk_merged_repeat_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_document_table_vertical_merged_cant_split_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_document_table_vertical_merged_cant_split_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(
+            pdf_document_table_vertical_merged_cant_split_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_rtl_bidi_light_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_rtl_bidi_light_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_rtl_bidi_light_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_list_page_flow_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_list_page_flow_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_list_page_flow_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_table_wrap_page_flow_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_table_wrap_page_flow_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_table_wrap_page_flow_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_cjk_multi_anchor_table_flow_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_cjk_multi_anchor_table_flow_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_cjk_multi_anchor_table_flow_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
+            pdf_text_decoration_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_text_decoration_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_text_decoration_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
         if(TARGET pdf_unicode_font_roundtrip_tests)
             add_test(
                 NAME
                 pdf_unicode_font_roundtrip_visual
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
-                -NoProfile
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -592,6 +1324,8 @@ if(WIN32)
                 ${CMAKE_BINARY_DIR}
                 -OutputDir
                 ${CMAKE_BINARY_DIR}/pdf_unicode_font_visual_regression
+                -CtestExecutable
+                ${CMAKE_CTEST_COMMAND}
             )
             if(FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
                 set_tests_properties(pdf_unicode_font_roundtrip_visual
@@ -611,9 +1345,316 @@ if(WIN32)
 
         add_test(
             NAME
+            pdf_visual_release_gate_style_baselines
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_release_gate_style_baselines_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_release_gate_style_baselines
+        )
+        set_tests_properties(pdf_visual_release_gate_style_baselines
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        add_test(
+            NAME
+            pdf_visual_release_gate_text_shaping_baselines
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_release_gate_text_shaping_baselines_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_release_gate_text_shaping_baselines
+        )
+        set_tests_properties(pdf_visual_release_gate_text_shaping_baselines
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        add_test(
+            NAME
+            pdf_dependency_inputs_check
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_dependency_inputs_check_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_dependency_inputs_check
+        )
+        set_tests_properties(pdf_dependency_inputs_check
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;docs")
+
+        add_test(
+            NAME
+            pdf_visual_release_gate_preflight
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_release_gate_preflight_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_release_gate_preflight
+        )
+        set_tests_properties(pdf_visual_release_gate_preflight
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        add_test(
+            NAME
+            pdf_visual_release_gate_preflight_governance_report
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_release_gate_preflight_governance_report_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_release_gate_preflight_governance_report
+        )
+        set_tests_properties(pdf_visual_release_gate_preflight_governance_report
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        add_test(
+            NAME
+            pdf_release_readiness_check
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_release_readiness_check_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_release_readiness_check
+        )
+        set_tests_properties(pdf_release_readiness_check
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;docs;visual")
+
+        add_test(
+            NAME
+            pdf_visual_full_gate_guarded
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_full_gate_guarded_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_full_gate_guarded
+        )
+        set_tests_properties(pdf_visual_full_gate_guarded
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        add_test(
+            NAME
+            pdf_full_ctest_guarded
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_full_ctest_guarded_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_full_ctest_guarded
+        )
+        set_tests_properties(pdf_full_ctest_guarded
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression")
+
+        add_test(
+            NAME
+            pdf_ctest_remaining_guarded
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_ctest_remaining_guarded_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_ctest_remaining_guarded
+        )
+        set_tests_properties(pdf_ctest_remaining_guarded
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression")
+
+        add_test(
+            NAME
+            pdf_visual_gate_attempt_summary
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_gate_attempt_summary_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_gate_attempt_summary
+        )
+        set_tests_properties(pdf_visual_gate_attempt_summary
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        add_test(
+            NAME
+            pdf_visual_segmented_gate_summary
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_segmented_gate_summary_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_segmented_gate_summary
+        )
+        set_tests_properties(pdf_visual_segmented_gate_summary
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        add_test(
+            NAME
+            pdf_visual_validation_status_docs_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_validation_status_docs_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_visual_validation_status_docs_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;docs")
+
+        add_test(
+            NAME
+            pdf_real_business_sample_manifest_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_real_business_sample_manifest_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_real_business_sample_manifest_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;docs")
+
+        set(FEATHERDOC_CONTROLLED_VISUAL_SMOKE_PYTHON_ARGS)
+        if(FEATHERDOC_PYTHON_EXECUTABLE)
+            list(APPEND FEATHERDOC_CONTROLLED_VISUAL_SMOKE_PYTHON_ARGS
+                -PythonExecutable
+                ${FEATHERDOC_PYTHON_EXECUTABLE}
+            )
+        endif()
+
+        add_test(
+            NAME
+            pdf_controlled_visual_smoke_check
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_controlled_visual_smoke_check_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/pdf_controlled_visual_smoke_check
+            ${FEATHERDOC_CONTROLLED_VISUAL_SMOKE_PYTHON_ARGS}
+        )
+        set_tests_properties(pdf_controlled_visual_smoke_check
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression;visual")
+
+        add_test(
+            NAME
+            compare_pdf_reference_branch_manifest
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/compare_pdf_reference_branch_manifest_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/compare_pdf_reference_branch_manifest
+        )
+        set_tests_properties(compare_pdf_reference_branch_manifest
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;smoke;regression")
+
+        add_test(
+            NAME
+            stale_codex_branch_inventory_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/stale_codex_branch_inventory_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(stale_codex_branch_inventory_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;regression")
+
+        add_test(
+            NAME
             sync_github_release_notes
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -628,7 +1669,7 @@ if(WIN32)
             NAME
             sync_github_release_notes_publish_guard
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -643,7 +1684,7 @@ if(WIN32)
             NAME
             publish_github_release
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -658,7 +1699,7 @@ if(WIN32)
             NAME
             assert_release_material_safety
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -673,7 +1714,7 @@ if(WIN32)
             NAME
             prepare_document_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -688,7 +1729,7 @@ if(WIN32)
             NAME
             prepare_word_review_task_verdict
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -703,7 +1744,7 @@ if(WIN32)
             NAME
             prepare_visual_regression_bundle_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -718,7 +1759,7 @@ if(WIN32)
             NAME
             refresh_readme_visual_assets
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -733,7 +1774,7 @@ if(WIN32)
             NAME
             prepare_section_page_setup_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -748,7 +1789,7 @@ if(WIN32)
             NAME
             prepare_page_number_fields_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -763,7 +1804,7 @@ if(WIN32)
             NAME
             open_latest_section_page_setup_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -778,7 +1819,7 @@ if(WIN32)
             NAME
             open_latest_page_number_fields_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -793,7 +1834,7 @@ if(WIN32)
             NAME
             word_visual_release_gate_smoke_verdict
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -808,7 +1849,7 @@ if(WIN32)
             NAME
             release_candidate_visual_verdict
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -823,7 +1864,7 @@ if(WIN32)
             NAME
             release_candidate_blocker_rollup
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -839,7 +1880,7 @@ if(WIN32)
             NAME
             release_candidate_governance_handoff
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -857,7 +1898,7 @@ if(WIN32)
             NAME
             release_visual_verdict_metadata_consistency
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -872,7 +1913,7 @@ if(WIN32)
             NAME
             word_visual_review_report
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -887,7 +1928,7 @@ if(WIN32)
             NAME
             table_style_quality_visual_regression
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -904,7 +1945,7 @@ if(WIN32)
             NAME
             sync_visual_review_verdict_section_page_setup
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -919,7 +1960,7 @@ if(WIN32)
             NAME
             sync_visual_review_verdict_page_number_fields
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -934,7 +1975,7 @@ if(WIN32)
             NAME
             sync_visual_review_verdict_curated_visual_bundle
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -949,7 +1990,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -964,7 +2005,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_uses_latest_release_summary_candidate
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -979,7 +2020,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_tiebreaks_release_summary_candidate
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -994,7 +2035,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_curated_visual_bundle
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1009,7 +2050,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_table_style_quality
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1024,7 +2065,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_no_release_summary
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1039,7 +2080,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_malformed_release_summary_candidate_only
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1054,7 +2095,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_conflicting_gates
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1069,7 +2110,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_missing_source_path
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1084,7 +2125,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_unsupported_source_kind
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1099,7 +2140,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_malformed_pointer_json
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1114,7 +2155,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_malformed_release_summary
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1129,7 +2170,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_skips_malformed_release_summary_candidate
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1144,7 +2185,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_missing_release_summary
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1159,7 +2200,7 @@ if(WIN32)
             NAME
             find_superseded_review_tasks
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1174,7 +2215,7 @@ if(WIN32)
             NAME
             find_superseded_review_tasks_curated_visual_bundle
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1189,7 +2230,7 @@ if(WIN32)
             NAME
             convert_render_data_to_patch_plan
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1204,7 +2245,7 @@ if(WIN32)
             NAME
             lint_render_data_mapping
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1219,7 +2260,7 @@ if(WIN32)
             NAME
             export_render_data_mapping_draft
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1234,7 +2275,7 @@ if(WIN32)
             NAME
             export_render_data_skeleton
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1249,7 +2290,7 @@ if(WIN32)
             NAME
             new_project_template_smoke_onboarding_plan
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1266,7 +2307,7 @@ if(WIN32)
             NAME
             onboard_project_template
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1284,7 +2325,7 @@ if(WIN32)
                 NAME
                 docs_conf_version_sync
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1306,7 +2347,7 @@ if(WIN32)
                 NAME
                 fixed_grid_regression_bundle
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1328,7 +2369,7 @@ if(WIN32)
                 NAME
                 section_page_setup_regression_bundle
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1351,7 +2392,7 @@ if(WIN32)
                 NAME
                 page_number_fields_regression_bundle
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1374,7 +2415,7 @@ if(WIN32)
                 NAME
                 template_validation_regression_bundle
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1393,7 +2434,7 @@ if(WIN32)
                 NAME
                 check_numbering_catalog_baseline
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1410,7 +2451,7 @@ if(WIN32)
                 NAME
                 check_numbering_catalog_manifest
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1427,7 +2468,7 @@ if(WIN32)
                 NAME
                 check_template_schema_baseline
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1444,7 +2485,7 @@ if(WIN32)
                 NAME
                 check_template_schema_manifest
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1461,7 +2502,7 @@ if(WIN32)
                 NAME
                 run_project_template_smoke_schema_review
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1478,7 +2519,7 @@ if(WIN32)
                 NAME
                 sync_project_template_schema_approval
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1495,7 +2536,7 @@ if(WIN32)
                 NAME
                 write_project_template_schema_approval_history
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1510,7 +2551,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_report_passing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1529,7 +2570,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_report_failing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1548,7 +2589,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_report_fail_on_issue
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1567,7 +2608,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_rollup_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1584,7 +2625,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_rollup_report_empty
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1601,7 +2642,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_rollup_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1618,7 +2659,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_rollup_report_failed_source_report
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1635,7 +2676,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_rollup_report_fail_on_issue
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1652,7 +2693,7 @@ if(WIN32)
                 NAME
                 build_numbering_catalog_governance_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1669,7 +2710,7 @@ if(WIN32)
                 NAME
                 build_numbering_catalog_governance_report_clean
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1686,7 +2727,7 @@ if(WIN32)
                 NAME
                 build_numbering_catalog_governance_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1703,7 +2744,7 @@ if(WIN32)
                 NAME
                 build_numbering_catalog_governance_report_fail_on_blocker
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1720,7 +2761,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_report_passing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1739,7 +2780,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_report_failing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1758,7 +2799,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_report_fail_on_issue
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1777,7 +2818,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1794,7 +2835,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_empty
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1811,7 +2852,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1828,7 +2869,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_failed_source_report
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1845,7 +2886,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_fail_on_issue
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1862,7 +2903,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_fail_on_blocker
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1879,7 +2920,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_governance_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1896,7 +2937,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_governance_report_ready
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1913,7 +2954,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_governance_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1930,7 +2971,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_governance_report_fail_on_blocker
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1947,7 +2988,7 @@ if(WIN32)
                 NAME
                 table_layout_delivery_report
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1964,7 +3005,7 @@ if(WIN32)
                 NAME
                 build_project_template_onboarding_governance_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1981,7 +3022,7 @@ if(WIN32)
                 NAME
                 build_project_template_onboarding_governance_report_fail_on_blocker
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1998,7 +3039,7 @@ if(WIN32)
                 NAME
                 build_project_template_delivery_readiness_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2015,7 +3056,7 @@ if(WIN32)
                 NAME
                 build_project_template_delivery_readiness_report_ready
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2032,7 +3073,7 @@ if(WIN32)
                 NAME
                 build_project_template_delivery_readiness_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2049,7 +3090,7 @@ if(WIN32)
                 NAME
                 build_project_template_delivery_readiness_report_fail_on_blocker
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2064,9 +3105,26 @@ if(WIN32)
 
             add_test(
                 NAME
+                project_template_release_readiness_checklist_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/project_template_release_readiness_checklist_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(project_template_release_readiness_checklist_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "project_template;smoke;docs;release")
+
+            add_test(
+                NAME
                 build_release_blocker_rollup_report_passing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2083,7 +3141,7 @@ if(WIN32)
                 NAME
                 build_release_governance_handoff_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2101,7 +3159,7 @@ if(WIN32)
             NAME
             build_release_governance_pipeline_report_aggregate
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -2117,9 +3175,27 @@ if(WIN32)
 
         add_test(
             NAME
+            build_release_governance_pipeline_report_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_blocker
+            -Scenario
+            fail_on_blocker
+        )
+        featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_blocker release smoke release_smoke governance)
+
+        add_test(
+            NAME
             build_release_governance_handoff_report_missing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2136,7 +3212,7 @@ if(WIN32)
                 NAME
                 build_release_governance_handoff_report_fail_on_missing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2153,7 +3229,7 @@ if(WIN32)
                 NAME
                 build_release_governance_handoff_report_explicit_input
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2170,7 +3246,7 @@ if(WIN32)
                 NAME
                 build_release_governance_handoff_report_include_rollup
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2187,7 +3263,7 @@ if(WIN32)
                 NAME
                 build_release_blocker_rollup_report_empty
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2202,9 +3278,26 @@ if(WIN32)
 
             add_test(
                 NAME
+                build_release_blocker_rollup_report_style_merge_warning
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_blocker_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_style_merge_warning
+                -Scenario
+                style_merge_warning
+            )
+
+            add_test(
+                NAME
                 build_release_blocker_rollup_report_comma_input
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2221,7 +3314,7 @@ if(WIN32)
                 NAME
                 build_release_blocker_rollup_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2238,7 +3331,7 @@ if(WIN32)
                 NAME
                 build_release_blocker_rollup_report_dedupe
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2255,7 +3348,7 @@ if(WIN32)
                 NAME
                 write_schema_patch_confidence_calibration_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2272,7 +3365,7 @@ if(WIN32)
                 NAME
                 write_schema_patch_confidence_calibration_report_fail_on_pending
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2284,6 +3377,193 @@ if(WIN32)
                 -Scenario
                 fail_on_pending
             )
+
+            add_test(
+                NAME
+                edit_document_from_plan_table_position_plan
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_table_position_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_table_position_plan
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_numbering_catalog
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_numbering_catalog_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_numbering_catalog
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_content_control_sync
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_content_control_sync_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_content_control_sync
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_content_control_text_aliases
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_content_control_text_aliases_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_content_control_text_aliases
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_floating_image
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_floating_image_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_floating_image
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_delete_aliases
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_delete_aliases_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_delete_aliases
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_body_aliases
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_body_aliases_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_body_aliases
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_table_aliases
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_table_aliases_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_table_aliases
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_table_structure_aliases
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_table_structure_aliases_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_table_structure_aliases
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_revision_cleanup
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_revision_cleanup_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_revision_cleanup
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_update_fields_aliases
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_update_fields_aliases_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_update_fields_aliases
+            )
         endif()
 
         if(TARGET featherdoc_cli AND TARGET featherdoc_sample_bookmark_block_visibility_visual AND TARGET featherdoc_sample_part_template_validation)
@@ -2291,7 +3571,7 @@ if(WIN32)
                 NAME
                 template_render_plan
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2308,7 +3588,7 @@ if(WIN32)
                 NAME
                 export_template_render_plan
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2325,7 +3605,7 @@ if(WIN32)
                 NAME
                 prepare_template_render_data_workspace
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2342,7 +3622,7 @@ if(WIN32)
                 NAME
                 render_template_document_from_workspace
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2359,7 +3639,7 @@ if(WIN32)
                 NAME
                 validate_render_data_mapping
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2376,7 +3656,7 @@ if(WIN32)
                 NAME
                 edit_document_from_plan
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2391,9 +3671,22 @@ if(WIN32)
 
             add_test(
                 NAME
+                edit_document_from_plan_advanced_ops_coverage
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_advanced_ops_coverage_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+
+            add_test(
+                NAME
                 patch_template_render_plan
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2410,7 +3703,7 @@ if(WIN32)
                 NAME
                 render_template_document_from_patch
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2427,7 +3720,7 @@ if(WIN32)
                 NAME
                 render_template_document_from_data
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2447,11 +3740,17 @@ endif()
 if(NOT WIN32)
     find_program(FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE NAMES pwsh)
     if(FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE)
+        set(FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            -NoLogo
+            -NoProfile
+            -NonInteractive
+        )
         add_test(
             NAME
             release_candidate_blocker_rollup
             COMMAND
-            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -2467,7 +3766,7 @@ if(NOT WIN32)
             NAME
             release_candidate_governance_handoff
             COMMAND
-            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -2485,7 +3784,7 @@ if(NOT WIN32)
             NAME
             build_release_governance_handoff_report_aggregate
             COMMAND
-            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -2503,7 +3802,7 @@ if(NOT WIN32)
             NAME
             build_release_governance_pipeline_report_aggregate
             COMMAND
-            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -2516,6 +3815,24 @@ if(NOT WIN32)
             aggregate
         )
         featherdoc_set_test_labels(build_release_governance_pipeline_report_aggregate release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            build_release_governance_pipeline_report_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_blocker
+            -Scenario
+            fail_on_blocker
+        )
+        featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_blocker release smoke release_smoke governance)
     endif()
 endif()
 
@@ -2564,6 +3881,9 @@ if(TARGET featherdoc_cli)
         cli
         cli_tests.cpp
     )
+    if(FEATHERDOC_BUILD_PDF AND TARGET FeatherDocPdf)
+        target_compile_definitions(cli_tests PRIVATE FEATHERDOC_CLI_ENABLE_PDF=1)
+    endif()
     featherdoc_set_test_labels(cli cli heavy)
 
     featherdoc_add_cli_cpp_test(

@@ -105,6 +105,225 @@ function Get-JsonInt {
     return $DefaultValue
 }
 
+function Get-JsonBool {
+    param($Object, [string]$Name, [bool]$DefaultValue = $false)
+
+    $value = Get-JsonProperty -Object $Object -Name $Name
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        return $DefaultValue
+    }
+    if ($value -is [bool]) { return [bool]$value }
+    return [string]$value -in @("true", "True", "1", "yes", "Yes")
+}
+
+function Get-JsonArray {
+    param($Object, [string]$Name)
+
+    $value = Get-JsonProperty -Object $Object -Name $Name
+    if ($null -eq $value) { return @() }
+    if ($value -is [string]) { return @($value) }
+    if ($value -is [System.Collections.IEnumerable]) {
+        return @($value | Where-Object { $null -ne $_ })
+    }
+    return @($value)
+}
+
+function Select-ExistingInputJson {
+    param([string[]]$Paths)
+
+    $existing = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($path in @($Paths)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$path) -and (Test-Path -LiteralPath $path)) {
+            $existing.Add([string]$path) | Out-Null
+        }
+    }
+    return @($existing.ToArray())
+}
+
+function Get-StageDisplayPath {
+    param([string]$RepoRoot, [string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) { return "" }
+    $candidate = if ([System.IO.Path]::IsPathRooted($Path)) {
+        $Path
+    } else {
+        Join-Path $RepoRoot $Path
+    }
+    return Get-DisplayPath -RepoRoot $RepoRoot -Path $candidate
+}
+
+function Get-StageSourceDisplay {
+    param(
+        [string]$RepoRoot,
+        [object]$Item,
+        [string]$PathProperty,
+        [string]$DisplayProperty,
+        [string]$DefaultDisplay
+    )
+
+    $displayValue = Get-JsonString -Object $Item -Name $DisplayProperty
+    if (-not [string]::IsNullOrWhiteSpace($displayValue)) { return $displayValue }
+
+    $pathValue = Get-JsonString -Object $Item -Name $PathProperty
+    if (-not [string]::IsNullOrWhiteSpace($pathValue)) {
+        return Get-StageDisplayPath -RepoRoot $RepoRoot -Path $pathValue
+    }
+
+    return $DefaultDisplay
+}
+
+function New-StageBlockerItems {
+    param(
+        [string]$RepoRoot,
+        [string]$StageId,
+        [string]$StageTitle,
+        [string]$StageSchema,
+        [string]$SummaryJson,
+        [string]$SummaryJsonDisplay,
+        [object[]]$Items
+    )
+
+    return @(
+        foreach ($item in @($Items)) {
+            $sourceReportDisplay = Get-StageSourceDisplay `
+                -RepoRoot $RepoRoot `
+                -Item $item `
+                -PathProperty "source_report" `
+                -DisplayProperty "source_report_display" `
+                -DefaultDisplay $SummaryJsonDisplay
+            $sourceJsonDisplay = Get-StageSourceDisplay `
+                -RepoRoot $RepoRoot `
+                -Item $item `
+                -PathProperty "source_json" `
+                -DisplayProperty "source_json_display" `
+                -DefaultDisplay $sourceReportDisplay
+            [ordered]@{
+                stage_id = $StageId
+                stage_title = $StageTitle
+                id = Get-JsonString -Object $item -Name "id" -DefaultValue "release_blocker"
+                project_id = Get-JsonString -Object $item -Name "project_id"
+                template_name = Get-JsonString -Object $item -Name "template_name"
+                candidate_type = Get-JsonString -Object $item -Name "candidate_type"
+                severity = Get-JsonString -Object $item -Name "severity" -DefaultValue "error"
+                status = Get-JsonString -Object $item -Name "status"
+                action = Get-JsonString -Object $item -Name "action"
+                message = Get-JsonString -Object $item -Name "message"
+                source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue $StageSchema
+                source_report = Get-JsonString -Object $item -Name "source_report" -DefaultValue $SummaryJson
+                source_report_display = $sourceReportDisplay
+                source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue (Get-JsonString -Object $item -Name "source_report" -DefaultValue $SummaryJson)
+                source_json_display = $sourceJsonDisplay
+                repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
+                repair_hint = Get-JsonString -Object $item -Name "repair_hint"
+                command_template = Get-JsonString -Object $item -Name "command_template"
+            }
+        }
+    )
+}
+
+function New-StageActionItems {
+    param(
+        [string]$RepoRoot,
+        [string]$StageId,
+        [string]$StageTitle,
+        [string]$StageSchema,
+        [string]$SummaryJson,
+        [string]$SummaryJsonDisplay,
+        [object[]]$Items
+    )
+
+    return @(
+        foreach ($item in @($Items)) {
+            $sourceReportDisplay = Get-StageSourceDisplay `
+                -RepoRoot $RepoRoot `
+                -Item $item `
+                -PathProperty "source_report" `
+                -DisplayProperty "source_report_display" `
+                -DefaultDisplay $SummaryJsonDisplay
+            $sourceJsonDisplay = Get-StageSourceDisplay `
+                -RepoRoot $RepoRoot `
+                -Item $item `
+                -PathProperty "source_json" `
+                -DisplayProperty "source_json_display" `
+                -DefaultDisplay $sourceReportDisplay
+            $command = Get-JsonString -Object $item -Name "command"
+            [ordered]@{
+                stage_id = $StageId
+                stage_title = $StageTitle
+                id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
+                project_id = Get-JsonString -Object $item -Name "project_id"
+                template_name = Get-JsonString -Object $item -Name "template_name"
+                candidate_type = Get-JsonString -Object $item -Name "candidate_type"
+                action = Get-JsonString -Object $item -Name "action"
+                title = Get-JsonString -Object $item -Name "title"
+                command = $command
+                open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue $command
+                category = Get-JsonString -Object $item -Name "category"
+                severity = Get-JsonString -Object $item -Name "severity"
+                release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
+                optional = Get-JsonBool -Object $item -Name "optional"
+                audit_command = Get-JsonString -Object $item -Name "audit_command"
+                review_command = Get-JsonString -Object $item -Name "review_command"
+                source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue $StageSchema
+                source_report = Get-JsonString -Object $item -Name "source_report" -DefaultValue $SummaryJson
+                source_report_display = $sourceReportDisplay
+                source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue (Get-JsonString -Object $item -Name "source_report" -DefaultValue $SummaryJson)
+                source_json_display = $sourceJsonDisplay
+                repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
+                repair_hint = Get-JsonString -Object $item -Name "repair_hint"
+                command_template = Get-JsonString -Object $item -Name "command_template"
+            }
+        }
+    )
+}
+
+function New-StageWarningItems {
+    param(
+        [string]$RepoRoot,
+        [string]$StageId,
+        [string]$StageTitle,
+        [string]$StageSchema,
+        [string]$SummaryJson,
+        [string]$SummaryJsonDisplay,
+        [object[]]$Items
+    )
+
+    return @(
+        foreach ($item in @($Items)) {
+            $sourceReportDisplay = Get-StageSourceDisplay `
+                -RepoRoot $RepoRoot `
+                -Item $item `
+                -PathProperty "source_report" `
+                -DisplayProperty "source_report_display" `
+                -DefaultDisplay $SummaryJsonDisplay
+            $sourceJsonDisplay = Get-StageSourceDisplay `
+                -RepoRoot $RepoRoot `
+                -Item $item `
+                -PathProperty "source_json" `
+                -DisplayProperty "source_json_display" `
+                -DefaultDisplay $sourceReportDisplay
+            [ordered]@{
+                stage_id = $StageId
+                stage_title = $StageTitle
+                id = Get-JsonString -Object $item -Name "id" -DefaultValue "warning"
+                project_id = Get-JsonString -Object $item -Name "project_id"
+                template_name = Get-JsonString -Object $item -Name "template_name"
+                candidate_type = Get-JsonString -Object $item -Name "candidate_type"
+                action = Get-JsonString -Object $item -Name "action" -DefaultValue "review_release_governance_warning"
+                message = Get-JsonString -Object $item -Name "message"
+                source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue $StageSchema
+                source_report = Get-JsonString -Object $item -Name "source_report" -DefaultValue $SummaryJson
+                source_report_display = $sourceReportDisplay
+                source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue (Get-JsonString -Object $item -Name "source_report" -DefaultValue $SummaryJson)
+                source_json_display = $sourceJsonDisplay
+                repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
+                repair_hint = Get-JsonString -Object $item -Name "repair_hint"
+                command_template = Get-JsonString -Object $item -Name "command_template"
+            }
+        }
+    )
+}
+
 function Get-ChildPowerShell {
     $powerShellPath = (Get-Process -Id $PID).Path
     if (-not [string]::IsNullOrWhiteSpace($powerShellPath)) {
@@ -170,6 +389,41 @@ function New-StageEntry {
         Get-JsonString -Object $Summary -Name "status" -DefaultValue "completed"
     }
 
+    $summaryJsonDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $SummaryJson
+    $stageSchema = Get-JsonString -Object $Summary -Name "schema" -DefaultValue "unknown"
+    $releaseBlockers = @(New-StageBlockerItems `
+            -RepoRoot $RepoRoot `
+            -StageId $Id `
+            -StageTitle $Title `
+            -StageSchema $stageSchema `
+            -SummaryJson $SummaryJson `
+            -SummaryJsonDisplay $summaryJsonDisplay `
+            -Items @(Get-JsonArray -Object $Summary -Name "release_blockers"))
+    $actionItems = @(New-StageActionItems `
+            -RepoRoot $RepoRoot `
+            -StageId $Id `
+            -StageTitle $Title `
+            -StageSchema $stageSchema `
+            -SummaryJson $SummaryJson `
+            -SummaryJsonDisplay $summaryJsonDisplay `
+            -Items @(Get-JsonArray -Object $Summary -Name "action_items"))
+    $informationalActionItems = @(New-StageActionItems `
+            -RepoRoot $RepoRoot `
+            -StageId $Id `
+            -StageTitle $Title `
+            -StageSchema $stageSchema `
+            -SummaryJson $SummaryJson `
+            -SummaryJsonDisplay $summaryJsonDisplay `
+            -Items @(Get-JsonArray -Object $Summary -Name "informational_action_items"))
+    $warnings = @(New-StageWarningItems `
+            -RepoRoot $RepoRoot `
+            -StageId $Id `
+            -StageTitle $Title `
+            -StageSchema $stageSchema `
+            -SummaryJson $SummaryJson `
+            -SummaryJsonDisplay $summaryJsonDisplay `
+            -Items @(Get-JsonArray -Object $Summary -Name "warnings"))
+
     return [ordered]@{
         id = $Id
         title = $Title
@@ -178,14 +432,19 @@ function New-StageEntry {
         output_dir = $OutputDir
         output_dir_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $OutputDir
         summary_json = $SummaryJson
-        summary_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $SummaryJson
+        summary_json_display = $summaryJsonDisplay
         report_markdown = $ReportMarkdown
         report_markdown_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $ReportMarkdown
         exit_code = $ExitCode
         status = $status
         release_blocker_count = Get-JsonInt -Object $Summary -Name "release_blocker_count"
+        release_blockers = @($releaseBlockers)
         action_item_count = Get-JsonInt -Object $Summary -Name "action_item_count"
+        action_items = @($actionItems)
+        informational_action_item_count = Get-JsonInt -Object $Summary -Name "informational_action_item_count"
+        informational_action_items = @($informationalActionItems)
         warning_count = Get-JsonInt -Object $Summary -Name "warning_count"
+        warnings = @($warnings)
         missing_report_count = Get-JsonInt -Object $Summary -Name "missing_report_count"
         failed_report_count = Get-JsonInt -Object $Summary -Name "failed_report_count"
         source_failure_count = Get-JsonInt -Object $Summary -Name "source_failure_count"
@@ -208,16 +467,25 @@ function Invoke-PipelineStage {
     $markdownPath = Join-Path $OutputDir ("{0}.md" -f $Id)
     Ensure-Directory -Path $OutputDir
 
-    $arguments = @(
-        "-InputJson"
-        (@($InputJson) -join ",")
-        "-OutputDir"
-        $OutputDir
-        "-SummaryJson"
-        $summaryPath
-        "-ReportMarkdown"
+    $inputJsonItems = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($input in @($InputJson)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$input)) {
+            $inputJsonItems.Add([string]$input) | Out-Null
+        }
+    }
+    $arguments = @()
+    if ($inputJsonItems.Count -gt 0) {
+        $arguments += @("-InputJson", ($inputJsonItems.ToArray() -join ","))
+    }
+    $arguments += @(
+        "-OutputDir",
+        $OutputDir,
+        "-SummaryJson",
+        $summaryPath,
+        "-ReportMarkdown",
         $markdownPath
-    ) + @($ExtraArguments)
+    )
+    $arguments += @($ExtraArguments)
 
     $exitCode = 0
     $errorMessage = ""
@@ -248,6 +516,38 @@ function Invoke-PipelineStage {
         -ErrorMessage $errorMessage
 }
 
+function Add-StageGovernanceMarkdown {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object[]]$Items,
+        [string]$Label
+    )
+
+    foreach ($item in @($Items)) {
+        $category = Get-JsonString -Object $item -Name "category"
+        $releaseBlocking = Get-JsonString -Object $item -Name "release_blocking"
+        $optional = Get-JsonString -Object $item -Name "optional"
+        $Lines.Add("  - $Label ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$category`` release_blocking=``$releaseBlocking`` optional=``$optional`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+        if (-not [string]::IsNullOrWhiteSpace([string](Get-JsonProperty -Object $item -Name "message"))) {
+            $Lines.Add("    - message: ``$($item.message)``") | Out-Null
+        }
+        foreach ($repairFieldName in @("repair_strategy", "repair_hint", "command_template")) {
+            $repairFieldValue = Get-JsonString -Object $item -Name $repairFieldName
+            if (-not [string]::IsNullOrWhiteSpace($repairFieldValue)) {
+                $Lines.Add("    - ${repairFieldName}: ``$repairFieldValue``") | Out-Null
+            }
+        }
+        if ($Label -in @("action", "informational_action")) {
+            foreach ($commandName in @("open_command", "audit_command", "review_command")) {
+                $commandValue = Get-JsonString -Object $item -Name $commandName
+                if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
+                    $Lines.Add("    - ${commandName}: ``$commandValue``") | Out-Null
+                }
+            }
+        }
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -255,19 +555,27 @@ function New-ReportMarkdown {
     $lines.Add("# Release Governance Pipeline") | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("- Status: ``$($Summary.status)``") | Out-Null
+    $lines.Add("- Governance detail source: ``$($Summary.governance_detail_source)``") | Out-Null
     $lines.Add("- Stages: ``$($Summary.completed_stage_count)`` completed / ``$($Summary.stage_count)`` total") | Out-Null
+    $lines.Add("- Failed stages: ``$($Summary.failed_stage_count)``") | Out-Null
+    $lines.Add("- Missing reports: ``$($Summary.missing_report_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
+    $lines.Add("- Informational action items: ``$($Summary.informational_action_item_count)``") | Out-Null
     $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("## Stages") | Out-Null
     $lines.Add("") | Out-Null
     foreach ($stage in @($Summary.stages)) {
-        $lines.Add("- ``$($stage.id)``: status=``$($stage.status)`` blockers=``$($stage.release_blocker_count)`` actions=``$($stage.action_item_count)`` warnings=``$($stage.warning_count)``") | Out-Null
+        $lines.Add("- ``$($stage.id)``: status=``$($stage.status)`` blockers=``$($stage.release_blocker_count)`` actions=``$($stage.action_item_count)`` informational_actions=``$($stage.informational_action_item_count)`` warnings=``$($stage.warning_count)`` missing_reports=``$($stage.missing_report_count)`` failed_reports=``$($stage.failed_report_count)`` source_failures=``$($stage.source_failure_count)`` source_failure_count=``$($stage.source_failure_count)``") | Out-Null
         $lines.Add("  - summary: ``$($stage.summary_json_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string]$stage.error)) {
             $lines.Add("  - error: ``$($stage.error)``") | Out-Null
         }
+        Add-StageGovernanceMarkdown -Lines $lines -Items @($stage.release_blockers) -Label "blocker"
+        Add-StageGovernanceMarkdown -Lines $lines -Items @($stage.warnings) -Label "warning"
+        Add-StageGovernanceMarkdown -Lines $lines -Items @($stage.action_items) -Label "action"
+        Add-StageGovernanceMarkdown -Lines $lines -Items @($stage.informational_action_items) -Label "informational_action"
     }
     return @($lines)
 }
@@ -296,25 +604,35 @@ $numberingOutputDir = Join-Path $outputGovernanceRoot "numbering-catalog-governa
 $tableOutputDir = Join-Path $outputGovernanceRoot "table-layout-delivery-governance"
 $contentControlOutputDir = Join-Path $outputGovernanceRoot "content-control-data-binding-governance"
 $projectOutputDir = Join-Path $outputGovernanceRoot "project-template-delivery-readiness"
+$calibrationOutputDir = Join-Path $outputGovernanceRoot "schema-patch-confidence-calibration"
+$docxReadinessOutputDir = Join-Path $outputGovernanceRoot "docx-functional-smoke-readiness"
 $handoffOutputDir = Join-Path $resolvedOutputRoot "release-governance-handoff"
 $rollupOutputDir = Join-Path $resolvedOutputRoot "release-blocker-rollup"
 
-$numberingInputs = @(
+$numberingInputs = Select-ExistingInputJson -Paths @(
     Join-Path $resolvedInputRoot "document-skeleton-governance-rollup\summary.json"
     Join-Path $resolvedInputRoot "numbering-catalog-manifest-checks\summary.json"
 )
-$tableInputs = @(
+$tableInputs = Select-ExistingInputJson -Paths @(
     Join-Path $resolvedInputRoot "table-layout-delivery-rollup\summary.json"
 )
-$contentControlInputs = @(
+$contentControlInputs = Select-ExistingInputJson -Paths @(
     Join-Path $resolvedInputRoot "content-control-data-binding\inspect-content-controls.json"
     Join-Path $resolvedInputRoot "content-control-data-binding\sync-content-controls-from-custom-xml.json"
     Join-Path $resolvedInputRoot "content-control-data-binding-governance\summary.json"
 )
-$projectInputs = @(
+$projectInputs = Select-ExistingInputJson -Paths @(
     Join-Path $resolvedInputRoot "project-template-onboarding-governance\summary.json"
+    Join-Path $resolvedInputRoot "project-template-smoke\summary.json"
+    Join-Path $resolvedInputRoot "project-template-smoke-manifest\summary.json"
     Join-Path $resolvedInputRoot "project-template-schema-approval-history\history.json"
 )
+$calibrationInputs = Select-ExistingInputJson -Paths @(
+    Join-Path $resolvedInputRoot "project-template-smoke\summary.json"
+    Join-Path $resolvedInputRoot "project-template-schema-approval-history\history.json"
+)
+$calibrationInputRoot = Join-Path $resolvedInputRoot "project-template-smoke"
+# Keep schema calibration scoped; broad output roots can include invalid test fixtures.
 
 $stages = New-Object 'System.Collections.Generic.List[object]'
 $stages.Add((Invoke-PipelineStage `
@@ -345,13 +663,34 @@ $stages.Add((Invoke-PipelineStage `
             -ScriptPath (Join-Path $scriptsDir "build_project_template_delivery_readiness_report.ps1") `
             -OutputDir $projectOutputDir `
             -InputJson $projectInputs)) | Out-Null
+$stages.Add((Invoke-PipelineStage `
+            -RepoRoot $repoRoot `
+            -Id "schema_patch_confidence_calibration" `
+            -Title "Schema Patch Confidence Calibration" `
+            -ScriptPath (Join-Path $scriptsDir "write_schema_patch_confidence_calibration_report.ps1") `
+            -OutputDir $calibrationOutputDir `
+            -InputJson $calibrationInputs `
+            -ExtraArguments @("-InputRoot", $calibrationInputRoot))) | Out-Null
+$stages.Add((Invoke-PipelineStage `
+            -RepoRoot $repoRoot `
+            -Id "docx_functional_smoke_readiness" `
+            -Title "DOCX Functional Smoke Readiness" `
+            -ScriptPath (Join-Path $scriptsDir "check_docx_functional_smoke_readiness.ps1") `
+            -OutputDir $docxReadinessOutputDir `
+            -InputJson @())) | Out-Null
 
 $handoffInputs = @(
     Join-Path $numberingOutputDir "summary.json"
     Join-Path $tableOutputDir "summary.json"
     Join-Path $contentControlOutputDir "summary.json"
     Join-Path $projectOutputDir "summary.json"
+    Join-Path $calibrationOutputDir "summary.json"
+    Join-Path $docxReadinessOutputDir "summary.json"
 )
+$pdfPreflightGovernanceSummary = Join-Path $resolvedInputRoot "pdf-visual-release-gate-preflight-governance\summary.json"
+if (Test-Path -LiteralPath $pdfPreflightGovernanceSummary) {
+    $handoffInputs += $pdfPreflightGovernanceSummary
+}
 $handoffExtraArguments = @(
     "-InputRoot"
     $outputGovernanceRoot
@@ -386,18 +725,37 @@ $completedStageCount = @($stageItems | Where-Object {
 $missingReportCount = 0
 $releaseBlockerCount = 0
 $actionItemCount = 0
+$informationalActionItemCount = 0
 $warningCount = 0
+$releaseBlockers = @()
+$actionItems = @()
+$informationalActionItems = @()
+$warnings = @()
+$governanceDetailSource = "stage_aggregate_fallback"
 foreach ($stage in $stageItems) {
     $missingReportCount += [int]$stage.missing_report_count
     $releaseBlockerCount += [int]$stage.release_blocker_count
     $actionItemCount += [int]$stage.action_item_count
+    $informationalActionItemCount += [int]$stage.informational_action_item_count
     $warningCount += [int]$stage.warning_count
+    $releaseBlockers += @($stage.release_blockers)
+    $actionItems += @($stage.action_items)
+    $informationalActionItems += @($stage.informational_action_items)
+    $warnings += @($stage.warnings)
 }
 $finalRollup = @($stageItems | Where-Object { [string]$_.id -eq "release_blocker_rollup" } | Select-Object -First 1)
-if ($finalRollup.Count -gt 0) {
+if ($finalRollup.Count -gt 0 -and
+    [string]$finalRollup[0].status -notin @("failed", "missing_summary") -and
+    [int]$finalRollup[0].exit_code -eq 0) {
     $releaseBlockerCount = [int]$finalRollup[0].release_blocker_count
     $actionItemCount = [int]$finalRollup[0].action_item_count
+    $informationalActionItemCount = [int]$finalRollup[0].informational_action_item_count
     $warningCount = [int]$finalRollup[0].warning_count
+    $releaseBlockers = @($finalRollup[0].release_blockers)
+    $actionItems = @($finalRollup[0].action_items)
+    $informationalActionItems = @($finalRollup[0].informational_action_items)
+    $warnings = @($finalRollup[0].warnings)
+    $governanceDetailSource = "release_blocker_rollup"
 }
 
 $status = if ($failedStageCount -gt 0) {
@@ -428,9 +786,15 @@ $summary = [ordered]@{
     completed_stage_count = $completedStageCount
     failed_stage_count = $failedStageCount
     missing_report_count = $missingReportCount
+    governance_detail_source = $governanceDetailSource
     release_blocker_count = $releaseBlockerCount
+    release_blockers = $releaseBlockers
     action_item_count = $actionItemCount
+    action_items = $actionItems
+    informational_action_item_count = $informationalActionItemCount
+    informational_action_items = $informationalActionItems
     warning_count = $warningCount
+    warnings = $warnings
     stages = $stageItems
     final_governance_reports = $handoffInputs
     release_governance_handoff_summary = Join-Path $handoffOutputDir "summary.json"

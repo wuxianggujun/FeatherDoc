@@ -27,46 +27,6 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($candidate)
 }
 
-function Get-OptionalPropertyValue {
-    param(
-        $Object,
-        [string]$Name
-    )
-
-    if ($null -eq $Object) {
-        return ""
-    }
-
-    $property = $Object.PSObject.Properties[$Name]
-    if ($null -eq $property) {
-        return ""
-    }
-
-    if ($null -eq $property.Value) {
-        return ""
-    }
-
-    return [string]$property.Value
-}
-
-function Get-OptionalPropertyObject {
-    param(
-        $Object,
-        [string]$Name
-    )
-
-    if ($null -eq $Object) {
-        return $null
-    }
-
-    $property = $Object.PSObject.Properties[$Name]
-    if ($null -eq $property) {
-        return $null
-    }
-
-    return $property.Value
-}
-
 . (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
 . (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
 
@@ -153,24 +113,6 @@ function Get-PublicArtifactPath {
     }
 
     return Split-Path -Leaf $Value
-}
-
-function Get-CommandPathDisplayValue {
-    param(
-        [string]$RepoRoot,
-        [string]$Value
-    )
-
-    $relative = Get-RepoRelativePath -RepoRoot $RepoRoot -Value $Value
-    if ([string]::IsNullOrWhiteSpace($relative)) {
-        return $Value
-    }
-
-    if ($relative.StartsWith(".\") -or $relative.StartsWith("./")) {
-        return $relative
-    }
-
-    return ".\$relative"
 }
 
 function Get-ProjectVersion {
@@ -391,6 +333,292 @@ function Add-UniqueLine {
     if (-not $Lines.Contains($Line)) {
         [void]$Lines.Add($Line)
     }
+}
+
+function Get-FirstGovernanceReport {
+    param(
+        [AllowNull()]$Summary,
+        [string]$Id,
+        [string]$Schema
+    )
+
+    $rollup = Get-ReleaseGovernanceRollup -Summary $Summary
+    $handoff = Get-ReleaseGovernanceHandoff -Summary $Summary
+    foreach ($report in @(
+            Get-ReleaseBlockerArrayProperty -Object $rollup -Name "source_reports"
+            Get-ReleaseBlockerArrayProperty -Object $handoff -Name "reports"
+        )) {
+        $reportId = Get-ReleaseBlockerPropertyValue -Object $report -Name "id"
+        $reportSchema = Get-ReleaseBlockerPropertyValue -Object $report -Name "schema"
+        if ((-not [string]::IsNullOrWhiteSpace($Id) -and [string]::Equals($reportId, $Id, [System.StringComparison]::OrdinalIgnoreCase)) -or
+            (-not [string]::IsNullOrWhiteSpace($Schema) -and [string]::Equals($reportSchema, $Schema, [System.StringComparison]::OrdinalIgnoreCase))) {
+            return $report
+        }
+    }
+
+    return $null
+}
+
+function Get-GovernanceSourceReportDisplay {
+    param([AllowNull()]$Item)
+
+    foreach ($propertyName in @("source_report_display", "path_display", "expected_summary_display", "source_report", "path", "expected_summary")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $propertyName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+
+    return ""
+}
+
+function Get-GovernanceSourceJsonDisplay {
+    param([AllowNull()]$Item)
+
+    foreach ($propertyName in @("source_json_display", "source_json", "path_display", "expected_summary_display", "path", "expected_summary")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $propertyName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+
+    return ""
+}
+
+function Add-ProjectTemplateGovernanceContractSummaryLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary
+    )
+
+    $readinessReport = Get-FirstGovernanceReport `
+        -Summary $Summary `
+        -Id "project_template_delivery_readiness" `
+        -Schema "featherdoc.project_template_delivery_readiness_report.v1"
+    $onboardingReport = Get-FirstGovernanceReport `
+        -Summary $Summary `
+        -Id "" `
+        -Schema "featherdoc.project_template_onboarding_governance_report.v1"
+
+    if ($null -eq $readinessReport -and $null -eq $onboardingReport) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add("## Project template governance contracts")
+
+    if ($null -ne $readinessReport) {
+        $readinessParts = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($part in @(
+                "project_template_delivery_readiness",
+                "project_template_delivery_readiness_contract",
+                "source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "schema") -Fallback "featherdoc.project_template_delivery_readiness_report.v1")"
+            )) {
+            [void]$readinessParts.Add($part)
+        }
+        foreach ($fieldName in @(
+                "status",
+                "release_ready",
+                "latest_schema_approval_gate_status",
+                "schema_history_blocked_run_count",
+                "schema_history_pending_run_count",
+                "schema_history_passed_run_count",
+                "template_count",
+                "ready_template_count",
+                "blocked_template_count",
+                "release_blocker_count",
+                "action_item_count",
+                "warning_count",
+                "source_failure_count"
+            )) {
+            $fieldValue = Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+                [void]$readinessParts.Add("${fieldName}=$fieldValue")
+            }
+
+            if ($fieldName -eq "latest_schema_approval_gate_status") {
+                $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+                    -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "schema_approval_status_summary")
+                if (-not [string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+                    [void]$readinessParts.Add("schema_approval_status_summary=$schemaApprovalSummary")
+                }
+            }
+        }
+        [void]$readinessParts.Add("source_report_display=$(Get-GovernanceSourceReportDisplay -Item $readinessReport)")
+        [void]$readinessParts.Add("source_json_display=$(Get-GovernanceSourceJsonDisplay -Item $readinessReport)")
+        [void]$Lines.Add("- Project template readiness: $($readinessParts -join ' ')")
+    }
+
+    if ($null -ne $onboardingReport) {
+        $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingReport -Name "schema_approval_status_summary") `
+            -Fallback (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "status")
+        if ([string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+            $schemaApprovalSummary = "unknown"
+        }
+
+        $onboardingParts = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($part in @(
+                "project_template_onboarding.schema_approval",
+                "project_template_onboarding_governance",
+                "project_template_onboarding_governance_contract",
+                "source_schema=featherdoc.project_template_onboarding_governance_report.v1"
+            )) {
+            [void]$onboardingParts.Add($part)
+        }
+        foreach ($fieldName in @("status", "release_ready")) {
+            $fieldValue = Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+                [void]$onboardingParts.Add("${fieldName}=$fieldValue")
+            }
+        }
+        [void]$onboardingParts.Add("schema_approval_status_summary=$schemaApprovalSummary")
+        [void]$onboardingParts.Add("source_report_display=$(Get-GovernanceSourceReportDisplay -Item $onboardingReport)")
+        [void]$onboardingParts.Add("source_json_display=$(Get-GovernanceSourceJsonDisplay -Item $onboardingReport)")
+        [void]$Lines.Add("- Project template onboarding: $($onboardingParts -join ' ')")
+    }
+}
+
+function Add-ProjectTemplateReadinessChecklistEvidenceSummaryLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary
+    )
+
+    $checklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $Summary
+    $packagedAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $Summary
+    if ([string]::IsNullOrWhiteSpace($checklistHandoffEvidenceLine) -and
+        [string]::IsNullOrWhiteSpace($packagedAuditEvidenceLine)) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add("## Project template release checklist evidence")
+    if (-not [string]::IsNullOrWhiteSpace($checklistHandoffEvidenceLine)) {
+        [void]$Lines.Add("- $checklistHandoffEvidenceLine")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($packagedAuditEvidenceLine)) {
+        [void]$Lines.Add("- $packagedAuditEvidenceLine")
+    }
+}
+
+function Add-ProjectTemplateReadinessChecklistEvidenceShortSummaryBullets {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary
+    )
+
+    $checklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $Summary
+    if (-not [string]::IsNullOrWhiteSpace($checklistHandoffEvidenceLine)) {
+        Add-UniqueLine -Lines $Lines -Line (
+            "project-template readiness checklist handoff evidence 已进入短摘要：$checklistHandoffEvidenceLine"
+        )
+    }
+
+    $packagedAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $Summary
+    if (-not [string]::IsNullOrWhiteSpace($packagedAuditEvidenceLine)) {
+        Add-UniqueLine -Lines $Lines -Line (
+            "project-template readiness checklist packaged audit evidence 已进入短摘要：$packagedAuditEvidenceLine"
+        )
+    }
+}
+
+function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary
+    )
+
+    $readinessReport = Get-FirstGovernanceReport `
+        -Summary $Summary `
+        -Id "project_template_delivery_readiness" `
+        -Schema "featherdoc.project_template_delivery_readiness_report.v1"
+    $onboardingReport = Get-FirstGovernanceReport `
+        -Summary $Summary `
+        -Id "" `
+        -Schema "featherdoc.project_template_onboarding_governance_report.v1"
+
+    if ($null -ne $readinessReport) {
+        $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "schema_approval_status_summary")
+        Add-UniqueLine -Lines $Lines -Line (
+            'project-template readiness governance contract 已进入短摘要： status={0} release_ready={1} latest_schema_approval_gate_status={2} schema_approval_status_summary={3} source_report_display={4} source_json_display={5}。' -f `
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "status")),
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "release_ready")),
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "latest_schema_approval_gate_status")),
+                (Get-DisplayValue -Value $schemaApprovalSummary),
+                (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $readinessReport)),
+                (Get-DisplayValue -Value (Get-GovernanceSourceJsonDisplay -Item $readinessReport))
+        )
+    }
+
+    if ($null -ne $onboardingReport) {
+        $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingReport -Name "schema_approval_status_summary") `
+            -Fallback (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "status")
+
+        Add-UniqueLine -Lines $Lines -Line (
+            'project-template onboarding governance contract 已进入短摘要： status={0} release_ready={1} schema_approval_status_summary={2} source_report_display={3} source_json_display={4}。' -f `
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "status")),
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "release_ready")),
+                (Get-DisplayValue -Value $schemaApprovalSummary),
+                (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $onboardingReport)),
+                (Get-DisplayValue -Value (Get-GovernanceSourceJsonDisplay -Item $onboardingReport))
+        )
+    }
+}
+
+function Add-PdfVisualGateEvidenceShortSummaryBullets {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$PdfVisualGateEvidence,
+        [string]$RepoRoot
+    )
+
+    if ($null -eq $PdfVisualGateEvidence) {
+        return
+    }
+
+    $status = Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "status"
+    if ($status -ne "loaded") {
+        return
+    }
+
+    Add-UniqueLine -Lines $Lines -Line (
+        'PDF visual gate 已进入短摘要：verdict={0} summary={1} aggregate_contact_sheet={2} cjk_manifest_count={3} cjk_copy_search_count={4} visual_baseline_manifest_count={5} visual_baseline_count={6}。' -f `
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "verdict")),
+            (Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $RepoRoot -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "summary_json"))),
+            (Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $RepoRoot -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "aggregate_contact_sheet"))),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "cjk_manifest_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "cjk_copy_search_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "visual_baseline_manifest_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "visual_baseline_count"))
+    )
+}
+
+function Add-PdfBoundedCtestEvidenceShortSummaryBullets {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$PdfBoundedCtestEvidence
+    )
+
+    if ($null -eq $PdfBoundedCtestEvidence) {
+        return
+    }
+
+    $status = Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "status"
+    if ([string]::IsNullOrWhiteSpace($status) -or $status -eq "not_available") {
+        return
+    }
+
+    Add-UniqueLine -Lines $Lines -Line (
+        'PDF bounded CTest 辅助证据已进入短摘要：status={0} summaries={1} pass={2} selected_tests={3} skipped_tests={4}；该证据只补充资源受限复核，不替代 full visual gate verdict。' -f `
+            (Get-DisplayValue -Value $status),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "summary_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "pass_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "selected_test_count")),
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "skipped_test_count"))
+    )
 }
 
 function Normalize-ReleaseFacingText {
@@ -898,6 +1126,9 @@ $fixedGridReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $summary.
 $sectionPageSetupReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary)
+$pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
+$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath
+$pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 
 $installedDataDir = ""
 $installedQuickstartZh = ""
@@ -945,7 +1176,7 @@ $validationNote = Get-ValidationNote `
 $changelogSelection = Resolve-ChangelogSelection -RepoRoot $repoRoot -ReleaseVersion $resolvedReleaseVersion
 $changelogSections = $changelogSelection.Sections
 $changelogSourceLabel = $changelogSelection.SourceLabel
-$shortSummaryBullets = Get-ShortSummaryBullets `
+$shortSummaryBulletResults = @(Get-ShortSummaryBullets `
     -Sections $changelogSections `
     -ChangelogSourceLabel $changelogSourceLabel `
     -ExecutionStatus $summary.execution_status `
@@ -965,15 +1196,23 @@ $shortSummaryBullets = Get-ShortSummaryBullets `
     -FixedGridVerdict $fixedGridVerdict `
     -SectionPageSetupVerdict $sectionPageSetupVerdict `
     -PageNumberFieldsVerdict $pageNumberFieldsVerdict `
-    -CuratedVisualReviewEntries $curatedVisualReviewEntries
+    -CuratedVisualReviewEntries $curatedVisualReviewEntries)
+$shortSummaryBullets = New-Object 'System.Collections.Generic.List[string]'
+foreach ($shortSummaryBullet in $shortSummaryBulletResults) {
+    Add-UniqueLine -Lines $shortSummaryBullets -Line ([string]$shortSummaryBullet)
+}
+Add-ProjectTemplateGovernanceContractShortSummaryBullets -Lines $shortSummaryBullets -Summary $summary
+Add-ProjectTemplateReadinessChecklistEvidenceShortSummaryBullets -Lines $shortSummaryBullets -Summary $summary
+Add-PdfVisualGateEvidenceShortSummaryBullets -Lines $shortSummaryBullets -PdfVisualGateEvidence $pdfVisualGateEvidence -RepoRoot $repoRoot
+Add-PdfBoundedCtestEvidenceShortSummaryBullets -Lines $shortSummaryBullets -PdfBoundedCtestEvidence $pdfBoundedCtestEvidence
 
 $releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1"
 $releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
 $refreshCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\write_release_note_bundle.ps1 -SummaryJson "{0}" -HandoffOutputPath "{1}" -BodyOutputPath "{2}" -ShortOutputPath "{3}"' -f `
-    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $resolvedSummaryPath),
-    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $releaseHandoffPath),
-    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $resolvedOutputPath),
-    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $resolvedShortOutputPath)
+    (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $resolvedSummaryPath),
+    (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $releaseHandoffPath),
+    (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $resolvedOutputPath),
+    (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $resolvedShortOutputPath)
 if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseVersion)) {
     $refreshCommand += (' -ReleaseVersion "{0}"' -f $resolvedReleaseVersion)
 }
@@ -1003,6 +1242,27 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- install + find_package smoke：$($summary.steps.install_smoke.status)")
 [void]$lines.Add("- Word visual release gate：$($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict：$(if ($visualVerdict) { $visualVerdict } else { 'pending_manual_review' })")
+if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.status)) {
+    [void]$lines.Add("- PDF visual gate summary：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $pdfVisualGateEvidence.summary_json))")
+    [void]$lines.Add("- PDF visual gate evidence status：$(Get-DisplayValue -Value $pdfVisualGateEvidence.status)")
+    if ($pdfVisualGateEvidence.status -eq "loaded") {
+        [void]$lines.Add("- PDF visual gate verdict：$(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
+        [void]$lines.Add("- PDF visual gate aggregate contact sheet：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $pdfVisualGateEvidence.aggregate_contact_sheet))")
+        [void]$lines.Add("- PDF CJK manifest samples：$(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_manifest_count)")
+        [void]$lines.Add("- PDF CJK copy/search samples：$(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count)")
+        [void]$lines.Add("- PDF CJK missing text count：$(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_missing_text_count)")
+        [void]$lines.Add("- PDF visual baseline manifest samples：$(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_manifest_count)")
+        [void]$lines.Add("- PDF visual baselines：$(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_count)")
+    } elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.error)) {
+        [void]$lines.Add("- PDF visual gate evidence error：$($pdfVisualGateEvidence.error)")
+    }
+}
+if ($pdfBoundedCtestEvidence.status -ne "not_available") {
+    [void]$lines.Add("- PDF bounded CTest auxiliary evidence：status=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status), summaries=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.summary_count), pass=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.pass_count), selected_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.selected_test_count), skipped_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.skipped_test_count)")
+    [void]$lines.Add("- PDF bounded CTest auxiliary subsets：$(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.subsets) -join ', '))")
+    [void]$lines.Add("- PDF bounded CTest auxiliary summaries：$(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+    [void]$lines.Add("- PDF bounded CTest boundary：辅助证据不能替代 full visual gate verdict。")
+}
 [void]$lines.Add("- Smoke verdict：$(Get-DisplayValue -Value $smokeVerdict)")
 [void]$lines.Add("- Smoke review status：$(Get-DisplayValue -Value $smokeReviewStatus)")
 [void]$lines.Add("- Fixed-grid verdict：$(Get-DisplayValue -Value $fixedGridVerdict)")
@@ -1018,7 +1278,9 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 }
 [void]$lines.Add("- README 展示图刷新：$(if ($readmeGalleryStatus) { $readmeGalleryStatus } else { 'unknown' })")
 [void]$lines.Add("- 说明：$validationNote")
-Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot -Heading "## 发布阻断项"
+Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot -Heading "## 发布阻断项" -PublicArtifactPaths
+Add-ProjectTemplateGovernanceContractSummaryLines -Lines $lines -Summary $summary
+Add-ProjectTemplateReadinessChecklistEvidenceSummaryLines -Lines $lines -Summary $summary
 [void]$lines.Add("")
 [void]$lines.Add("## 安装包入口")
 [void]$lines.Add("- 以下路径使用安装树相对位置，不包含本机绝对目录。")
@@ -1048,6 +1310,29 @@ Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $rep
 [void]$lines.Add("- Visual gate final review：$(Get-DisplayValue -Value $publicGateFinalReviewPath)")
 [void]$lines.Add("- README 展示图目录：$(Get-DisplayValue -Value $publicReadmeGalleryAssetsDir)")
 [void]$lines.Add("- install smoke consumer docx：$(Get-DisplayValue -Value $publicConsumerDocument)")
+
+$pdfReleaseBlockerRollup = Get-ReleaseGovernanceRollup -Summary $summary
+$pdfPreflightEvidenceBlocker = @(
+    Get-ReleaseBlockerArrayProperty -Object $pdfReleaseBlockerRollup -Name "action_items" |
+        Where-Object {
+            $actionName = Get-ReleaseBlockerPropertyValue -Object $_ -Name "action"
+            $actionName -in @(
+                "prepare_pdf_visual_release_gate_build_outputs",
+                "rerun_pdf_visual_release_gate_preflight"
+            )
+        } |
+        Select-Object -First 1
+)
+if ($pdfPreflightEvidenceBlocker.Count -gt 0) {
+    $pdfPreflightEvidenceLine = Get-PdfVisualPreflightReadinessActionEvidenceLine -Item $pdfPreflightEvidenceBlocker[0]
+    if (-not [string]::IsNullOrWhiteSpace($pdfPreflightEvidenceLine)) {
+        [void]$lines.Add("")
+        [void]$lines.Add("## PDF 预检行动证据")
+        [void]$lines.Add("")
+        [void]$lines.Add("- $pdfPreflightEvidenceLine")
+    }
+}
+
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedShortOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8

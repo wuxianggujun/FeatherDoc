@@ -30,6 +30,19 @@ function Assert-Contains {
     }
 }
 
+function Assert-NotContains {
+    param(
+        [string]$Path,
+        [string]$UnexpectedText,
+        [string]$Label
+    )
+
+    $content = Get-Content -Raw -LiteralPath $Path
+    if ($content -match [regex]::Escape($UnexpectedText)) {
+        throw "$Label contains unexpected text '$UnexpectedText': $Path"
+    }
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $bundleRoot = Join-Path $resolvedWorkingDir "section-page-setup-bundle"
@@ -114,5 +127,19 @@ Assert-True -Condition ([System.IO.Path]::GetFullPath($manifest.section_page_set
 Assert-Contains -Path $promptPath -ExpectedText "Section Page Setup Visual Review Task" -Label "task_prompt.md"
 Assert-Contains -Path $promptPath -ExpectedText "api-sample" -Label "task_prompt.md"
 Assert-Contains -Path $promptPath -ExpectedText "cli-rewrite" -Label "task_prompt.md"
+Assert-NotContains -Path $promptPath -UnexpectedText "\\review_result.json" -Label "task_prompt.md"
+Assert-NotContains -Path $promptPath -UnexpectedText "\\final_review.md" -Label "task_prompt.md"
+
+& $prepareScript `
+    -SectionPageSetupRegressionRoot $bundleRoot `
+    -TaskOutputRoot $taskRoot `
+    -Mode review-and-repair
+
+$repairPointer = Get-Content -Raw -LiteralPath $latestPointerPath | ConvertFrom-Json
+$repairPromptPath = Join-Path $repairPointer.task_dir "task_prompt.md"
+Assert-True -Condition (Test-Path -LiteralPath $repairPromptPath) `
+    -Message "Review-and-repair task prompt was not created."
+Assert-NotContains -Path $repairPromptPath -UnexpectedText "\\review_result.json" -Label "repair task_prompt.md"
+Assert-NotContains -Path $repairPromptPath -UnexpectedText "\\final_review.md" -Label "repair task_prompt.md"
 
 Write-Host "Prepare section page setup review task regression passed."

@@ -51,6 +51,10 @@ $manifestPath = Join-Path $resolvedWorkingDir "schema-review.project-template-sm
 $schemaPath = Join-Path $resolvedWorkingDir "drift.template-schema.json"
 $outputDir = Join-Path $resolvedWorkingDir "smoke-output"
 $generatedOutput = Join-Path $resolvedWorkingDir "generated.template-schema.json"
+$reuseManifestPath = Join-Path $resolvedWorkingDir "prepared-input-reuse.project-template-smoke.manifest.json"
+$reuseOutputDir = Join-Path $resolvedWorkingDir "prepared-input-reuse-output"
+$reuseGeneratedOutput = Join-Path $resolvedWorkingDir "prepared-input-reuse.generated.template-schema.json"
+$canonicalSchemaPath = Join-Path $resolvedRepoRoot "baselines\template-schema\chinese_invoice_template.schema.json"
 
 Set-Content -LiteralPath $schemaPath -Encoding UTF8 -Value `
     '{"targets":[{"part":"body","slots":[{"bookmark":"customer_name","kind":"text"}]}]}'
@@ -90,6 +94,8 @@ Assert-True -Condition (Test-Path -LiteralPath $summaryMarkdownPath) `
     -Message "Smoke run should write summary.md."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.project_template_smoke_summary.v1" `
+    -Message "Summary should expose the stable project-template smoke summary schema."
 Assert-Equal -Actual ([int]$summary.schema_patch_review_count) -Expected 1 `
     -Message "Summary should aggregate one schema patch review."
 Assert-Equal -Actual ([int]$summary.schema_patch_review_changed_count) -Expected 1 `
@@ -157,6 +163,50 @@ Assert-Equal -Actual ([string]$review.schema) -Expected "featherdoc.template_sch
     -Message "Review JSON should use the stable schema id."
 Assert-Equal -Actual ([int]$review.generated_slot_count) -Expected 5 `
     -Message "Review JSON should include generated slot count."
+
+if (Test-Path -LiteralPath $canonicalSchemaPath) {
+    $reuseManifest = [ordered]@{
+        entries = @(
+            [ordered]@{
+                name = "prepared-input-reuse"
+                prepare_sample_target = "missing_sample_target_for_reuse"
+                input_docx = $sampleDocx
+                schema_validation = [ordered]@{
+                    schema_file = $canonicalSchemaPath
+                }
+                schema_baseline = [ordered]@{
+                    schema_file = $canonicalSchemaPath
+                    generated_output = $reuseGeneratedOutput
+                    target_mode = "default"
+                }
+            }
+        )
+    }
+    ($reuseManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $reuseManifestPath -Encoding UTF8
+
+    $reuseResult = Invoke-ProjectTemplateSmokeScript -Arguments @(
+        "-ManifestPath", $reuseManifestPath,
+        "-BuildDir", $resolvedBuildDir,
+        "-OutputDir", $reuseOutputDir,
+        "-SkipBuild",
+        "-SkipVisualSmoke"
+    )
+    Assert-Equal -Actual $reuseResult.ExitCode -Expected 0 `
+        -Message "Existing prepared input should be reusable under -SkipBuild without the sample target binary. Output: $($reuseResult.Text)"
+    Assert-ContainsText -Text $reuseResult.Text -ExpectedText "Reusing existing prepared input" `
+        -Message "Smoke run should report prepared input reuse."
+
+    $reuseSummaryPath = Join-Path $reuseOutputDir "summary.json"
+    Assert-True -Condition (Test-Path -LiteralPath $reuseSummaryPath) `
+        -Message "Prepared input reuse smoke run should write summary.json."
+    $reuseSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $reuseSummaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([bool]$reuseSummary.passed) -Expected $true `
+        -Message "Prepared input reuse summary should pass."
+    Assert-Equal -Actual ([int]$reuseSummary.failed_entry_count) -Expected 0 `
+        -Message "Prepared input reuse should not create failed entries."
+    Assert-Equal -Actual ([bool]$reuseSummary.entries[0].passed) -Expected $true `
+        -Message "Prepared input reuse entry should pass."
+}
 
 $summaryMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryMarkdownPath
 Assert-ContainsText -Text $summaryMarkdown -ExpectedText "Schema patch reviews: 1" `

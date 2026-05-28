@@ -26,6 +26,10 @@ struct PdfFontSubsetResult {
 subset_font_file_for_codepoints(const std::filesystem::path &font_file_path,
                                 const std::vector<std::uint32_t> &codepoints);
 
+[[nodiscard]] PdfFontSubsetResult
+subset_font_file_for_glyph_ids(const std::filesystem::path &font_file_path,
+                               const std::vector<std::uint32_t> &glyph_ids);
+
 } // namespace featherdoc::pdf
 
 #endif // FEATHERDOC_PDF_PDF_FONT_SUBSET_HPP

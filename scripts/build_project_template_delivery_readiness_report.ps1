@@ -4,8 +4,9 @@ Builds a project-template delivery readiness report from onboarding evidence.
 
 .DESCRIPTION
 Reads project-template onboarding governance summaries, direct onboarding
-summaries, onboarding plans, and schema approval history reports, then writes a
-single JSON/Markdown delivery gate report. The script is read-only for source
+summaries, onboarding plans, project-template-smoke summaries, smoke manifest
+descriptions, and schema approval history reports, then writes a single
+JSON/Markdown delivery gate report. The script is read-only for source
 artifacts and does not rerun smoke, CMake, Word, or visual automation.
 #>
 param(
@@ -19,6 +20,13 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+. (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
+
+$deliveryReadinessSchema = "featherdoc.project_template_delivery_readiness_report.v1"
+$onboardingGovernanceSchema = "featherdoc.project_template_onboarding_governance_report.v1"
+$projectTemplateSmokeSummarySchema = "featherdoc.project_template_smoke_summary.v1"
+$deliveryReadinessOpenCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
 
 function Write-Step {
     param([string]$Message)
@@ -125,37 +133,24 @@ function Get-JsonArray {
     return @($value)
 }
 
-function Expand-ArgumentList {
-    param([string[]]$Values)
-
-    return @(
-        foreach ($value in @($Values)) {
-            if ([string]::IsNullOrWhiteSpace($value)) { continue }
-            foreach ($part in ([string]$value -split ",")) {
-                if (-not [string]::IsNullOrWhiteSpace($part)) {
-                    $part.Trim()
-                }
-            }
-        }
-    )
-}
-
 function Get-InputJsonPaths {
     param([string]$RepoRoot, [string[]]$ExplicitPaths, [string[]]$Roots)
 
     $paths = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($path in @(Expand-ArgumentList -Values $ExplicitPaths)) {
+    foreach ($path in @(Expand-TemplateSchemaArgumentList -Values $ExplicitPaths)) {
         if (-not [string]::IsNullOrWhiteSpace($path)) {
             $paths.Add((Resolve-RepoPath -RepoRoot $RepoRoot -Path $path)) | Out-Null
         }
     }
 
-    $scanRoots = @(Expand-ArgumentList -Values $Roots)
+    $scanRoots = @(Expand-TemplateSchemaArgumentList -Values $Roots)
     if ($paths.Count -eq 0 -and $scanRoots.Count -eq 0) {
         $scanRoots = @(
             "output/project-template-onboarding-governance",
             "output/project-template-onboarding",
             "output/project-template-smoke-onboarding-plan",
+            "output/project-template-smoke",
+            "output/project-template-smoke-manifest",
             "output/project-template-schema-approval-history"
         )
     }
@@ -191,6 +186,18 @@ function Get-EvidenceKind {
     if ($schema -eq "featherdoc.project_template_schema_approval_history.v1") {
         return "schema_approval_history"
     }
+    if ($schema -eq "featherdoc.project_template_smoke_manifest_description.v1") {
+        return "project_template_smoke_manifest_description"
+    }
+    if ($schema -eq $projectTemplateSmokeSummarySchema) {
+        return "project_template_smoke_summary"
+    }
+    if ($null -ne (Get-JsonProperty -Object $Json -Name "manifest_path") -and
+        $null -ne (Get-JsonProperty -Object $Json -Name "entry_count") -and
+        $null -ne (Get-JsonProperty -Object $Json -Name "overall_status") -and
+        $null -ne (Get-JsonProperty -Object $Json -Name "entries")) {
+        return "project_template_smoke_summary"
+    }
     if ($null -ne (Get-JsonProperty -Object $Json -Name "onboarding_entry_count") -and
         $null -ne (Get-JsonProperty -Object $Json -Name "entries")) {
         return "onboarding_plan"
@@ -204,11 +211,60 @@ function Get-EvidenceKind {
     return "unknown"
 }
 
+function New-ProjectTemplateSmokeSummaryMissingWarning {
+    param(
+        [string]$RepoRoot,
+        [string]$SummaryPath,
+        [object[]]$ManifestDescriptions
+    )
+
+    $latestDescription = @($ManifestDescriptions | Sort-Object @{ Expression = { Get-JsonString -Object $_ -Name "generated_at" } })[-1]
+    $sourceJson = Get-JsonString -Object $latestDescription -Name "source_json" -DefaultValue $SummaryPath
+    $sourceJsonDisplay = Get-JsonString -Object $latestDescription -Name "source_json_display" -DefaultValue (Get-DisplayPath -RepoRoot $RepoRoot -Path $sourceJson)
+    $manifestPathDisplay = Get-JsonString -Object $latestDescription -Name "manifest_path_display"
+    if ([string]::IsNullOrWhiteSpace($manifestPathDisplay)) {
+        $manifestPathDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path (Get-JsonString -Object $latestDescription -Name "manifest_path")
+    }
+
+    $registeredTemplateCount = Get-JsonInt -Object $latestDescription -Name "registered_entry_count" -DefaultValue (Get-JsonInt -Object $latestDescription -Name "entry_count")
+    $latestMissingEntryCount = Get-JsonInt -Object $latestDescription -Name "latest_missing_entry_count" -DefaultValue $registeredTemplateCount
+
+    return [ordered]@{
+        id = "project_template_smoke_summary_missing"
+        action = "run_project_template_smoke_for_registered_manifest"
+        repair_strategy = "run_project_template_smoke_for_registered_manifest"
+        repair_hint = "A project-template-smoke manifest is registered, but no smoke/onboarding summary was loaded as release evidence. Run or restore the smoke summary before treating these templates as delivery-ready."
+        command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -OutputDir .\output\project-template-smoke -SkipBuild"
+        source_schema = $deliveryReadinessSchema
+        source_json = $sourceJson
+        source_json_display = $sourceJsonDisplay
+        source_report = $sourceJson
+        source_report_display = $sourceJsonDisplay
+        manifest_path = Get-JsonString -Object $latestDescription -Name "manifest_path"
+        manifest_path_display = $manifestPathDisplay
+        registered_template_count = $registeredTemplateCount
+        schema_validation_entry_count = Get-JsonInt -Object $latestDescription -Name "schema_validation_entry_count"
+        schema_baseline_entry_count = Get-JsonInt -Object $latestDescription -Name "schema_baseline_entry_count"
+        visual_smoke_entry_count = Get-JsonInt -Object $latestDescription -Name "visual_smoke_entry_count"
+        latest_summary_available = Get-JsonBool -Object $latestDescription -Name "latest_summary_available"
+        latest_missing_entry_count = $latestMissingEntryCount
+        message = "Project-template-smoke manifest has registered entries, but no project-template smoke or onboarding readiness summary was loaded."
+    }
+}
+
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
+    $groupItems = @(
+        foreach ($item in @($Items)) {
+            [pscustomobject]@{
+                Value = Get-JsonString -Object $item -Name $PropertyName -DefaultValue "unknown"
+            }
+        }
+    )
+
     return @(
-        foreach ($group in @($Items | Group-Object $PropertyName |
+        foreach ($group in @($groupItems | Group-Object Value |
             Sort-Object -Property @{ Expression = "Count"; Descending = $true }, @{ Expression = "Name"; Ascending = $true })) {
             $summary = [ordered]@{}
             $summary[$OutputName] = [string]$group.Name
@@ -224,17 +280,46 @@ function New-ReleaseBlocker {
         [string]$Source,
         [string]$Status,
         [string]$Action,
-        [string]$Message
+        [string]$Message,
+        [string]$SourceSchema = $deliveryReadinessSchema,
+        [string]$SourceJson = "",
+        [string]$SourceJsonDisplay = "",
+        [string]$SourceReport = "",
+        [string]$SourceReportDisplay = ""
     )
+
+    if ([string]::IsNullOrWhiteSpace($SourceReport)) {
+        $SourceReport = $SourceJson
+    }
+    if ([string]::IsNullOrWhiteSpace($SourceReportDisplay)) {
+        $SourceReportDisplay = $SourceJsonDisplay
+    }
 
     return [ordered]@{
         id = $Id
         source = $Source
+        source_schema = $SourceSchema
+        source_json = $SourceJson
+        source_json_display = $SourceJsonDisplay
+        source_report = $SourceReport
+        source_report_display = $SourceReportDisplay
         severity = "error"
         status = $Status
         action = $Action
         message = $Message
     }
+}
+
+function Get-DefaultSourceSchema {
+    param([string]$SourceKind)
+
+    if ($SourceKind -eq "onboarding_governance_report") {
+        return $onboardingGovernanceSchema
+    }
+    if ($SourceKind -eq "project_template_smoke_summary") {
+        return $projectTemplateSmokeSummarySchema
+    }
+    return $deliveryReadinessSchema
 }
 
 function New-ReadinessTemplate {
@@ -293,7 +378,15 @@ function New-ReadinessTemplate {
         action_item_count = @($items).Count
         manual_review_recommendations = @($recommendations)
         manual_review_recommendation_count = @($recommendations).Count
+        onboarding_governance_status = ""
+        onboarding_governance_release_ready = ""
+        onboarding_governance_schema_approval_status_summary = @()
+        onboarding_governance_source_report = ""
+        onboarding_governance_source_report_display = ""
+        onboarding_governance_source_json = ""
+        onboarding_governance_source_json_display = ""
         schema_approval_state = $SchemaApprovalState
+        schema_approval_history_required = Get-JsonBool -Object $SchemaApprovalState -Name "history_required" -DefaultValue $true
         schema_history_available = $false
         schema_history = [ordered]@{
             status = "not_available"
@@ -306,17 +399,28 @@ function New-ReadinessTemplate {
         source_kind = $SourceKind
         source_json = $SourceJson
         source_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $SourceJson
+        source_report = $SourceJson
+        source_report_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $SourceJson
     }
 }
 
 function Convert-OnboardingGovernanceToTemplates {
     param([string]$RepoRoot, [string]$Path, $Json)
 
+    $onboardingGovernanceStatus = Get-JsonString -Object $Json -Name "status"
+    $onboardingGovernanceReleaseReady = if ($null -ne (Get-JsonProperty -Object $Json -Name "release_ready")) {
+        [string](Get-JsonBool -Object $Json -Name "release_ready")
+    } else {
+        ""
+    }
+    $onboardingGovernanceSchemaApprovalStatusSummary = @(Get-JsonArray -Object $Json -Name "schema_approval_status_summary")
+    $onboardingGovernanceSourceDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
+
     return @(
         foreach ($entry in @(Get-JsonArray -Object $Json -Name "entries")) {
             $state = Get-JsonProperty -Object $entry -Name "schema_approval_state"
             $name = Get-JsonString -Object $entry -Name "name" -DefaultValue "project-template"
-            New-ReadinessTemplate `
+            $template = New-ReadinessTemplate `
                 -RepoRoot $RepoRoot `
                 -TemplateName $name `
                 -InputDocx (Get-JsonString -Object $entry -Name "input_docx") `
@@ -326,6 +430,14 @@ function Convert-OnboardingGovernanceToTemplates {
                 -ReleaseBlockers (Get-JsonArray -Object $entry -Name "release_blockers") `
                 -ActionItems (Get-JsonArray -Object $entry -Name "action_items") `
                 -ManualReviewRecommendations (Get-JsonArray -Object $entry -Name "manual_review_recommendations")
+            $template["onboarding_governance_status"] = $onboardingGovernanceStatus
+            $template["onboarding_governance_release_ready"] = $onboardingGovernanceReleaseReady
+            $template["onboarding_governance_schema_approval_status_summary"] = @($onboardingGovernanceSchemaApprovalStatusSummary)
+            $template["onboarding_governance_source_report"] = $Path
+            $template["onboarding_governance_source_report_display"] = $onboardingGovernanceSourceDisplay
+            $template["onboarding_governance_source_json"] = $Path
+            $template["onboarding_governance_source_json_display"] = $onboardingGovernanceSourceDisplay
+            $template
         }
     )
 }
@@ -373,6 +485,125 @@ function Convert-OnboardingPlanToTemplates {
     )
 }
 
+function New-SchemaApprovalStateFromSmokeEntry {
+    param($Entry, $SchemaPatchApproval = $null)
+
+    $entryPassed = Get-JsonBool -Object $Entry -Name "passed"
+    if ($null -ne $SchemaPatchApproval) {
+        $status = Get-JsonString -Object $SchemaPatchApproval -Name "status" -DefaultValue "pending_review"
+        $decision = Get-JsonString -Object $SchemaPatchApproval -Name "decision"
+        $action = Get-JsonString -Object $SchemaPatchApproval -Name "action" -DefaultValue "review_schema_update_candidate"
+        $complianceIssueCount = Get-JsonInt -Object $SchemaPatchApproval -Name "compliance_issue_count"
+        if ($status -eq "approved" -or $decision -eq "approved") {
+            $stateStatus = "approved"
+            $gateStatus = "passed"
+        } elseif ($status -eq "not_required" -or $decision -eq "not_required") {
+            $stateStatus = "not_required"
+            $gateStatus = "not_required"
+            $action = "none"
+        } elseif ($status -in @("rejected", "needs_changes", "invalid_result", "blocked") -or
+            $decision -in @("rejected", "needs_changes") -or $complianceIssueCount -gt 0) {
+            $stateStatus = "blocked"
+            $gateStatus = "blocked"
+            if ([string]::IsNullOrWhiteSpace($action) -or $action -eq "none") {
+                $action = "fix_schema_patch_approval_result"
+            }
+        } else {
+            $stateStatus = "pending_review"
+            $gateStatus = "pending"
+            if ([string]::IsNullOrWhiteSpace($action) -or $action -eq "none") {
+                $action = "review_schema_update_candidate"
+            }
+        }
+    } elseif ($entryPassed) {
+        $stateStatus = "not_required"
+        $gateStatus = "not_required"
+        $action = "none"
+    } else {
+        $stateStatus = "blocked"
+        $gateStatus = "blocked"
+        $action = "review_project_template_smoke_failure"
+    }
+
+    $historyRequired = ($null -ne $SchemaPatchApproval)
+
+    return [ordered]@{
+        schema = "featherdoc.project_template_onboarding_schema_approval_state.v1"
+        status = $stateStatus
+        gate_status = $gateStatus
+        release_blocked = ($stateStatus -in @("not_evaluated", "pending_review", "blocked"))
+        history_required = $historyRequired
+        smoke_summary_available = $true
+        smoke_entry_status = Get-JsonString -Object $Entry -Name "status"
+        smoke_entry_passed = $entryPassed
+        action = $action
+    }
+}
+
+function New-ProjectTemplateSmokeEntryBlocker {
+    param(
+        [string]$RepoRoot,
+        [string]$Path,
+        $Entry,
+        $SchemaApprovalState
+    )
+
+    $issues = @(Get-JsonArray -Object $Entry -Name "issues" | ForEach-Object { [string]$_ })
+    $message = if ($issues.Count -gt 0) {
+        "Project-template smoke entry failed: " + ($issues -join "; ")
+    } else {
+        "Project-template smoke entry is not release-ready."
+    }
+
+    return New-ReleaseBlocker `
+        -Id "project_template_smoke.entry_not_release_ready" `
+        -Source "project_template_smoke_summary" `
+        -Status (Get-JsonString -Object $SchemaApprovalState -Name "status" -DefaultValue "blocked") `
+        -Action (Get-JsonString -Object $SchemaApprovalState -Name "action" -DefaultValue "review_project_template_smoke_failure") `
+        -Message $message `
+        -SourceSchema $projectTemplateSmokeSummarySchema `
+        -SourceJson $Path `
+        -SourceJsonDisplay (Get-DisplayPath -RepoRoot $RepoRoot -Path $Path) `
+        -SourceReport $Path `
+        -SourceReportDisplay (Get-DisplayPath -RepoRoot $RepoRoot -Path $Path)
+}
+
+function Convert-ProjectTemplateSmokeSummaryToTemplates {
+    param([string]$RepoRoot, [string]$Path, $Json)
+
+    return @(
+        foreach ($entry in @(Get-JsonArray -Object $Json -Name "entries")) {
+            $checks = Get-JsonProperty -Object $entry -Name "checks"
+            $schemaBaseline = Get-JsonProperty -Object $checks -Name "schema_baseline"
+            $schemaPatchApproval = Get-JsonProperty -Object $schemaBaseline -Name "schema_patch_approval"
+            $schemaApprovalState = New-SchemaApprovalStateFromSmokeEntry `
+                -Entry $entry `
+                -SchemaPatchApproval $schemaPatchApproval
+            $releaseBlockers = @()
+            if (Get-JsonBool -Object $schemaApprovalState -Name "release_blocked") {
+                $releaseBlockers = @(
+                    New-ProjectTemplateSmokeEntryBlocker `
+                        -RepoRoot $RepoRoot `
+                        -Path $Path `
+                        -Entry $entry `
+                        -SchemaApprovalState $schemaApprovalState
+                )
+            }
+            $defaultOnboardingStatus = if (Get-JsonBool -Object $entry -Name "passed") { "ready" } else { "blocked" }
+
+            New-ReadinessTemplate `
+                -RepoRoot $RepoRoot `
+                -TemplateName (Get-JsonString -Object $entry -Name "name" -DefaultValue "project-template") `
+                -InputDocx (Get-JsonString -Object $entry -Name "input_docx") `
+                -SourceKind "project_template_smoke_summary" `
+                -SourceJson $Path `
+                -SchemaApprovalState $schemaApprovalState `
+                -OnboardingStatus (Get-JsonString -Object $entry -Name "status" -DefaultValue $defaultOnboardingStatus) `
+                -ReleaseBlockers $releaseBlockers
+        }
+    )
+}
+
 function Get-HistoryReadinessStatus {
     param($HistoryEntry)
 
@@ -409,9 +640,18 @@ function Add-HistoryToTemplates {
     foreach ($template in @($Templates)) {
         $key = ([string]$template.template_name).ToLowerInvariant()
         if (-not $historyByName.ContainsKey($key)) {
+            if (-not (Get-JsonBool -Object $template -Name "schema_approval_history_required" -DefaultValue $true)) {
+                continue
+            }
             $Warnings.Add([ordered]@{
                 id = "schema_approval_history_missing_for_template"
                 template_name = [string]$template.template_name
+                action = "review_schema_approval_history"
+                source_schema = $deliveryReadinessSchema
+                source_json = [string]$template.source_json
+                source_json_display = [string]$template.source_json_display
+                source_report = [string]$template.source_report
+                source_report_display = [string]$template.source_report_display
                 message = "No schema approval history entry matched this template name."
             }) | Out-Null
             continue
@@ -509,7 +749,10 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` message=$($blocker.message)") | Out-Null
+            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)`` source_report_display=``$($blocker.source_report_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
+                $lines.Add("  - message: $($blocker.message)") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -519,7 +762,10 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.template_name)`` / ``$($item.id)``: action=``$($item.action)``") | Out-Null
+            $lines.Add("- ``$($item.template_name)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)`` source_report_display=``$($item.source_report_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -529,7 +775,22 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
+            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)`` source_report_display=``$($warning.source_report_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
+                $lines.Add("  - message: $($warning.message)") | Out-Null
+            }
+            $repairStrategy = Get-JsonString -Object $warning -Name "repair_strategy"
+            $repairHint = Get-JsonString -Object $warning -Name "repair_hint"
+            $commandTemplate = Get-JsonString -Object $warning -Name "command_template"
+            if (-not [string]::IsNullOrWhiteSpace($repairStrategy)) {
+                $lines.Add("  - repair_strategy: ``$repairStrategy``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($repairHint)) {
+                $lines.Add("  - repair_hint: $repairHint") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
+                $lines.Add("  - command_template: ``$commandTemplate``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -567,6 +828,8 @@ Write-Step "Reading $($inputPaths.Count) input JSON file(s)"
 
 $templates = New-Object 'System.Collections.Generic.List[object]'
 $histories = New-Object 'System.Collections.Generic.List[object]'
+$manifestDescriptions = New-Object 'System.Collections.Generic.List[object]'
+$smokeSummaries = New-Object 'System.Collections.Generic.List[object]'
 $sourceFiles = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
 
@@ -596,8 +859,23 @@ foreach ($path in @($inputPaths)) {
                 }
                 $status = "loaded"
             }
+            "project_template_smoke_summary" {
+                foreach ($template in @(Convert-ProjectTemplateSmokeSummaryToTemplates -RepoRoot $repoRoot -Path $path -Json $json)) {
+                    $templates.Add($template) | Out-Null
+                }
+                $smokeSummaries.Add($json) | Out-Null
+                $status = "loaded"
+            }
             "schema_approval_history" {
+                $json | Add-Member -NotePropertyName "source_json" -NotePropertyValue $path -Force
+                $json | Add-Member -NotePropertyName "source_json_display" -NotePropertyValue (Get-DisplayPath -RepoRoot $repoRoot -Path $path) -Force
                 $histories.Add($json) | Out-Null
+                $status = "loaded"
+            }
+            "project_template_smoke_manifest_description" {
+                $json | Add-Member -NotePropertyName "source_json" -NotePropertyValue $path -Force
+                $json | Add-Member -NotePropertyName "source_json_display" -NotePropertyValue (Get-DisplayPath -RepoRoot $repoRoot -Path $path) -Force
+                $manifestDescriptions.Add($json) | Out-Null
                 $status = "loaded"
             }
             "project_template_delivery_readiness_report" {
@@ -607,8 +885,12 @@ foreach ($path in @($inputPaths)) {
                 $status = "skipped"
                 $warnings.Add([ordered]@{
                     id = "source_json_schema_skipped"
+                    action = "review_project_template_delivery_readiness_evidence"
+                    source_schema = $deliveryReadinessSchema
                     source_json = $path
                     source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                    source_report = $path
+                    source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "Input JSON kind '$kind' is not project-template readiness evidence."
                 }) | Out-Null
             }
@@ -618,8 +900,12 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_json_read_failed"
+            action = "review_project_template_delivery_readiness_evidence"
+            source_schema = $deliveryReadinessSchema
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_report = $path
+            source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage
         }) | Out-Null
     }
@@ -634,10 +920,26 @@ foreach ($path in @($inputPaths)) {
 }
 
 if ($templates.Count -eq 0) {
-    $warnings.Add([ordered]@{
-        id = "template_evidence_missing"
-        message = "No onboarding template evidence was loaded."
-    }) | Out-Null
+    if ($manifestDescriptions.Count -gt 0) {
+        $warnings.Add((New-ProjectTemplateSmokeSummaryMissingWarning `
+                    -RepoRoot $repoRoot `
+                    -SummaryPath $summaryPath `
+                    -ManifestDescriptions $manifestDescriptions.ToArray())) | Out-Null
+    } else {
+        $warnings.Add([ordered]@{
+            id = "template_evidence_missing"
+            action = "collect_project_template_onboarding_governance_evidence"
+            repair_strategy = "collect_project_template_onboarding_governance_evidence"
+            repair_hint = "Run or restore project-template onboarding governance evidence for the release templates, including schema approval history where applicable; do not treat an empty feeder summary as template evidence."
+            command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\project-template-onboarding-governance"
+            source_schema = $deliveryReadinessSchema
+            source_json = $summaryPath
+            source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+            source_report = $summaryPath
+            source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+            message = "No onboarding template evidence was loaded."
+        }) | Out-Null
+    }
 }
 
 Add-HistoryToTemplates -Templates $templates.ToArray() -Histories $histories.ToArray() -Warnings $warnings
@@ -651,6 +953,8 @@ $latestGateStatus = if ($null -ne $latestHistory) {
 $historyBlockedRunCount = if ($null -ne $latestHistory) { Get-JsonInt -Object $latestHistory -Name "blocked_run_count" } else { 0 }
 $historyPendingRunCount = if ($null -ne $latestHistory) { Get-JsonInt -Object $latestHistory -Name "pending_run_count" } else { 0 }
 $historyPassedRunCount = if ($null -ne $latestHistory) { Get-JsonInt -Object $latestHistory -Name "passed_run_count" } else { 0 }
+$latestHistorySourceJson = if ($null -ne $latestHistory) { Get-JsonString -Object $latestHistory -Name "source_json" } else { "" }
+$latestHistorySourceJsonDisplay = if ($null -ne $latestHistory) { Get-JsonString -Object $latestHistory -Name "source_json_display" } else { "" }
 
 $globalReleaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 if ($latestGateStatus -in @("blocked", "pending")) {
@@ -659,7 +963,11 @@ if ($latestGateStatus -in @("blocked", "pending")) {
         -Source "schema_approval_history" `
         -Status $latestGateStatus `
         -Action "review_schema_approval_history" `
-        -Message "Latest schema approval history gate is not release-ready.")) | Out-Null
+        -Message "Latest schema approval history gate is not release-ready." `
+        -SourceJson $latestHistorySourceJson `
+        -SourceJsonDisplay $latestHistorySourceJsonDisplay `
+        -SourceReport $latestHistorySourceJson `
+        -SourceReportDisplay $latestHistorySourceJsonDisplay)) | Out-Null
 }
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
@@ -670,7 +978,12 @@ foreach ($blocker in @($globalReleaseBlockers.ToArray())) {
     $releaseBlockers.Add([ordered]@{
         scope = "global"
         template_name = ""
-        source_kind = Get-JsonString -Object $blocker -Name "source"
+        source_kind = Get-JsonString -Object $blocker -Name "source" -DefaultValue "project_template_delivery_readiness_report"
+        source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue $deliveryReadinessSchema
+        source_json = Get-JsonString -Object $blocker -Name "source_json" -DefaultValue $summaryPath
+        source_json_display = Get-JsonString -Object $blocker -Name "source_json_display" -DefaultValue (Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath)
+        source_report = Get-JsonString -Object $blocker -Name "source_report" -DefaultValue $summaryPath
+        source_report_display = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue (Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath)
         id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
         severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
         status = Get-JsonString -Object $blocker -Name "status"
@@ -684,24 +997,56 @@ foreach ($template in @($templates.ToArray())) {
         $releaseBlockers.Add([ordered]@{
             scope = [string]$template.template_name
             template_name = [string]$template.template_name
-            source_kind = [string]$template.source_kind
-            source_json = [string]$template.source_json
+            source_kind = Get-JsonString -Object $blocker -Name "source" -DefaultValue ([string]$template.source_kind)
+            source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue (Get-DefaultSourceSchema -SourceKind ([string]$template.source_kind))
+            source_json = Get-JsonString -Object $blocker -Name "source_json" -DefaultValue ([string]$template.source_json)
+            source_json_display = Get-JsonString -Object $blocker -Name "source_json_display" -DefaultValue ([string]$template.source_json_display)
+            source_report = Get-JsonString -Object $blocker -Name "source_report" -DefaultValue ([string]$template.source_report)
+            source_report_display = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue ([string]$template.source_report_display)
             id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
             severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
             status = Get-JsonString -Object $blocker -Name "status" -DefaultValue ([string]$template.schema_approval_status)
             action = Get-JsonString -Object $blocker -Name "action" -DefaultValue ([string]$template.schema_approval_action)
             message = Get-JsonString -Object $blocker -Name "message" -DefaultValue "Release blocker requires review."
+            onboarding_governance_status = Get-JsonString -Object $blocker -Name "onboarding_governance_status" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_status")
+            onboarding_governance_release_ready = Get-JsonString -Object $blocker -Name "onboarding_governance_release_ready" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_release_ready")
+            onboarding_governance_schema_approval_status_summary = @(Get-JsonArray -Object $blocker -Name "onboarding_governance_schema_approval_status_summary")
+            onboarding_governance_source_report = Get-JsonString -Object $blocker -Name "onboarding_governance_source_report" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_report")
+            onboarding_governance_source_report_display = Get-JsonString -Object $blocker -Name "onboarding_governance_source_report_display" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_report_display")
+            onboarding_governance_source_json = Get-JsonString -Object $blocker -Name "onboarding_governance_source_json" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_json")
+            onboarding_governance_source_json_display = Get-JsonString -Object $blocker -Name "onboarding_governance_source_json_display" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_json_display")
         }) | Out-Null
+        $lastBlocker = $releaseBlockers[$releaseBlockers.Count - 1]
+        if (@($lastBlocker.onboarding_governance_schema_approval_status_summary).Count -eq 0) {
+            $lastBlocker["onboarding_governance_schema_approval_status_summary"] = @(Get-JsonArray -Object $template -Name "onboarding_governance_schema_approval_status_summary")
+        }
     }
     foreach ($item in @($template.action_items)) {
         $actionItems.Add([ordered]@{
             template_name = [string]$template.template_name
-            source_kind = [string]$template.source_kind
+            source_kind = Get-JsonString -Object $item -Name "source" -DefaultValue ([string]$template.source_kind)
+            source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue (Get-DefaultSourceSchema -SourceKind ([string]$template.source_kind))
+            source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue ([string]$template.source_json)
+            source_json_display = Get-JsonString -Object $item -Name "source_json_display" -DefaultValue ([string]$template.source_json_display)
+            source_report = Get-JsonString -Object $item -Name "source_report" -DefaultValue ([string]$template.source_report)
+            source_report_display = Get-JsonString -Object $item -Name "source_report_display" -DefaultValue ([string]$template.source_report_display)
             id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
             command = Get-JsonString -Object $item -Name "command"
+            open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command" -DefaultValue $deliveryReadinessOpenCommand)
+            onboarding_governance_status = Get-JsonString -Object $item -Name "onboarding_governance_status" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_status")
+            onboarding_governance_release_ready = Get-JsonString -Object $item -Name "onboarding_governance_release_ready" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_release_ready")
+            onboarding_governance_schema_approval_status_summary = @(Get-JsonArray -Object $item -Name "onboarding_governance_schema_approval_status_summary")
+            onboarding_governance_source_report = Get-JsonString -Object $item -Name "onboarding_governance_source_report" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_report")
+            onboarding_governance_source_report_display = Get-JsonString -Object $item -Name "onboarding_governance_source_report_display" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_report_display")
+            onboarding_governance_source_json = Get-JsonString -Object $item -Name "onboarding_governance_source_json" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_json")
+            onboarding_governance_source_json_display = Get-JsonString -Object $item -Name "onboarding_governance_source_json_display" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_json_display")
         }) | Out-Null
+        $lastActionItem = $actionItems[$actionItems.Count - 1]
+        if (@($lastActionItem.onboarding_governance_schema_approval_status_summary).Count -eq 0) {
+            $lastActionItem["onboarding_governance_schema_approval_status_summary"] = @(Get-JsonArray -Object $template -Name "onboarding_governance_schema_approval_status_summary")
+        }
     }
     foreach ($recommendation in @($template.manual_review_recommendations)) {
         $manualReviewRecommendations.Add([ordered]@{
@@ -728,7 +1073,7 @@ $status = if ($sourceFailureCount -gt 0) {
 }
 
 $summary = [ordered]@{
-    schema = "featherdoc.project_template_delivery_readiness_report.v1"
+    schema = $deliveryReadinessSchema
     generated_at = (Get-Date).ToString("s")
     status = $status
     release_ready = ($status -eq "ready")
@@ -741,6 +1086,8 @@ $summary = [ordered]@{
     source_file_count = $sourceFiles.Count
     source_failure_count = $sourceFailureCount
     source_files = @($sourceFiles.ToArray())
+    smoke_summary_count = $smokeSummaries.Count
+    manifest_description_count = $manifestDescriptions.Count
     schema_history_count = $histories.Count
     latest_schema_approval_gate_status = $latestGateStatus
     schema_history_blocked_run_count = $historyBlockedRunCount

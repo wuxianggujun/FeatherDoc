@@ -384,7 +384,7 @@ function Get-ValidationReportMappingHintLine {
     return ('- {0}：`{1}`；建议检查 data JSON：`{2}`' -f $Category, $bookmarkName, $source)
 }
 
-function New-ValidationReportMarkdown {
+<# function New-ValidationReportMarkdown {
     param(
         $Summary,
         $Mapping
@@ -486,6 +486,117 @@ function New-ValidationReportMarkdown {
     if (-not [string]::IsNullOrWhiteSpace($errorMessage)) {
         [void]$lines.Add("")
         [void]$lines.Add("## 错误信息")
+        [void]$lines.Add("")
+        [void]$lines.Add('```text')
+        [void]$lines.Add($errorMessage)
+        [void]$lines.Add('```')
+    }
+
+    return ($lines -join [Environment]::NewLine) + [Environment]::NewLine
+} #>
+
+function New-ValidationReportMarkdown {
+    param(
+        $Summary,
+        $Mapping
+    )
+
+    $status = Get-OptionalObjectPropertyValue -Object $Summary -Name "status"
+    $remainingPlaceholderText = Get-OptionalObjectPropertyValue `
+        -Object $Summary `
+        -Name "remaining_placeholder_count"
+    if ([string]::IsNullOrWhiteSpace($remainingPlaceholderText)) {
+        $remainingPlaceholderText = "0"
+    }
+
+    $passed = ($status -eq "completed" -and [int]$remainingPlaceholderText -eq 0)
+    $verdict = if ($passed) { "PASS" } else { "FAIL" }
+    $nextAction = if ($passed) {
+        "You can continue with workspace rendering to produce the final .docx."
+    } else {
+        "Go back to the data JSON, fill remaining TODO values, empty table rows, or missing array content, then validate again."
+    }
+    $requireCompleteText = Get-OptionalObjectPropertyValue -Object $Summary -Name "require_complete"
+    $dataPathText = Get-OptionalObjectPropertyValue -Object $Summary -Name "data_path"
+    $mappingPathText = Get-OptionalObjectPropertyValue -Object $Summary -Name "mapping_path"
+    $inputDocxText = Get-OptionalObjectPropertyValue -Object $Summary -Name "input_docx"
+
+    $lines = New-Object 'System.Collections.Generic.List[string]'
+    [void]$lines.Add("# Render-data validation report")
+    [void]$lines.Add("")
+    [void]$lines.Add("Verdict: $verdict")
+    [void]$lines.Add("")
+    [void]$lines.Add("## Status")
+    [void]$lines.Add("")
+    [void]$lines.Add(('- status: `{0}`' -f $status))
+    [void]$lines.Add(('- remaining_placeholder_count: `{0}`' -f $remainingPlaceholderText))
+    [void]$lines.Add(('- require_complete: `{0}`' -f $requireCompleteText))
+    [void]$lines.Add(('- export_target_mode: `{0}`' -f (Get-OptionalObjectPropertyValue -Object $Summary -Name "export_target_mode")))
+    [void]$lines.Add("")
+    [void]$lines.Add("## Inputs")
+    [void]$lines.Add("")
+    [void]$lines.Add(('- data JSON: `{0}`' -f $dataPathText))
+    [void]$lines.Add(('- mapping: `{0}`' -f $mappingPathText))
+    [void]$lines.Add(('- template: `{0}`' -f $inputDocxText))
+    [void]$lines.Add("")
+    [void]$lines.Add("## Patch Coverage")
+    [void]$lines.Add("")
+    foreach ($category in @(
+            "bookmark_text",
+            "bookmark_paragraphs",
+            "bookmark_table_rows",
+            "bookmark_block_visibility"
+        )) {
+        [void]$lines.Add("- ${category}: $(Get-ValidationReportPatchCountText -Summary $Summary -Category $category)")
+    }
+    [void]$lines.Add("")
+    [void]$lines.Add("## Next Step")
+    [void]$lines.Add("")
+    [void]$lines.Add("- $nextAction")
+
+    $remainingPlaceholders = Get-OptionalObjectPropertyObject `
+        -Object $Summary `
+        -Name "remaining_placeholders"
+    $placeholderLines = New-Object 'System.Collections.Generic.List[string]'
+    $errorMessage = Get-OptionalObjectPropertyValue -Object $Summary -Name "error"
+    foreach ($category in @("bookmark_text", "bookmark_paragraphs", "bookmark_table_rows")) {
+        $entries = @(Get-OptionalObjectPropertyObject -Object $remainingPlaceholders -Name $category)
+        foreach ($entry in $entries) {
+            if ($null -ne $entry) {
+                [void]$placeholderLines.Add(
+                    (Get-ValidationReportPlaceholderLine `
+                        -Category $category `
+                        -Placeholder $entry `
+                        -Mapping $Mapping)
+                )
+            }
+        }
+    }
+    if ($errorMessage -match "bookmark_table_rows rows must be arrays") {
+        foreach ($entry in @(Get-ValidationReportObjectArrayProperty -Object $Mapping -Name "bookmark_table_rows")) {
+            $hintLine = Get-ValidationReportMappingHintLine `
+                -Category "bookmark_table_rows" `
+                -Entry $entry
+            if (-not [string]::IsNullOrWhiteSpace($hintLine)) {
+                [void]$placeholderLines.Add($hintLine)
+            }
+        }
+    }
+
+    [void]$lines.Add("")
+    [void]$lines.Add("## Remaining Placeholders")
+    [void]$lines.Add("")
+    if ($placeholderLines.Count -eq 0) {
+        [void]$lines.Add("- none")
+    } else {
+        foreach ($line in $placeholderLines) {
+            [void]$lines.Add($line)
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($errorMessage)) {
+        [void]$lines.Add("")
+        [void]$lines.Add("## Error")
         [void]$lines.Add("")
         [void]$lines.Add('```text')
         [void]$lines.Add($errorMessage)

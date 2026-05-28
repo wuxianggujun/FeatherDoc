@@ -1,12 +1,20 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "clean", "malformed", "fail_on_blocker")]
+    [ValidateSet("all", "aggregate", "clean", "alignment_gap", "malformed", "fail_on_blocker", "missing_inputs")]
     [string]$Scenario = "all"
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = Join-Path $RepoRoot "build\build_numbering_catalog_governance_report_test"
+}
 
 function Assert-True {
     param([bool]$Condition, [string]$Message)
@@ -90,7 +98,22 @@ function New-SkeletonRollup {
                 }
             )
             release_blockers = @()
-            action_items = @()
+            action_items = @(
+                [ordered]@{
+                    id = "promote_numbering_catalog_exemplar"
+                    document_name = "invoice.docx"
+                    action = "promote_numbering_catalog_exemplar"
+                    title = "Review and promote the generated exemplar numbering catalog"
+                    command = "featherdoc_cli check-numbering-catalog samples/invoice.docx --json"
+                },
+                [ordered]@{
+                    id = "register_numbering_catalog_baseline"
+                    document_name = "invoice.docx"
+                    action = "register_numbering_catalog_baseline"
+                    title = "Register the exemplar catalog in the numbering catalog baseline flow"
+                    command = "pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx samples/invoice.docx"
+                }
+            )
         }
     }
 
@@ -146,6 +169,8 @@ function New-SkeletonRollup {
                 action = "review_style_numbering_audit"
                 title = "Review contract style numbering audit"
                 command = "featherdoc_cli audit-style-numbering samples/contract.docx --fail-on-issue --json"
+                audit_command = "featherdoc_cli audit-style-numbering samples/contract.docx --json"
+                review_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1"
             }
         )
     }
@@ -226,6 +251,50 @@ function New-ManifestSummary {
     }
 }
 
+function New-AlignmentGapManifestSummary {
+    return [ordered]@{
+        generated_at = "2026-05-03T00:00:00"
+        manifest_path = "baselines/numbering-catalog/manifest.json"
+        entry_count = 2
+        drift_count = 0
+        dirty_baseline_count = 0
+        issue_entry_count = 0
+        passed = $true
+        entries = @(
+            [ordered]@{
+                name = "invoice"
+                input_docx = "samples/invoice.docx"
+                matches = $true
+                clean = $true
+                catalog_file = "baselines/numbering-catalog/invoice.json"
+                catalog_lint_clean = $true
+                catalog_lint_issue_count = 0
+                generated_output_path = "output/numbering-catalog-manifest-checks/invoice.generated.numbering-catalog.json"
+                baseline_issue_count = 0
+                generated_issue_count = 0
+                added_definition_count = 0
+                removed_definition_count = 0
+                changed_definition_count = 0
+            },
+            [ordered]@{
+                name = "obsolete"
+                input_docx = "samples/obsolete.docx"
+                matches = $true
+                clean = $true
+                catalog_file = "baselines/numbering-catalog/obsolete.json"
+                catalog_lint_clean = $true
+                catalog_lint_issue_count = 0
+                generated_output_path = "output/numbering-catalog-manifest-checks/obsolete.generated.numbering-catalog.json"
+                baseline_issue_count = 0
+                generated_issue_count = 0
+                added_definition_count = 0
+                removed_definition_count = 0
+                changed_definition_count = 0
+            }
+        )
+    }
+}
+
 function New-Evidence {
     param([string]$Root, [bool]$Clean)
 
@@ -277,6 +346,19 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should preserve manifest entry count."
     Assert-Equal -Actual ([int]$summary.catalog_exemplar_count) -Expected 2 `
         -Message "Summary should preserve exemplar catalog entries."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence_score) -Expected 56 `
+        -Message "Summary should score real-corpus confidence from coverage and issue penalties."
+    Assert-Equal -Actual ([string]$summary.real_corpus_confidence_level) -Expected "low" `
+        -Message "Issue-heavy real corpus evidence should produce low confidence."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.catalog_coverage_percent) -Expected 100 `
+        -Message "Summary should expose catalog exemplar coverage."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.baseline_coverage_percent) -Expected 100 `
+        -Message "Summary should expose numbering baseline coverage."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.matched_document_count) -Expected 2 `
+        -Message "Summary should expose matched real-corpus document count."
+    Assert-ContainsText -Text (($summary.real_corpus_confidence.penalty_summary | ForEach-Object { "$($_.factor):$($_.penalty)" }) -join "`n") `
+        -ExpectedText "style_numbering_issues:15" `
+        -Message "Summary should expose style-numbering confidence penalties."
     Assert-Equal -Actual ([int]$summary.total_style_numbering_issue_count) -Expected 3 `
         -Message "Summary should preserve style-numbering issue totals."
     Assert-Equal -Actual ([int]$summary.drift_count) -Expected 1 `
@@ -289,6 +371,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should include skeleton and manifest release blockers."
     Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 2 `
         -Message "Summary should include skeleton and manifest action items."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.audit_command }) -join "`n") `
+        -ExpectedText "audit-style-numbering" `
+        -Message "Summary should preserve upstream action audit commands."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.review_command }) -join "`n") `
+        -ExpectedText "build_document_skeleton_governance_rollup_report.ps1" `
+        -Message "Summary should preserve upstream action review commands."
 
     $issueSummaryText = ($summary.style_issue_summary | ForEach-Object { "$($_.issue):$($_.count)" }) -join "`n"
     Assert-ContainsText -Text $issueSummaryText -ExpectedText "missing_numbering_definition:2" `
@@ -296,6 +384,30 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "numbering_catalog_governance.dirty_baseline" `
         -Message "Summary should create dirty baseline blocker."
+    $skeletonBlocker = @($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "document_skeleton.style_numbering_issues" })[0]
+    Assert-ContainsText -Text ([string]$skeletonBlocker.source_report_display) `
+        -ExpectedText "skeleton\summary.json" `
+        -Message "Skeleton blockers should expose the source report display path."
+    Assert-ContainsText -Text ([string]$skeletonBlocker.source_json_display) `
+        -ExpectedText "skeleton\summary.json" `
+        -Message "Skeleton blockers should expose the source JSON display path."
+    $dirtyBaselineBlocker = @($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.dirty_baseline" })[0]
+    Assert-ContainsText -Text ([string]$dirtyBaselineBlocker.source_report_display) `
+        -ExpectedText "manifest\summary.json" `
+        -Message "Baseline blockers should expose the source report display path."
+    Assert-ContainsText -Text ([string]$dirtyBaselineBlocker.source_json_display) `
+        -ExpectedText "manifest\summary.json" `
+        -Message "Baseline blockers should expose the source JSON display path."
+    $skeletonAction = @($summary.action_items |
+        Where-Object { [string]$_.id -eq "review_style_numbering_audit" })[0]
+    Assert-ContainsText -Text ([string]$skeletonAction.source_report_display) `
+        -ExpectedText "skeleton\summary.json" `
+        -Message "Skeleton action items should expose the source report display path."
+    Assert-ContainsText -Text ([string]$skeletonAction.source_json_display) `
+        -ExpectedText "skeleton\summary.json" `
+        -Message "Skeleton action items should expose the source JSON display path."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Numbering Catalog Governance Report" `
@@ -304,8 +416,53 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include exemplar section."
     Assert-ContainsText -Text $markdown -ExpectedText "Baseline Manifest Entries" `
         -Message "Markdown should include baseline manifest section."
+    Assert-ContainsText -Text $markdown -ExpectedText "Real Corpus Confidence" `
+        -Message "Markdown should include real corpus confidence section."
+    Assert-ContainsText -Text $markdown -ExpectedText "Matched documents" `
+        -Message "Markdown should include real corpus alignment details."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_numbering_issues" `
+        -Message "Markdown should include real corpus confidence penalty details."
     Assert-ContainsText -Text $markdown -ExpectedText "missing_numbering_definition" `
         -Message "Markdown should include issue summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "audit_command:" `
+        -Message "Markdown should include action audit commands."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_command:" `
+        -Message "Markdown should include action review commands."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Markdown should include source report display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
+        -Message "Markdown should include source JSON display fields."
+}
+
+if (Test-Scenario -Name "missing_inputs") {
+    $missingInputRoot = Join-Path $resolvedWorkingDir "missing-inputs"
+    $missingOutputDir = Join-Path $resolvedWorkingDir "missing-inputs-report"
+    New-Item -ItemType Directory -Path $missingInputRoot -Force | Out-Null
+    $result = Invoke-GovernanceScript -Arguments @(
+        "-InputRoot", $missingInputRoot,
+        "-OutputDir", $missingOutputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Missing input governance report should pass with actionable warnings. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $missingOutputDir "summary.json"
+    $markdownPath = Join-Path $missingOutputDir "numbering_catalog_governance.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
+        -Message "Missing input report should warn for skeleton rollup and manifest summary."
+
+    $manifestWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "numbering_catalog_manifest_summary_missing" })[0]
+    Assert-True -Condition ($null -ne $manifestWarning) `
+        -Message "Missing input report should include numbering_catalog_manifest_summary_missing."
+    Assert-Equal -Actual ([string]$manifestWarning.repair_strategy) -Expected "rebuild_numbering_catalog_manifest_summary" `
+        -Message "Manifest warning should expose the repair strategy."
+    Assert-ContainsText -Text ([string]$manifestWarning.repair_hint) -ExpectedText "do not synthesize" `
+        -Message "Manifest warning should preserve the evidence-boundary repair hint."
+    Assert-ContainsText -Text ([string]$manifestWarning.command_template) -ExpectedText "check_numbering_catalog_manifest.ps1" `
+        -Message "Manifest warning should include the manifest-check command template."
+    Assert-ContainsText -Text $markdown -ExpectedText "command_template:" `
+        -Message "Missing input Markdown should expose warning command templates."
 }
 
 if (Test-Scenario -Name "clean") {
@@ -326,10 +483,83 @@ if (Test-Scenario -Name "clean") {
         -Message "Clean evidence should produce clean status."
     Assert-Equal -Actual ([bool]$summary.clean) -Expected $true `
         -Message "Clean evidence should set clean=true."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence_score) -Expected 100 `
+        -Message "Clean covered real corpus evidence should produce full confidence."
+    Assert-Equal -Actual ([string]$summary.real_corpus_confidence_level) -Expected "high" `
+        -Message "Clean covered real corpus evidence should produce high confidence."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.matched_document_count) -Expected 1 `
+        -Message "Clean evidence should align the single catalog exemplar with its baseline."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 0 `
         -Message "Clean evidence should not expose blockers."
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 0 `
+        -Message "Clean release checklist actions should not count as actionable release handoff items."
+    Assert-Equal -Actual ([int]$summary.informational_action_item_count) -Expected 2 `
+        -Message "Clean release checklist actions should remain as informational handoff evidence."
+    $informationalActionText = ($summary.informational_action_items | ForEach-Object { "$($_.id):$($_.category):$($_.release_blocking):$($_.optional)" }) -join "`n"
+    Assert-ContainsText -Text $informationalActionText -ExpectedText "promote_numbering_catalog_exemplar:release_checklist:False:True" `
+        -Message "Promote exemplar checklist action should be non-blocking informational evidence."
+    Assert-ContainsText -Text $informationalActionText -ExpectedText "register_numbering_catalog_baseline:release_checklist:False:True" `
+        -Message "Register baseline checklist action should be non-blocking informational evidence."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
         -Message "Clean evidence should not warn."
+}
+
+if (Test-Scenario -Name "alignment_gap") {
+    $evidenceRoot = Join-Path $resolvedWorkingDir "alignment-gap-evidence"
+    $skeletonPath = Join-Path $evidenceRoot "skeleton\summary.json"
+    $manifestPath = Join-Path $evidenceRoot "manifest\summary.json"
+    Write-JsonFile -Path $skeletonPath -Value (New-SkeletonRollup -Clean:$false)
+    Write-JsonFile -Path $manifestPath -Value (New-AlignmentGapManifestSummary)
+
+    $outputDir = Join-Path $resolvedWorkingDir "alignment-gap-report"
+    $result = Invoke-GovernanceScript -Arguments @(
+        "-InputJson", "$skeletonPath,$manifestPath",
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Alignment gap governance report should pass without fail switches. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $markdownPath = Join-Path $outputDir "numbering_catalog_governance.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+
+    Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
+        -Message "Alignment gaps should require review."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.matched_document_count) -Expected 1 `
+        -Message "Real corpus confidence should match catalog and baseline by document identity."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.catalog_coverage_percent) -Expected 50 `
+        -Message "Catalog coverage should fall when one real-corpus document has no matching baseline."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.baseline_coverage_percent) -Expected 50 `
+        -Message "Baseline coverage should fall when one baseline does not match a real-corpus document."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.coverage_score) -Expected 50 `
+        -Message "Coverage score should use document identity alignment, not only entry counts."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "numbering_catalog_governance.real_corpus_alignment_gap" `
+        -Message "Alignment gaps should create a release blocker."
+
+    $alignmentBlocker = @($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_alignment_gap" })[0]
+    Assert-Equal -Actual ([string]$alignmentBlocker.source_schema) `
+        -Expected "featherdoc.numbering_catalog_governance_report.v1" `
+        -Message "Alignment blocker should preserve the numbering governance source schema."
+    Assert-ContainsText -Text ([string]$alignmentBlocker.source_report_display) `
+        -ExpectedText "summary.json" `
+        -Message "Alignment blocker should expose the governance source report display path."
+    Assert-ContainsText -Text ([string]$alignmentBlocker.source_json_display) `
+        -ExpectedText "summary.json" `
+        -Message "Alignment blocker should expose the governance source JSON display path."
+    Assert-Equal -Actual ([int]$alignmentBlocker.matched_document_count) -Expected 1 `
+        -Message "Alignment blocker should expose matched document count."
+    Assert-Equal -Actual ([int]$alignmentBlocker.unmatched_catalog_document_count) -Expected 1 `
+        -Message "Alignment blocker should expose unmatched catalog document count."
+    Assert-Equal -Actual ([int]$alignmentBlocker.unmatched_baseline_document_count) -Expected 1 `
+        -Message "Alignment blocker should expose unmatched baseline document count."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "Matched documents" `
+        -Message "Markdown should include real corpus alignment details."
+    Assert-ContainsText -Text $markdown -ExpectedText "real_corpus_alignment_gap" `
+        -Message "Markdown should include alignment gap blocker."
 }
 
 if (Test-Scenario -Name "malformed") {
@@ -368,6 +598,15 @@ if (Test-Scenario -Name "fail_on_blocker") {
         -Message "Failing governance report should preserve needs_review status."
     Assert-True -Condition ([int]$summary.release_blocker_count -gt 0) `
         -Message "Failing governance report should write blockers."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "numbering_catalog_governance.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
+        -Message "Failing governance report Markdown should include the blocker section."
+    Assert-ContainsText -Text $markdown -ExpectedText "numbering_catalog_governance.dirty_baseline" `
+        -Message "Failing governance report Markdown should include the dirty baseline blocker."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Failing governance report Markdown should include source report display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
+        -Message "Failing governance report Markdown should include source JSON display fields."
 }
 
 Write-Host "Numbering catalog governance report regression passed."

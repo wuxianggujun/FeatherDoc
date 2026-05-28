@@ -79,6 +79,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[publish-github-release] $Message"
@@ -112,24 +114,6 @@ function Assert-PathExists {
     if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
         throw "Missing ${Label}: $Path"
     }
-}
-
-function Get-OptionalPropertyValue {
-    param(
-        $Object,
-        [string]$Name
-    )
-
-    if ($null -eq $Object) {
-        return ""
-    }
-
-    $property = $Object.PSObject.Properties[$Name]
-    if ($null -eq $property -or $null -eq $property.Value) {
-        return ""
-    }
-
-    return [string]$property.Value
 }
 
 function Get-ProjectVersion {

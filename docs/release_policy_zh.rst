@@ -70,8 +70,13 @@
 8. 如果本次纳入 project template smoke，``schema_patch_approval_gate_status``
    不能为 ``blocked``，且 ``schema_patch_approval_compliance_issue_count`` /
    ``schema_patch_approval_invalid_result_count`` 必须为 ``0``。
-9. 公开 API 变更已经反映到样例、测试和文档中。
-10. 完成以上检查后再打 tag / 创建 release。
+9. 如果 release-facing 材料中出现
+   ``content_control_data_binding.bound_placeholder``，必须同时保留
+   ``source_json_display``、``repair_strategy``、``command_template``、
+   ``input_docx``、``template_name``、``schema_target`` 和 ``target_mode``，
+   确保 reviewer 能追溯到具体模板、输入 DOCX、schema 目标和修复命令。
+10. 公开 API 变更已经反映到样例、测试和文档中。
+11. 完成以上检查后再打 tag / 创建 release。
 
 当前推荐的最低验证命令：
 

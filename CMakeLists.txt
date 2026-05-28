@@ -42,9 +42,11 @@ set(HEADERS
 set(PDF_COMMON_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_subset.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_resolver.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_glyph_run.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_interfaces.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_layout.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_text_metrics.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_text_shaper.hpp"
 )
 set(PDF_WRITER_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_document_adapter.hpp"
@@ -107,6 +109,22 @@ function(featherdoc_copy_runtime_dlls target_name)
                 file(TO_CMAKE_PATH "${runtime_dll}" runtime_dll)
                 list(APPEND copy_runtime_dlls_extra "${runtime_dll}")
             endif()
+        endforeach()
+        set(copy_runtime_companion_names
+            zlib1.dll
+            bz2.dll
+            brotlicommon.dll
+            brotlidec.dll
+            brotlienc.dll
+        )
+        foreach(runtime_dll IN LISTS copy_runtime_dlls_extra)
+            get_filename_component(runtime_dir "${runtime_dll}" DIRECTORY)
+            foreach(companion_name IN LISTS copy_runtime_companion_names)
+                set(companion_dll "${runtime_dir}/${companion_name}")
+                if(EXISTS "${companion_dll}")
+                    list(APPEND copy_runtime_dlls_extra "${companion_dll}")
+                endif()
+            endforeach()
         endforeach()
         if(copy_runtime_dlls_extra)
             list(REMOVE_DUPLICATES copy_runtime_dlls_extra)
@@ -361,6 +379,7 @@ if(FEATHERDOC_BUILD_PDF)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_font_resolver.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_font_subset.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_text_metrics.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_text_shaper.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_writer.cpp"
         $<TARGET_OBJECTS:featherdoc_pdfio_objects>
     )
@@ -396,9 +415,13 @@ if(FEATHERDOC_BUILD_PDF)
     )
     if(FEATHERDOC_HARFBUZZ_SUBSET_AVAILABLE)
         target_compile_definitions(FeatherDocPdf
-            PRIVATE FEATHERDOC_ENABLE_PDF_FONT_SUBSET=1)
+            PRIVATE
+                FEATHERDOC_ENABLE_PDF_FONT_SUBSET=1
+                FEATHERDOC_ENABLE_PDF_TEXT_SHAPER=1)
         target_link_libraries(FeatherDocPdf
-            PRIVATE harfbuzz::harfbuzz-subset)
+            PRIVATE
+                harfbuzz::harfbuzz
+                harfbuzz::harfbuzz-subset)
     endif()
 
     if(MSVC)
@@ -413,16 +436,47 @@ if(FEATHERDOC_BUILD_PDF_IMPORT)
     include(cmake/FeatherDocPdfium.cmake)
     include(cmake/FeatherDocPdfThirdParty.cmake)
 
-    if(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "source")
+    if(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "auto")
+        featherdoc_try_find_pdfium_package(pdfium_package_target)
+        if(NOT pdfium_package_target STREQUAL "")
+            set(FEATHERDOC_PDFIUM_TARGET "${pdfium_package_target}")
+            set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "package")
+        else()
+            featherdoc_has_pdfium_prebuilt_inputs(pdfium_has_prebuilt_inputs)
+            if(pdfium_has_prebuilt_inputs)
+                featherdoc_add_pdfium_prebuilt_target(featherdoc_pdfium_prebuilt)
+                set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_prebuilt)
+                set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "prebuilt")
+            elseif(NOT FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
+                featherdoc_add_pdfium_source_target(featherdoc_pdfium_source)
+                set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_source)
+                set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "source")
+            else()
+                message(FATAL_ERROR
+                    "FEATHERDOC_PDFIUM_PROVIDER=auto could not resolve PDFium. "
+                    "Tried package discovery via find_package(PDFium), then "
+                    "prebuilt inputs via FEATHERDOC_PDFIUM_LIBRARY + "
+                    "FEATHERDOC_PDFIUM_INCLUDE_DIR, then source via "
+                    "FEATHERDOC_PDFIUM_SOURCE_DIR.")
+            endif()
+        endif()
+    elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "source")
         featherdoc_add_pdfium_source_target(featherdoc_pdfium_source)
         set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_source)
+        set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "source")
     elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "package")
         featherdoc_find_pdfium_package(FEATHERDOC_PDFIUM_TARGET)
+        set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "package")
+    elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "prebuilt")
+        featherdoc_add_pdfium_prebuilt_target(featherdoc_pdfium_prebuilt)
+        set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_prebuilt)
+        set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "prebuilt")
     else()
         message(FATAL_ERROR
             "Unsupported FEATHERDOC_PDFIUM_PROVIDER: "
-            "${FEATHERDOC_PDFIUM_PROVIDER}. Use source or package.")
+            "${FEATHERDOC_PDFIUM_PROVIDER}. Use auto, source, package, or prebuilt.")
     endif()
+    message(STATUS "Using PDFium provider: ${FEATHERDOC_RESOLVED_PDFIUM_PROVIDER}")
 
     add_library(FeatherDocPdfImport
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_importer.cpp"
@@ -1033,6 +1087,15 @@ endif()
 if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF_IMPORT)
     add_executable(featherdoc_pdfium_probe samples/pdfium_probe.cpp)
     target_link_libraries(featherdoc_pdfium_probe PRIVATE FeatherDoc::PdfImport)
+    if(DEFINED FEATHERDOC_PDFIUM_TARGET AND NOT FEATHERDOC_PDFIUM_TARGET STREQUAL "")
+        target_link_libraries(featherdoc_pdfium_probe PRIVATE
+            ${FEATHERDOC_PDFIUM_TARGET})
+    endif()
+    if(DEFINED FEATHERDOC_PDFIUM_SOURCE_DIR AND
+       NOT FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
+        target_include_directories(featherdoc_pdfium_probe PRIVATE
+            "${FEATHERDOC_PDFIUM_SOURCE_DIR}/public")
+    endif()
     featherdoc_copy_runtime_dlls(featherdoc_pdfium_probe)
 
     if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING AND TARGET featherdoc_pdfio_probe)
@@ -1080,6 +1143,11 @@ if(BUILD_CLI)
         target_compile_definitions(featherdoc_cli PRIVATE FEATHERDOC_CLI_ENABLE_PDF=1)
         target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::Pdf)
     endif()
+    if(FEATHERDOC_BUILD_PDF_IMPORT AND TARGET FeatherDocPdfImport)
+        target_compile_definitions(
+            featherdoc_cli PRIVATE FEATHERDOC_CLI_ENABLE_PDF_IMPORT=1)
+        target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::PdfImport)
+    endif()
     featherdoc_copy_runtime_dlls(featherdoc_cli)
 
     install(
@@ -1093,7 +1161,9 @@ endif()
 # experimental writer until the dependency story is package-safe.
 set(FEATHERDOC_INSTALLS_PDF OFF)
 set(FEATHERDOC_INSTALLS_PDF_IMPORT OFF)
-if(FEATHERDOC_BUILD_PDF_IMPORT AND FEATHERDOC_PDFIUM_PROVIDER STREQUAL "package")
+if(FEATHERDOC_BUILD_PDF_IMPORT AND
+   DEFINED FEATHERDOC_RESOLVED_PDFIUM_PROVIDER AND
+   FEATHERDOC_RESOLVED_PDFIUM_PROVIDER STREQUAL "package")
     set(FEATHERDOC_INSTALLS_PDF_IMPORT ON)
 endif()
 
@@ -1213,6 +1283,14 @@ install(
         "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE"
         "${CMAKE_CURRENT_SOURCE_DIR}/LEGAL.md"
     DESTINATION "${FEATHERDOC_INSTALL_DATADIR}"
+)
+
+install(
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import.rst"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import_json_diagnostics.rst"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import_scope.rst"
+    DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/docs"
 )
 
 install(

@@ -1,5 +1,7 @@
 #include "pdf_document_adapter_text.hpp"
 
+#include <featherdoc/pdf/pdf_text_shaper.hpp>
+
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
@@ -40,27 +42,45 @@ namespace {
                               const PdfResolvedFont &font,
                               double font_size_points,
                               const PdfRgbColor &fill_color, bool bold,
-                              bool italic, bool underline) {
+                              bool italic, bool strikethrough,
+                              bool underline, double vertical_shift_points,
+                              bool rtl,
+                              PdfGlyphDirection shaping_direction,
+                              std::string_view shaping_script_tag,
+                              std::string_view shaping_language_tag) {
     return same_font(fragment.font, font) &&
            fragment.font_size_points == font_size_points &&
            fragment.fill_color.red == fill_color.red &&
            fragment.fill_color.green == fill_color.green &&
            fragment.fill_color.blue == fill_color.blue &&
            fragment.bold == bold && fragment.italic == italic &&
-           fragment.underline == underline;
+           fragment.strikethrough == strikethrough &&
+           fragment.underline == underline &&
+           fragment.vertical_shift_points == vertical_shift_points &&
+           fragment.rtl == rtl &&
+           fragment.shaping_direction == shaping_direction &&
+           fragment.shaping_script_tag == shaping_script_tag &&
+           fragment.shaping_language_tag == shaping_language_tag;
 }
 
 void append_fragment(LineState &line, std::string_view text,
                      const PdfResolvedFont &font, double font_size_points,
                      const PdfRgbColor &fill_color, bool bold, bool italic,
-                     bool underline) {
+                     bool strikethrough, bool underline,
+                     double vertical_shift_points,
+                     bool rtl,
+                     PdfGlyphDirection shaping_direction,
+                     std::string_view shaping_script_tag,
+                     std::string_view shaping_language_tag) {
     if (text.empty()) {
         return;
     }
 
     if (!line.fragments.empty() &&
         same_style(line.fragments.back(), font, font_size_points, fill_color,
-                   bold, italic, underline)) {
+                   bold, italic, strikethrough, underline,
+                   vertical_shift_points, rtl, shaping_direction,
+                   shaping_script_tag, shaping_language_tag)) {
         line.fragments.back().text.append(text);
     } else {
         line.fragments.push_back(TextFragment{
@@ -70,10 +90,19 @@ void append_fragment(LineState &line, std::string_view text,
             fill_color,
             bold,
             italic,
+            strikethrough,
             underline,
+            vertical_shift_points,
+            rtl,
+            shaping_direction,
+            std::string{shaping_script_tag},
+            std::string{shaping_language_tag},
         });
     }
-    line.width_points += measure_text(text, font_size_points, font);
+    line.bidi = line.bidi || rtl;
+    line.width_points += measure_text(text, font_size_points, font,
+                                      shaping_direction, shaping_script_tag,
+                                      shaping_language_tag);
     line.height_points =
         std::max(line.height_points,
                  estimate_line_height_points(font_size_points,
@@ -93,7 +122,11 @@ void append_broken_word(
     const PdfResolvedFont &font,
     const std::function<double(std::size_t)> &max_width_for_line,
     double font_size_points, const PdfRgbColor &fill_color, bool bold,
-    bool italic, bool underline) {
+    bool italic, bool strikethrough, bool underline,
+    double vertical_shift_points, bool rtl,
+    PdfGlyphDirection shaping_direction,
+    std::string_view shaping_script_tag,
+    std::string_view shaping_language_tag) {
     LineState current;
     for (std::size_t index = 0U; index < word.size();) {
         const auto codepoint_size = std::min(
@@ -104,13 +137,16 @@ void append_broken_word(
             safe_line_width(max_width_for_line, lines.size());
         const auto candidate_width =
             current.width_points +
-            measure_text(codepoint, font_size_points, font);
+            measure_text(codepoint, font_size_points, font, shaping_direction,
+                         shaping_script_tag, shaping_language_tag);
         if (!current.empty() && candidate_width > max_width_points) {
             lines.push_back(std::move(current));
             current = {};
         }
         append_fragment(current, codepoint, font, font_size_points, fill_color,
-                        bold, italic, underline);
+                        bold, italic, strikethrough, underline,
+                        vertical_shift_points, rtl, shaping_direction,
+                        shaping_script_tag, shaping_language_tag);
         index += codepoint_size;
     }
 
@@ -129,7 +165,26 @@ PdfTextMetricsOptions metrics_options_for(const PdfResolvedFont &font) {
 }
 
 double measure_text(std::string_view text, double font_size_points,
-                    const PdfResolvedFont &font) {
+                    const PdfResolvedFont &font,
+                    PdfGlyphDirection shaping_direction,
+                    std::string_view shaping_script_tag,
+                    std::string_view shaping_language_tag) {
+    if (!text.empty() && !font.font_file_path.empty()) {
+        PdfTextShaperOptions shaper_options{font.font_file_path,
+                                            font_size_points};
+        shaper_options.direction = shaping_direction;
+        shaper_options.script_tag.assign(shaping_script_tag.begin(),
+                                         shaping_script_tag.end());
+        shaper_options.language_tag.assign(shaping_language_tag.begin(),
+                                           shaping_language_tag.end());
+        const auto glyph_run = shape_pdf_text(
+            text, shaper_options);
+        if (glyph_run.used_harfbuzz && glyph_run.error_message.empty() &&
+            !glyph_run.glyphs.empty()) {
+            return glyph_run_x_advance_points(glyph_run);
+        }
+    }
+
     return measure_text_width_points(text, font_size_points,
                                      metrics_options_for(font));
 }
@@ -162,6 +217,15 @@ double content_height_points_for(const std::vector<LineState> &lines,
     return height;
 }
 
+bool line_contains_rtl_fragments(const LineState &line) noexcept {
+    return std::any_of(line.fragments.begin(), line.fragments.end(),
+                       [](const TextFragment &fragment) {
+                           return fragment.rtl ||
+                                  fragment.shaping_direction ==
+                                      PdfGlyphDirection::right_to_left;
+                       });
+}
+
 std::vector<TextToken> tokenize_run_text(std::string_view text,
                                          const ResolvedRunStyle &style) {
     std::vector<TextToken> tokens;
@@ -177,7 +241,13 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
                 style.fill_color,
                 style.bold,
                 style.italic,
+                style.strikethrough,
                 style.underline,
+                style.vertical_shift_points,
+                style.rtl,
+                style.shaping_direction,
+                style.shaping_script_tag,
+                style.shaping_language_tag,
             });
             ++index;
             if (value == '\r' && index < text.size() && text[index] == '\n') {
@@ -205,7 +275,13 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
                 style.fill_color,
                 style.bold,
                 style.italic,
+                style.strikethrough,
                 style.underline,
+                style.vertical_shift_points,
+                style.rtl,
+                style.shaping_direction,
+                style.shaping_script_tag,
+                style.shaping_language_tag,
             });
             continue;
         }
@@ -227,7 +303,13 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
             style.fill_color,
             style.bold,
             style.italic,
+            style.strikethrough,
             style.underline,
+            style.vertical_shift_points,
+            style.rtl,
+            style.shaping_direction,
+            style.shaping_script_tag,
+            style.shaping_language_tag,
         });
     }
     return tokens;
@@ -266,11 +348,15 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
         }
 
         const auto token_width =
-            measure_text(token.text, token.font_size_points, token.font);
+            measure_text(token.text, token.font_size_points, token.font,
+                         token.shaping_direction, token.shaping_script_tag,
+                         token.shaping_language_tag);
         double pending_width = 0.0;
         for (const auto &space : pending_spaces) {
-            pending_width +=
-                measure_text(space.text, space.font_size_points, space.font);
+            pending_width += measure_text(
+                space.text, space.font_size_points, space.font,
+                space.shaping_direction, space.shaping_script_tag,
+                space.shaping_language_tag);
         }
 
         const auto max_width_points =
@@ -288,7 +374,12 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
             append_broken_word(lines, token.text, token.font,
                                max_width_for_line, token.font_size_points,
                                token.fill_color, token.bold, token.italic,
-                               token.underline);
+                               token.strikethrough,
+                               token.underline, token.vertical_shift_points,
+                               token.rtl,
+                               token.shaping_direction,
+                               token.shaping_script_tag,
+                               token.shaping_language_tag);
             pending_spaces.clear();
             continue;
         }
@@ -297,13 +388,24 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
             for (const auto &space : pending_spaces) {
                 append_fragment(current, space.text, space.font,
                                 space.font_size_points, space.fill_color,
-                                space.bold, space.italic, space.underline);
+                                space.bold, space.italic,
+                                space.strikethrough, space.underline,
+                                space.vertical_shift_points,
+                                space.rtl,
+                                space.shaping_direction,
+                                space.shaping_script_tag,
+                                space.shaping_language_tag);
             }
         }
         pending_spaces.clear();
         append_fragment(current, token.text, token.font, token.font_size_points,
                         token.fill_color, token.bold, token.italic,
-                        token.underline);
+                        token.strikethrough,
+                        token.underline, token.vertical_shift_points,
+                        token.rtl,
+                        token.shaping_direction,
+                        token.shaping_script_tag,
+                        token.shaping_language_tag);
     }
 
     if (!current.empty() || lines.empty()) {

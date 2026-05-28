@@ -1,0 +1,15 @@
+{
+  "schema": "featherdoc.numbering_catalog_baseline_manifest.v1",
+  "entries": [
+    {
+      "name": "samples_my_test_known_empty",
+      "input_docx": "samples/my_test.docx",
+      "catalog_file": "baselines/numbering-catalog/samples-my-test.known-empty.numbering-catalog.json"
+    },
+    {
+      "name": "samples_chinese_invoice_template_known_empty",
+      "input_docx": "samples/chinese_invoice_template.docx",
+      "catalog_file": "baselines/numbering-catalog/samples-chinese-invoice-template.known-empty.numbering-catalog.json"
+    }
+  ]
+}

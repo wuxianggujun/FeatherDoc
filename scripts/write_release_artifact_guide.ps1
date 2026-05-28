@@ -25,42 +25,6 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($candidate)
 }
 
-function Get-OptionalPropertyValue {
-    param(
-        $Object,
-        [string]$Name
-    )
-
-    if ($null -eq $Object) {
-        return ""
-    }
-
-    $property = $Object.PSObject.Properties[$Name]
-    if ($null -eq $property -or $null -eq $property.Value) {
-        return ""
-    }
-
-    return [string]$property.Value
-}
-
-function Get-OptionalPropertyObject {
-    param(
-        $Object,
-        [string]$Name
-    )
-
-    if ($null -eq $Object) {
-        return $null
-    }
-
-    $property = $Object.PSObject.Properties[$Name]
-    if ($null -eq $property) {
-        return $null
-    }
-
-    return $property.Value
-}
-
 function Get-DisplayValue {
     param([string]$Value)
 
@@ -142,6 +106,9 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+$requiresProjectTemplateGovernanceSignoff = Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary
+$projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
+$projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $finalReviewPath = Join-Path $reportDir "final_review.md"
 $releaseHandoffPath = Get-OptionalPropertyValue -Object $summary -Name "release_handoff"
@@ -312,6 +279,9 @@ $sectionPageSetupReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $v
 $pageNumberFieldsReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
 $visualReviewTaskSummaryLine = Get-VisualReviewTaskSummaryLine -VisualGateSummary $visualGateStep -GateSummary $gateSummary
+$pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
+$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath
+$pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 
 $installLeaf = ""
 if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
@@ -338,6 +308,7 @@ $assetOutputDir = if ($releaseVersion) {
 } else {
     "output\release-assets\v<version>"
 }
+$releaseAssetsManifestPath = Join-Path $assetOutputDir "release_assets_manifest.json"
 $packageAssetsCommand = if ($releaseVersion) {
     'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -ReleaseVersion "{1}"' -f `
         $summaryCommandPath, $releaseVersion
@@ -383,6 +354,26 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
     [void]$lines.Add("- $visualReviewTaskSummaryLine")
 }
+if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
+    [void]$lines.Add("- PDF visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json)")
+    [void]$lines.Add("- PDF visual gate evidence status: $(Get-DisplayValue -Value $pdfVisualGateEvidence.status)")
+    if ($pdfVisualGateEvidence.status -eq "loaded") {
+        [void]$lines.Add("- PDF visual gate verdict: $(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
+        [void]$lines.Add("- PDF visual gate aggregate contact sheet: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet)")
+        [void]$lines.Add("- PDF CJK manifest samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_manifest_count)")
+        [void]$lines.Add("- PDF CJK copy/search samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count)")
+        [void]$lines.Add("- PDF CJK missing text count: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_missing_text_count)")
+        [void]$lines.Add("- PDF visual baseline manifest samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_manifest_count)")
+        [void]$lines.Add("- PDF visual baselines: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_count)")
+    } elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.error)) {
+        [void]$lines.Add("- PDF visual gate evidence error: $($pdfVisualGateEvidence.error)")
+    }
+}
+if ($pdfBoundedCtestEvidence.status -ne "not_available") {
+    [void]$lines.Add("- PDF bounded CTest auxiliary evidence: status=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status), summaries=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.summary_count), pass=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.pass_count), selected_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.selected_test_count), skipped_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.skipped_test_count)")
+    [void]$lines.Add("- PDF bounded CTest auxiliary subsets: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.subsets) -join ', '))")
+    [void]$lines.Add("- PDF bounded CTest auxiliary summaries: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+}
 [void]$lines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
 [void]$lines.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")
 [void]$lines.Add("- Smoke reviewed at: $(Get-DisplayValue -Value $smokeReviewedAt)")
@@ -407,6 +398,8 @@ if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$lines.Add("- Summary JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
 Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceRollupMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceHandoffMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
 [void]$lines.Add("")
 [void]$lines.Add("## Start Here")
 [void]$lines.Add("")
@@ -431,9 +424,28 @@ Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $rep
 [void]$lines.Add("- Project template smoke candidate discovery: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson)")
 [void]$lines.Add("- Project template schema approval history JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryJson)")
 [void]$lines.Add("- Project template schema approval history Markdown: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryMarkdown)")
+[void]$lines.Add('- Project template release readiness checklist: `docs/project_template_release_readiness_checklist_zh.rst`')
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
+    [void]$lines.Add("- $projectTemplateChecklistHandoffEvidenceLine")
+}
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
+    [void]$lines.Add("- $projectTemplateChecklistMaterialSafetyAuditEvidenceLine")
+}
 [void]$lines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$lines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
 [void]$lines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")
+[void]$lines.Add("- PDF visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json)")
+[void]$lines.Add("- PDF visual gate verdict: $(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
+[void]$lines.Add("- PDF visual gate aggregate contact sheet: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet)")
+[void]$lines.Add("- PDF visual gate CLI export log: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.pdf_cli_export_log)")
+[void]$lines.Add("- PDF visual gate regression log: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.pdf_regression_log)")
+[void]$lines.Add("- PDF visual gate CJK copy/search log dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.cjk_copy_search_log_dir)")
+[void]$lines.Add("- PDF visual gate unicode font log: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.unicode_font_log)")
+[void]$lines.Add("- PDF bounded CTest auxiliary evidence: $(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status)")
+[void]$lines.Add("- PDF bounded CTest summaries / pass: $(Get-DisplayValue -Value ('{0}/{1}' -f $pdfBoundedCtestEvidence.summary_count, $pdfBoundedCtestEvidence.pass_count))")
+[void]$lines.Add("- PDF bounded CTest selected / skipped tests: $(Get-DisplayValue -Value ('{0}/{1}' -f $pdfBoundedCtestEvidence.selected_test_count, $pdfBoundedCtestEvidence.skipped_test_count))")
+[void]$lines.Add("- PDF bounded CTest auxiliary summaries: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+[void]$lines.Add('- PDF release readiness checklist: `docs/pdf_release_readiness_checklist_zh.rst`')
 [void]$lines.Add("- Section page setup review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir)")
 [void]$lines.Add("- Page number fields review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir)")
 [void]$lines.Add("")
@@ -466,6 +478,15 @@ if ($curatedVisualReviewEntries.Count -gt 0) {
 [void]$lines.Add("## Package Release Assets")
 [void]$lines.Add("")
 [void]$lines.Add("- Release assets output dir: $assetOutputDir")
+if ($requiresProjectTemplateGovernanceSignoff) {
+    [void]$lines.Add(('- Project-template governance manifest signoff: open `{0}` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display` before refreshing or publishing GitHub Release assets.' -f $releaseAssetsManifestPath))
+}
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
+    [void]$lines.Add("- Project-template readiness checklist handoff signoff: $projectTemplateChecklistHandoffEvidenceLine.")
+}
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
+    [void]$lines.Add("- Project-template readiness checklist packaged audit signoff: $projectTemplateChecklistMaterialSafetyAuditEvidenceLine.")
+}
 [void]$lines.Add('```powershell')
 [void]$lines.Add($packageAssetsCommand)
 [void]$lines.Add('```')

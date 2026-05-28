@@ -95,6 +95,15 @@ param(
     [switch]$ReleaseGovernanceHandoffFailOnMissing,
     [switch]$ReleaseGovernanceHandoffFailOnBlocker,
     [switch]$ReleaseGovernanceHandoffFailOnWarning,
+    [ValidateSet("full", "explicit-only")]
+    [string]$ReleaseGovernanceHandoffExpectedReportProfile = "full",
+    [ValidateSet("full", "pdf-only")]
+    [string]$ReleaseEvidenceScope = "full",
+    [string]$PdfVisualGateSummaryJson = "",
+    [string]$PdfVisualGateAttemptSummaryJson = "",
+    [string]$PdfVisualSegmentedGateSummaryJson = "",
+    [string[]]$PdfBoundedCtestSummaryJson = @(),
+    [string]$PdfReleaseReadinessSummaryJson = "",
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -121,6 +130,9 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+. (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
 
 function Write-Step {
     param([string]$Message)
@@ -168,6 +180,87 @@ function Get-RepoRelativePath {
     }
 
     return $resolvedPath
+}
+
+function Convert-ReleaseMaterialString {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()][string]$Text
+    )
+
+    if ($null -eq $Text) {
+        return $null
+    }
+
+    if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+        return $Text
+    }
+
+    $normalized = [string]$Text
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $repoRootForms = @(
+        $resolvedRepoRoot,
+        ($resolvedRepoRoot -replace '\\', '/'),
+        ($resolvedRepoRoot -replace '\\', '\\')
+    ) | Sort-Object -Unique
+
+    foreach ($rootForm in $repoRootForms) {
+        if ([string]::IsNullOrWhiteSpace($rootForm)) {
+            continue
+        }
+
+        $pattern = [regex]::Escape($rootForm) + '(?<suffix>\\\\|[\\/]|(?=$|[\s"''`<>|;,)]+))'
+        $normalized = [regex]::Replace(
+            $normalized,
+            $pattern,
+            '.${suffix}',
+            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    }
+
+    return $normalized.Replace('./', '.\')
+}
+
+function Convert-ReleaseMaterialObject {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()]$Value
+    )
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [string]) {
+        return Convert-ReleaseMaterialString -RepoRoot $RepoRoot -Text $Value
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $converted = [ordered]@{}
+        foreach ($key in $Value.Keys) {
+            $converted[$key] = Convert-ReleaseMaterialObject -RepoRoot $RepoRoot -Value $Value[$key]
+        }
+
+        return $converted
+    }
+
+    if ($Value -is [pscustomobject]) {
+        $converted = [ordered]@{}
+        foreach ($property in $Value.PSObject.Properties) {
+            $converted[$property.Name] = Convert-ReleaseMaterialObject -RepoRoot $RepoRoot -Value $property.Value
+        }
+
+        return $converted
+    }
+
+    if ($Value -is [System.Collections.IEnumerable]) {
+        return ,@(
+            foreach ($item in $Value) {
+                Convert-ReleaseMaterialObject -RepoRoot $RepoRoot -Value $item
+            }
+        )
+    }
+
+    return $Value
 }
 
 function Get-ProjectVersion {
@@ -401,6 +494,619 @@ function Set-OptionalSummaryValue {
     if ($null -ne $Value -and -not [string]::IsNullOrWhiteSpace([string]$Value)) {
         $Target[$Name] = $Value
     }
+}
+
+function Get-PdfVisualGateSummaryInfo {
+    param(
+        [string]$SummaryJson
+    )
+
+    $info = [ordered]@{
+        requested = -not [string]::IsNullOrWhiteSpace($SummaryJson)
+        status = if ([string]::IsNullOrWhiteSpace($SummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $SummaryJson) { "available" } else { "missing" }
+        summary_json = $SummaryJson
+        full_visual_gate_status = ""
+        verdict = ""
+        aggregate_contact_sheet = ""
+        cjk_manifest_count = 0
+        cjk_copy_search_count = 0
+        cjk_copy_search_missing_text_count = 0
+        visual_baseline_manifest_count = 0
+        visual_baseline_count = 0
+        finalizable = $false
+        error = ""
+    }
+
+    if (-not [bool]$info.requested -or -not (Test-Path -LiteralPath $SummaryJson)) {
+        return $info
+    }
+
+    try {
+        $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $SummaryJson | ConvertFrom-Json
+        $info.status = "loaded"
+        $info.verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "verdict")
+        if ($info.verdict -in @("pass", "fail")) {
+            $info.full_visual_gate_status = $info.verdict
+        }
+        $info.aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet")
+        $info.cjk_manifest_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_manifest_count")
+        $info.cjk_copy_search_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_count")
+        $cjkMissingTextCount = Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_missing_text_count"
+        if ($null -eq $cjkMissingTextCount) {
+            $cjkMissingTextCount = Get-OptionalPropertyValue -Object $summary -Name "cjk_missing_text_count"
+        }
+        if ($null -ne $cjkMissingTextCount -and -not [string]::IsNullOrWhiteSpace([string]$cjkMissingTextCount)) {
+            $info.cjk_copy_search_missing_text_count = [int]$cjkMissingTextCount
+        } else {
+            $computedMissingTextCount = 0
+            foreach ($entry in @(Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search")) {
+                if ($null -eq $entry) {
+                    continue
+                }
+
+                $missingText = Get-OptionalPropertyValue -Object $entry -Name "missing_text"
+                if ($null -eq $missingText) {
+                    continue
+                }
+                if ($missingText -is [string]) {
+                    if (-not [string]::IsNullOrWhiteSpace($missingText)) {
+                        $computedMissingTextCount += 1
+                    }
+                    continue
+                }
+                if ($missingText -is [System.Collections.IEnumerable]) {
+                    $computedMissingTextCount += @($missingText | Where-Object {
+                            $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_)
+                        }).Count
+                    continue
+                }
+
+                $computedMissingTextCount += 1
+            }
+
+            $info.cjk_copy_search_missing_text_count = $computedMissingTextCount
+        }
+        $info.visual_baseline_manifest_count = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_manifest_count")
+        $info.visual_baseline_count = [int](Get-OptionalPropertyValue -Object $summary -Name "baselines_count")
+        $info.finalizable = -not [string]::IsNullOrWhiteSpace([string]$info.verdict) -and
+            [int]$info.cjk_copy_search_count -gt 0 -and
+            [int]$info.visual_baseline_count -gt 0 -and
+            -not [string]::IsNullOrWhiteSpace([string]$info.aggregate_contact_sheet)
+    } catch {
+        $info.status = "unreadable"
+        $info.error = $_.Exception.Message
+    }
+
+    return $info
+}
+
+function Get-PdfVisualGateAttemptSummaryInfo {
+    param(
+        [string]$SummaryJson
+    )
+
+    $info = [ordered]@{
+        requested = -not [string]::IsNullOrWhiteSpace($SummaryJson)
+        status = if ([string]::IsNullOrWhiteSpace($SummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $SummaryJson) { "available" } else { "missing" }
+        summary_json = $SummaryJson
+        verdict = ""
+        full_visual_gate_status = ""
+        evidence_scope = ""
+        stage_count = 0
+        passed_stage_count = 0
+        failed_stage_count = 0
+        incomplete_stage_count = 0
+        pdf_cli_export_status = ""
+        pdf_regression_status = ""
+        pdf_regression_selected_test_count = 0
+        pdf_regression_failed_test_count = 0
+        pdf_regression_skipped_test_count = 0
+        unicode_font_status = ""
+        cjk_copy_search_status = ""
+        cjk_copy_search_count = 0
+        cjk_copy_search_missing_text_count = 0
+        visual_baseline_render_status = ""
+        visual_baseline_fresh_rendered_count = 0
+        expected_visual_render_count = 0
+        visual_baseline_fresh_missing_sample_count = 0
+        visual_baseline_resume_needed = $false
+        visual_baseline_resume_slice_offset = 0
+        visual_baseline_resume_slice_limit = 0
+        visual_baseline_resume_slice_command_template = ""
+        outer_guard_status = ""
+        outer_guard_timed_out = $false
+        outer_guard_timeout_seconds = 0
+        aggregate_contact_sheet_status = ""
+        aggregate_contact_sheet = ""
+        aggregate_contact_sheet_bytes = 0
+        error = ""
+    }
+
+    if (-not [bool]$info.requested -or -not (Test-Path -LiteralPath $SummaryJson)) {
+        return $info
+    }
+
+    try {
+        $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $SummaryJson | ConvertFrom-Json
+        $info.status = [string](Get-OptionalPropertyValue -Object $summary -Name "status")
+        $info.verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "verdict")
+        $info.full_visual_gate_status = [string](Get-OptionalPropertyValue -Object $summary -Name "full_visual_gate_status")
+        $info.evidence_scope = [string](Get-OptionalPropertyValue -Object $summary -Name "evidence_scope")
+        $info.stage_count = [int](Get-OptionalPropertyValue -Object $summary -Name "stage_count")
+        $info.passed_stage_count = [int](Get-OptionalPropertyValue -Object $summary -Name "passed_stage_count")
+        $info.failed_stage_count = [int](Get-OptionalPropertyValue -Object $summary -Name "failed_stage_count")
+        $info.incomplete_stage_count = [int](Get-OptionalPropertyValue -Object $summary -Name "incomplete_stage_count")
+        $info.pdf_cli_export_status = [string](Get-OptionalPropertyValue -Object $summary -Name "pdf_cli_export_status")
+        $info.pdf_regression_status = [string](Get-OptionalPropertyValue -Object $summary -Name "pdf_regression_status")
+        $info.pdf_regression_selected_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "pdf_regression_selected_test_count")
+        $info.pdf_regression_failed_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "pdf_regression_failed_test_count")
+        $info.pdf_regression_skipped_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "pdf_regression_skipped_test_count")
+        $info.unicode_font_status = [string](Get-OptionalPropertyValue -Object $summary -Name "unicode_font_status")
+        $info.cjk_copy_search_status = [string](Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_status")
+        $info.cjk_copy_search_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_count")
+        $info.cjk_copy_search_missing_text_count = [int](Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_missing_text_count")
+        $info.visual_baseline_render_status = [string](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_render_status")
+        $info.visual_baseline_fresh_rendered_count = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_fresh_rendered_count")
+        $info.expected_visual_render_count = [int](Get-OptionalPropertyValue -Object $summary -Name "expected_visual_render_count")
+        $info.visual_baseline_fresh_missing_sample_count = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_fresh_missing_sample_count")
+        $info.visual_baseline_resume_needed = [bool](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_resume_needed")
+        $info.visual_baseline_resume_slice_offset = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_resume_slice_offset")
+        $info.visual_baseline_resume_slice_limit = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_resume_slice_limit")
+        $info.visual_baseline_resume_slice_command_template = [string](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_resume_slice_command_template")
+        $info.outer_guard_status = [string](Get-OptionalPropertyValue -Object $summary -Name "outer_guard_status")
+        $info.outer_guard_timed_out = [bool](Get-OptionalPropertyValue -Object $summary -Name "outer_guard_timed_out")
+        $info.outer_guard_timeout_seconds = [int](Get-OptionalPropertyValue -Object $summary -Name "outer_guard_timeout_seconds")
+        $info.aggregate_contact_sheet_status = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet_status")
+        $info.aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet")
+        $info.aggregate_contact_sheet_bytes = [int](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet_bytes")
+    } catch {
+        $info.status = "unreadable"
+        $info.error = $_.Exception.Message
+    }
+
+    return $info
+}
+
+function Get-PdfVisualGateAttemptReleaseWarnings {
+    param(
+        [System.Collections.IDictionary]$ReleaseSummary,
+        [string]$RepoRoot
+    )
+
+    $warnings = New-Object 'System.Collections.Generic.List[object]'
+    $attempt = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "pdf_visual_gate_attempt"
+    if ($null -eq $attempt) {
+        return @()
+    }
+
+    $attemptStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "status")
+    $attemptVerdict = [string](Get-OptionalPropertyValue -Object $attempt -Name "verdict")
+    $attemptFullStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "full_visual_gate_status")
+    $outerGuardTimedOut = [bool](Get-OptionalPropertyValue -Object $attempt -Name "outer_guard_timed_out")
+    $outerGuardStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "outer_guard_status")
+    $renderStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_render_status")
+    $contactSheetStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "aggregate_contact_sheet_status")
+    $attemptPassed = ($attemptStatus -eq "pass" -and $attemptVerdict -eq "pass" -and $attemptFullStatus -eq "pass")
+    $attemptStageCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "stage_count")
+    $attemptPassedStageCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "passed_stage_count")
+    $attemptFailedStageCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "failed_stage_count")
+    $attemptIncompleteStageCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "incomplete_stage_count")
+    $renderedCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_fresh_rendered_count")
+    $expectedRenderCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "expected_visual_render_count")
+    $freshMissingSampleCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_fresh_missing_sample_count")
+    $resumeNeeded = [bool](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_resume_needed")
+    $resumeSliceOffset = [int](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_resume_slice_offset")
+    $resumeSliceLimit = [int](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_resume_slice_limit")
+    $resumeSliceCommandTemplate = [string](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_resume_slice_command_template")
+    $pdfRegressionStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_status")
+    $pdfRegressionSelected = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_selected_test_count")
+    $pdfRegressionFailed = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_failed_test_count")
+    $pdfRegressionSkipped = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_skipped_test_count")
+    $cjkCopySearchStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_status")
+    $cjkCopySearchCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_count")
+    $cjkMissingTextCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_missing_text_count")
+    $readiness = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "pdf_full_ctest_readiness"
+    $visualGate = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "pdf_visual_gate"
+    $readinessReleaseReady = [bool](Get-OptionalPropertyValue -Object $readiness -Name "release_ready")
+    $visualReleaseEvidenceAccepted = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_release_evidence_accepted")
+    $freshFullGuardedEvidence = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_fresh_full_guarded_evidence")
+    $passSummaryBeforeOuterTimeout = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_pass_summary_before_outer_timeout")
+    $segmentedFullCoverageEvidence = [bool](Get-OptionalPropertyValue -Object $readiness -Name "visual_gate_segmented_full_coverage_evidence")
+    $finalizeOnlyEvidence = [bool](Get-OptionalPropertyValue -Object $visualGate -Name "finalize_only")
+    $skipPreflightEvidence = [bool](Get-OptionalPropertyValue -Object $visualGate -Name "skip_preflight")
+    $readinessVerdict = [string](Get-OptionalPropertyValue -Object $readiness -Name "verdict")
+    $needsWarning = (-not $attemptPassed) -and (
+        $attemptStatus -eq "partial" -or
+        $attemptVerdict -eq "not_complete" -or
+        $attemptFullStatus -eq "not_complete" -or
+        $outerGuardTimedOut -or
+        $outerGuardStatus -eq "timed_out"
+    )
+
+    if (-not $needsWarning) {
+        return @()
+    }
+
+    $attemptAuxiliaryEvidenceComplete = (
+        $attemptStageCount -gt 0 -and
+        $attemptPassedStageCount -eq $attemptStageCount -and
+        $attemptFailedStageCount -eq 0 -and
+        $attemptIncompleteStageCount -eq 0 -and
+        $pdfRegressionStatus -eq "pass" -and
+        $pdfRegressionFailed -eq 0 -and
+        $cjkCopySearchStatus -eq "pass" -and
+        $cjkMissingTextCount -eq 0 -and
+        $renderStatus -eq "pass" -and
+        $expectedRenderCount -gt 0 -and
+        $renderedCount -ge $expectedRenderCount -and
+        $contactSheetStatus -eq "pass"
+    )
+    $segmentedReleaseEvidenceAccepted = (
+        $readinessReleaseReady -and
+        $visualReleaseEvidenceAccepted -and
+        $segmentedFullCoverageEvidence
+    )
+    if ($segmentedReleaseEvidenceAccepted -and $attemptAuxiliaryEvidenceComplete) {
+        return @()
+    }
+
+    $summaryJsonPath = [string](Get-OptionalPropertyValue -Object $attempt -Name "summary_json")
+    $summaryJsonDisplay = Get-RepoRelativePath -RepoRoot $RepoRoot -Path $summaryJsonPath
+    $outerGuardTimeoutSeconds = [int](Get-OptionalPropertyValue -Object $attempt -Name "outer_guard_timeout_seconds")
+    $message = if ($segmentedFullCoverageEvidence) {
+        "Fresh non-FinalizeOnly PDF visual gate attempt did not complete within the 60-second outer guard; release evidence is accepted through strict segmented full-coverage visual evidence, but this does not replace a completed single-run full visual gate."
+    } elseif ($freshFullGuardedEvidence) {
+        "Fresh non-FinalizeOnly PDF visual gate attempt did not complete within the 60-second outer guard; release evidence is accepted through an earlier completed guarded full visual gate, while this attempt remains traceability debt."
+    } elseif ($finalizeOnlyEvidence) {
+        "Fresh non-FinalizeOnly PDF visual gate attempt did not complete within the 60-second outer guard; release still relies on explicit FinalizeOnly summary/contact-sheet evidence while baseline render/contact-sheet refresh remains incomplete."
+    } elseif ($visualReleaseEvidenceAccepted) {
+        "Fresh non-FinalizeOnly PDF visual gate attempt did not complete within the 60-second outer guard; release evidence is accepted by the PDF readiness gate, but the current attempt remains traceability debt."
+    } else {
+        "Fresh non-FinalizeOnly PDF visual gate attempt did not complete within the 60-second outer guard, and PDF visual release evidence is not accepted by the current readiness gate."
+    }
+
+    [void]$warnings.Add([ordered]@{
+            id = "pdf_visual_gate_attempt.incomplete_fresh_render"
+            action = "review_pdf_visual_gate_attempt_and_finalize_evidence"
+            message = $message
+            source_schema = "featherdoc.release_candidate_summary"
+            source_report = $summaryJsonPath
+            source_report_display = $summaryJsonDisplay
+            source_json = $summaryJsonPath
+            source_json_display = $summaryJsonDisplay
+            attempt_status = $attemptStatus
+            attempt_verdict = $attemptVerdict
+            full_visual_gate_status = $attemptFullStatus
+            evidence_scope = [string](Get-OptionalPropertyValue -Object $attempt -Name "evidence_scope")
+            outer_guard_status = $outerGuardStatus
+            outer_guard_timed_out = $outerGuardTimedOut
+            outer_guard_timeout_seconds = $outerGuardTimeoutSeconds
+            pdf_release_readiness_verdict = $readinessVerdict
+            visual_gate_release_evidence_accepted = $visualReleaseEvidenceAccepted
+            visual_gate_fresh_full_guarded_evidence = $freshFullGuardedEvidence
+            visual_gate_pass_summary_before_outer_timeout = $passSummaryBeforeOuterTimeout
+            visual_gate_segmented_full_coverage_evidence = $segmentedFullCoverageEvidence
+            visual_gate_finalize_only = $finalizeOnlyEvidence
+            visual_gate_skip_preflight = $skipPreflightEvidence
+            pdf_cli_export_status = [string](Get-OptionalPropertyValue -Object $attempt -Name "pdf_cli_export_status")
+            pdf_regression_status = [string](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_status")
+            pdf_regression_selected_test_count = $pdfRegressionSelected
+            pdf_regression_failed_test_count = $pdfRegressionFailed
+            pdf_regression_skipped_test_count = $pdfRegressionSkipped
+            unicode_font_status = [string](Get-OptionalPropertyValue -Object $attempt -Name "unicode_font_status")
+            cjk_copy_search_status = [string](Get-OptionalPropertyValue -Object $attempt -Name "cjk_copy_search_status")
+            cjk_copy_search_count = $cjkCopySearchCount
+            cjk_copy_search_missing_text_count = $cjkMissingTextCount
+            visual_baseline_render_status = $renderStatus
+            visual_baseline_fresh_rendered_count = $renderedCount
+            expected_visual_render_count = $expectedRenderCount
+            visual_baseline_fresh_missing_sample_count = $freshMissingSampleCount
+            visual_baseline_resume_needed = $resumeNeeded
+            visual_baseline_resume_slice_offset = $resumeSliceOffset
+            visual_baseline_resume_slice_limit = $resumeSliceLimit
+            visual_baseline_resume_slice_command_template = $resumeSliceCommandTemplate
+            aggregate_contact_sheet_status = $contactSheetStatus
+            aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $attempt -Name "aggregate_contact_sheet")
+            release_owner_acceptance_required = $true
+            release_owner_acceptance_policy = "release_owner_may_accept_segmented_full_coverage_with_explicit_single_run_debt"
+            release_owner_acceptance_boundary = "acceptance_does_not_replace_fresh_single_run_full_visual_gate"
+            release_owner_acceptance_command_template = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 -PdfReleaseReadinessSummaryJson <summary.json>; document release-owner acceptance in final_review.md without changing full_visual_gate_status."
+            release_owner_acceptance_trace_marker = "pdf_visual_gate_release_owner_acceptance_trace"
+        })
+
+    return @($warnings.ToArray())
+}
+
+function Set-ReleaseSummaryWarnings {
+    param(
+        [System.Collections.IDictionary]$ReleaseSummary,
+        [object[]]$Warnings
+    )
+
+    $normalizedWarnings = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($warning in @($Warnings)) {
+        if ($null -ne $warning) {
+            [void]$normalizedWarnings.Add($warning)
+        }
+    }
+
+    $ReleaseSummary["warnings"] = @($normalizedWarnings.ToArray())
+    $ReleaseSummary["warning_count"] = $normalizedWarnings.Count
+}
+
+function Get-PdfVisualSegmentedGateSummaryInfo {
+    param(
+        [string]$SummaryJson
+    )
+
+    $info = [ordered]@{
+        requested = -not [string]::IsNullOrWhiteSpace($SummaryJson)
+        status = if ([string]::IsNullOrWhiteSpace($SummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $SummaryJson) { "available" } else { "missing" }
+        summary_json = $SummaryJson
+        verdict = ""
+        full_visual_gate_status = ""
+        evidence_scope = ""
+        boundary = ""
+        slice_summary_count = 0
+        slice_pass_count = 0
+        slice_failed_count = 0
+        covered_baseline_count = 0
+        expected_visual_render_count = 0
+        visual_baseline_manifest_count = 0
+        attempt_status = ""
+        attempt_verdict = ""
+        attempt_full_visual_gate_status = ""
+        attempt_stage_count = 0
+        attempt_passed_stage_count = 0
+        attempt_incomplete_stage_count = 0
+        visual_baseline_render_status = ""
+        visual_baseline_fresh_rendered_count = 0
+        aggregate_contact_sheet_status = ""
+        aggregate_contact_sheet = ""
+        aggregate_contact_sheet_bytes = 0
+        aggregate_rebuild_status = ""
+        aggregate_rebuild_verdict = ""
+        aggregate_rebuild_selected_baseline_count = 0
+        aggregate_rebuild_expected_visual_render_count = 0
+        error = ""
+    }
+
+    if (-not [bool]$info.requested -or -not (Test-Path -LiteralPath $SummaryJson)) {
+        return $info
+    }
+
+    try {
+        $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $SummaryJson | ConvertFrom-Json
+        $info.status = [string](Get-OptionalPropertyValue -Object $summary -Name "status")
+        $info.verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "verdict")
+        $info.full_visual_gate_status = [string](Get-OptionalPropertyValue -Object $summary -Name "full_visual_gate_status")
+        $info.evidence_scope = [string](Get-OptionalPropertyValue -Object $summary -Name "evidence_scope")
+        $info.boundary = [string](Get-OptionalPropertyValue -Object $summary -Name "boundary")
+        $info.slice_summary_count = [int](Get-OptionalPropertyValue -Object $summary -Name "slice_summary_count")
+        $info.slice_pass_count = [int](Get-OptionalPropertyValue -Object $summary -Name "slice_pass_count")
+        $info.slice_failed_count = [int](Get-OptionalPropertyValue -Object $summary -Name "slice_failed_count")
+        $info.covered_baseline_count = [int](Get-OptionalPropertyValue -Object $summary -Name "covered_baseline_count")
+        $info.expected_visual_render_count = [int](Get-OptionalPropertyValue -Object $summary -Name "expected_visual_render_count")
+        $info.visual_baseline_manifest_count = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_manifest_count")
+        $info.attempt_status = [string](Get-OptionalPropertyValue -Object $summary -Name "attempt_status")
+        $info.attempt_verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "attempt_verdict")
+        $info.attempt_full_visual_gate_status = [string](Get-OptionalPropertyValue -Object $summary -Name "attempt_full_visual_gate_status")
+        $info.attempt_stage_count = [int](Get-OptionalPropertyValue -Object $summary -Name "attempt_stage_count")
+        $info.attempt_passed_stage_count = [int](Get-OptionalPropertyValue -Object $summary -Name "attempt_passed_stage_count")
+        $info.attempt_incomplete_stage_count = [int](Get-OptionalPropertyValue -Object $summary -Name "attempt_incomplete_stage_count")
+        $info.visual_baseline_render_status = [string](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_render_status")
+        $info.visual_baseline_fresh_rendered_count = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_fresh_rendered_count")
+        $info.aggregate_contact_sheet_status = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet_status")
+        $info.aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet")
+        $info.aggregate_contact_sheet_bytes = [int64](Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet_bytes")
+        $info.aggregate_rebuild_status = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_rebuild_status")
+        $info.aggregate_rebuild_verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "aggregate_rebuild_verdict")
+        $info.aggregate_rebuild_selected_baseline_count = [int](Get-OptionalPropertyValue -Object $summary -Name "aggregate_rebuild_selected_baseline_count")
+        $info.aggregate_rebuild_expected_visual_render_count = [int](Get-OptionalPropertyValue -Object $summary -Name "aggregate_rebuild_expected_visual_render_count")
+    } catch {
+        $info.status = "unreadable"
+        $info.error = $_.Exception.Message
+    }
+
+    return $info
+}
+
+function Get-PdfBoundedCtestDefaultSummaryPaths {
+    param([string]$RepoRoot)
+
+    return @(
+        "build\pdf-ctest-bounded-subset-current\summary.json",
+        "build\pdf-ctest-bounded-contract-static-current\summary.json",
+        "build\pdf-ctest-bounded-cjk-flow-static-current\summary.json",
+        "build\pdf-ctest-bounded-regression-basic-text-current\summary.json",
+        "build\pdf-ctest-bounded-regression-styled-document-current\summary.json",
+        "build\pdf-ctest-bounded-regression-business-samples-current\summary.json",
+        "build\pdf-ctest-bounded-regression-table-layout-current\summary.json"
+    ) | ForEach-Object { Join-Path $RepoRoot $_ }
+}
+
+function Resolve-PdfBoundedCtestSummaryPaths {
+    param(
+        [string]$RepoRoot,
+        [string[]]$SummaryJson
+    )
+
+    $requested = @($SummaryJson | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+    $candidates = if ($requested.Count -gt 0) {
+        @($requested | ForEach-Object { Resolve-FullPath -RepoRoot $RepoRoot -InputPath ([string]$_) })
+    } else {
+        @(Get-PdfBoundedCtestDefaultSummaryPaths -RepoRoot $RepoRoot)
+    }
+
+    $seen = @{}
+    return @(
+        foreach ($candidate in $candidates) {
+            if ([string]::IsNullOrWhiteSpace([string]$candidate)) { continue }
+            $resolved = [System.IO.Path]::GetFullPath([string]$candidate)
+            if (-not (Test-Path -LiteralPath $resolved)) { continue }
+            $key = $resolved.ToLowerInvariant()
+            if ($seen.ContainsKey($key)) { continue }
+            $seen[$key] = $true
+            $resolved
+        }
+    )
+}
+
+function Get-PdfBoundedCtestSummaryInfo {
+    param(
+        [string[]]$SummaryJson,
+        [string]$RepoRoot
+    )
+
+    $paths = @($SummaryJson | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+    $summaries = New-Object 'System.Collections.Generic.List[object]'
+    $subsets = New-Object 'System.Collections.Generic.List[string]'
+    $displayPaths = New-Object 'System.Collections.Generic.List[string]'
+    $passCount = 0
+    $selectedTestCount = 0
+    $skippedTestCount = 0
+    $errorCount = 0
+    $errors = New-Object 'System.Collections.Generic.List[string]'
+
+    foreach ($path in $paths) {
+        try {
+            $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
+            $status = [string](Get-OptionalPropertyValue -Object $summary -Name "status")
+            $verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "verdict")
+            $subset = [string](Get-OptionalPropertyValue -Object $summary -Name "subset")
+            $selected = [int](Get-OptionalPropertyValue -Object $summary -Name "selected_test_count")
+            $skipped = [int](Get-OptionalPropertyValue -Object $summary -Name "skipped_test_count")
+            if ($status -eq "pass" -and $verdict -eq "pass") {
+                $passCount++
+            }
+            if (-not [string]::IsNullOrWhiteSpace($subset)) {
+                $subsets.Add($subset) | Out-Null
+            }
+            $selectedTestCount += $selected
+            $skippedTestCount += $skipped
+            $displayPaths.Add((Get-RepoRelativePath -RepoRoot $RepoRoot -Path $path)) | Out-Null
+            $summaries.Add([ordered]@{
+                    summary_json = $path
+                    summary_json_display = Get-RepoRelativePath -RepoRoot $RepoRoot -Path $path
+                    status = $status
+                    verdict = $verdict
+                    subset = $subset
+                    selected_test_count = $selected
+                    skipped_test_count = $skipped
+                    ctest_timeout_seconds = [int](Get-OptionalPropertyValue -Object $summary -Name "ctest_timeout_seconds")
+                    exit_code = [int](Get-OptionalPropertyValue -Object $summary -Name "exit_code")
+                }) | Out-Null
+        } catch {
+            $errorCount++
+            $errors.Add(("{0}: {1}" -f (Get-RepoRelativePath -RepoRoot $RepoRoot -Path $path), $_.Exception.Message)) | Out-Null
+        }
+    }
+
+    $summaryCount = $summaries.Count
+    $statusValue = if ($summaryCount -eq 0) {
+        "not_available"
+    } elseif ($errorCount -gt 0) {
+        "partial"
+    } elseif ($passCount -eq $summaryCount -and $skippedTestCount -eq 0) {
+        "pass"
+    } else {
+        "needs_review"
+    }
+
+    return [ordered]@{
+        status = $statusValue
+        summary_count = $summaryCount
+        pass_count = $passCount
+        skipped_test_count = $skippedTestCount
+        selected_test_count = $selectedTestCount
+        subsets = @($subsets.ToArray())
+        summary_json = @($paths)
+        summary_json_display = @($displayPaths.ToArray())
+        summaries = @($summaries.ToArray())
+        error_count = $errorCount
+        errors = @($errors.ToArray())
+    }
+}
+
+function Get-PdfFullCtestReadinessSummaryInfo {
+    param(
+        [string]$SummaryJson,
+        [string]$RepoRoot
+    )
+
+    $info = [ordered]@{
+        requested = -not [string]::IsNullOrWhiteSpace($SummaryJson)
+        status = if ([string]::IsNullOrWhiteSpace($SummaryJson)) { "not_requested" } elseif (Test-Path -LiteralPath $SummaryJson) { "available" } else { "missing" }
+        summary_json = $SummaryJson
+        summary_json_display = Get-RepoRelativePath -RepoRoot $RepoRoot -Path $SummaryJson
+        verdict = ""
+        release_ready = $false
+        warning_count = 0
+        visual_gate_release_evidence_accepted = $false
+        visual_gate_fresh_full_guarded_evidence = $false
+        visual_gate_pass_summary_before_outer_timeout = $false
+        visual_gate_segmented_full_coverage_evidence = $false
+        visual_full_gate_status = ""
+        visual_full_gate_verdict = ""
+        full_ctest_status = ""
+        full_ctest_verdict = ""
+        full_ctest_summary_json = ""
+        full_ctest_summary_json_display = ""
+        outer_guard_status = ""
+        outer_guard_timed_out = $false
+        selected_test_count = 0
+        completed_test_count = 0
+        passed_test_count = 0
+        failed_test_count = 0
+        skipped_test_count = 0
+        not_run_test_count = 0
+        completion_percent = 0.0
+        remaining_test_count = 0
+        zero_failed_tests_observed = $false
+        boundary = ""
+        marker = ""
+        error = ""
+    }
+
+    if (-not [bool]$info.requested -or -not (Test-Path -LiteralPath $SummaryJson)) {
+        return $info
+    }
+
+    try {
+        $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $SummaryJson | ConvertFrom-Json
+        $info.status = [string](Get-OptionalPropertyValue -Object $summary -Name "status")
+        $info.verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "verdict")
+        $info.release_ready = [bool](Get-OptionalPropertyValue -Object $summary -Name "release_ready")
+        $info.warning_count = [int](Get-OptionalPropertyValue -Object $summary -Name "warning_count")
+        $info.visual_gate_release_evidence_accepted = [bool](Get-OptionalPropertyValue -Object $summary -Name "visual_gate_release_evidence_accepted")
+        $info.visual_gate_fresh_full_guarded_evidence = [bool](Get-OptionalPropertyValue -Object $summary -Name "visual_gate_fresh_full_guarded_evidence")
+        $info.visual_gate_pass_summary_before_outer_timeout = [bool](Get-OptionalPropertyValue -Object $summary -Name "visual_gate_pass_summary_before_outer_timeout")
+        $info.visual_gate_segmented_full_coverage_evidence = [bool](Get-OptionalPropertyValue -Object $summary -Name "visual_gate_segmented_full_coverage_evidence")
+        $info.visual_full_gate_status = [string](Get-OptionalPropertyValue -Object $summary -Name "visual_full_gate_status")
+        $info.visual_full_gate_verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "visual_full_gate_verdict")
+        $info.full_ctest_status = [string](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_status")
+        $info.full_ctest_verdict = [string](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_verdict")
+        $info.full_ctest_summary_json = [string](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_summary_json")
+        $info.full_ctest_summary_json_display = [string](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_summary_json_display")
+        $info.outer_guard_status = [string](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_outer_guard_status")
+        $info.outer_guard_timed_out = [bool](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_outer_guard_timed_out")
+        $info.selected_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_selected_test_count")
+        $info.completed_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_completed_test_count")
+        $info.passed_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_passed_test_count")
+        $info.failed_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_failed_test_count")
+        $info.skipped_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_skipped_test_count")
+        $info.not_run_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_not_run_test_count")
+        $info.completion_percent = [double](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_completion_percent")
+        $info.remaining_test_count = [int](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_remaining_test_count")
+        $info.zero_failed_tests_observed = [bool](Get-OptionalPropertyValue -Object $summary -Name "full_ctest_zero_failed_tests_observed")
+        $info.boundary = [string](Get-OptionalPropertyValue -Object $summary -Name "boundary")
+        $info.marker = [string](Get-OptionalPropertyValue -Object $summary -Name "marker")
+    } catch {
+        $info.status = "unreadable"
+        $info.error = $_.Exception.Message
+    }
+
+    return $info
 }
 
 function Convert-ReviewTimestamp {
@@ -1025,21 +1731,6 @@ function Get-ReleaseBlockerRollupInputList {
     )
 }
 
-function Expand-ReleaseBlockerRollupPathList {
-    param([string[]]$Paths)
-
-    return @(
-        foreach ($path in @($Paths)) {
-            foreach ($part in ([string]$path -split ",")) {
-                $trimmed = $part.Trim()
-                if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
-                    $trimmed
-                }
-            }
-        }
-    )
-}
-
 function Select-UniqueReleaseBlockerRollupPathList {
     param([string[]]$Paths)
 
@@ -1057,6 +1748,16 @@ function Select-UniqueReleaseBlockerRollupPathList {
     )
 }
 
+function Get-ReleaseGovernanceHandoffEffectiveInputJson {
+    param(
+        [string[]]$InputJson,
+        [string]$ReleaseSummaryPath
+    )
+
+    return @(Select-UniqueReleaseBlockerRollupPathList `
+            -Paths (@($InputJson) + @($ReleaseSummaryPath)))
+}
+
 function Get-ReleaseBlockerRollupAutoDiscoveredInputJson {
     param(
         [string]$RepoRoot,
@@ -1064,10 +1765,13 @@ function Get-ReleaseBlockerRollupAutoDiscoveredInputJson {
     )
 
     $candidateRelativePaths = @(
+        "document-skeleton-governance-rollup/summary.json",
         "numbering-catalog-governance/summary.json",
         "table-layout-delivery-governance/summary.json",
         "content-control-data-binding-governance/summary.json",
-        "project-template-delivery-readiness/summary.json"
+        "project-template-delivery-readiness/summary.json",
+        "schema-patch-confidence-calibration/summary.json",
+        "docx-functional-smoke-readiness/summary.json"
     )
     $resolvedInputRoot = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $InputRoot
 
@@ -1149,6 +1853,7 @@ function Invoke-ReleaseGovernanceHandoff {
         [string]$OutputDir,
         [string]$SummaryJson,
         [string]$ReportMarkdown,
+        [string]$ExpectedReportProfile,
         [bool]$IncludeRollup,
         [bool]$FailOnMissing,
         [bool]$FailOnBlocker,
@@ -1164,6 +1869,8 @@ function Invoke-ReleaseGovernanceHandoff {
         $SummaryJson
         "-ReportMarkdown"
         $ReportMarkdown
+        "-ExpectedReportProfile"
+        $ExpectedReportProfile
     )
     $cleanInputJson = @($InputJson | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($cleanInputJson.Count -gt 0) {
@@ -1379,6 +2086,133 @@ $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $schemaApprovalHistoryJsonPath = Join-Path $reportDir "project_template_schema_approval_history.json"
 $schemaApprovalHistoryMarkdownPath = Join-Path $reportDir "project_template_schema_approval_history.md"
 $startHerePath = Join-Path $resolvedSummaryOutputDir "START_HERE.md"
+$releaseAssetsManifestSignoffPath = if ([string]::IsNullOrWhiteSpace($projectVersion)) {
+    "output\release-assets\v<version>\release_assets_manifest.json"
+} else {
+    Join-Path (Join-Path "output\release-assets" ("v{0}" -f $projectVersion)) "release_assets_manifest.json"
+}
+$manifestSignoffEntrypoints = @(
+    [ordered]@{
+        id = "start_here"
+        path = $startHerePath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $startHerePath
+        required = $true
+    },
+    [ordered]@{
+        id = "artifact_guide"
+        path = $artifactGuidePath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $artifactGuidePath
+        required = $true
+    },
+    [ordered]@{
+        id = "reviewer_checklist"
+        path = $reviewerChecklistPath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $reviewerChecklistPath
+        required = $true
+    }
+)
+$releaseManifestSignoffEntrypoints = if ($ReleaseEvidenceScope -eq "pdf-only") {
+    $null
+} else {
+    [ordered]@{
+        status = "declared"
+        release_assets_manifest = $releaseAssetsManifestSignoffPath
+        required_entrypoint_count = @($manifestSignoffEntrypoints).Count
+        entrypoints = @($manifestSignoffEntrypoints)
+        required_contracts = @(
+            "project_template_delivery_readiness_contract",
+            "project_template_onboarding_governance_contract"
+        )
+        required_fields = @(
+            "status",
+            "release_ready",
+            "schema_approval_status_summary",
+            "source_report_display",
+            "source_json_display"
+        )
+        checklist_marker = "reviewer_manifest_scoped_project_template_trace"
+    }
+}
+$releaseProjectTemplateReadinessChecklistEntrypoints = if ($ReleaseEvidenceScope -eq "pdf-only") {
+    $null
+} else {
+    [ordered]@{
+        status = "declared"
+        checklist_label = "Project template release readiness checklist"
+        checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+        required_entrypoint_count = @($manifestSignoffEntrypoints).Count
+        entrypoints = @($manifestSignoffEntrypoints)
+        checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+    }
+}
+$releaseEntryProjectTemplateReadinessChecklistMaterialSafetyAudit = if ($ReleaseEvidenceScope -eq "pdf-only") {
+    $null
+} else {
+    [ordered]@{
+        status = "passed"
+        audit_script = ".\scripts\assert_release_material_safety.ps1"
+        audited_entrypoint_count = 3
+        audited_entrypoints = @(
+            "start_here",
+            "artifact_guide",
+            "reviewer_checklist"
+        )
+        compact_evidence_label = "Project-template readiness checklist handoff evidence"
+        compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+        compact_evidence_source_schema = "featherdoc.release_candidate_summary"
+        checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+        checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+        material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+    }
+}
+$resolvedPdfVisualGateSummaryJson = ""
+if (-not [string]::IsNullOrWhiteSpace($PdfVisualGateSummaryJson)) {
+    $resolvedPdfVisualGateSummaryJson = Resolve-FullPath -RepoRoot $repoRoot -InputPath $PdfVisualGateSummaryJson
+} else {
+    $autoPdfVisualGateSummaryJson = Join-Path $repoRoot "output\pdf-visual-release-gate-current\report\summary.json"
+    if (Test-Path -LiteralPath $autoPdfVisualGateSummaryJson) {
+        $resolvedPdfVisualGateSummaryJson = $autoPdfVisualGateSummaryJson
+    }
+}
+$pdfVisualGateSummaryInfo = Get-PdfVisualGateSummaryInfo -SummaryJson $resolvedPdfVisualGateSummaryJson
+$resolvedPdfVisualGateAttemptSummaryJson = ""
+if (-not [string]::IsNullOrWhiteSpace($PdfVisualGateAttemptSummaryJson)) {
+    $resolvedPdfVisualGateAttemptSummaryJson = Resolve-FullPath -RepoRoot $repoRoot -InputPath $PdfVisualGateAttemptSummaryJson
+} else {
+    $autoPdfVisualGateAttemptSummaryJson = Join-Path $repoRoot "output\pdf-visual-release-gate-current\report\attempt-summary.json"
+    if (Test-Path -LiteralPath $autoPdfVisualGateAttemptSummaryJson) {
+        $resolvedPdfVisualGateAttemptSummaryJson = $autoPdfVisualGateAttemptSummaryJson
+    }
+}
+$pdfVisualGateAttemptSummaryInfo = Get-PdfVisualGateAttemptSummaryInfo -SummaryJson $resolvedPdfVisualGateAttemptSummaryJson
+$resolvedPdfVisualSegmentedGateSummaryJson = ""
+if (-not [string]::IsNullOrWhiteSpace($PdfVisualSegmentedGateSummaryJson)) {
+    $resolvedPdfVisualSegmentedGateSummaryJson = Resolve-FullPath -RepoRoot $repoRoot -InputPath $PdfVisualSegmentedGateSummaryJson
+} else {
+    $autoPdfVisualSegmentedGateSummaryJson = Join-Path $repoRoot "output\pdf-visual-release-gate-current\report\segmented-summary.json"
+    if (Test-Path -LiteralPath $autoPdfVisualSegmentedGateSummaryJson) {
+        $resolvedPdfVisualSegmentedGateSummaryJson = $autoPdfVisualSegmentedGateSummaryJson
+    }
+}
+$pdfVisualSegmentedGateSummaryInfo = Get-PdfVisualSegmentedGateSummaryInfo -SummaryJson $resolvedPdfVisualSegmentedGateSummaryJson
+$resolvedPdfBoundedCtestSummaryJson = @(Resolve-PdfBoundedCtestSummaryPaths `
+        -RepoRoot $repoRoot `
+        -SummaryJson $PdfBoundedCtestSummaryJson)
+$pdfBoundedCtestSummaryInfo = Get-PdfBoundedCtestSummaryInfo `
+    -SummaryJson $resolvedPdfBoundedCtestSummaryJson `
+    -RepoRoot $repoRoot
+$resolvedPdfReleaseReadinessSummaryJson = ""
+if (-not [string]::IsNullOrWhiteSpace($PdfReleaseReadinessSummaryJson)) {
+    $resolvedPdfReleaseReadinessSummaryJson = Resolve-FullPath -RepoRoot $repoRoot -InputPath $PdfReleaseReadinessSummaryJson
+} else {
+    $autoPdfReleaseReadinessSummaryJson = Join-Path $repoRoot "output\pdf-release-readiness-current\summary.json"
+    if (Test-Path -LiteralPath $autoPdfReleaseReadinessSummaryJson) {
+        $resolvedPdfReleaseReadinessSummaryJson = $autoPdfReleaseReadinessSummaryJson
+    }
+}
+$pdfFullCtestReadinessInfo = Get-PdfFullCtestReadinessSummaryInfo `
+    -SummaryJson $resolvedPdfReleaseReadinessSummaryJson `
+    -RepoRoot $repoRoot
 $installSmokeScript = Join-Path $repoRoot "scripts\run_install_find_package_smoke.ps1"
 $templateSchemaCheckScript = Join-Path $repoRoot "scripts\check_template_schema_baseline.ps1"
 $templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_schema_manifest.ps1"
@@ -1452,8 +2286,8 @@ $resolvedProjectTemplateSmokeCandidateDiscoveryPath = if ($projectTemplateSmokeR
 }
 $templateSchemaRequested = -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaInputDocx) -or
     -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaBaseline)
-$expandedReleaseBlockerRollupInputJson = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseBlockerRollupInputJson)
-$expandedReleaseBlockerRollupInputRoot = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseBlockerRollupInputRoot)
+$expandedReleaseBlockerRollupInputJson = @(Expand-TemplateSchemaArgumentList -Values $ReleaseBlockerRollupInputJson)
+$expandedReleaseBlockerRollupInputRoot = @(Expand-TemplateSchemaArgumentList -Values $ReleaseBlockerRollupInputRoot)
 $resolvedReleaseBlockerRollupAutoDiscoverRoot = Resolve-FullPath -RepoRoot $repoRoot `
     -InputPath $ReleaseBlockerRollupAutoDiscoverRoot
 $autoDiscoveredReleaseBlockerRollupInputJson = if ($ReleaseBlockerRollupAutoDiscover) {
@@ -1481,9 +2315,10 @@ $resolvedReleaseBlockerRollupInputRoot = @(
 )
 $resolvedReleaseBlockerRollupInputRoot = @(Select-UniqueReleaseBlockerRollupPathList `
         -Paths $resolvedReleaseBlockerRollupInputRoot)
-$releaseBlockerRollupRequested = $ReleaseBlockerRollupAutoDiscover -or @(Get-ReleaseBlockerRollupInputList `
+$releaseBlockerRollupInputCount = @(Get-ReleaseBlockerRollupInputList `
         -InputJson $resolvedReleaseBlockerRollupInputJson `
-        -InputRoot $resolvedReleaseBlockerRollupInputRoot).Count -gt 0
+        -InputRoot $resolvedReleaseBlockerRollupInputRoot).Count
+$releaseBlockerRollupRequested = $releaseBlockerRollupInputCount -gt 0
 $resolvedReleaseBlockerRollupOutputDir = if ($releaseBlockerRollupRequested) {
     if ([string]::IsNullOrWhiteSpace($ReleaseBlockerRollupOutputDir)) {
         Join-Path $reportDir "release-blocker-rollup"
@@ -1503,7 +2338,7 @@ $releaseBlockerRollupMarkdownPath = if ($releaseBlockerRollupRequested) {
 } else {
     ""
 }
-$expandedReleaseGovernanceHandoffInputJson = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseGovernanceHandoffInputJson)
+$expandedReleaseGovernanceHandoffInputJson = @(Expand-TemplateSchemaArgumentList -Values $ReleaseGovernanceHandoffInputJson)
 $resolvedReleaseGovernanceHandoffInputJson = @(
     foreach ($path in @($expandedReleaseGovernanceHandoffInputJson)) {
         if (-not [string]::IsNullOrWhiteSpace($path)) {
@@ -1513,8 +2348,26 @@ $resolvedReleaseGovernanceHandoffInputJson = @(
 )
 $resolvedReleaseGovernanceHandoffInputJson = @(Select-UniqueReleaseBlockerRollupPathList `
         -Paths $resolvedReleaseGovernanceHandoffInputJson)
+$releaseGovernanceHandoffInputRootIsDefault = [string]::Equals(
+    $ReleaseGovernanceHandoffInputRoot,
+    "output",
+    [System.StringComparison]::OrdinalIgnoreCase)
 $resolvedReleaseGovernanceHandoffInputRoot = Resolve-FullPath -RepoRoot $repoRoot `
     -InputPath $ReleaseGovernanceHandoffInputRoot
+if ($releaseGovernanceHandoffInputRootIsDefault) {
+    $pipelineGovernanceInputRoot = Resolve-FullPath -RepoRoot $repoRoot `
+        -InputPath "output\release-governance-pipeline-current\governance"
+    if (Test-Path -LiteralPath $pipelineGovernanceInputRoot -PathType Container) {
+        $resolvedReleaseGovernanceHandoffInputRoot = $pipelineGovernanceInputRoot
+    }
+}
+$defaultProjectTemplateOnboardingGovernanceSummary = Resolve-FullPath -RepoRoot $repoRoot `
+    -InputPath "output\project-template-onboarding-governance\summary.json"
+if ($releaseGovernanceHandoffInputRootIsDefault -and
+    (Test-Path -LiteralPath $defaultProjectTemplateOnboardingGovernanceSummary -PathType Leaf)) {
+    $resolvedReleaseGovernanceHandoffInputJson = @(Select-UniqueReleaseBlockerRollupPathList `
+            -Paths (@($resolvedReleaseGovernanceHandoffInputJson) + @($defaultProjectTemplateOnboardingGovernanceSummary)))
+}
 $releaseGovernanceHandoffRequested = [bool]$ReleaseGovernanceHandoff
 $resolvedReleaseGovernanceHandoffOutputDir = if ($releaseGovernanceHandoffRequested) {
     if ([string]::IsNullOrWhiteSpace($ReleaseGovernanceHandoffOutputDir)) {
@@ -1540,6 +2393,7 @@ New-Item -ItemType Directory -Path $resolvedSummaryOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 
 $summary = [ordered]@{
+    schema = "featherdoc.release_candidate_summary"
     generated_at = (Get-Date).ToString("s")
     workspace = $repoRoot
     build_dir = $resolvedBuildDir
@@ -1559,12 +2413,29 @@ $summary = [ordered]@{
     error = ""
     release_blockers = @()
     release_blocker_count = 0
+    warning_count = 0
+    warnings = @()
+    governance_metric_count = 0
+    governance_metrics = @()
     release_handoff = $releaseHandoffPath
     release_body_zh_cn = $releaseBodyZhCnPath
     release_summary_zh_cn = $releaseSummaryZhCnPath
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
+    release_evidence_scope = $ReleaseEvidenceScope
+    manifest_signoff_entrypoints = $releaseManifestSignoffEntrypoints
+    project_template_readiness_checklist_entrypoints = $releaseProjectTemplateReadinessChecklistEntrypoints
+    release_entry_project_template_readiness_checklist_material_safety_audit = $releaseEntryProjectTemplateReadinessChecklistMaterialSafetyAudit
+    pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson
+    pdf_visual_gate = $pdfVisualGateSummaryInfo
+    pdf_visual_gate_attempt_summary_json = $resolvedPdfVisualGateAttemptSummaryJson
+    pdf_visual_gate_attempt = $pdfVisualGateAttemptSummaryInfo
+    pdf_visual_segmented_gate_summary_json = $resolvedPdfVisualSegmentedGateSummaryJson
+    pdf_visual_segmented_gate = $pdfVisualSegmentedGateSummaryInfo
+    pdf_bounded_ctest = $pdfBoundedCtestSummaryInfo
+    pdf_release_readiness_summary_json = $resolvedPdfReleaseReadinessSummaryJson
+    pdf_full_ctest_readiness = $pdfFullCtestReadinessInfo
     release_blocker_rollup = [ordered]@{
         requested = $releaseBlockerRollupRequested
         status = if ($releaseBlockerRollupRequested) { "pending" } else { "not_requested" }
@@ -1579,9 +2450,15 @@ $summary = [ordered]@{
         fail_on_blocker = [bool]$ReleaseBlockerRollupFailOnBlocker
         fail_on_warning = [bool]$ReleaseBlockerRollupFailOnWarning
         source_report_count = 0
+        source_failure_count = 0
         release_blocker_count = 0
+        release_blockers = @()
         action_item_count = 0
+        action_items = @()
         warning_count = 0
+        warnings = @()
+        manifest_signoff_entrypoints_source_report_count = 0
+        manifest_signoff_entrypoints_source_reports = @()
         error = ""
     }
     release_governance_handoff = [ordered]@{
@@ -1596,13 +2473,30 @@ $summary = [ordered]@{
         fail_on_missing = [bool]$ReleaseGovernanceHandoffFailOnMissing
         fail_on_blocker = [bool]$ReleaseGovernanceHandoffFailOnBlocker
         fail_on_warning = [bool]$ReleaseGovernanceHandoffFailOnWarning
+        expected_report_profile = $ReleaseGovernanceHandoffExpectedReportProfile
         expected_report_count = 0
         loaded_report_count = 0
         missing_report_count = 0
         failed_report_count = 0
+        report_count = 0
+        reports = @()
+        governance_metric_count = 0
+        governance_metrics = @()
+        project_template_delivery_readiness_contract = $null
+        project_template_onboarding_governance_contract = $null
+        release_blocker_rollup = $null
         release_blocker_count = 0
+        release_blockers = @()
         action_item_count = 0
+        action_items = @()
         warning_count = 0
+        warnings = @()
+        manifest_signoff_entrypoints_source_report_count = 0
+        manifest_signoff_entrypoints_source_reports = @()
+        project_template_readiness_checklist_entrypoints_source_report_count = 0
+        project_template_readiness_checklist_entrypoints_source_reports = @()
+        release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = 0
+        release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @()
         error = ""
     }
     template_schema = [ordered]@{
@@ -1697,24 +2591,52 @@ $summary = [ordered]@{
             summary_json = $releaseBlockerRollupSummaryPath
             report_markdown = $releaseBlockerRollupMarkdownPath
             source_report_count = 0
+            source_failure_count = 0
             release_blocker_count = 0
+            release_blockers = @()
             action_item_count = 0
+            action_items = @()
             warning_count = 0
+            warnings = @()
+            manifest_signoff_entrypoints_source_report_count = 0
+            manifest_signoff_entrypoints_source_reports = @()
             error = ""
         }
         release_governance_handoff = [ordered]@{
             status = if ($releaseGovernanceHandoffRequested) { "pending" } else { "not_requested" }
             summary_json = $releaseGovernanceHandoffSummaryPath
             report_markdown = $releaseGovernanceHandoffMarkdownPath
+            expected_report_profile = $ReleaseGovernanceHandoffExpectedReportProfile
             expected_report_count = 0
             loaded_report_count = 0
             missing_report_count = 0
             failed_report_count = 0
+            report_count = 0
+            reports = @()
+            governance_metric_count = 0
+            governance_metrics = @()
+            project_template_delivery_readiness_contract = $null
+            project_template_onboarding_governance_contract = $null
+            release_blocker_rollup = $null
             release_blocker_count = 0
+            release_blockers = @()
             action_item_count = 0
+            action_items = @()
             warning_count = 0
+            warnings = @()
+            manifest_signoff_entrypoints_source_report_count = 0
+            manifest_signoff_entrypoints_source_reports = @()
+            project_template_readiness_checklist_entrypoints_source_report_count = 0
+            project_template_readiness_checklist_entrypoints_source_reports = @()
+            release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = 0
+            release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @()
             error = ""
         }
+        pdf_visual_gate = $pdfVisualGateSummaryInfo
+        pdf_visual_gate_attempt = $pdfVisualGateAttemptSummaryInfo
+        pdf_visual_segmented_gate = $pdfVisualSegmentedGateSummaryInfo
+        pdf_bounded_ctest = $pdfBoundedCtestSummaryInfo
+        pdf_full_ctest_readiness = $pdfFullCtestReadinessInfo
     }
 }
 
@@ -2409,6 +3331,17 @@ try {
         ($summary | ConvertTo-Json -Depth 10) | Set-Content -Path $summaryPath -Encoding UTF8
     }
 
+    $releaseWarnings = @(Get-PdfVisualGateAttemptReleaseWarnings -ReleaseSummary $summary -RepoRoot $repoRoot)
+    Set-ReleaseSummaryWarnings -ReleaseSummary $summary -Warnings $releaseWarnings
+    ($summary | ConvertTo-Json -Depth 10) | Set-Content -Path $summaryPath -Encoding UTF8
+
+    $effectiveReleaseGovernanceHandoffInputJson = @(Get-ReleaseGovernanceHandoffEffectiveInputJson `
+            -InputJson $resolvedReleaseGovernanceHandoffInputJson `
+            -ReleaseSummaryPath $summaryPath)
+    if ($releaseGovernanceHandoffRequested) {
+        $summary.release_governance_handoff.input_json = @($effectiveReleaseGovernanceHandoffInputJson)
+    }
+
     if ($releaseBlockerRollupRequested) {
         try {
             Write-Step "Building release blocker rollup"
@@ -2424,22 +3357,47 @@ try {
             $rollupSummary = Read-ReleaseBlockerRollupSummary -Path $releaseBlockerRollupSummaryPath
             $summary.release_blocker_rollup.status = if ($null -eq $rollupSummary) { "missing_summary" } else { [string]$rollupSummary.status }
             $summary.release_blocker_rollup.source_report_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_report_count }
+            $summary.release_blocker_rollup.source_failure_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_failure_count }
             $summary.release_blocker_rollup.release_blocker_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.release_blocker_count }
+            $summary.release_blocker_rollup.release_blockers = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "release_blockers") }
             $summary.release_blocker_rollup.action_item_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.action_item_count }
+            $summary.release_blocker_rollup.action_items = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "action_items") }
             $summary.release_blocker_rollup.warning_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.warning_count }
+            $summary.release_blocker_rollup.warnings = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "warnings") }
             $summary.release_blocker_rollup.error = ""
             $summary.steps.release_blocker_rollup.status = $summary.release_blocker_rollup.status
             $summary.steps.release_blocker_rollup.source_report_count = $summary.release_blocker_rollup.source_report_count
+            $summary.steps.release_blocker_rollup.source_failure_count = $summary.release_blocker_rollup.source_failure_count
             $summary.steps.release_blocker_rollup.release_blocker_count = $summary.release_blocker_rollup.release_blocker_count
+            $summary.steps.release_blocker_rollup.release_blockers = @($summary.release_blocker_rollup.release_blockers)
             $summary.steps.release_blocker_rollup.action_item_count = $summary.release_blocker_rollup.action_item_count
+            $summary.steps.release_blocker_rollup.action_items = @($summary.release_blocker_rollup.action_items)
             $summary.steps.release_blocker_rollup.warning_count = $summary.release_blocker_rollup.warning_count
+            $summary.steps.release_blocker_rollup.warnings = @($summary.release_blocker_rollup.warnings)
             $summary.steps.release_blocker_rollup.error = ""
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
         } catch {
             $rollupError = $_.Exception.Message
+            $rollupSummary = Read-ReleaseBlockerRollupSummary -Path $releaseBlockerRollupSummaryPath
             $summary.release_blocker_rollup.status = "failed"
+            $summary.release_blocker_rollup.source_report_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_report_count }
+            $summary.release_blocker_rollup.source_failure_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_failure_count }
+            $summary.release_blocker_rollup.release_blocker_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.release_blocker_count }
+            $summary.release_blocker_rollup.release_blockers = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "release_blockers") }
+            $summary.release_blocker_rollup.action_item_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.action_item_count }
+            $summary.release_blocker_rollup.action_items = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "action_items") }
+            $summary.release_blocker_rollup.warning_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.warning_count }
+            $summary.release_blocker_rollup.warnings = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "warnings") }
             $summary.release_blocker_rollup.error = $rollupError
             $summary.steps.release_blocker_rollup.status = "failed"
+            $summary.steps.release_blocker_rollup.source_report_count = $summary.release_blocker_rollup.source_report_count
+            $summary.steps.release_blocker_rollup.source_failure_count = $summary.release_blocker_rollup.source_failure_count
+            $summary.steps.release_blocker_rollup.release_blocker_count = $summary.release_blocker_rollup.release_blocker_count
+            $summary.steps.release_blocker_rollup.release_blockers = @($summary.release_blocker_rollup.release_blockers)
+            $summary.steps.release_blocker_rollup.action_item_count = $summary.release_blocker_rollup.action_item_count
+            $summary.steps.release_blocker_rollup.action_items = @($summary.release_blocker_rollup.action_items)
+            $summary.steps.release_blocker_rollup.warning_count = $summary.release_blocker_rollup.warning_count
+            $summary.steps.release_blocker_rollup.warnings = @($summary.release_blocker_rollup.warnings)
             $summary.steps.release_blocker_rollup.error = $rollupError
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
             Write-Step "Release blocker rollup failed: $rollupError"
@@ -2455,10 +3413,11 @@ try {
             Invoke-ReleaseGovernanceHandoff `
                 -ScriptPath $releaseGovernanceHandoffScript `
                 -InputRoot $resolvedReleaseGovernanceHandoffInputRoot `
-                -InputJson $resolvedReleaseGovernanceHandoffInputJson `
+                -InputJson $effectiveReleaseGovernanceHandoffInputJson `
                 -OutputDir $resolvedReleaseGovernanceHandoffOutputDir `
                 -SummaryJson $releaseGovernanceHandoffSummaryPath `
                 -ReportMarkdown $releaseGovernanceHandoffMarkdownPath `
+                -ExpectedReportProfile $ReleaseGovernanceHandoffExpectedReportProfile `
                 -IncludeRollup ([bool]$ReleaseGovernanceHandoffIncludeRollup) `
                 -FailOnMissing ([bool]$ReleaseGovernanceHandoffFailOnMissing) `
                 -FailOnBlocker ([bool]$ReleaseGovernanceHandoffFailOnBlocker) `
@@ -2470,8 +3429,29 @@ try {
             $summary.release_governance_handoff.missing_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.missing_report_count }
             $summary.release_governance_handoff.failed_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.failed_report_count }
             $summary.release_governance_handoff.release_blocker_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.release_blocker_count }
+            $summary.release_governance_handoff.release_blockers = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "release_blockers") }
             $summary.release_governance_handoff.action_item_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.action_item_count }
+            $summary.release_governance_handoff.action_items = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "action_items") }
             $summary.release_governance_handoff.warning_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.warning_count }
+            $summary.release_governance_handoff.warnings = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "warnings") }
+            [object[]]$handoffReports = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "reports") }
+            [object[]]$handoffGovernanceMetrics = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "governance_metrics") }
+            $summary.release_governance_handoff.report_count = @($handoffReports).Count
+            $summary.release_governance_handoff.reports = @($handoffReports)
+            $summary.release_governance_handoff.governance_metric_count = if ($null -eq $handoffSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffSummary -Name "governance_metric_count" -DefaultValue @($handoffGovernanceMetrics).Count) }
+            $summary.release_governance_handoff.governance_metrics = @($handoffGovernanceMetrics)
+            $summary.release_governance_handoff.project_template_delivery_readiness_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_delivery_readiness_contract" }
+            $summary.release_governance_handoff.project_template_onboarding_governance_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_onboarding_governance_contract" }
+            $summary.governance_metric_count = $summary.release_governance_handoff.governance_metric_count
+            $summary.governance_metrics = @($summary.release_governance_handoff.governance_metrics)
+            $handoffRollup = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "release_blocker_rollup" }
+            $summary.release_governance_handoff.release_blocker_rollup = $handoffRollup
+            $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_report_count") }
+            $summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_reports") }
+            $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_report_count") }
+            $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_reports") }
+            $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count") }
+            $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports") }
             $summary.release_governance_handoff.error = ""
             $summary.steps.release_governance_handoff.status = $summary.release_governance_handoff.status
             $summary.steps.release_governance_handoff.expected_report_count = $summary.release_governance_handoff.expected_report_count
@@ -2479,15 +3459,83 @@ try {
             $summary.steps.release_governance_handoff.missing_report_count = $summary.release_governance_handoff.missing_report_count
             $summary.steps.release_governance_handoff.failed_report_count = $summary.release_governance_handoff.failed_report_count
             $summary.steps.release_governance_handoff.release_blocker_count = $summary.release_governance_handoff.release_blocker_count
+            $summary.steps.release_governance_handoff.release_blockers = @($summary.release_governance_handoff.release_blockers)
             $summary.steps.release_governance_handoff.action_item_count = $summary.release_governance_handoff.action_item_count
+            $summary.steps.release_governance_handoff.action_items = @($summary.release_governance_handoff.action_items)
             $summary.steps.release_governance_handoff.warning_count = $summary.release_governance_handoff.warning_count
+            $summary.steps.release_governance_handoff.warnings = @($summary.release_governance_handoff.warnings)
+            $summary.steps.release_governance_handoff.report_count = $summary.release_governance_handoff.report_count
+            $summary.steps.release_governance_handoff.reports = @($summary.release_governance_handoff.reports)
+            $summary.steps.release_governance_handoff.governance_metric_count = $summary.release_governance_handoff.governance_metric_count
+            $summary.steps.release_governance_handoff.governance_metrics = @($summary.release_governance_handoff.governance_metrics)
+            $summary.steps.release_governance_handoff.project_template_delivery_readiness_contract = $summary.release_governance_handoff.project_template_delivery_readiness_contract
+            $summary.steps.release_governance_handoff.project_template_onboarding_governance_contract = $summary.release_governance_handoff.project_template_onboarding_governance_contract
+            $summary.steps.release_governance_handoff.release_blocker_rollup = $summary.release_governance_handoff.release_blocker_rollup
+            $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count
+            $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_reports = @($summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports)
+            $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count
+            $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = @($summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports)
+            $summary.steps.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count
+            $summary.steps.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @($summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports)
             $summary.steps.release_governance_handoff.error = ""
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
         } catch {
             $handoffError = $_.Exception.Message
+            $handoffSummary = Read-ReleaseGovernanceHandoffSummary -Path $releaseGovernanceHandoffSummaryPath
             $summary.release_governance_handoff.status = "failed"
+            $summary.release_governance_handoff.expected_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.expected_report_count }
+            $summary.release_governance_handoff.loaded_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.loaded_report_count }
+            $summary.release_governance_handoff.missing_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.missing_report_count }
+            $summary.release_governance_handoff.failed_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.failed_report_count }
+            $summary.release_governance_handoff.release_blocker_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.release_blocker_count }
+            $summary.release_governance_handoff.release_blockers = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "release_blockers") }
+            $summary.release_governance_handoff.action_item_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.action_item_count }
+            $summary.release_governance_handoff.action_items = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "action_items") }
+            $summary.release_governance_handoff.warning_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.warning_count }
+            $summary.release_governance_handoff.warnings = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "warnings") }
+            [object[]]$handoffReports = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "reports") }
+            [object[]]$handoffGovernanceMetrics = if ($null -eq $handoffSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "governance_metrics") }
+            $summary.release_governance_handoff.report_count = @($handoffReports).Count
+            $summary.release_governance_handoff.reports = @($handoffReports)
+            $summary.release_governance_handoff.governance_metric_count = if ($null -eq $handoffSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffSummary -Name "governance_metric_count" -DefaultValue @($handoffGovernanceMetrics).Count) }
+            $summary.release_governance_handoff.governance_metrics = @($handoffGovernanceMetrics)
+            $summary.release_governance_handoff.project_template_delivery_readiness_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_delivery_readiness_contract" }
+            $summary.release_governance_handoff.project_template_onboarding_governance_contract = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "project_template_onboarding_governance_contract" }
+            $summary.governance_metric_count = $summary.release_governance_handoff.governance_metric_count
+            $summary.governance_metrics = @($summary.release_governance_handoff.governance_metrics)
+            $handoffRollup = if ($null -eq $handoffSummary) { $null } else { Get-OptionalPropertyValue -Object $handoffSummary -Name "release_blocker_rollup" }
+            $summary.release_governance_handoff.release_blocker_rollup = $handoffRollup
+            $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_report_count") }
+            $summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "manifest_signoff_entrypoints_source_reports") }
+            $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_report_count") }
+            $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_reports") }
+            $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count") }
+            $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports") }
             $summary.release_governance_handoff.error = $handoffError
             $summary.steps.release_governance_handoff.status = "failed"
+            $summary.steps.release_governance_handoff.expected_report_count = $summary.release_governance_handoff.expected_report_count
+            $summary.steps.release_governance_handoff.loaded_report_count = $summary.release_governance_handoff.loaded_report_count
+            $summary.steps.release_governance_handoff.missing_report_count = $summary.release_governance_handoff.missing_report_count
+            $summary.steps.release_governance_handoff.failed_report_count = $summary.release_governance_handoff.failed_report_count
+            $summary.steps.release_governance_handoff.release_blocker_count = $summary.release_governance_handoff.release_blocker_count
+            $summary.steps.release_governance_handoff.release_blockers = @($summary.release_governance_handoff.release_blockers)
+            $summary.steps.release_governance_handoff.action_item_count = $summary.release_governance_handoff.action_item_count
+            $summary.steps.release_governance_handoff.action_items = @($summary.release_governance_handoff.action_items)
+            $summary.steps.release_governance_handoff.warning_count = $summary.release_governance_handoff.warning_count
+            $summary.steps.release_governance_handoff.warnings = @($summary.release_governance_handoff.warnings)
+            $summary.steps.release_governance_handoff.report_count = $summary.release_governance_handoff.report_count
+            $summary.steps.release_governance_handoff.reports = @($summary.release_governance_handoff.reports)
+            $summary.steps.release_governance_handoff.governance_metric_count = $summary.release_governance_handoff.governance_metric_count
+            $summary.steps.release_governance_handoff.governance_metrics = @($summary.release_governance_handoff.governance_metrics)
+            $summary.steps.release_governance_handoff.project_template_delivery_readiness_contract = $summary.release_governance_handoff.project_template_delivery_readiness_contract
+            $summary.steps.release_governance_handoff.project_template_onboarding_governance_contract = $summary.release_governance_handoff.project_template_onboarding_governance_contract
+            $summary.steps.release_governance_handoff.release_blocker_rollup = $summary.release_governance_handoff.release_blocker_rollup
+            $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_report_count = $summary.release_governance_handoff.manifest_signoff_entrypoints_source_report_count
+            $summary.steps.release_governance_handoff.manifest_signoff_entrypoints_source_reports = @($summary.release_governance_handoff.manifest_signoff_entrypoints_source_reports)
+            $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count = $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_report_count
+            $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = @($summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports)
+            $summary.steps.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count
+            $summary.steps.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @($summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports)
             $summary.steps.release_governance_handoff.error = $handoffError
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
             Write-Step "Release governance handoff failed: $handoffError"
@@ -2498,6 +3546,9 @@ try {
             }
         }
     }
+
+    $summary = Convert-ReleaseMaterialObject -RepoRoot $repoRoot -Value $summary
+    ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
 
     $repoRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $repoRoot
     $summaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summaryPath
@@ -2525,6 +3576,28 @@ try {
     $schemaApprovalHistoryJsonDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.schema_patch_approval_history_json
     $schemaApprovalHistoryMarkdownDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.schema_patch_approval_history_markdown
     $startHereDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $startHerePath
+    $pdfVisualGateSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate.summary_json
+    $pdfVisualGateContactSheetDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate.aggregate_contact_sheet
+    $pdfVisualGateAttemptSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate_attempt.summary_json
+    $pdfVisualGateAttemptContactSheetDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_gate_attempt.aggregate_contact_sheet
+    $pdfVisualSegmentedGateSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_segmented_gate.summary_json
+    $pdfVisualSegmentedGateContactSheetDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_visual_segmented_gate.aggregate_contact_sheet
+    $pdfFullCtestReadinessSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_full_ctest_readiness.summary_json
+    $pdfFullCtestSummaryDisplayPath = if (-not [string]::IsNullOrWhiteSpace([string]$summary.steps.pdf_full_ctest_readiness.full_ctest_summary_json_display)) {
+        [string]$summary.steps.pdf_full_ctest_readiness.full_ctest_summary_json_display
+    } else {
+        Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.steps.pdf_full_ctest_readiness.full_ctest_summary_json
+    }
+    $pdfBoundedCtestSubsetsDisplay = if (@($summary.steps.pdf_bounded_ctest.subsets).Count -gt 0) {
+        @($summary.steps.pdf_bounded_ctest.subsets) -join ", "
+    } else {
+        "(not available)"
+    }
+    $pdfBoundedCtestSummaryDisplay = if (@($summary.steps.pdf_bounded_ctest.summary_json_display).Count -gt 0) {
+        @($summary.steps.pdf_bounded_ctest.summary_json_display) -join ", "
+    } else {
+        "(not available)"
+    }
 
     $readmeGalleryStatusLine = switch ($summary.readme_gallery.status) {
         "completed" {
@@ -2544,6 +3617,47 @@ try {
         -VisualGateStep $summary.steps.visual_gate
     $visualGateReviewSummary = Get-VisualGateReviewSummaryMarkdown -RepoRoot $repoRoot `
         -VisualGateStep $summary.steps.visual_gate
+    $releaseGovernanceRollupLines = New-Object 'System.Collections.Generic.List[string]'
+    Add-ReleaseGovernanceRollupMarkdownSection `
+        -Lines $releaseGovernanceRollupLines `
+        -Summary $summary `
+        -RepoRoot $repoRoot `
+        -Heading "## Release blocker rollup details"
+    $releaseGovernanceRollupMarkdown = if ($releaseGovernanceRollupLines.Count -gt 0) {
+        ($releaseGovernanceRollupLines.ToArray() -join [Environment]::NewLine) + [Environment]::NewLine
+    } else {
+        ""
+    }
+    $releaseGovernanceHandoffLines = New-Object 'System.Collections.Generic.List[string]'
+    Add-ReleaseGovernanceHandoffMarkdownSection `
+        -Lines $releaseGovernanceHandoffLines `
+        -Summary $summary `
+        -RepoRoot $repoRoot `
+        -Heading "## Release governance handoff details"
+    $releaseGovernanceHandoffMarkdown = if ($releaseGovernanceHandoffLines.Count -gt 0) {
+        ($releaseGovernanceHandoffLines.ToArray() -join [Environment]::NewLine) + [Environment]::NewLine
+    } else {
+        ""
+    }
+    $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
+    $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
+    $projectTemplateChecklistEvidenceLines = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($evidenceLine in @(
+            $projectTemplateChecklistHandoffEvidenceLine,
+            $projectTemplateChecklistMaterialSafetyAuditEvidenceLine
+        )) {
+        if (-not [string]::IsNullOrWhiteSpace($evidenceLine)) {
+            [void]$projectTemplateChecklistEvidenceLines.Add("- $evidenceLine")
+        }
+    }
+    $projectTemplateChecklistEvidenceMarkdown = if ($projectTemplateChecklistEvidenceLines.Count -gt 0) {
+        "## Project-template release entry evidence" + [Environment]::NewLine +
+        [Environment]::NewLine +
+        ($projectTemplateChecklistEvidenceLines.ToArray() -join [Environment]::NewLine) +
+        [Environment]::NewLine
+    } else {
+        ""
+    }
 
     $finalReview = @"
 # Release Candidate Checks
@@ -2555,6 +3669,7 @@ try {
 - Failed step: $($summary.failed_step)
 - Error: $($summary.error)
 - Release blockers: $($summary.release_blocker_count)
+- Warnings: $($summary.warning_count)
 - MSVC bootstrap mode: $($summary.msvc_bootstrap_mode)
 
 ## Step status
@@ -2567,11 +3682,39 @@ try {
 - Project template smoke: $($summary.steps.project_template_smoke.status)
 - Install smoke: $($summary.steps.install_smoke.status)
 - Visual gate: $($summary.steps.visual_gate.status)
+- PDF visual gate: $($summary.steps.pdf_visual_gate.status)
+- PDF visual gate verdict: $($summary.steps.pdf_visual_gate.verdict)
+- PDF visual gate counts: $($summary.steps.pdf_visual_gate.visual_baseline_count) visual baselines, $($summary.steps.pdf_visual_gate.cjk_copy_search_count) CJK copy/search
+- PDF visual gate manifest counts: $($summary.steps.pdf_visual_gate.visual_baseline_manifest_count) visual baseline manifest samples, $($summary.steps.pdf_visual_gate.cjk_manifest_count) CJK manifest samples
+- PDF visual gate finalizable: $($summary.steps.pdf_visual_gate.finalizable)
+- PDF visual gate attempt: $($summary.steps.pdf_visual_gate_attempt.status)
+- PDF visual gate attempt verdict: $($summary.steps.pdf_visual_gate_attempt.verdict)
+- PDF visual gate attempt full status: $($summary.steps.pdf_visual_gate_attempt.full_visual_gate_status)
+- PDF visual gate attempt stages: $($summary.steps.pdf_visual_gate_attempt.passed_stage_count)/$($summary.steps.pdf_visual_gate_attempt.stage_count) passed, $($summary.steps.pdf_visual_gate_attempt.incomplete_stage_count) incomplete
+- PDF visual gate attempt pdf_regression: $($summary.steps.pdf_visual_gate_attempt.pdf_regression_selected_test_count) selected, $($summary.steps.pdf_visual_gate_attempt.pdf_regression_failed_test_count) failed, $($summary.steps.pdf_visual_gate_attempt.pdf_regression_skipped_test_count) skipped
+- PDF visual gate attempt render: $($summary.steps.pdf_visual_gate_attempt.visual_baseline_fresh_rendered_count)/$($summary.steps.pdf_visual_gate_attempt.expected_visual_render_count) fresh baselines, contact sheet $($summary.steps.pdf_visual_gate_attempt.aggregate_contact_sheet_status)
+- PDF visual segmented gate: $($summary.steps.pdf_visual_segmented_gate.status)
+- PDF visual segmented gate verdict: $($summary.steps.pdf_visual_segmented_gate.verdict)
+- PDF visual segmented gate full status: $($summary.steps.pdf_visual_segmented_gate.full_visual_gate_status)
+- PDF visual segmented gate scope: $($summary.steps.pdf_visual_segmented_gate.evidence_scope)
+- PDF visual segmented gate slices: $($summary.steps.pdf_visual_segmented_gate.slice_pass_count)/$($summary.steps.pdf_visual_segmented_gate.slice_summary_count) pass
+- PDF visual segmented gate coverage: $($summary.steps.pdf_visual_segmented_gate.covered_baseline_count)/$($summary.steps.pdf_visual_segmented_gate.expected_visual_render_count) baselines, contact sheet $($summary.steps.pdf_visual_segmented_gate.aggregate_contact_sheet_status)
+- PDF visual release evidence accepted: $($summary.steps.pdf_full_ctest_readiness.visual_gate_release_evidence_accepted) (fresh full guarded $($summary.steps.pdf_full_ctest_readiness.visual_gate_fresh_full_guarded_evidence), pass summary before outer timeout $($summary.steps.pdf_full_ctest_readiness.visual_gate_pass_summary_before_outer_timeout), segmented full coverage $($summary.steps.pdf_full_ctest_readiness.visual_gate_segmented_full_coverage_evidence))
+- PDF bounded CTest summaries: $($summary.steps.pdf_bounded_ctest.summary_count) summaries, $($summary.steps.pdf_bounded_ctest.pass_count) pass
+- PDF bounded CTest subsets: $pdfBoundedCtestSubsetsDisplay
+- PDF bounded CTest selected tests: $($summary.steps.pdf_bounded_ctest.selected_test_count)
+- PDF bounded CTest skipped tests: $($summary.steps.pdf_bounded_ctest.skipped_test_count)
+- PDF full CTest readiness: $($summary.steps.pdf_full_ctest_readiness.full_ctest_status) ($($summary.steps.pdf_full_ctest_readiness.completion_percent)% complete)
+- PDF full CTest progress: $($summary.steps.pdf_full_ctest_readiness.completed_test_count)/$($summary.steps.pdf_full_ctest_readiness.selected_test_count) completed, $($summary.steps.pdf_full_ctest_readiness.not_run_test_count) not run
+- PDF full CTest observed failures: $($summary.steps.pdf_full_ctest_readiness.failed_test_count), zero failed observed $($summary.steps.pdf_full_ctest_readiness.zero_failed_tests_observed)
 - Release blocker rollup: $($summary.steps.release_blocker_rollup.status)
 - Release governance handoff: $($summary.steps.release_governance_handoff.status)
 $visualGateReviewTaskSummaryLine
 $readmeGalleryStatusLine
 $visualGateReviewSummary
+$releaseGovernanceRollupMarkdown
+$releaseGovernanceHandoffMarkdown
+$projectTemplateChecklistEvidenceMarkdown
 ## Key outputs
 
 - Build directory: $buildDirDisplay
@@ -2607,6 +3750,15 @@ $visualGateReviewSummary
 - Artifact guide: $artifactGuideDisplayPath
 - Reviewer checklist: $reviewerChecklistDisplayPath
 - Start here: $startHereDisplayPath
+- PDF visual gate summary: $pdfVisualGateSummaryDisplayPath
+- PDF visual gate contact sheet: $pdfVisualGateContactSheetDisplayPath
+- PDF visual gate attempt summary: $pdfVisualGateAttemptSummaryDisplayPath
+- PDF visual gate attempt contact sheet: $pdfVisualGateAttemptContactSheetDisplayPath
+- PDF visual segmented gate summary: $pdfVisualSegmentedGateSummaryDisplayPath
+- PDF visual segmented gate contact sheet: $pdfVisualSegmentedGateContactSheetDisplayPath
+- PDF bounded CTest summaries: $pdfBoundedCtestSummaryDisplay
+- PDF release readiness summary: $pdfFullCtestReadinessSummaryDisplayPath
+- PDF full CTest summary: $pdfFullCtestSummaryDisplayPath
 "@
     $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 
@@ -2644,6 +3796,21 @@ Write-Host "Release body output: $releaseBodyZhCnPath"
 Write-Host "Release summary output: $releaseSummaryZhCnPath"
 Write-Host "Artifact guide: $artifactGuidePath"
 Write-Host "Reviewer checklist: $reviewerChecklistPath"
+if (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateSummaryJson)) {
+    Write-Host "PDF visual gate summary: $resolvedPdfVisualGateSummaryJson"
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateAttemptSummaryJson)) {
+    Write-Host "PDF visual gate attempt summary: $resolvedPdfVisualGateAttemptSummaryJson"
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisualSegmentedGateSummaryJson)) {
+    Write-Host "PDF visual segmented gate summary: $resolvedPdfVisualSegmentedGateSummaryJson"
+}
+if (@($resolvedPdfBoundedCtestSummaryJson).Count -gt 0) {
+    Write-Host "PDF bounded CTest summaries: $($resolvedPdfBoundedCtestSummaryJson -join ', ')"
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedPdfReleaseReadinessSummaryJson)) {
+    Write-Host "PDF release readiness summary: $resolvedPdfReleaseReadinessSummaryJson"
+}
 if ($projectTemplateSmokeRequested) {
     Write-Host "Project template schema approval history JSON: $schemaApprovalHistoryJsonPath"
     Write-Host "Project template schema approval history Markdown: $schemaApprovalHistoryMarkdownPath"
@@ -2664,3 +3831,5 @@ if ($null -ne $releaseBlockerRollupFailure) {
 if ($null -ne $releaseGovernanceHandoffFailure) {
     throw $releaseGovernanceHandoffFailure
 }
+
+$global:LASTEXITCODE = 0

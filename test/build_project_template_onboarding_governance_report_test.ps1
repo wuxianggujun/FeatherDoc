@@ -8,6 +8,14 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = Join-Path $RepoRoot "build\build_project_template_onboarding_governance_report_test"
+}
+
 function Assert-True {
     param([bool]$Condition, [string]$Message)
     if (-not $Condition) { throw $Message }
@@ -223,6 +231,27 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should aggregate onboarding action items."
     Assert-Equal -Actual ([int]$summary.manual_review_recommendation_count) -Expected 2 `
         -Message "Summary should aggregate manual review recommendations."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
+        -Message "Release blockers should expose the onboarding governance source schema."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "onboarding_summary.json" `
+        -Message "Release blockers should expose the source evidence JSON display path."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+        -ExpectedText "aggregate-report\summary.json" `
+        -Message "Release blockers should expose the onboarding governance report display path."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
+        -Message "Action items should expose the onboarding governance source schema."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "onboarding_summary.json" `
+        -Message "Action items should expose the source evidence JSON display path."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+        -ExpectedText "aggregate-report\summary.json" `
+        -Message "Action items should expose the onboarding governance report display path."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "run_project_template_smoke.ps1" `
+        -Message "Action items should expose the reviewer open command."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Project Template Onboarding Governance Report" `
@@ -235,6 +264,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include smoke approval items."
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
         -Message "Markdown should include release blockers."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
+        -Message "Markdown should include source JSON display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Markdown should include source report display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
+        -Message "Markdown should include action item open commands."
 }
 
 if (Test-Scenario -Name "fail_on_blocker") {
@@ -253,6 +288,16 @@ if (Test-Scenario -Name "fail_on_blocker") {
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
         -Message "Failing summary should preserve blocked status."
+    $markdownPath = Join-Path $failOutputDir "project_template_onboarding_governance.md"
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "Project Template Onboarding Governance Report" `
+        -Message "Failing governance report Markdown should include the title."
+    Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
+        -Message "Failing governance report Markdown should include the blocker section."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Failing governance report Markdown should include source report display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
+        -Message "Failing governance report Markdown should include action item open commands."
 }
 
 Write-Host "Project template onboarding governance report regression passed."

@@ -1,5 +1,6 @@
 param(
     [string]$RepoRoot,
+    [string]$BuildDir = "",
     [string]$WorkingDir,
     [ValidateSet("all", "aggregate", "empty", "failed_source_report", "malformed", "fail_on_issue", "fail_on_blocker")]
     [string]$Scenario = "all"
@@ -7,6 +8,18 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $BuildDir) {
+    $BuildDir = Join-Path $RepoRoot "build\build_table_layout_delivery_rollup_report_test"
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = $BuildDir
+}
 
 function Assert-True {
     param([bool]$Condition, [string]$Message)
@@ -246,6 +259,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should include source document names."
     Assert-ContainsText -Text $markdown -ExpectedText "bad_tblLook" `
         -Message "Markdown report should include issue summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failure_count: ``0``" `
+        -Message "Markdown report should expose a machine-readable source failure count."
 }
 
 if (Test-Scenario -Name "empty") {
@@ -331,6 +346,9 @@ if (Test-Scenario -Name "malformed") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "source_report_read_failed" `
         -Message "Malformed layout rollup should include a source read warning."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $malformedOutputDir "table_layout_delivery_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failure_count: ``1``" `
+        -Message "Malformed layout Markdown should expose a machine-readable source failure count."
 }
 
 if (Test-Scenario -Name "fail_on_issue") {
@@ -389,6 +407,15 @@ if (Test-Scenario -Name "fail_on_blocker") {
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $failOnBlockerOutputDir "summary.json") | ConvertFrom-Json
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 1 `
         -Message "Fail-on-blocker layout summary should still preserve blockers."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $failOnBlockerOutputDir "table_layout_delivery_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
+        -Message "Fail-on-blocker layout Markdown should include the blocker section."
+    Assert-ContainsText -Text $markdown -ExpectedText "table_layout.positioned_tables_need_review" `
+        -Message "Fail-on-blocker layout Markdown should include the blocker id."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_table_position_plan" `
+        -Message "Fail-on-blocker layout Markdown should include the blocker action."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_failure_count: ``0``" `
+        -Message "Fail-on-blocker layout Markdown should expose a machine-readable source failure count."
 }
 
 Write-Host "Table layout delivery rollup regression passed."

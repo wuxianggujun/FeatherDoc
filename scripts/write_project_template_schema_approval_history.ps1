@@ -226,6 +226,39 @@ function Get-SchemaPatchApprovalItemCount {
     return $countedItems
 }
 
+function Test-ProjectTemplateSchemaApprovalSummary {
+    param([string]$Path)
+
+    try {
+        $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+    } catch {
+        return $true
+    }
+
+    if ($null -ne (Get-OptionalPropertyValue -Object $summary -Name "project_template_smoke")) {
+        return $true
+    }
+
+    $projectTemplateSummaryFields = @(
+        "schema_patch_review_count",
+        "schema_patch_review_changed_count",
+        "schema_patch_approval_pending_count",
+        "schema_patch_approval_approved_count",
+        "schema_patch_approval_rejected_count",
+        "schema_patch_approval_compliance_issue_count",
+        "schema_patch_approval_invalid_result_count",
+        "schema_patch_approval_gate_status",
+        "schema_patch_approval_items"
+    )
+    foreach ($field in $projectTemplateSummaryFields) {
+        if ($null -ne (Get-OptionalPropertyValue -Object $summary -Name $field)) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Get-SummaryInputPaths {
     param(
         [string]$RepoRoot,
@@ -255,7 +288,9 @@ function Get-SummaryInputPaths {
             $childArgs.Recurse = $true
         }
         foreach ($file in @(Get-ChildItem @childArgs | Sort-Object FullName)) {
-            [void]$paths.Add($file.FullName)
+            if (Test-ProjectTemplateSchemaApprovalSummary -Path $file.FullName) {
+                [void]$paths.Add($file.FullName)
+            }
         }
     }
 

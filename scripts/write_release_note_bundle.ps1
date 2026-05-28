@@ -118,6 +118,7 @@ if (-not (Test-Path -LiteralPath $resolvedSummaryPath)) {
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
 Assert-ReleaseBlockerMetadataQuality -Summary $summary -Context $resolvedSummaryPath
+Assert-ReleaseGovernanceReviewerMetadataQuality -Summary $summary -Context $resolvedSummaryPath
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 
 $resolvedHandoffPath = if ([string]::IsNullOrWhiteSpace($HandoffOutputPath)) {

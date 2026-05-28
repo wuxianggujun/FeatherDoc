@@ -26,46 +26,6 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($candidate)
 }
 
-function Get-OptionalPropertyValue {
-    param(
-        $Object,
-        [string]$Name
-    )
-
-    if ($null -eq $Object) {
-        return ""
-    }
-
-    $property = $Object.PSObject.Properties[$Name]
-    if ($null -eq $property) {
-        return ""
-    }
-
-    if ($null -eq $property.Value) {
-        return ""
-    }
-
-    return [string]$property.Value
-}
-
-function Get-OptionalPropertyObject {
-    param(
-        $Object,
-        [string]$Name
-    )
-
-    if ($null -eq $Object) {
-        return $null
-    }
-
-    $property = $Object.PSObject.Properties[$Name]
-    if ($null -eq $property) {
-        return $null
-    }
-
-    return $property.Value
-}
-
 function Get-DisplayValue {
     param([string]$Value)
 
@@ -87,36 +47,6 @@ function Get-DisplayPath {
     }
 
     return Get-RepoRelativePath -RepoRoot $RepoRoot -Path $Path
-}
-
-function Get-SupersededReviewTasksReportPath {
-    param(
-        $Summary,
-        $VisualGateSummary
-    )
-
-    $reportPath = Get-OptionalPropertyValue -Object $VisualGateSummary -Name "superseded_review_tasks_report"
-    if (-not [string]::IsNullOrWhiteSpace($reportPath)) {
-        return $reportPath
-    }
-
-    return Get-OptionalPropertyValue -Object $Summary -Name "superseded_review_tasks_report"
-}
-
-function Get-SupersededReviewTaskCount {
-    param([string]$ReportPath)
-
-    if ([string]::IsNullOrWhiteSpace($ReportPath) -or -not (Test-Path -LiteralPath $ReportPath)) {
-        return ""
-    }
-
-    try {
-        $report = Get-Content -Raw -LiteralPath $ReportPath | ConvertFrom-Json
-    } catch {
-        return ""
-    }
-
-    return Get-OptionalPropertyValue -Object $report -Name "superseded_task_count"
 }
 
 function Get-VisualTaskDir {
@@ -372,6 +302,9 @@ if ([string]::IsNullOrWhiteSpace($taskOutputRoot) -and -not [string]::IsNullOrWh
     $taskOutputRoot = Split-Path -Parent $supersededReviewTasksReportPath
 }
 $supersededReviewTasksCount = Get-SupersededReviewTaskCount -ReportPath $supersededReviewTasksReportPath
+$pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
+$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath
+$pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 
 $installedDataDir = ""
 $installedQuickstartEn = ""
@@ -473,6 +406,26 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
     [void]$handoffLines.Add("- $visualReviewTaskSummaryLine")
 }
+if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
+    [void]$handoffLines.Add("- PDF visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json)")
+    [void]$handoffLines.Add("- PDF visual gate evidence status: $(Get-DisplayValue -Value $pdfVisualGateEvidence.status)")
+    if ($pdfVisualGateEvidence.status -eq "loaded") {
+        [void]$handoffLines.Add("- PDF visual gate verdict: $(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
+        [void]$handoffLines.Add("- PDF visual gate aggregate contact sheet: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet)")
+        [void]$handoffLines.Add("- PDF CJK manifest samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_manifest_count)")
+        [void]$handoffLines.Add("- PDF CJK copy/search samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count)")
+        [void]$handoffLines.Add("- PDF CJK missing text count: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_missing_text_count)")
+        [void]$handoffLines.Add("- PDF visual baseline manifest samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_manifest_count)")
+        [void]$handoffLines.Add("- PDF visual baselines: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_count)")
+    } elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.error)) {
+        [void]$handoffLines.Add("- PDF visual gate evidence error: $($pdfVisualGateEvidence.error)")
+    }
+}
+if ($pdfBoundedCtestEvidence.status -ne "not_available") {
+    [void]$handoffLines.Add("- PDF bounded CTest auxiliary evidence: status=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status), summaries=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.summary_count), pass=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.pass_count), selected_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.selected_test_count), skipped_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.skipped_test_count)")
+    [void]$handoffLines.Add("- PDF bounded CTest auxiliary subsets: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.subsets) -join ', '))")
+    [void]$handoffLines.Add("- PDF bounded CTest auxiliary summaries: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+}
 [void]$handoffLines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
 [void]$handoffLines.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")
 [void]$handoffLines.Add("- Smoke reviewed at: $(Get-DisplayValue -Value $smokeReviewedAt)")
@@ -509,10 +462,22 @@ if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
 [void]$handoffLines.Add("- Install smoke: $($summary.steps.install_smoke.status)")
 [void]$handoffLines.Add("- Visual gate: $($summary.steps.visual_gate.status)")
 [void]$handoffLines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
+[void]$handoffLines.Add("- PDF visual gate evidence: $(Get-DisplayValue -Value $pdfVisualGateEvidence.status)")
+[void]$handoffLines.Add("- PDF visual gate verdict: $(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
+[void]$handoffLines.Add("- PDF CJK manifest samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_manifest_count)")
+[void]$handoffLines.Add("- PDF CJK copy/search samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count)")
+[void]$handoffLines.Add("- PDF CJK missing text count: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_missing_text_count)")
+[void]$handoffLines.Add("- PDF visual baseline manifest samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_manifest_count)")
+[void]$handoffLines.Add("- PDF visual baselines: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_count)")
+[void]$handoffLines.Add("- PDF bounded CTest auxiliary evidence: $(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status)")
+[void]$handoffLines.Add("- PDF bounded CTest summaries / pass: $(Get-DisplayValue -Value ('{0}/{1}' -f $pdfBoundedCtestEvidence.summary_count, $pdfBoundedCtestEvidence.pass_count))")
+[void]$handoffLines.Add("- PDF bounded CTest selected / skipped tests: $(Get-DisplayValue -Value ('{0}/{1}' -f $pdfBoundedCtestEvidence.selected_test_count, $pdfBoundedCtestEvidence.skipped_test_count))")
 [void]$handoffLines.Add("- Superseded review tasks: $(Get-DisplayValue -Value $supersededReviewTasksCount)")
 [void]$handoffLines.Add("- Section page setup task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir)")
 [void]$handoffLines.Add("- Page number fields task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir)")
 Add-ReleaseBlockerMarkdownSection -Lines $handoffLines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceRollupMarkdownSection -Lines $handoffLines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceHandoffMarkdownSection -Lines $handoffLines -Summary $summary -RepoRoot $repoRoot
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Installed Package Entry Points")
 [void]$handoffLines.Add("")
@@ -538,6 +503,14 @@ Add-ReleaseBlockerMarkdownSection -Lines $handoffLines -Summary $summary -RepoRo
 [void]$handoffLines.Add("- Project template smoke candidate discovery: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson)")
 [void]$handoffLines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$handoffLines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
+[void]$handoffLines.Add("- PDF visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json)")
+[void]$handoffLines.Add("- PDF visual gate verdict: $(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
+[void]$handoffLines.Add("- PDF visual gate aggregate contact sheet: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet)")
+[void]$handoffLines.Add("- PDF visual gate CLI export log: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.pdf_cli_export_log)")
+[void]$handoffLines.Add("- PDF visual gate regression log: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.pdf_regression_log)")
+[void]$handoffLines.Add("- PDF visual gate CJK copy/search log dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.cjk_copy_search_log_dir)")
+[void]$handoffLines.Add("- PDF visual gate unicode font log: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.unicode_font_log)")
+[void]$handoffLines.Add("- PDF bounded CTest auxiliary summaries: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
 [void]$handoffLines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
 [void]$handoffLines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")
 [void]$handoffLines.Add("- Document review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $documentTaskDir)")

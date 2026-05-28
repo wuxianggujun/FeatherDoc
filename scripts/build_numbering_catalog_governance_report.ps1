@@ -23,6 +23,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[numbering-catalog-governance] $Message"
@@ -151,28 +153,15 @@ function Get-JsonArray {
     return @($value)
 }
 
-function Expand-ArgumentList {
-    param([string[]]$Values)
-
-    return @(
-        foreach ($value in @($Values)) {
-            if ([string]::IsNullOrWhiteSpace($value)) { continue }
-            foreach ($part in ([string]$value -split ",")) {
-                if (-not [string]::IsNullOrWhiteSpace($part)) { $part.Trim() }
-            }
-        }
-    )
-}
-
 function Get-InputJsonPaths {
     param([string]$RepoRoot, [string[]]$ExplicitPaths, [string[]]$Roots)
 
     $paths = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($path in @(Expand-ArgumentList -Values $ExplicitPaths)) {
+    foreach ($path in @(Expand-TemplateSchemaArgumentList -Values $ExplicitPaths)) {
         $paths.Add((Resolve-RepoPath -RepoRoot $RepoRoot -Path $path)) | Out-Null
     }
 
-    $scanRoots = @(Expand-ArgumentList -Values $Roots)
+    $scanRoots = @(Expand-TemplateSchemaArgumentList -Values $Roots)
     if ($paths.Count -eq 0 -and $scanRoots.Count -eq 0) {
         $scanRoots = @(
             "output/document-skeleton-governance-rollup",
@@ -185,8 +174,7 @@ function Get-InputJsonPaths {
         if (-not (Test-Path -LiteralPath $resolvedRoot)) { continue }
 
         if ((Get-Item -LiteralPath $resolvedRoot).PSIsContainer) {
-            Get-ChildItem -LiteralPath $resolvedRoot -Recurse -File -Filter "*.json" |
-                Where-Object { $_.Name -eq "summary.json" } |
+            Get-ChildItem -LiteralPath $resolvedRoot -Recurse -File -Filter "summary.json" |
                 ForEach-Object { $paths.Add($_.FullName) | Out-Null }
         } else {
             $paths.Add($resolvedRoot) | Out-Null
@@ -253,6 +241,99 @@ function Add-IssueSummary {
             @{ Expression = { $_.issue }; Ascending = $true })
 }
 
+function Get-Percent {
+    param([int]$Numerator, [int]$Denominator)
+
+    if ($Denominator -le 0) { return 0 }
+    $ratio = [Math]::Min(1.0, [double]$Numerator / [double]$Denominator)
+    return [int][Math]::Round($ratio * 100, 0)
+}
+
+function Get-CanonicalDocumentKey {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return "" }
+    $leaf = [System.IO.Path]::GetFileName([string]$Value)
+    if ([string]::IsNullOrWhiteSpace($leaf)) {
+        $leaf = [string]$Value
+    }
+    $stem = [System.IO.Path]::GetFileNameWithoutExtension($leaf)
+    if ([string]::IsNullOrWhiteSpace($stem)) {
+        $stem = $leaf
+    }
+    return $stem.Trim().ToLowerInvariant()
+}
+
+function Get-RealCorpusConfidenceLevel {
+    param(
+        [int]$Score,
+        [int]$DocumentCount,
+        [int]$CatalogExemplarCount,
+        [int]$BaselineEntryCount
+    )
+
+    if ($DocumentCount -le 0 -or $CatalogExemplarCount -le 0 -or $BaselineEntryCount -le 0) {
+        return "insufficient_evidence"
+    }
+    if ($Score -ge 90) { return "high" }
+    if ($Score -ge 70) { return "medium" }
+    if ($Score -ge 40) { return "low" }
+    return "insufficient_evidence"
+}
+
+function New-RealCorpusConfidence {
+    param(
+        [int]$DocumentCount,
+        [int]$CatalogExemplarCount,
+        [int]$BaselineEntryCount,
+        [int]$MatchedDocumentCount,
+        [int]$TotalStyleNumberingIssueCount,
+        [int]$TotalStyleNumberingSuggestionCount,
+        [int]$DriftCount,
+        [int]$DirtyBaselineCount,
+        [int]$IssueEntryCount,
+        [int]$TotalCommandFailureCount
+    )
+
+    $catalogCoveragePercent = Get-Percent -Numerator $MatchedDocumentCount -Denominator $DocumentCount
+    $baselineCoveragePercent = Get-Percent -Numerator $MatchedDocumentCount -Denominator $BaselineEntryCount
+    $coverageScore = [Math]::Min($catalogCoveragePercent, $baselineCoveragePercent)
+    $unmatchedCatalogDocumentCount = [Math]::Max(0, $CatalogExemplarCount - $MatchedDocumentCount)
+    $unmatchedBaselineDocumentCount = [Math]::Max(0, $BaselineEntryCount - $MatchedDocumentCount)
+
+    $styleIssuePenalty = [Math]::Min(25, $TotalStyleNumberingIssueCount * 5)
+    $suggestionPenalty = [Math]::Min(10, $TotalStyleNumberingSuggestionCount * 2)
+    $catalogQualityPenalty = [Math]::Min(25, ($DriftCount + $DirtyBaselineCount + $IssueEntryCount) * 10)
+    $commandFailurePenalty = [Math]::Min(40, $TotalCommandFailureCount * 20)
+    $score = [int][Math]::Max(0, $coverageScore - $styleIssuePenalty - $suggestionPenalty - $catalogQualityPenalty - $commandFailurePenalty)
+    $level = Get-RealCorpusConfidenceLevel `
+        -Score $score `
+        -DocumentCount $DocumentCount `
+        -CatalogExemplarCount $CatalogExemplarCount `
+        -BaselineEntryCount $BaselineEntryCount
+
+    return [ordered]@{
+        score = $score
+        level = $level
+        document_count = $DocumentCount
+        catalog_exemplar_count = $CatalogExemplarCount
+        baseline_entry_count = $BaselineEntryCount
+        matched_document_count = $MatchedDocumentCount
+        unmatched_catalog_document_count = $unmatchedCatalogDocumentCount
+        unmatched_baseline_document_count = $unmatchedBaselineDocumentCount
+        alignment_gap_count = ($unmatchedCatalogDocumentCount + $unmatchedBaselineDocumentCount)
+        catalog_coverage_percent = $catalogCoveragePercent
+        baseline_coverage_percent = $baselineCoveragePercent
+        coverage_score = $coverageScore
+        penalty_summary = @(
+            [ordered]@{ factor = "style_numbering_issues"; count = $TotalStyleNumberingIssueCount; penalty = $styleIssuePenalty }
+            [ordered]@{ factor = "style_numbering_suggestions"; count = $TotalStyleNumberingSuggestionCount; penalty = $suggestionPenalty }
+            [ordered]@{ factor = "catalog_drift_or_dirty_baseline"; count = ($DriftCount + $DirtyBaselineCount + $IssueEntryCount); penalty = $catalogQualityPenalty }
+            [ordered]@{ factor = "command_failures"; count = $TotalCommandFailureCount; penalty = $commandFailurePenalty }
+        )
+    }
+}
+
 function New-ReleaseBlocker {
     param(
         [string]$Id,
@@ -282,7 +363,11 @@ function New-ActionItem {
         [string]$SourceKind,
         [string]$Action,
         [string]$Title,
-        [string]$Command = ""
+        [string]$Command = "",
+        [string]$Category = "remediation",
+        [string]$Severity = "warning",
+        [bool]$ReleaseBlocking = $true,
+        [bool]$Optional = $false
     )
 
     return [ordered]@{
@@ -292,7 +377,63 @@ function New-ActionItem {
         action = $Action
         title = $Title
         command = $Command
+        open_command = $Command
+        audit_command = ""
+        review_command = ""
+        category = $Category
+        severity = $Severity
+        release_blocking = $ReleaseBlocking
+        optional = $Optional
     }
+}
+
+function Copy-ActionItemWithReleaseChecklistDefaults {
+    param($Item)
+
+    $copy = [ordered]@{}
+    if ($Item -is [System.Collections.IDictionary]) {
+        foreach ($key in @($Item.Keys)) {
+            $copy[[string]$key] = $Item[$key]
+        }
+    } else {
+        foreach ($property in @($Item.PSObject.Properties)) {
+            $copy[$property.Name] = $property.Value
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $copy -Name "category"))) {
+        $copy["category"] = "release_checklist"
+    }
+    if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $copy -Name "severity"))) {
+        $copy["severity"] = "info"
+    }
+    $copy["release_blocking"] = $false
+    $copy["optional"] = $true
+
+    return $copy
+}
+
+function Test-InformationalActionItem {
+    param($Item)
+
+    $category = Get-JsonString -Object $Item -Name "category"
+    if ($category -in @("release_checklist", "manual_release_checklist", "informational")) {
+        return $true
+    }
+
+    if (Get-JsonBool -Object $Item -Name "optional") {
+        return $true
+    }
+
+    $releaseBlockingProperty = Get-JsonProperty -Object $Item -Name "release_blocking"
+    if ($null -ne $releaseBlockingProperty -and -not (Get-JsonBool -Object $Item -Name "release_blocking" -DefaultValue $true)) {
+        return $true
+    }
+
+    $id = Get-JsonString -Object $Item -Name "id"
+    $action = Get-JsonString -Object $Item -Name "action"
+    return ($id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline") -or
+        $action -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline"))
 }
 
 function New-BaselineBlocker {
@@ -359,9 +500,34 @@ function New-ReportMarkdown {
     $lines.Add("- Baseline entries: ``$($Summary.baseline_entry_count)``") | Out-Null
     $lines.Add("- Catalog exemplars: ``$($Summary.catalog_exemplar_count)``") | Out-Null
     $lines.Add("- Style-numbering issues: ``$($Summary.total_style_numbering_issue_count)``") | Out-Null
+    $lines.Add("- Real corpus confidence: ``$($Summary.real_corpus_confidence_level)`` (score=``$($Summary.real_corpus_confidence_score)``)") | Out-Null
     $lines.Add("- Catalog drift: ``$($Summary.drift_count)``") | Out-Null
     $lines.Add("- Dirty baselines: ``$($Summary.dirty_baseline_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
+    $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
+    $lines.Add("- Informational action items: ``$($Summary.informational_action_item_count)``") | Out-Null
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Real Corpus Confidence") | Out-Null
+    $lines.Add("") | Out-Null
+    $confidence = $Summary.real_corpus_confidence
+    $lines.Add("- Level: ``$($confidence.level)``") | Out-Null
+    $lines.Add("- Score: ``$($confidence.score)``") | Out-Null
+    $lines.Add("- Matched documents: ``$($confidence.matched_document_count)`` / ``$($confidence.document_count)``") | Out-Null
+    $lines.Add("- Unmatched catalog documents: ``$($confidence.unmatched_catalog_document_count)``") | Out-Null
+    $lines.Add("- Unmatched baseline entries: ``$($confidence.unmatched_baseline_document_count)``") | Out-Null
+    $lines.Add("- Catalog coverage: ``$($confidence.catalog_coverage_percent)%``") | Out-Null
+    $lines.Add("- Baseline coverage: ``$($confidence.baseline_coverage_percent)%``") | Out-Null
+    if (@($confidence.penalty_summary).Count -eq 0) {
+        $lines.Add("- Penalties: none") | Out-Null
+    } else {
+        foreach ($penalty in @($confidence.penalty_summary)) {
+            $lines.Add(("- Penalty ``{0}``: count=``{1}`` penalty=``{2}``" -f
+                $penalty.factor,
+                $penalty.count,
+                $penalty.penalty)) | Out-Null
+        }
+    }
     $lines.Add("") | Out-Null
 
     $lines.Add("## Catalog Exemplars") | Out-Null
@@ -414,7 +580,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` message=$($blocker.message)") | Out-Null
+            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)`` source_json_display=``$($blocker.source_json_display)`` message=$($blocker.message)") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -425,7 +591,30 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.scope)`` / ``$($item.id)``: action=``$($item.action)`` title=$($item.title)") | Out-Null
+            $lines.Add("- ``$($item.scope)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)`` title=$($item.title)") | Out-Null
+            foreach ($commandName in @("open_command", "audit_command", "review_command")) {
+                $commandValue = Get-JsonString -Object $item -Name $commandName
+                if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
+                    $lines.Add("  - ${commandName}: ``$commandValue``") | Out-Null
+                }
+            }
+        }
+    }
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Informational Action Items") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.informational_action_items).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.informational_action_items)) {
+            $lines.Add("- ``$($item.scope)`` / ``$($item.id)``: action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` title=$($item.title)") | Out-Null
+            foreach ($commandName in @("open_command", "audit_command", "review_command")) {
+                $commandValue = Get-JsonString -Object $item -Name $commandName
+                if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
+                    $lines.Add("  - ${commandName}: ``$commandValue``") | Out-Null
+                }
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -436,7 +625,19 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
+            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)`` source_json_display=``$($warning.source_json_display)`` message=$($warning.message)") | Out-Null
+            $repairStrategy = Get-JsonString -Object $warning -Name "repair_strategy"
+            $repairHint = Get-JsonString -Object $warning -Name "repair_hint"
+            $commandTemplate = Get-JsonString -Object $warning -Name "command_template"
+            if (-not [string]::IsNullOrWhiteSpace($repairStrategy)) {
+                $lines.Add("  - repair_strategy: ``$repairStrategy``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($repairHint)) {
+                $lines.Add("  - repair_hint: $repairHint") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
+                $lines.Add("  - command_template: ``$commandTemplate``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -523,6 +724,8 @@ foreach ($path in @($inputPaths)) {
                         exemplar_catalog_display = Get-JsonString -Object $catalog -Name "exemplar_catalog_display"
                         definition_count = Get-JsonInt -Object $catalog -Name "definition_count"
                         instance_count = Get-JsonInt -Object $catalog -Name "instance_count"
+                        source_json = $path
+                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     }) | Out-Null
@@ -538,6 +741,9 @@ foreach ($path in @($inputPaths)) {
                         id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
                         scope = Get-FirstJsonString -Object $blocker -Names @("document_name", "scope") -DefaultValue "document_skeleton"
                         source_kind = "document_skeleton_governance_rollup"
+                        source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                        source_json = $path
+                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
@@ -551,11 +757,21 @@ foreach ($path in @($inputPaths)) {
                         id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
                         scope = Get-FirstJsonString -Object $item -Names @("document_name", "scope") -DefaultValue "document_skeleton"
                         source_kind = "document_skeleton_governance_rollup"
+                        source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                        source_json = $path
+                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         action = Get-JsonString -Object $item -Name "action"
                         title = Get-JsonString -Object $item -Name "title"
                         command = Get-JsonString -Object $item -Name "command"
+                        open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command")
+                        audit_command = Get-JsonString -Object $item -Name "audit_command"
+                        review_command = Get-JsonString -Object $item -Name "review_command"
+                        category = Get-JsonString -Object $item -Name "category"
+                        severity = Get-JsonString -Object $item -Name "severity"
+                        release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
+                        optional = Get-JsonBool -Object $item -Name "optional"
                     }) | Out-Null
                 }
             }
@@ -584,16 +800,24 @@ foreach ($path in @($inputPaths)) {
                         added_definition_count = Get-JsonInt -Object $entry -Name "added_definition_count"
                         removed_definition_count = Get-JsonInt -Object $entry -Name "removed_definition_count"
                         changed_definition_count = Get-JsonInt -Object $entry -Name "changed_definition_count"
+                        source_json = $path
+                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     }) | Out-Null
 
                     $blocker = New-BaselineBlocker -Entry $entry
                     if ($null -ne $blocker) {
+                        $blocker["source_schema"] = "featherdoc.numbering_catalog_manifest_summary.v1"
+                        $blocker["source_json"] = $path
+                        $blocker["source_json_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         $blocker["source_report"] = $path
                         $blocker["source_report_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         $releaseBlockers.Add($blocker) | Out-Null
                         $action = New-ActionForBaselineBlocker -Blocker $blocker -Entry $entry
+                        $action["source_schema"] = "featherdoc.numbering_catalog_manifest_summary.v1"
+                        $action["source_json"] = $path
+                        $action["source_json_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         $action["source_report"] = $path
                         $action["source_report_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         $actionItems.Add($action) | Out-Null
@@ -606,8 +830,12 @@ foreach ($path in @($inputPaths)) {
             default {
                 $warnings.Add([ordered]@{
                     id = "source_json_schema_skipped"
+                    action = "review_numbering_catalog_governance_sources"
+                    source_schema = "featherdoc.numbering_catalog_governance_report.v1"
                     source_json = $path
                     source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                    source_report = $path
+                    source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "Input JSON kind '$kind' is not numbering catalog governance evidence."
                 }) | Out-Null
             }
@@ -617,8 +845,12 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_json_read_failed"
+            action = "review_numbering_catalog_governance_sources"
+            source_schema = "featherdoc.numbering_catalog_governance_report.v1"
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_report = $path
+            source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage
         }) | Out-Null
     }
@@ -635,17 +867,88 @@ foreach ($path in @($inputPaths)) {
 if ($skeletonRollupCount -eq 0) {
     $warnings.Add([ordered]@{
         id = "document_skeleton_governance_rollup_missing"
+        action = "rebuild_document_skeleton_governance_rollup"
+        repair_strategy = "rebuild_document_skeleton_governance_rollup"
+        repair_hint = "Generate the document skeleton governance rollup from current document skeleton summaries, then rerun numbering catalog governance."
+        command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -OutputDir .\output\document-skeleton-governance-rollup"
+        source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+        source_json = $summaryPath
+        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+        source_report = $summaryPath
+        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "No document skeleton governance rollup summary was loaded."
     }) | Out-Null
 }
 if ($manifestSummaryCount -eq 0) {
     $warnings.Add([ordered]@{
         id = "numbering_catalog_manifest_summary_missing"
+        action = "rebuild_numbering_catalog_manifest_summary"
+        repair_strategy = "rebuild_numbering_catalog_manifest_summary"
+        repair_hint = "Restore the numbering catalog manifest and generate a real manifest check summary; do not synthesize a pass summary when the manifest or catalog outputs are absent."
+        command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir <build-dir> -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild"
+        source_schema = "featherdoc.numbering_catalog_manifest_summary.v1"
+        source_json = $summaryPath
+        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+        source_report = $summaryPath
+        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "No numbering catalog manifest check summary was loaded."
     }) | Out-Null
 }
 
 $sourceFailureCount = @($sourceFiles.ToArray() | Where-Object { $_.status -eq "failed" }).Count
+
+$catalogDocumentKeys = @(
+    $catalogExemplars.ToArray() |
+        ForEach-Object { Get-CanonicalDocumentKey -Value (Get-FirstJsonString -Object $_ -Names @("input_docx", "document_name")) } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique
+)
+$baselineDocumentKeys = @(
+    $baselineEntries.ToArray() |
+        ForEach-Object { Get-CanonicalDocumentKey -Value (Get-FirstJsonString -Object $_ -Names @("input_docx", "name")) } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique
+)
+$matchedDocumentKeys = @($catalogDocumentKeys | Where-Object { $baselineDocumentKeys -contains $_ })
+$matchedDocumentCount = $matchedDocumentKeys.Count
+
+$realCorpusConfidence = New-RealCorpusConfidence `
+    -DocumentCount $documentCount `
+    -CatalogExemplarCount $catalogExemplars.Count `
+    -BaselineEntryCount $baselineEntries.Count `
+    -MatchedDocumentCount $matchedDocumentCount `
+    -TotalStyleNumberingIssueCount $totalStyleNumberingIssueCount `
+    -TotalStyleNumberingSuggestionCount $totalStyleNumberingSuggestionCount `
+    -DriftCount $driftCount `
+    -DirtyBaselineCount $dirtyBaselineCount `
+    -IssueEntryCount $issueEntryCount `
+    -TotalCommandFailureCount $totalCommandFailureCount
+$realCorpusConfidence["catalog_document_keys"] = @($catalogDocumentKeys)
+$realCorpusConfidence["baseline_document_keys"] = @($baselineDocumentKeys)
+$realCorpusConfidence["matched_document_keys"] = @($matchedDocumentKeys)
+
+if ($realCorpusConfidence.alignment_gap_count -gt 0) {
+    $alignmentBlocker = New-ReleaseBlocker `
+        -Id "numbering_catalog_governance.real_corpus_alignment_gap" `
+        -Scope "numbering_catalog_governance" `
+        -SourceKind "numbering_catalog_governance_report" `
+        -Status "real_corpus_alignment_gap" `
+        -Action "review_numbering_catalog_real_corpus_alignment" `
+        -Message "Numbering catalog exemplars and baseline entries do not align on document identity."
+    $alignmentBlocker["source_schema"] = "featherdoc.numbering_catalog_governance_report.v1"
+    $alignmentBlocker["source_report"] = $summaryPath
+    $alignmentBlocker["source_report_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+    $alignmentBlocker["source_json"] = $summaryPath
+    $alignmentBlocker["source_json_display"] = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+    $alignmentBlocker["matched_document_count"] = $realCorpusConfidence.matched_document_count
+    $alignmentBlocker["unmatched_catalog_document_count"] = $realCorpusConfidence.unmatched_catalog_document_count
+    $alignmentBlocker["unmatched_baseline_document_count"] = $realCorpusConfidence.unmatched_baseline_document_count
+    $alignmentBlocker["catalog_coverage_percent"] = $realCorpusConfidence.catalog_coverage_percent
+    $alignmentBlocker["baseline_coverage_percent"] = $realCorpusConfidence.baseline_coverage_percent
+    $alignmentBlocker["coverage_score"] = $realCorpusConfidence.coverage_score
+    $releaseBlockers.Add($alignmentBlocker) | Out-Null
+}
+
 $status = if ($sourceFailureCount -gt 0 -or $totalCommandFailureCount -gt 0) {
     "failed"
 } elseif ($releaseBlockers.Count -gt 0 -or $warnings.Count -gt 0 -or
@@ -654,6 +957,16 @@ $status = if ($sourceFailureCount -gt 0 -or $totalCommandFailureCount -gt 0) {
     "needs_review"
 } else {
     "clean"
+}
+
+$releaseActionItems = New-Object 'System.Collections.Generic.List[object]'
+$informationalActionItems = New-Object 'System.Collections.Generic.List[object]'
+foreach ($item in @($actionItems.ToArray())) {
+    if (Test-InformationalActionItem -Item $item) {
+        $informationalActionItems.Add((Copy-ActionItemWithReleaseChecklistDefaults -Item $item)) | Out-Null
+    } else {
+        $releaseActionItems.Add($item) | Out-Null
+    }
 }
 
 $summary = [ordered]@{
@@ -679,6 +992,9 @@ $summary = [ordered]@{
     baseline_status_summary = @(Add-SummaryGroup -Items $baselineEntries.ToArray() -PropertyName "matches" -OutputName "matches")
     catalog_exemplar_count = $catalogExemplars.Count
     catalog_exemplars = @($catalogExemplars.ToArray())
+    real_corpus_confidence_score = $realCorpusConfidence.score
+    real_corpus_confidence_level = $realCorpusConfidence.level
+    real_corpus_confidence = $realCorpusConfidence
     total_numbering_definition_count = $totalNumberingDefinitionCount
     total_numbering_instance_count = $totalNumberingInstanceCount
     total_style_usage_count = $totalStyleUsageCount
@@ -692,9 +1008,12 @@ $summary = [ordered]@{
     release_blocker_count = $releaseBlockers.Count
     release_blockers = @($releaseBlockers.ToArray())
     blocker_id_summary = @(Add-SummaryGroup -Items $releaseBlockers.ToArray() -PropertyName "id" -OutputName "id")
-    action_item_count = $actionItems.Count
-    action_items = @($actionItems.ToArray())
-    action_item_summary = @(Add-SummaryGroup -Items $actionItems.ToArray() -PropertyName "action" -OutputName "action")
+    action_item_count = $releaseActionItems.Count
+    action_items = @($releaseActionItems.ToArray())
+    action_item_summary = @(Add-SummaryGroup -Items $releaseActionItems.ToArray() -PropertyName "action" -OutputName "action")
+    informational_action_item_count = $informationalActionItems.Count
+    informational_action_items = @($informationalActionItems.ToArray())
+    informational_action_item_summary = @(Add-SummaryGroup -Items $informationalActionItems.ToArray() -PropertyName "action" -OutputName "action")
     warning_count = $warnings.Count
     warnings = @($warnings.ToArray())
 }

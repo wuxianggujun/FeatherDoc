@@ -204,8 +204,7 @@ function Get-TrackedWordTemplateFiles {
     $trackedPaths = @(& git -C $RepoRoot ls-files "*.docx" "*.dotx" 2>$null)
     if ($LASTEXITCODE -ne 0) {
         return @(
-            Get-ChildItem -LiteralPath $ResolvedSearchRoot -Recurse -File -Include *.docx, *.dotx |
-                ForEach-Object { $_.FullName }
+            Get-ChildItem -LiteralPath $ResolvedSearchRoot -Recurse -File -Include *.docx, *.dotx
         )
     }
 
@@ -220,7 +219,7 @@ function Get-TrackedWordTemplateFiles {
                 $prefix = $relativeSearchRoot -replace '/', '\'
                 return ($normalized -eq $prefix -or $normalized.StartsWith($prefix.TrimEnd('\') + "\", [System.StringComparison]::OrdinalIgnoreCase))
             } |
-            ForEach-Object { [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $_)) }
+            ForEach-Object { Get-Item -LiteralPath ([System.IO.Path]::GetFullPath((Join-Path $RepoRoot $_))) }
     )
 }
 
@@ -278,7 +277,6 @@ foreach ($exclusion in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest
 }
 
 $candidateFiles = Get-TrackedWordTemplateFiles -RepoRoot $repoRoot -ResolvedSearchRoot $resolvedSearchRoot |
-    ForEach-Object { Get-Item -LiteralPath $_ } |
     Where-Object {
         $includePath = $true
         if (-not $IncludeGenerated) {

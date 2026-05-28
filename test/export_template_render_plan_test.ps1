@@ -7,6 +7,22 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "template_render_test_fixture_helpers.ps1")
+
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $BuildDir) {
+    $BuildDir = Join-Path $RepoRoot "build\export_template_render_plan_test"
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = $BuildDir
+}
+
+New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
+
 function Assert-True {
     param(
         [bool]$Condition,
@@ -30,24 +46,6 @@ function Assert-Equal {
     }
 }
 
-function Find-ExecutableByName {
-    param(
-        [string]$SearchRoot,
-        [string]$TargetName
-    )
-
-    $candidate = Get-ChildItem -Path $SearchRoot -Recurse -File |
-        Where-Object { $_.Name -ieq $TargetName -or $_.Name -ieq ($TargetName + ".exe") } |
-        Sort-Object LastWriteTimeUtc -Descending |
-        Select-Object -First 1
-
-    if ($null -eq $candidate) {
-        throw "Could not find executable '$TargetName' under $SearchRoot."
-    }
-
-    return $candidate.FullName
-}
-
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedBuildDir = (Resolve-Path $BuildDir).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
@@ -55,12 +53,6 @@ $scriptPath = Join-Path $resolvedRepoRoot "scripts\export_template_render_plan.p
 $sampleDocx = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.docx"
 $sampleOutput = Join-Path $resolvedWorkingDir "invoice.render-plan.json"
 $sampleSummary = Join-Path $resolvedWorkingDir "invoice.render-plan.summary.json"
-$blockVisibilitySampleExecutable = Find-ExecutableByName `
-    -SearchRoot $resolvedBuildDir `
-    -TargetName "featherdoc_sample_bookmark_block_visibility_visual"
-$partTemplateSampleExecutable = Find-ExecutableByName `
-    -SearchRoot $resolvedBuildDir `
-    -TargetName "featherdoc_sample_part_template_validation"
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
@@ -131,10 +123,7 @@ $visibilityFixtureDocx = Join-Path $resolvedWorkingDir "block_visibility_fixture
 $visibilityOutput = Join-Path $resolvedWorkingDir "block_visibility.render-plan.json"
 $visibilitySummary = Join-Path $resolvedWorkingDir "block_visibility.render-plan.summary.json"
 
-& $blockVisibilitySampleExecutable $visibilityFixtureDocx
-if ($LASTEXITCODE -ne 0) {
-    throw "featherdoc_sample_bookmark_block_visibility_visual failed."
-}
+New-BookmarkBlockVisibilityFixtureDocx -Path $visibilityFixtureDocx
 
 & $scriptPath `
     -InputDocx $visibilityFixtureDocx `
@@ -176,10 +165,7 @@ $partTemplateDocx = Join-Path $partTemplateDir "part_template_validation.docx"
 $partTargetOutput = Join-Path $resolvedWorkingDir "part_template.resolved-section-targets.render-plan.json"
 $partTargetSummary = Join-Path $resolvedWorkingDir "part_template.resolved-section-targets.summary.json"
 
-& $partTemplateSampleExecutable $partTemplateDir
-if ($LASTEXITCODE -ne 0) {
-    throw "featherdoc_sample_part_template_validation failed."
-}
+New-PartTemplateValidationFixtureDocx -Path $partTemplateDocx
 
 & $scriptPath `
     -InputDocx $partTemplateDocx `

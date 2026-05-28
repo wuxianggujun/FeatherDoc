@@ -161,6 +161,279 @@ Markdown 文件。
 重新同步 schema approval metadata 并重新生成 release note bundle。未知 ``action`` 不会
 阻断 bundle 生成，但 checklist 会标记未登记 runbook，提醒维护者把新 action 加入
 ``release_blocker_metadata_helpers.ps1`` 的注册表和固定指引。
+PDF visual release gate 预检治理报告产生的
+``prepare_pdf_visual_release_gate_build_outputs`` 与
+``rerun_pdf_visual_release_gate_preflight`` 也已映射到固定 runbook：reviewer 先查看
+``source_report_display`` / ``source_json_display`` 指向的预检证据，再运行轻量
+``-PreflightOnly`` 或预检重建命令；只有预检 ready 且资源允许时才进入完整 PDF visual gate，
+最后重新生成 release blocker rollup 与 release note bundle。``-PreflightOnly`` 和
+预检 summary 只证明前置条件，不是 release-ready evidence；只有完整 PDF visual gate
+基于当前 ``dev`` 通过后，才能作为发布就绪证据。
+这些 runbook 还会直接展示 ``output gap checks`` 和 ``missing outputs``，与
+preflight summary 的顶层 ``output_gap_count`` / ``missing_output_count`` 保持一致，
+避免 reviewer 需要手动合计 CLI baseline、visual baseline 和 CJK text-layer 缺口。
+无论是预检还是完整 gate，运行完成后都只清理本任务启动的 PDF gate 临时输出和相关进程；
+不要结束与 FeatherDoc 无关的 Office、浏览器、node 或其它外部构建进程。
+
+当 release summary 中存在 ``release_blocker_rollup`` 节点时，bundle 面向 reviewer 的
+四个交接文件（``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 与
+``release_handoff.md``）还会渲染统一的治理 rollup 明细。该明细不会替代顶层
+``release_blockers`` 的强校验，而是用于让发布面板和人工复核直接读取 final rollup
+中的机器字段：
+
+- ``release_blocker_rollup.release_blockers[]``：展示 ``id``、``action``、``message``、
+  ``source_schema``、``source_report_display`` 与 ``source_json_display``。
+- ``release_blocker_rollup.warnings[]``：展示 ``id``、``action``、``message``、
+  ``source_schema``、``source_report_display`` 与 ``source_json_display``。
+- ``release_blocker_rollup.action_items[]``：展示 ``id``、``action``、``open_command``、
+  ``source_schema``、``source_report_display`` 与 ``source_json_display``。
+
+对应的人读摘要文件为 ``release_blocker_rollup.md``，用于把同一组机器字段交给
+reviewer 复核。
+同一轮 release governance 还会保留 ``release_governance_handoff.md`` 与
+``release_governance_pipeline.md``，确保 handoff 和 pipeline 两个视角都能追溯到
+相同的 blocker / warning / action item 来源。
+历史样式合并建议计数字段 ``style_merge_suggestion_count`` 仍保留为机器字段，
+并在文档中写作 ``style_merge_suggestion_count``，避免旧 release 面板丢失该计数。
+
+``run_release_candidate_checks.ps1`` 在读取 ``featherdoc.release_blocker_rollup_report.v1``
+后会把上述数组同步写入 ``summary.json`` 的 ``release_blocker_rollup`` 与
+``steps.release_blocker_rollup``，并在 ``final_review.md`` 里展开同一组字段。这样
+``featherdoc.document_skeleton_governance_rollup_report.v1``、onboarding governance、
+schema confidence calibration 和 content-control data-binding governance 的治理项可以
+被发布面板直接消费，而不只停留在 blocker / warning / action item 计数里。机器摘要里的
+``warning_count`` 仍然只作为聚合计数使用，reviewer 必须继续读取下面的明细数组。
+其中 content-control data-binding governance 的 blocker、warning 与 action item 会固定携带
+``featherdoc.content_control_data_binding_governance_report.v1`` 作为 ``source_schema``，
+把 ``inspect-content-controls`` 或治理 summary 同步写入 ``source_report_display`` 与
+``source_json_display``，并为 action item 提供重建治理报告的 ``open_command``。
+reviewer 可先沿着 ``source_report_display`` 打开源报告，再用 ``source_json_display`` 回到证据 JSON。
+占位符阻断项会继续保留 ``content_control_data_binding.bound_placeholder``，修复策略固定为
+``sync_bound_content_control``，避免 content-control 修复流程只在聊天记录或人工备注中存在。
+这些 release-facing 明细还必须保留 ``input_docx``、``template_name``、
+``schema_target`` 与 ``target_mode`` provenance；否则 reviewer 只能看到修复命令，
+无法确认该 blocker 属于哪个模板、哪个输入 DOCX 和哪个 schema 目标。
+
+project-template onboarding governance 会先写出
+``featherdoc.project_template_onboarding_governance_report.v1``，再由
+``featherdoc.project_template_delivery_readiness_report.v1`` 汇总到默认发布阻断输入。
+delivery readiness 在透传 onboarding-derived blocker / action item 时保留原始
+``source_schema``、``source_report_display`` 与 ``source_json_display``，同时把 reviewer 可执行的
+``open_command`` 带入 final rollup。reviewer 在 ``START_HERE.md``、
+``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 或 ``release_handoff.md`` 中看到
+``project_template_onboarding.*`` 阻断项时，应先打开 ``source_report_display`` 查看
+governance/report 摘要，再用 ``source_json_display`` 回到 onboarding governance
+原始证据，最后按 ``open_command`` 同步或复核 schema approval 记录。
+
+schema confidence calibration 会写出
+``featherdoc.schema_patch_confidence_calibration_report.v1``。当 calibration 里仍有
+pending approval outcome 时，报告会把
+``schema_patch_confidence_calibration.pending_schema_approvals`` 写入
+``release_blockers``；未打分 candidate 或无效审批记录会进入 ``warnings``；所有
+recommendation 会同步成 ``action_items`` 并携带重建校准报告的 ``open_command``。
+默认 auto-discovery、release governance pipeline 和 handoff 都会读取
+``schema-patch-confidence-calibration/summary.json``，因此 reviewer 可以在发布面板
+中直接看到校准 blocker / warning / action item 的 ``source_schema`` 与证据 JSON。
+
+编号真实语料治理会写出 ``featherdoc.numbering_catalog_governance_report.v1``。
+当 catalog 与 baseline 的真实文档键不能对齐时，报告会生成稳定阻断项
+``numbering_catalog_governance.real_corpus_alignment_gap``；release metadata 文档检查会
+要求这一路径继续出现在发布说明材料中，防止样式/编号治理退回到只看数量的弱检查。
+
+表格与版式交付治理会写出
+``featherdoc.table_layout_delivery_governance_report.v1``。它的 ``delivery_quality``
+明细会携带表格样式、自动修复、人工复核、浮动表格定位和命令失败计数；release
+summary、handoff 与 reviewer bundle 应保留这些字段，让 reviewer 能区分“可发布”、
+“需自动修复”和“需人工版式复核”。
+
+此外，``featherdoc.release_governance_pipeline_report.v1`` 的 ``stages[]`` 现在也会
+保留每个治理 stage 的 ``release_blockers``、``warnings`` 与 ``action_items`` 明细。
+这些 stage-level 明细会补齐 ``stage_id``、``stage_title``、``source_schema``、
+``source_report_display`` 与 ``source_json_display``；action item 还会保留
+``open_command``。发布面板可以先按 stage 过滤 ``numbering_catalog_governance``、
+``content_control_data_binding_governance``、``project_template_delivery_readiness`` 或
+``schema_patch_confidence_calibration``。现在 pipeline 也会生成
+``docx_functional_smoke_readiness``（schema:
+``featherdoc.docx_functional_smoke_readiness.v1``），复用既有 Word visual smoke PNG 非空证据；
+当 ``review_result.json`` 仍是 ``pending_manual_review`` 时保留 warning 边界，
+当截图级 review verdict 已记录为 ``pass`` 时则作为闭合证据传递给 final rollup、release
+summary、bundle 和 reviewer checklist 继续展示。reviewer 若在 pipeline summary 中看到
+阻断项，应优先打开 ``source_json_display`` 对应证据，再按 ``open_command`` 重建或复核
+该治理报告，最后重新运行 release blocker rollup / bundle 生成链路。
+
+当 ``summary.json`` 中存在 ``release_governance_handoff`` 节点时，release summary、
+``final_review.md`` 和 reviewer-facing bundle 也会展示 handoff 归一化后的三类明细：
+
+- ``release_governance_handoff.release_blockers[]``：展示 ``id``、``action``、
+  ``message``、``source_schema``、``source_report_display`` 与
+  ``source_json_display``。
+- ``release_governance_handoff.warnings[]``：展示 ``id``、``action``、``message``、
+  ``source_schema``、``source_report_display`` 与 ``source_json_display``。
+- ``release_governance_handoff.action_items[]``：展示 ``id``、``action``、
+  ``open_command``、``source_schema``、``source_report_display`` 与
+  ``source_json_display``。
+
+其中 content-control handoff 条目还必须展示 ``input_docx``、``template_name``、
+``schema_target`` 与 ``target_mode``，与 release blocker rollup、START_HERE、
+ARTIFACT_GUIDE 和 REVIEWER_CHECKLIST 中的同一组 provenance 保持一致。
+
+``build_release_governance_handoff_report.ps1`` 会从已加载的治理报告中归一化 blocker、
+warning 与 action item；``run_release_candidate_checks.ps1`` 会把这些数组同步到
+``summary.json`` 的 ``release_governance_handoff`` 与
+``steps.release_governance_handoff``，并在 ``final_review.md`` 中写出
+``Release governance handoff details``。因此 reviewer 不需要只依赖 handoff 计数，
+而是可以从 ``release_handoff.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``
+或 ``START_HERE.md`` 直接打开 ``source_json_display``，再用 action item 的
+``open_command`` 重建相应 governance report。
+
+同时，release candidate summary 的 ``manifest_signoff_entrypoints`` 必须进入 release
+blocker rollup 的 source report contract evidence，并由 release governance handoff
+汇总为 ``manifest_signoff_entrypoints_source_reports``。``run_release_candidate_checks.ps1``
+需要把该 evidence 同步到 ``release_governance_handoff`` 与
+``steps.release_governance_handoff``，让 ``final_review.md``、``START_HERE.md``、
+``ARTIFACT_GUIDE.md`` 和 ``REVIEWER_CHECKLIST.md`` 都能展示 ``status``、
+``release_assets_manifest``、三个必需入口、必需 governance contracts、必需字段和
+``reviewer_manifest_scoped_project_template_trace``，避免 packaged manifest signoff
+只停留在打包产物层。``release_blocker_rollup.md`` 的
+``Source Report Contracts`` 必须先把同一组字段保留在
+``featherdoc.release_candidate_summary`` 列表块内，不能由 detached notes 或
+``featherdoc.release_blocker_rollup_report.v1`` 冒充原始 signoff 证据。固定标记：
+``manifest_signoff_entrypoints_rollup_material_safety_trace``。
+``release_governance_handoff.md`` 中的
+``manifest_signoff_entrypoints_source_reports`` 必须继续把上述字段保留在同一个
+``schema=featherdoc.release_candidate_summary`` 的 ``source_report:`` block 中，
+不能由 detached notes 补齐。固定标记：
+``manifest_signoff_entrypoints_handoff_material_safety_trace``。
+
+固定 project-template 发布准入清单也要有同级机器证据：
+``run_release_candidate_checks.ps1`` 必须写出
+``project_template_readiness_checklist_entrypoints``，声明 ``START_HERE.md``、
+``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 三个入口都指向
+``docs/project_template_release_readiness_checklist_zh.rst``，并携带
+``release_entry_project_template_readiness_checklist_trace``。
+``package_release_assets.ps1`` 必须把该字段保留到 ``release_assets_manifest.json``，
+再由 ``assert_release_material_safety.ps1`` 审计。这样固定清单入口不是只靠人工文案
+或 grep 推断，而是成为 packaged asset 层可检查的发布证据。
+同一字段还必须继续进入 ``build_release_blocker_rollup_report.ps1`` 的 source report
+contract evidence，再由 ``build_release_governance_handoff_report.ps1`` 汇总为
+``project_template_readiness_checklist_entrypoints_source_reports``，并同步到
+``steps.release_governance_handoff``。这样 ``final_review.md``、``START_HERE.md``、
+``ARTIFACT_GUIDE.md`` 和 ``REVIEWER_CHECKLIST.md`` 可以直接展示 ``status``、
+``checklist_label``、``checklist_path``、``required_entrypoint_count=3``、三个入口的
+``required=true`` / ``path_display`` 和固定 marker，而不需要 reviewer 从 packaged
+manifest 反向推断。固定标记：
+``project_template_readiness_checklist_entrypoints_governance_trace``。
+``assert_release_material_safety.ps1`` 还必须审计
+``release_governance_handoff.md``、``final_review.md``、``release_handoff.md`` 与
+三个 release entry 文档中同一个 ``source_report`` 列表块是否同时携带
+``checklist_path``、``required_entrypoint_count=3``、三个必需入口的
+``required=true`` / ``path_display`` 和
+``release_entry_project_template_readiness_checklist_trace``，避免 detached notes
+补齐发布证据；同块还必须保留 ``featherdoc.release_candidate_summary`` schema 身份，
+避免 release blocker rollup 或其它报告冒充 checklist entrypoints 的原始来源。
+固定标记：
+``project_template_readiness_checklist_entrypoints_material_safety_trace``、
+``project_template_readiness_checklist_entrypoints_handoff_source_schema_identity_trace``、
+``project_template_readiness_checklist_entrypoints_final_review_source_schema_identity_trace``、
+``project_template_readiness_checklist_entrypoints_release_metadata_details_source_schema_identity_trace``。
+``release_blocker_rollup.md`` 的 ``Source Report Contracts`` 也必须把 checklist
+entrypoints 的 status、checklist label/path、required entrypoint count、entrypoint ids
+和 checklist marker 保留在同一个 ``featherdoc.release_candidate_summary`` 列表块内，
+不能由 detached notes 或 rollup 自身 schema 冒充。固定标记：
+``project_template_readiness_checklist_entrypoints_rollup_material_safety_trace``。
+``write_release_metadata_start_here.ps1``、``write_release_artifact_guide.ps1`` 和
+``write_release_reviewer_checklist.ps1`` 还会把同一证据压缩成
+``Project-template readiness checklist handoff evidence`` 行，并写入
+``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md``，避免 reviewer
+必须进入内部 handoff 章节才能看到 checklist source-report 证据。固定标记：
+``project_template_readiness_checklist_entrypoints_release_entry_trace``。
+``assert_release_material_safety.ps1`` 会继续审计该 compact evidence 行，要求
+``project_template_readiness_checklist_entrypoints_source_reports``、``status``、
+``checklist_path``、``required_entrypoint_count=3``、``entrypoint_paths``、
+三个入口的 ``path_display``、固定 marker、
+``source_schema=featherdoc.release_candidate_summary`` 与 ``source_report`` 保持在同一行，
+避免 detached notes 补齐入口材料；``source_schema`` 必须显式保留 release-candidate
+summary schema 身份，``source_report`` 还必须能识别 release-candidate summary
+证据源，避免把同名 compact evidence 挂到错误报告上。固定标记：
+``project_template_readiness_checklist_entrypoints_release_entry_path_display_trace``、
+``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``、
+``project_template_readiness_checklist_entrypoints_release_entry_source_report_identity_trace``。
+``package_release_assets.ps1`` 在 staged release materials 审计前还会直接检查
+``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 中的同一条
+compact evidence 行，并把通过后的
+``release_entry_project_template_readiness_checklist_material_safety_audit`` 写入
+``release_assets_manifest.json``；``assert_release_material_safety.ps1`` 会继续审计该
+manifest 字段，避免打包阶段只靠日志推断。固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_material_safety_trace``。
+``build_release_blocker_rollup_report.ps1`` 还必须继续消费这个 packaged audit，
+并在 source report contract evidence 中保留 ``status``、``audit_script``、
+``audited_entrypoints``、compact evidence label/field/source schema、固定 checklist 路径和
+``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``；
+``compact_evidence_source_schema`` 必须固定为
+``featherdoc.release_candidate_summary``。
+这样 release blocker rollup 能直接展示打包入口材料已经过 material-safety 审计，
+不需要 reviewer 从 ``release_assets_manifest.json`` 手工反推。固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_audit_rollup_trace``。
+``release_blocker_rollup.md`` 的 ``Source Report Contracts`` 还必须把该 packaged
+audit 的 status、audit script、audited entrypoints、compact evidence label/field/source
+schema、checklist path/marker 和 material-safety marker 保留在同一个
+``featherdoc.release_candidate_summary`` 列表块内，不能由 detached notes 或 rollup
+自身 schema 冒充。固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_audit_rollup_material_safety_trace``。
+``build_release_governance_handoff_report.ps1`` 会继续把该 packaged audit 汇总成
+``release_entry_project_template_readiness_checklist_material_safety_audit_source_reports``；
+``run_release_candidate_checks.ps1`` 必须把该数组和计数同步到
+``release_governance_handoff`` 与 ``steps.release_governance_handoff``。共享 release
+metadata helper 也必须在 handoff details 中展示 status、audit script、audited
+entrypoints、compact evidence field/source schema 和 material-safety marker，避免最终
+summary/entry 材料只能看到 checklist entrypoints，却看不到 staged entry materials
+已经通过审计。
+固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_trace``。
+``assert_release_material_safety.ps1`` 还会审计
+``release_governance_handoff.md``、``final_review.md``、``release_handoff.md`` 与
+三个 release entry 文档中同一个 packaged audit ``source_report`` 列表块，要求 audit
+status、audit script、三个 audited entrypoints、compact evidence field、checklist path、
+checklist marker 与 material-safety marker 保持同块，避免 detached notes 补齐最终
+handoff 证据；同块还必须保留 ``featherdoc.release_candidate_summary`` schema 身份，
+避免 rollup summary 冒充 packaged audit 原始来源。固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_material_safety_trace``、
+``project_template_readiness_checklist_entrypoints_packaged_audit_handoff_source_schema_identity_trace``、
+``project_template_readiness_checklist_entrypoints_packaged_audit_final_review_source_schema_identity_trace``、
+``project_template_readiness_checklist_entrypoints_packaged_audit_release_metadata_details_source_schema_identity_trace``。
+``write_release_metadata_start_here.ps1``、``write_release_artifact_guide.ps1`` 和
+``write_release_reviewer_checklist.ps1`` 还会把该 packaged audit 压缩成
+``Project-template readiness checklist packaged audit evidence`` 行，展示到三个最终
+release entry summary 中，让 reviewer 可以直接看到 staged entry materials 已经通过
+material-safety 审计。固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_trace``。
+``assert_release_material_safety.ps1`` 会继续审计这条 packaged audit compact evidence 行，
+要求 count、status、audit script、三个 audited entrypoints、compact evidence identity、
+``compact_evidence_source_schema=featherdoc.release_candidate_summary``、checklist path、
+checklist marker、material-safety marker、
+``source_schema=featherdoc.release_candidate_summary`` 和 ``source_report`` 保持同一行，
+避免 detached notes 补齐入口材料；``compact_evidence_source_schema`` 标识被审计的
+compact evidence 原始 schema，``source_schema`` 必须显式保留当前 source report block
+的 release-candidate summary schema 身份，``source_report`` 还必须能识别 release-blocker rollup 证据源，
+避免 release-candidate summary 冒充打包入口审计来源。固定标记：
+``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_material_safety_trace``、
+``project_template_readiness_checklist_entrypoints_packaged_audit_release_entry_source_report_identity_trace``。
+
+对 project-template governance，``final_review.md`` 和
+``steps.release_governance_handoff`` 还必须同时保留
+``source_report_display`` 与 ``source_json_display``：前者指向
+``project-template-delivery-readiness`` 汇总，后者可回到
+``project-template-onboarding-governance`` 原始证据。这样发布 reviewer 可以从
+最终 release candidate 摘要直接追溯到模板准入与 schema approval 证据，而不是在
+handoff 计数和 release blocker rollup 之间手工拼路径。
+``release_governance_handoff.md`` 还必须遵守
+``block_scoped_governance_handoff_trace``：``project_template_delivery_readiness`` 与
+``project_template_onboarding.schema_approval`` 各自的 Markdown list block 必须分别保留
+``schema_approval_status_summary``、``source_report_display`` 和
+``source_json_display``，其中 readiness report-status block 还必须保留 ``status`` 与
+``ready``。固定标记：``block_scoped_governance_handoff_project_template_status_trace``。
+不能让 readiness block 的 source display 或 schema approval 状态代替 onboarding
+governance block。
 
 内部 handoff 文件可以展示更完整的 reviewer metadata，例如：
 

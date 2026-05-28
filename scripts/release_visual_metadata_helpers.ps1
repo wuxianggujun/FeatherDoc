@@ -32,6 +32,59 @@ function Get-OptionalPropertyRawValue {
     return $property.Value
 }
 
+function Get-OptionalPropertyValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $value = Get-OptionalPropertyRawValue -Object $Object -Name $Name
+    if ($null -eq $value) {
+        return ""
+    }
+
+    return [string]$value
+}
+
+function Get-OptionalPropertyObject {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    return Get-OptionalPropertyRawValue -Object $Object -Name $Name
+}
+
+function Get-SupersededReviewTasksReportPath {
+    param(
+        $Summary,
+        $VisualGateSummary
+    )
+
+    $reportPath = Get-OptionalPropertyValue -Object $VisualGateSummary -Name "superseded_review_tasks_report"
+    if (-not [string]::IsNullOrWhiteSpace($reportPath)) {
+        return $reportPath
+    }
+
+    return Get-OptionalPropertyValue -Object $Summary -Name "superseded_review_tasks_report"
+}
+
+function Get-SupersededReviewTaskCount {
+    param([string]$ReportPath)
+
+    if ([string]::IsNullOrWhiteSpace($ReportPath) -or -not (Test-Path -LiteralPath $ReportPath)) {
+        return ""
+    }
+
+    try {
+        $report = Get-Content -Raw -LiteralPath $ReportPath | ConvertFrom-Json
+    } catch {
+        return ""
+    }
+
+    return Get-OptionalPropertyValue -Object $report -Name "superseded_task_count"
+}
+
 function Get-VisualTaskVerdict {
     param(
         $VisualGateSummary,
@@ -166,6 +219,156 @@ function Get-VisualReviewTaskSummaryLine {
     return ""
 }
 
+function Get-PdfVisualGateSummaryPath {
+    param($Summary)
+
+    $steps = Get-OptionalPropertyObject -Object $Summary -Name "steps"
+    $stepSummary = Get-OptionalPropertyObject -Object $steps -Name "pdf_visual_gate"
+    $topLevelSummary = Get-OptionalPropertyObject -Object $Summary -Name "pdf_visual_gate"
+
+    foreach ($candidate in @(
+            (Get-OptionalPropertyValue -Object $stepSummary -Name "summary_json"),
+            (Get-OptionalPropertyValue -Object $topLevelSummary -Name "summary_json"),
+            (Get-OptionalPropertyValue -Object $Summary -Name "pdf_visual_gate_summary_json")
+        )) {
+        if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+            return $candidate
+        }
+    }
+
+    return ""
+}
+
+function Get-PdfVisualGateEvidence {
+    param([string]$SummaryPath)
+
+    $evidence = [ordered]@{
+        summary_json = $SummaryPath
+        status = if ([string]::IsNullOrWhiteSpace($SummaryPath)) { "" } else { "missing" }
+        full_visual_gate_status = ""
+        verdict = ""
+        aggregate_contact_sheet = ""
+        cjk_manifest_count = ""
+        cjk_copy_search_count = ""
+        cjk_missing_text_count = ""
+        visual_baseline_manifest_count = ""
+        visual_baseline_count = ""
+        pdf_cli_export_log = ""
+        pdf_regression_log = ""
+        cjk_copy_search_log_dir = ""
+        unicode_font_log = ""
+        error = ""
+    }
+
+    if ([string]::IsNullOrWhiteSpace($SummaryPath)) {
+        return [pscustomobject]$evidence
+    }
+
+    if (-not (Test-Path -LiteralPath $SummaryPath)) {
+        return [pscustomobject]$evidence
+    }
+
+    try {
+        $summary = Get-Content -Raw -LiteralPath $SummaryPath | ConvertFrom-Json
+    } catch {
+        $evidence.status = "unreadable"
+        $evidence.error = $_.Exception.Message
+        return [pscustomobject]$evidence
+    }
+
+    $evidence.status = "loaded"
+    $evidence.verdict = Get-OptionalPropertyValue -Object $summary -Name "verdict"
+    if ($evidence.verdict -in @("pass", "fail")) {
+        $evidence.full_visual_gate_status = $evidence.verdict
+    }
+    $evidence.aggregate_contact_sheet = Get-OptionalPropertyValue -Object $summary -Name "aggregate_contact_sheet"
+    $evidence.cjk_manifest_count = Get-OptionalPropertyValue -Object $summary -Name "cjk_manifest_count"
+    $evidence.visual_baseline_manifest_count = Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_manifest_count"
+
+    $logs = Get-OptionalPropertyObject -Object $summary -Name "logs"
+    $evidence.pdf_cli_export_log = Get-OptionalPropertyValue -Object $logs -Name "pdf_cli_export"
+    $evidence.pdf_regression_log = Get-OptionalPropertyValue -Object $logs -Name "pdf_regression"
+    $evidence.cjk_copy_search_log_dir = Get-OptionalPropertyValue -Object $logs -Name "cjk_copy_search"
+    $evidence.unicode_font_log = Get-OptionalPropertyValue -Object $logs -Name "unicode_font"
+
+    $copySearchEntries = @(Get-OptionalPropertyArray -Object $summary -Name "cjk_copy_search")
+    $baselineEntries = @(Get-OptionalPropertyArray -Object $summary -Name "baselines")
+    $missingTextCount = 0
+    foreach ($entry in $copySearchEntries) {
+        $missingTextCount += @(Get-OptionalPropertyArray -Object $entry -Name "missing_text").Count
+    }
+
+    $copySearchCount = if ($copySearchEntries.Count -gt 0) {
+        [string]$copySearchEntries.Count
+    } else {
+        Get-OptionalPropertyValue -Object $summary -Name "cjk_copy_search_count"
+    }
+    $baselineCount = if ($baselineEntries.Count -gt 0) {
+        [string]$baselineEntries.Count
+    } else {
+        Get-OptionalPropertyValue -Object $summary -Name "baselines_count"
+    }
+
+    $evidence.cjk_copy_search_count = [string]$copySearchCount
+    $evidence.cjk_missing_text_count = [string]$missingTextCount
+    $evidence.visual_baseline_count = [string]$baselineCount
+
+    return [pscustomobject]$evidence
+}
+
+function Get-PdfBoundedCtestEvidenceObject {
+    param($Summary)
+
+    $topLevelEvidence = Get-OptionalPropertyObject -Object $Summary -Name "pdf_bounded_ctest"
+    if ($null -ne $topLevelEvidence) {
+        return $topLevelEvidence
+    }
+
+    $steps = Get-OptionalPropertyObject -Object $Summary -Name "steps"
+    return Get-OptionalPropertyObject -Object $steps -Name "pdf_bounded_ctest"
+}
+
+function Get-PdfBoundedCtestEvidence {
+    param($Summary)
+
+    $source = Get-PdfBoundedCtestEvidenceObject -Summary $Summary
+    $evidence = [ordered]@{
+        status = "not_available"
+        summary_count = ""
+        pass_count = ""
+        skipped_test_count = ""
+        selected_test_count = ""
+        subsets = @()
+        summary_json = @()
+        summary_json_display = @()
+        error_count = ""
+        errors = @()
+        summaries = @()
+        auxiliary_scope = "bounded_ctest_auxiliary_only"
+    }
+
+    if ($null -eq $source) {
+        return [pscustomobject]$evidence
+    }
+
+    $status = Get-OptionalPropertyValue -Object $source -Name "status"
+    if (-not [string]::IsNullOrWhiteSpace($status)) {
+        $evidence.status = $status
+    }
+    $evidence.summary_count = Get-OptionalPropertyValue -Object $source -Name "summary_count"
+    $evidence.pass_count = Get-OptionalPropertyValue -Object $source -Name "pass_count"
+    $evidence.skipped_test_count = Get-OptionalPropertyValue -Object $source -Name "skipped_test_count"
+    $evidence.selected_test_count = Get-OptionalPropertyValue -Object $source -Name "selected_test_count"
+    $evidence.subsets = @(Get-OptionalPropertyArray -Object $source -Name "subsets")
+    $evidence.summary_json = @(Get-OptionalPropertyArray -Object $source -Name "summary_json")
+    $evidence.summary_json_display = @(Get-OptionalPropertyArray -Object $source -Name "summary_json_display")
+    $evidence.error_count = Get-OptionalPropertyValue -Object $source -Name "error_count"
+    $evidence.errors = @(Get-OptionalPropertyArray -Object $source -Name "errors")
+    $evidence.summaries = @(Get-OptionalPropertyArray -Object $source -Name "summaries")
+
+    return [pscustomobject]$evidence
+}
+
 function Get-OptionalPropertyArray {
     param(
         $Object,
@@ -178,6 +381,48 @@ function Get-OptionalPropertyArray {
     }
 
     return @($propertyValue)
+}
+
+function Get-OptionalPropertyArrayValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $propertyValue = Get-OptionalPropertyObject -Object $Object -Name $Name
+    if ($null -eq $propertyValue) {
+        return @()
+    }
+    if ($propertyValue -is [string]) {
+        return @($propertyValue)
+    }
+    if ($propertyValue -is [System.Collections.IEnumerable]) {
+        return @($propertyValue | Where-Object { $null -ne $_ })
+    }
+
+    return @($propertyValue)
+}
+
+function Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance {
+    param($Summary)
+
+    $signoff = Get-OptionalPropertyObject -Object $Summary -Name "manifest_signoff_entrypoints"
+    if ($null -eq $signoff) {
+        return $false
+    }
+
+    $status = Get-OptionalPropertyValue -Object $signoff -Name "status"
+    if ($status -ne "declared") {
+        return $false
+    }
+
+    $requiredContracts = @(
+        Get-OptionalPropertyArrayValue -Object $signoff -Name "required_contracts" |
+            ForEach-Object { [string]$_ }
+    )
+
+    return ($requiredContracts -contains "project_template_delivery_readiness_contract" -and
+        $requiredContracts -contains "project_template_onboarding_governance_contract")
 }
 
 function Get-OrCreateCuratedVisualReviewEntry {

@@ -122,21 +122,88 @@ function New-TableLayoutDeliveryFixtureDocx {
     }
 }
 
+function Write-MockCli {
+    param([string]$Path)
+
+    $mock = @'
+param([Parameter(ValueFromRemainingArguments = $true)][string[]]$CliArgs)
+
+function Get-ArgumentValue {
+    param([string]$Name)
+    $index = [Array]::IndexOf($CliArgs, $Name)
+    if ($index -lt 0 -or $index + 1 -ge $CliArgs.Count) { return "" }
+    return $CliArgs[$index + 1]
+}
+
+$command = $CliArgs[0]
+switch ($command) {
+    "inspect-tables" {
+        Write-Output '{"command":"inspect-tables","count":1,"tables":[{"index":0,"style_id":"DeliveryTable"}]}'
+        exit 0
+    }
+    "inspect-table-style" {
+        Write-Output '{"command":"inspect-table-style","table_style_definition":{"style":{"style_id":"DeliveryTable"}}}'
+        exit 0
+    }
+    "audit-table-style-quality" {
+        Write-Output '{"command":"audit-table-style-quality","issue_count":1,"issues":[{"kind":"disabled_first_row_tblLook"}]}'
+        exit 0
+    }
+    "plan-table-style-quality-fixes" {
+        Write-Output '{"command":"plan-table-style-quality-fixes","automatic_fix_count":1,"manual_fix_count":0,"items":[{"automatic":true}]}'
+        exit 0
+    }
+    "check-table-style-look" {
+        Write-Output '{"command":"check-table-style-look","issue_count":1,"issues":[{"kind":"table_instance_tblLook"}]}'
+        exit 0
+    }
+    "repair-table-style-look" {
+        Write-Output '{"command":"repair-table-style-look","plan_item_count":1,"items":[{"automatic":true}]}'
+        exit 0
+    }
+    "plan-table-position-presets" {
+        $planPath = Get-ArgumentValue -Name "--output-plan"
+        if ([string]::IsNullOrWhiteSpace($planPath)) {
+            Write-Output '{"command":"plan-table-position-presets","error":"missing output plan"}'
+            exit 2
+        }
+        New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($planPath)) -Force | Out-Null
+        Set-Content -LiteralPath $planPath -Encoding UTF8 -Value '{"command":"plan-table-position-presets","automatic_indices":[0]}'
+        Write-Output '{"command":"plan-table-position-presets","automatic_count":1,"review_count":0,"already_matching_count":0}'
+        exit 0
+    }
+    "apply-table-position-plan" {
+        Write-Output '{"command":"apply-table-position-plan","ok":true}'
+        exit 0
+    }
+    default {
+        Write-Output ('{"command":"' + $command + '","error":"unexpected command"}')
+        exit 2
+    }
+}
+'@
+
+    Set-Content -LiteralPath $Path -Encoding UTF8 -Value $mock
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
-$resolvedBuildDir = (Resolve-Path $BuildDir).Path
+$resolvedBuildDir = [System.IO.Path]::GetFullPath($BuildDir)
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_table_layout_delivery_report.ps1"
 $fixtureDocx = Join-Path $resolvedWorkingDir "table-layout-delivery-fixture.docx"
 $outputDir = Join-Path $resolvedWorkingDir "table-layout-delivery-report"
+$mockCli = Join-Path $resolvedWorkingDir "mock-featherdoc-cli.ps1"
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 New-TableLayoutDeliveryFixtureDocx -DocxPath $fixtureDocx
+Write-MockCli -Path $mockCli
 
 & $scriptPath `
     -InputDocx $fixtureDocx `
     -BuildDir $resolvedBuildDir `
     -OutputDir $outputDir `
     -PositionPreset paragraph-callout `
+    -CliPath $mockCli `
     -SkipBuild
 if ($LASTEXITCODE -ne 0) {
     throw "Table layout delivery report script failed."

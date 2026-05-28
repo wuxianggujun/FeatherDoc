@@ -8,6 +8,149 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- Added release metadata docs checks that keep the document-governance
+  acceptance page wired to template readiness, content-control repair,
+  numbering real-corpus alignment, and table-layout delivery quality evidence.
+- Added content-control governance repair-plan `open_command` passthrough so
+  reviewer-facing repair feasibility rows can link back to the report rebuild
+  command when they originate from action items.
+- Added a stale `codex/*` branch inventory that records which remote branches
+  are not fully merged and why they should not be deleted without an explicit
+  archive or discard decision.
+- Added a stale `codex/*` branch inventory documentation contract so the
+  reference-branch retention, preflight readiness, and deletion safeguards stay
+  wired into lightweight regression checks.
+- Added conservative PDF repeated-header abbreviation and same-token word-order
+  matching for common cross-page table headers such as `Qty`/`Quantity`,
+  `Amt`/`Amount`, `Project Status`/`Status Project`, and parenthesized unit
+  labels such as `Amount USD`/`Amount (USD)`, while keeping semantic header
+  changes split into separate editable tables.
+- Added a PDF visual validation status documentation contract that keeps the
+  memory preflight guard, current blocker counts, and "do not run the full
+  visual gate yet" boundary visible in release-facing docs.
+- Added PDF repeated-header continuation diagnostics that expose whether a
+  matched source header used exact, normalized text, plural variant, canonical
+  abbreviation, or token-set word-order matching.
+- Added `featherdoc_cli set-table-width`, `clear-table-width`,
+  `set-table-layout-mode`, and `clear-table-layout-mode` so body-table total
+  width and layout mode can be edited without dropping to the C++ API, including
+  `edit_document_from_plan.ps1` operation support for table width and layout
+  mode edits.
+- Added `featherdoc_cli set-table-alignment`, `clear-table-alignment`,
+  `set-table-indent`, `clear-table-indent`, `set-table-cell-spacing`, and
+  `clear-table-cell-spacing` plus edit-plan operations for body-table placement
+  and spacing metadata.
+- Added `featherdoc_cli set-table-default-cell-margin`,
+  `clear-table-default-cell-margin`, `set-table-border`, and
+  `clear-table-border` plus edit-plan operations for table-level default cell
+  margins and `w:tblBorders` edges.
+- Added `featherdoc_cli set-table-style-id` and `clear-table-style-id` plus
+  edit-plan operations for assigning and removing body-table `w:tblStyle`
+  references.
+- Added `featherdoc_cli set-table-style-look` and `clear-table-style-look` plus
+  edit-plan operations for assigning and removing body-table `w:tblLook`
+  style-routing flags.
+- Added `featherdoc_cli remove-table` and `remove_table` / `delete_table`
+  edit-plan operations for deleting a selected body table.
+- Added `featherdoc_cli insert-table-before` and `insert-table-after` plus
+  edit-plan operations for creating empty sibling body tables around an
+  existing table.
+- Added `featherdoc_cli insert-table-like-before` and
+  `insert-table-like-after` plus edit-plan operations for cloning a selected
+  body table's structure and formatting while clearing copied cell text.
+- Added `featherdoc_cli insert-paragraph-after-table` plus an edit-plan
+  operation for inserting follow-up body paragraphs immediately after a
+  selected table.
+- Added `set_table_position` and `clear_table_position` edit-plan operations
+  that reuse the existing floating table `w:tblpPr` CLI placement controls.
+- Added edit-plan operations for body-table row edits: `append_table_row`,
+  `insert_table_row_before`, `insert_table_row_after`, `remove_table_row`, and
+  `delete_table_row`.
+- Added edit-plan operations for template-part table row edits:
+  `append_template_table_row`, `insert_template_table_row_before`,
+  `insert_template_table_row_after`, `remove_template_table_row`, and
+  `delete_template_table_row`.
+- Added edit-plan operations for template-part table column edits:
+  `insert_template_table_column_before`, `insert_template_table_column_after`,
+  `remove_template_table_column`, and `delete_template_table_column`.
+- Added `set_template_table_cell_text` and
+  `set_template_table_cell_block_texts` edit-plan operations for template-part
+  table cell text updates.
+- Added `set_template_table_row_texts` and `set_template_table_rows_texts`
+  edit-plan operations for contiguous template-part table row text updates.
+- Added `merge_template_table_cells` / `merge_template_table_cell` and
+  `unmerge_template_table_cells` / `unmerge_template_table_cell` edit-plan
+  operations for template-part table cell merge and split workflows.
+- Added `set_template_table_from_json` / `patch_template_table_from_json` and
+  `set_template_tables_from_json` / `patch_template_tables_from_json`
+  edit-plan operations for single-table and batch template-table JSON patches.
+- Added content-control edit-plan operations for text, paragraph, table,
+  table-row, image, form-state, and Custom XML sync workflows by tag or alias.
+- Added bookmark rich-replacement edit-plan operations for full-table
+  replacement, block removal, inline image replacement, floating image
+  replacement, and single or batched block-visibility updates.
+- Added edit-plan operations for body-table column edits:
+  `insert_table_column_before`, `insert_table_column_after`,
+  `remove_table_column`, and `delete_table_column`.
+- Added `set_table_row_cant_split`, `clear_table_row_cant_split`,
+  `set_table_row_repeat_header`, and `clear_table_row_repeat_header`
+  edit-plan operations, with clear-row-height coverage for row layout metadata.
+- Added `set_table_cell_margin`, `clear_table_cell_margin`,
+  `set_table_cell_text_direction`, and `clear_table_cell_text_direction`
+  edit-plan operations for per-cell spacing and text-flow metadata.
+- Added `set_table_cell_width` and `clear_table_cell_width` edit-plan
+  operations, plus regression coverage for clearing direct table-column widths.
+- Expanded edit-plan regression coverage for clearing direct table-cell fill,
+  border, vertical alignment, and horizontal alignment overrides.
+- Added a free-memory guard to `scripts/run_reused_build_check.ps1` so reused
+  local build/test passes refuse to start on memory-starved workstations unless
+  the operator explicitly skips the guard.
+- Added the same low-memory preflight guard to the PDF visual release gate so
+  visual validation refuses to start when the workstation is already
+  memory-starved.
+- Added PDF visual preflight governance reporting for free-memory guard
+  outcomes so release-blocker summaries explain whether resource pressure, not
+  missing PDF artifacts alone, is blocking visual validation.
+- Added memory-guard parameter passthrough to the PDF visual preflight
+  governance report entry point so auto-generated preflight summaries use the
+  same workstation resource threshold as the visual gate.
+- Added PDF visual preflight memory-guard details to release blocker runbooks
+  so reviewer checklists show whether low memory is an active blocker before
+  preparing build outputs or running the full gate.
+- Documented the PDF visual release-blocker runbook memory fields so the
+  status page matches the reviewer checklist output.
+- Recorded the latest lightweight PDF preflight and governance-report result
+  so the status page distinguishes the current build/baseline blockers from
+  the passing memory guard.
+- Tightened PDF visual preflight build-dir auto-detection so generic `build`
+  directories are not treated as reusable CMake builds unless they contain
+  `CMakeCache.txt` or `CTestTestfile.cmake`.
+- Added a plain-build regression case for PDF visual preflight so a repository
+  with only `build/tmp` still reports the requested `.bpdf-roundtrip-msvc`
+  directory as missing instead of silently selecting an unrelated build folder.
+- Added top-level `output_gap_count` and `missing_output_count` fields to the
+  PDF visual preflight summary so release governance and status docs can use
+  the same missing-output totals without recomputing them.
+- Added the same PDF preflight output-gap totals to release blocker runbooks
+  and release metadata pipeline docs so reviewers see the grouped and total
+  missing-output counts before preparing build outputs.
+- Recorded the updated PDF visual preflight blocker count after stricter
+  reusable-build auto-detection stopped selecting plain `build` directories.
+- Documented the stricter PDF preflight reusable-build selection in the stale
+  branch inventory so old `auto:build` evidence does not drive branch cleanup
+  decisions.
+- Documented the current PDF visual validation boundary, including the
+  free-memory preflight check, governance passthrough, and why the gate is
+  still blocked by missing reusable build and baseline outputs.
+
+### Fixed
+
+- Fixed Windows runtime DLL copying for CLI-oriented test executables so
+  vcpkg FreeType/Harfbuzz companions such as zlib, bzip2, and Brotli DLLs are
+  available without an ad hoc `PATH`.
+
 ## [1.11.0] - 2026-05-12
 
 ### Added

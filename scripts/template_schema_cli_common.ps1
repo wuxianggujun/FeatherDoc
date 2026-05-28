@@ -28,6 +28,94 @@ function Resolve-TemplateSchemaPath {
     return (Resolve-Path -LiteralPath $candidate).Path
 }
 
+function ConvertTo-TemplateSchemaPortableRelativePath {
+    param(
+        [string]$BasePath,
+        [string]$TargetPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($TargetPath)) {
+        return ""
+    }
+
+    $resolvedBasePath = [System.IO.Path]::GetFullPath($BasePath)
+    if (-not $resolvedBasePath.EndsWith([System.IO.Path]::DirectorySeparatorChar) -and
+        -not $resolvedBasePath.EndsWith([System.IO.Path]::AltDirectorySeparatorChar)) {
+        $resolvedBasePath += [System.IO.Path]::DirectorySeparatorChar
+    }
+    $resolvedTargetPath = [System.IO.Path]::GetFullPath($TargetPath)
+
+    if ([System.IO.Path]::GetPathRoot($resolvedBasePath) -ne
+        [System.IO.Path]::GetPathRoot($resolvedTargetPath)) {
+        return $resolvedTargetPath.Replace('\', '/')
+    }
+
+    $baseUri = New-Object System.Uri($resolvedBasePath)
+    $targetUri = New-Object System.Uri($resolvedTargetPath)
+    return [System.Uri]::UnescapeDataString(
+        $baseUri.MakeRelativeUri($targetUri).ToString()
+    ).Replace('\', '/')
+}
+
+function ConvertTo-TemplateSchemaCommandLine {
+    param([object[]]$Arguments)
+
+    $escaped = foreach ($argument in @($Arguments)) {
+        if ($null -eq $argument) {
+            continue
+        }
+
+        $text = [string]$argument
+        if ($text -match '^[A-Za-z0-9_./:\\=-]+$') {
+            $text
+        } else {
+            '"' + ($text -replace '"', '\"') + '"'
+        }
+    }
+
+    return ($escaped -join ' ')
+}
+
+function ConvertTo-TemplateSchemaProcessArgumentString {
+    param([object[]]$Arguments)
+
+    $escaped = foreach ($argument in @($Arguments)) {
+        if ($null -eq $argument) {
+            continue
+        }
+
+        $text = [string]$argument
+        if ($text.Length -eq 0) {
+            '""'
+            continue
+        }
+
+        if ($text -notmatch '[\s"]') {
+            $text
+            continue
+        }
+
+        $quoted = $text -replace '(\\*)"', '$1$1\"'
+        $quoted = $quoted -replace '(\\+)$', '$1$1'
+        '"' + $quoted + '"'
+    }
+
+    return ($escaped -join ' ')
+}
+
+function Expand-TemplateSchemaArgumentList {
+    param([string[]]$Values)
+
+    return @(
+        foreach ($value in @($Values)) {
+            if ([string]::IsNullOrWhiteSpace($value)) { continue }
+            foreach ($part in ([string]$value -split ",")) {
+                if (-not [string]::IsNullOrWhiteSpace($part)) { $part.Trim() }
+            }
+        }
+    )
+}
+
 function Get-TemplateSchemaVcvarsPath {
     $candidates = @(
         "D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat",
@@ -58,16 +146,29 @@ function Invoke-TemplateSchemaMsvcCommand {
     }
 }
 
-function Find-TemplateSchemaCliBinary {
-    param([string]$SearchRoot)
+function Find-TemplateSchemaBinaryByName {
+    param(
+        [string]$SearchRoot,
+        [string[]]$Names
+    )
 
     if ([string]::IsNullOrWhiteSpace($SearchRoot) -or
         -not (Test-Path -LiteralPath $SearchRoot)) {
         return $null
     }
 
+    $lookup = @{}
+    foreach ($name in @($Names)) {
+        if (-not [string]::IsNullOrWhiteSpace($name)) {
+            $lookup[[string]$name] = $true
+        }
+    }
+    if ($lookup.Count -eq 0) {
+        return $null
+    }
+
     $candidates = Get-ChildItem -Path $SearchRoot -Recurse -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -ieq "featherdoc_cli.exe" -or $_.Name -ieq "featherdoc_cli" } |
+        Where-Object { $lookup.ContainsKey($_.Name) } |
         Sort-Object LastWriteTimeUtc -Descending
 
     if (-not $candidates) {
@@ -77,26 +178,27 @@ function Find-TemplateSchemaCliBinary {
     return $candidates[0].FullName
 }
 
+function Find-TemplateSchemaCliBinary {
+    param([string]$SearchRoot)
+
+    return Find-TemplateSchemaBinaryByName `
+        -SearchRoot $SearchRoot `
+        -Names @("featherdoc_cli.exe", "featherdoc_cli")
+}
+
 function Find-TemplateSchemaTargetBinary {
     param(
         [string]$SearchRoot,
         [string]$TargetName
     )
 
-    if ([string]::IsNullOrWhiteSpace($SearchRoot) -or
-        -not (Test-Path -LiteralPath $SearchRoot)) {
+    if ([string]::IsNullOrWhiteSpace($TargetName)) {
         return $null
     }
 
-    $candidates = Get-ChildItem -Path $SearchRoot -Recurse -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -ieq "$TargetName.exe" -or $_.Name -ieq $TargetName } |
-        Sort-Object LastWriteTimeUtc -Descending
-
-    if (-not $candidates) {
-        return $null
-    }
-
-    return $candidates[0].FullName
+    return Find-TemplateSchemaBinaryByName `
+        -SearchRoot $SearchRoot `
+        -Names @("$TargetName.exe", $TargetName)
 }
 
 function Resolve-TemplateSchemaCliPath {
@@ -141,9 +243,57 @@ function Invoke-TemplateSchemaCli {
         [string[]]$Arguments
     )
 
-    $commandOutput = @(& $ExecutablePath @Arguments 2>&1)
-    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
-    $lines = @($commandOutput | ForEach-Object { $_.ToString() })
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processArguments = @($Arguments)
+    if ([System.IO.Path]::GetExtension($ExecutablePath) -ieq ".ps1") {
+        $powerShellCommand = Get-Command powershell.exe -ErrorAction SilentlyContinue
+        if (-not $powerShellCommand) {
+            $powerShellCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+        }
+        if (-not $powerShellCommand) {
+            throw "Could not find powershell.exe or pwsh to invoke PowerShell CLI script $ExecutablePath."
+        }
+
+        $startInfo.FileName = $powerShellCommand.Source
+        $processArguments = @(
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            $ExecutablePath
+        ) + $processArguments
+    } else {
+        $startInfo.FileName = $ExecutablePath
+    }
+    $startInfo.Arguments = ConvertTo-TemplateSchemaProcessArgumentString -Arguments $processArguments
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $startInfo.StandardOutputEncoding = $utf8NoBom
+    $startInfo.StandardErrorEncoding = $utf8NoBom
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+
+    [void]$process.Start()
+    $standardOutput = $process.StandardOutput.ReadToEnd()
+    $standardError = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+
+    $exitCode = $process.ExitCode
+    $lines = @()
+    foreach ($streamText in @($standardOutput, $standardError)) {
+        if ([string]::IsNullOrEmpty($streamText)) {
+            continue
+        }
+
+        $lines += @(
+            $streamText -split "`r`n|`n|`r" |
+                Where-Object { $_ -ne "" }
+        )
+    }
 
     return [pscustomobject]@{
         ExitCode = $exitCode
@@ -162,7 +312,7 @@ function Get-TemplateSchemaCommandJsonLine {
         throw "Template schema command name must not be empty."
     }
 
-    $pattern = '^\{"command":"' + [regex]::Escape($Command) + '",'
+    $pattern = '^\s*\{\s*"command"\s*:\s*"' + [regex]::Escape($Command) + '"\s*,'
     $jsonLine = $Lines |
         Where-Object { $_ -match $pattern } |
         Select-Object -Last 1
@@ -180,5 +330,10 @@ function Get-TemplateSchemaCommandJsonObject {
         [string]$Command
     )
 
-    return (Get-TemplateSchemaCommandJsonLine -Lines $Lines -Command $Command) | ConvertFrom-Json
+    $jsonLine = Get-TemplateSchemaCommandJsonLine -Lines $Lines -Command $Command
+    try {
+        return $jsonLine | ConvertFrom-Json
+    } catch {
+        throw "Template schema command '$Command' emitted invalid JSON: $jsonLine"
+    }
 }

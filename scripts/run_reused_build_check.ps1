@@ -6,6 +6,8 @@ Runs a guarded FeatherDoc build/test pass that reuses the canonical local build.
 This script is the preferred local entry point for quick validation. It refuses
 to start when another FeatherDoc build/test process is already running, keeps a
 workspace lock while it owns the build, and reuses build-msvc-nmake by default.
+It also refuses to start when free physical memory is below -MinFreeMemoryMB
+unless -SkipMemoryGuard is passed after a manual resource check.
 
 It does not create a new build directory unless -ConfigureIfMissing is passed.
 Tests are run through ctest with a per-test timeout so stale test processes do
@@ -26,10 +28,12 @@ param(
     [string]$TestRegex = "",
     [int]$BuildTimeoutSeconds = 900,
     [int]$TestTimeoutSeconds = 60,
+    [int]$MinFreeMemoryMB = 2048,
     [switch]$SkipBuild,
     [switch]$SkipTests,
     [switch]$ConfigureIfMissing,
     [switch]$SkipProcessGuard,
+    [switch]$SkipMemoryGuard,
     [switch]$ListProcessesOnly
 )
 
@@ -128,19 +132,23 @@ function Invoke-CommandWithTimeout {
     $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $stdoutPath = Join-Path $logRoot "$stamp-$safeLabel.stdout.log"
     $stderrPath = Join-Path $logRoot "$stamp-$safeLabel.stderr.log"
+    $commandPath = Join-Path $logRoot "$stamp-$safeLabel.cmd"
+    [System.IO.File]::WriteAllLines(
+        $commandPath,
+        @("@echo off", $CommandText, "exit /b %ERRORLEVEL%"),
+        [System.Text.Encoding]::Default)
 
     Write-Step "$Label"
     Write-Host "  command: $CommandText"
     Write-Host "  timeout: ${TimeoutSeconds}s"
 
+    $cmdText = "call `"$commandPath`" > `"$stdoutPath`" 2> `"$stderrPath`""
     $process = Start-Process `
         -FilePath "cmd.exe" `
-        -ArgumentList @("/d", "/s", "/c", $CommandText) `
+        -ArgumentList @("/d", "/s", "/c", $cmdText) `
         -WorkingDirectory $WorkingDirectory `
-        -NoNewWindow `
         -PassThru `
-        -RedirectStandardOutput $stdoutPath `
-        -RedirectStandardError $stderrPath
+        -WindowStyle Hidden
 
     $completed = $process.WaitForExit($TimeoutSeconds * 1000)
     if (-not $completed) {
@@ -154,8 +162,12 @@ function Invoke-CommandWithTimeout {
         throw "$Label timed out after ${TimeoutSeconds}s. Stopped owned process tree rooted at PID $($process.Id)."
     }
 
+    $process.WaitForExit()
     $process.Refresh()
-    $exitCode = $process.ExitCode
+    if ($null -eq $process.ExitCode) {
+        throw "$Label finished, but the process exit code could not be read."
+    }
+    $exitCode = [int]$process.ExitCode
     if (Test-Path -LiteralPath $stdoutPath) {
         Get-Content -LiteralPath $stdoutPath -Tail 120
     }
@@ -214,6 +226,48 @@ function Get-FeatherDocProcesses {
             } |
             Select-Object ProcessId, ParentProcessId, Name, CreationDate, CommandLine
     )
+}
+
+function Get-LocalMemorySnapshot {
+    try {
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+        $totalMb = [math]::Round(([double]$os.TotalVisibleMemorySize) / 1024, 1)
+        $freeMb = [math]::Round(([double]$os.FreePhysicalMemory) / 1024, 1)
+        return [pscustomobject]@{
+            available = $true
+            total_mb = $totalMb
+            free_mb = $freeMb
+            message = ""
+        }
+    } catch {
+        return [pscustomobject]@{
+            available = $false
+            total_mb = $null
+            free_mb = $null
+            message = $_.Exception.Message
+        }
+    }
+}
+
+function Assert-FreeMemoryAvailable {
+    param([int]$MinimumFreeMemoryMB)
+
+    if ($MinimumFreeMemoryMB -le 0) {
+        return
+    }
+
+    $snapshot = Get-LocalMemorySnapshot
+    if (-not [bool]$snapshot.available) {
+        Write-Warning "Could not inspect free physical memory: $($snapshot.message)"
+        return
+    }
+
+    Write-Step ("Free physical memory: {0} MB / {1} MB required." -f `
+            $snapshot.free_mb, $MinimumFreeMemoryMB)
+    if ([double]$snapshot.free_mb -lt $MinimumFreeMemoryMB) {
+        throw ("Refusing to start because free physical memory is {0} MB, below the {1} MB guard. Close unrelated applications or rerun with -SkipMemoryGuard after confirming resources manually." -f `
+                $snapshot.free_mb, $MinimumFreeMemoryMB)
+    }
 }
 
 function New-WorkspaceLock {
@@ -276,6 +330,10 @@ if ($ListProcessesOnly) {
 if (-not $SkipProcessGuard -and $runningProcesses.Count -gt 0) {
     $runningProcesses | Sort-Object CreationDate | Format-List
     throw "Refusing to start because FeatherDoc build/test processes are already running."
+}
+
+if (-not $SkipMemoryGuard) {
+    Assert-FreeMemoryAvailable -MinimumFreeMemoryMB $MinFreeMemoryMB
 }
 
 $lockDir = New-WorkspaceLock -RepoRoot $repoRoot -ResolvedBuildDir $resolvedBuildDir

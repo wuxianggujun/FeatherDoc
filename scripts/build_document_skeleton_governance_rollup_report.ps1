@@ -127,6 +127,17 @@ function Get-JsonInt {
     return $DefaultValue
 }
 
+function Get-JsonBool {
+    param($Object, [string]$Name, [bool]$DefaultValue = $false)
+
+    $value = Get-JsonProperty -Object $Object -Name $Name
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        return $DefaultValue
+    }
+    if ($value -is [bool]) { return [bool]$value }
+    return [string]$value -in @("true", "True", "1", "yes", "Yes")
+}
+
 function Get-JsonArray {
     param($Object, [string]$Name)
 
@@ -232,7 +243,9 @@ function New-ReportMarkdown {
     $lines.Add("- Source reports: ``$($Summary.source_report_count)``") | Out-Null
     $lines.Add("- Documents: ``$($Summary.document_count)``") | Out-Null
     $lines.Add("- Source failures: ``$($Summary.source_failure_count)``") | Out-Null
+    $lines.Add("- source_failure_count: ``$($Summary.source_failure_count)``") | Out-Null
     $lines.Add("- Style-numbering issues: ``$($Summary.total_style_numbering_issue_count)``") | Out-Null
+    $lines.Add("- Style-merge suggestions: ``$($Summary.total_style_merge_suggestion_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -243,11 +256,12 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($document in @($Summary.document_entries)) {
-            $lines.Add(("- ``{0}``: status=``{1}`` issues=``{2}`` suggestions=``{3}`` definitions=``{4}`` instances=``{5}`` source=``{6}``" -f
+            $lines.Add(("- ``{0}``: status=``{1}`` issues=``{2}`` suggestions=``{3}`` style_merge_suggestions=``{4}`` definitions=``{5}`` instances=``{6}`` source=``{7}``" -f
                 $document.document_name,
                 $document.status,
                 $document.style_numbering_issue_count,
                 $document.style_numbering_suggestion_count,
+                $document.style_merge_suggestion_count,
                 $document.numbering_definition_count,
                 $document.numbering_instance_count,
                 $document.source_report_display)) | Out-Null
@@ -379,6 +393,7 @@ $totalNumberingInstanceCount = 0
 $totalStyleUsageCount = 0
 $totalNumberedStyleCount = 0
 $totalCommandFailureCount = 0
+$totalStyleMergeSuggestionCount = 0
 
 foreach ($path in @($inputPaths)) {
     $sourceIndex++
@@ -389,6 +404,7 @@ foreach ($path in @($inputPaths)) {
     $inputDocx = ""
     $inputDocxDisplay = ""
     $styleIssueCount = 0
+    $styleMergeSuggestionCount = 0
     $releaseBlockerCount = 0
 
     try {
@@ -398,6 +414,8 @@ foreach ($path in @($inputPaths)) {
             $sourceStatus = "skipped"
             $warnings.Add([ordered]@{
                 id = "source_report_schema_skipped"
+                action = "review_document_skeleton_governance_sources"
+                source_schema = "featherdoc.document_skeleton_governance_report.v1"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 message = "Report schema '$kind' is not a document skeleton governance summary."
@@ -414,6 +432,7 @@ foreach ($path in @($inputPaths)) {
             $instanceCount = Get-JsonInt -Object $numberingCatalog -Name "instance_count"
             $styleIssueCount = Get-JsonInt -Object $summaryObject -Name "style_numbering_issue_count"
             $styleSuggestionCount = Get-JsonInt -Object $summaryObject -Name "style_numbering_suggestion_count"
+            $styleMergeSuggestionCount = Get-JsonInt -Object $summaryObject -Name "style_merge_suggestion_count"
             $numberedStyleCount = Get-JsonInt -Object $summaryObject -Name "numbered_style_count"
             $styleUsageTotal = Get-JsonInt -Object $styleUsage -Name "usage_total"
             $commandFailureCount = Get-JsonInt -Object $summaryObject -Name "command_failure_count"
@@ -423,6 +442,8 @@ foreach ($path in @($inputPaths)) {
             if ($null -ne $declaredBlockerCount -and [int]$declaredBlockerCount -ne $releaseBlockerCount) {
                 $warnings.Add([ordered]@{
                     id = "release_blocker_count_mismatch"
+                    action = "review_document_skeleton_governance_sources"
+                    source_schema = "featherdoc.document_skeleton_governance_report.v1"
                     source_report = $path
                     source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "release_blocker_count is $declaredBlockerCount but release_blockers contains $releaseBlockerCount item(s)."
@@ -448,6 +469,7 @@ foreach ($path in @($inputPaths)) {
                 clean = ($sourceStatus -eq "clean")
                 style_numbering_issue_count = $styleIssueCount
                 style_numbering_suggestion_count = $styleSuggestionCount
+                style_merge_suggestion_count = $styleMergeSuggestionCount
                 numbered_style_count = $numberedStyleCount
                 numbering_definition_count = $definitionCount
                 numbering_instance_count = $instanceCount
@@ -524,6 +546,10 @@ foreach ($path in @($inputPaths)) {
                     action = Get-JsonString -Object $item -Name "action"
                     title = Get-JsonString -Object $item -Name "title"
                     command = Get-JsonString -Object $item -Name "command"
+                    category = Get-JsonString -Object $item -Name "category"
+                    severity = Get-JsonString -Object $item -Name "severity"
+                    release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
+                    optional = Get-JsonBool -Object $item -Name "optional"
                 }) | Out-Null
             }
 
@@ -534,12 +560,15 @@ foreach ($path in @($inputPaths)) {
             $totalStyleUsageCount += $styleUsageTotal
             $totalNumberedStyleCount += $numberedStyleCount
             $totalCommandFailureCount += $commandFailureCount
+            $totalStyleMergeSuggestionCount += $styleMergeSuggestionCount
         }
     } catch {
         $sourceStatus = "failed"
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_report_read_failed"
+            action = "review_document_skeleton_governance_sources"
+            source_schema = "featherdoc.document_skeleton_governance_report.v1"
             source_report = $path
             source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage
@@ -555,6 +584,7 @@ foreach ($path in @($inputPaths)) {
         input_docx = $inputDocx
         input_docx_display = $inputDocxDisplay
         style_numbering_issue_count = $styleIssueCount
+        style_merge_suggestion_count = $styleMergeSuggestionCount
         release_blocker_count = $releaseBlockerCount
         error = $errorMessage
     }) | Out-Null
@@ -569,7 +599,7 @@ $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($sourceReportFailureCount -gt 0 -or $totalCommandFailureCount -gt 0) {
     "failed"
-} elseif ($warnings.Count -gt 0 -or $totalStyleNumberingIssueCount -gt 0 -or $blockers.Count -gt 0 -or $needsReviewCount -gt 0) {
+} elseif ($warnings.Count -gt 0 -or $totalStyleNumberingIssueCount -gt 0 -or $totalStyleMergeSuggestionCount -gt 0 -or $blockers.Count -gt 0 -or $needsReviewCount -gt 0) {
     "needs_review"
 } else {
     "clean"
@@ -594,6 +624,7 @@ $summary = [ordered]@{
     document_entries = @($documents.ToArray())
     total_style_numbering_issue_count = $totalStyleNumberingIssueCount
     total_style_numbering_suggestion_count = $totalStyleNumberingSuggestionCount
+    total_style_merge_suggestion_count = $totalStyleMergeSuggestionCount
     total_numbered_style_count = $totalNumberedStyleCount
     total_numbering_definition_count = $totalNumberingDefinitionCount
     total_numbering_instance_count = $totalNumberingInstanceCount

@@ -20,6 +20,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[release-blocker-rollup] $Message"
@@ -66,6 +68,76 @@ function Get-DisplayPath {
     return $resolved
 }
 
+function Convert-ReleaseMaterialString {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()][string]$Text
+    )
+
+    if ($null -eq $Text -or [string]::IsNullOrWhiteSpace($RepoRoot)) {
+        return $Text
+    }
+
+    $normalized = [string]$Text
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $repoRootForms = @(
+        $resolvedRepoRoot,
+        ($resolvedRepoRoot -replace '\\', '/'),
+        ($resolvedRepoRoot -replace '\\', '\\')
+    ) | Sort-Object -Unique
+
+    foreach ($rootForm in $repoRootForms) {
+        if ([string]::IsNullOrWhiteSpace($rootForm)) {
+            continue
+        }
+
+        $pattern = [regex]::Escape($rootForm) + '(?<suffix>\\\\|[\\/]|(?=$|[\s"''`<>|;,)]+))'
+        $normalized = [regex]::Replace(
+            $normalized,
+            $pattern,
+            '.${suffix}',
+            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    }
+
+    return $normalized.Replace('./', '.\')
+}
+
+function Write-ReleaseMaterialFiles {
+    param(
+        [AllowNull()]$Summary,
+        [string]$SummaryPath,
+        [string]$MarkdownPath,
+        [int]$JsonDepth
+    )
+
+    $summaryJson = $Summary | ConvertTo-Json -Depth $JsonDepth
+    (Convert-ReleaseMaterialString -RepoRoot $repoRoot -Text $summaryJson) |
+        Set-Content -LiteralPath $SummaryPath -Encoding UTF8
+
+    $markdown = @(New-ReportMarkdown -Summary $Summary) -join [Environment]::NewLine
+    (Convert-ReleaseMaterialString -RepoRoot $repoRoot -Text $markdown) |
+        Set-Content -LiteralPath $MarkdownPath -Encoding UTF8
+}
+
+function Resolve-RepoPathFromDisplayPath {
+    param([string]$RepoRoot, [string]$DisplayPath)
+
+    if ([string]::IsNullOrWhiteSpace($RepoRoot) -or [string]::IsNullOrWhiteSpace($DisplayPath)) {
+        return ""
+    }
+
+    $normalized = $DisplayPath -replace '/', '\'
+    if ($normalized.StartsWith('.\')) {
+        $normalized = $normalized.Substring(2)
+    }
+
+    if ([System.IO.Path]::IsPathRooted($normalized)) {
+        return [System.IO.Path]::GetFullPath($normalized)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $normalized))
+}
+
 function Get-JsonProperty {
     param($Object, [string]$Name)
 
@@ -89,6 +161,31 @@ function Get-JsonString {
     return [string]$value
 }
 
+function Get-FirstJsonString {
+    param($Object, [string[]]$Names, [string]$DefaultValue = "")
+
+    foreach ($name in @($Names)) {
+        $value = Get-JsonString -Object $Object -Name $name
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+    return $DefaultValue
+}
+
+function Get-FirstJsonProperty {
+    param($Object, [string[]]$Names)
+
+    foreach ($name in @($Names)) {
+        $value = Get-JsonProperty -Object $Object -Name $name
+        if ($null -eq $value) { continue }
+        if ($value -is [string] -and [string]::IsNullOrWhiteSpace($value)) { continue }
+        return $value
+    }
+
+    return $null
+}
+
 function Get-JsonInt {
     param($Object, [string]$Name, [int]$DefaultValue = 0)
 
@@ -99,6 +196,68 @@ function Get-JsonInt {
     $parsed = 0
     if ([int]::TryParse([string]$value, [ref]$parsed)) { return $parsed }
     return $DefaultValue
+}
+
+function Get-JsonBool {
+    param($Object, [string]$Name, [bool]$DefaultValue = $false)
+
+    $value = Get-JsonProperty -Object $Object -Name $Name
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        return $DefaultValue
+    }
+    if ($value -is [bool]) { return [bool]$value }
+    $parsed = $false
+    if ([bool]::TryParse([string]$value, [ref]$parsed)) { return $parsed }
+    return $DefaultValue
+}
+
+function Test-InformationalActionItem {
+    param($Item)
+
+    $category = Get-JsonString -Object $Item -Name "category"
+    if ($category -in @("release_checklist", "manual_release_checklist", "informational")) {
+        return $true
+    }
+
+    if (Get-JsonBool -Object $Item -Name "optional") {
+        return $true
+    }
+
+    $releaseBlockingProperty = Get-JsonProperty -Object $Item -Name "release_blocking"
+    if ($null -ne $releaseBlockingProperty -and -not (Get-JsonBool -Object $Item -Name "release_blocking" -DefaultValue $true)) {
+        return $true
+    }
+
+    $id = Get-JsonString -Object $Item -Name "id"
+    $action = Get-JsonString -Object $Item -Name "action"
+    return ($id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline") -or
+        $action -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline"))
+}
+
+function Copy-ActionItemWithReleaseChecklistDefaults {
+    param($Item)
+
+    $copy = [ordered]@{}
+    if ($Item -is [System.Collections.IDictionary]) {
+        foreach ($key in @($Item.Keys)) {
+            $copy[[string]$key] = $Item[$key]
+        }
+    } else {
+        foreach ($property in @($Item.PSObject.Properties)) {
+            $copy[$property.Name] = $property.Value
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $copy -Name "category"))) {
+        $copy["category"] = "release_checklist"
+    }
+    if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $copy -Name "severity"))) {
+        $copy["severity"] = "info"
+    }
+    $copy["release_blocking"] = $false
+    $copy["optional"] = $true
+
+    return $copy
 }
 
 function Get-JsonArray {
@@ -113,32 +272,278 @@ function Get-JsonArray {
     return @($value)
 }
 
-function Expand-InputPathList {
-    param([string[]]$Paths)
+function Copy-OptionalJsonProperties {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Source,
+        [string[]]$Names
+    )
 
-    return @(
-        foreach ($path in @($Paths)) {
-            foreach ($part in ([string]$path -split ",")) {
-                $trimmed = $part.Trim()
-                if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
-                    $trimmed
-                }
+    foreach ($name in @($Names)) {
+        $value = Get-JsonProperty -Object $Source -Name $name
+        if ($null -ne $value) {
+            $Target[$name] = $value
+        }
+    }
+}
+
+function Set-OptionalSourceReportField {
+    param(
+        [System.Collections.IDictionary]$Target,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -eq $Value) { return }
+    if ($Value -is [string] -and [string]::IsNullOrWhiteSpace($Value)) { return }
+    $Target[$Name] = $Value
+}
+
+function Set-JsonPropertyValue {
+    param(
+        $Object,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -eq $Object) { return }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        $Object[$Name] = $Value
+        return
+    }
+
+    $existing = $Object.PSObject.Properties[$Name]
+    if ($null -ne $existing) {
+        $existing.Value = $Value
+        return
+    }
+
+    Add-Member -InputObject $Object -MemberType NoteProperty -Name $Name -Value $Value
+}
+
+function Normalize-ReadinessActionEvidence {
+    param(
+        $Items,
+        [string]$DefaultSourceSchema,
+        [string]$DefaultSourceReport,
+        [string]$DefaultSourceReportDisplay,
+        [string]$DefaultSourceJson,
+        [string]$DefaultSourceJsonDisplay,
+        [string]$RepoRoot
+    )
+
+    foreach ($evidence in @($Items)) {
+        if ($null -eq $evidence) {
+            continue
+        }
+        if ($evidence -isnot [System.Collections.IDictionary] -and $evidence -isnot [pscustomobject]) {
+            continue
+        }
+
+        $sourceSchema = Get-JsonString -Object $evidence -Name "source_schema"
+        $sourceReport = Get-JsonString -Object $evidence -Name "source_report"
+        $sourceReportDisplay = Get-JsonString -Object $evidence -Name "source_report_display"
+        $sourceJson = Get-JsonString -Object $evidence -Name "source_json"
+        $sourceJsonDisplay = Get-JsonString -Object $evidence -Name "source_json_display"
+
+        if ([string]::IsNullOrWhiteSpace($sourceSchema)) {
+            Set-JsonPropertyValue -Object $evidence -Name "source_schema" -Value $DefaultSourceSchema
+        }
+
+        if ([string]::IsNullOrWhiteSpace($sourceReport)) {
+            if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+                $sourceReport = Resolve-RepoPathFromDisplayPath -RepoRoot $RepoRoot -DisplayPath $sourceReportDisplay
+            } else {
+                $sourceReport = $DefaultSourceReport
+            }
+            Set-JsonPropertyValue -Object $evidence -Name "source_report" -Value $sourceReport
+        }
+
+        if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+            if (-not [string]::IsNullOrWhiteSpace($DefaultSourceReportDisplay)) {
+                $sourceReportDisplay = $DefaultSourceReportDisplay
+            } elseif (-not [string]::IsNullOrWhiteSpace($sourceReport)) {
+                $sourceReportDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $sourceReport
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+                Set-JsonPropertyValue -Object $evidence -Name "source_report_display" -Value $sourceReportDisplay
             }
         }
+
+        if ([string]::IsNullOrWhiteSpace($sourceJson)) {
+            if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                $sourceJson = Resolve-RepoPathFromDisplayPath -RepoRoot $RepoRoot -DisplayPath $sourceJsonDisplay
+            } elseif (-not [string]::IsNullOrWhiteSpace($sourceReport)) {
+                $sourceJson = $sourceReport
+            } else {
+                $sourceJson = $DefaultSourceJson
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                Set-JsonPropertyValue -Object $evidence -Name "source_json" -Value $sourceJson
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+            if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                $sourceJsonDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $sourceJson
+            } elseif (-not [string]::IsNullOrWhiteSpace($DefaultSourceJsonDisplay)) {
+                $sourceJsonDisplay = $DefaultSourceJsonDisplay
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                Set-JsonPropertyValue -Object $evidence -Name "source_json_display" -Value $sourceJsonDisplay
+            }
+        }
+    }
+}
+
+function Get-ReportIdFromSchema {
+    param([string]$SourceSchema)
+
+    switch ($SourceSchema) {
+        "featherdoc.numbering_catalog_governance_report.v1" { return "numbering_catalog_governance" }
+        "featherdoc.table_layout_delivery_governance_report.v1" { return "table_layout_delivery_governance" }
+        default { return "" }
+    }
+}
+
+function Get-GovernanceMetricByContract {
+    param(
+        $Metrics,
+        [string]$Metric,
+        [string]$Id,
+        [string]$ReportId,
+        [string]$SourceSchema
     )
+
+    return @($Metrics | Where-Object {
+        [string]$_.metric -eq $Metric -and
+        [string]$_.id -eq $Id -and
+        [string]$_.report_id -eq $ReportId -and
+        [string]$_.source_schema -eq $SourceSchema
+    }) | Select-Object -First 1
+}
+
+function Add-GovernanceMetricDetailLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        $Metric
+    )
+
+    $details = Get-JsonProperty -Object $Metric -Name "details"
+    if ($null -eq $details) { return }
+
+    $detailFields = @(
+        "document_count",
+        "catalog_exemplar_count",
+        "baseline_entry_count",
+        "matched_document_count",
+        "unmatched_catalog_document_count",
+        "unmatched_baseline_document_count",
+        "alignment_gap_count",
+        "catalog_coverage_percent",
+        "baseline_coverage_percent",
+        "coverage_score",
+        "ready_document_count",
+        "ready_document_percent",
+        "needs_review_document_count",
+        "failed_document_count",
+        "table_style_issue_count",
+        "automatic_tblLook_fix_count",
+        "manual_table_style_fix_count",
+        "table_position_automatic_count",
+        "table_position_review_count",
+        "command_failure_count",
+        "unresolved_item_count"
+    )
+    $detailParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($fieldName in $detailFields) {
+        $value = Get-JsonProperty -Object $details -Name $fieldName
+        if ($null -ne $value -and -not [string]::IsNullOrWhiteSpace([string]$value)) {
+            $detailParts.Add("$fieldName=$value") | Out-Null
+        }
+    }
+    if ($detailParts.Count -gt 0) {
+        $Lines.Add("  - details: ``$($detailParts -join ', ')``") | Out-Null
+    }
+
+    $penaltyParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($penalty in @(Get-JsonArray -Object $details -Name "penalty_summary")) {
+        $factor = Get-JsonString -Object $penalty -Name "factor"
+        if ([string]::IsNullOrWhiteSpace($factor)) { continue }
+        $count = Get-JsonProperty -Object $penalty -Name "count"
+        $penaltyValue = Get-JsonProperty -Object $penalty -Name "penalty"
+        $penaltyParts.Add("$factor(count=$count, penalty=$penaltyValue)") | Out-Null
+    }
+    if ($penaltyParts.Count -gt 0) {
+        $Lines.Add("  - penalty_summary: ``$($penaltyParts -join '; ')``") | Out-Null
+    }
+}
+
+function New-GovernanceMetrics {
+    param(
+        $Summary,
+        [string]$SourceSchema,
+        [string]$SourceReport,
+        [string]$SourceReportDisplay
+    )
+
+    $metrics = New-Object 'System.Collections.Generic.List[object]'
+    $reportId = Get-ReportIdFromSchema -SourceSchema $SourceSchema
+
+    if ($SourceSchema -eq "featherdoc.numbering_catalog_governance_report.v1" -and
+        ($null -ne (Get-JsonProperty -Object $Summary -Name "real_corpus_confidence_score") -or
+        -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $Summary -Name "real_corpus_confidence_level")))) {
+        $metrics.Add([ordered]@{
+            id = "numbering_catalog_governance.real_corpus_confidence"
+            metric = "real_corpus_confidence"
+            report_id = $reportId
+            source_schema = $SourceSchema
+            source_report = $SourceReport
+            source_report_display = $SourceReportDisplay
+            source_json = $SourceReport
+            source_json_display = $SourceReportDisplay
+            score = Get-JsonInt -Object $Summary -Name "real_corpus_confidence_score"
+            level = Get-JsonString -Object $Summary -Name "real_corpus_confidence_level"
+            details = Get-JsonProperty -Object $Summary -Name "real_corpus_confidence"
+        }) | Out-Null
+    }
+
+    if ($SourceSchema -eq "featherdoc.table_layout_delivery_governance_report.v1" -and
+        ($null -ne (Get-JsonProperty -Object $Summary -Name "delivery_quality_score") -or
+        -not [string]::IsNullOrWhiteSpace((Get-JsonString -Object $Summary -Name "delivery_quality_level")))) {
+        $metrics.Add([ordered]@{
+            id = "table_layout_delivery_governance.delivery_quality"
+            metric = "delivery_quality"
+            report_id = $reportId
+            source_schema = $SourceSchema
+            source_report = $SourceReport
+            source_report_display = $SourceReportDisplay
+            source_json = $SourceReport
+            source_json_display = $SourceReportDisplay
+            score = Get-JsonInt -Object $Summary -Name "delivery_quality_score"
+            level = Get-JsonString -Object $Summary -Name "delivery_quality_level"
+            details = Get-JsonProperty -Object $Summary -Name "delivery_quality"
+        }) | Out-Null
+    }
+
+    return @($metrics.ToArray())
 }
 
 function Get-InputJsonPaths {
     param([string]$RepoRoot, [string[]]$ExplicitPaths, [string[]]$Roots)
 
     $paths = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($path in @(Expand-InputPathList -Paths $ExplicitPaths)) {
+    foreach ($path in @(Expand-TemplateSchemaArgumentList -Values $ExplicitPaths)) {
         if (-not [string]::IsNullOrWhiteSpace($path)) {
             $paths.Add((Resolve-RepoPath -RepoRoot $RepoRoot -Path $path)) | Out-Null
         }
     }
 
-    $scanRoots = @(Expand-InputPathList -Paths $Roots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $scanRoots = @(Expand-TemplateSchemaArgumentList -Values $Roots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($paths.Count -eq 0 -and $scanRoots.Count -eq 0) {
         $scanRoots = @("output")
     }
@@ -176,6 +581,539 @@ function Get-ReportKind {
     return "unknown"
 }
 
+function Get-PdfVisualGateEvidenceObject {
+    param($Summary)
+
+    $pdfVisualGate = Get-JsonProperty -Object $Summary -Name "pdf_visual_gate"
+    if ($null -ne $pdfVisualGate) {
+        return $pdfVisualGate
+    }
+
+    $steps = Get-JsonProperty -Object $Summary -Name "steps"
+    if ($null -eq $steps) {
+        return $null
+    }
+
+    return (Get-JsonProperty -Object $steps -Name "pdf_visual_gate")
+}
+
+function Add-PdfVisualGateEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary,
+        [string]$RepoRoot
+    )
+
+    $pdfVisualGate = Get-PdfVisualGateEvidenceObject -Summary $Summary
+    if ($null -eq $pdfVisualGate) {
+        return
+    }
+
+    $summaryJson = Get-FirstJsonString -Object $pdfVisualGate -Names @("summary_json")
+    if ([string]::IsNullOrWhiteSpace($summaryJson)) {
+        $summaryJson = Get-FirstJsonString -Object $Summary -Names @("pdf_visual_gate_summary_json")
+    }
+    $aggregateContactSheet = Get-FirstJsonString -Object $pdfVisualGate -Names @("aggregate_contact_sheet")
+    $verdict = Get-FirstJsonString -Object $pdfVisualGate -Names @("verdict")
+    $fullVisualGateStatus = Get-FirstJsonString -Object $pdfVisualGate -Names @("full_visual_gate_status")
+    if ([string]::IsNullOrWhiteSpace($fullVisualGateStatus) -and $verdict -in @("pass", "fail")) {
+        $fullVisualGateStatus = $verdict
+    }
+
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_status" `
+        -Value (Get-FirstJsonString -Object $pdfVisualGate -Names @("status"))
+    Set-OptionalSourceReportField -Target $Target -Name "full_visual_gate_status" `
+        -Value $fullVisualGateStatus
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_verdict" `
+        -Value $verdict
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_finalizable" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("finalizable"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_summary_json" `
+        -Value $summaryJson
+    if (-not [string]::IsNullOrWhiteSpace($summaryJson)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_summary_json_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson)
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_aggregate_contact_sheet" `
+        -Value $aggregateContactSheet
+    if (-not [string]::IsNullOrWhiteSpace($aggregateContactSheet)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_aggregate_contact_sheet_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $aggregateContactSheet)
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_cjk_manifest_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("cjk_manifest_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_cjk_copy_search_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("cjk_copy_search_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_cjk_missing_text_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("cjk_copy_search_missing_text_count", "cjk_missing_text_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_visual_baseline_manifest_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("visual_baseline_manifest_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_visual_baseline_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("visual_baseline_count", "baselines_count"))
+}
+
+function Get-PdfBoundedCtestEvidenceObject {
+    param($Summary)
+
+    $pdfBoundedCtest = Get-JsonProperty -Object $Summary -Name "pdf_bounded_ctest"
+    if ($null -ne $pdfBoundedCtest) {
+        return $pdfBoundedCtest
+    }
+
+    $steps = Get-JsonProperty -Object $Summary -Name "steps"
+    if ($null -eq $steps) {
+        return $null
+    }
+
+    return (Get-JsonProperty -Object $steps -Name "pdf_bounded_ctest")
+}
+
+function Add-PdfBoundedCtestEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary
+    )
+
+    $pdfBoundedCtest = Get-PdfBoundedCtestEvidenceObject -Summary $Summary
+    if ($null -eq $pdfBoundedCtest) {
+        return
+    }
+
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_summary_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfBoundedCtest -Names @("summary_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_pass_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfBoundedCtest -Names @("pass_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_skipped_test_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfBoundedCtest -Names @("skipped_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_selected_test_count" `
+        -Value (Get-FirstJsonProperty -Object $pdfBoundedCtest -Names @("selected_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_subsets" `
+        -Value @(Get-JsonArray -Object $pdfBoundedCtest -Name "subsets")
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_summary_json_display" `
+        -Value @(Get-JsonArray -Object $pdfBoundedCtest -Name "summary_json_display")
+}
+
+function Get-PdfFullCtestReadinessEvidenceObject {
+    param($Summary)
+
+    $readiness = Get-JsonProperty -Object $Summary -Name "pdf_full_ctest_readiness"
+    if ($null -ne $readiness) {
+        return $readiness
+    }
+
+    $steps = Get-JsonProperty -Object $Summary -Name "steps"
+    if ($null -eq $steps) {
+        return $null
+    }
+
+    return (Get-JsonProperty -Object $steps -Name "pdf_full_ctest_readiness")
+}
+
+function Add-PdfFullCtestReadinessEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary,
+        [string]$RepoRoot
+    )
+
+    $readiness = Get-PdfFullCtestReadinessEvidenceObject -Summary $Summary
+    if ($null -eq $readiness) {
+        return
+    }
+
+    $summaryJson = Get-FirstJsonString -Object $readiness -Names @("summary_json")
+    if ([string]::IsNullOrWhiteSpace($summaryJson)) {
+        $summaryJson = Get-FirstJsonString -Object $Summary -Names @("pdf_release_readiness_summary_json")
+    }
+    $fullCtestSummaryJson = Get-FirstJsonString -Object $readiness -Names @("full_ctest_summary_json")
+
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_requested" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("requested"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_status" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_verdict" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("verdict"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_release_ready" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("release_ready"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_visual_gate_release_evidence_accepted" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("visual_gate_release_evidence_accepted"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_visual_gate_fresh_full_guarded_evidence" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("visual_gate_fresh_full_guarded_evidence"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_visual_gate_segmented_full_coverage_evidence" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("visual_gate_segmented_full_coverage_evidence"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_summary_json" `
+        -Value $summaryJson
+    if (-not [string]::IsNullOrWhiteSpace($summaryJson)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_summary_json_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson)
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_full_ctest_summary_json" `
+        -Value $fullCtestSummaryJson
+    if (-not [string]::IsNullOrWhiteSpace($fullCtestSummaryJson)) {
+        $fullCtestSummaryJsonDisplay = Get-FirstJsonString -Object $readiness -Names @("full_ctest_summary_json_display")
+        if ([string]::IsNullOrWhiteSpace($fullCtestSummaryJsonDisplay)) {
+            $fullCtestSummaryJsonDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $fullCtestSummaryJson
+        }
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_full_ctest_summary_json_display" `
+            -Value $fullCtestSummaryJsonDisplay
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_full_ctest_status" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("full_ctest_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_full_ctest_verdict" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("full_ctest_verdict"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_outer_guard_status" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("outer_guard_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_outer_guard_timed_out" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("outer_guard_timed_out"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_selected_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("selected_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_completed_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("completed_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_passed_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("passed_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_failed_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("failed_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_skipped_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("skipped_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_not_run_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("not_run_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_completion_percent" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("completion_percent"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_remaining_test_count" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("remaining_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_zero_failed_tests_observed" `
+        -Value (Get-FirstJsonProperty -Object $readiness -Names @("zero_failed_tests_observed"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_boundary" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("boundary"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_full_ctest_readiness_marker" `
+        -Value (Get-FirstJsonString -Object $readiness -Names @("marker"))
+}
+
+function Get-PdfVisualGateAttemptEvidenceObject {
+    param($Summary)
+
+    $attempt = Get-JsonProperty -Object $Summary -Name "pdf_visual_gate_attempt"
+    if ($null -ne $attempt) {
+        return $attempt
+    }
+
+    $steps = Get-JsonProperty -Object $Summary -Name "steps"
+    if ($null -eq $steps) {
+        return $null
+    }
+
+    return (Get-JsonProperty -Object $steps -Name "pdf_visual_gate_attempt")
+}
+
+function Add-PdfVisualGateAttemptEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary,
+        [string]$RepoRoot
+    )
+
+    $attempt = Get-PdfVisualGateAttemptEvidenceObject -Summary $Summary
+    if ($null -eq $attempt) {
+        return
+    }
+
+    $summaryJson = Get-FirstJsonString -Object $attempt -Names @("summary_json")
+    if ([string]::IsNullOrWhiteSpace($summaryJson)) {
+        $summaryJson = Get-FirstJsonString -Object $Summary -Names @("pdf_visual_gate_attempt_summary_json")
+    }
+    $status = Get-FirstJsonString -Object $attempt -Names @("status")
+    if ([string]::IsNullOrWhiteSpace($summaryJson) -and $status -eq "not_requested") {
+        return
+    }
+    $aggregateContactSheet = Get-FirstJsonString -Object $attempt -Names @("aggregate_contact_sheet")
+
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_status" `
+        -Value $status
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_verdict" `
+        -Value (Get-FirstJsonString -Object $attempt -Names @("verdict"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_full_visual_gate_status" `
+        -Value (Get-FirstJsonString -Object $attempt -Names @("full_visual_gate_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_evidence_scope" `
+        -Value (Get-FirstJsonString -Object $attempt -Names @("evidence_scope"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_summary_json" `
+        -Value $summaryJson
+    if (-not [string]::IsNullOrWhiteSpace($summaryJson)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_summary_json_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson)
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_stage_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("stage_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_passed_stage_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("passed_stage_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_failed_stage_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("failed_stage_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_incomplete_stage_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("incomplete_stage_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_outer_guard_status" `
+        -Value (Get-FirstJsonString -Object $attempt -Names @("outer_guard_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_outer_guard_timed_out" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("outer_guard_timed_out"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_outer_guard_timeout_seconds" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("outer_guard_timeout_seconds"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_pdf_cli_export_status" `
+        -Value (Get-FirstJsonString -Object $attempt -Names @("pdf_cli_export_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_pdf_regression_status" `
+        -Value (Get-FirstJsonString -Object $attempt -Names @("pdf_regression_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_pdf_regression_selected_test_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("pdf_regression_selected_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_pdf_regression_failed_test_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("pdf_regression_failed_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_pdf_regression_skipped_test_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("pdf_regression_skipped_test_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_unicode_font_status" `
+        -Value (Get-FirstJsonString -Object $attempt -Names @("unicode_font_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_cjk_copy_search_status" `
+        -Value (Get-FirstJsonString -Object $attempt -Names @("cjk_copy_search_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_cjk_copy_search_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("cjk_copy_search_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_cjk_copy_search_missing_text_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("cjk_copy_search_missing_text_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_visual_baseline_render_status" `
+        -Value (Get-FirstJsonString -Object $attempt -Names @("visual_baseline_render_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("visual_baseline_fresh_rendered_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_expected_visual_render_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("expected_visual_render_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_aggregate_contact_sheet_status" `
+        -Value (Get-FirstJsonString -Object $attempt -Names @("aggregate_contact_sheet_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_aggregate_contact_sheet" `
+        -Value $aggregateContactSheet
+    if (-not [string]::IsNullOrWhiteSpace($aggregateContactSheet)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_aggregate_contact_sheet_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $aggregateContactSheet)
+    }
+}
+
+function Get-PdfVisualSegmentedGateEvidenceObject {
+    param($Summary)
+
+    $segmented = Get-JsonProperty -Object $Summary -Name "pdf_visual_segmented_gate"
+    if ($null -ne $segmented) {
+        return $segmented
+    }
+
+    $steps = Get-JsonProperty -Object $Summary -Name "steps"
+    if ($null -eq $steps) {
+        return $null
+    }
+
+    return (Get-JsonProperty -Object $steps -Name "pdf_visual_segmented_gate")
+}
+
+function Add-PdfVisualSegmentedGateEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary,
+        [string]$RepoRoot
+    )
+
+    $segmented = Get-PdfVisualSegmentedGateEvidenceObject -Summary $Summary
+    if ($null -eq $segmented) {
+        return
+    }
+
+    $summaryJson = Get-FirstJsonString -Object $segmented -Names @("summary_json")
+    if ([string]::IsNullOrWhiteSpace($summaryJson)) {
+        $summaryJson = Get-FirstJsonString -Object $Summary -Names @("pdf_visual_segmented_gate_summary_json")
+    }
+    $status = Get-FirstJsonString -Object $segmented -Names @("status")
+    if ([string]::IsNullOrWhiteSpace($summaryJson) -and $status -eq "not_requested") {
+        return
+    }
+    $aggregateContactSheet = Get-FirstJsonString -Object $segmented -Names @("aggregate_contact_sheet")
+
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_status" `
+        -Value $status
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_verdict" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("verdict"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_full_visual_gate_status" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("full_visual_gate_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_evidence_scope" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("evidence_scope"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_boundary" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("boundary"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_summary_json" `
+        -Value $summaryJson
+    if (-not [string]::IsNullOrWhiteSpace($summaryJson)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_summary_json_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson)
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_slice_summary_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("slice_summary_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_slice_pass_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("slice_pass_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_slice_failed_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("slice_failed_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_covered_baseline_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("covered_baseline_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_expected_visual_render_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("expected_visual_render_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_attempt_stage_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("attempt_stage_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_attempt_passed_stage_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("attempt_passed_stage_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_visual_baseline_render_status" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("visual_baseline_render_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_contact_sheet_status" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("aggregate_contact_sheet_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_contact_sheet" `
+        -Value $aggregateContactSheet
+    if (-not [string]::IsNullOrWhiteSpace($aggregateContactSheet)) {
+        Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_contact_sheet_display" `
+            -Value (Get-DisplayPath -RepoRoot $RepoRoot -Path $aggregateContactSheet)
+    }
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_contact_sheet_bytes" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("aggregate_contact_sheet_bytes"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_rebuild_status" `
+        -Value (Get-FirstJsonString -Object $segmented -Names @("aggregate_rebuild_status"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count" `
+        -Value (Get-FirstJsonProperty -Object $segmented -Names @("aggregate_rebuild_selected_baseline_count"))
+}
+
+function Add-ManifestSignoffEntrypointsEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary,
+        [string]$RepoRoot
+    )
+
+    $signoff = Get-JsonProperty -Object $Summary -Name "manifest_signoff_entrypoints"
+    if ($null -eq $signoff) {
+        return
+    }
+
+    $releaseAssetsManifest = Get-JsonString -Object $signoff -Name "release_assets_manifest"
+    $releaseAssetsManifestDisplay = ""
+    if (-not [string]::IsNullOrWhiteSpace($releaseAssetsManifest)) {
+        try {
+            $resolvedManifest = Resolve-RepoPath -RepoRoot $RepoRoot -Path $releaseAssetsManifest -AllowMissing
+            $releaseAssetsManifestDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $resolvedManifest
+        } catch {
+            $normalizedManifest = $releaseAssetsManifest -replace '/', '\'
+            $looksRooted = $normalizedManifest.StartsWith('\\') -or $normalizedManifest -match '^[A-Za-z]:\\'
+            $releaseAssetsManifestDisplay = if ($normalizedManifest.StartsWith('.\') -or $looksRooted) {
+                $normalizedManifest
+            } else {
+                ".\$normalizedManifest"
+            }
+        }
+    }
+
+    $entrypointEvidence = @(
+        foreach ($entrypoint in @(Get-JsonArray -Object $signoff -Name "entrypoints")) {
+            $id = Get-JsonString -Object $entrypoint -Name "id"
+            if ([string]::IsNullOrWhiteSpace($id)) {
+                continue
+            }
+
+            [ordered]@{
+                id = $id
+                required = Get-JsonBool -Object $entrypoint -Name "required"
+                path_display = Get-JsonString -Object $entrypoint -Name "path_display"
+            }
+        }
+    )
+
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_status" `
+        -Value (Get-JsonString -Object $signoff -Name "status")
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_release_assets_manifest" `
+        -Value $releaseAssetsManifest
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_release_assets_manifest_display" `
+        -Value $releaseAssetsManifestDisplay
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_required_entrypoint_count" `
+        -Value (Get-FirstJsonProperty -Object $signoff -Names @("required_entrypoint_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_entrypoint_ids" `
+        -Value @($entrypointEvidence | ForEach-Object { [string]$_.id })
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_entrypoints" `
+        -Value @($entrypointEvidence)
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_required_contracts" `
+        -Value @(Get-JsonArray -Object $signoff -Name "required_contracts")
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_required_fields" `
+        -Value @(Get-JsonArray -Object $signoff -Name "required_fields")
+    Set-OptionalSourceReportField -Target $Target -Name "manifest_signoff_entrypoints_checklist_marker" `
+        -Value (Get-JsonString -Object $signoff -Name "checklist_marker")
+}
+
+function Add-ProjectTemplateReadinessChecklistEntrypointsEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary
+    )
+
+    $entrypointsContract = Get-JsonProperty -Object $Summary -Name "project_template_readiness_checklist_entrypoints"
+    if ($null -eq $entrypointsContract) {
+        return
+    }
+
+    $entrypointEvidence = @(
+        foreach ($entrypoint in @(Get-JsonArray -Object $entrypointsContract -Name "entrypoints")) {
+            $id = Get-JsonString -Object $entrypoint -Name "id"
+            if ([string]::IsNullOrWhiteSpace($id)) {
+                continue
+            }
+
+            [ordered]@{
+                id = $id
+                required = Get-JsonBool -Object $entrypoint -Name "required"
+                path_display = Get-JsonString -Object $entrypoint -Name "path_display"
+            }
+        }
+    )
+
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_status" `
+        -Value (Get-JsonString -Object $entrypointsContract -Name "status")
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_checklist_label" `
+        -Value (Get-JsonString -Object $entrypointsContract -Name "checklist_label")
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_checklist_path" `
+        -Value (Get-JsonString -Object $entrypointsContract -Name "checklist_path")
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_required_entrypoint_count" `
+        -Value (Get-FirstJsonProperty -Object $entrypointsContract -Names @("required_entrypoint_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_entrypoint_ids" `
+        -Value @($entrypointEvidence | ForEach-Object { [string]$_.id })
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_entrypoints" `
+        -Value @($entrypointEvidence)
+    Set-OptionalSourceReportField -Target $Target -Name "project_template_readiness_checklist_entrypoints_checklist_marker" `
+        -Value (Get-JsonString -Object $entrypointsContract -Name "checklist_marker")
+}
+
+function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary
+    )
+
+    $audit = Get-JsonProperty -Object $Summary -Name "release_entry_project_template_readiness_checklist_material_safety_audit"
+    if ($null -eq $audit) {
+        return
+    }
+
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_status" `
+        -Value (Get-JsonString -Object $audit -Name "status")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_script" `
+        -Value (Get-JsonString -Object $audit -Name "audit_script")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count" `
+        -Value (Get-FirstJsonProperty -Object $audit -Names @("audited_entrypoint_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints" `
+        -Value @(Get-JsonArray -Object $audit -Name "audited_entrypoints" | ForEach-Object { [string]$_ })
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label" `
+        -Value (Get-JsonString -Object $audit -Name "compact_evidence_label")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field" `
+        -Value (Get-JsonString -Object $audit -Name "compact_evidence_field")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema" `
+        -Value (Get-JsonString -Object $audit -Name "compact_evidence_source_schema")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path" `
+        -Value (Get-JsonString -Object $audit -Name "checklist_path")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker" `
+        -Value (Get-JsonString -Object $audit -Name "checklist_marker")
+    Set-OptionalSourceReportField -Target $Target -Name "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker" `
+        -Value (Get-JsonString -Object $audit -Name "material_safety_marker")
+}
+
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
@@ -190,6 +1128,186 @@ function Add-SummaryGroup {
     )
 }
 
+function Add-TraceabilityMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Item
+    )
+
+    foreach ($fieldName in @(
+            "source_report",
+            "source_json",
+            "origin_source_report",
+            "origin_source_report_display")) {
+        $fieldValue = Get-JsonString -Object $Item -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+            $Lines.Add("  - ${fieldName}: ``$fieldValue``") | Out-Null
+        }
+    }
+}
+
+function Add-ReadinessActionEvidenceMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Item
+    )
+
+    $evidenceItems = @(Get-JsonArray -Object $Item -Name "readiness_action_evidence")
+    $evidenceCount = Get-JsonString -Object $Item -Name "readiness_action_evidence_count"
+    if ([string]::IsNullOrWhiteSpace($evidenceCount)) {
+        if ($evidenceItems.Count -eq 0) {
+            return
+        }
+
+        $evidenceCount = [string]$evidenceItems.Count
+    }
+
+    $Lines.Add("  - readiness_action_evidence_count: ``$evidenceCount``") | Out-Null
+    if ($evidenceItems.Count -eq 0) {
+        return
+    }
+
+    $Lines.Add("  - readiness_action_evidence:") | Out-Null
+    foreach ($evidence in $evidenceItems) {
+        $id = Get-JsonString -Object $evidence -Name "id" -DefaultValue "(unknown evidence)"
+        $action = Get-JsonString -Object $evidence -Name "action"
+        $issueKey = Get-JsonString -Object $evidence -Name "issue_key"
+        $item = Get-JsonString -Object $evidence -Name "item"
+        $Lines.Add("    - ``${id}``: action=``$action`` issue_key=``$issueKey`` item=``$item``") | Out-Null
+        foreach ($fieldName in @("source_schema", "source_report", "source_report_display", "source_json", "source_json_display")) {
+            $fieldValue = Get-JsonString -Object $evidence -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+                $Lines.Add("      - ${fieldName}: ``$fieldValue``") | Out-Null
+            }
+        }
+    }
+}
+
+function Add-ManifestSignoffEntrypointsMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Report
+    )
+
+    $status = Get-JsonString -Object $Report -Name "manifest_signoff_entrypoints_status"
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "manifest_signoff_entrypoints_status",
+            "manifest_signoff_entrypoints_release_assets_manifest",
+            "manifest_signoff_entrypoints_release_assets_manifest_display",
+            "manifest_signoff_entrypoints_required_entrypoint_count",
+            "manifest_signoff_entrypoints_entrypoint_ids",
+            "manifest_signoff_entrypoints_required_contracts",
+            "manifest_signoff_entrypoints_required_fields",
+            "manifest_signoff_entrypoints_checklist_marker"
+        )) {
+        $fieldValue = Get-JsonProperty -Object $Report -Name $fieldName
+        $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+            @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+        } else {
+            [string]$fieldValue
+        }
+        if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+            $Lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
+        }
+    }
+
+    $entrypoints = @(Get-JsonArray -Object $Report -Name "manifest_signoff_entrypoints_entrypoints")
+    if ($entrypoints.Count -eq 0) {
+        return
+    }
+
+    $Lines.Add("  - manifest_signoff_entrypoints:") | Out-Null
+    foreach ($entrypoint in $entrypoints) {
+        $id = Get-JsonString -Object $entrypoint -Name "id" -DefaultValue "(unknown entrypoint)"
+        $required = Get-JsonProperty -Object $entrypoint -Name "required"
+        $pathDisplay = Get-JsonString -Object $entrypoint -Name "path_display"
+        $Lines.Add("    - ``${id}``: required=``$required`` path_display=``$pathDisplay``") | Out-Null
+    }
+}
+
+function Add-ProjectTemplateReadinessChecklistEntrypointsMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Report
+    )
+
+    $status = Get-JsonString -Object $Report -Name "project_template_readiness_checklist_entrypoints_status"
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "project_template_readiness_checklist_entrypoints_status",
+            "project_template_readiness_checklist_entrypoints_checklist_label",
+            "project_template_readiness_checklist_entrypoints_checklist_path",
+            "project_template_readiness_checklist_entrypoints_required_entrypoint_count",
+            "project_template_readiness_checklist_entrypoints_entrypoint_ids",
+            "project_template_readiness_checklist_entrypoints_checklist_marker"
+        )) {
+        $fieldValue = Get-JsonProperty -Object $Report -Name $fieldName
+        $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+            @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+        } else {
+            [string]$fieldValue
+        }
+        if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+            $Lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
+        }
+    }
+
+    $entrypoints = @(Get-JsonArray -Object $Report -Name "project_template_readiness_checklist_entrypoints_entrypoints")
+    if ($entrypoints.Count -eq 0) {
+        return
+    }
+
+    $Lines.Add("  - project_template_readiness_checklist_entrypoints:") | Out-Null
+    foreach ($entrypoint in $entrypoints) {
+        $id = Get-JsonString -Object $entrypoint -Name "id" -DefaultValue "(unknown entrypoint)"
+        $required = Get-JsonProperty -Object $entrypoint -Name "required"
+        $pathDisplay = Get-JsonString -Object $entrypoint -Name "path_display"
+        $Lines.Add("    - ``${id}``: required=``$required`` path_display=``$pathDisplay``") | Out-Null
+    }
+}
+
+function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Report
+    )
+
+    $status = Get-JsonString -Object $Report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_status"
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "release_entry_project_template_readiness_checklist_material_safety_audit_status",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_script",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker",
+            "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker"
+        )) {
+        $fieldValue = Get-JsonProperty -Object $Report -Name $fieldName
+        $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+            @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+        } else {
+            [string]$fieldValue
+        }
+        if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+            $Lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
+        }
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -199,10 +1317,220 @@ function New-ReportMarkdown {
     $lines.Add("- Status: ``$($Summary.status)``") | Out-Null
     $lines.Add("- Release ready: ``$($Summary.release_ready)``") | Out-Null
     $lines.Add("- Source reports: ``$($Summary.source_report_count)``") | Out-Null
+    $lines.Add("- Source failures: ``$($Summary.source_failure_count)``") | Out-Null
+    $lines.Add("- source_failure_count: ``$($Summary.source_failure_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
+    $lines.Add("- Informational action items: ``$($Summary.informational_action_item_count)``") | Out-Null
     $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null
     $lines.Add("") | Out-Null
+
+    $lines.Add("## Governance Metric Review Focus") | Out-Null
+    $lines.Add("") | Out-Null
+    $focusMetrics = @(
+        [ordered]@{
+            metric = "real_corpus_confidence"
+            id = "numbering_catalog_governance.real_corpus_confidence"
+            report_id = "numbering_catalog_governance"
+            source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+            label = "Numbering real-corpus confidence"
+        },
+        [ordered]@{
+            metric = "delivery_quality"
+            id = "table_layout_delivery_governance.delivery_quality"
+            report_id = "table_layout_delivery_governance"
+            source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
+            label = "Table/layout delivery quality"
+        }
+    )
+    foreach ($focusMetric in $focusMetrics) {
+        $metric = Get-GovernanceMetricByContract `
+            -Metrics $Summary.governance_metrics `
+            -Metric ([string]$focusMetric.metric) `
+            -Id ([string]$focusMetric.id) `
+            -ReportId ([string]$focusMetric.report_id) `
+            -SourceSchema ([string]$focusMetric.source_schema)
+
+        if ($null -eq $metric) {
+            $lines.Add("- **$($focusMetric.label)** (``$($focusMetric.metric)``): missing") | Out-Null
+            continue
+        }
+
+        $lines.Add("- **$($focusMetric.label)** ``$($metric.id)``: metric=``$($metric.metric)`` level=``$($metric.level)`` score=``$($metric.score)`` report=``$($metric.report_id)`` source_schema=``$($metric.source_schema)``") | Out-Null
+        Add-TraceabilityMarkdownLines -Lines $lines -Item $metric
+        $lines.Add("  - source_report_display: ``$($metric.source_report_display)``") | Out-Null
+        $lines.Add("  - source_json_display: ``$($metric.source_json_display)``") | Out-Null
+        Add-GovernanceMetricDetailLines -Lines $lines -Metric $metric
+    }
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Governance Metrics") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.governance_metrics).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($metric in @($Summary.governance_metrics)) {
+            $lines.Add("- ``$($metric.id)``: report=``$($metric.report_id)`` metric=``$($metric.metric)`` level=``$($metric.level)`` score=``$($metric.score)`` schema=``$($metric.source_schema)`` source_report_display=``$($metric.source_report_display)``") | Out-Null
+            Add-TraceabilityMarkdownLines -Lines $lines -Item $metric
+            $lines.Add("  - source_json_display: ``$($metric.source_json_display)``") | Out-Null
+            Add-GovernanceMetricDetailLines -Lines $lines -Metric $metric
+        }
+    }
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Source Report Contracts") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.source_reports).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($report in @($Summary.source_reports)) {
+            $lines.Add("- ``$($report.schema)``: status=``$($report.status)`` ready=``$($report.release_ready)`` path=``$($report.path_display)``") | Out-Null
+            $preflightReady = Get-JsonProperty -Object $report -Name "preflight_ready"
+            if ($null -ne $preflightReady) {
+                $lines.Add("  - preflight_ready: ``$preflightReady``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$report.error)) {
+                $lines.Add("  - error: ``$($report.error)``") | Out-Null
+            }
+            $fullVisualGateRequired = Get-JsonProperty -Object $report -Name "full_visual_gate_required"
+            if ($null -ne $fullVisualGateRequired) {
+                $lines.Add("  - full_visual_gate_required: ``$fullVisualGateRequired``") | Out-Null
+            }
+            $fullVisualGateStatus = Get-JsonString -Object $report -Name "full_visual_gate_status"
+            if (-not [string]::IsNullOrWhiteSpace($fullVisualGateStatus)) {
+                $lines.Add("  - full_visual_gate_status: ``$fullVisualGateStatus``") | Out-Null
+            }
+            foreach ($fieldName in @(
+                    "pdf_visual_gate_status",
+                    "pdf_visual_gate_verdict",
+                    "pdf_visual_gate_finalizable",
+                    "pdf_visual_gate_summary_json_display",
+                    "pdf_visual_gate_aggregate_contact_sheet_display",
+                    "pdf_visual_gate_cjk_manifest_count",
+                    "pdf_visual_gate_cjk_copy_search_count",
+                    "pdf_visual_gate_cjk_missing_text_count",
+                    "pdf_visual_gate_visual_baseline_manifest_count",
+                    "pdf_visual_gate_visual_baseline_count",
+                    "pdf_bounded_ctest_summary_count",
+                    "pdf_bounded_ctest_pass_count",
+                    "pdf_bounded_ctest_skipped_test_count",
+                    "pdf_bounded_ctest_selected_test_count",
+                    "pdf_bounded_ctest_subsets",
+                    "pdf_bounded_ctest_summary_json_display",
+                    "pdf_full_ctest_readiness_requested",
+                    "pdf_full_ctest_readiness_status",
+                    "pdf_full_ctest_readiness_verdict",
+                    "pdf_full_ctest_readiness_release_ready",
+                    "pdf_full_ctest_readiness_visual_gate_release_evidence_accepted",
+                    "pdf_full_ctest_readiness_visual_gate_fresh_full_guarded_evidence",
+                    "pdf_full_ctest_readiness_visual_gate_segmented_full_coverage_evidence",
+                    "pdf_full_ctest_readiness_summary_json_display",
+                    "pdf_full_ctest_readiness_full_ctest_summary_json_display",
+                    "pdf_full_ctest_readiness_full_ctest_status",
+                    "pdf_full_ctest_readiness_full_ctest_verdict",
+                    "pdf_full_ctest_readiness_outer_guard_status",
+                    "pdf_full_ctest_readiness_outer_guard_timed_out",
+                    "pdf_full_ctest_readiness_selected_test_count",
+                    "pdf_full_ctest_readiness_completed_test_count",
+                    "pdf_full_ctest_readiness_passed_test_count",
+                    "pdf_full_ctest_readiness_failed_test_count",
+                    "pdf_full_ctest_readiness_skipped_test_count",
+                    "pdf_full_ctest_readiness_not_run_test_count",
+                    "pdf_full_ctest_readiness_completion_percent",
+                    "pdf_full_ctest_readiness_remaining_test_count",
+                    "pdf_full_ctest_readiness_zero_failed_tests_observed",
+                    "pdf_full_ctest_readiness_boundary",
+                    "pdf_full_ctest_readiness_marker",
+                    "pdf_visual_gate_attempt_status",
+                    "pdf_visual_gate_attempt_verdict",
+                    "pdf_visual_gate_attempt_full_visual_gate_status",
+                    "pdf_visual_gate_attempt_evidence_scope",
+                    "pdf_visual_gate_attempt_summary_json_display",
+                    "pdf_visual_gate_attempt_stage_count",
+                    "pdf_visual_gate_attempt_passed_stage_count",
+                    "pdf_visual_gate_attempt_failed_stage_count",
+                    "pdf_visual_gate_attempt_incomplete_stage_count",
+                    "pdf_visual_gate_attempt_outer_guard_status",
+                    "pdf_visual_gate_attempt_outer_guard_timed_out",
+                    "pdf_visual_gate_attempt_outer_guard_timeout_seconds",
+                    "pdf_visual_gate_attempt_pdf_cli_export_status",
+                    "pdf_visual_gate_attempt_pdf_regression_status",
+                    "pdf_visual_gate_attempt_pdf_regression_selected_test_count",
+                    "pdf_visual_gate_attempt_pdf_regression_failed_test_count",
+                    "pdf_visual_gate_attempt_pdf_regression_skipped_test_count",
+                    "pdf_visual_gate_attempt_unicode_font_status",
+                    "pdf_visual_gate_attempt_cjk_copy_search_status",
+                    "pdf_visual_gate_attempt_cjk_copy_search_count",
+                    "pdf_visual_gate_attempt_cjk_copy_search_missing_text_count",
+                    "pdf_visual_gate_attempt_visual_baseline_render_status",
+                    "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count",
+                    "pdf_visual_gate_attempt_expected_visual_render_count",
+                    "pdf_visual_gate_attempt_aggregate_contact_sheet_status",
+                    "pdf_visual_gate_attempt_aggregate_contact_sheet_display",
+                    "pdf_visual_segmented_gate_status",
+                    "pdf_visual_segmented_gate_verdict",
+                    "pdf_visual_segmented_gate_full_visual_gate_status",
+                    "pdf_visual_segmented_gate_evidence_scope",
+                    "pdf_visual_segmented_gate_boundary",
+                    "pdf_visual_segmented_gate_summary_json_display",
+                    "pdf_visual_segmented_gate_slice_summary_count",
+                    "pdf_visual_segmented_gate_slice_pass_count",
+                    "pdf_visual_segmented_gate_slice_failed_count",
+                    "pdf_visual_segmented_gate_covered_baseline_count",
+                    "pdf_visual_segmented_gate_expected_visual_render_count",
+                    "pdf_visual_segmented_gate_attempt_stage_count",
+                    "pdf_visual_segmented_gate_attempt_passed_stage_count",
+                    "pdf_visual_segmented_gate_visual_baseline_render_status",
+                    "pdf_visual_segmented_gate_aggregate_contact_sheet_status",
+                    "pdf_visual_segmented_gate_aggregate_contact_sheet_display",
+                    "pdf_visual_segmented_gate_aggregate_contact_sheet_bytes",
+                    "pdf_visual_segmented_gate_aggregate_rebuild_status",
+                    "pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count"
+                )) {
+                $fieldValue = Get-JsonProperty -Object $report -Name $fieldName
+                $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+                    @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+                } else {
+                    [string]$fieldValue
+                }
+                if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+                    $lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
+                }
+            }
+            Add-ManifestSignoffEntrypointsMarkdownLines -Lines $lines -Report $report
+            Add-ProjectTemplateReadinessChecklistEntrypointsMarkdownLines -Lines $lines -Report $report
+            Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditMarkdownLines -Lines $lines -Report $report
+            $controlledVisualSmokeAvailable = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_available"
+            if ($null -ne $controlledVisualSmokeAvailable) {
+                $lines.Add("  - controlled_visual_smoke_available: ``$controlledVisualSmokeAvailable``") | Out-Null
+            }
+            $controlledVisualSmokeStatus = Get-JsonString -Object $report -Name "controlled_visual_smoke_status"
+            if (-not [string]::IsNullOrWhiteSpace($controlledVisualSmokeStatus)) {
+                $lines.Add("  - controlled_visual_smoke_status: ``$controlledVisualSmokeStatus``") | Out-Null
+            }
+            $controlledVisualSmokePassed = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_passed"
+            if ($null -ne $controlledVisualSmokePassed) {
+                $lines.Add("  - controlled_visual_smoke_passed: ``$controlledVisualSmokePassed``") | Out-Null
+            }
+            $controlledVisualSmokeCaseCount = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_case_count"
+            if ($null -ne $controlledVisualSmokeCaseCount) {
+                $lines.Add("  - controlled_visual_smoke_case_count: ``$controlledVisualSmokeCaseCount``") | Out-Null
+            }
+            $controlledVisualSmokeJsonDisplay = Get-JsonString -Object $report -Name "controlled_visual_smoke_json_display"
+            if (-not [string]::IsNullOrWhiteSpace($controlledVisualSmokeJsonDisplay)) {
+                $lines.Add("  - controlled_visual_smoke_json_display: ``$controlledVisualSmokeJsonDisplay``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$report.latest_schema_approval_gate_status)) {
+                $lines.Add("  - latest_schema_approval_gate_status: ``$($report.latest_schema_approval_gate_status)``") | Out-Null
+            }
+            if (@($report.schema_approval_status_summary).Count -gt 0) {
+                $statusParts = @($report.schema_approval_status_summary | ForEach-Object { "$($_.status)=$($_.count)" })
+                $lines.Add("  - schema_approval_status_summary: ``$($statusParts -join ', ')``") | Out-Null
+            }
+        }
+    }
+    $lines.Add("") | Out-Null
+
     $lines.Add("## Blocker Summary") | Out-Null
     $lines.Add("") | Out-Null
     if (@($Summary.blocker_id_summary).Count -eq 0) {
@@ -219,10 +1547,24 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.composite_id)``: action=``$($blocker.action)`` source=``$($blocker.source_report_display)``") | Out-Null
+            $lines.Add("- ``$($blocker.composite_id)``: project=``$($blocker.project_id)`` template=``$($blocker.template_name)`` candidate=``$($blocker.candidate_type)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)``") | Out-Null
+            Add-TraceabilityMarkdownLines -Lines $lines -Item $blocker
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.source_json_display)) {
+                $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
+            }
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - $($blocker.message)") | Out-Null
             }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.repair_strategy)) {
+                $lines.Add("  - repair_strategy: ``$($blocker.repair_strategy)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.repair_hint)) {
+                $lines.Add("  - repair_hint: $($blocker.repair_hint)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
+                $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
+            }
+            Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $blocker
         }
     }
     $lines.Add("") | Out-Null
@@ -232,17 +1574,82 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.composite_id)``: action=``$($item.action)`` source=``$($item.source_report_display)``") | Out-Null
+            $lines.Add("- ``$($item.composite_id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
+            Add-TraceabilityMarkdownLines -Lines $lines -Item $item
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.source_json_display)) {
+                $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
+                $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_hint)) {
+                $lines.Add("  - repair_hint: $($item.repair_hint)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
+                $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
+            }
+            Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $item
         }
     }
     $lines.Add("") | Out-Null
+
+    $lines.Add("## Informational Action Items") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.informational_action_items).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.informational_action_items)) {
+            $lines.Add("- ``$($item.composite_id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
+            Add-TraceabilityMarkdownLines -Lines $lines -Item $item
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.source_json_display)) {
+                $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
+                $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_hint)) {
+                $lines.Add("  - repair_hint: $($item.repair_hint)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
+                $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
+            }
+            Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $item
+        }
+    }
+    $lines.Add("") | Out-Null
+
     $lines.Add("## Warnings") | Out-Null
     $lines.Add("") | Out-Null
     if (@($Summary.warnings).Count -eq 0) {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
+            $lines.Add("- ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` candidate=``$($warning.candidate_type)`` action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)``") | Out-Null
+            Add-TraceabilityMarkdownLines -Lines $lines -Item $warning
+            if (-not [string]::IsNullOrWhiteSpace([string]$warning.source_json_display)) {
+                $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
+                $lines.Add("  - $($warning.message)") | Out-Null
+            }
+            $repairStrategy = Get-JsonString -Object $warning -Name "repair_strategy"
+            $repairHint = Get-JsonString -Object $warning -Name "repair_hint"
+            $commandTemplate = Get-JsonString -Object $warning -Name "command_template"
+            if (-not [string]::IsNullOrWhiteSpace($repairStrategy)) {
+                $lines.Add("  - repair_strategy: ``$repairStrategy``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($repairHint)) {
+                $lines.Add("  - repair_hint: $repairHint") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
+                $lines.Add("  - command_template: ``$commandTemplate``") | Out-Null
+            }
         }
     }
     return @($lines)
@@ -271,7 +1678,9 @@ Write-Step "Reading $($inputPaths.Count) report summary file(s)"
 $sourceReports = New-Object 'System.Collections.Generic.List[object]'
 $blockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
+$informationalActionItems = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
+$governanceMetrics = New-Object 'System.Collections.Generic.List[object]'
 $sourceIndex = 0
 
 foreach ($path in @($inputPaths)) {
@@ -279,16 +1688,45 @@ foreach ($path in @($inputPaths)) {
     $kind = "unknown"
     $status = "loaded"
     $errorMessage = ""
+    $sourceMetrics = @()
+    $releaseReady = $false
+    $sourceReportStatus = ""
+    $sourceReportReleaseReady = ""
+    $latestSchemaApprovalGateStatus = ""
+    $schemaApprovalStatusSummary = @()
+    $summaryObject = $null
     try {
         $summaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
         $kind = Get-ReportKind -Summary $summaryObject
+        $sourceReportStatus = Get-JsonString -Object $summaryObject -Name "status"
+        $releaseReady = Get-JsonBool -Object $summaryObject -Name "release_ready"
+        if ($null -ne (Get-JsonProperty -Object $summaryObject -Name "release_ready")) {
+            $sourceReportReleaseReady = [string]$releaseReady
+        }
+        $latestSchemaApprovalGateStatus = Get-JsonString -Object $summaryObject -Name "latest_schema_approval_gate_status"
+        $schemaApprovalStatusSummary = @(Get-JsonArray -Object $summaryObject -Name "schema_approval_status_summary")
+        $sourceMetrics = @(New-GovernanceMetrics `
+            -Summary $summaryObject `
+            -SourceSchema $kind `
+            -SourceReport $path `
+            -SourceReportDisplay (Get-DisplayPath -RepoRoot $repoRoot -Path $path))
+        foreach ($metric in @($sourceMetrics)) {
+            $governanceMetrics.Add($metric) | Out-Null
+        }
         $sourceBlockers = @(Get-JsonArray -Object $summaryObject -Name "release_blockers")
         $declaredBlockerCount = Get-JsonProperty -Object $summaryObject -Name "release_blocker_count"
         if ($null -ne $declaredBlockerCount -and [int]$declaredBlockerCount -ne $sourceBlockers.Count) {
             $warnings.Add([ordered]@{
                 id = "release_blocker_count_mismatch"
+                project_id = ""
+                template_name = ""
+                candidate_type = ""
+                action = "review_release_blocker_rollup_metadata"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_json = $path
+                source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_schema = $kind
                 message = "release_blocker_count is $declaredBlockerCount but release_blockers contains $($sourceBlockers.Count) item(s)."
             }) | Out-Null
         }
@@ -297,37 +1735,255 @@ foreach ($path in @($inputPaths)) {
         if ($sourceActions.Count -eq 0) {
             $sourceActions = @(Get-JsonArray -Object $summaryObject -Name "next_steps")
         }
+        $sourceInformationalActions = @(Get-JsonArray -Object $summaryObject -Name "informational_action_items")
+        $sourceWarnings = @(Get-JsonArray -Object $summaryObject -Name "warnings")
 
         $blockerIndex = 0
         foreach ($blocker in $sourceBlockers) {
             $blockerIndex++
             $id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
-            $blockers.Add([ordered]@{
+            $sourceJson = Get-JsonString -Object $blocker -Name "source_json"
+            $sourceJsonDisplay = Get-JsonString -Object $blocker -Name "source_json_display"
+            $originSourceReport = Get-JsonString -Object $blocker -Name "source_report"
+            $originSourceReportDisplay = Get-JsonString -Object $blocker -Name "source_report_display"
+            $rollupBlocker = [ordered]@{
                 composite_id = ("source{0}.blocker{1}.{2}" -f $sourceIndex, $blockerIndex, $id)
                 id = $id
+                project_id = Get-JsonString -Object $blocker -Name "project_id"
+                template_name = Get-JsonString -Object $blocker -Name "template_name"
+                candidate_type = Get-JsonString -Object $blocker -Name "candidate_type"
+                source = Get-JsonString -Object $blocker -Name "source" -DefaultValue $kind
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                source_schema = $kind
+                origin_source_report = $originSourceReport
+                origin_source_report_display = $originSourceReportDisplay
+                source_json = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    $originSourceReport
+                } else {
+                    $path
+                }
+                source_json_display = if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                    $sourceJsonDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReportDisplay)) {
+                    $originSourceReportDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $originSourceReport
+                } else {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                }
+                source_schema = Get-FirstJsonString -Object $blocker -Names @("source_schema") -DefaultValue $kind
                 severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
                 status = Get-JsonString -Object $blocker -Name "status"
                 action = Get-JsonString -Object $blocker -Name "action"
                 message = Get-JsonString -Object $blocker -Name "message"
-            }) | Out-Null
+                input_docx = Get-JsonString -Object $blocker -Name "input_docx"
+                input_docx_display = Get-JsonString -Object $blocker -Name "input_docx_display"
+                schema_target = Get-JsonString -Object $blocker -Name "schema_target"
+                target_mode = Get-JsonString -Object $blocker -Name "target_mode"
+                repair_strategy = Get-JsonString -Object $blocker -Name "repair_strategy"
+                repair_hint = Get-JsonString -Object $blocker -Name "repair_hint"
+                command_template = Get-JsonString -Object $blocker -Name "command_template"
+            }
+            if ([string]::Equals($kind, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
+                if (-not [string]::IsNullOrWhiteSpace($sourceReportStatus)) {
+                    $rollupBlocker["readiness_status"] = $sourceReportStatus
+                }
+                if (-not [string]::IsNullOrWhiteSpace($sourceReportReleaseReady)) {
+                    $rollupBlocker["readiness_release_ready"] = $sourceReportReleaseReady
+                }
+            }
+            Copy-OptionalJsonProperties `
+                -Target $rollupBlocker `
+                -Source $blocker `
+                -Names @(
+                    "readiness_status",
+                    "readiness_release_ready",
+                    "schema_approval_status_summary",
+                    "onboarding_governance_status",
+                    "onboarding_governance_release_ready",
+                    "onboarding_governance_schema_approval_status_summary",
+                    "onboarding_governance_source_report",
+                    "onboarding_governance_source_report_display",
+                    "onboarding_governance_source_json",
+                    "onboarding_governance_source_json_display",
+                    "blocking_summary",
+                    "output_gap_count",
+                    "missing_output_count",
+                    "output_gap_summary",
+                    "build_dir_auto_candidates",
+                    "pdf_dependency_inputs",
+                    "readiness_action_evidence_count",
+                    "readiness_action_evidence"
+                )
+            Normalize-ReadinessActionEvidence `
+                -Items (Get-JsonArray -Object $rollupBlocker -Name "readiness_action_evidence") `
+                -DefaultSourceSchema ([string]$rollupBlocker.source_schema) `
+                -DefaultSourceReport ([string]$rollupBlocker.origin_source_report) `
+                -DefaultSourceReportDisplay ([string]$rollupBlocker.origin_source_report_display) `
+                -DefaultSourceJson ([string]$rollupBlocker.source_json) `
+                -DefaultSourceJsonDisplay ([string]$rollupBlocker.source_json_display) `
+                -RepoRoot $repoRoot
+            $blockers.Add($rollupBlocker) | Out-Null
         }
 
         $actionIndex = 0
-        foreach ($item in $sourceActions) {
+        $sourceActionsToNormalize = @(
+            foreach ($sourceAction in @($sourceActions)) {
+                [pscustomobject]@{ Item = $sourceAction; ForceInformational = $false }
+            }
+            foreach ($sourceAction in @($sourceInformationalActions)) {
+                [pscustomobject]@{ Item = $sourceAction; ForceInformational = $true }
+            }
+        )
+        foreach ($sourceAction in $sourceActionsToNormalize) {
             $actionIndex++
+            $item = $sourceAction.Item
             $id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
-            $actionItems.Add([ordered]@{
+            $sourceJson = Get-JsonString -Object $item -Name "source_json"
+            $sourceJsonDisplay = Get-JsonString -Object $item -Name "source_json_display"
+            $originSourceReport = Get-JsonString -Object $item -Name "source_report"
+            $originSourceReportDisplay = Get-JsonString -Object $item -Name "source_report_display"
+            $rollupActionItem = [ordered]@{
                 composite_id = ("source{0}.action{1}.{2}" -f $sourceIndex, $actionIndex, $id)
                 id = $id
+                project_id = Get-JsonString -Object $item -Name "project_id"
+                template_name = Get-JsonString -Object $item -Name "template_name"
+                candidate_type = Get-JsonString -Object $item -Name "candidate_type"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                source_schema = $kind
-                action = Get-JsonString -Object $item -Name "action"
+                origin_source_report = $originSourceReport
+                origin_source_report_display = $originSourceReportDisplay
+                source_json = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    $originSourceReport
+                } else {
+                    $path
+                }
+                source_json_display = if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                    $sourceJsonDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReportDisplay)) {
+                    $originSourceReportDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $originSourceReport
+                } else {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                }
+                source_schema = Get-FirstJsonString -Object $item -Names @("source_schema") -DefaultValue $kind
+                action = Get-FirstJsonString -Object $item -Names @("action", "id") -DefaultValue "action_item"
                 title = Get-JsonString -Object $item -Name "title"
                 command = Get-JsonString -Object $item -Name "command"
+                open_command = Get-FirstJsonString -Object $item -Names @("open_command", "command")
+                category = Get-JsonString -Object $item -Name "category"
+                severity = Get-JsonString -Object $item -Name "severity"
+                release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
+                optional = Get-JsonBool -Object $item -Name "optional"
+                input_docx = Get-JsonString -Object $item -Name "input_docx"
+                input_docx_display = Get-JsonString -Object $item -Name "input_docx_display"
+                schema_target = Get-JsonString -Object $item -Name "schema_target"
+                target_mode = Get-JsonString -Object $item -Name "target_mode"
+                repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
+                repair_hint = Get-JsonString -Object $item -Name "repair_hint"
+                command_template = Get-JsonString -Object $item -Name "command_template"
+            }
+            if ([string]::Equals($kind, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
+                if (-not [string]::IsNullOrWhiteSpace($sourceReportStatus)) {
+                    $rollupActionItem["readiness_status"] = $sourceReportStatus
+                }
+                if (-not [string]::IsNullOrWhiteSpace($sourceReportReleaseReady)) {
+                    $rollupActionItem["readiness_release_ready"] = $sourceReportReleaseReady
+                }
+            }
+            Copy-OptionalJsonProperties `
+                -Target $rollupActionItem `
+                -Source $item `
+                -Names @(
+                    "readiness_status",
+                    "readiness_release_ready",
+                    "schema_approval_status_summary",
+                    "onboarding_governance_status",
+                    "onboarding_governance_release_ready",
+                    "onboarding_governance_schema_approval_status_summary",
+                    "onboarding_governance_source_report",
+                    "onboarding_governance_source_report_display",
+                    "onboarding_governance_source_json",
+                    "onboarding_governance_source_json_display",
+                    "blocking_summary",
+                    "output_gap_count",
+                    "missing_output_count",
+                    "output_gap_summary",
+                    "build_dir_auto_candidates",
+                    "pdf_dependency_inputs",
+                    "readiness_action_evidence_count",
+                    "readiness_action_evidence"
+                )
+            Normalize-ReadinessActionEvidence `
+                -Items (Get-JsonArray -Object $rollupActionItem -Name "readiness_action_evidence") `
+                -DefaultSourceSchema ([string]$rollupActionItem.source_schema) `
+                -DefaultSourceReport ([string]$rollupActionItem.origin_source_report) `
+                -DefaultSourceReportDisplay ([string]$rollupActionItem.origin_source_report_display) `
+                -DefaultSourceJson ([string]$rollupActionItem.source_json) `
+                -DefaultSourceJsonDisplay ([string]$rollupActionItem.source_json_display) `
+                -RepoRoot $repoRoot
+            if ([bool]$sourceAction.ForceInformational -or (Test-InformationalActionItem -Item $rollupActionItem)) {
+                $informationalActionItems.Add((Copy-ActionItemWithReleaseChecklistDefaults -Item $rollupActionItem)) | Out-Null
+            } else {
+                $actionItems.Add($rollupActionItem) | Out-Null
+            }
+        }
+
+        $warningIndex = 0
+        foreach ($warning in $sourceWarnings) {
+            $warningIndex++
+            $id = Get-JsonString -Object $warning -Name "id" -DefaultValue "warning"
+            $sourceJson = Get-JsonString -Object $warning -Name "source_json"
+            $sourceJsonDisplay = Get-JsonString -Object $warning -Name "source_json_display"
+            $originSourceReport = Get-JsonString -Object $warning -Name "source_report"
+            $originSourceReportDisplay = Get-JsonString -Object $warning -Name "source_report_display"
+            $warnings.Add([ordered]@{
+                composite_id = ("source{0}.warning{1}.{2}" -f $sourceIndex, $warningIndex, $id)
+                id = $id
+                project_id = Get-JsonString -Object $warning -Name "project_id"
+                template_name = Get-JsonString -Object $warning -Name "template_name"
+                candidate_type = Get-JsonString -Object $warning -Name "candidate_type"
+                action = Get-JsonString -Object $warning -Name "action" -DefaultValue "review_release_governance_warning"
+                repair_strategy = Get-JsonString -Object $warning -Name "repair_strategy"
+                repair_hint = Get-JsonString -Object $warning -Name "repair_hint"
+                command_template = Get-JsonString -Object $warning -Name "command_template"
+                source_report = $path
+                source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                origin_source_report = $originSourceReport
+                origin_source_report_display = $originSourceReportDisplay
+                source_json = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    $originSourceReport
+                } else {
+                    $path
+                }
+                source_json_display = if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                    $sourceJsonDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReportDisplay)) {
+                    $originSourceReportDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $originSourceReport
+                } else {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                }
+                source_schema = Get-FirstJsonString -Object $warning -Names @("source_schema") -DefaultValue $kind
+                input_docx = Get-JsonString -Object $warning -Name "input_docx"
+                input_docx_display = Get-JsonString -Object $warning -Name "input_docx_display"
+                schema_target = Get-JsonString -Object $warning -Name "schema_target"
+                target_mode = Get-JsonString -Object $warning -Name "target_mode"
+                message = Get-JsonString -Object $warning -Name "message"
             }) | Out-Null
         }
     } catch {
@@ -335,19 +1991,54 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_report_read_failed"
+            project_id = ""
+            template_name = ""
+            candidate_type = ""
+            action = "review_release_blocker_rollup_metadata"
             source_report = $path
             source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_json = $path
+            source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_schema = $kind
             message = $errorMessage
         }) | Out-Null
     }
 
-    $sourceReports.Add([ordered]@{
+    $sourceReport = [ordered]@{
         path = $path
         path_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
         schema = $kind
         status = $status
+        release_ready = $releaseReady
         error = $errorMessage
-    }) | Out-Null
+        latest_schema_approval_gate_status = $latestSchemaApprovalGateStatus
+        schema_approval_status_summary = @($schemaApprovalStatusSummary)
+        governance_metric_count = @($sourceMetrics).Count
+        governance_metrics = @($sourceMetrics)
+    }
+    Copy-OptionalJsonProperties `
+        -Target $sourceReport `
+        -Source $summaryObject `
+        -Names @(
+            "preflight_ready",
+            "full_visual_gate_required",
+            "full_visual_gate_status",
+            "controlled_visual_smoke_available",
+            "controlled_visual_smoke_status",
+            "controlled_visual_smoke_passed",
+            "controlled_visual_smoke_case_count",
+            "controlled_visual_smoke_json",
+            "controlled_visual_smoke_json_display"
+        )
+    Add-PdfVisualGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
+    Add-PdfBoundedCtestEvidenceFields -Target $sourceReport -Summary $summaryObject
+    Add-PdfFullCtestReadinessEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
+    Add-PdfVisualGateAttemptEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
+    Add-PdfVisualSegmentedGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
+    Add-ManifestSignoffEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
+    Add-ProjectTemplateReadinessChecklistEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject
+    Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceFields -Target $sourceReport -Summary $summaryObject
+    $sourceReports.Add($sourceReport) | Out-Null
 }
 
 $sourceFailureCount = @($sourceReports.ToArray() | Where-Object { $_.status -eq "failed" }).Count
@@ -372,6 +2063,8 @@ $summary = [ordered]@{
     source_report_count = $sourceReports.Count
     source_failure_count = $sourceFailureCount
     source_reports = @($sourceReports.ToArray())
+    governance_metric_count = $governanceMetrics.Count
+    governance_metrics = @($governanceMetrics.ToArray())
     release_blocker_count = $blockers.Count
     release_blockers = @($blockers.ToArray())
     blocker_id_summary = @(Add-SummaryGroup -Items $blockers.ToArray() -PropertyName "id" -OutputName "id")
@@ -380,12 +2073,14 @@ $summary = [ordered]@{
     action_item_count = $actionItems.Count
     action_items = @($actionItems.ToArray())
     action_item_summary = @(Add-SummaryGroup -Items $actionItems.ToArray() -PropertyName "action" -OutputName "action")
+    informational_action_item_count = $informationalActionItems.Count
+    informational_action_items = @($informationalActionItems.ToArray())
+    informational_action_item_summary = @(Add-SummaryGroup -Items $informationalActionItems.ToArray() -PropertyName "action" -OutputName "action")
     warning_count = $warnings.Count
     warnings = @($warnings.ToArray())
 }
 
-($summary | ConvertTo-Json -Depth 24) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
-(New-ReportMarkdown -Summary $summary) | Set-Content -LiteralPath $markdownPath -Encoding UTF8
+Write-ReleaseMaterialFiles -Summary $summary -SummaryPath $summaryPath -MarkdownPath $markdownPath -JsonDepth 24
 
 Write-Step "Summary JSON: $summaryPath"
 Write-Step "Report Markdown: $markdownPath"

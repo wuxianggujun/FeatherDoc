@@ -55,10 +55,13 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\write_project_template_schema_approval_history.ps1"
 $smokeSummaryDir = Join-Path $resolvedWorkingDir "smoke"
 $releaseSummaryDir = Join-Path $resolvedWorkingDir "release"
+$unrelatedSummaryDir = Join-Path $resolvedWorkingDir "unrelated"
 New-Item -ItemType Directory -Path $smokeSummaryDir -Force | Out-Null
 New-Item -ItemType Directory -Path $releaseSummaryDir -Force | Out-Null
+New-Item -ItemType Directory -Path $unrelatedSummaryDir -Force | Out-Null
 $smokeSummaryPath = Join-Path $smokeSummaryDir "summary.json"
 $releaseSummaryPath = Join-Path $releaseSummaryDir "summary.json"
+$unrelatedSummaryPath = Join-Path $unrelatedSummaryDir "summary.json"
 $ignoredJsonPath = Join-Path $resolvedWorkingDir "schema_patch_approval_result.json"
 $outputJsonPath = Join-Path $resolvedWorkingDir "schema-approval-history.json"
 $outputMarkdownPath = Join-Path $resolvedWorkingDir "schema-approval-history.md"
@@ -125,6 +128,15 @@ $releaseSummary = [ordered]@{
     }
 }
 ($releaseSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $releaseSummaryPath -Encoding UTF8
+([ordered]@{
+    generated_at = "2026-04-30T10:00:00"
+    execution_status = "pass"
+    steps = [ordered]@{
+        unrelated_governance_report = [ordered]@{
+            status = "completed"
+        }
+    }
+} | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $unrelatedSummaryPath -Encoding UTF8
 ([ordered]@{ decision = "approved"; reviewer = "alice" } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $ignoredJsonPath -Encoding UTF8
 
 $result = Invoke-ScriptAndCapture -ScriptPath $scriptPath -Arguments @(
@@ -144,11 +156,13 @@ $history = Get-Content -Raw -Encoding UTF8 -LiteralPath $outputJsonPath | Conver
 Assert-Equal -Actual ([string]$history.schema) -Expected "featherdoc.project_template_schema_approval_history.v1" `
     -Message "History JSON should expose the stable schema id."
 Assert-Equal -Actual ([int]$history.summary_count) -Expected 2 `
-    -Message "History should include both source summaries."
+    -Message "History should include project-template summaries and ignore unrelated directory summaries."
 Assert-Equal -Actual ([int]$history.blocked_run_count) -Expected 1 `
     -Message "History should count blocked runs."
 Assert-Equal -Actual ([int]$history.passed_run_count) -Expected 1 `
     -Message "History should count passed runs."
+Assert-Equal -Actual ([int]$history.not_required_run_count) -Expected 0 `
+    -Message "Unrelated directory summaries should not be counted as not_required runs."
 Assert-Equal -Actual ([int]$history.total_schema_patch_review_changed_count) -Expected 3 `
     -Message "History should sum changed review counts."
 Assert-Equal -Actual ([int]$history.total_schema_patch_approval_item_count) -Expected 3 `

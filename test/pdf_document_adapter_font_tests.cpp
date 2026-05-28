@@ -3,11 +3,13 @@
 
 #include <featherdoc/pdf/pdf_document_adapter.hpp>
 #include <featherdoc/pdf/pdf_text_metrics.hpp>
+#include <featherdoc/pdf/pdf_text_shaper.hpp>
 #if defined(FEATHERDOC_BUILD_PDF_IMPORT)
 #include <featherdoc/pdf/pdf_parser.hpp>
 #endif
 #include <featherdoc/pdf/pdf_writer.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -141,6 +143,23 @@ void write_binary_file(const std::filesystem::path &path,
     return candidates;
 }
 
+[[nodiscard]] std::vector<std::filesystem::path> candidate_rtl_fonts() {
+    std::vector<std::filesystem::path> candidates;
+
+    if (const auto configured = environment_value("FEATHERDOC_TEST_RTL_FONT");
+        !configured.empty()) {
+        candidates.emplace_back(configured);
+    }
+
+#if defined(_WIN32)
+    candidates.emplace_back("C:/Windows/Fonts/arial.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/segoeui.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/times.ttf");
+#endif
+
+    return candidates;
+}
+
 [[nodiscard]] std::filesystem::path
 first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     for (const auto &candidate : candidates) {
@@ -252,6 +271,381 @@ TEST_CASE("document PDF adapter resolves run-level CJK font mappings") {
              doctest::Approx(latin_run.baseline_origin.y_points));
 }
 
+TEST_CASE("document PDF adapter carries shaped glyph run for file-backed text") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (latin_font.empty()) {
+        MESSAGE("skipping adapter glyph run test: configure test Latin font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto first_run = paragraph.add_run("office");
+    REQUIRE(first_run.has_next());
+    CHECK(first_run.set_font_family("Unit Latin A"));
+    auto second_run = paragraph.add_run(" after");
+    REQUIRE(second_run.has_next());
+    CHECK(second_run.set_font_family("Unit Latin B"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Latin A", latin_font},
+        featherdoc::pdf::PdfFontMapping{"Unit Latin B", latin_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 2U);
+
+    const auto &text_run = layout.pages.front().text_runs[0];
+    CHECK_EQ(text_run.text, "office");
+    CHECK_EQ(text_run.font_file_path, latin_font);
+    const auto &after_run = layout.pages.front().text_runs[1];
+    CHECK_EQ(after_run.text, " after");
+    CHECK_EQ(after_run.font_file_path, latin_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.text, "office");
+    CHECK_EQ(text_run.glyph_run.font_file_path, latin_font);
+    CHECK(text_run.glyph_run.font_size_points == doctest::Approx(12.0));
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::left_to_right);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+
+    double total_advance = 0.0;
+    for (const auto &glyph : text_run.glyph_run.glyphs) {
+        total_advance += glyph.x_advance_points;
+        CHECK_LT(glyph.cluster,
+                 std::char_traits<char>::length("office"));
+    }
+    CHECK_GT(total_advance, 1.0);
+    CHECK(after_run.baseline_origin.x_points ==
+          doctest::Approx(text_run.baseline_origin.x_points +
+                          featherdoc::pdf::glyph_run_x_advance_points(
+                              text_run.glyph_run)));
+}
+
+TEST_CASE("document PDF adapter carries RTL shaped direction metadata") {
+    const auto rtl_font = first_existing_path(candidate_rtl_fonts());
+    if (rtl_font.empty()) {
+        MESSAGE("skipping adapter RTL glyph direction test: configure test "
+                "RTL font");
+        return;
+    }
+
+    const auto expected_text = utf8_from_u8(u8"\u05E9\u05DC\u05D5\u05DD");
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto rtl_run = paragraph.add_run(expected_text);
+    REQUIRE(rtl_run.has_next());
+    CHECK(rtl_run.set_font_family("Unit RTL"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit RTL", rtl_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, expected_text);
+    CHECK_EQ(text_run.font_file_path, rtl_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.text, expected_text);
+    CHECK_EQ(text_run.glyph_run.font_file_path, rtl_font);
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::right_to_left);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Hebr");
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+}
+
+TEST_CASE("document PDF adapter maps run RTL formatting into shaping options") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (latin_font.empty()) {
+        MESSAGE("skipping adapter run RTL shaping test: configure test Latin "
+                "font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto rtl_run = paragraph.add_run("office");
+    REQUIRE(rtl_run.has_next());
+    CHECK(rtl_run.set_font_family("Unit Latin RTL"));
+    CHECK(rtl_run.set_rtl());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Latin RTL", latin_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "office");
+    CHECK_EQ(text_run.font_file_path, latin_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::right_to_left);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+}
+
+TEST_CASE("document PDF adapter maps run language into shaping options") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (latin_font.empty()) {
+        MESSAGE("skipping adapter run language shaping test: configure test "
+                "Latin font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run("office");
+    REQUIRE(run.has_next());
+    CHECK(run.set_font_family("Unit Latin Lang"));
+    CHECK(run.set_language("fr"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Latin Lang", latin_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "office");
+    CHECK_EQ(text_run.font_file_path, latin_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::left_to_right);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
+    CHECK_EQ(text_run.glyph_run.language_tag, "fr");
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+}
+
+TEST_CASE(
+    "document PDF adapter prefers bidi language for RTL shaping options") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (latin_font.empty()) {
+        MESSAGE("skipping adapter RTL language shaping test: configure test "
+                "Latin font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run("office");
+    REQUIRE(run.has_next());
+    CHECK(run.set_font_family("Unit Latin Bidi Lang"));
+    CHECK(run.set_language("en"));
+    CHECK(run.set_bidi_language("he"));
+    CHECK(run.set_rtl());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Latin Bidi Lang", latin_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "office");
+    CHECK_EQ(text_run.font_file_path, latin_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::right_to_left);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
+    CHECK_EQ(text_run.glyph_run.language_tag, "he");
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+}
+
+TEST_CASE(
+    "document PDF adapter maps default run language into shaping options") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (latin_font.empty()) {
+        MESSAGE("skipping adapter default language shaping test: configure "
+                "test Latin font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Unit Default Lang"));
+    CHECK(document.set_default_run_language("de"));
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    REQUIRE(paragraph.add_run("office").has_next());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Default Lang", latin_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "office");
+    CHECK_EQ(text_run.font_file_path, latin_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::left_to_right);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
+    CHECK_EQ(text_run.glyph_run.language_tag, "de");
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+}
+
+TEST_CASE(
+    "document PDF adapter maps inherited style language into shaping options") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (latin_font.empty()) {
+        MESSAGE("skipping adapter style language shaping test: configure test "
+                "Latin font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto style_definition = featherdoc::character_style_definition{};
+    style_definition.name = "PDF Language Character";
+    style_definition.run_font_family = std::string{"Unit Styled Lang"};
+    style_definition.run_language = std::string{"it"};
+    REQUIRE(document.ensure_character_style("PdfLanguageCharacter",
+                                            style_definition));
+    REQUIRE(document.materialize_style_run_properties("PdfLanguageCharacter"));
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run("office");
+    REQUIRE(run.has_next());
+    REQUIRE(document.set_run_style(run, "PdfLanguageCharacter"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Styled Lang", latin_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "office");
+    CHECK_EQ(text_run.font_family, "Unit Styled Lang");
+    CHECK_EQ(text_run.font_file_path, latin_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::left_to_right);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
+    CHECK_EQ(text_run.glyph_run.language_tag, "it");
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+}
+
 TEST_CASE(
     "document PDF adapter prefers east Asia font mapping for mixed text") {
     const auto latin_font = first_existing_path(candidate_latin_fonts());
@@ -340,7 +734,7 @@ TEST_CASE("document PDF adapter falls back to configured CJK font file path") {
     CHECK(cjk_run.unicode);
 }
 
-TEST_CASE("document PDF adapter maps bold italic underline run styling") {
+TEST_CASE("document PDF adapter maps bold italic underline strikethrough run styling") {
     const auto regular_font =
         make_temp_font_file("featherdoc-adapter-regular.ttf");
     const auto bold_italic_font =
@@ -356,8 +750,12 @@ TEST_CASE("document PDF adapter maps bold italic underline run styling") {
         paragraph
             .add_run("Styled PDF", featherdoc::formatting_flag::bold |
                                        featherdoc::formatting_flag::italic |
+                                       featherdoc::formatting_flag::strikethrough |
                                        featherdoc::formatting_flag::underline)
             .has_next());
+    REQUIRE(paragraph.add_run(" Super",
+                              featherdoc::formatting_flag::superscript)
+                .has_next());
 
     featherdoc::pdf::PdfDocumentAdapterOptions options;
     options.font_mappings = {
@@ -371,7 +769,7 @@ TEST_CASE("document PDF adapter maps bold italic underline run styling") {
         featherdoc::pdf::layout_document_paragraphs(document, options);
 
     REQUIRE_EQ(layout.pages.size(), 1U);
-    REQUIRE_GE(layout.pages.front().text_runs.size(), 1U);
+    REQUIRE_GE(layout.pages.front().text_runs.size(), 2U);
 
     const auto &styled_run = layout.pages.front().text_runs.front();
     CHECK_EQ(styled_run.text, "Styled PDF");
@@ -379,8 +777,56 @@ TEST_CASE("document PDF adapter maps bold italic underline run styling") {
     CHECK_EQ(styled_run.font_file_path, bold_italic_font);
     CHECK(styled_run.bold);
     CHECK(styled_run.italic);
+    CHECK(styled_run.strikethrough);
     CHECK(styled_run.underline);
     CHECK_FALSE(styled_run.unicode);
+    CHECK_FALSE(styled_run.synthetic_bold);
+    CHECK_FALSE(styled_run.synthetic_italic);
+
+    const auto &superscript_run = layout.pages.front().text_runs[1];
+    CHECK_EQ(superscript_run.text, " Super");
+    CHECK_EQ(superscript_run.font_size_points, doctest::Approx(7.8));
+    CHECK_EQ(superscript_run.vertical_shift_points, doctest::Approx(4.2));
+    CHECK_GT(superscript_run.baseline_origin.y_points,
+             styled_run.baseline_origin.y_points);
+}
+
+TEST_CASE("document PDF adapter marks synthetic styles for missing file font "
+          "variants") {
+    const auto regular_font =
+        make_temp_font_file("featherdoc-adapter-synthetic-regular.ttf");
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Unit Synthetic"));
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    REQUIRE(paragraph.add_run("Synthetic styled PDF",
+                              featherdoc::formatting_flag::bold |
+                                  featherdoc::formatting_flag::italic)
+                .has_next());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Synthetic", regular_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_GE(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &styled_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(styled_run.text, "Synthetic styled PDF");
+    CHECK_EQ(styled_run.font_family, "Unit Synthetic");
+    CHECK_EQ(styled_run.font_file_path, regular_font);
+    CHECK(styled_run.bold);
+    CHECK(styled_run.italic);
+    CHECK(styled_run.synthetic_bold);
+    CHECK(styled_run.synthetic_italic);
 }
 
 TEST_CASE("document PDF adapter resolves inherited run style formatting") {
@@ -397,7 +843,9 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     style_definition.run_text_color = std::string{"336699"};
     style_definition.run_bold = true;
     style_definition.run_italic = true;
+    style_definition.run_strikethrough = true;
     style_definition.run_underline = true;
+    style_definition.run_subscript = true;
     style_definition.run_font_size_points = 15.5;
     style_definition.run_font_family = std::string{"Unit Styled"};
     REQUIRE(document.ensure_character_style("PdfStyledCharacter",
@@ -419,7 +867,9 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     CHECK_EQ(*resolved->run_text_color.value, "336699");
     CHECK_EQ(resolved->run_bold.value.value_or(false), true);
     CHECK_EQ(resolved->run_italic.value.value_or(false), true);
+    CHECK_EQ(resolved->run_strikethrough.value.value_or(false), true);
     CHECK_EQ(resolved->run_underline.value.value_or(false), true);
+    CHECK_EQ(resolved->run_subscript.value.value_or(false), true);
     REQUIRE(resolved->run_font_size_points.value.has_value());
     CHECK_EQ(*resolved->run_font_size_points.value, doctest::Approx(15.5));
 
@@ -441,13 +891,15 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     CHECK_EQ(styled_run.text, "Inherited PDF");
     CHECK_EQ(styled_run.font_family, "Unit Styled");
     CHECK_EQ(styled_run.font_file_path, bold_italic_font);
-    CHECK_EQ(styled_run.font_size_points, doctest::Approx(15.5));
+    CHECK_EQ(styled_run.font_size_points, doctest::Approx(10.075));
     CHECK_EQ(styled_run.fill_color.red, doctest::Approx(0x33 / 255.0));
     CHECK_EQ(styled_run.fill_color.green, doctest::Approx(0x66 / 255.0));
     CHECK_EQ(styled_run.fill_color.blue, doctest::Approx(0x99 / 255.0));
     CHECK(styled_run.bold);
     CHECK(styled_run.italic);
+    CHECK(styled_run.strikethrough);
     CHECK(styled_run.underline);
+    CHECK_EQ(styled_run.vertical_shift_points, doctest::Approx(-3.1));
 }
 
 TEST_CASE(
@@ -823,6 +1275,52 @@ TEST_CASE("document PDF adapter emits bullet list prefixes") {
     REQUIRE_GE(layout.pages.front().text_runs.size(), 1U);
     CHECK_EQ(collect_layout_text(layout),
              utf8_from_u8(u8"\u2022\tBullet item"));
+}
+
+TEST_CASE(
+    "document PDF adapter falls back bullet prefixes to east Asia fonts") {
+    const auto cjk_font = first_existing_path(candidate_cjk_fonts());
+    if (cjk_font.empty()) {
+        MESSAGE("skipping bullet prefix font fallback test: configure test CJK "
+                "fonts");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Helvetica"));
+    CHECK(document.set_default_run_east_asia_font_family("Unit CJK"));
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(
+        document.set_paragraph_list(paragraph, featherdoc::list_kind::bullet));
+    CHECK(paragraph.add_run("Bullet item").has_next());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit CJK", cjk_font},
+    };
+    options.cjk_font_file_path = cjk_font;
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_GE(layout.pages.front().text_runs.size(), 1U);
+
+    const auto bullet_prefix = utf8_from_u8(u8"\u2022\t");
+    const auto bullet_run = std::find_if(
+        layout.pages.front().text_runs.begin(),
+        layout.pages.front().text_runs.end(),
+        [&](const auto &text_run) {
+            return text_run.text.find(bullet_prefix) != std::string::npos;
+        });
+    REQUIRE(bullet_run != layout.pages.front().text_runs.end());
+    CHECK_EQ(bullet_run->font_family, "Unit CJK");
+    CHECK_EQ(bullet_run->font_file_path, cjk_font);
+    CHECK(bullet_run->unicode);
 }
 
 TEST_CASE("document PDF adapter emits decimal list prefixes") {
@@ -1709,6 +2207,24 @@ TEST_CASE("PDF writer accepts standard font style variants and underlines") {
         false,
         false,
     });
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (!latin_font.empty()) {
+        page.text_runs.push_back(featherdoc::pdf::PdfTextRun{
+            featherdoc::pdf::PdfPoint{72.0, 660.0},
+            "Synthetic file font style",
+            "Unit File Font",
+            latin_font,
+            14.0,
+            featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0},
+            true,
+            true,
+            false,
+            false,
+            0.0,
+            true,
+            true,
+        });
+    }
     layout.pages.push_back(std::move(page));
 
     featherdoc::pdf::PdfioGenerator generator;
@@ -1725,6 +2241,10 @@ TEST_CASE("PDF writer accepts standard font style variants and underlines") {
     const auto extracted_text = collect_text(parse_result.document);
     CHECK_NE(extracted_text.find("Underlined PDF text"), std::string::npos);
     CHECK_NE(extracted_text.find("Bold italic PDF text"), std::string::npos);
+    if (!latin_font.empty()) {
+        CHECK_NE(extracted_text.find("Synthetic file font style"),
+                 std::string::npos);
+    }
 #endif
 }
 
@@ -2698,6 +3218,63 @@ TEST_CASE("document PDF adapter lays out vertically merged table cells") {
     CHECK(merged_rectangle.bounds.height_points == doctest::Approx(72.0));
     CHECK_EQ(layout.pages.front().text_runs[0].text, "Merged");
     CHECK_EQ(layout.pages.front().text_runs[1].text, "down");
+}
+
+TEST_CASE("document PDF adapter keeps exact-height table header text visible") {
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto table = document.append_table(4U, 3U);
+    REQUIRE(table.has_next());
+    CHECK(table.set_width_twips(9000U));
+    CHECK(table.set_column_width_twips(0U, 2400U));
+    CHECK(table.set_column_width_twips(1U, 2400U));
+    CHECK(table.set_column_width_twips(2U, 4200U));
+
+    auto rows = table.rows();
+    REQUIRE(rows.has_next());
+    CHECK(rows.set_repeats_header());
+    CHECK(rows.set_height_twips(360U, featherdoc::row_height_rule::exact));
+    rows.next();
+    REQUIRE(rows.has_next());
+    CHECK(rows.set_repeats_header());
+    CHECK(rows.set_height_twips(360U, featherdoc::row_height_rule::exact));
+
+    auto merged_header = table.find_cell(0U, 0U);
+    REQUIRE(merged_header.has_value());
+    CHECK(merged_header->set_text("Merged banner"));
+    CHECK(merged_header->merge_right(2U));
+
+    CHECK(table.set_cell_text(1U, 0U, "Case"));
+    CHECK(table.set_cell_text(1U, 1U, "Owner"));
+    CHECK(table.set_cell_text(1U, 2U, "Notes"));
+    CHECK(table.set_cell_text(2U, 0U, "A-01"));
+    CHECK(table.set_cell_text(2U, 1U, "Ops"));
+    CHECK(table.set_cell_text(2U, 2U, "Body row"));
+    CHECK(table.set_cell_text(3U, 0U, "A-02"));
+    CHECK(table.set_cell_text(3U, 1U, "QA"));
+    CHECK(table.set_cell_text(3U, 2U, "Follow-up"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.use_system_font_fallbacks = false;
+    options.line_height_points = 14.0;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    const auto page_has_text = [](const featherdoc::pdf::PdfPageLayout &page,
+                                  std::string_view text) {
+        return std::any_of(page.text_runs.begin(), page.text_runs.end(),
+                           [text](const featherdoc::pdf::PdfTextRun &run) {
+                               return run.text == text;
+                           });
+    };
+
+    CHECK(page_has_text(layout.pages.front(), "Merged banner"));
+    CHECK(page_has_text(layout.pages.front(), "Case"));
+    CHECK(page_has_text(layout.pages.front(), "Owner"));
+    CHECK(page_has_text(layout.pages.front(), "Notes"));
 }
 
 TEST_CASE("document PDF adapter maps table cell fill and margins") {

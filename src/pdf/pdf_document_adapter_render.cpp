@@ -1,7 +1,11 @@
 #include "pdf_document_adapter_render.hpp"
 
+#include <featherdoc/pdf/pdf_text_shaper.hpp>
+
 #include <algorithm>
 #include <cmath>
+#include <iterator>
+#include <utility>
 
 namespace featherdoc::pdf::detail {
 namespace {
@@ -19,6 +23,69 @@ constexpr double kPi = 3.14159265358979323846;
         return value - 'A' + 10;
     }
     return -1;
+}
+
+[[nodiscard]] PdfGlyphRun shape_fragment_text(const TextFragment &fragment) {
+    if (fragment.text.empty() || fragment.font.font_file_path.empty()) {
+        return {};
+    }
+
+    PdfTextShaperOptions shaper_options{fragment.font.font_file_path,
+                                        fragment.font_size_points};
+    shaper_options.direction = fragment.shaping_direction;
+    shaper_options.script_tag = fragment.shaping_script_tag;
+    shaper_options.language_tag = fragment.shaping_language_tag;
+    auto glyph_run = shape_pdf_text(fragment.text, shaper_options);
+    if (!glyph_run.used_harfbuzz || !glyph_run.error_message.empty() ||
+        glyph_run.glyphs.empty()) {
+        return {};
+    }
+    return glyph_run;
+}
+
+[[nodiscard]] std::vector<double>
+fragment_visual_advances(const LineState &line) {
+    std::vector<double> widths;
+    widths.reserve(line.fragments.size());
+    for (const auto &fragment : line.fragments) {
+        widths.push_back(measure_text(fragment.text, fragment.font_size_points,
+                                      fragment.font,
+                                      fragment.shaping_direction,
+                                      fragment.shaping_script_tag,
+                                      fragment.shaping_language_tag));
+    }
+
+    std::vector<double> advances(widths.size(), 0.0);
+    auto current_advance = 0.0;
+    for (std::size_t index = 0U; index < widths.size(); ++index) {
+        advances[index] = current_advance;
+        current_advance += widths[index];
+    }
+
+    if (!line.bidi) {
+        return advances;
+    }
+
+    const auto first_rtl = std::find_if(
+        line.fragments.begin(), line.fragments.end(),
+        [](const TextFragment &fragment) { return fragment.rtl; });
+    if (first_rtl == line.fragments.end()) {
+        return advances;
+    }
+
+    const auto prefix_count = static_cast<std::size_t>(
+        std::distance(line.fragments.begin(), first_rtl));
+    current_advance = 0.0;
+    for (std::size_t index = 0U; index < prefix_count; ++index) {
+        advances[index] = current_advance;
+        current_advance += widths[index];
+    }
+    for (std::size_t index = widths.size(); index-- > prefix_count;) {
+        advances[index] = current_advance;
+        current_advance += widths[index];
+    }
+
+    return advances;
 }
 
 } // namespace
@@ -75,12 +142,17 @@ void emit_line_at(PdfPageLayout &page, const LineState &line,
     const auto radians = rotation_degrees * kPi / 180.0;
     const auto x_advance = std::cos(radians);
     const auto y_advance = std::sin(radians);
-    auto current_advance = 0.0;
-    for (const auto &fragment : line.fragments) {
+    const auto visual_advances = fragment_visual_advances(line);
+    for (std::size_t index = 0U; index < line.fragments.size(); ++index) {
+        const auto &fragment = line.fragments[index];
+        const auto current_advance =
+            index < visual_advances.size() ? visual_advances[index] : 0.0;
         if (!fragment.text.empty()) {
+            auto glyph_run = shape_fragment_text(fragment);
             page.text_runs.push_back(PdfTextRun{
                 PdfPoint{start_x_points + current_advance * x_advance,
-                         baseline_y + current_advance * y_advance},
+                         baseline_y + current_advance * y_advance +
+                             fragment.vertical_shift_points},
                 fragment.text,
                 fragment.font.font_family,
                 fragment.font.font_file_path,
@@ -91,11 +163,13 @@ void emit_line_at(PdfPageLayout &page, const LineState &line,
                 fragment.underline,
                 fragment.font.unicode,
                 rotation_degrees,
+                fragment.font.synthetic_bold,
+                fragment.font.synthetic_italic,
+                std::move(glyph_run),
+                fragment.strikethrough,
+                fragment.vertical_shift_points,
             });
         }
-        current_advance += measure_text(fragment.text,
-                                        fragment.font_size_points,
-                                        fragment.font);
     }
 }
 

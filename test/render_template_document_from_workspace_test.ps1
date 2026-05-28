@@ -7,6 +7,22 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "template_render_test_fixture_helpers.ps1")
+
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $BuildDir) {
+    $BuildDir = Join-Path $RepoRoot "build\render_template_document_from_workspace_test"
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = $BuildDir
+}
+
+New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
+
 function Assert-True {
     param(
         [bool]$Condition,
@@ -79,24 +95,6 @@ function Read-DocxEntryText {
     }
 }
 
-function Find-ExecutableByName {
-    param(
-        [string]$SearchRoot,
-        [string]$TargetName
-    )
-
-    $candidate = Get-ChildItem -Path $SearchRoot -Recurse -File |
-        Where-Object { $_.Name -ieq $TargetName -or $_.Name -ieq ($TargetName + ".exe") } |
-        Sort-Object LastWriteTimeUtc -Descending |
-        Select-Object -First 1
-
-    if ($null -eq $candidate) {
-        throw "Could not find executable '$TargetName' under $SearchRoot."
-    }
-
-    return $candidate.FullName
-}
-
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedBuildDir = (Resolve-Path $BuildDir).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
@@ -104,9 +102,6 @@ $prepareScriptPath = Join-Path $resolvedRepoRoot "scripts\prepare_template_rende
 $validateWorkspaceScriptPath = Join-Path $resolvedRepoRoot "scripts\validate_render_data_mapping.ps1"
 $renderWorkspaceScriptPath = Join-Path $resolvedRepoRoot "scripts\render_template_document_from_workspace.ps1"
 $sampleDocx = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.docx"
-$partTemplateSampleExecutable = Find-ExecutableByName `
-    -SearchRoot $resolvedBuildDir `
-    -TargetName "featherdoc_sample_part_template_validation"
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
@@ -165,16 +160,16 @@ Assert-True -Condition (Test-Path -LiteralPath $validationFailureReport) `
     -Message "Workspace validation failure report was not created."
 $validationFailureReportText = Get-Content -Raw -Encoding UTF8 -LiteralPath $validationFailureReport
 Assert-ContainsText -Text $validationFailureReportText `
-    -ExpectedText "结论：❌ 未通过" `
+    -ExpectedText "Verdict: FAIL" `
     -Label "Workspace validation failure report"
 Assert-ContainsText -Text $validationFailureReportText `
-    -ExpectedText "还没补完的槽位" `
+    -ExpectedText "## Next Step" `
     -Label "Workspace validation failure report"
 Assert-ContainsText -Text $validationFailureReportText `
-    -ExpectedText '建议检查 data JSON：`customer_name`' `
+    -ExpectedText "customer_name" `
     -Label "Workspace validation failure report"
 Assert-ContainsText -Text $validationFailureReportText `
-    -ExpectedText '建议检查 data JSON：`line_item_row`' `
+    -ExpectedText "line_item_row" `
     -Label "Workspace validation failure report"
 
 $renderFailed = $false
@@ -204,23 +199,23 @@ Assert-ContainsText -Text ([string]$failureSummaryObject.error) `
 
 Set-Content -LiteralPath $workspace.data_skeleton -Encoding UTF8 -Value @'
 {
-  "customer_name": "上海羽文档科技有限公司",
-  "invoice_number": "报价单-2026-0410",
-  "issue_date": "2026年4月10日",
+  "customer_name": "Shanghai FeatherDoc Co., Ltd.",
+  "invoice_number": "INV-2026-0410",
+  "issue_date": "2026-04-10",
   "note_lines": [
-    "1. 当前工作流先编辑 JSON，再渲染 DOCX。",
-    "2. workspace 入口已经把中间步骤收成两步。"
+    "1. Edit the data JSON first, then render the DOCX.",
+    "2. The workspace entry already splits validation from rendering."
   ],
   "line_item_row": [
     [
-      "需求梳理",
-      "核对模板槽位、书签位置与最终交付约束",
-      "3,200.00"
+      "Requirements",
+      "Check template placeholders, bookmark positions, and final delivery contract.",
+      "3200.00"
     ],
     [
-      "文档生成",
-      "落地段落替换、表格扩展与自动填充流程",
-      "6,800.00"
+      "Document generation",
+      "Landing-page replacement, table expansion, and auto-filled workflow.",
+      "6800.00"
     ]
   ]
 }
@@ -251,13 +246,13 @@ Assert-True -Condition (Test-Path -LiteralPath $validationReport) `
     -Message "Workspace validation report was not created."
 $validationReportText = Get-Content -Raw -Encoding UTF8 -LiteralPath $validationReport
 Assert-ContainsText -Text $validationReportText `
-    -ExpectedText "结论：✅ 通过" `
+    -ExpectedText "Verdict: PASS" `
     -Label "Workspace validation report"
 Assert-ContainsText -Text $validationReportText `
-    -ExpectedText 'remaining_placeholder_count：`0`' `
+    -ExpectedText 'remaining_placeholder_count: `0`' `
     -Label "Workspace validation report"
 Assert-ContainsText -Text $validationReportText `
-    -ExpectedText "可以继续运行 workspace 渲染命令" `
+    -ExpectedText "You can continue with workspace rendering to produce the final .docx." `
     -Label "Workspace validation report"
 
 & $renderWorkspaceScriptPath `
@@ -291,12 +286,11 @@ Assert-Equal -Actual $renderSummaryObject.steps[0].status -Expected "completed" 
     -Message "Workspace resolve step did not complete."
 Assert-Equal -Actual $renderSummaryObject.steps[1].status -Expected "completed" `
     -Message "Workspace render step did not complete."
-Assert-ContainsText -Text $documentXml -ExpectedText "上海羽文档科技有限公司" -Label "Workspace document.xml"
-Assert-ContainsText -Text $documentXml -ExpectedText "报价单-2026-0410" -Label "Workspace document.xml"
-Assert-ContainsText -Text $documentXml -ExpectedText "当前工作流先编辑 JSON，再渲染 DOCX。" -Label "Workspace document.xml"
-Assert-ContainsText -Text $documentXml -ExpectedText "文档生成" -Label "Workspace document.xml"
+Assert-ContainsText -Text $documentXml -ExpectedText "Shanghai FeatherDoc Co., Ltd." -Label "Workspace document.xml"
+Assert-ContainsText -Text $documentXml -ExpectedText "INV-2026-0410" -Label "Workspace document.xml"
+Assert-ContainsText -Text $documentXml -ExpectedText "Edit the data JSON first, then render the DOCX." -Label "Workspace document.xml"
+Assert-ContainsText -Text $documentXml -ExpectedText "Document generation" -Label "Workspace document.xml"
 Assert-NotContainsText -Text $documentXml -UnexpectedText "TODO:" -Label "Workspace document.xml"
-
 
 $partTemplateDir = Join-Path $resolvedWorkingDir "part_template_validation_fixture"
 $partTemplateDocx = Join-Path $partTemplateDir "part_template_validation.docx"
@@ -307,10 +301,7 @@ $sectionValidationReport = Join-Path $sectionWorkspaceDir "part_template.validat
 $sectionRenderedDocx = Join-Path $sectionWorkspaceDir "part_template.workspace.rendered.docx"
 $sectionRenderSummary = Join-Path $sectionWorkspaceDir "part_template.workspace.rendered.summary.json"
 
-& $partTemplateSampleExecutable $partTemplateDir
-if ($LASTEXITCODE -ne 0) {
-    throw "featherdoc_sample_part_template_validation failed."
-}
+New-PartTemplateValidationFixtureDocx -Path $partTemplateDocx
 
 & $prepareScriptPath `
     -InputDocx $partTemplateDocx `

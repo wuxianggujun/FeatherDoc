@@ -18,6 +18,18 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-NotContainsText {
+    param(
+        [string]$Text,
+        [string]$UnexpectedText,
+        [string]$Message
+    )
+
+    if ($Text -match [regex]::Escape($UnexpectedText)) {
+        throw $Message
+    }
+}
+
 function Assert-LineContainsAll {
     param(
         [string[]]$Lines,
@@ -95,6 +107,12 @@ Assert-ContainsText -Text $visualMetadataHelperText `
 Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '(Get-OptionalPropertyArray -Object $reviewTasks -Name "curated_visual_regressions")' `
     -Message "release_visual_metadata_helpers.ps1 should merge curated review task metadata."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText 'function Get-SupersededReviewTasksReportPath' `
+    -Message "release_visual_metadata_helpers.ps1 should own the superseded review task report path helper."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText 'function Get-SupersededReviewTaskCount' `
+    -Message "release_visual_metadata_helpers.ps1 should own the superseded review task count helper."
 
 $metadataScripts = @(
     [pscustomobject]@{
@@ -114,6 +132,30 @@ $metadataScripts = @(
         LinesVariable = "lines"
     }
 )
+
+$supersededReviewTaskScripts = @(
+    (Join-Path $resolvedRepoRoot "scripts\write_release_artifact_handoff.ps1"),
+    (Join-Path $resolvedRepoRoot "scripts\write_release_reviewer_checklist.ps1")
+)
+
+foreach ($scriptPath in $supersededReviewTaskScripts) {
+    Assert-ScriptParses -Path $scriptPath
+    $scriptText = Get-Content -Raw -LiteralPath $scriptPath
+    $label = Split-Path -Leaf $scriptPath
+
+    Assert-NotContainsText -Text $scriptText `
+        -UnexpectedText 'function Get-SupersededReviewTasksReportPath' `
+        -Message "$label should use the shared superseded review task report path helper instead of redefining it."
+    Assert-NotContainsText -Text $scriptText `
+        -UnexpectedText 'function Get-SupersededReviewTaskCount' `
+        -Message "$label should use the shared superseded review task count helper instead of redefining it."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText '$supersededReviewTasksReportPath = Get-SupersededReviewTasksReportPath -Summary $summary -VisualGateSummary $visualGateStep' `
+        -Message "$label should still resolve the superseded review task report path."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText '$supersededReviewTasksCount = Get-SupersededReviewTaskCount -ReportPath $supersededReviewTasksReportPath' `
+        -Message "$label should still render the superseded review task count."
+}
 
 foreach ($scriptInfo in $metadataScripts) {
     Assert-ScriptParses -Path $scriptInfo.Path

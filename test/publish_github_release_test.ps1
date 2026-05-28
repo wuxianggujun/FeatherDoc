@@ -6,6 +6,14 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = Join-Path $RepoRoot "build\publish_github_release_test"
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $reportDir = Join-Path $resolvedWorkingDir "output\release-candidate-checks\report"

@@ -156,7 +156,8 @@ function Get-BookmarkName {
 function Convert-BookmarkNameToSourceSegment {
     param([string]$BookmarkName)
 
-    $segment = $BookmarkName.Trim() -replace '\s+', '_' -replace '\.', '_'
+    $segment = $BookmarkName.Trim() -replace '[\s\.\[\]]+', '_'
+    $segment = $segment.Trim('_')
     if ([string]::IsNullOrWhiteSpace($segment)) {
         return "field"
     }

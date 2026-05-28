@@ -1,0 +1,1594 @@
+文档接口主线现状记录（中文）
+============================
+
+记录日期：2026-05-18
+
+契约标记：``document_api_mainline_status.v1``、
+``document_api_status_current_dev``、``codex_branch_reference_only``、
+``pdf_cjk_branch_deferred``。
+
+本文用于回答两个容易混淆的问题：
+
+1. 文档接口是不是还没有做完。
+2. 旧 ``codex/*`` 分支里的功能是不是已经全部进入 ``dev``。
+
+结论是：文档接口主线已经在 ``dev`` 上具备完整的核心交付面；旧分支没有全部合入，
+也不应该再整分支合并。后续应继续从当前 ``dev`` 出发，按功能主题小步复核、重做和
+验证，而不是回放旧分支提交。
+
+
+文档接口不是空白状态
+--------------------
+
+当前 ``dev`` 上的公共接口已经覆盖正式文档处理的核心链路。代表性入口包括：
+
+- ``Document`` 文档对象。
+- ``fill_bookmarks`` 书签填充。
+- ``list_content_controls`` content control 盘点。
+- ``sync_content_controls_from_custom_xml`` Custom XML 绑定同步。
+- ``replace_content_control_text_by_tag`` 和
+  ``replace_content_control_text_by_alias``。
+- ``replace_content_control_with_paragraphs_*``、
+  ``replace_content_control_with_table_rows_*``、
+  ``replace_content_control_with_table_*`` 和
+  ``replace_content_control_with_image_*``。
+- ``validate_template_schema`` 模板契约校验。
+- ``onboard_template`` 项目模板接入。
+- ``export_numbering_catalog`` 和 ``import_numbering_catalog``。
+- ``ensure_table_style`` 表格样式定义入口。
+
+因此，当前阶段继续推进“文档功能”，不是因为接口还没有开始做，而是因为发布前还需要
+把契约一致性、治理报告、真实语料校准和交付材料继续收口。
+
+
+脚本与测试证据
+--------------
+
+当前主线仍保留了围绕文档接口的轻量脚本和回归入口。代表性入口包括：
+
+- ``scripts/edit_document_from_plan.ps1``。
+- ``scripts/build_content_control_data_binding_governance_report.ps1``。
+- ``scripts/check_template_schema_manifest.ps1``。
+- ``scripts/check_template_schema_baseline.ps1``。
+- ``scripts/check_numbering_catalog_manifest.ps1``。
+- ``scripts/check_numbering_catalog_baseline.ps1``。
+- ``scripts/audit_style_merge_restore_plan.ps1``。
+- ``scripts/apply_reviewed_style_merge_suggestions.ps1``。
+- ``scripts/write_style_merge_suggestion_review.ps1``。
+
+代表性测试包括：
+
+- ``test/edit_document_from_plan_test.ps1``。
+- ``test/edit_document_from_plan_content_control_sync_test.ps1``。
+- ``test/edit_document_from_plan_content_control_text_aliases_test.ps1``。
+- ``test/edit_document_from_plan_numbering_catalog_test.ps1``。
+- ``test/build_content_control_data_binding_governance_report_test.ps1``。
+- ``test/apply_reviewed_style_merge_suggestions_test.ps1``。
+- ``test/audit_style_merge_restore_plan_test.ps1``。
+
+这些入口说明文档接口不是只停留在头文件声明，而是已经进入脚本、治理报告和轻量回归
+链路。
+
+
+旧分支没有全部合入
+------------------
+
+旧 ``codex/*`` 分支目前只作为参考库存处理。已确认安全进入 ``dev`` 的内容是小范围
+治理片段，例如 schema calibration candidate routing 和 release blocker rollup
+复合 id 断言修复。
+
+剩余旧分支仍有独有提交，但不能直接整分支合并：
+
+- ``codex/release-governance-warning-entrypoints``：旧治理入口与当前 ``dev`` 的
+  warning metadata、style merge governance、release rollup / handoff / pipeline
+  明细实现重叠较深。
+- ``codex/release-governance-rollup-details``：部分 schema calibration 和 release
+  rollup 能力已经按当前契约重做，旧提交继续回放会带来冲突和回退风险。
+- ``codex/pdf-cjk-copy-search-gate``：属于 PDF CJK copy/search、font matrix 和
+  text-layer gate 深水区。
+- ``codex/pdf-cjk-bullet-fallback``：继续扩展 PDF CJK bullet、numbered list 和字体
+  fallback，仍属于 PDF 深水区。
+
+这些分支不能被误认为“已经全部合入”，也不能在没有明确归档或废弃决定前删除。
+
+
+后续推进原则
+------------
+
+后续工作按下面顺序推进：
+
+1. 继续以 ``dev`` 为唯一开发主线。
+2. 文档接口主线优先做模板契约、content-control 修复、样式与编号治理、表格版式交付
+   质量和 release governance 材料一致性。
+3. 如旧分支里还有价值功能，只从当前 ``dev`` 出发手工复核并重做小块，不做整分支
+   merge。
+4. PDF CJK 分支暂时冻结为参考库存，只做保守维护和文档衔接，不扩展为当前主线。
+5. 每次改动后优先运行低资源脚本测试，并及时提交、推送 ``origin/dev``。
+
+
+低资源验证边界
+--------------
+
+当前机器资源紧张时，验证默认遵守以下边界：
+
+- 不运行 CMake、Ninja、MSBuild 或完整 CTest。
+- 不启动 Word、LibreOffice、浏览器或 PDF 渲染器。
+- PowerShell 单个测试使用 60 秒超时。
+- 只关闭明确由当前任务启动且已经不用的进程。
+- 外部进程只报告，不擅自结束。
+
+
+最终重新测试与可视化验证入口
+----------------------------
+
+四个远端 ``codex/*`` 分支已经完成低资源只读复核。当前结论是：仍保留这些分支作为
+参考库存，但不再整分支合并，也没有新的低风险源码小补丁需要从旧分支直接搬入。
+
+进入最终重新测试前，必须先满足以下前置条件：
+
+1. 当前工作区位于 ``dev``，且 ``dev`` 与 ``origin/dev`` 对齐。
+2. ``git status --short --branch`` 显示工作区干净。
+3. 最近一轮低资源文档、脚本或源码改动已经提交并推送。
+4. 先确认本机资源和残留进程；只关闭由当前任务启动且已经不用的进程。
+
+最终重新测试应分阶段执行，先轻后重：
+
+1. 先运行 PowerShell 契约测试，每个测试单独设置 60 秒超时。
+2. 再运行必要的源码级或脚本级静态检查，例如 ``git diff --check`` 和 PowerShell
+   parser 检查。
+3. 只有在源码已提交推送、工作区干净、资源情况允许时，才进入截图级 Word
+   visual validation 或 PDF 可视化验证。
+4. PDF CJK 可视化验证只验证当前 ``dev`` 已有能力，不直接搬入旧分支的大批
+   regression 样例、manifest 或视觉 baseline。
+
+如果机器仍然卡顿，下一轮只做轻量验证清单准备，不启动 Word、LibreOffice、浏览器、
+PDF 渲染或完整构建。
+
+
+最终轻量测试清单
+----------------
+
+最终重新测试前，先执行一轮不依赖 Office、PDF 渲染器或完整构建的轻量清单。该清单用于
+确认文档接口主线和 release governance 材料没有明显脚本回退，也用于判断是否可以进入
+后续可视化验证。
+
+第一阶段固定入口：
+
+1. ``git diff --check``。
+2. PowerShell parser 检查关键脚本，确认语法层面没有破坏。
+3. ``test/check_release_metadata_docs_test.ps1``。
+4. ``test/release_governance_warning_helper_contract_test.ps1``。
+5. ``test/build_release_blocker_rollup_report_test.ps1 -Scenario passing``。
+6. ``test/build_release_governance_handoff_report_test.ps1 -Scenario aggregate``。
+7. ``test/build_release_governance_pipeline_report_test.ps1 -Scenario aggregate``。
+8. ``test/write_schema_patch_confidence_calibration_report_test.ps1 -Scenario aggregate``。
+
+第二阶段可选补充入口：
+
+1. ``test/build_content_control_data_binding_governance_report_test.ps1``。
+2. ``test/build_project_template_delivery_readiness_report_test.ps1``。
+3. ``test/build_table_layout_delivery_governance_report_test.ps1``。
+
+执行规则：
+
+1. 每个 PowerShell 测试必须单独设置 60 秒超时。
+2. 不并发启动大批测试；资源紧张时按上述顺序串行执行。
+3. 如果机器仍然卡顿，只维护清单和记录，不启动 Word、LibreOffice、浏览器、PDF 渲染、
+   CMake、CTest、Ninja 或 MSBuild。
+4. 只有轻量清单通过、源码已提交推送、工作区干净且资源允许时，才进入截图级 Word
+   visual validation 或 PDF 可视化验证。
+
+
+2026-05-19 低资源验证结果
+-------------------------
+
+本轮已按轻量清单完成脚本级验证，未启动 CMake、CTest、Ninja、MSBuild、Word、
+LibreOffice、浏览器或 PDF 渲染。
+
+已通过的固定入口：
+
+1. ``git diff --check``。
+2. 10 个 release governance 相关 PowerShell 脚本和测试的 parser 检查。
+3. ``test/check_release_metadata_docs_test.ps1``。
+4. ``test/release_governance_warning_helper_contract_test.ps1``。
+5. ``test/build_release_blocker_rollup_report_test.ps1 -Scenario passing``。
+6. ``test/build_release_governance_handoff_report_test.ps1 -Scenario aggregate``。
+7. ``test/build_release_governance_pipeline_report_test.ps1 -Scenario aggregate``。
+8. ``test/write_schema_patch_confidence_calibration_report_test.ps1 -Scenario aggregate``。
+
+已通过的第二阶段补充入口：
+
+1. 6 个文档治理相关 PowerShell 脚本和测试的 parser 检查。
+2. ``test/build_content_control_data_binding_governance_report_test.ps1 -Scenario aggregate``。
+3. ``test/build_project_template_delivery_readiness_report_test.ps1 -Scenario aggregate``。
+4. ``test/build_table_layout_delivery_governance_report_test.ps1 -Scenario aggregate``。
+
+剩余边界：
+
+1. Word visual validation 和 PDF 可视化验证仍未执行。
+2. PDF CJK 两个旧分支仍保留为参考库存，不在本轮低资源验证中扩展。
+3. 进入可视化验证前仍需重新确认 ``dev`` 与 ``origin/dev`` 对齐、工作区干净和本机资源
+   状态。
+
+
+2026-05-19 可视化验证前置检查
+------------------------------
+
+本轮只读复核了当前仓库已有的可视化验证入口，未启动 Word、LibreOffice、浏览器或 PDF
+渲染。
+
+当前主要入口：
+
+1. Word release gate：``scripts/run_word_visual_release_gate.ps1``。
+2. Word review verdict 同步：``scripts/sync_latest_visual_review_verdict.ps1`` 和
+   ``scripts/sync_visual_review_verdict.ps1``。
+3. PDF visual gate：``scripts/run_pdf_visual_release_gate.ps1``。
+4. 任务流程说明：``docs/automation/word_visual_workflow_zh.rst``。
+
+执行前置条件：
+
+1. ``dev`` 与 ``origin/dev`` 对齐，且工作区干净。
+2. 本机没有明显高负载的外部 Office、浏览器、PDF 或构建进程；外部进程不由当前任务
+   擅自关闭。
+3. Word 可视化验证优先使用 ``-SkipBuild`` 复用已有 build 目录，不在验证阶段触发
+   CMake、Ninja、MSBuild 或完整 CTest。
+4. PDF 可视化验证只在资源充足时执行；该入口可能创建本地 Python 渲染环境或安装
+   Pillow / PyMuPDF，因此不适合在机器卡顿时运行。
+
+建议执行顺序：
+
+1. 先只做 Word gate 的最小范围 smoke / release gate 预检，输出到新的 ``output``
+   子目录，避免覆盖已有证据。
+2. Word 证据生成并人工或自动记录 verdict 后，再运行 latest verdict sync。
+3. PDF CJK 只验证当前 ``dev`` 已有能力；不搬入旧分支的大批 regression 样例、manifest
+   或视觉 baseline。
+4. 任一可视化阶段失败时，先提交失败记录和复现命令，不继续叠加重型验证。
+
+
+2026-05-19 Word 可视化资源预检
+-------------------------------
+
+本轮在用户关闭部分后台程序后做了最小资源预检，但仍未运行完整 Word visual smoke、
+release gate 或 PDF visual gate。
+
+已确认：
+
+1. ``dev`` 与 ``origin/dev`` 对齐，工作区干净。
+2. ``Microsoft Word`` COM 可创建并退出。
+3. 本轮启动的 ``WINWORD`` 进程已在预检结束后关闭。
+
+阻塞完整 Word smoke 的前置条件：
+
+1. 当前工作区没有可直接复用的跟踪内 ``.docx`` 输入。
+2. 现有 ``build`` 目录中未找到 ``featherdoc_visual_smoke_tables`` 可执行文件。
+3. ``PATH`` 中没有 ``python``；Codex bundled Python 存在，但缺少 ``fitz`` / PyMuPDF。
+
+因此，当前不能在低资源约束下直接运行 ``scripts/run_word_visual_smoke.ps1`` 或
+``scripts/run_word_visual_release_gate.ps1``。否则会触发构建、创建 Python 环境或安装
+渲染依赖。后续若要继续可视化验证，最小风险路径是先提供或复用一个现成 DOCX，并准备
+已带 ``PIL`` 与 ``fitz`` 的 Python，再只跑 ``run_word_visual_smoke.ps1 -InputDocx ...``
+这一条最小链路。
+
+
+2026-05-19 最小 Word smoke 结果
+-------------------------------
+
+本轮按最小风险路径完成了一次 Word 可视化 smoke 预检。
+
+执行内容：
+
+1. 创建并复用本地忽略目录 ``.venv-word-visual-smoke``，安装 ``Pillow`` 和 ``PyMuPDF``。
+2. 用 OpenXML ZIP 方式生成临时输入 ``output/word-visual-input/minimal-word-visual-input.docx``，
+   避免再次用 Word COM 生成 DOCX。
+3. 运行 ``scripts/run_word_visual_smoke.ps1 -InputDocx ...``，输出到
+   ``output/word-visual-smoke-minimal-20260519``。
+
+结果：
+
+1. Word 成功将 DOCX 导出为 PDF。
+2. PyMuPDF 成功渲染 PDF 为 PNG。
+3. ``summary.json`` 报告 ``page_count = 1``。
+4. 生成了 ``evidence/contact_sheet.png`` 和 ``evidence/pages/page-01.png``。
+5. 生成了 ``report/summary.json``、``review_checklist.md``、``review_result.json`` 和
+   ``final_review.md``。
+
+资源清理：
+
+1. 前一次用 Word COM 直接保存 DOCX 的尝试卡住，已关闭本轮启动的 ``WINWORD`` 和对应
+   PowerShell 进程。
+2. 最小 smoke 完成后，未发现本轮遗留的 ``WINWORD`` 或 ``python`` 进程。
+3. 可视化证据和渲染虚拟环境位于 ``.gitignore`` 覆盖目录，不纳入提交。
+
+剩余边界：
+
+1. 这只是最小 Word smoke，不是完整 ``run_word_visual_release_gate.ps1``。
+2. 完整 release gate 仍应等资源稳定后再按 ``-SkipBuild`` 和分阶段策略执行。
+3. PDF visual gate 仍未执行。
+
+
+2026-05-19 最小 Word smoke 证据复核
+------------------------------------
+
+本轮只做上一轮最小 Word smoke 输出的只读证据复核，未重新启动 Word、LibreOffice、
+浏览器、CMake、CTest、Ninja、MSBuild 或 PDF visual gate。
+
+已确认：
+
+1. ``report/summary.json`` 可读取，且 ``page_count = 1``。
+2. ``evidence/contact_sheet.png`` 存在，尺寸为 ``408 x 549``，文件非空，灰度范围为
+   ``6..255``。
+3. ``evidence/pages/page-01.png`` 存在，尺寸为 ``1224 x 1584``，文件非空，灰度范围为
+   ``0..255``。
+4. ``report/review_result.json`` 与 ``report/final_review.md`` 可读取，当前 verdict 仍为
+   ``pending_manual_review``。
+5. 复核后未发现本轮遗留的 ``WINWORD`` 或 ``python`` 进程；只看到外部 ``node`` /
+   ``powershell`` 进程，未擅自关闭。
+
+剩余边界：
+
+1. 这次复核确认的是最小 smoke 证据质量，不等同于完整 Word release gate 通过。
+2. ``scripts/run_word_visual_release_gate.ps1`` 仍未执行。
+3. ``scripts/run_pdf_visual_release_gate.ps1`` 仍未执行；PDF CJK 分支继续作为参考库存冻结。
+
+
+2026-05-19 Word smoke 复跑与目检
+---------------------------
+
+本轮在 ``dev`` 与 ``origin/dev`` 继续对齐、工作区干净、重型进程空闲后，复跑了一次
+最小 Word 可视化 smoke。输入复用现成的
+``output/word-visual-input/minimal-word-visual-input.docx``，执行时使用本地
+``.venv-word-visual-smoke``，没有触发构建。
+
+已确认：
+
+1. ``summary.json`` 报告 ``page_count = 1``。
+2. ``contact_sheet.png`` 和 ``page-01.png`` 可读，文本与表格都正常显示。
+3. ``review_result.json`` 仍为 ``pending_manual_review``，但肉眼目检未见空白页、乱码或
+   明显布局异常。
+4. 本轮结束后未发现 ``WINWORD`` 或 ``python`` 残留进程。
+
+
+2026-05-19 PDF 新功能整合结论
+-----------------------------
+
+本轮继续按低资源方式复核 PDF 主线，没有运行 CMake、CTest、Ninja、MSBuild、
+Word、LibreOffice、浏览器或 PDF 渲染。结论是：PDF 分支里的核心小能力已经按当前
+``dev`` 结构陆续重做进主线，但两个旧 ``codex/pdf-*`` 分支并没有、也不应该被整分支
+合并。
+
+当前 ``dev`` 已确认包含的 PDF 能力包括：
+
+1. CJK copy/search 的 text-layer gate 入口：``scripts/check_pdf_text_layer.py`` 与
+   ``scripts/run_pdf_visual_release_gate.ps1`` 中的 ``cjk-copy-search`` 链路。
+2. CLI CJK PDF export 覆盖：``test/pdf_cli_export_tests.cpp`` 中已覆盖
+   ``--cjk-font-file``、字体子集开关和显式 CJK 字体导出路径。
+3. East Asia / CJK 字体 fallback：``src/pdf/pdf_font_resolver.cpp`` 已包含 FreeType
+   字形检查、Unicode prefix 到 East Asia / CJK 字体链路的 fallback，以及日文假名、
+   韩文音节和东亚兼容符号识别。
+4. CJK bullet / East Asia 字体回退契约：``test/pdf_font_resolver_tests.cpp`` 与
+   ``test/pdf_document_adapter_font_tests.cpp`` 已保留对应测试入口。
+5. PDF 表格分页与表头 fitting 小修复：当前实现使用 ``spanned_row_bottom`` 计算纵向
+   合并或跨行单元格的实际输出高度，避免页底分页判断低估跨行表格。
+6. PDF 页眉页脚段落 run 保留与对齐补丁：当前实现已保留页眉页脚段落中的 run 元数据，
+   并携带对齐后的内部布局信息。
+7. PDF visual release gate 的样式与 text-shaping 静态契约：manifest 中保留
+   style/text-shaping baseline 标记，release gate 会携带 ``visual_style_focus``、
+   ``matched_text`` 与 ``missing_text`` 等证据字段。
+
+仍未合入、继续只读保留在旧 PDF 分支中的内容主要是：
+
+1. 大批 CJK PDF regression 样例。
+2. 批量 manifest 条目。
+3. 视觉 baseline 图片和完整视觉 gate 扩展。
+4. 需要构建、渲染、PDF 可视化复核或更大资源预算才能验证的深水区改动。
+
+本轮轻量验证通过：
+
+1. ``git diff --check``。
+2. ``test/pdf_visual_release_gate_text_shaping_baselines_test.ps1``，单独 60 秒超时。
+3. ``test/pdf_visual_release_gate_style_baselines_test.ps1``，单独 60 秒超时。
+
+因此，对“PDF 新功能是否都添加成功”的准确回答是：核心源码能力、CLI 覆盖、字体回退、
+表格分页、页眉页脚 run 保留和静态 gate 契约已经进入 ``dev``；旧分支里重型的样例库、
+manifest 扩展和视觉 baseline 还没有全部添加，这部分需要后续作为 PDF 专项，在资源允许时
+分批重做和可视化验证，不能直接整分支搬入。
+
+
+2026-05-19 继续整合筛选结果
+---------------------------
+
+本轮在 ``64425c1`` 之后继续更新远端引用并复核四个 ``origin/codex/*`` 参考分支，仍然
+没有整分支合并、强推、改写历史或删除分支。
+
+筛选结果：
+
+1. ``origin/codex/release-governance-warning-entrypoints`` 中最小的
+   ``d10f8d8`` 方向已经被当前 ``dev`` 覆盖，并且当前实现比旧分支更完整：
+   ``release_blocker_metadata_helpers.ps1`` 与
+   ``release_governance_warning_helper_contract_test.ps1`` 不只保留
+   ``source_report_display`` / ``source_json_display``，还继续保留
+   ``project_id``、``template_name``、``candidate_type``、``repair_strategy``、
+   ``command_template`` 以及 ``command`` / ``open_command`` / ``audit_command`` /
+   ``review_command`` 等后续治理字段。因此旧分支版本不能直接摘入，否则会削弱当前
+   ``dev`` 的元数据契约。
+2. ``origin/codex/release-governance-rollup-details`` 剩余提交的目标也已由当前
+   ``dev`` 的 release blocker rollup、handoff、pipeline 和 schema confidence
+   calibration 链路覆盖；该分支仍会回退当前恢复记录、PDF CJK 复核记录和 release
+   warning 契约，因此继续只读保留。
+3. 两个 PDF CJK 分支的剩余差异仍以大批 regression 样例、manifest、visual baseline
+   和重型 gate 为主；核心小能力已在当前 ``dev`` 重做，剩余部分不进入低资源整合。
+
+本轮轻量验证通过：
+
+1. ``test/release_governance_warning_helper_contract_test.ps1``，单独 60 秒超时。
+
+当前建议是：后续继续整合时，不再从这些旧分支里寻找整分支级合并机会；只在发现新的、
+明确小于当前实现且不会回退文档恢复记录或治理元数据契约的补丁时，才按当前 ``dev``
+结构手工重做。
+
+
+2026-05-19 治理契约补充验证
+---------------------------
+
+本轮继续收尾 ``release-governance-*`` 参考分支的低风险验证，没有修改源码，也没有运行
+CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+
+已补充验证：
+
+1. ``test/release_governance_warning_contract_test.ps1``，单独 60 秒超时。该测试确认
+   当前 ``scripts`` 下所有字面 ``warnings.Add([ordered]@{ ... })`` 块仍保留
+   ``id``、``action``、``message`` 和 ``source_schema`` 等必要字段。
+2. ``test/release_governance_metrics_contract_test.ps1``，单独 60 秒超时。该测试确认
+   release handoff、release blocker rollup、package manifest、安全审计和治理验收文档
+   仍保留 real-corpus confidence、delivery quality、content-control repair workflow、
+   numbering alignment、table layout delivery quality 和低资源 PDF 保守边界等契约标记。
+
+因此，``release-governance-warning-entrypoints`` 和
+``release-governance-rollup-details`` 的剩余差异目前没有新的低风险源码补丁需要搬入；
+当前 ``dev`` 的治理契约已通过 warning helper、warning contract 和 metrics contract
+三条轻量验证链路。后续最小风险动作是继续维持这些分支为只读参考，除非发现新的独立小补丁。
+
+
+2026-05-19 PDF 分支二次复核
+---------------------------
+
+本轮继续只读复核 ``origin/codex/pdf-cjk-copy-search-gate`` 和
+``origin/codex/pdf-cjk-bullet-fallback``，没有整分支合并、没有删除分支、没有运行
+CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+
+复核结论：
+
+1. 两个 PDF 分支相对当前 ``dev`` 仍有一万行级别差异，集中在
+   ``samples/pdf_regression_sample.cpp``、``test/pdf_regression_manifest.json``、
+   ``test/CMakeLists.txt``、PDFium 构建脚本、manifest schema 和大批 visual gate
+   样例扩展。
+2. 当前 ``dev`` 已经保留核心小能力入口：``scripts/check_pdf_text_layer.py``、
+   ``scripts/run_pdf_visual_release_gate.ps1`` 中的 ``cjk-copy-search`` 与
+   ``cli-cjk-font-source``、PDF 表格 ``spanned_row_bottom`` 分页高度计算、
+   页眉页脚 ``wrap_cursor_paragraph_runs`` / ``HeaderFooterLineLayout``，以及
+   CJK 字体 fallback 和 CLI ``--cjk-font-file`` 覆盖。
+3. 剩余差异不适合低资源阶段直接搬入，因为需要构建、PDF 渲染、视觉 baseline
+   复核或更大样例治理预算；整分支合并还会回退当前 ``dev`` 已经恢复的文档主线记录。
+
+因此，当前 PDF 功能整合状态是：核心源码能力和静态 gate 契约已经在 ``dev``；
+旧分支中未合入的部分继续作为 PDF 专项参考库保留，后续应按样例主题分批重做并做可视化验证，
+而不是整分支合并。
+
+2026-05-19 PDF CJK 列表样例小批量搬入
+-------------------------------------
+
+本轮从两个旧 PDF CJK 分支的剩余样例库中选择低风险主题，按当前 ``dev`` 结构重做了
+轻量级 CJK 列表 regression 契约，没有整分支合并、没有删除分支，也没有运行 CMake、
+CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-bullet-list-text``，覆盖 Document API 到 PDF adapter 的 CJK
+   bullet list 路径，保留 East Asia 字体映射和稳定检索键 ``BL-101``。
+2. 新增 ``document-cjk-numbered-list-text``，覆盖 CJK decimal list restart 路径，
+   保留 East Asia 字体映射和稳定检索键 ``NL-101``。
+3. ``test/CMakeLists.txt`` 将这两个样例纳入 CJK PDF regression 分类；后续完整构建时
+   会携带 ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+4. 新增 ``test/pdf_cjk_list_regression_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮轻量验证已通过：
+
+1. ``git diff --check``。
+2. ``test/pdf_cjk_list_regression_contract_test.ps1 -RepoRoot <repo>``，单独 60 秒超时。
+3. ``test/pdf_visual_release_gate_text_shaping_baselines_test.ps1``，单独 60 秒超时。
+4. ``test/pdf_visual_release_gate_style_baselines_test.ps1``，单独 60 秒超时。
+
+本轮仍未执行 PDF 渲染或可视化验证。下一步最小风险动作是继续从旧 PDF 分支中筛选
+copy/search matrix 或 CJK table wrap 的轻量契约，但仍应先做静态小样例，再等待资源
+允许后统一进入受控可视化验证。
+
+2026-05-19 PDF CJK copy/search 轻量契约搬入
+------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的重型 matrix 样例中提取低风险
+主题，但没有搬入旧分支的 3 页 visual baseline、图片资产或大矩阵。当前 ``dev`` 只新增
+一个 1 页轻量样例，用来锁住 CJK 文本层 copy/search 锚点和 East Asia 字体映射。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-copy-search-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK styled run、East Asia font family 映射和稳定检索键 ``CS-101``、``CS-202``、
+   ``CS-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_copy_search_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实 copy/search 可视化验证仍需等资源允许后通过
+``scripts/run_pdf_visual_release_gate.ps1`` 受控执行。
+
+2026-05-19 PDF CJK copy/search matrix 正式 ID 契约搬入
+------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-copy-search-matrix-text`` 3 页样例中提取低风险主题，按当前 ``dev`` 的
+1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的大矩阵正文，也不声明旧分支的
+3 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-copy-search-matrix-text``，覆盖 CJK copy/search 文本层锚点、
+   first/even/default 页眉页脚占位符、重复表头、表格检索键和稳定检索键
+   ``CS-101`` / ``CS-202`` / ``CS-303`` / ``FE-CS-901`` /
+   ``FE-CS-921`` / ``FE-CS-931`` / ``FE-CS-941`` / ``FE-CS-999`` /
+   ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   79；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_copy_search_matrix_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_copy_search_matrix_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK copy/search matrix 的低资源正式 ID 契约入口已进入 ``dev``。真实
+多页 copy/search、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且工作区干净后
+再通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK font embed matrix 正式 ID 契约搬入
+-----------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-font-embed-matrix-text`` 3 页样例中提取低风险主题，按当前 ``dev`` 的
+1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的大矩阵正文，也不声明旧分支的
+3 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-font-embed-matrix-text``，覆盖 CJK 字体嵌入、styled run 大小字
+   切换、first/even/default 页眉页脚占位符、重复表头、表格字体检索键和稳定检索键
+   ``FM-101`` / ``FM-202`` / ``FM-303`` / ``FE-FM-901`` /
+   ``FE-FM-921`` / ``FE-FM-922`` / ``FE-FM-933`` / ``FE-FM-971`` /
+   ``FE-FM-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   80；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_font_embed_matrix_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_font_embed_matrix_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK font embed matrix 的低资源正式 ID 契约入口已进入 ``dev``。真实多页
+字体嵌入、字号切换、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且工作区
+干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK anchor font matrix boundary 正式 ID 契约搬入
+---------------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-anchor-font-matrix-boundary-text`` 4 页样例中提取低风险主题，按当前
+``dev`` 的 1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的图片压力语料，也不
+声明旧分支的 4 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-anchor-font-matrix-boundary-text``，覆盖 CJK 锚点字体矩阵、
+   styled run 大小字切换、first/even/default 页眉页脚占位符、重复表头、
+   cant-split 尾行、边界表格和稳定检索键 ``AM-101`` / ``AM-202`` /
+   ``AM-303`` / ``FE-AM-901`` / ``FE-AM-921`` / ``AM-A-04`` /
+   ``AM-B-04`` / ``FE-AM-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   81；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_anchor_font_matrix_boundary_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_anchor_font_matrix_boundary_contract_test.ps1``，用纯文本静态契约
+   确认样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK anchor font matrix boundary 的低资源正式 ID 契约入口已进入
+``dev``。真实多页锚点边界、图片后恢复全宽、页眉页脚文本层和 PDFium 可复制性，仍需
+等源码提交推送且工作区干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK font search density flow 正式 ID 契约搬入
+-------------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-font-search-density-flow-text`` 4 页样例中提取低风险主题，按当前
+``dev`` 的 1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的图片压力语料，也不
+声明旧分支的 4 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-font-search-density-flow-text``，覆盖 CJK 密排检索、styled run
+   大小字切换、first/even/default 页眉页脚占位符、重复表头、cant-split 尾行、
+   检索密度表和稳定检索键 ``SD-101`` / ``SD-202`` / ``SD-303`` /
+   ``FE-SD-901`` / ``FE-SD-921`` / ``FE-SD-931`` / ``FE-SD-932`` /
+   ``SD-A-04`` / ``SD-B-04`` / ``FE-SD-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   82；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_font_search_density_flow_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_font_search_density_flow_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK font search density flow 的低资源正式 ID 契约入口已进入 ``dev``。
+真实多页密排检索、图片后恢复全宽、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交
+推送且工作区干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF CJK font embed wrap mix 正式 ID 契约搬入
+-------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-font-embed-wrap-mix-text`` 4 页样例中提取低风险主题，按当前
+``dev`` 的 1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的图片压力语料，也不
+声明旧分支的 4 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-font-embed-wrap-mix-text``，覆盖 CJK 字体嵌入、styled run
+   大小字切换、first/even/default 页眉页脚占位符、重复表头、cant-split 尾行、
+   环绕混排表格和稳定检索键 ``WM-101`` / ``WM-202`` / ``WM-303`` /
+   ``FE-WM-901`` / ``FE-WM-911`` / ``FE-WM-921`` / ``FE-WM-941`` /
+   ``FE-WM-951`` / ``FE-WM-961`` / ``FE-WM-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   83；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_font_embed_wrap_mix_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_font_embed_wrap_mix_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK font embed wrap mix 的低资源正式 ID 契约入口已进入 ``dev``。
+真实多页字体嵌入环绕、图片后恢复全宽、页眉页脚文本层和 PDFium 可复制性，仍需等源码
+提交推送且工作区干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF CJK repeated key boundary flow 正式 ID 契约搬入
+--------------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-repeated-key-boundary-flow-text`` 6 页样例中提取低风险主题，按当前
+``dev`` 的 1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的图片压力语料，也不
+声明旧分支的 6 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-repeated-key-boundary-flow-text``，覆盖 CJK 重复检索键、
+   styled run 大小字切换、first/even/default 页眉页脚占位符、重复表头、
+   合并单元格、cant-split 行和稳定检索键 ``RK-101`` / ``RK-202`` /
+   ``RK-303`` / ``RK-777`` / ``RK-A-01`` / ``RK-A-04`` / ``RK-A-06`` /
+   ``FE-RK-901`` / ``FE-RK-911`` / ``FE-RK-941`` / ``FE-RK-951`` /
+   ``FE-RK-961`` / ``FE-RK-981`` / ``FE-RK-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   84；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_repeated_key_boundary_flow_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_repeated_key_boundary_flow_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK repeated key boundary flow 的低资源正式 ID 契约入口已进入 ``dev``。
+真实多页重复键边界、图片环绕、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且
+工作区干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF CJK style overlay page flow 正式 ID 契约搬入
+-----------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-style-overlay-page-flow-text`` 6 页样例中提取低风险主题，按当前
+``dev`` 的 1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的图片压力语料，也不
+声明旧分支的 6 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-style-overlay-page-flow-text``，覆盖 CJK style overlay、
+   superscript、subscript、strikethrough、first/even/default 页眉页脚占位符、
+   重复表头、合并单元格、cant-split 行、styled table cell 段落和稳定检索键
+   ``SO-101`` / ``SO-202`` / ``SO-303`` / ``SO-888`` / ``SO-A-03`` /
+   ``FE-SO-901`` / ``FE-SO-921`` / ``FE-SO-961`` / ``FE-SO-981`` /
+   ``FE-SO-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   85；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_style_overlay_page_flow_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_style_overlay_page_flow_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK style overlay page flow 的低资源正式 ID 契约入口已进入 ``dev``。
+真实多页样式叠加、图片环绕、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且
+工作区干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF CJK complex layout 正式 ID 契约搬入
+--------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-complex-layout-text`` 3 页样例中提取低风险主题，按当前 ``dev`` 的
+1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的浮动图片、裁剪环绕压力语料，
+也不声明旧分支的 3 页 visual baseline 已进入当前主线。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-complex-layout-text``，覆盖 CJK 复杂版式概览、styled run、
+   first/even/default 页眉页脚占位符、重复表头、合并单元格、cant-split 行和稳定
+   检索键 ``CL-101`` / ``CL-202`` / ``CL-303`` / ``FE-CL-901`` /
+   ``FE-CL-902`` / ``FE-CL-903`` / ``FE-CL-921`` / ``FE-CL-941`` /
+   ``FE-CL-951`` / ``FE-CL-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   86；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_complex_layout_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_complex_layout_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake 分类保持一致，并确认该低资源
+   契约本身不调用图片或 floating image。
+
+该补丁只表示 CJK complex layout 的低资源正式 ID 契约入口已进入 ``dev``。真实多页
+复杂版式、浮动图片环绕、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且
+工作区干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF CJK image wrap stress 正式 ID 契约搬入
+----------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-image-wrap-stress-text`` 4 页图像压力样例中提取低风险主题，按当前
+``dev`` 的 1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的 inline image、
+floating image、裁剪图片资产或 4 页 visual baseline，只保留可静态验证的文本层、
+页眉页脚和表格治理契约。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-image-wrap-stress-text``，覆盖 CJK 多锚点图像流主题、styled
+   run、first/even/default 页眉页脚占位符、搜索热区、重复表头、合并单元格、
+   cant-split 行和稳定检索键 ``IW-101`` / ``IW-202`` / ``IW-303`` /
+   ``FE-IW-901`` / ``FE-IW-921`` / ``FE-IW-938`` / ``FE-IW-956`` /
+   ``FE-IW-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   87；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_image_wrap_stress_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_image_wrap_stress_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake 分类保持一致，并确认该低资源
+   契约本身不调用图片或 floating image。
+
+该补丁只表示 CJK image wrap stress 的低资源正式 ID 契约入口已进入 ``dev``。真实多页
+图像环绕、裁剪回流、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且工作区
+干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF CJK extreme page breaks 正式 ID 契约搬入
+-------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的
+``document-cjk-extreme-page-breaks-text`` 5 页极限分页样例中提取低风险主题，按当前
+``dev`` 的 1 页轻量结构重做。该批次不整分支合并，不搬入旧分支的 inline image、
+floating image、小页面压力参数或 5 页 visual baseline，只保留可静态验证的文本层、
+页眉页脚、分页边界和表格治理契约。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-extreme-page-breaks-text``，覆盖 CJK 临界分页边界、styled run、
+   first/even/default 页眉页脚占位符、boundary stripe、重复表头、合并单元格、
+   cant-split 行和稳定检索键 ``PB-101`` / ``PB-202`` / ``PB-303`` /
+   ``FE-PB-901`` / ``FE-PB-921`` / ``FE-PB-932`` / ``FE-PB-938`` /
+   ``FE-PB-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   88；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_extreme_page_breaks_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_extreme_page_breaks_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake 分类保持一致，并确认该低资源
+   契约本身不调用图片或 floating image。
+
+该补丁只表示 CJK extreme page breaks 的低资源正式 ID 契约入口已进入 ``dev``。真实多页
+临界分页、图片环绕、页眉页脚文本层和 PDFium 可复制性，仍需等源码提交推送且工作区
+干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK font embed 轻量契约搬入
+------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK font embed matrix
+方向提取低风险主题，但没有搬入旧分支的 3 页 matrix、visual baseline 或重型 gate。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK 字体嵌入、字号切换、
+styled run 和文本层检索锚点。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-font-embed-lite-text``，覆盖 Document API 到 PDF adapter 的
+   East Asia font family 映射、CJK 字体文件绑定和稳定检索键 ``FE-101``、
+   ``FE-202``、``FE-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_font_embed_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实字体嵌入和复制搜索效果仍需等资源允许后通过
+受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK style overlay 轻量契约搬入
+---------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK style overlay page flow
+方向提取低风险主题，但没有搬入旧分支的 6 页 page flow、图片资产、visual baseline
+或重型 gate。当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK 上标、下标、
+删除线、styled run 和文本层检索锚点。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-style-overlay-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK superscript、subscript、strikethrough 和 East Asia font family 映射，
+   保留稳定检索键 ``SO-101``、``SO-202``、``SO-303``、``SO-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_style_overlay_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实 style overlay 版式和复制搜索效果仍需等资源
+允许后通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK anchor matrix 轻量契约搬入
+---------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK anchor font matrix boundary
+方向提取低风险主题，但没有搬入旧分支的 4 页 boundary matrix、图片资产、表格流、
+页眉页脚分页或 visual baseline。当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住
+CJK 多锚点检索、字体密度文本和 East Asia 字体映射。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-anchor-matrix-lite-text``，覆盖 Document API 到 PDF adapter 的
+   多锚点文本、CJK styled run 和 East Asia font family 映射，保留稳定检索键
+   ``AM-101``、``AM-202``、``AM-303``、``AM-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_anchor_matrix_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实 anchor matrix 分页、图片和表格版式仍需等资源
+允许后通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK search density 轻量契约搬入
+----------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK font search density flow
+方向提取低风险主题，但没有搬入旧分支的 4 页 flow、图片资产、表格衔接、页眉页脚分页
+或 visual baseline。当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK 密排检索、
+字宽回读和 East Asia 字体映射。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-search-density-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK 密排文本、styled run 和 East Asia font family 映射，保留稳定检索键
+   ``SD-101``、``SD-202``、``SD-303``、``SD-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_search_density_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实密排检索、分页、图片和表格版式仍需等资源允许后
+通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK repeated key 轻量契约搬入
+--------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK repeated key boundary flow
+方向提取低风险主题，但没有搬入旧分支的 6 页 boundary flow、图片资产、表格衔接、
+页眉页脚分页或 visual baseline。当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住
+CJK 重复检索键、共享锚点和 East Asia 字体映射。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-repeated-key-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK repeated key、styled run 和 East Asia font family 映射，保留稳定检索键
+   ``RK-101``、重复共享键 ``RK-777``、以及收口键 ``RK-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_repeated_key_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实 repeated-key 分页边界、图片和表格版式仍需等资源
+允许后通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK vertical merge 轻量契约搬入
+----------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK vertical merge wrap
+方向提取低风险主题，但没有搬入旧分支的 4 页分页、图片资产、页眉页脚或 visual baseline。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK 表格纵向合并、cant-split 行、
+垂直居中和 East Asia 字体映射。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-vertical-merge-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK 表格文本、``merge_down`` 纵向合并、``set_cant_split`` 禁拆行和
+   ``cell_vertical_alignment::center`` 垂直对齐，保留稳定检索键 ``VM-101``、
+   ``VM-202``、``VM-303``、``VM-777``、``VM-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_vertical_merge_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实纵向合并分页、图片和页眉页脚版式仍需等资源允许后
+通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK table wrap 轻量契约搬入
+------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK table wrap page flow
+方向提取低风险主题，但没有搬入旧分支的 5 页分页、图片资产、页眉页脚或 visual baseline。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK 长文本单元格换行、显式列宽、
+重复表头、cant-split 行和 East Asia 字体映射。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-table-wrap-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK 表格长文本、``set_column_width_twips``、``set_repeats_header`` 和
+   ``set_cant_split``，保留稳定检索键 ``TW-101``、``TW-202``、``TW-303``、
+   ``TW-404``、``TW-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_table_wrap_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实表格换行分页、图片和页眉页脚版式仍需等资源允许后
+通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK font embed wrap mix 轻量契约搬入
+---------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK font embed wrap mix
+方向提取低风险主题，但没有搬入旧分支的 4 页分页样例、页眉页脚、图片资产或 visual baseline。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK 字体嵌入、长句换行、styled run、
+copy/search 锚点和 East Asia 字体映射。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-font-embed-wrap-mix-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK 字体嵌入、混排长句换行和 styled run，保留稳定检索键 ``WM-101``、
+   ``FE-WM-202``、``WM-303``、``FE-WM-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_font_embed_wrap_mix_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实字体嵌入、换行分页、页眉页脚和可视化版式仍需等资源允许后
+通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK multi anchor table flow 轻量契约搬入
+-------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK multi anchor table flow
+方向提取低风险主题，但没有搬入旧分支的 5 页分页样例、图片资产、页眉页脚或 visual baseline。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住多锚点文本、表格连续流、重复表头、
+cant-split 行、styled run 和 East Asia 字体映射。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-multi-anchor-table-flow-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK 多锚点表格流、``set_column_width_twips``、``set_repeats_header``、
+   ``set_cant_split`` 和 styled run，保留稳定检索键 ``MA-101``、``FE-MA-202``、
+   ``MA-A-04``、``MA-B-04``、``FE-MA-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_multi_anchor_table_flow_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实多页锚点切换、图片环绕、页眉页脚和可视化版式仍需等资源允许后
+通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK bullet overlay 轻量契约搬入
+----------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-bullet-fallback`` 的 CJK bullet overlay page flow
+方向提取低风险主题，但没有搬入旧分支的多页分页、图片资产、页眉页脚或 visual baseline。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK bullet 列表、overlay styled run、
+East Asia 字体映射和稳定复制检索键。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-bullet-overlay-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK bullet 列表、superscript/subscript/strikethrough overlay 样式和
+   East Asia 字体映射，保留稳定检索键 ``BO-101``、``BO-202``、``BO-303``、
+   ``BO-777``、``FE-BO-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_bullet_overlay_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实多页 bullet overlay、页眉页脚和可视化版式仍需等资源允许后
+通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK numbered list page flow 轻量契约搬入
+------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-bullet-fallback`` 的 CJK numbered list page flow
+方向提取低风险主题，但没有搬入旧分支的 5 页分页样例、图片资产、页眉页脚或 visual baseline。
+当前 ``dev`` 只新增一个 1 页轻量样例，用来锁住 CJK decimal 编号列表、编号重启、
+bullet 切换、styled run、East Asia 字体映射和稳定复制检索键。
+
+已搬入内容：
+
+1. 新增 ``document-cjk-numbered-list-page-flow-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK decimal list、编号重启、bullet 切换和 styled run，保留稳定检索键 ``NL-101``、
+   ``FE-NL-202``、``NL-888``、``FE-NL-921``、``FE-NL-999``。
+2. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+3. 新增 ``test/pdf_cjk_numbered_list_page_flow_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该样例只作为低资源阶段的契约入口；真实多页 numbered list flow、图片环绕、页眉页脚和可视化版式仍需等资源允许后
+通过受控 PDF 可视化验证确认。
+
+2026-05-19 CLI PDF CJK 导出静态契约补齐
+---------------------------------------
+
+本轮继续只读复核 ``origin/codex/pdf-cjk-bullet-fallback`` 中的 CLI PDF export 覆盖。
+当前 ``dev`` 已经包含 ``--cjk-font-file``、``--no-font-subset``、
+``--no-system-font-fallbacks``、CJK 字体发现、PDFium readback 和 PDF 未启用诊断路径。
+因此本轮没有搬入旧分支的大块 C++ 改动，只新增一个低资源静态契约，防止这些入口在后续
+整理中退化。
+
+已补齐内容：
+
+1. 新增 ``test/pdf_cli_cjk_export_static_contract_test.ps1``，用纯文本检查
+   ``test/pdf_cli_export_tests.cpp`` 中的 CJK 字体导出、字体子集开关和显式无系统
+   fallback 覆盖。
+2. 同一脚本检查 ``test/cli_tests.cpp`` 保留 PDF 未启用时的 CLI 诊断。
+3. 同一脚本检查 ``test/CMakeLists.txt`` 保留 ``pdf_cli_export_tests`` 注册、对
+   ``featherdoc_cli`` 的依赖、``cli/smoke/pdf`` 标签和 PDF-enabled CLI 编译覆盖。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+旧分支中剩余的源码差异继续作为 PDF 专项参考；如果要继续搬入，应优先挑选可以用静态契约
+描述的小主题，等资源允许后再做受控 PDF 可视化验证。
+
+2026-05-19 PDF CJK fallback 与表格 fitting 静态契约补齐
+-------------------------------------------------------
+
+本轮继续只读复核 ``origin/codex/pdf-cjk-bullet-fallback`` 中的 East Asia 字体 fallback
+和 CJK 表格 header fitting 补丁。当前 ``dev`` 已包含对应源码与 C++ 测试入口，因此没有
+整分支合并，也没有改动 PDF 核心实现，只新增一个低资源静态契约来防止后续整理时退化。
+
+已补齐内容：
+
+1. 新增 ``test/pdf_cjk_fallback_table_static_contract_test.ps1``，检查
+   ``src/pdf/pdf_font_resolver.cpp`` 保留 Unicode fallback helper、字形支持检查、
+   East Asia resolved family 切换和默认 CJK 字体 fallback 链路。
+2. 同一脚本检查 ``test/pdf_font_resolver_tests.cpp`` 保留 Latin 字体缺字时切到
+   East Asia 映射、Unicode prefix 切到 East Asia / 默认 CJK 字体的测试入口。
+3. 同一脚本检查 ``test/pdf_document_adapter_font_tests.cpp`` 保留 bullet prefix
+   East Asia fallback 和 exact-height repeated table header 可见性测试。
+4. 同一脚本检查 ``src/pdf/pdf_document_adapter_table_layout.*`` 与
+   ``src/pdf/pdf_document_adapter_tables.cpp`` 保留 ``spanned_row_bottom``、
+   ``row_emission_height`` 和 ``repeated_headers_fit_with_row`` 的表格 fitting 链路。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该契约只确认当前 ``dev`` 已有实现入口仍存在；真实 PDF 表格分页、重复表头可见性和字体回退
+版式仍需等资源允许后通过受控 PDF 可视化验证确认。
+
+2026-05-19 release governance 明细汇总静态契约补齐
+---------------------------------------------------
+
+本轮转向 ``origin/codex/release-governance-rollup-details`` 的低风险部分。该分支整体
+相对当前 ``dev`` 已经严重陈旧，直接合并会删除当前 PDF 契约和多份恢复记录，因此没有整分支
+合并，也没有改动发布脚本运行逻辑。当前 ``dev`` 已经具备 release blocker rollup、
+release governance pipeline、handoff、reviewer checklist 和 release note bundle 的
+明细透传链路，本轮只新增一个静态契约锁住这些入口。
+
+已补齐内容：
+
+1. 新增 ``test/release_governance_detail_rollup_static_contract_test.ps1``，检查
+   rollup / pipeline / handoff 脚本保留 ``source_schema``、``source_report_display``、
+   ``source_json_display``、``candidate_type`` 和 action command 字段。
+2. 同一脚本检查发布治理测试继续覆盖 content-control、project onboarding、schema
+   confidence calibration 的 source JSON、source schema、open command 和 candidate
+   routing。
+3. 同一脚本检查 ``release_blocker_metadata_helpers.ps1``、release candidate summary 和
+   reviewer checklist 仍消费 release blocker rollup、governance handoff 以及 nested
+   rollup 的明细数组。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该契约只作为发布治理明细透传的防退化入口；如后续继续整合该旧分支，应逐项挑选仍未覆盖的
+小型文档或契约补丁，避免回退当前 ``dev`` 的 PDF 契约和恢复记录。
+
+2026-05-19 release governance reviewer 明细质量门禁补齐
+--------------------------------------------------------
+
+本轮继续只读复核 ``origin/codex/release-governance-rollup-details`` 的剩余 8 个
+branch-only 提交。复核结果是：发布包入口脚本已经在当前 ``dev`` 中输出
+release blocker rollup 与 release governance handoff 明细段，旧分支剩余的大块差异仍
+混有 PDF/RTL 源码、视觉样例和旧文档删除，不适合整分支合并。本轮只搬入一个仍有价值的小
+门禁：发布包生成前校验 reviewer-facing governance 明细字段完整性。
+
+已补齐内容：
+
+1. ``release_blocker_metadata_helpers.ps1`` 新增 release governance reviewer metadata
+   quality 校验，覆盖 ``release_blocker_rollup``、``release_governance_handoff`` 和
+   ``stages`` 内的 blocker、warning、action item 明细。
+2. ``write_release_note_bundle.ps1`` 在读取 summary 后同时执行 release blocker 元数据
+   校验与 governance reviewer 明细校验；缺少 ``source_json_display`` 或 action item
+   ``open_command`` 时会在发布包生成前失败。
+3. ``release_note_bundle_version_test.ps1`` 增加 rollup 缺少 source JSON display 与
+   handoff 缺少 open command 的负例，``release_governance_detail_rollup_static_contract_test.ps1``
+   锁住这些校验入口。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该门禁只强化发布材料一致性；真实 PDF/RTL 分支功能仍保留为后续受控可视化验证前的参考项。
+
+2026-05-19 release governance 轻量契约 CMake 入口补齐
+-----------------------------------------------------
+
+本轮继续复核 ``origin/codex/release-governance-warning-entrypoints``。该分支整体仍是旧基线，
+直接合并会回退当前 ``dev`` 的 PDF 契约、文档恢复记录和更完整的治理 helper；但其中
+“把 release governance warning 相关轻量契约接入常规测试入口”的方向仍有价值。当前脚本
+文件已经存在且前几轮已手工验证，本轮只补 CMake 注册，不运行 CMake 或 CTest。
+
+已补齐内容：
+
+1. ``test/CMakeLists.txt`` 在 Windows PowerShell 测试区注册
+   ``release_governance_warning_contract``、
+   ``release_governance_warning_helper_contract``、
+   ``release_governance_metrics_contract`` 和
+   ``release_governance_detail_rollup_static_contract``。
+2. 这些入口都设置 ``TIMEOUT 60`` 和 ``release;governance;smoke`` 标签，避免后续
+   CTest 选择器遗漏治理契约或出现无界后台测试。
+3. ``release_governance_detail_rollup_static_contract_test.ps1`` 增加对这些 CMake
+   注册入口、脚本路径、超时和标签的静态检查。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该补丁只提升已有低资源契约的可发现性；``release-governance-warning-entrypoints`` 中
+剩余的大块 style merge / restore audit / pipeline 历史差异继续只读保留，不整分支合并。
+
+2026-05-19 CLI CJK PDF 可视化 gate 静态保护补齐
+------------------------------------------------
+
+本轮继续只读复核 ``origin/codex/pdf-cjk-bullet-fallback`` 的 CLI CJK PDF export
+和 visual gate 连接点。当前 ``dev`` 已经保留 ``cjk-font-source.pdf`` 的 CLI 导出
+测试产物和 ``run_pdf_visual_release_gate.ps1`` 中的 ``cli-cjk-font-source`` baseline
+条目；旧分支剩余的大块 PDF regression 样例和 C++ 布局改动仍不适合低资源整批搬入。
+
+已补齐内容：
+
+1. ``test/pdf_cli_cjk_export_static_contract_test.ps1`` 继续锁住 ``--cjk-font-file``、
+   ``--no-font-subset``、``--no-system-font-fallbacks`` 和 PDF 未启用诊断。
+2. 同一静态契约新增检查 ``scripts/run_pdf_visual_release_gate.ps1`` 中的
+   ``cli-cjk-font-source``、``test\\pdf_cli_export\\cjk-font-source.pdf``、
+   stable baseline 输出目录和 3 页预期。
+3. 本轮只做文本级静态保护，不执行 CMake、CTest、Ninja、MSBuild、Word、
+   LibreOffice、浏览器或 PDF 渲染。
+
+该补丁的目的不是宣称 PDF CJK 分支已完整合入，而是防止已经搬入 ``dev`` 的
+CLI CJK 导出到受控可视化 gate 的连接点在后续整理时退化。
+
+2026-05-19 PDF Bidi/RTL 行布局适配层小批量搬入
+------------------------------------------------
+
+本轮继续从旧 PDF 分支的 RTL / CJK 深水区中提取低风险源码能力，没有整分支合并，
+也没有搬入大批 regression 样例、visual baseline 或 PDF 渲染 gate。当前只在
+PDF adapter 的文本换行与发射层搬入 Bidi/RTL 元数据链路，作为后续可视化验证前的
+小步能力补齐。
+
+已补齐内容：
+
+1. ``ResolvedRunStyle``、``TextToken``、``TextFragment`` 和 ``LineState`` 保留
+   RTL / Bidi 标记，换行时通过 ``line_contains_rtl_fragments`` 识别 RTL 片段。
+2. 段落适配层新增 ``resolve_paragraph_bidi``，优先使用段落显式 Bidi，其次使用段落
+   样式，最后回退 ``document.default_paragraph_bidi()``。
+3. 表格单元格换行会汇总单元格内段落 Bidi 标记，避免表格中的 RTL 文本丢失布局元数据。
+4. PDF 发射层新增 ``fragment_visual_advances``，在不改动 PDF writer 和字体嵌入逻辑的
+   前提下，对含 RTL 片段的混排行计算视觉 advance。
+5. 新增 ``test/pdf_bidi_line_layout_static_contract_test.ps1`` 并注册到
+   ``pdf_bidi_line_layout_static_contract``，设置 ``TIMEOUT 60`` 和
+   ``pdf;layout;smoke`` 标签。
+
+本轮仍不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+该补丁不表示旧 PDF CJK / RTL 分支已经完整合入；真实混排、表格 RTL 和 copy/search
+视觉质量仍需要在源码提交推送、工作区干净且资源允许后，通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK page boundary 轻量契约搬入
+------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 extreme page break
+视觉样例中提取低风险主题，按当前 ``dev`` 结构压缩为 1 页轻量样例。没有整分支合并，
+没有搬入旧分支的大批 5 页 visual baseline，也没有运行 CMake、CTest、Ninja、MSBuild、
+Word、LibreOffice、浏览器或 PDF 渲染。
+
+已补齐内容：
+
+1. 新增 ``document-cjk-page-boundary-lite-text``，覆盖 Document API 到 PDF adapter 的
+   CJK page boundary 文本、页眉页脚、内联图片、floating image square wrap 和稳定检索键
+   ``PB-101`` / ``FE-PB-202`` / ``FE-PB-999``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并保持
+   ``expected_pages`` 为 1、``expected_image_count`` 为 2，避免低资源阶段引入重型
+   多页视觉假设。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK PDF regression 分类；后续完整构建时携带
+   ``--require-cjk-font``，缺少字体时按既有规则返回 77 跳过。
+4. 新增 ``test/pdf_cjk_page_boundary_lite_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+该补丁只补轻量入口，不代表旧分支的 full extreme page-break visual 样例已经完整合入。
+真实分页边界、图片环绕和页眉页脚视觉质量仍需等资源允许后通过受控 PDF 可视化验证确认。
+
+2026-05-19 PDF CJK list page flow 正式 ID 轻量契约搬入
+--------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-bullet-fallback`` 的 CJK list page-flow
+样例中提取低风险主题，按当前 ``dev`` 结构重做为 1 页轻量契约入口。没有整分支合并，
+没有搬入旧分支的 5 页 visual baseline，也没有运行 CMake、CTest、Ninja、MSBuild、
+Word、LibreOffice、浏览器或 PDF 渲染。
+
+已补齐内容：
+
+1. 新增 ``document-cjk-numbered-list-page-flow-text``、
+   ``document-cjk-bullet-page-flow-text`` 和
+   ``document-cjk-bullet-overlay-page-flow-text``，覆盖 CJK decimal/bullet list、
+   list level、编号重启、页眉页脚、表格插入和 overlay 样式回读。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，样例总数更新为 72；
+   ``test/pdf_regression_manifest_test.cpp`` 同步断言新样例和既有 lite 样例入口。
+3. ``test/CMakeLists.txt`` 将三个正式 ID 纳入 CJK PDF regression 分类，并注册
+   ``pdf_cjk_list_page_flow_contract``，保持 ``TIMEOUT 60`` 和 ``pdf;layout;smoke``。
+4. 新增 ``test/pdf_cjk_list_page_flow_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake CJK 分类保持一致。
+
+该补丁只补低资源契约入口，不表示旧分支中完整多页列表分页视觉样例已经全部合入。
+真实列表分页、页眉页脚、表格断页和 overlay 视觉质量仍需等资源允许后通过受控 PDF
+可视化验证确认。
+
+2026-05-19 PDF table font matrix 轻量契约搬入
+------------------------------------------------
+
+本轮继续从旧 PDF 分支的表格字体矩阵样例中提取低风险主题，按当前 ``dev`` 结构重做为
+1 页轻量契约入口。没有整分支合并，也没有搬入旧分支的 3 页 visual baseline 或执行 PDF
+渲染。
+
+已补齐内容：
+
+1. 新增 ``document-table-font-matrix-text``，覆盖 Document API 表格单元格里的 CJK、RTL
+   Arabic、bidi 段落、重复表头、cant-split 行、页眉页脚占位符和稳定检索键
+   ``FE-420`` / ``FE-421`` / ``FE-422`` / ``FE-423``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并保持
+   ``expected_pages`` 为 1，避免低资源阶段引入旧分支多页视觉假设。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK 与 RTL font gate，并注册
+   ``pdf_document_table_font_matrix_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_document_table_font_matrix_contract_test.ps1``，用纯文本静态契约确认样例
+   生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示表格字体矩阵的低资源契约入口已进入 ``dev``。真实表格字体映射、RTL 混排、
+重复表头与页眉页脚视觉质量，仍需等源码提交推送且工作区干净后再通过受控 PDF 可视化验证
+确认。
+
+2026-05-19 PDF table CJK wrap flow 轻量契约搬入
+-------------------------------------------------
+
+本轮继续从旧 PDF 分支的 CJK 表格换行流程样例中提取低风险主题，按当前 ``dev`` 结构重做为
+1 页轻量契约入口。没有整分支合并，也没有搬入旧分支的 2 页 visual baseline 或执行 PDF
+渲染。
+
+已补齐内容：
+
+1. 新增 ``document-table-cjk-wrap-flow-text``，覆盖 Document API 表格单元格里的 CJK
+   长文本换行、页眉页脚占位符、重复表头、cant-split 行和稳定检索键
+   ``CW-101`` / ``CW-201`` / ``CW-202`` / ``CW-303`` / ``FE-CW-303`` /
+   ``CW-999``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并保持
+   ``expected_pages`` 为 1，避免低资源阶段引入旧分支多页视觉假设。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_document_table_cjk_wrap_flow_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_document_table_cjk_wrap_flow_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK 表格换行流程的低资源契约入口已进入 ``dev``。真实 CJK 字体度量、表格
+换行、重复表头与页眉页脚视觉质量，仍需等源码提交推送且工作区干净后再通过受控 PDF
+可视化验证确认。
+
+PDF 表格 CJK 纵向合并 cant-split 契约入口
+------------------------------------------------
+
+本轮继续从旧 PDF 分支的表格合并语料中提取低风险主题，按当前 ``dev`` 的 1 页轻量
+样例结构重做，不整分支合并，也不搬入旧分支的多页 visual baseline。
+
+已补齐内容：
+
+1. 新增 ``document-table-cjk-vertical-merged-cant-split-text``，覆盖 CJK 表格里的
+   纵向合并、横向合并、重复表头、cant-split 行、居中垂直对齐、页眉页脚占位符和稳定
+   检索键 ``CVC-101`` / ``CVC-202`` / ``CVC-303`` / ``FE-CVC-404`` /
+   ``CVC-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   75；该样例仍保持 ``expected_pages`` 为 1，避免低资源阶段扩大渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_document_table_cjk_vertical_merged_cant_split_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_document_table_cjk_vertical_merged_cant_split_contract_test.ps1``，
+   用纯文本静态契约确认样例生成器、manifest、manifest parser 测试和 CMake 分类一致。
+
+该补丁只表示 CJK 纵向合并表格的低资源契约入口已进入 ``dev``。真实 PDF 中合并单元格
+边框、CJK 字体换行、cant-split 分页和页眉页脚视觉质量，仍需等源码提交推送且工作区
+干净后再通过受控 PDF 可视化验证确认。
+
+PDF 表格 CJK 合并重复表头契约入口
+------------------------------------------------
+
+本轮继续从旧 PDF 分支的 ``document-table-cjk-merged-repeat-text`` 多页样例中提取
+低风险主题，按当前 ``dev`` 的 1 页轻量样例结构重做，不整分支合并，也不搬入旧分支的
+4 页 visual baseline。
+
+已补齐内容：
+
+1. 新增 ``document-table-cjk-merged-repeat-text``，覆盖 CJK 表格里的横向合并看板表头、
+   纵向合并负责人块、重复表头、cant-split 尾行、垂直居中和页眉页脚占位符。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   76；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_document_table_cjk_merged_repeat_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_document_table_cjk_merged_repeat_contract_test.ps1``，用纯文本静态契约
+   确认样例生成器、manifest、manifest parser 测试和 CMake 分类一致。
+
+该补丁只表示 CJK 合并重复表头表格的低资源契约入口已进入 ``dev``。真实 PDF 中重复
+表头、合并单元格边框、CJK 字体换行和页眉页脚视觉质量，仍需等源码提交推送且工作区
+干净后再通过受控 PDF 可视化验证确认。
+
+PDF CJK table wrap page-flow 契约入口
+------------------------------------------------
+
+本轮继续从旧 PDF 分支的 ``document-cjk-table-wrap-page-flow-text`` 5 页样例中提取
+低风险主题，按当前 ``dev`` 的 1 页轻量样例结构重做，不整分支合并，也不搬入旧分支的
+图片压力语料或 5 页 visual baseline。
+
+已补齐内容：
+
+1. 新增 ``document-cjk-table-wrap-page-flow-text``，覆盖 CJK 表格换行、重复表头、
+   合并看板表头、纵向合并阶段块、cant-split 尾行、页眉页脚占位符和稳定检索键
+   ``TF-101`` / ``TF-202`` / ``TF-303`` / ``FE-TF-921`` / ``TF-A-05`` /
+   ``TF-B-03`` / ``FE-TF-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   77；该样例保持 ``expected_pages`` 为 1，不声明旧分支的 5 张图片压力假设。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_table_wrap_page_flow_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_table_wrap_page_flow_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类一致。
+
+该补丁只表示 CJK table wrap page-flow 的低资源契约入口已进入 ``dev``。真实 PDF 中
+多页表格换行、图片环绕、锚点恢复全宽和页眉页脚视觉质量，仍需等源码提交推送且工作区
+干净后再通过受控 PDF 可视化验证确认。
+
+PDF CJK multi anchor table-flow 契约入口
+------------------------------------------------
+
+本轮继续从旧 PDF 分支的 ``document-cjk-multi-anchor-table-flow-text`` 5 页样例中提取
+低风险主题，按当前 ``dev`` 的 1 页轻量样例结构重做。该批次不整分支合并，不搬入旧
+分支的图片压力语料，也不声明旧分支的 5 页 visual baseline 已经进入当前主线。
+
+已补齐内容：
+
+1. 新增 ``document-cjk-multi-anchor-table-flow-text``，覆盖 CJK 多锚点文本流、
+   first/even/default 页眉页脚占位符、合并看板表头、纵向合并锚点块、重复表头、
+   cant-split 行、styled CJK run 和稳定检索键
+   ``MA-101`` / ``MA-202`` / ``MA-303`` / ``FE-MA-901`` /
+   ``FE-MA-951`` / ``FE-MA-971`` / ``FE-MA-981`` / ``FE-MA-999`` /
+   ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   78；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_multi_anchor_table_flow_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_multi_anchor_table_flow_contract_test.ps1``，用纯文本静态契约确认
+   样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK multi-anchor table-flow 的低资源契约入口已进入 ``dev``。真实 PDF 中
+多锚点跨页表格流、图片环绕、header/footer 变体和 copy/search 视觉质量，仍需等源码
+提交推送且工作区干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF CJK vertical merge wrap cant-split 正式 ID 契约搬入
+------------------------------------------------------------------
+
+本轮继续从 ``origin/codex/pdf-cjk-copy-search-gate`` 的 CJK vertical merge wrap
+样例中提取低风险主题，按当前 ``dev`` 的 1 页轻量样例结构重做。不整分支合并，
+不搬入旧分支图片语料，也不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、
+浏览器或 PDF 渲染。
+
+已补齐内容：
+
+1. 新增 ``document-cjk-vertical-merge-wrap-cant-split-text``，覆盖 first/even/default
+   页眉页脚占位符、纵向合并、横向合并、重复表头、cant-split 行、styled CJK run 和
+   稳定检索键 ``VM-101`` / ``VM-202`` / ``VM-303`` / ``FE-VM-901`` /
+   ``FE-VM-921`` / ``CVM-04`` / ``FE-VM-999`` / ``ABC 123``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   89；该样例保持 ``expected_pages`` 为 1，避免低资源阶段扩大 PDF 渲染成本。
+3. ``test/CMakeLists.txt`` 将该样例纳入 CJK font gate，并注册
+   ``pdf_cjk_vertical_merge_wrap_cant_split_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_cjk_vertical_merge_wrap_cant_split_contract_test.ps1``，用纯文本静态契约
+   确认样例生成器、manifest、manifest parser 测试和 CMake 分类保持一致。
+
+该补丁只表示 CJK vertical merge wrap cant-split 的低资源正式 ID 契约入口已进入
+``dev``。真实多页纵向合并、整块迁移、小页高分页、页眉页脚文本层和 PDFium 可复制性，
+仍需等源码提交推送且工作区干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF table vertical merged cant-split 正式 ID 契约搬入
+---------------------------------------------------------------
+
+本轮继续从旧 PDF 分支中最后一个 manifest 缺口 ``document-table-vertical-merged-cant-split-text``
+提取低风险主题，按当前 ``dev`` 的 1 页轻量样例结构重做。不整分支合并，不搬入旧分支
+4 页 visual baseline，也不执行 CMake、CTest、Ninja、MSBuild、Word、LibreOffice、浏览器
+或 PDF 渲染。
+
+已补齐内容：
+
+1. 新增 ``document-table-vertical-merged-cant-split-text``，覆盖非 CJK 表格的纵向合并
+   owner block、横向合并看板表头、重复表头、cant-split 行、页眉页脚占位符和稳定检索键
+   ``VMC-01`` / ``VMC-02`` / ``VMC-03`` / ``VMC-04`` / ``VMC-05``。
+2. ``test/pdf_regression_manifest.json`` 增加对应 manifest 条目，并将总样例数推进到
+   90；该样例保持 ``expected_pages`` 为 1，不声明旧分支的 4 页 ``visual_expected_pages``。
+3. ``test/CMakeLists.txt`` 注册
+   ``pdf_document_table_vertical_merged_cant_split_contract``，保持 60 秒超时。
+4. 新增 ``test/pdf_document_table_vertical_merged_cant_split_contract_test.ps1``，用纯文本静态契约
+   确认样例生成器、manifest、manifest parser 测试和 CMake 注册一致。
+
+该补丁只表示旧 PDF manifest 中最后一个明确缺失样例 ID 已按低资源方式进入 ``dev``。
+真实跨页纵向合并、重复表头、cant-split 落页和页码视觉质量，仍需等源码提交推送且工作区
+干净后再通过受控 PDF 可视化验证确认。
+
+2026-05-20 PDF 参考分支剩余差异审计
+------------------------------------
+
+本轮在删除 FeatherDoc 自动化任务后，重新以低资源方式只读复核 ``dev`` 与远端参考分支。
+当前 ``dev`` 与 ``origin/dev`` 对齐，工作区干净，最新主线提交为
+``20ba35c Add PDF table vertical merged cant split contract``。
+
+已确认结论：
+
+1. ``origin/codex/pdf-cjk-copy-search-gate`` 的 manifest 样例数为 70；当前
+   ``dev`` 的 manifest 样例数为 90；该分支相对 ``dev`` 的 ``missing_in_dev`` 为 0。
+2. ``origin/codex/pdf-cjk-bullet-fallback`` 的 manifest 样例数为 73；当前
+   ``dev`` 的 manifest 样例数为 90；该分支相对 ``dev`` 的 ``missing_in_dev`` 为 0。
+3. 当前 ``dev`` 已具备 PDF import、``import-pdf`` CLI、PDF import JSON diagnostics、
+   ``--min-table-continuation-confidence``、字体子集、HarfBuzz text shaper、
+   shaped glyph writer、CJK copy/search text layer gate 和 ``cli-cjk-font-source`` gate
+   等主线入口。
+4. ``96bac82``、``3be71b2``、``1fb55a1``、``b52bf60`` 和 ``11dc255`` 等旧分支提交
+   对应的核心方向，已在当前 ``dev`` 中通过新结构或轻量契约等价覆盖；继续整分支合并会
+   回退当前 manifest、CMake、visual gate 和文档状态记录。
+
+因此，PDF CJK 两个参考分支中可在低资源阶段继续拆入的明确 manifest 功能缺口已经处理完毕。
+剩余差异主要是旧提交历史、大批重型 visual baseline、过期 gate 结构或需要 PDF 渲染验证的
+质量证据。后续不应继续盲目搬代码，下一步最小风险动作是：保持 ``dev`` 干净并已推送，
+在资源允许时只对当前 ``dev`` 执行受控 PDF 可视化验证，验证完成后再决定是否归档旧分支。
+
+2026-05-20 受控 PDF 可视化烟测
+------------------------------
+
+用户关闭 Edge 后，本轮重新做了资源预检。当前没有 Edge、Chrome、Firefox、CMake、CTest、
+Ninja、MSBuild、Word、LibreOffice 或 PDF 渲染残留进程；仍有外部 ``node`` 和
+``powershell`` 进程，但不是本任务启动，未擅自关闭。
+
+验证边界：
+
+1. 当前 ``build`` 目录没有 ``CTestTestfile.cmake``，也没有可复用的 PDF regression 输出，
+   因此未运行完整 ``scripts/run_pdf_visual_release_gate.ps1``。该脚本会先调用
+   ``ctest``，并可能创建 ``.venv-pdf-visual-smoke`` 或安装渲染依赖，不适合在本轮低资源
+   前提下直接启动。
+2. 已复用既有 ``.venv-word-visual-smoke``，确认其中已有 ``PIL`` 和 ``fitz``，没有新建虚拟
+   环境，也没有安装依赖。
+3. 已用 60 秒超时分别运行并通过两个静态 PDF visual gate 契约：
+   ``pdf_visual_release_gate_style_baselines_test.ps1`` 和
+   ``pdf_visual_release_gate_text_shaping_baselines_test.ps1``。
+4. 已复用既有两个小 PDF：
+   ``output/word-visual-smoke-minimal-20260519/table_visual_smoke.pdf`` 和
+   ``output/word-visual-smoke-rerun-20260519/table_visual_smoke.pdf``，用
+   ``scripts/render_pdf_pages.py`` 渲染到
+   ``output/pdf-controlled-visual-smoke-20260520``，并用
+   ``scripts/check_pdf_text_layer.py`` 完成文本层提取。
+5. 人工查看了两个 contact sheet 和两个原始 ``page-01.png``；页面非空，页数为 1，
+   标题、正文和小表格均可见。该检查证明本机当前 PDF 渲染链路可用，但不等同于完整
+   PDF release gate 或 PDF CJK 样例库可视化验收。
+
+下一步若要进入完整 PDF release gate，最小风险前置条件是先准备或复用一个有效的 PDF
+构建目录，让 ``pdf_cli_export``、``pdf_regression_`` 和相关 PDF 输出存在；否则会触发
+构建或直接失败。
+
+2026-05-20 PDF 可视化发布门禁预检
+-----------------------------------
+
+本轮补充了低资源预检入口 ``scripts/check_pdf_visual_release_gate_preflight.ps1``。
+该脚本用于判断当前机器是否已经具备运行完整
+``scripts/run_pdf_visual_release_gate.ps1`` 的前置条件，而不是直接启动完整门禁。
+
+预检内容包括：
+
+1. build 目录、``CMakeCache.txt`` 和 ``CTestTestfile.cmake`` 是否存在。
+2. ``ctest -N`` 是否能列出 ``pdf_cli_export``、``pdf_regression_``、
+   ``pdf_visual_release_gate_style_baselines`` 和
+   ``pdf_visual_release_gate_text_shaping_baselines``。
+3. ``pdf_cli_export`` 的两个 baseline PDF 是否已存在。
+4. manifest 中 ``expect_visual_baseline`` 和 ``expect_cjk`` 样例对应的 PDF 输出是否已存在。
+5. ``render_pdf_pages.py``、``check_pdf_text_layer.py`` 和
+   ``build_image_contact_sheet.py`` 等 helper 是否存在。
+6. 是否能复用已有 ``FEATHERDOC_RENDER_PYTHON_EXECUTABLE``、
+   ``.venv-word-visual-smoke`` 或 ``tmp/render-venv`` 中同时具备 ``PIL`` 与 ``fitz`` 的
+   Python。
+
+该预检默认只报告 ``ready`` / ``not_ready`` 并输出 JSON；只有传入 ``-Strict`` 时，
+缺少前置条件才会用非零退出。它不会创建虚拟环境、安装依赖、运行 PDF 渲染或触发构建。
+配套新增 ``test/pdf_visual_release_gate_preflight_test.ps1``，用 fake build、fake ctest
+和 fake render Python 固定脚本契约，并在 ``test/CMakeLists.txt`` 中注册为 60 秒静态
+测试。
+
+随后 ``scripts/run_pdf_visual_release_gate.ps1`` 也接入同一预检：默认先运行严格预检，
+只有前置条件完整时才继续进入 ``ctest``、文本层检查和 PNG 渲染阶段。需要只做前置检查时
+传 ``-PreflightOnly``；只有在已经人工确认 build 输出完整时，才允许传 ``-SkipPreflight``
+绕过保护。
+
+2026-05-20 PDF visual release gate 预检治理报告
+----------------------------------------------
+
+本轮继续把 PDF visual release gate 的剩余风险纳入 release governance，而不是继续盲目
+搬运旧 PDF 分支。新增 ``scripts/write_pdf_visual_release_gate_preflight_governance_report.ps1``，
+用于把 ``check_pdf_visual_release_gate_preflight.ps1`` 的 summary 转成 release blocker
+rollup 可消费的治理报告。
+
+该脚本保持低资源边界：
+
+1. 可以读取既有 ``-PreflightJson``，也可以调用只读预检生成 summary。
+2. 不运行 CMake、完整 CTest、Ninja、MSBuild、Word、LibreOffice、浏览器或 PDF 渲染。
+3. 不创建虚拟环境，不安装依赖，不生成新的 PDF baseline。
+4. 当预检为 ``not_ready`` 时，输出
+   ``pdf_visual_release_gate_preflight.build_outputs_missing`` 阻塞项，并携带
+   ``source_schema``、``source_report_display``、``source_json_display``、
+   ``repair_strategy``、``repair_hint`` 和 ``command_template``。
+
+配套新增 ``test/pdf_visual_release_gate_preflight_governance_report_test.ps1``，用 fake
+``ready`` / ``not_ready`` summary 验证：
+
+1. ``not_ready`` 会生成 release blocker 和 action item。
+2. ``ready`` 不生成阻塞项。
+3. 生成的 summary 可以被 ``scripts/build_release_blocker_rollup_report.ps1`` 聚合。
+
+当前结论不变：PDF 参考分支的 manifest 明确缺口已经收敛到 0，但完整 PDF visual
+release gate 仍需要可复用 CMake build 目录、CTest 注册和当前 ``dev`` 生成的 PDF 输出。完整
+门禁通过前，不能把远端 PDF 参考分支视为可立即清理。
+
+2026-05-20 受控 PDF smoke 检查器落地
+------------------------------------
+
+本轮继续推进可视化验证，但仍保持低资源边界：未运行 CMake、CTest、Ninja、MSBuild、
+Word、LibreOffice、浏览器或新的 PDF 渲染。新增并推送
+``ee81820 Add controlled PDF visual smoke checker``，把前一轮已经生成的
+``output/pdf-controlled-visual-smoke-20260520`` 证据变成可重复检查的机器契约。
+
+新增检查器覆盖：
+
+1. ``minimal`` 和 ``rerun`` 两组 smoke case 是否都有 ``summary.json``、页面 PNG、
+   contact sheet、``text-summary.json`` 和 ``text.txt``。
+2. PNG 是否可解码，尺寸是否满足阈值，非白像素比例是否足够证明页面不是空白。
+3. 文本层是否包含 ``FeatherDoc Word visual smoke input`` 和
+   ``This minimal document is generated for local visual validation preflight.``。
+4. 文本层页数是否与渲染 summary 页数一致。
+
+已用 60 秒超时包装并通过：
+
+* ``test/pdf_controlled_visual_smoke_check_test.ps1``：验证正常 fixture 通过、空白 PNG
+  fixture 失败。
+* ``scripts/check_pdf_controlled_visual_smoke.ps1``：复核真实既有 smoke 产物，结果为
+  ``pass``。
+* ``scripts/compare_pdf_reference_branch_manifest.ps1 -FailOnMissingInDev``：再次确认
+  ``origin/codex/pdf-cjk-copy-search-gate`` 的 70 个样例 ID 和
+  ``origin/codex/pdf-cjk-bullet-fallback`` 的 73 个样例 ID 在当前 ``dev`` 中缺口均为 0。
+
+因此，当前状态可以更精确地表述为：PDF CJK 参考分支的 manifest 功能入口已经被当前
+``dev`` 覆盖；已有 smoke 产物也有机器可重复检查的非空页面和文本层证据。但这仍不是完整
+PDF visual release gate。完整门禁仍被 build / CTest 注册 / 当前 ``dev`` 生成的 PDF
+baseline 输出缺口阻塞。

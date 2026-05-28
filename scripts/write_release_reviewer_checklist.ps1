@@ -25,42 +25,6 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($candidate)
 }
 
-function Get-OptionalPropertyValue {
-    param(
-        $Object,
-        [string]$Name
-    )
-
-    if ($null -eq $Object) {
-        return ""
-    }
-
-    $property = $Object.PSObject.Properties[$Name]
-    if ($null -eq $property -or $null -eq $property.Value) {
-        return ""
-    }
-
-    return [string]$property.Value
-}
-
-function Get-OptionalPropertyObject {
-    param(
-        $Object,
-        [string]$Name
-    )
-
-    if ($null -eq $Object) {
-        return $null
-    }
-
-    $property = $Object.PSObject.Properties[$Name]
-    if ($null -eq $property) {
-        return $null
-    }
-
-    return $property.Value
-}
-
 function Get-DisplayValue {
     param([string]$Value)
 
@@ -82,36 +46,6 @@ function Get-DisplayPath {
     }
 
     return Get-RepoRelativePath -RepoRoot $RepoRoot -Path $Path
-}
-
-function Get-SupersededReviewTasksReportPath {
-    param(
-        $Summary,
-        $VisualGateSummary
-    )
-
-    $reportPath = Get-OptionalPropertyValue -Object $VisualGateSummary -Name "superseded_review_tasks_report"
-    if (-not [string]::IsNullOrWhiteSpace($reportPath)) {
-        return $reportPath
-    }
-
-    return Get-OptionalPropertyValue -Object $Summary -Name "superseded_review_tasks_report"
-}
-
-function Get-SupersededReviewTaskCount {
-    param([string]$ReportPath)
-
-    if ([string]::IsNullOrWhiteSpace($ReportPath) -or -not (Test-Path -LiteralPath $ReportPath)) {
-        return ""
-    }
-
-    try {
-        $report = Get-Content -Raw -LiteralPath $ReportPath | ConvertFrom-Json
-    } catch {
-        return ""
-    }
-
-    return Get-OptionalPropertyValue -Object $report -Name "superseded_task_count"
 }
 
 function Get-VisualTaskDir {
@@ -181,6 +115,9 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+$requiresProjectTemplateGovernanceSignoff = Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary
+$projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
+$projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $artifactGuidePath = Get-OptionalPropertyValue -Object $summary -Name "artifact_guide"
 if ([string]::IsNullOrWhiteSpace($artifactGuidePath)) {
@@ -371,6 +308,7 @@ $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke 
 $consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "consumer_document"
 $gateSummaryPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "summary_json"
 $gateFinalReviewPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "final_review"
+$pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 
 $visualVerdict = ""
 $readmeGalleryStatus = ""
@@ -415,6 +353,8 @@ $supersededReviewTasksCount = Get-SupersededReviewTaskCount -ReportPath $superse
 if ([string]::IsNullOrWhiteSpace($visualVerdict)) {
     $visualVerdict = "pending_manual_review"
 }
+$pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
+$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath
 
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
 $syncProjectTemplateSmokeCommand = ""
@@ -435,6 +375,12 @@ $packageAssetsCommand = if ($releaseVersion) {
 } else {
     'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
         $summaryCommandPath
+}
+$releaseAssetsManifestDisplayPath = if ($releaseVersion) {
+    $versionedManifestPath = Join-Path (Join-Path "output\release-assets" ("v{0}" -f $releaseVersion)) "release_assets_manifest.json"
+    Get-DisplayPath -RepoRoot $repoRoot -Path $versionedManifestPath
+} else {
+    ".\output\release-assets\v<version>\release_assets_manifest.json"
 }
 $syncReleaseNotesCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_github_release_notes.ps1 -SummaryJson "{0}"' -f `
     $summaryCommandPath
@@ -481,6 +427,26 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
     [void]$lines.Add("- $visualReviewTaskSummaryLine")
 }
+if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
+    [void]$lines.Add("- PDF visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json)")
+    [void]$lines.Add("- PDF visual gate evidence status: $(Get-DisplayValue -Value $pdfVisualGateEvidence.status)")
+    if ($pdfVisualGateEvidence.status -eq "loaded") {
+        [void]$lines.Add("- PDF visual gate verdict: $(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict)")
+        [void]$lines.Add("- PDF visual gate aggregate contact sheet: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet)")
+        [void]$lines.Add("- PDF CJK manifest samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_manifest_count)")
+        [void]$lines.Add("- PDF CJK copy/search samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count)")
+        [void]$lines.Add("- PDF CJK missing text count: $(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_missing_text_count)")
+        [void]$lines.Add("- PDF visual baseline manifest samples: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_manifest_count)")
+        [void]$lines.Add("- PDF visual baselines: $(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_count)")
+    } elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.error)) {
+        [void]$lines.Add("- PDF visual gate evidence error: $($pdfVisualGateEvidence.error)")
+    }
+}
+if ($pdfBoundedCtestEvidence.status -ne "not_available") {
+    [void]$lines.Add("- PDF bounded CTest auxiliary evidence: status=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status), summaries=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.summary_count), pass=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.pass_count), selected_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.selected_test_count), skipped_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.skipped_test_count)")
+    [void]$lines.Add("- PDF bounded CTest auxiliary subsets: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.subsets) -join ', '))")
+    [void]$lines.Add("- PDF bounded CTest auxiliary summaries: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+}
 [void]$lines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
 [void]$lines.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")
 [void]$lines.Add("- Smoke reviewed at: $(Get-DisplayValue -Value $smokeReviewedAt)")
@@ -514,6 +480,8 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$lines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
 Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceRollupMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceHandoffMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
 [void]$lines.Add("")
 [void]$lines.Add("## Step 1: Read The Release Notes")
 [void]$lines.Add("")
@@ -534,6 +502,33 @@ if ((Get-ReleaseBlockerCount -Summary $summary) -gt 0) {
         foreach ($guidanceLine in @(Get-ReleaseBlockerActionGuidanceLines -Blocker $releaseBlocker -RepoRoot $repoRoot -ReleaseSummaryJson $resolvedSummaryPath)) {
             Add-CheckboxLine -Lines $lines -Text $guidanceLine
         }
+    }
+}
+foreach ($blockerItem in @(Get-ReleaseGovernanceBlockerChecklistItems -Summary $summary)) {
+    Add-CheckboxLine -Lines $lines -Text (Get-ReleaseGovernanceBlockerChecklistText -BlockerItem $blockerItem)
+    foreach ($guidanceLine in @(Get-ReleaseGovernanceBlockerActionGuidanceLines `
+                -Blocker $blockerItem.item `
+                -RepoRoot $repoRoot `
+                -ReleaseSummaryJson $resolvedSummaryPath)) {
+        Add-CheckboxLine -Lines $lines -Text $guidanceLine
+    }
+}
+foreach ($actionItem in @(Get-ReleaseGovernanceActionItemChecklistItems -Summary $summary)) {
+    Add-CheckboxLine -Lines $lines -Text (Get-ReleaseGovernanceActionItemChecklistText -ActionItem $actionItem)
+    foreach ($guidanceLine in @(Get-ReleaseGovernanceActionItemActionGuidanceLines `
+                -ActionItem $actionItem.item `
+                -RepoRoot $repoRoot `
+                -ReleaseSummaryJson $resolvedSummaryPath)) {
+        Add-CheckboxLine -Lines $lines -Text $guidanceLine
+    }
+}
+foreach ($warningItem in @(Get-ReleaseGovernanceWarningChecklistItems -Summary $summary)) {
+    Add-CheckboxLine -Lines $lines -Text (Get-ReleaseGovernanceWarningChecklistText -WarningItem $warningItem)
+    foreach ($guidanceLine in @(Get-ReleaseGovernanceWarningActionGuidanceLines `
+                -Warning $warningItem.item `
+                -RepoRoot $repoRoot `
+                -ReleaseSummaryJson $resolvedSummaryPath)) {
+        Add-CheckboxLine -Lines $lines -Text $guidanceLine
     }
 }
 Add-CheckboxLine -Lines $lines -Text ('Confirm `final_review.md` still matches the current release status: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $finalReviewPath))
@@ -624,6 +619,38 @@ if ($summary.steps.visual_gate.status -eq "skipped") {
 } else {
     Add-CheckboxLine -Lines $lines -Text ('Stop here until the local Word visual review is completed and the visual verdict changes from `{0}`.' -f $visualVerdict)
 }
+if ($pdfVisualGateEvidence.status -eq "loaded") {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the PDF visual gate finalize evidence is signed off: verdict `{0}`, summary {1}, aggregate contact sheet {2}, CJK manifest samples `{3}`, CJK copy/search samples `{4}`, missing text `{5}`, visual baseline manifest samples `{6}`, visual baselines `{7}`.' -f `
+            (Get-DisplayValue -Value $pdfVisualGateEvidence.verdict),
+            (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json),
+            (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.aggregate_contact_sheet),
+            $pdfVisualGateEvidence.cjk_manifest_count,
+            $pdfVisualGateEvidence.cjk_copy_search_count,
+            $pdfVisualGateEvidence.cjk_missing_text_count,
+            $pdfVisualGateEvidence.visual_baseline_manifest_count,
+            $pdfVisualGateEvidence.visual_baseline_count)
+} elseif (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
+    Add-CheckboxLine -Lines $lines -Text ('Stop here until the PDF visual gate evidence summary is readable: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $pdfVisualGateEvidence.summary_json))
+}
+if ($pdfBoundedCtestEvidence.status -ne "not_available") {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the PDF bounded CTest auxiliary evidence is recorded separately from the full visual gate: status `{0}`, summaries `{1}`, pass `{2}`, selected tests `{3}`, skipped tests `{4}`, subsets `{5}`.' -f `
+            $pdfBoundedCtestEvidence.status,
+            $pdfBoundedCtestEvidence.summary_count,
+            $pdfBoundedCtestEvidence.pass_count,
+            $pdfBoundedCtestEvidence.selected_test_count,
+            $pdfBoundedCtestEvidence.skipped_test_count,
+            (@($pdfBoundedCtestEvidence.subsets) -join ', '))
+    Add-CheckboxLine -Lines $lines -Text ('Open the bounded CTest summary list when you need to verify the auxiliary evidence source set: {0}' -f (Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', ')))
+}
+Add-CheckboxLine -Lines $lines -Text 'Confirm the fixed PDF release readiness checklist has been reviewed before publishing: `docs/pdf_release_readiness_checklist_zh.rst`.'
+Add-CheckboxLine -Lines $lines -Text 'Confirm the fixed Project template release readiness checklist has been reviewed before publishing: `docs/project_template_release_readiness_checklist_zh.rst`.'
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm release governance handoff carries project-template readiness checklist entrypoint evidence: {0}.' -f $projectTemplateChecklistHandoffEvidenceLine)
+}
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm release governance handoff carries packaged project-template readiness checklist material-safety audit evidence: {0}.' -f $projectTemplateChecklistMaterialSafetyAuditEvidenceLine)
+}
+Add-CheckboxLine -Lines $lines -Text 'For PDF/CJK-facing releases, manually verify a generated Chinese PDF can be copied and searched in at least one common reader, and record the reader/version in the release notes or final review.'
 
 if (-not [string]::IsNullOrWhiteSpace($consumerDocument)) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm the install smoke consumer document exists for spot checks: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $consumerDocument))
@@ -660,6 +687,15 @@ if ($readmeGalleryStatus -eq "completed") {
 Add-CheckboxLine -Lines $lines -Text 'Use `release_summary.zh-CN.md` for the GitHub Release first-screen bullets.'
 Add-CheckboxLine -Lines $lines -Text 'Use `release_body.zh-CN.md` for the full release notes or translated handoff notes.'
 Add-CheckboxLine -Lines $lines -Text ('Generate or refresh the local public release ZIP files before publishing: `{0}`' -f $packageAssetsCommand)
+if ($requiresProjectTemplateGovernanceSignoff) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the packaged release manifest preserves project-template governance contracts before publishing: {0} must include `project_template_delivery_readiness_contract` and `project_template_onboarding_governance_contract` with `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display`.' -f $releaseAssetsManifestDisplayPath)
+}
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the release governance handoff source-report evidence remains ready for publishing: {0}.' -f $projectTemplateChecklistHandoffEvidenceLine)
+}
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the packaged checklist material-safety audit source-report evidence remains ready for publishing: {0}.' -f $projectTemplateChecklistMaterialSafetyAuditEvidenceLine)
+}
 Add-CheckboxLine -Lines $lines -Text ('Sync the audited full release body into the GitHub Release notes: `{0}`' -f $syncReleaseNotesCommand)
 Add-CheckboxLine -Lines $lines -Text ('When all gates pass and the GitHub Release is ready to go live, publish it with: `{0}`' -f $publishReleaseCommand)
 Add-CheckboxLine -Lines $lines -Text ('Use the GitHub refresh flow to update ZIP assets plus audited notes without changing draft/public state: `{0}`' -f $publishWorkflowCommand)
@@ -687,6 +723,7 @@ if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
 [void]$lines.Add("")
 [void]$lines.Add('- Do not approve for public release when `execution_status` is not `pass`.')
 [void]$lines.Add('- Do not approve for public release when `release_blocker_count` is non-zero or `release_blockers` is not empty.')
+[void]$lines.Add('- Do not approve for public release when release governance blocker counts are non-zero in the final rollup, governance handoff, or nested handoff rollup.')
 [void]$lines.Add('- Do not approve for public release when a requested template schema gate does not report `matches = true`.')
 [void]$lines.Add('- Do not approve for public release when a requested template schema manifest gate does not report `passed = true`.')
 [void]$lines.Add('- Do not approve for public release when a requested project template smoke gate does not report `passed = true`.')

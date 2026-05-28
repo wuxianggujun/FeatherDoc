@@ -121,4 +121,84 @@ subset_font_file_for_codepoints(const std::filesystem::path &font_file_path,
 #endif
 }
 
+PdfFontSubsetResult
+subset_font_file_for_glyph_ids(const std::filesystem::path &font_file_path,
+                               const std::vector<std::uint32_t> &glyph_ids) {
+    PdfFontSubsetResult result;
+#if !defined(FEATHERDOC_ENABLE_PDF_FONT_SUBSET)
+    (void)font_file_path;
+    (void)glyph_ids;
+    result.error_message = "PDF font subsetting is not enabled";
+    return result;
+#else
+    if (font_file_path.empty()) {
+        result.error_message = "Font path is empty";
+        return result;
+    }
+    if (glyph_ids.empty()) {
+        result.error_message = "Font subset glyph id set is empty";
+        return result;
+    }
+
+    const auto font_path = font_file_path.string();
+    HbPtr<hb_blob_t, HbBlobCloser> source_blob(
+        hb_blob_create_from_file_or_fail(font_path.c_str()));
+    if (!source_blob) {
+        result.error_message = "Unable to load font for subsetting: " +
+                               font_file_path.string();
+        return result;
+    }
+
+    HbPtr<hb_face_t, HbFaceCloser> source_face(
+        hb_face_create_or_fail(source_blob.get(), 0));
+    if (!source_face) {
+        result.error_message = "Unable to create HarfBuzz face: " +
+                               font_file_path.string();
+        return result;
+    }
+
+    HbPtr<hb_subset_input_t, HbSubsetInputCloser> input(
+        hb_subset_input_create_or_fail());
+    if (!input) {
+        result.error_message = "Unable to create HarfBuzz subset input";
+        return result;
+    }
+
+    hb_subset_input_set_flags(input.get(), HB_SUBSET_FLAGS_RETAIN_GIDS);
+    hb_set_t *glyph_set = hb_subset_input_glyph_set(input.get());
+    hb_set_add(glyph_set, 0U);
+    for (const auto glyph_id : glyph_ids) {
+        if (glyph_id <= 0xFFFFU) {
+            hb_set_add(glyph_set, static_cast<hb_codepoint_t>(glyph_id));
+        }
+    }
+
+    HbPtr<hb_face_t, HbFaceCloser> subset_face(
+        hb_subset_or_fail(source_face.get(), input.get()));
+    if (!subset_face) {
+        result.error_message = "HarfBuzz font subset failed: " +
+                               font_file_path.string();
+        return result;
+    }
+
+    HbPtr<hb_blob_t, HbBlobCloser> subset_blob(
+        hb_face_reference_blob(subset_face.get()));
+    if (!subset_blob) {
+        result.error_message = "Unable to serialize HarfBuzz subset font";
+        return result;
+    }
+
+    unsigned int length = 0U;
+    const char *data = hb_blob_get_data(subset_blob.get(), &length);
+    if (data == nullptr || length == 0U) {
+        result.error_message = "HarfBuzz subset font is empty";
+        return result;
+    }
+
+    result.font_data.assign(data, data + length);
+    result.success = !result.font_data.empty();
+    return result;
+#endif
+}
+
 } // namespace featherdoc::pdf

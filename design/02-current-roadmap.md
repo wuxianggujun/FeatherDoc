@@ -92,8 +92,8 @@ Phase 1 的重点是：
 
 4. **建立测试集**
 
-   准备一组 10+ 个样本（当前 manifest 已扩展到 37 个样本，`pdf_regression_*`
-   覆盖 38 个 CTest，包含 manifest 校验），覆盖：
+   准备一组 10+ 个样本（当前 manifest 已扩展到 39 个样本，`pdf_regression_*`
+   覆盖 40 个 CTest，包含 manifest 校验），覆盖：
 
    - 纯文本 PDF
    - 中文 PDF
@@ -117,8 +117,8 @@ Phase 1 的重点是：
 - [ ] PDFio 写出 probe 可通过 `LayoutResult` 生成 PDF
 - [ ] PDFium 读入 probe 可提取文本和坐标
 - [ ] `IPdfGenerator` / `IPdfParser` 不暴露 PDFio / PDFium 类型
-- [x] 首批 PDF 样本进入回归测试（当前 manifest 已扩展到 37 个样本，
-      `pdf_regression_*` 覆盖 38 个 CTest，包含 manifest 校验）
+- [x] 首批 PDF 样本进入回归测试（当前 manifest 已扩展到 39 个样本，
+      `pdf_regression_*` 覆盖 40 个 CTest，包含 manifest 校验）
 
 ### 当前实现进展
 
@@ -139,8 +139,13 @@ Phase 1 的重点是：
 - [x] 同时开启 PDFio / PDFium 时，已有 `pdfium_document_parser_probe` CTest 覆盖 docs 段落写出后再读入
 - [x] 已支持基础段落、表格和基础样式写出
 - [x] 已接入 FreeType 字体度量，Layout 换行和行高改为真实字体测量
-- [x] 已建立首批 37 个 PDF regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
-- [ ] 仍需继续扩展 CJK 字体专项、复杂视觉回归和发布门禁；真实文档样本集已经进入 manifest，但还没有把文件大小、图片数量/尺寸和 PNG baseline 全部自动化
+- [x] 已有 CJK / Unicode 字体专项回归，覆盖字体解析、CJK 回退、PDFio 子集嵌入、
+      `/ToUnicode` 写出和 PDFium 文本回读
+- [x] 已打通基础样式映射，`PdfTextRun`、`layout_document_paragraphs()` 和
+      PDFio writer 已覆盖字体族/字体文件、字号、颜色、粗体、斜体和下划线，
+      并由 `pdf_document_adapter_font` 覆盖段落、继承样式、表格单元格和 writer 回归
+- [x] 已建立首批 39 个 PDF regression manifest 样本，覆盖纯文本、多页文本、中文路径、中英混排标点、Latin ligature 文本、样式、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
+- [ ] 仍需继续扩展复杂视觉回归和发布门禁；真实文档样本集已经进入 manifest，但还没有把文件大小、图片数量/尺寸和 PNG baseline 全部自动化，CJK 字体也还没有进入发行包捆绑策略
 
 ## 当前下一步任务（按优先级）
 
@@ -148,9 +153,9 @@ Phase 1 的重点是：
 >
 > 进展应直接更新本节的 checkbox 状态，而不是另开文档。
 
-当前 PDF 输出已经跑通端到端，而且基础样式和表格已经落地。字体度量已经切到真实字体文件，
-下一步主要是把 CJK 嵌入与 Unicode 回环继续稳固。下面四步按依赖顺序推进，**每一步是后一步
-的前置**。
+当前 PDF 输出已经跑通端到端，而且基础样式、表格、字体度量以及 CJK / Unicode 回环
+都已有专项回归。下一步主要是把发行级字体策略、复杂视觉门禁和 HarfBuzz 文字塑形继续收口。
+下面四步按依赖顺序推进，**每一步是后一步的前置**。
 
 ### 优先级 1：FreeType 集成 + 字体度量（约 1 个月）
 
@@ -176,11 +181,14 @@ Phase 1 的重点是：
 
 **子任务**：
 
-- [ ] 选定一个开源 CJK TTF（思源黑体 / 思源宋体 / Noto CJK 之一），列出许可证义务
-- [ ] 通过 PDFio 实现字体子集嵌入（不嵌入整个 20 MB 字体）
-- [ ] 写 /ToUnicode CMap，使 PDF 阅读器能复制粘贴出正确 Unicode
-- [ ] 中文 sample DOCX → PDF → 用 PDFium 反向提取文本，断言文本一致
-- [ ] 加 CTest：`pdfium_document_parser_probe` 扩展到中文路径
+- [ ] 选定一个可随发行包分发的开源 CJK TTF（思源黑体 / 思源宋体 / Noto CJK 之一），列出许可证义务；
+      当前测试先使用 `FEATHERDOC_TEST_CJK_FONT`、`FEATHERDOC_PDF_CJK_FONT` 或系统字体候选，
+      不把字体文件重新分发进仓库
+- [x] 通过 PDFio 实现字体子集嵌入（不嵌入整个 20 MB 字体）
+- [x] 写 /ToUnicode CMap，使 PDFium 能回读正确 Unicode 文本
+- [x] 中文 sample → PDF → 用 PDFium 反向提取文本，断言文本一致
+- [x] 加 CTest：`pdf_unicode_font_roundtrip`、`pdf_document_adapter_font` 和
+      `pdf_font_resolver` 覆盖 CJK 字体解析、子集化、ToUnicode 和回读
 
 **关键依赖检查**：如果 PDFio 在 CJK 字体子集 + ToUnicode 上**不可用或不稳定**，触发
 [dependencies/pdfio.md](dependencies/pdfio.md) §"放弃条件"中的"无法满足字体嵌入和 ToUnicode 的最低要求"，进入评估替代方案。**不允许**用"挖 LibreOffice"作为替代，详见
@@ -190,19 +198,28 @@ Phase 1 的重点是：
 
 ### 优先级 3：样式映射（约 2–3 周）
 
-**问题**：当前基础样式已经开始落地，但 `Run.bold` / `italic` /
-`font_size` / `color` 等还没有完整串到 layout 和 writer，整体输出还不够像正式文档。
+**状态 / 问题**：基础样式映射已经贯通，`Run.bold` / `italic` / `font_size` /
+`color` / `underline` 已能进入 layout 并由 PDFio writer 写出。剩余问题不再是字段断链，
+而是合同级视觉 baseline、非标准字体粗斜体质量和发布门禁还没有收口。
 
 **子任务**：
 
-- [ ] 扩展 `PdfDocumentLayout` 的 Run 表达：font weight、font style、font size、color、
+- [x] 扩展 `PdfDocumentLayout` 的 Run 表达：font weight、font style、font size、color、
       下划线
-- [ ] `layout_document_paragraphs()` 把 `Run` 字段翻译进 layout
-- [ ] PDFio backend 在 content stream 里展开（粗体一般通过加粗字体或描边模拟，斜体用
-      字体的 italic 变体或 PDF 矩阵倾斜）
-- [ ] 给 `featherdoc_pdf_document_probe` 加样式 sample
+- [x] `layout_document_paragraphs()` 把 `Run` 字段和继承样式翻译进 layout
+- [x] PDFio backend 在 content stream 里展开标准字体粗斜体、字号、颜色和下划线
+- [x] 给 PDF document adapter / writer 加样式 sample 和 `pdf_document_adapter_font`
+      回归
+- [x] 补合同级样式视觉 baseline，把粗体 / 斜体 / 字号 / 颜色 / 下划线纳入
+      `run_pdf_visual_release_gate.ps1` 的核心 PNG 渲染和聚合 contact sheet
+- [x] 明确非标准字体缺少 bold / italic 变体时的质量策略：resolver 优先找
+      style-specific 字体，缺失时显式标记 synthetic bold / italic，writer 使用
+      fill+stroke 和斜切矩阵做最小视觉兜底
 
-**验收**：合同 sample DOCX 的粗体 / 斜体 / 字号 / 颜色在输出 PDF 上正确呈现。
+**验收**：基础段落和表格单元格的粗体 / 斜体 / 字号 / 颜色 / 下划线已有专项
+CTest 覆盖；发布级视觉门禁已覆盖合同样式和样式矩阵样本；非标准字体缺少
+bold / italic 变体时已有合成兜底和回归覆盖。优先级 3 基础验收完成，下一步进入
+HarfBuzz 文字塑形。
 
 ### 优先级 4：HarfBuzz 文字塑形（约 1 个月）
 
@@ -211,12 +228,22 @@ Phase 1 的重点是：
 
 **子任务**：
 
-- [ ] HarfBuzz 接入 `FeatherDoc::Pdf` 构建
-- [ ] 实现 `shaper_bridge`：输入 Unicode 字符串 + 字体，输出 GlyphRun（glyphId / xAdvance /
-      xOffset / yOffset）
-- [ ] `PdfDocumentLayout` 改为消费 GlyphRun 而非字符串
-- [ ] PDFio backend 用 glyph ID 写出 content stream
-- [ ] 视觉回归 sample 集扩展到中英混排、CJK 标点用例
+- [x] HarfBuzz 接入 `FeatherDoc::Pdf` 构建
+- [x] 实现 `shaper_bridge`：输入 Unicode 字符串 + 字体，输出 GlyphRun（glyphId / xAdvance /
+      xOffset / yOffset）；当前已落到独立 `pdf_text_shaper`，还未接入 layout / writer
+- [x] `PdfDocumentLayout` 改为消费 GlyphRun 而非字符串；当前 `PdfTextRun` 已可携带
+      `PdfGlyphRun`，layout 宽度、后续 run 坐标和受控 writer 路径已优先使用 glyph advance；
+      原始字符串仍保留为 ToUnicode / ActualText 和 fallback 语义
+- [x] PDFio backend 用 glyph ID 写出 content stream；当前实现为 file-backed shaped run
+      创建独立 Type0 / CIDFontType2 资源，用私有 CID、CIDToGIDMap、ToUnicode 和 HarfBuzz
+      advance 写出，并已用对象级 CMap 解压回归覆盖 shaped cluster 到 ToUnicode 的映射；
+      非零 x/y offset 或 y advance 会逐 glyph 写 `Tm` + `Tj`；重复 cluster 只映射首个
+      CID，cluster 非 UTF-8 边界、越界或倒序会回退；`PdfGlyphRun` 已携带 direction /
+      script / language 元数据，document adapter 会把 run 级 RTL 和语言语义传给
+      shaper，writer 只接受 `left_to_right` 安全集，RTL / 竖排仍是后续专项
+- [x] 视觉回归 sample 集扩展到中英混排、CJK 标点用例；当前
+      `mixed-cjk-punctuation-text` 和 `latin-ligature-text` 已进入 regression manifest
+      和 PDF 视觉发布门禁 baseline
 
 **验收**：CJK 标点挤压、连字、混排间距与 LibreOffice 输出对比可接受。
 

@@ -1,12 +1,20 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "ready", "malformed", "fail_on_blocker")]
+    [ValidateSet("all", "aggregate", "ready", "malformed", "fail_on_blocker", "missing_inputs", "manifest_description", "smoke_summary")]
     [string]$Scenario = "all"
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = Join-Path $RepoRoot "build\build_project_template_delivery_readiness_report_test"
+}
 
 function Assert-True {
     param([bool]$Condition, [string]$Message)
@@ -284,6 +292,46 @@ if (Test-Scenario -Name "aggregate") {
     Assert-Equal -Actual ([int]$summary.manual_review_recommendation_count) -Expected 1 `
         -Message "Summary should aggregate manual review recommendations."
 
+    $onboardingBlockers = @($summary.release_blockers | Where-Object { [string]$_.id -eq "project_template_onboarding.schema_approval" })
+    Assert-Equal -Actual $onboardingBlockers.Count -Expected 1 `
+        -Message "Summary should retain the onboarding-derived release blocker."
+    Assert-Equal -Actual ([string]$onboardingBlockers[0].source_schema) -Expected "featherdoc.project_template_onboarding_governance_report.v1" `
+        -Message "Onboarding-derived blockers should retain the onboarding governance source schema."
+    Assert-ContainsText -Text ([string]$onboardingBlockers[0].source_json_display) `
+        -ExpectedText "governance\summary.json" `
+        -Message "Onboarding-derived blockers should retain the onboarding governance source JSON display."
+    Assert-ContainsText -Text ([string]$onboardingBlockers[0].source_report_display) `
+        -ExpectedText "governance\summary.json" `
+        -Message "Onboarding-derived blockers should retain the onboarding governance source report display."
+    $historyGateBlocker = @(
+        $summary.release_blockers |
+            Where-Object { [string]$_.id -eq "project_template_delivery_readiness.schema_approval_history_gate" }
+    )[0]
+    Assert-ContainsText -Text ([string]$historyGateBlocker.source_json_display) `
+        -ExpectedText "history\history.json" `
+        -Message "History gate blockers should retain the schema approval history source JSON display."
+    Assert-ContainsText -Text ([string]$historyGateBlocker.source_report_display) `
+        -ExpectedText "history\history.json" `
+        -Message "History gate blockers should retain the schema approval history source report display."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.project_template_delivery_readiness_report.v1" `
+        -Message "Delivery-generated blockers should expose the delivery readiness source schema."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "summary.json" `
+        -Message "Release blockers should expose reviewer source JSON display paths."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+        -ExpectedText "summary.json" `
+        -Message "Release blockers should expose reviewer source report display paths."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
+        -Message "Onboarding-derived action items should retain the onboarding governance source schema."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+        -ExpectedText "governance\summary.json" `
+        -Message "Action items should expose the onboarding governance source report display."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "sync_project_template_schema_approval.ps1" `
+        -Message "Action items should expose the reviewer open command."
+
     $invoice = $summary.templates | Where-Object { $_.template_name -eq "invoice-template" } | Select-Object -First 1
     Assert-Equal -Actual ([bool]$invoice.schema_history_available) -Expected $true `
         -Message "Template should be linked to matching schema history."
@@ -299,6 +347,256 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include blocked template names."
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
         -Message "Markdown should include release blockers."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
+        -Message "Markdown should include source JSON display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Markdown should include source report display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
+        -Message "Markdown should include action item open commands."
+}
+
+function New-SmokeSummaryEvidence {
+    param([string]$Root)
+
+    $smokePath = Join-Path $Root "project-template-smoke\summary.json"
+    $historyPath = Join-Path $Root "project-template-schema-approval-history\history.json"
+    Write-JsonFile -Path $smokePath -Value ([ordered]@{
+        schema = "featherdoc.project_template_smoke_summary.v1"
+        generated_at = "2026-05-27T12:30:00"
+        manifest_path = "samples/project_template_smoke.manifest.json"
+        workspace = $resolvedRepoRoot
+        build_dir = "build-project-template-smoke-nmake"
+        output_dir = "output/project-template-smoke"
+        entry_count = 1
+        failed_entry_count = 0
+        dirty_schema_baseline_count = 0
+        schema_patch_review_count = 1
+        schema_patch_review_changed_count = 1
+        schema_patch_approval_pending_count = 0
+        schema_patch_approval_approved_count = 1
+        schema_patch_approval_rejected_count = 0
+        schema_patch_approval_compliance_issue_count = 0
+        schema_patch_approval_invalid_result_count = 0
+        schema_patch_approval_gate_status = "passed"
+        schema_patch_approval_gate_blocked = $false
+        schema_patch_approval_items = @(
+            [ordered]@{
+                name = "invoice-template"
+                required = $true
+                pending = $false
+                approved = $true
+                status = "approved"
+                decision = "approved"
+                action = "promote_schema_update_candidate"
+                compliance_issue_count = 0
+                compliance_issues = @()
+            }
+        )
+        visual_entry_count = 0
+        visual_verdict = "not_applicable"
+        manual_review_pending_count = 0
+        visual_review_undetermined_count = 0
+        passed = $true
+        overall_status = "passed"
+        entries = @(
+            [ordered]@{
+                name = "invoice-template"
+                input_docx = "samples/invoice.docx"
+                artifact_dir = "output/project-template-smoke/entries/01-invoice-template"
+                status = "passed"
+                passed = $true
+                manual_review_pending = $false
+                checks = [ordered]@{
+                    template_validations = @()
+                    schema_validation = [ordered]@{ enabled = $false }
+                    schema_baseline = [ordered]@{
+                        enabled = $true
+                        matches = $true
+                        schema_lint_clean = $true
+                        schema_patch_approval = [ordered]@{
+                            name = "invoice-template"
+                            required = $true
+                            pending = $false
+                            approved = $true
+                            status = "approved"
+                            decision = "approved"
+                            action = "promote_schema_update_candidate"
+                            compliance_issue_count = 0
+                            compliance_issues = @()
+                        }
+                    }
+                    visual_smoke = [ordered]@{ enabled = $false }
+                }
+                issues = @()
+            }
+        )
+    })
+
+    Write-JsonFile -Path $historyPath -Value ([ordered]@{
+        schema = "featherdoc.project_template_schema_approval_history.v1"
+        generated_at = "2026-05-27T12:31:00"
+        summary_count = 1
+        latest_gate_status = "passed"
+        blocked_run_count = 0
+        pending_run_count = 0
+        passed_run_count = 1
+        entry_histories = @(
+            [ordered]@{
+                name = "invoice-template"
+                run_count = 1
+                blocked_run_count = 0
+                pending_run_count = 0
+                approved_run_count = 1
+                latest_generated_at = "2026-05-27T12:30:00"
+                latest_status = "approved"
+                latest_decision = "approved"
+                latest_action = "promote_schema_update_candidate"
+                latest_summary_json = "output/project-template-smoke/summary.json"
+                issue_keys = @()
+            }
+        )
+    })
+
+    return [pscustomobject]@{
+        Smoke = $smokePath
+        History = $historyPath
+    }
+}
+
+if (Test-Scenario -Name "missing_inputs") {
+    $missingInputRoot = Join-Path $resolvedWorkingDir "missing-inputs"
+    $missingOutputDir = Join-Path $resolvedWorkingDir "missing-inputs-report"
+    New-Item -ItemType Directory -Path $missingInputRoot -Force | Out-Null
+    $result = Invoke-ReadinessScript -Arguments @(
+        "-InputRoot", $missingInputRoot,
+        "-OutputDir", $missingOutputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Missing template evidence run should pass with actionable warnings. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $missingOutputDir "summary.json"
+    $markdownPath = Join-Path $missingOutputDir "project_template_delivery_readiness.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    $warning = @($summary.warnings | Where-Object { [string]$_.id -eq "template_evidence_missing" })[0]
+    Assert-True -Condition ($null -ne $warning) `
+        -Message "Missing template evidence should emit template_evidence_missing."
+    Assert-Equal -Actual ([string]$warning.repair_strategy) -Expected "collect_project_template_onboarding_governance_evidence" `
+        -Message "Template warning should expose a repair strategy."
+    Assert-ContainsText -Text ([string]$warning.repair_hint) -ExpectedText "empty feeder summary" `
+        -Message "Template warning should preserve the no-synthetic-evidence boundary."
+    Assert-ContainsText -Text ([string]$warning.command_template) -ExpectedText "build_project_template_onboarding_governance_report.ps1" `
+        -Message "Template warning should include the onboarding governance command template."
+    Assert-ContainsText -Text $markdown -ExpectedText "command_template:" `
+        -Message "Missing template Markdown should expose warning command templates."
+}
+
+if (Test-Scenario -Name "manifest_description") {
+    $manifestRoot = Join-Path $resolvedWorkingDir "manifest-description"
+    $manifestPath = Join-Path $manifestRoot "summary.json"
+    $outputDir = Join-Path $resolvedWorkingDir "manifest-description-report"
+    Write-JsonFile -Path $manifestPath -Value ([ordered]@{
+        schema = "featherdoc.project_template_smoke_manifest_description.v1"
+        generated_at = "2026-05-27T12:00:00"
+        manifest_path = "samples/project_template_smoke.manifest.json"
+        manifest_path_display = ".\samples\project_template_smoke.manifest.json"
+        summary_json = ""
+        summary_json_display = ""
+        latest_summary_available = $false
+        entry_count = 3
+        registered_entry_count = 3
+        schema_validation_entry_count = 2
+        schema_baseline_entry_count = 2
+        visual_smoke_entry_count = 2
+        latest_available_entry_count = 0
+        latest_missing_entry_count = 3
+        entries = @(
+            [ordered]@{ name = "contract-template"; latest_available = $false },
+            [ordered]@{ name = "invoice-template"; latest_available = $false },
+            [ordered]@{ name = "report-template"; latest_available = $false }
+        )
+    })
+
+    $result = Invoke-ReadinessScript -Arguments @(
+        "-InputJson", $manifestPath,
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Manifest-only readiness run should pass with a specific warning. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $markdownPath = Join-Path $outputDir "project_template_delivery_readiness.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-Equal -Actual ([int]$summary.template_count) -Expected 0 `
+        -Message "Manifest descriptions should not be treated as template readiness evidence."
+    Assert-Equal -Actual ([int]$summary.manifest_description_count) -Expected 1 `
+        -Message "Summary should count manifest description evidence."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Manifest-only readiness should emit one warning."
+    Assert-Equal -Actual ([string]$summary.source_files[0].kind) -Expected "project_template_smoke_manifest_description" `
+        -Message "Manifest description input should be loaded as a known evidence kind."
+
+    $missingSmokeWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "project_template_smoke_summary_missing" })[0]
+    Assert-True -Condition ($null -ne $missingSmokeWarning) `
+        -Message "Manifest-only readiness should emit project_template_smoke_summary_missing."
+    Assert-Equal -Actual ([string]$missingSmokeWarning.repair_strategy) -Expected "run_project_template_smoke_for_registered_manifest" `
+        -Message "Manifest-only warning should expose a smoke-run repair strategy."
+    Assert-Equal -Actual ([int]$missingSmokeWarning.registered_template_count) -Expected 3 `
+        -Message "Manifest-only warning should preserve registered template count."
+    Assert-Equal -Actual ([int]$missingSmokeWarning.latest_missing_entry_count) -Expected 3 `
+        -Message "Manifest-only warning should preserve missing latest summary count."
+    Assert-ContainsText -Text ([string]$missingSmokeWarning.command_template) -ExpectedText "run_project_template_smoke.ps1" `
+        -Message "Manifest-only warning should include the smoke command template."
+    Assert-ContainsText -Text ([string]$missingSmokeWarning.source_json_display) -ExpectedText "manifest-description\summary.json" `
+        -Message "Manifest-only warning should point at the manifest description source JSON."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_smoke_summary_missing" `
+        -Message "Manifest-only Markdown should surface the specific smoke summary warning."
+    Assert-ContainsText -Text $markdown -ExpectedText "run_project_template_smoke.ps1" `
+        -Message "Manifest-only Markdown should surface the smoke command template."
+}
+
+if (Test-Scenario -Name "smoke_summary") {
+    $evidence = New-SmokeSummaryEvidence -Root (Join-Path $resolvedWorkingDir "smoke-summary-evidence")
+    $outputDir = Join-Path $resolvedWorkingDir "smoke-summary-report"
+    $result = Invoke-ReadinessScript -Arguments @(
+        "-InputJson", "$($evidence.Smoke),$($evidence.History)",
+        "-OutputDir", $outputDir,
+        "-FailOnBlocker"
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Smoke summary readiness run should pass when every smoke entry is approved. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $markdownPath = Join-Path $outputDir "project_template_delivery_readiness.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-Equal -Actual ([string]$summary.status) -Expected "ready" `
+        -Message "Approved smoke summary evidence should produce ready delivery status."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $true `
+        -Message "Approved smoke summary evidence should be release-ready."
+    Assert-Equal -Actual ([int]$summary.template_count) -Expected 1 `
+        -Message "Smoke summary entries should be converted into readiness templates."
+    Assert-Equal -Actual ([int]$summary.smoke_summary_count) -Expected 1 `
+        -Message "Readiness summary should count loaded smoke summary evidence."
+    Assert-Equal -Actual ([int]$summary.schema_history_count) -Expected 1 `
+        -Message "Smoke summary readiness should retain matching schema approval history."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
+        -Message "Loaded smoke summary evidence should not emit missing-smoke warnings."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 0 `
+        -Message "Approved smoke summary evidence should not emit blockers."
+    Assert-ContainsText -Text (($summary.source_files | ForEach-Object { [string]$_.kind }) -join "`n") -ExpectedText "project_template_smoke_summary" `
+        -Message "Smoke summary input should be loaded as a known evidence kind."
+    Assert-Equal -Actual ([string]$summary.templates[0].source_kind) -Expected "project_template_smoke_summary" `
+        -Message "Template readiness entry should retain smoke summary provenance."
+    Assert-Equal -Actual ([string]$summary.templates[0].schema_approval_status) -Expected "approved" `
+        -Message "Template readiness entry should preserve approved schema patch state."
+    Assert-ContainsText -Text (($summary.schema_approval_status_summary | ForEach-Object { [string]$_.status }) -join "`n") -ExpectedText "approved" `
+        -Message "Readiness status summary should include approved schema state."
+    Assert-ContainsText -Text ([string]$summary.templates[0].source_json_display) -ExpectedText "project-template-smoke\summary.json" `
+        -Message "Template readiness entry should point back to the smoke summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_smoke_summary" `
+        -Message "Markdown should surface smoke summary provenance."
 }
 
 if (Test-Scenario -Name "ready") {
@@ -361,6 +659,20 @@ if (Test-Scenario -Name "fail_on_blocker") {
         -Message "Failing readiness report should preserve blocked status."
     Assert-True -Condition ([int]$summary.release_blocker_count -gt 0) `
         -Message "Failing readiness report should write blockers."
+
+    $markdownPath = Join-Path $outputDir "project_template_delivery_readiness.md"
+    Assert-True -Condition (Test-Path -LiteralPath $markdownPath) `
+        -Message "Failing readiness report should write Markdown output."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
+        -Message "Failing readiness report should preserve the release blocker section."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery_readiness.schema_approval_history_gate" `
+        -Message "Failing readiness report should surface the schema approval history blocker."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
+        -Message "Failing readiness report should surface source JSON tracing fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+        -Message "Failing readiness report should surface source report tracing fields."
 }
 
 Write-Host "Project template delivery readiness report regression passed."

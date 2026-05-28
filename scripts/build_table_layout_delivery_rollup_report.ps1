@@ -245,6 +245,7 @@ function New-ReportMarkdown {
     $lines.Add("- Source reports: ``$($Summary.source_report_count)``") | Out-Null
     $lines.Add("- Documents: ``$($Summary.document_count)``") | Out-Null
     $lines.Add("- Source read failures: ``$($Summary.source_failure_count)``") | Out-Null
+    $lines.Add("- source_failure_count: ``$($Summary.source_failure_count)``") | Out-Null
     $lines.Add("- Source report failures: ``$($Summary.source_report_failure_count)``") | Out-Null
     $lines.Add("- Table style issues: ``$($Summary.total_table_style_issue_count)``") | Out-Null
     $lines.Add("- Automatic tblLook fixes: ``$($Summary.total_automatic_tblLook_fix_count)``") | Out-Null
@@ -412,6 +413,8 @@ foreach ($path in @($inputPaths)) {
             $sourceStatus = "skipped"
             $warnings.Add([ordered]@{
                 id = "source_report_schema_skipped"
+                action = "review_table_layout_delivery_sources"
+                source_schema = "featherdoc.table_layout_delivery_report.v1"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 message = "Report schema '$kind' is not a table layout delivery summary."
@@ -437,6 +440,8 @@ foreach ($path in @($inputPaths)) {
             if ($null -ne $declaredBlockerCount -and [int]$declaredBlockerCount -ne $releaseBlockerCount) {
                 $warnings.Add([ordered]@{
                     id = "release_blocker_count_mismatch"
+                    action = "review_table_layout_delivery_sources"
+                    source_schema = "featherdoc.table_layout_delivery_report.v1"
                     source_report = $path
                     source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "release_blocker_count is $declaredBlockerCount but release_blockers contains $releaseBlockerCount item(s)."
@@ -553,6 +558,8 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_report_read_failed"
+            action = "review_table_layout_delivery_sources"
+            source_schema = "featherdoc.table_layout_delivery_report.v1"
             source_report = $path
             source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage

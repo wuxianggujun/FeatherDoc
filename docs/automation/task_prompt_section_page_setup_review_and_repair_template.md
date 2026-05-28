@@ -30,7 +30,7 @@
    `bundle_review_manifest.json` 的 `expected_visual_cues` 逐 case 检查。
 4. 不得覆盖原始 source bundle。
 5. 每一轮修复都必须写到 `{{REPAIR_DIR}}` 下的新子目录，例如
-   `fix-01\\bundle-regression`。
+   `fix-01\bundle-regression`。
 6. 每次修复后都必须重新执行完整 section page setup 双 case 回归，
    不允许只重跑 `api-sample` 或 `cli-rewrite` 之一。
 7. 如果任一轮回归脚本失败、Word 导出失败、PNG 证据缺失，或总览 contact
@@ -43,7 +43,7 @@
    - 验证 `{{TASK_BUNDLE_AGGREGATE_CONTACT_SHEET}}`、
      `{{TASK_BUNDLE_REVIEW_MANIFEST_PATH}}`、
      `{{TASK_BUNDLE_SUMMARY_PATH}}`、
-     `{{TASK_BUNDLE_CONTACT_SHEETS_DIR}}\\*.png` 都存在；
+     `{{TASK_BUNDLE_CONTACT_SHEETS_DIR}}\*.png` 都存在；
    - 查看 aggregate contact sheet；
    - 按 manifest 的 `expected_visual_cues` 逐 case 检查；
    - 输出“通过 / 不通过 / 无法判定”。
@@ -54,14 +54,14 @@
    - CLI 部分更新覆盖了不该改动的字段；
    - reopen 后页面布局漂移。
 3. 修改生成逻辑，而不是手工改 Word 成品。
-4. 每轮修复后执行一套新的双 case 回归，输出到 `repair\\fix-XX` 下的
+4. 每轮修复后执行一套新的双 case 回归，输出到 `repair\fix-XX` 下的
    repo-relative 目录。例如：
    `{{BUNDLE_REPAIR_COMMAND_EXAMPLE}}`
 5. 基于新回归目录中的 aggregate contact sheet、review manifest 和
    case 证据重新做完整检查。
 6. 必须将本轮结果同步回写到：
-   - `{{REPORT_DIR}}\\review_result.json`
-   - `{{REPORT_DIR}}\\final_review.md`
+   - `{{REPORT_DIR}}\review_result.json`
+   - `{{REPORT_DIR}}\final_review.md`
 
 重点检查项：
 

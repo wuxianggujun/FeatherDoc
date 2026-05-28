@@ -238,14 +238,18 @@ parsed .bpdf-interfaces\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 
 ### `FEATHERDOC_PDFIUM_PROVIDER`
 
-默认值：`source`
+默认值：`auto`
 
 可选值：
 
+- `auto`：优先尝试 `find_package(PDFium)`，其次尝试 prebuilt 输入；只有提供
+  `FEATHERDOC_PDFIUM_SOURCE_DIR` 时才退回 source
 - `source`：使用 PDFium 源码 checkout，通过 GN/Ninja 构建
 - `package`：使用外部 CMake PDFium 包
+- `prebuilt`：直接使用现成 `pdfium.lib` / `pdfium.dll` 和 `fpdfview.h`
 
-当前推荐 `source`。
+当前推荐：能提供现成 PDFium 二进制时优先走 `prebuilt`；需要本地源码构建时再用
+`source`。
 
 ### `FEATHERDOC_PDFIUM_SOURCE_DIR`
 

@@ -21,7 +21,13 @@ struct ResolvedRunStyle {
     PdfRgbColor fill_color{0.0, 0.0, 0.0};
     bool bold{false};
     bool italic{false};
+    bool strikethrough{false};
     bool underline{false};
+    double vertical_shift_points{0.0};
+    bool rtl{false};
+    PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
+    std::string shaping_script_tag;
+    std::string shaping_language_tag;
 };
 
 struct TextFragment {
@@ -31,7 +37,13 @@ struct TextFragment {
     PdfRgbColor fill_color{0.0, 0.0, 0.0};
     bool bold{false};
     bool italic{false};
+    bool strikethrough{false};
     bool underline{false};
+    double vertical_shift_points{0.0};
+    bool rtl{false};
+    PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
+    std::string shaping_script_tag;
+    std::string shaping_language_tag;
 };
 
 struct TextToken {
@@ -43,7 +55,13 @@ struct TextToken {
     PdfRgbColor fill_color{0.0, 0.0, 0.0};
     bool bold{false};
     bool italic{false};
+    bool strikethrough{false};
     bool underline{false};
+    double vertical_shift_points{0.0};
+    bool rtl{false};
+    PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
+    std::string shaping_script_tag;
+    std::string shaping_language_tag;
 };
 
 struct LineState {
@@ -51,6 +69,7 @@ struct LineState {
     double width_points{0.0};
     double height_points{0.0};
     double baseline_offset_points{0.0};
+    bool bidi{false};
 
     [[nodiscard]] bool empty() const noexcept {
         return this->fragments.empty();
@@ -62,7 +81,11 @@ metrics_options_for(const PdfResolvedFont &font);
 
 [[nodiscard]] double measure_text(std::string_view text,
                                   double font_size_points,
-                                  const PdfResolvedFont &font);
+                                  const PdfResolvedFont &font,
+                                  PdfGlyphDirection shaping_direction =
+                                      PdfGlyphDirection::unknown,
+                                  std::string_view shaping_script_tag = {},
+                                  std::string_view shaping_language_tag = {});
 
 [[nodiscard]] double line_height_points_for(const LineState &line,
                                             double fallback_points,
@@ -76,6 +99,8 @@ line_baseline_offset_points_for(const LineState &line,
 content_height_points_for(const std::vector<LineState> &lines,
                           double fallback_line_height_points,
                           double default_font_size_points);
+
+[[nodiscard]] bool line_contains_rtl_fragments(const LineState &line) noexcept;
 
 [[nodiscard]] std::vector<TextToken>
 tokenize_run_text(std::string_view text, const ResolvedRunStyle &style);

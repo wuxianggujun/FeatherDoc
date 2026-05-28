@@ -33,8 +33,8 @@ PDFium 回读验证
 - `IPdfGenerator` / `IPdfParser` 已经把 Core 与 PDFio / PDFium 隔离开。
 - `Document -> PdfDocumentLayout -> PDFio -> PDF` 已经跑通。
 - `PDFio -> PDF -> PDFium` 回读验证已经跑通。
-- 当前 `pdf_regression_manifest.json` 包含 37 个样本。
-- 当前 `ctest -R "pdf_regression_"` 覆盖 38 个回归测试，包含 manifest 校验。
+- 当前 `pdf_regression_manifest.json` 包含 39 个样本。
+- 当前 `ctest -R "pdf_regression_"` 覆盖 40 个回归测试，包含 manifest 校验。
 - 已覆盖基础段落、字体解析、真实字体度量、CJK / ToUnicode 回读、基础样式、页眉页脚、动态页码、图片、表格，以及 `table_position` 水平/纵向基础映射。
 
 ## 路线总览
@@ -303,7 +303,9 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 ### 验收
 
 - [x] 中文 PDF 在 PDFium 中回读文本一致。
-- [ ] 中文 PDF 在常见阅读器中可复制、可搜索。
+- [x] 中文 PDF 的复制/搜索语义有自动化代理验收：
+  PDFium 文本抽取可命中中文整行与常见搜索片段。
+- [ ] 中文 PDF 在常见阅读器中完成手工复制、搜索验收。
 - [x] 生成 PDF 中嵌入的是字体子集，不是完整大字体。
 - [x] 缺字体时有明确错误或明确 fallback，不静默输出乱码。
 
@@ -316,9 +318,12 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 已补充 writer 诊断：Unicode 文本没有解析出嵌入字体文件时直接失败，错误包含 `Unicode PDF text requires an embedded font file` 和字体族名。
 - 已补充 writer 缺字体/坏字体测试：不存在的字体路径、损坏字体文件都会失败并在错误信息里带出字体路径。
 - 已将 Unicode roundtrip 文本扩展为中文、英文、数字、中文标点混排，确认 PDFium 回读和 ToUnicode 路径覆盖混排标点。
+- 已补充 CJK 复制/搜索语义代理回归：生成两行中文混排 PDF，确认 `/ToUnicode`
+  与 `/Identity-H` 存在，PDFium 抽取文本可命中整行中文、中文搜索片段和 ASCII 编号。
 - 已确认 subset PDF 明显小于 full PDF：本地视觉 smoke 中 full 为 10,213,214 bytes，subset 为 19,874 bytes；两者渲染内容一致。
 - 已在 `BUILDING_PDF.md` 记录当前 CJK fallback 顺序和字体许可证义务：默认使用系统/用户显式提供字体，不把系统字体重新分发进仓库。
-- 已知限制：常见阅读器中的手工复制/搜索还没有形成自动化或人工验收记录；后续需要在 E6 发布门禁中补上可复现检查。
+- 已知限制：常见阅读器中的手工复制/搜索还没有形成自动化或人工验收记录；当前新增的是
+  PDFium + ToUnicode 代理验收，后续发布前仍需要补可复现的手工验收记录。
 
 通过命令：
 
@@ -386,6 +391,12 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_(cjk|document-eastasia)
 - 已确认成功路径在 roundtrip 构建里能被 PDFium 回读，正文页数与关键文本一致。
 - 已知限制：当前 CLI 还没有单独暴露“PDFium 回读失败”作为独立用户子命令，现阶段通过 PDFium parser 测试和 roundtrip 回归覆盖。
 
+2026-05-15：
+
+- 已补充 `cli_usage` 断言，确保 `export-pdf` 帮助文本继续暴露 `--no-font-subset`。
+- 已补充 `pdf_cli_export` 回归，直接对比 `--no-font-subset` 与默认子集化输出，确认
+  CJK 导出场景里完整嵌入与子集嵌入确实走的是不同路径。
+
 ### 推荐验证命令
 
 ```powershell
@@ -442,6 +453,13 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
   `output/pdf-visual-release-gate/report/aggregate-contact-sheet.png`
   和 `output/pdf-visual-release-gate/unicode-font/report/comparison-contact-sheet.png`。
 - 下一步入口：E6 已收口，后续只在需要推进 PDFium -> AST 读入时进入 E7。
+
+2026-05-18：
+
+- 已静态接入 `document-table-merged-cant-split-text` regression sample，
+  覆盖 merged cells、`cant_split`、重复表头与分页后的整块下移行为。
+- 本轮低资源整合仅完成 sample、manifest、manifest parser 断言和文档说明同步；
+  真实导出、PDFium 回读和 PNG 视觉门禁仍需在允许构建/渲染时补跑确认。
 
 ## E7：PDFium -> AST 读入方向
 
@@ -1375,6 +1393,68 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   当前诊断仍只覆盖表格候选的续接路径；如果后续要把更多 `PdfParsedTableCandidate`
   提升为可编辑 AST，还需要单独设计 cell 合并、表头语义和分页语义的中间表示。
 
+2026-05-12 继续推进（跨页 repeated-header 缩写归一化）：
+
+- 已把 repeated-header 页间匹配从“大小写/分隔符/复数”继续推进到少量明确缩写：
+  `Qty`/`Quantity`、`Amt`/`Amount`、`Desc`/`Description`、`No`/`Num`/`Number`
+  会在表头匹配时映射到同一个规范词。
+- 已保持保守边界：
+  归一化只发生在已经满足跨页续表、列锚点兼容、两侧都像 repeated header 的路径里；
+  不引入模糊文本相似度，也不把 `Owner Team` / `Owner Name` 这类语义变化合并。
+- 已补导入侧回归：
+  新样本第 1 页表头为 `Item / Quantity / Amount`，第 2 页重复表头为
+  `Item / Qty / Amt`；导入后仍应合并成单个可编辑表格，并跳过第 2 页重复表头行。
+- 已知限制更新：
+  缩写映射是固定白名单，只覆盖低歧义英文表头；OCR 错字、词序变化、同义改写、
+  多语表头和复杂多层表头仍保持保守，不会强行合并。
+
+2026-05-12 继续推进（跨页 repeated-header 词序归一化）：
+
+- 已把 repeated-header 页间匹配继续推进到“同一 cell 内 token 集合完全一致”的
+  词序变化：
+  例如 `Project Status` 与 `Status Project` 会被视为同一个表头单元格。
+- 已保持保守边界：
+  该规则只在 canonical token 数量为 2 到 4 个且两侧 token 多集合完全一致时触发；
+  它不会处理缺字、错字、同义改写、跨 cell 重排，也不会放宽列锚点或跨页续表条件。
+- 已补导入侧回归：
+  新样本第 1 页表头为 `Item / Owner Name / Project Status`，第 2 页重复表头为
+  `Item / Name Owner / Status Project`；导入后仍应合并成单个可编辑表格，并跳过
+  第 2 页重复表头行。
+- 已知限制更新：
+  词序归一化不是语义相似度模型，只覆盖 token 完全一致的受控场景；多语混排、
+  OCR 扰动、近义词替换和复杂多层表头仍保持保守。
+
+2026-05-12 继续推进（跨页 repeated-header 单位标点归一化）：
+
+- 已把 repeated-header 表头文本归一化继续扩展到逗号、分号、括号和方括号：
+  `Owner, Name` 会折叠为 `Owner Name`，`Amount (USD)` 会折叠为 `Amount USD`。
+- 已保持保守边界：
+  这只是 separator 级别的文本折叠，不引入 OCR 近似字符、不处理单位换算，也不放宽
+  repeated-header 的列锚点、页顶位置和跨页续表判断。
+- 已补导入侧回归：
+  新样本第 1 页表头为 `Item / Owner Name / Amount USD`，第 2 页重复表头为
+  `Item / Owner, Name / Amount (USD)`；导入后仍应合并成单个可编辑表格，并跳过
+  第 2 页重复表头行。
+- 已知限制更新：
+  该规则只覆盖分隔符引起的同 token 变体；`USD Amount`、币种缺失、单位缩写误识别、
+  OCR 错字和跨 cell 单位拆分仍保持保守。
+
+2026-05-12 继续推进（跨页 repeated-header 匹配诊断外提）：
+
+- 已把 repeated-header 匹配命中路径写入公开诊断：
+  `PdfTableContinuationDiagnostic::header_match_kind` 现在会区分
+  `exact`、`normalized_text`、`plural_variant`、`canonical_text` 和 `token_set`，
+  便于回归和调用方解释为什么第二页重复表头被跳过。
+- 已保持行为边界不变：
+  诊断只记录既有合并判断的命中原因，不新增模糊匹配，也不放宽列锚点、页顶位置、
+  repeated-header 判定或语义不匹配时的拆表策略。
+- 已补导入侧回归断言：
+  exact、separator/case 归一化、复数、缩写 canonical、词序 token-set 和语义不匹配
+  都会检查对应 `header_match_kind`，避免后续规则调整时变成不可追踪的布尔值。
+- 已知限制更新：
+  `header_match_kind` 只解释 repeated-header 文本匹配路径；它不是版面置信度，
+  也不覆盖复杂表头结构、跨 cell 语义重排或 OCR 近似字符。
+
 2026-05-11 继续推进（宽文本合并落表）：
 
 - 已给 `PdfParsedTableCell` 补入最小 `column_span` 语义，并让 `PdfiumParser`
@@ -1595,6 +1675,1478 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   组合合并目前只覆盖规则网格里可稳定复原的 2x2 锚点；不处理更复杂的嵌套合并、
   不规则跨列宽、扫描件或带装饰线条缺失的表格。
 
+2026-05-14 继续推进（两行表格导入）：
+
+- 已把 PDF 表格候选识别从“至少 3 行”保守扩展到受控的 2 行表：
+  仅当候选有 3 列以上、首行全部像短标签表头、第二行至少包含一个明显数据型单元格时，
+  才允许 `PdfiumParser` 把它提升为 `PdfParsedTableCandidate`。
+- 已保持误判边界：
+  普通两行三列 prose 样本不会被识别为表格；既有 two-column prose、aligned list、
+  invoice summary 等负样本继续保持不命中。
+- 已补导入侧回归：
+  新样本 `featherdoc-pdf-import-two-row-table.pdf` 覆盖
+  `paragraph / table / paragraph` 块顺序、2 行 x 3 列真实 `Document` 表格、
+  保存重开后的表格行列数和关键单元格文本。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过；单独保留样本的 `pdf_import_table_heuristic` 也通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-two-row-table-import-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-two-row-table-import-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-two-row-table-import-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 本轮继续保持导入与导出回归分离：
+  新样本只存在于 `pdf_import_table_heuristic` 相关测试内，未加入
+  `pdf_regression_manifest.json`，也未扩展 E6 发布 baseline。
+- 已知限制更新：
+  2 行表格识别仍是规则型启发式，偏向“短标签表头 + 明显数据行”的业务表；
+  纯文本数据行、无明显数据特征的 2 行表、不规则列宽或扫描/OCR
+  场景仍保持保守，不会强行导入为表格。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、不规则跨列宽、扫描件和缺失装饰线条的表格。
+
+2026-05-14 继续推进（两列 key-value 表格导入）：
+
+- 已把 PDF 表格候选识别继续扩展到保守的 2 列 key-value 表：
+  仅当候选至少 3 行、每行恰好 2 个文本簇、左列全部像短标签、
+  右列至少半数具备明显数据特征时，才允许 `PdfiumParser` 把 2 列候选提升为
+  `PdfParsedTableCandidate`。
+- 已保持误判边界：
+  普通 two-column prose、aligned numbered list、invoice summary、两列短标签 prose
+  均继续保持不命中，避免把普通并列文本误导入为表格。
+- 已补导入侧回归：
+  新样本 `featherdoc-pdf-import-key-value-table.pdf` 覆盖
+  `paragraph / table / paragraph` 块顺序、4 行 x 2 列真实 `Document` 表格、
+  保存重开后的表格行列数和关键单元格文本。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  均通过；保留样本的同一专项回归也通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-key-value-table-import-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-key-value-table-import-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-key-value-table-import-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 本轮继续保持导入与导出回归分离：
+  新样本只存在于 `pdf_import_table_heuristic` 相关测试内，未加入
+  `pdf_regression_manifest.json`，也未扩展 E6 发布 baseline。
+- 已知限制更新：
+  2 列 key-value 表识别仍偏向“左短标签 + 右明显数据值”的业务表；
+  右列全是短文本、标签和值跨行、缺失网格线、扫描/OCR 或更自由的表单布局仍保持保守。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、不规则跨列宽、缺失装饰线条的表格、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（无装饰线条 key-value 表格）：
+
+- 已补充无网格线的 2 列 key-value PDF 样本：
+  `featherdoc-pdf-import-key-value-borderless-table.pdf` 只包含两列对齐文本，
+  不绘制表格线，用于确认当前候选识别确实基于文本几何，而不是依赖装饰线条。
+- 已补 parser 和 importer 回归：
+  parser 断言该样本仍产生 1 个 `PdfParsedTableCandidate`，并保持
+  `paragraph / table / paragraph` 块顺序；importer 断言显式 opt-in 后会写入
+  4 行 x 2 列 `Document` 表格，保存重开后行列数和关键文本仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  均通过；导入相关 5 项组合回归也通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-key-value-borderless-table-import-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-key-value-borderless-table-import-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-key-value-borderless-table-import-visual/merged-docx/table_visual_smoke.pdf`。
+- 已知限制更新：
+  本轮只覆盖规则两列、稳定行距的无装饰线条 key-value 表；缺失线条的多列表格、
+  不规则跨列宽、扫描件和 OCR 场景仍未覆盖。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、不规则跨列宽、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（不规则列宽表格导入）：
+
+- 已把 3 列以上表格的列距规则从“必须近似等宽”保守扩展到一类不规则列宽表：
+  仅当首行全部是短标签表头、后续每行列数完整、且每个数据行至少半数单元格具备明显
+  数据特征时，才允许不规则列距候选进入 `PdfParsedTableCandidate`。
+- 已保留误判边界：
+  既有 invoice summary 三列表单仍保持不命中；普通双栏、编号列表、短标签并列文本等
+  负样本继续由 `pdf_import_table_heuristic` 覆盖。
+- 已补 parser 和 importer 回归：
+  新样本 `featherdoc-pdf-import-irregular-width-table.pdf` 使用窄 item 列、
+  宽 description 列和窄 amount 列，列距差超过常规 spacing tolerance；
+  parser 断言仍能产生 1 个 4 行 x 3 列候选，importer 断言显式 opt-in 后写入真实
+  `Document` 表格，保存重开后行列数和关键文本仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  均通过；导入相关 5 项组合回归也通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-irregular-width-table-import-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-irregular-width-table-import-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-irregular-width-table-import-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  本轮不处理缺列、跨列标题、自由表单、不规则行距、扫描/OCR 或需要视觉线条解析的表格。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、缺失线条的多列表格、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（缺失线条的多列表格）：
+
+- 已补充无网格线的 3 列不规则列宽表格样本：
+  `featherdoc-pdf-import-borderless-irregular-width-table.pdf` 只包含表头和数据文本，
+  不绘制任何表格线，用于覆盖“缺失装饰线条的多列表格”入口。
+- 已补 parser 和 importer 回归：
+  parser 断言该样本仍产生 1 个 4 行 x 3 列 `PdfParsedTableCandidate`，并保持
+  `paragraph / table / paragraph` 块顺序；importer 断言显式 opt-in 后写入真实
+  `Document` 表格，保存重开后行列数和关键文本仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-borderless-irregular-width-table-import-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-borderless-irregular-width-table-import-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-borderless-irregular-width-table-import-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  本轮只覆盖规则行距、列数完整、表头明确且数据特征明显的无线条多列表格；
+  缺列、跨列表头、自由表单、扫描/OCR 和需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、跨列表头、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（跨列表头表格导入）：
+
+- 已补充分组表头横跨整表的 4 列 PDF 样本：
+  `featherdoc-pdf-import-cross-column-header-table.pdf`，第一行是居中的
+  `Project delivery overview`，第二行才是完整列标题，用于覆盖“跨列表头 + 明细表头”
+  的正式文档常见结构。
+- 已调整 `PdfiumParser` 的列锚点构建：
+  当候选中存在至少两行完整列数据时，单簇分组表头不再污染列锚点；同时只在存在完整列行、
+  且单簇文本居中时，才把该行提升为横跨全部列的 header cell，避免回退影响稀疏表格样本。
+- 已补 parser 和 importer 回归：
+  parser 断言该样本产生 1 个 4 行 x 4 列候选，首行 `column_span = 4`；
+  importer 断言显式 opt-in 后写入真实 `Document` 表格，保存重开后跨列表头、
+  明细表头和数据单元格仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-cross-column-header-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-cross-column-header-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-cross-column-header-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  本轮只覆盖“单个居中分组表头 + 完整明细列标题 + 完整数据行”的规则结构；
+  不处理多层分组表头、多个分组标题并列、缺列、自由表单、扫描/OCR 或需要图像理解的表格。
+- 下一阶段入口保留：
+  多层 / 并列分组表头、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（并列分组表头导入）：
+
+- 已补充同一表头行内多个分组标题的 4 列 PDF 样本：
+  `featherdoc-pdf-import-parallel-group-header-table.pdf`，第一行包含
+  `Delivery scope` 与 `Review status` 两个并列分组标题，各自横跨 2 列；
+  第二行仍保留完整明细列标题。
+- 已将 `PdfiumParser` 的跨列表头推断从“单个居中标题”推广为“首行少簇分组标题”：
+  仅当候选中存在完整列行时启用，并按相邻分组标题中心点切分列锚点，推断每个分组标题覆盖的
+  连续列范围。规则限制在候选第一行，避免把中间缺项行、纵向合并续行或汇总行误判为分组表头。
+- 已补 parser 和 importer 回归：
+  parser 断言首行两个 header cell 均为 `column_span = 2`；
+  importer 断言显式 opt-in 后写入真实 `Document` 表格，保存重开后两个并列分组标题、
+  明细表头和数据单元格仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-parallel-group-header-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-parallel-group-header-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-parallel-group-header-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  本轮只覆盖第一行并列分组标题；多层分组标题、交错 group、缺列、自由表单、
+  扫描/OCR 和需要图像理解的表格仍不覆盖。
+- 下一阶段入口保留：
+  多层分组表头、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（多层分组表头导入）：
+
+- 已补充两级分组表头的 4 列 PDF 样本：
+  `featherdoc-pdf-import-multilevel-group-header-table.pdf`，第一行
+  `Program delivery dashboard` 横跨整表，第二行 `Delivery scope` 与
+  `Review status` 各自横跨 2 列，第三行才是完整明细列标题。
+- 已把 `PdfiumParser` 的分组表头推断从“仅候选第一行”收敛扩展到
+  “第一个完整列行之前的连续分组行”：
+  每个分组行必须能按相邻标题中心点切分出连续列范围，并且该行所有分组标题共同覆盖整张表；
+  一旦遇到无法完整覆盖的少簇行就停止，避免把缺项数据行、纵向合并续行或汇总行误判为表头。
+- 已补 parser 和 importer 回归：
+  parser 断言第一行 `column_span = 4`，第二行两个 `column_span = 2`；
+  importer 断言显式 opt-in 后写入真实 `Document` 表格，保存重开后两级分组标题、
+  明细表头和数据单元格仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-multilevel-group-header-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-multilevel-group-header-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-multilevel-group-header-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  本轮只覆盖“完整覆盖整表的连续分组表头 + 完整明细列标题 + 完整数据行”；
+  交错 group、缺列、自由表单、扫描/OCR 和需要图像理解的表格仍不覆盖。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、缺列/汇总行识别、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（汇总行跨列导入）：
+
+- 已补充尾部汇总行跨列的 4 列 invoice PDF 样本：
+  `featherdoc-pdf-import-merged-summary-row-table.pdf`，末行只有
+  `Grand total` 与 `USD 135` 两个文本簇，前者视觉上横跨前三列，金额保留在最后一列。
+- 已在 `PdfiumParser` 中增加受控汇总行 span 推断：
+  仅当候选已经出现完整列行之后，且当前行恰好是“首列短标签 + 末列数据值”时，
+  才把首列标签推断为跨到末列之前；同时 row-span 检测会识别下方列已被横向 span
+  覆盖，避免把上一行空缺列误判为纵向合并续行。
+- 已补 parser 和 importer 回归：
+  parser 断言汇总行 `Grand total` 为 `column_span = 3`、金额仍为单列；
+  importer 断言显式 opt-in 后写入真实 `Document` 表格，保存重开后汇总标签跨列和金额单元格仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-merged-summary-row-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-merged-summary-row-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-merged-summary-row-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  本轮只覆盖尾部“首列标签跨到末列前 + 末列金额/数据值”的规则汇总行；
+  中间缺列、任意 subtotal 位置、右对齐标签、自由表单、扫描/OCR 和图像理解仍不覆盖。
+- 下一阶段入口保留：
+  中间缺列 / subtotal 行、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（中间 subtotal 跨列导入）：
+
+- 已补充中间 subtotal 行的 4 列 invoice PDF 样本：
+  `featherdoc-pdf-import-inline-subtotal-row-table.pdf`，明细行之后插入
+  `Design subtotal` / `USD 100` 两簇 subtotal 行，后面继续保留普通明细行和
+  `Grand total` 汇总行，用于确认稀疏跨列行不会截断后续数据。
+- 已补 parser 和 importer 回归：
+  parser 断言中间 subtotal 行的标签 `column_span = 3`，后续 `Visual validation`
+  明细行仍在同一候选中；importer 断言显式 opt-in 后写入真实 `Document` 表格，
+  保存重开后 subtotal、后续明细和 grand total 的跨列状态仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-inline-subtotal-row-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-inline-subtotal-row-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-inline-subtotal-row-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  当前 subtotal 规则仍要求“首列标签 + 末列数据值”，不处理右对齐 subtotal 标签、
+  中间金额列、跨页 subtotal 语义聚合、自由表单、扫描/OCR 或图像理解。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、跨页 subtotal 诊断、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（右侧 subtotal 跨列导入）：
+
+- 已补充右侧 subtotal 标签的 4 列 invoice PDF 样本：
+  `featherdoc-pdf-import-right-subtotal-row-table.pdf`，subtotal / grand total 行保留首列为空，
+  标签从第 2 列开始横跨到金额列之前，金额仍在末列。
+- 已把 `PdfiumParser` 的 subtotal span 推断从“必须首列开始”放宽为
+  “标签列在金额列之前即可”：
+  仍要求候选中已经出现完整列行、当前行只有标签和值两簇、值位于末列，避免把普通缺项明细行
+  扩成汇总行。
+- 已补 parser 和 importer 回归：
+  parser 断言 `Design subtotal` 和 `Grand total` 都从第 2 列开始 `column_span = 2`；
+  importer 断言首列空单元格、右侧 subtotal 标签跨列、后续明细行和保存重开后的状态都保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-right-subtotal-row-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-right-subtotal-row-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-right-subtotal-row-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  当前仍要求 subtotal 值在末列；中间金额列、跨页 subtotal 语义聚合、自由表单、
+  扫描/OCR 或图像理解仍不覆盖。
+- 下一阶段入口保留：
+  中间金额列、更复杂的嵌套合并、跨页 subtotal 诊断、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（中间金额列 subtotal 导入）：
+
+- 已补充金额不在末列的 4 列 invoice PDF 样本：
+  `featherdoc-pdf-import-middle-amount-subtotal-row-table.pdf`，subtotal / grand total 行的
+  标签从首列开始横跨到金额列之前，金额位于第 3 列，最后一列保留为空。
+- 已收紧 subtotal span 推断：
+  只有标签文本包含 `total` / `subtotal` 语义时，才允许“标签 + 值”稀疏行被提升为跨列汇总行；
+  同时 row-span 检测遇到横向 span 行会停止，避免上一行末列被错误纵向合并到尾列空白。
+- 已补 parser 和 importer 回归：
+  parser 断言 `Design subtotal` / `Grand total` 均为 `column_span = 2`，金额在第 3 列，
+  末列保持空白；importer 断言显式 opt-in 后写入真实 `Document` 表格，保存重开后
+  subtotal、后续明细、金额列和尾列空白状态仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-middle-amount-subtotal-row-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-middle-amount-subtotal-row-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-middle-amount-subtotal-row-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  当前只覆盖受控的 total/subtotal 稀疏行，不做跨页 subtotal 语义聚合、自由表单、
+  扫描/OCR 或图像理解。
+- 下一阶段入口保留：
+  跨页 subtotal 诊断、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（跨页 subtotal 行续接导入）：
+
+- 已补充跨页 invoice subtotal PDF 样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-row-table.pdf`。第一页包含
+  `Design subtotal` 稀疏跨列行，第二页重复 `Item / Qty / Unit / Total`
+  表头后继续明细并以 `Grand total` 收尾，用于覆盖 subtotal 跨列与跨页续接的组合场景。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with repeated headers`
+  断言 opt-in 导入后只生成 1 张 `Document` 表格，第二页 continuation diagnostic 为
+  `merged_with_previous_table`，`skipped_repeating_header = true`，
+  `source_row_offset = 1`，并且保存重开后 subtotal / grand total 的
+  `column_span = 3` 状态仍保留。
+- 本轮没有放宽 parser 的 subtotal 语义规则：
+  仍复用已经收紧的 `total` / `subtotal` 标签判断；本增量主要验证 importer
+  在 `append_rows_to_imported_table` 跳过重复表头后，仍能把追加行里的跨列单元格
+  应用到正确的目标行索引。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-row-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-row-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-row-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前覆盖“跨页续接 + 重复表头跳过 + 受控 total/subtotal 稀疏行”的组合，
+  不做跨页 subtotal 语义聚合、跨页金额合计推导、自由表单、扫描/OCR 或图像理解。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、缺列 / 变体表头下的跨页续接、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（跨页 subtotal 变体表头续接）：
+
+- 已补充跨页 invoice subtotal 的缩写表头变体样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-header-variant-table.pdf`。第一页表头使用
+  `Item / Quantity / Unit / Amount`，第二页重复表头使用
+  `Item / Qty / Unit / Amt`，同时保留第一页 `Design subtotal` 和第二页
+  `Grand total` 稀疏跨列行。
+- 已修正 importer 的 repeated-header 判定入口：
+  当表体存在受控的横向 span 摘要行时，允许较长业务表头使用稍宽松的正文长度判定；
+  这样 `Quantity` / `Amount` 这类较长表头不会阻止后续 canonical abbreviation 匹配，
+  但仍要求首行全是 header-like label、正文至少两行明显长于表头，并且存在正文跨列摘要行。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with abbreviated repeated headers`
+  断言第二页 continuation diagnostic 命中 `canonical_text`，最终 `source_row_offset = 1`、
+  `skipped_repeating_header = true`，并确认第二页 `Qty` / `Amt` 表头没有写入最终表格；
+  保存重开后 subtotal / grand total 的 `column_span = 3` 仍保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-header-variant-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-header-variant-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-header-variant-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  本轮只放宽“正文含横向 span 摘要行”的 repeated-header 入口；不处理缺列表体、
+  跨页金额合计推导、自由表单、扫描/OCR 或需要图像理解的表格。
+- 下一阶段入口保留：
+  缺列 / 变体表头下的跨页续接负样本、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（跨页 subtotal 语义表头负样本）：
+
+- 已补充跨页 invoice subtotal 的语义变体表头负样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-semantic-header-variant-table.pdf`。
+  第一页表头为 `Item / Quantity / Unit / Amount`，第二页表头改为
+  `Item / Owner / Phase / Amount`，两页都保留 total/subtotal 稀疏跨列行，
+  用于验证上一轮 repeated-header 入口放宽后仍不会误合并语义不同的表格。
+- 已补导入侧回归：
+  `PDF table import keeps cross-page subtotal tables separate for semantic header variants`
+  断言第二页 continuation diagnostic 同时记录
+  `previous_has_repeating_header = true`、`source_has_repeating_header = true`、
+  `header_match_kind = none`、`blocker = repeated_header_mismatch`，
+  最终导入结果保留为两张 `Document` 表格。
+- 已确认保存重开后的结构：
+  第一张表的 `Design subtotal` 和第二张表的 `Grand total` 仍保留
+  `column_span = 3`，且第二张表的语义变体表头 `Owner / Phase` 没有被当作重复表头跳过。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-semantic-header-variant-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-semantic-header-variant-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-semantic-header-variant-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认语义不同的 repeated header 会保守拆表；缺列、错位列锚点、跨页金额合计推导、
+  自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  缺列 / 错位列锚点下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（跨页 subtotal 列锚点错位负样本）：
+
+- 已补充跨页 invoice subtotal 的列锚点错位负样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-anchor-mismatch-table.pdf`。
+  两页表头文本都为 `Item / Qty / Unit / Total`，也都保留 total/subtotal 稀疏跨列行；
+  但第二页网格列宽从 130pt 改为 150pt，用于验证列锚点不兼容时不会因为表头相同而误合并。
+- 已补导入侧回归：
+  `PDF table import keeps cross-page subtotal tables separate for anchor mismatches`
+  断言第二页 continuation diagnostic 同时记录
+  `previous_has_repeating_header = true`、`source_has_repeating_header = true`、
+  `header_match_kind = exact`、`column_count_matches = true`、
+  `column_anchors_match = false`、`blocker = column_anchors_mismatch`，
+  最终导入结果保留为两张 `Document` 表格。
+- 已确认保存重开后的结构：
+  第一张表的 `Design subtotal` 和第二张表的 `Grand total` 仍保留
+  `column_span = 3`；第二张表的重复表头没有被跳过，因为列锚点不兼容优先阻止续接。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-anchor-mismatch-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-anchor-mismatch-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-anchor-mismatch-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认列宽变化导致的列锚点错位会保守拆表；缺列表体、局部错位、跨页金额合计推导、
+  自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  缺列表体 / 局部错位下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（跨页 subtotal 列数不匹配负样本）：
+
+- 已补充跨页 invoice subtotal 的列数不匹配负样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-column-count-mismatch-table.pdf`。
+  第一页为 `Item / Qty / Unit / Total` 四列表格并包含 `Design subtotal`
+  稀疏跨列行；第二页改为 `Item / Qty / Total` 三列表格并包含
+  `Grand total`，用于验证列数不同不会因为 repeated header 和 subtotal/total
+  语义相近而误合并。
+- 已补导入侧回归：
+  `PDF table import keeps cross-page subtotal tables separate for column count mismatches`
+  断言第二页 continuation diagnostic 同时记录
+  `previous_has_repeating_header = true`、`source_has_repeating_header = true`、
+  `column_count_matches = false`、`column_anchors_match = false`、
+  `header_match_kind = none`、`header_matches_previous = false`、
+  `skipped_repeating_header = false`、`source_row_offset = 0`、
+  `blocker = column_count_mismatch`，最终导入结果保留为两张 `Document` 表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / table / paragraph`；第一张表保留 4 列，
+  第二张表保留 3 列；`Design subtotal` 的 `column_span = 3`，
+  `Grand total` 的 `column_span = 2`，第二页表头不会被跳过。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-column-count-mismatch-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-column-count-mismatch-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-column-count-mismatch-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认整表列数不匹配会保守拆表；缺列表体、局部错位、跨页金额合计推导、
+  自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  缺列表体 / 局部错位下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（跨页 subtotal 局部缺格续接）：
+
+- 已补充跨页 invoice subtotal 的受控局部缺格样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-missing-unit-table.pdf`。
+  第二页重复 `Item / Qty / Unit / Total` 表头后，第一条明细故意缺失 `Unit`
+  文本但保留 4 列网格和末列金额，用于确认同列锚点、同表头、局部空单元格的
+  subtotal 表格仍可续接。
+- 已补 parser 侧回归：
+  `PDFium parser keeps cross-page subtotal rows with a missing body cell aligned`
+  断言两页各生成一张 4 列 table candidate；第二页缺 `Unit` 的明细行仍补齐
+  4 个单元格，其中第 3 列 `has_text = false`，末列 `USD 10` 保持在第 4 列，
+  `Grand total` 仍推断为 `column_span = 3`。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with missing body cells`
+  断言第二页 continuation diagnostic 为
+  `column_count_matches = true`、`column_anchors_match = true`、
+  `header_match_kind = exact`、`source_row_offset = 1`、
+  `skipped_repeating_header = true`、`blocker = none`，最终导入为一张 7 行 4 列表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / paragraph`；缺失 `Unit` 的单元格为空文本，
+  同行 `Qty`、`Total`、后续正常明细以及 `Design subtotal` / `Grand total`
+  跨列状态都保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-missing-unit-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-missing-unit-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-missing-unit-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认受控的单个明细空单元格会被补齐并允许跨页续接；局部列锚点错位、
+  多个缺格导致的稀疏行、跨页金额合计推导、自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  局部列锚点错位 / 多缺格下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（跨页 subtotal 多缺格稀疏行续接）：
+
+- 已补充跨页 invoice subtotal 的受控多缺格稀疏行样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-sparse-body-table.pdf`。
+  第二页重复表头后，第一条明细只保留 `Item` 和 `Total`，故意缺失
+  `Qty` / `Unit` 两个中间单元格文本，用于确认列锚点和列数兼容时，
+  稀疏表体行不会破坏跨页 subtotal 续接。
+- 已补 parser 侧回归：
+  `PDFium parser keeps cross-page subtotal sparse body rows aligned`
+  断言第二页仍生成 4 列 table candidate；稀疏明细行第 2、3 列
+  `has_text = false`，末列 `USD 10` 保持在第 4 列，下一条正常明细和
+  `Grand total` 跨列推断仍保留。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with sparse body rows`
+  断言第二页 continuation diagnostic 为
+  `column_count_matches = true`、`column_anchors_match = true`、
+  `header_match_kind = exact`、`source_row_offset = 1`、
+  `skipped_repeating_header = true`、`blocker = none`，最终仍导入为一张
+  7 行 4 列表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / paragraph`；稀疏行的 `Qty` / `Unit`
+  单元格为空文本，末列金额、后续正常明细和 `Grand total` 的 `column_span = 3`
+  都保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-sparse-body-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-sparse-body-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-sparse-body-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认同一明细行两个中间空单元格的受控稀疏行；局部列锚点错位、
+  只有单个数据簇的极稀疏行、跨页金额合计推导、自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  局部列锚点错位 / 极稀疏行下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-15 继续推进（跨页 subtotal 金额-only 极稀疏行续接）：
+
+- 已补充跨页 invoice subtotal 的金额-only 极稀疏行样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-amount-only-body-table.pdf`。
+  第二页重复表头后，第一条明细只保留末列 `Total` 金额，故意缺失
+  `Item` / `Qty` / `Unit` 三个单元格文本，用于确认有完整表头和后续完整行提供
+  列锚点时，单个金额数据簇仍可稳定落在末列。
+- 已补 parser 侧回归：
+  `PDFium parser keeps cross-page subtotal amount-only body rows aligned`
+  断言第二页仍生成 4 列 table candidate；极稀疏行前三列 `has_text = false`，
+  `USD 10` 保持在第 4 列，下一条正常明细和 `Grand total` 跨列推断仍保留。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with amount-only body rows`
+  断言第二页 continuation diagnostic 为
+  `column_count_matches = true`、`column_anchors_match = true`、
+  `header_match_kind = exact`、`source_row_offset = 1`、
+  `skipped_repeating_header = true`、`blocker = none`，最终仍导入为一张
+  7 行 4 列表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / paragraph`；极稀疏行前三列为空文本，
+  末列金额、后续正常明细和 `Grand total` 的 `column_span = 3` 都保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-amount-only-body-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-amount-only-body-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-amount-only-body-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认有完整表头和相邻完整数据行支撑列锚点时的金额-only 极稀疏行；
+  局部列锚点错位、孤立极稀疏表、跨页金额合计推导、自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  局部列锚点错位 / 孤立极稀疏表下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-15 继续推进（跨页 subtotal 局部列锚点漂移负样本）：
+
+- 已补充跨页 invoice subtotal 的局部列锚点漂移负样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-local-anchor-drift-table.pdf`。
+  第二页仍保留 4 列网格和相同 `Item / Qty / Unit / Total` 表头，但明细行与
+  `Grand total` 的数值列在同一列簇内局部右移，用于确认列数相同、表头相同且存在
+  subtotal / total 跨列行时，列锚间距不兼容仍会保守拆表。
+- 已补导入侧回归：
+  `PDF table import keeps cross-page subtotal tables separate for local anchor drift`
+  断言第二页 continuation diagnostic 为
+  `previous_has_repeating_header = true`、`source_has_repeating_header = true`、
+  `column_anchors_match = false`、`source_row_offset = 0`、
+  `skipped_repeating_header = false`、`blocker = column_anchors_mismatch`，
+  最终导入为两张独立的 4 行表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / table / paragraph`；
+  第一张表的 `Design subtotal` 和第二张表的 `Grand total` 均保留
+  `column_span = 3`，第二张表没有因为 repeated header 文本相同而续接到第一页表格。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-local-anchor-drift-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-local-anchor-drift-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-local-anchor-drift-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认同列簇内的受控局部漂移会在平均列锚间距不兼容时拆表；
+  不处理自由表单式列漂移、跨页金额合计推导、扫描/OCR 或需要图像理解的表格。
+- 下一阶段入口保留：
+  孤立极稀疏表、自由表单列漂移、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-15 继续推进（跨页 subtotal 孤立金额-only 极稀疏行续接）：
+
+- 已补充跨页 invoice subtotal 的孤立金额-only 极稀疏行样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-isolated-amount-only-body-table.pdf`。
+  第二页只有重复表头、一个只保留末列金额的明细行，以及 `Grand total` 跨列行；
+  不再放置后续完整明细行，用于确认列锚点可由重复表头和汇总行共同支撑。
+- 已补 parser 侧回归：
+  `PDFium parser keeps cross-page subtotal isolated amount-only body rows aligned`
+  断言第二页仍生成 4 列 table candidate；孤立金额行前三列 `has_text = false`，
+  `USD 10` 保持在第 4 列，`Grand total` 仍推断为 `column_span = 3`。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with isolated amount-only body rows`
+  断言第二页 continuation diagnostic 为
+  `column_count_matches = true`、`column_anchors_match = true`、
+  `header_match_kind = exact`、`source_row_offset = 1`、
+  `skipped_repeating_header = true`、`blocker = none`，最终仍导入为一张
+  6 行 4 列表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / paragraph`；孤立金额行前三列为空文本，
+  末列金额和 `Grand total` 的 `column_span = 3` 都保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-isolated-amount-only-body-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-isolated-amount-only-body-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-isolated-amount-only-body-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认重复表头和 subtotal/total 汇总行可支撑孤立金额-only 行的列锚点；
+  孤立自由表单、局部列漂移、跨页金额合计推导、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  自由表单列漂移、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-15 继续推进（自由表单列漂移负样本）：
+
+- 已补充自由表单列漂移样本：
+  `featherdoc-pdf-import-free-form-column-drift-prose-import.pdf`。
+  样本保留稳定行距和每行 3 个文本簇，但每行列位置都不同，模拟自由表单式并列文本；
+  该场景不应因为行距稳定而被误识别为表格。
+- 已补 parser 侧回归：
+  `PDFium parser does not classify free-form column drift prose as table candidate`
+  断言 `table_candidates.empty()`，并确认 `Topic` 到 `Closed` 的文本仍保留在段落结构中。
+- 已补导入侧回归：
+  `PDF text importer keeps free-form column drift prose as paragraphs`
+  断言即使启用 `import_table_candidates_as_tables`，也保持
+  `tables_imported = 0`，保存重开后仍没有表格，文本内容完整保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-free-form-column-drift-prose-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-free-form-column-drift-prose-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-free-form-column-drift-prose-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前支持整张表一致的不规则列宽；每行列位置各自漂移的自由表单仍按段落保留，
+  不做表格结构推断、跨行字段对齐、扫描/OCR 或图像理解。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-15 继续推进（内部 2x2 组合合并）：
+
+- 已补充内部 2x2 组合合并样本：
+  `featherdoc-pdf-import-center-merged-table-source.pdf` 与
+  `featherdoc-pdf-import-center-merged-table.pdf`。
+  样本使用 4x4 规则网格，中间 `(row=1, col=1)` 单元格同时横跨 2 列和 2 行，
+  用于覆盖非左上角锚点的组合合并路径。
+- 已补 parser 侧回归：
+  `PDFium parser detects center two-by-two merged table candidate spans`
+  断言表格候选仍为 4 行 x 4 列，中心锚点 `column_span = 2`、
+  `row_span = 2`，右侧和下方覆盖单元格保持为空文本占位。
+- 已补导入侧回归：
+  `PDF text importer preserves center two-by-two merged table cells`
+  断言 opt-in 导入后仍保持 `paragraph / table / paragraph` 顺序，
+  写入 4 行 x 4 列真实 `Document` 表格，保存重开后中心锚点为
+  `vertical_merge = restart`，下方覆盖单元格为 `continue_merge`。
+  Word 实际 cell 节点数为 14，避免把 2x2 合并错误展开成 16 个独立单元格。
+- 已完成构建与测试验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-center-merged-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-center-merged-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-center-merged-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  组合合并现在覆盖规则网格里的左上角和内部 2x2 锚点；仍不处理任意嵌套合并、
+  扫描/OCR、缺失线条后的视觉推断或需要图像理解的表格。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-15 继续推进（矩形 2x3 组合合并）：
+
+- 已补充更大的内部矩形组合合并样本：
+  `featherdoc-pdf-import-rectangular-merged-table-source.pdf` 与
+  `featherdoc-pdf-import-rectangular-merged-table.pdf`。
+  样本使用 5x5 规则网格，中间 `(row=1, col=1)` 单元格横跨 2 列和 3 行，
+  用于确认组合合并不是 2x2 特例。
+- 已补 parser 侧回归：
+  `PDFium parser detects center two-by-three merged table candidate spans`
+  断言表格候选为 5 行 x 5 列，中心锚点 `column_span = 2`、
+  `row_span = 3`，两行下方覆盖区域都保持为空文本占位。
+- 已补导入侧回归：
+  `PDF text importer preserves center two-by-three merged table cells`
+  断言 opt-in 导入后仍保持 `paragraph / table / paragraph` 顺序，
+  写入 5 行 x 5 列真实 `Document` 表格，保存重开后中心锚点为
+  `vertical_merge = restart`，两行下方覆盖单元格均为 `continue_merge`。
+  Word 实际 cell 节点数为 22，避免把 2x3 合并错误展开成 25 个独立单元格。
+- 已完成构建与测试验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-rectangular-merged-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-rectangular-merged-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-rectangular-merged-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  组合合并现在覆盖规则网格里的左上角 2x2、内部 2x2 和内部 2x3 矩形锚点；
+  仍不处理任意嵌套合并、扫描/OCR、缺失线条后的视觉推断或需要图像理解的表格。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-15 继续推进（样式映射状态同步）：
+
+- 已核对样式映射的当前真实实现状态，确认基础链路已经落地：
+  `PdfTextRun` 已表达字体族/字体文件、字号、填充色、粗体、斜体、下划线、
+  Unicode 标记和旋转角度；`layout_document_paragraphs()` 经 paragraph/table
+  adapter 把直接 run 属性和继承样式翻译到 layout fragment；PDFio writer 已在
+  content stream 中写出标准字体粗斜体变体、字号、颜色和下划线。
+- 已同步 `design/02-current-roadmap.md`，把优先级 3 从“字段尚未串通”的过期描述
+  调整为“基础样式映射已完成，剩余为合同级视觉 baseline、非标准字体粗斜体质量和
+  发布门禁”。
+- 已同步 `BUILDING_PDF.md`，在当前可用状态中补充 document adapter → PDFio writer
+  的样式映射能力，并把正式可用前的限制收窄到复杂分页、图片锚点/裁剪/环绕、
+  发布级合同样式视觉 baseline、字体捆绑和 PNG baseline 门禁。
+- 本轮不新增生产代码，目标是避免后续继续推进时重复实现已完成的样式映射能力。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_document_adapter_font$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口保留：
+  优先推进发布级视觉门禁或 HarfBuzz 文字塑形；如果继续补样式相关能力，应先补
+  合同 sample 的视觉 baseline，而不是重复扩展已存在的 `PdfTextRun` 字段。
+
+2026-05-15 继续推进（样式视觉 baseline 门禁）：
+
+- 已把 `run_pdf_visual_release_gate.ps1` 的核心 PNG baseline 渲染从“合同、发票、
+  长文档、图片语义、CLI font-map”扩展到样式专用样本：
+  `styled-text`、`mixed-style-text`、`underline-text`、
+  `document-contract-cjk-style` 和 `document-eastasia-style-probe`。
+- 已给每个样式视觉样本补 `style_focus` 摘要，发布门禁的 `summary.json` 可以直接标出
+  当前 contact sheet 需要人工关注的字号、颜色、粗斜体、下划线、CJK 字体映射和
+  文档样式继承点。
+- 已新增 `pdf_visual_release_gate_style_baselines` 轻量回归，静态解析
+  `run_pdf_visual_release_gate.ps1` 并断言样式样本和 `style_focus` 标记不会被误删。
+- 已同步 `BUILDING_PDF.md` 和 `design/02-current-roadmap.md`，把合同级样式视觉 baseline
+  从“待补”推进到“已纳入 PDF 视觉发布门禁”。
+- 已完成验证：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test/pdf_visual_release_gate_style_baselines_test.ps1 -RepoRoot . -WorkingDir .bpdf-roundtrip-msvc/pdf_visual_release_gate_style_baselines`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_visual_release_gate_style_baselines|pdf_regression_(styled|mixed|underline|document-contract|document-eastasia)|pdf_document_adapter_font|pdf_regression_manifest" --output-on-failure --timeout 60`
+  通过 8/8；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-style-visual-release-gate -SkipUnicodeBaseline`
+  通过，并生成 `output/pdf-style-visual-release-gate/report/aggregate-contact-sheet.png`。
+- 下一阶段入口保留：
+  非标准字体缺少 bold / italic 变体时的质量策略，或继续进入 HarfBuzz 文字塑形。
+
+2026-05-15 继续推进（非标准字体 synthetic 粗斜体兜底）：
+
+- 已把非标准字体缺少 bold / italic 变体时的策略从文档 TODO 落到代码：
+  `PdfFontResolver` 仍优先选择 style-specific 映射；当显式映射、默认字体或 fallback
+  只能提供 regular 字体时，会在 `PdfResolvedFont` 上标记 `synthetic_bold` /
+  `synthetic_italic`。
+- 已把 synthetic 标记经 document adapter 传入 `PdfTextRun`，PDFio writer 对 synthetic
+  bold 使用 `PDFIO_TEXTRENDERING_FILL_AND_STROKE` 和小 stroke width，对 synthetic italic
+  使用 12 度斜切 text matrix。这样不会重复 `TextShow`，避免 PDFium 回读出现重复文本。
+- 已补回归：
+  `pdf_font_resolver` 断言 style-specific 映射不会误标 synthetic，regular fallback 会标记
+  synthetic；
+  `pdf_document_adapter_font` 断言 synthetic 标记进入 layout，并覆盖 writer 输出后 PDFium
+  回读不重复文本。
+- 已同步 `BUILDING_PDF.md` 的字体选择说明，明确真实 bold / italic 字体优先，
+  synthetic 只是防止样式完全丢失的视觉兜底。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_font_resolver_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(font_resolver|document_adapter_font)$" --output-on-failure --timeout 60`
+  通过 2/2；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_(styled-text|mixed-style-text|underline-text|document-contract-cjk-style|document-eastasia-style-probe|contract-cjk-style)$" --output-on-failure --timeout 60`
+  通过 6/6；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-style-visual-release-gate -SkipUnicodeBaseline`
+  通过。
+- 下一阶段入口：
+  优先级 3 基础样式映射收口完成，下一步进入优先级 4 HarfBuzz 文字塑形。
+
+2026-05-15 继续推进（HarfBuzz shaper bridge 最小接口）：
+
+- 已新增独立 `pdf_text_shaper` 桥接层，先不改现有 writer/layout 行为：
+  `shape_pdf_text()` 输入 UTF-8 文本、字体文件路径和字号，输出 `PdfGlyphRun`，
+  包含 glyph id、cluster、x/y advance 和 x/y offset。
+- 已在 `FeatherDoc::Pdf` 的 HarfBuzz 可用构建中定义
+  `FEATHERDOC_ENABLE_PDF_TEXT_SHAPER=1`，并显式链接 `harfbuzz::harfbuzz`。
+  `pdf_text_shaper_has_harfbuzz()` 可用于测试和诊断当前构建是否启用 HarfBuzz。
+- 已补 `pdf_text_shaper` 单测，覆盖空文本、非法字号、缺字体路径，以及 HarfBuzz 可用时
+  `office` 能产出非空 glyph run、正向 advance 和合法 cluster。
+- 已同步 `design/02-current-roadmap.md` 和 `BUILDING_PDF.md`：
+  优先级 4 的“接入 HarfBuzz 构建”和“最小 shaper_bridge”已完成；
+  已知限制是 `PdfDocumentLayout` 仍消费字符串 `PdfTextRun`，PDFio writer 还没有用 glyph id
+  写 content stream。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_text_shaper$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  把 GlyphRun 接入 `PdfDocumentLayout` 的内部文本片段，先保留字符串回退，再让 PDFio writer
+  增加 glyph id 写出路径。
+
+2026-05-15 继续推进（GlyphRun 接入 PdfTextRun）：
+
+- 已把 glyph run 数据结构拆成独立 `pdf_glyph_run.hpp`，供 shaper bridge 和 layout
+  共同使用，避免让纯数据 layout 头直接承担 HarfBuzz 调用接口。
+- `PdfTextRun` 现在可以携带 `PdfGlyphRun`。document adapter 在 file-backed text fragment
+  上调用 `shape_pdf_text()`，仅在 HarfBuzz 成功产出非空 glyph run 时保留结果；
+  标准 PDF base font、缺字体和坏字体仍保持原字符串路径。
+- 已补 `pdf_document_adapter_font` 回归，断言 file-backed `office` 文本在 HarfBuzz 可用时
+  会进入 `PdfTextRun::glyph_run`，并检查 glyph advance、cluster、字体路径和字号。
+- 已同步 `BUILDING_PDF.md` 和 `design/02-current-roadmap.md`：
+  当前状态是 layout 已能携带 GlyphRun，但 line wrapping 和 PDFio writer 仍然消费字符串。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_document_adapter_font_tests pdf_text_shaper_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过 3/3。
+- 下一阶段入口：
+  研究 PDFio Unicode CID 字体当前的 `CIDToGIDMap` / `ToUnicode` 写法，再决定 writer
+  是直接写 CID/glyph hex string，还是先扩展 PDFio-side helper。
+
+2026-05-15 继续推进（GlyphRun advance 接入 layout 宽度）：
+
+- 已确认 PDFio 当前 Unicode 字体写法是：content stream 写 UTF-16 codepoint，
+  font resource 的 `CIDToGIDMap` 再把 Unicode CID 映射到 glyph id；因此不能直接把
+  HarfBuzz glyph id 当 CID 写入，否则会和现有 `CIDToGIDMap` / `ToUnicode` 语义错配。
+- 已先推进低风险前置：`measure_text()` 在有字体文件时会优先调用 `shape_pdf_text()`，
+  并用 `glyph_run_x_advance_points()` 作为 layout 宽度。HarfBuzz 不可用、缺字体、
+  坏字体或塑形失败时仍回退到 FreeType / 估算宽度。
+- 已扩展 `pdf_document_adapter_font` 回归：同一段落两个 file-backed run 使用不同字体族
+  保持拆分，第二个 run 的 baseline x 坐标必须等于第一个 run 的 baseline x 加上
+  `PdfGlyphRun` 的 x advance。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_document_adapter_font_tests pdf_text_shaper_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(font_resolver|text_metrics|text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过 5/5。
+- 下一阶段入口：
+  若继续推进 writer，需要先设计新的 glyph-id font resource：要么让 CIDToGIDMap 变为
+  identity 并为 clusters 生成 ToUnicode，要么继续借助 ActualText 做复制语义兜底。
+
+2026-05-15 继续推进（HarfBuzz 相关 regression 样本扩展）：
+
+- 已新增两个导出回归样本：
+  `mixed-cjk-punctuation-text` 覆盖中英混排、中文逗号/分号/句号、中文括号和弯引号；
+  `latin-ligature-text` 覆盖 `office`、`affinity`、`flow`、`file`、`fixture` 等
+  fi/fl 相关文本。
+- 已把 `pdf_regression_manifest.json` 从 37 个样本扩展到 39 个样本；
+  `pdf_regression_*` 当前覆盖 40 个 CTest，包含 manifest 校验。
+- 已更新 `test/CMakeLists.txt` 的 CJK skip 规则，让 `mixed_cjk_punctuation_text`
+  和其他 CJK 样本一样，在缺少 CJK 字体时以 77 跳过。
+- 已同步 `BUILDING_PDF.md` 和 `design/02-current-roadmap.md` 的样本数量与覆盖范围。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdf_regression_manifest|pdf_regression_(mixed-cjk-punctuation-text|latin-ligature-text))$" --output-on-failure --timeout 60`
+  通过 3/3；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过 40/40。
+- 下一阶段入口：
+  继续考虑是否把这两个 HarfBuzz 相关样本纳入视觉发布门禁 baseline。
+
+2026-05-15 继续推进（文字塑形样本纳入视觉发布门禁）：
+
+- 已把 `mixed-cjk-punctuation-text` 和 `latin-ligature-text` 加入
+  `run_pdf_visual_release_gate.ps1` 的核心 PNG baseline 渲染列表。
+- 已新增 `pdf_visual_release_gate_text_shaping_baselines` 静态回归，解析视觉门禁脚本并断言
+  两个文字塑形样本的 `name`、PDF 路径和 baseline 输出目录不会被误删。
+- 已同步 `BUILDING_PDF.md` 和 `design/02-current-roadmap.md`，把优先级 4 的
+  “视觉回归 sample 集扩展到中英混排、CJK 标点用例”推进为已完成。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过 2/2；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-text-shaping-visual-release-gate -SkipUnicodeBaseline`
+  通过，并生成文字塑形样本 baseline 与 aggregate contact sheet。
+- 下一阶段入口：
+  优先级 4 剩余核心风险集中在 PDFio writer 的 glyph-id content stream 与自定义
+  CIDToGIDMap / ToUnicode 设计。
+
+2026-05-15 继续推进（PDFio writer glyph-id content stream）：
+
+- 已在 `pdf_writer.cpp` 增加 shaped glyph font resource 路径：对满足安全条件的
+  file-backed `PdfTextRun::glyph_run` 分配私有 CID，创建独立 Type0 / CIDFontType2 字体资源，
+  用 `CIDToGIDMap` 映射到 HarfBuzz glyph id，用 `W` 数组写入 HarfBuzz x advance，并保留
+  ToUnicode / ActualText 文本提取语义。
+- 已保留字符串 fallback：HarfBuzz 不可用、缺少字体文件、glyph offset / y advance 当前无法安全表达、
+  或 glyph id 超出 16-bit CID 范围时仍走原 `pdfioContentTextShow()` 路径。
+- 已补 `pdf_unicode_font_roundtrip` writer 回归：构造 shaped Latin 文本，断言 PDF 中出现
+  `FeatherDocGlyph` / `CIDToGIDMap` / `ToUnicode`，并用 PDFium 回读确认原文只出现一次。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过 3/3；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过 40/40；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过 2/2；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-glyph-writer-visual-release-gate -SkipUnicodeBaseline`
+  通过，并生成 aggregate contact sheet。
+- 下一阶段入口：
+  后续若扩大 writer 塑形能力，优先处理 x/y offset、RTL / 竖排和
+  多 glyph 同 cluster 的 ToUnicode 映射策略。
+
+2026-05-15 继续推进（shaped glyph writer 安全边界与 CMap 回归）：
+
+- 已收紧 `pdf_writer.cpp` 的 shaped glyph writer 入口：要求 `PdfGlyphRun` 字号与
+  `PdfTextRun` 一致，cluster 必须落在原始 UTF-8 文本范围内，并且 glyph 顺序中的 cluster
+  不能倒序。倒序 cluster 代表 RTL 或更复杂重排语义，当前仍回退到字符串写出路径。
+- 已扩展 `pdf_unicode_font_roundtrip`：
+  解压 PDF Flate stream，定位 `/FeatherDocGlyphToUnicode` CMap，并逐项断言 shaped glyph
+  私有 CID 到 cluster Unicode 文本的 `beginbfchar` 映射；同时新增倒序 cluster 的 fallback
+  回归，确认不会生成 `/FeatherDocGlyph` 字体资源，PDFium 仍能回读原文。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-glyph-positioned-visual-release-gate -SkipUnicodeBaseline`
+  通过。
+- 下一阶段入口：
+  继续扩展 shaped writer 前，先补齐 glyph offset / y advance 的定位模型；RTL 和竖排需要
+  独立设计基线、方向和 text matrix 语义，不能直接复用当前 LTR `Tj` 路径。
+
+2026-05-15 继续推进（shaped glyph offset 定位写出）：
+
+- 已放开 shaped glyph writer 对 x/y offset 和 y advance 的硬 fallback：入口仍要求 file-backed
+  font、HarfBuzz 成功、字号一致、cluster 有界且非倒序、glyph id 可放入 16-bit CID，并新增
+  advance / offset 的 finite 检查。
+- 已新增定位写出分支：普通无 offset run 保持原来的整段 `<cid...> Tj`；一旦 shaped run
+  带有 x/y offset 或 y advance，就按 HarfBuzz pen position 逐 glyph 写 `Tm` + `<cid> Tj`。
+  该分支复用当前 text run 的旋转矩阵和 synthetic italic 斜切矩阵，避免定位语义和既有
+  `PdfTextRun` 样式分叉。
+- 已扩展 `pdf_unicode_font_roundtrip`：构造带非零 offset / y advance 的 shaped Latin run，
+  解压 PDF content stream 断言逐 glyph `Tm` 与 `Tj` 数量，并用 PDFium 回读确认原文只出现一次。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-glyph-cluster-visual-release-gate -SkipUnicodeBaseline`
+  通过。
+- 下一阶段入口：
+  shaped writer 剩余风险主要是 RTL / 竖排的方向模型，以及多 glyph 同 cluster 在定位和
+  文本选择中的更细粒度验收。
+
+2026-05-15 继续推进（shaped glyph cluster 提取语义收口）：
+
+- 已收紧 shaped glyph writer 的 cluster 安全条件：cluster offset 除了必须有界、非倒序，
+  还必须落在 UTF-8 codepoint 边界上；如果 HarfBuzz 数据或上游构造的数据把 cluster 指到
+  多字节字符中间，writer 会保留字符串 fallback，避免把无效 UTF-8 切片写进 ToUnicode。
+- 已固定多 glyph 同 cluster 的 ToUnicode 策略：第一个 CID 映射完整 cluster Unicode 文本，
+  后续同 cluster CID 不写 ToUnicode entry，避免复制/提取时重复输出同一个文本 cluster。
+  `ActualText` 仍包裹完整 run，作为阅读器文本提取兜底。
+- 已扩展 `pdf_unicode_font_roundtrip`：
+  手写 `a + combining acute + b` 的 repeated-cluster shaped run，解压
+  `/FeatherDocGlyphToUnicode` CMap 断言 `<0001>` 映射 `<00610301>`、`<0002>` 不映射、
+  `<0003>` 映射 `<0062>`；同时补 cluster 落在 UTF-8 continuation byte 时的 fallback 回归。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  shaped writer 的 LTR 安全子集已覆盖 glyph id、advance、offset、cluster 边界和重复
+  cluster 提取语义；继续向外扩展时应优先单独设计 RTL / 竖排方向模型。
+
+2026-05-15 继续推进（shaped glyph direction 元数据与非 LTR 回退）：
+
+- 已在 `PdfGlyphRun` 增加 `PdfGlyphDirection`，`shape_pdf_text()` 会在 HarfBuzz
+  `hb_buffer_guess_segment_properties()` 后记录 buffer direction；document adapter 保留该
+  direction，避免后续 writer 只能靠 cluster 倒序推断 RTL / 竖排。
+- 已收紧 shaped glyph writer 入口：当前 glyph-id CID content stream 只接受
+  `left_to_right` 方向；`right_to_left`、`top_to_bottom`、`bottom_to_top` 或 unknown direction
+  都回退到原字符串写出路径，继续保留 ToUnicode / ActualText 文本提取语义。
+- 已扩展回归：
+  `pdf_text_shaper` 断言 Latin `office` 的 HarfBuzz direction 为 `left_to_right`；
+  `pdf_document_adapter_font` 断言 adapter 携带该 direction；`pdf_unicode_font_roundtrip`
+  手写一个其它条件都满足但 direction 为 `right_to_left` 的 shaped run，确认不会生成
+  `/FeatherDocGlyph` 字体资源且 PDFium 仍只回读一次原文。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests pdf_document_adapter_font_tests pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-glyph-direction-visual-release-gate -SkipUnicodeBaseline`
+  通过。
+- 下一阶段入口：
+  RTL / 竖排不再是 writer 入口的隐式边界条件，但真正支持它们还需要单独设计基线方向、
+  text matrix、glyph order 和文本选择语义；在那之前保持字符串 fallback。
+
+2026-05-15 继续推进（RTL direction 真实文本 smoke）：
+
+- 已给 `pdf_text_shaper` 增加 Hebrew RTL smoke：通过 `FEATHERDOC_TEST_RTL_FONT` 或 Windows
+  Arial / Segoe UI / Times 候选字体，对 `שלום` 验证 HarfBuzz direction 映射为
+  `right_to_left`。
+- 已给 `pdf_document_adapter_font` 增加 RTL direction metadata 回归：Document run 经字体映射
+  进入 `PdfDocumentLayout` 后，`PdfTextRun::glyph_run.direction` 仍保留 `right_to_left`，
+  证明 adapter 不会丢掉 HarfBuzz 的方向元数据。
+- 已同步 `BUILDING_PDF.md`，记录 `FEATHERDOC_TEST_RTL_FONT` 这个可选测试字体入口。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font)$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  已确认真实 RTL 文本能进入 metadata 层；下一步如果继续推进 RTL，需要先定义 layout
+  的逻辑顺序 / 视觉顺序边界，再决定 writer 是否用逐 glyph positioned CID 流承接。
+
+2026-05-15 继续推进（HarfBuzz script tag 元数据）：
+
+- 已在 `PdfGlyphRun` 增加 `script_tag`，`shape_pdf_text()` 会把 HarfBuzz
+  `hb_buffer_get_script()` 转成 ISO 15924 tag；Latin 文本记录 `Latn`，Hebrew RTL 文本
+  记录 `Hebr`。
+- 已扩展 `pdf_text_shaper` 和 `pdf_document_adapter_font` 回归：分别断言 shaper 输出与
+  document adapter layout 中的 `PdfGlyphRun` 都保留 direction 和 script tag，避免后续
+  设计 RTL / Arabic / vertical 策略时丢失脚本上下文。
+- 已同步 `BUILDING_PDF.md`，把 `PdfGlyphRun` 当前 metadata 更新为 direction / script。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font)$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  script tag 现在可以作为后续方向模型的输入；真正改变 layout / writer 前，仍需先定义
+  每种脚本的受控验收样本和 fallback 规则。
+
+2026-05-15 继续推进（shaper 显式 direction / script override）：
+
+- 已扩展 `PdfTextShaperOptions`：调用方可以显式传入 `PdfGlyphDirection` 和 ISO 15924
+  `script_tag`；未传入时仍由 `hb_buffer_guess_segment_properties()` 自动推断。
+- 已在 `shape_pdf_text()` 中先写入调用方指定的 direction / script，再让 HarfBuzz 补齐未指定
+  的 segment properties；非法 script tag 会返回明确诊断，不继续生成 glyph run。
+- 已扩展 `pdf_text_shaper` 回归：验证 Latin 文本可被显式塑形为 RTL / `Hebr` metadata，
+  并验证超长非法 script tag 会被拒绝。
+- 已同步 `BUILDING_PDF.md`，记录 `PdfTextShaperOptions` 的显式 override 能力。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font)$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  可以开始把上游文档语义中的 RTL / bidi / language 信息映射到 shaper options；在 writer
+  支持前，非 LTR 仍保持字符串 fallback。
+
+2026-05-15 继续推进（Document run RTL -> shaper direction）：
+
+- 已把 `run_inspection_summary::rtl` / style `run_rtl` / 默认 run RTL 解析进
+  `ResolvedRunStyle`，并在 token、fragment、测宽和最终 `shape_fragment_text()` 之间保留
+  `shaping_direction`。
+- `rtl=true` 的 run 会把 `PdfTextShaperOptions::direction` 设置为 `right_to_left`；没有 RTL
+  语义时仍保持 unknown，让 HarfBuzz 继续按文本自动 guess。
+- 已扩展 `pdf_document_adapter_font`：Latin `office` run 显式 `set_rtl()` 后，layout 中的
+  `PdfGlyphRun` 会记录 `right_to_left` direction 和 `Latn` script，证明上游 Word run
+  格式已经进入 shaper options。
+- 已同步 `BUILDING_PDF.md`，记录 run 级 `rtl` 到 shaper direction 的映射，以及 writer
+  仍保持非 LTR 字符串 fallback。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_document_adapter_font_tests pdf_text_shaper_tests pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  可以继续把 `bidi_language` 映射到 shaper language / script，或开始定义 RTL writer 的
+  glyph order、text matrix 和文本提取验收；在 writer 语义明确前仍不直接写非 LTR CID 流。
+
+2026-05-15 继续推进（HarfBuzz language tag 元数据）：
+
+- 已在 `PdfGlyphRun` 和 `PdfTextShaperOptions` 增加 `language_tag`；调用方可以显式设置
+  HarfBuzz language，shaper 会从 buffer 回填最终 language tag。
+- 已扩展 `pdf_text_shaper` override 回归：显式设置 RTL / `Hebr` / `he` 后，glyph run 会同时
+  记录 direction、script tag 和 language tag。
+- 已同步 `BUILDING_PDF.md`，把当前 `PdfGlyphRun` 元数据更新为 direction / script /
+  language。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests pdf_document_adapter_font_tests pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  shaper 已能承载 language metadata；下一步可以把 Document 的 `language` /
+  `bidi_language` 解析结果传入 `PdfTextShaperOptions`。
+
+2026-05-15 继续推进（Document run language -> shaper language）：
+
+- 已把 `ResolvedRunStyle` / `TextToken` / `TextFragment` 扩展为携带
+  `shaping_language_tag`，并在测宽与最终 `shape_fragment_text()` 之间保持同一组
+  HarfBuzz segment options。
+- Document adapter 现在会把 run/style/default 的 `language` / `bidi_language` 映射到
+  `PdfTextShaperOptions::language_tag`；LTR / unknown direction 优先使用 `language`，
+  RTL run 优先使用 `bidi_language`，缺失时再回退到另一侧语言。
+- 已扩展 `pdf_document_adapter_font`：覆盖普通 run `language=fr` 进入
+  `PdfGlyphRun::language_tag`，以及 `rtl=true` 时 `bidi_language=he` 优先于
+  `language=en`；随后补充 default run `language=de` 和 inherited character style
+  `language=it` 的 adapter 回归，确认直接 run、样式继承和默认 run 三条语言来源都能进入
+  shaper options。
+- 已同步 `BUILDING_PDF.md` 和 `design/02-current-roadmap.md`，记录 document adapter
+  已能把 run 级 RTL 与语言语义传给 HarfBuzz shaper。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_document_adapter_font_tests pdf_text_shaper_tests pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  language metadata 已贯通到 layout；后续若继续推进 RTL writer，需要单独设计
+  glyph order、baseline advance、text matrix 和文本选择语义，不能直接复用 LTR
+  glyph-id stream。
+
+2026-05-15 继续推进（Document RTL writer fallback E2E）：
+
+- 已把 `pdf_unicode_font_roundtrip` 里的非 LTR writer fallback 回归从单一 RTL 样例扩展为
+  `right_to_left` / `top_to_bottom` / `bottom_to_top` / `unknown` 矩阵，确认当前
+  glyph-id CID writer 入口只接受 `left_to_right`。
+- 已在 `pdf_unicode_font_roundtrip` 增加 Document 级端到端回归：真实 `Run::set_rtl()`
+  经 document adapter 生成 `right_to_left` shaped glyph metadata 后，PDFio writer 不生成
+  `/FeatherDocGlyph` CID 字体资源，继续走字符串 fallback。
+- 回归同时用 PDFium 解析写出的 PDF，断言原文只回读一次，避免后续扩展 RTL writer 时破坏
+  当前安全边界和文本提取语义。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- 矩阵扩展后再次完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- 本轮在当前 worktree 重新跑 `pdf_regression_` 时发现 Document adapter 的 shaped glyph
+  CID 字体路径仍嵌入完整字体，导致 `document-contract-cjk-style`、
+  `document-eastasia-style-probe`、`list-report-text` 触发页数级 PDF 大小阈值。
+  已让 shaped glyph CID 字体复用 HarfBuzz glyph-id subset，并保留失败时回退完整字体的行为。
+  修复后失败样本输出分别收敛到约 39KB、29KB、1.19MB。
+- 继续补齐 shaped glyph subset 的 writer option 语义：`subset_unicode_fonts=false`
+  现在同样会让 shaped glyph CID 字体回退完整字体嵌入，`true` 时才走 HarfBuzz
+  glyph-id subset；`pdf_unicode_font_roundtrip` 已新增 shaped glyph CJK full/subset
+  直接对比，避免只靠 regression PDF 大小阈值间接覆盖。
+- 下一阶段入口：
+  当前已覆盖 Document RTL metadata 到 writer fallback 的闭环；真正支持 RTL glyph-id stream
+  前，需要先形成独立验收样本，明确 visual order、logical text extraction、glyph advance
+  方向和 text matrix 的组合规则。
+
+2026-05-15 继续推进（CLI import continuation diagnostics JSON）：
+
+- 已把 `import-pdf --json` 的表格跨页 continuation 诊断从只输出
+  `table_continuation_diagnostics_count` 扩展为完整
+  `table_continuation_diagnostics` 数组，逐条暴露页索引、块索引、源行偏移、
+  置信度阈值、表头匹配类型、重复表头跳过状态、阻断原因和最终处置结果。
+- 已保留原有 `table_continuation_diagnostics_count` 字段，避免破坏现有 CLI
+  JSON 消费方；新增数组用于定位为什么跨页表格被新建、合并或阻断。
+- 已补 CLI import 回归：
+  `cli import-pdf reports table continuation diagnostics` 使用段落 + 表格 + 分页
+  + 表格 + 段落 fixture，断言 opt-in 导入后仍合并为 1 张 3 列 6 行表格，
+  同时 JSON 包含 `created_new_table`、`merged_with_previous_table`、
+  `no_previous_table`、`none`、`not_required` 等关键诊断字段。
+- 已完成验证：
+  `cmake -S . -B .bpdf-cli-import-msvc -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DFEATHERDOC_BUILD_PDF=ON -DFEATHERDOC_BUILD_PDF_IMPORT=ON -DBUILD_CLI=ON -DBUILD_TESTING=ON -DBUILD_SAMPLES=OFF ...`
+  通过；
+  `cmake --build .bpdf-cli-import-msvc --target pdf_cli_import_tests`
+  通过；
+  `ctest --test-dir .bpdf-cli-import-msvc -R "^pdf_cli_import$" --output-on-failure --timeout 60`
+  通过。
+- 本轮验证记录：
+  Windows 环境只有 `py.exe` 时，PDFium source configure 需要临时提供
+  `python3` shim；同时 FeatherDoc import CLI 测试目录必须显式使用
+  `CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded`，否则会因 PDFium `/MT` 与默认
+  `/MD` 或 Debug runtime 不一致在链接阶段失败。
+- 下一阶段入口：
+  继续 E7 时，优先补 CLI JSON 的失败/阻断样本覆盖，例如 semantic header
+  mismatch、column anchor mismatch、confidence below threshold，让用户能从
+  CLI 输出直接判断跨页表格未合并的原因。
+
+2026-05-15 继续推进（CLI continuation blocker JSON 回归）：
+
+- 已补 `import-pdf --json` 的阻断类 continuation diagnostics CLI 回归，覆盖：
+  semantic repeated header mismatch、column anchor mismatch、confidence below
+  threshold 三类常见未合并原因。
+- 新增 CLI 测试均复用现有 PDF fixture，断言 opt-in 导入后仍保守拆成两张
+  `Document` 表格，并在 JSON 中暴露 `created_new_table` 与对应 blocker：
+  `repeated_header_mismatch`、`column_anchors_mismatch`、
+  `continuation_confidence_below_threshold`。
+- 回归同时确认关键解释字段已经透出：
+  `previous_has_repeating_header`、`source_has_repeating_header`、
+  `header_matches_previous`、`header_match_kind`、`column_count_matches`、
+  `column_anchors_match`、`continuation_confidence`、
+  `minimum_continuation_confidence`。
+- 已完成验证：
+  `cmake --build .bpdf-cli-import-msvc --target pdf_cli_import_tests`
+  通过；
+  `ctest --test-dir .bpdf-cli-import-msvc -R "^pdf_cli_import$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  继续 E7 时，可以把同一套 CLI JSON 诊断扩展到 column count mismatch、
+  missing/sparse body rows、local anchor drift 等更细边界；或开始整理面向用户的
+  `import-pdf --json` 输出 schema 文档。
+
+2026-05-15 继续推进（CLI continuation 细边界 JSON 回归）：
+
+- 已继续扩展 `import-pdf --json` continuation diagnostics 的 CLI 回归，覆盖
+  missing Unit cell、sparse body row 两类“应合并”正样本，以及 column count
+  mismatch 一类“应保守拆分”负样本。
+- missing/sparse 样本确认 opt-in 导入后仍合并为 1 张 4 列 7 行表格，JSON 暴露
+  `merged_with_previous_table`、`blocker":"none"`、`header_match_kind":"exact"`、
+  `skipped_repeating_header":true` 和 `source_row_offset":1`，证明 CLI 能解释
+  重复表头跳过后的续接行为。
+- column count mismatch 样本确认 opt-in 导入后保守拆成 4 列表 + 3 列表，JSON 暴露
+  `column_count_matches":false`、`column_anchors_match":false`、
+  `header_match_kind":"none"` 和 `blocker":"column_count_mismatch"`，方便用户定位
+  未合并原因不是阈值或表头文本，而是列结构不兼容。
+- 已完成验证：
+  `cmake --build .bpdf-cli-import-msvc --target pdf_cli_import_tests`
+  通过；
+  `ctest --test-dir .bpdf-cli-import-msvc -R "^pdf_cli_import$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  继续 E7 时，剩余适合 CLI 层补齐的边界主要是 local anchor drift、
+  amount-only / isolated amount-only body rows；之后应整理 `import-pdf --json`
+  输出 schema 到用户文档，避免测试覆盖已经扩展但外部契约仍只散落在执行计划里。
+
+2026-05-15 继续推进（CLI continuation 最后边界 JSON 回归）：
+
+- 已补齐上一轮留下的 CLI diagnostics 边界：amount-only body row、
+  isolated amount-only body row 和 local anchor drift。
+- amount-only / isolated amount-only 样本确认 opt-in 导入后仍合并为单表，JSON
+  暴露 `merged_with_previous_table`、`blocker":"none"`、
+  `header_match_kind":"exact"`、`skipped_repeating_header":true` 和
+  `source_row_offset":1`，覆盖极稀疏表体仍可续接的 CLI 解释路径。
+- local anchor drift 样本确认两页列数一致但局部列锚点漂移时仍保守拆表，JSON 暴露
+  `column_count_matches":true`、`column_anchors_match":false`、
+  `disposition":"created_new_table"` 和 `blocker":"column_anchors_mismatch"`，
+  补足“同列数但锚点不兼容”的用户可诊断路径。
+- 已完成验证：
+  `cmake --build .bpdf-cli-import-msvc --target pdf_cli_import_tests`
+  通过；
+  `ctest --test-dir .bpdf-cli-import-msvc -R "^pdf_cli_import$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  CLI JSON diagnostics 的主要正负样本已覆盖到测试层；继续 E7 时，优先整理
+  `import-pdf --json` 输出 schema 到用户文档，并把这些字段定义为稳定调试契约。
+
+2026-05-15 继续推进（import-pdf JSON schema 用户文档）：
+
+- 已在 `docs/index.rst` 增加 `PDF import JSON diagnostics` 小节，把
+  `import-pdf --json` 的成功输出、失败输出、表格 continuation diagnostics 数组、
+  诊断字段含义和枚举值从执行计划沉淀到用户可读文档。
+- 文档明确 `table_continuation_diagnostics` 按 table candidate discovery 顺序输出，
+  `source_row_offset = 1` 通常表示重复表头被识别并跳过；同时说明
+  `continuation_confidence` 是规则型诊断分数，不是概率模型。
+- 文档列出 `disposition`、`header_match_kind` 和 `blocker` 当前稳定字符串，覆盖
+  merge 成功、列数不匹配、锚点不匹配、表头不匹配、阈值不足等 CLI 已回归路径。
+- 本轮只改文档，不改变 CLI JSON 行为；下一阶段如果继续 E7，应考虑给
+  `docs/index.rst` 里的 `import-pdf` 示例补最小受控样本生成命令，或开始整理
+  PDF import 的已知限制用户页。
+
+2026-05-15 继续推进（PDF import JSON diagnostics 入口提示）：
+
+- 已把 `import-pdf --json` continuation diagnostics 的入口提示同步到
+  `README.md` 和 `README.zh-CN.md`，说明成功 JSON 会包含
+  `table_continuation_diagnostics_count` 与 `table_continuation_diagnostics`，
+  并指向 `docs/index.rst` 的字段级 schema。
+- 已在 CLI usage 文本里为 PDF import 增加短说明：
+  `--json includes table_continuation_diagnostics for PDF table merge decisions`，
+  避免用户只能从长文档或测试里发现 diagnostics 能力。
+- 已补 `cli_usage` 回归固定 `table_continuation_diagnostics` 出现在帮助文本中。
+- 下一阶段入口：
+  可以继续整理 PDF import 的已知限制用户页，或把 `BUILDING_PDF.md` 中偏开发者的
+  PDF import 限制和 README/docs 中的用户入口进一步去重。
+
+2026-05-15 继续推进（PDF import 用户范围与限制文档）：
+
+- 已在 `docs/index.rst` 的 PDF import 区域新增 `PDF import supported scope and limits`
+  小节，把 E7 和 `BUILDING_PDF.md` 中面向用户最关键的范围边界沉淀到 Sphinx 文档。
+- 文档明确 PDF import 是实验性 opt-in 路径，面向 text-first 且具备 extractable text
+  和 character geometry 的 PDF；不是任意 PDF -> Word 精确复刻。
+- 文档列出当前可靠范围：段落导入、保守表格候选、显式表格提升、跨页续接、重复表头匹配、
+  受控 subtotal / total 行和 continuation diagnostics。
+- 文档同步保守边界：默认拒绝表格候选，列数/锚点/语义表头/中间段落/低置信度会拆表；
+  普通双栏 prose、编号列表、短标签 prose 和自由表单应保留为段落。
+- 文档明确不支持扫描件、OCR、image-only 表格、任意嵌套表格语义、复杂矢量还原、
+  旋转/浮动内容恢复或任意 PDF 的精确视觉重建。
+- 下一阶段入口：
+  PDF import 用户文档已具备入口、JSON schema、范围和限制；继续 E7 时可以考虑
+  抽出独立 `docs/pdf_import_*.rst` 页面，或开始把 `BUILDING_PDF.md` 中重复的用户内容
+  收敛为指向 docs 的链接。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
@@ -1667,6 +3219,267 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 临时 PDF、PNG、字体和 baseline 生成物不应无说明地进入版本库。
 - 每次新增 PDF 能力，必须同时回答四个问题：
   能否生成、能否回读、能否可视化验证、能否回归。
+
+2026-05-15 继续推进（BUILDING_PDF PDF import 用户内容去重）：
+
+- 已将 `BUILDING_PDF.md` 中面向用户的 PDF import 范围、限制和表格续接说明去重，
+  统一指向 `docs/pdf_import.rst` 的 `PDF import JSON diagnostics` 与
+  `PDF import supported scope and limits` 小节。
+- `BUILDING_PDF.md` 现在只保留构建、开发者测试和
+  `PdfDocumentImportResult::table_continuation_diagnostics` 调试入口，避免
+  README、Sphinx 文档和构建文档之间的用户契约漂移。
+- 本轮是文档-only 收口，没有改动生产代码；验证范围为 `git diff --check`。
+- 继续 E7 时，优先把 PDF import 长文档拆成独立 `docs/pdf_import_*.rst` 页面，
+  或继续补 CLI diagnostics 的用户示例。
+
+2026-05-15 继续推进（PDF import 独立用户文档页）：
+
+- 已新增 `docs/pdf_import.rst`，把 `import-pdf --json` 示例、
+  `table_continuation_diagnostics` 字段契约、支持范围和已知限制从
+  `docs/index.rst` 迁出。
+- 已在 `docs/index.rst` 的 hidden toctree 注册 `pdf_import`，首页只保留短入口，
+  避免主文档继续膨胀。
+- 已同步 `BUILDING_PDF.md` 的用户文档指向，继续保持构建文档只承载开发者入口。
+- 本轮仍是文档-only 结构整理；验证范围为 `git diff --check`、暂存区空白检查和
+  文档引用检索。当前本机 Python 3.13 缺少 `sphinx` 模块，HTML 文档构建未执行。
+
+2026-05-15 继续推进（PDF import 失败 JSON 文档补强）：
+
+- 已核对 `PdfDocumentImportFailureKind` 和 CLI `print_pdf_import_failure()` 输出，
+  确认失败 JSON 字段为 `command`、`ok`、`stage`、`failure_kind`、`message`、
+  `input` 和 `output`。
+- 已在 `docs/pdf_import.rst` 补充完整失败 JSON 示例、`failure_kind` 枚举，以及
+  `table_candidates_detected` 不写出目标 DOCX 的用户可见语义。
+- 本轮未改动生产代码；验证范围保持为 `git diff --check`、暂存区空白检查和
+  文档引用检索。Sphinx 构建仍受本机缺少 `sphinx` 模块限制，未执行。
+
+2026-05-15 继续推进（PDF import 文档契约回归）：
+
+- 已新增 `test/pdf_import_docs_contract_test.ps1`，固定 `docs/pdf_import.rst`
+  必须包含成功 JSON、失败 JSON、continuation diagnostics 字段、`failure_kind`
+  枚举和支持范围入口。
+- 已把 `pdf_import_docs_contract` 挂入 `test/CMakeLists.txt` 的 Windows
+  PowerShell 测试集合，并设置 60 秒超时和 `pdf;docs;smoke` 标签。
+- 回归同时检查 `docs/index.rst` hidden toctree 仍注册 `pdf_import`，首页只保留
+  `:doc:`pdf_import`` 短入口，且中英文 README 的字段级 schema 指向
+  `docs/pdf_import.rst`。
+- 本轮验证通过：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\test\pdf_import_docs_contract_test.ps1 -RepoRoot .`
+  和 `git diff --check`。
+
+2026-05-15 继续推进（PDF import 安装文档入口闭环）：
+
+- 已确认中英文 README 的 PDF import schema 入口指向 `docs/pdf_import.rst`，
+  但安装规则此前没有携带该文件，安装包内会形成指向缺失文件的入口。
+- 已在 `CMakeLists.txt` 中安装 `docs/pdf_import.rst` 到
+  `${FEATHERDOC_INSTALL_DATADIR}/docs`，对应安装树为
+  `share/FeatherDoc/docs/pdf_import.rst`。
+- 已同步 `README.md` 和 `README.zh-CN.md` 的安装产物清单，并扩展
+  `pdf_import_docs_contract_test.ps1`，固定 CMake 安装规则必须包含该文档。
+- 本轮验证通过：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\test\pdf_import_docs_contract_test.ps1 -RepoRoot .`
+  和 `git diff --check`。
+
+2026-05-15 继续推进（PDF import 发布打包安全回归）：
+
+- 已扩展 `test/package_release_assets_safety_test.ps1`，在模拟安装前缀中加入
+  `share/FeatherDoc/docs/pdf_import.rst`，并固定 staging 目录必须保留该文件。
+- 已新增安装 ZIP 条目断言，确保
+  `FeatherDoc-v1.6.4-msvc-install.zip` 内继续携带
+  `build-msvc-install/share/FeatherDoc/docs/pdf_import.rst`。
+- ZIP 条目比较已统一归一化路径分隔符，避免 Windows 反斜杠条目导致跨实现误报。
+- 本轮验证通过：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\test\package_release_assets_safety_test.ps1 -RepoRoot . -WorkingDir .\output\package-release-assets-safety-test`
+  和 `git diff --check`。
+
+2026-05-15 继续推进（发布包 PowerShell CTest 门禁治理）：
+
+- 已给 `package_release_assets_safety` 和 `package_release_assets_allow_incomplete`
+  两个 PowerShell CTest 补上 `TIMEOUT 60`，对齐 PDF 执行计划的测试超时规范。
+- 已为两个测试增加 `release;package;smoke` 标签，方便 CI 或本地按发布包门禁集合筛选。
+- 本轮不改变打包行为，只补 CTest 调度边界；继续 E7 时，发布包安全测试可作为
+  PDF import 安装文档入口的轻量发布门禁。
+
+2026-05-15 继续推进（PDF import diagnostics 枚举文档契约）：
+
+- 已扩展 `pdf_import_docs_contract_test.ps1`，把
+  `table_continuation_diagnostics` 的布尔诊断字段纳入文档契约。
+- 已把 `header_match_kind`、`disposition` 和 `blocker` 的稳定字符串枚举纳入回归，
+  覆盖重复表头匹配、合并/拆表结论和跨页续接阻断原因。
+- 本轮不改变 CLI JSON 输出，只把已经面向用户文档化的诊断 schema 固定为
+  可回归契约，降低后续 E7 调整时的文档漂移风险。
+
+2026-05-15 继续推进（PDF import enum 驱动文档契约）：
+
+- 已增强 `pdf_import_docs_contract_test.ps1`，从
+  `include/featherdoc/pdf/pdf_document_importer.hpp` 解析 PDF import failure、
+  table continuation disposition、blocker 和 header match kind 枚举成员。
+- 文档契约现在会要求 `docs/pdf_import.rst` 覆盖这些源定义中的公开字符串，
+  其中 `PdfDocumentImportFailureKind::none` 仍作为内部状态不要求写入失败文档枚举。
+- 同一回归还检查 `cli/featherdoc_cli.cpp` 为每个 enum 成员保留对应
+  `return "<member>"` 映射，避免源码 enum、CLI JSON 和用户文档三方漂移。
+
+2026-05-15 继续推进（PDF import confidence 阈值文案统一）：
+
+- 已把 `--min-table-continuation-confidence` 的用户可见占位符从 `<count>`
+  统一为 `<score>`，覆盖 CLI usage、英文 README 和中文 README。
+- 已扩展 `cli_usage_tests.cpp`，固定 usage 必须出现 `<score>` 且不能回退到
+  `<count>`；该参数语义是规则型 continuation confidence 阈值，不是数量。
+- 已扩展 `pdf_import_docs_contract_test.ps1`，同步约束中英文 README 中的同一占位符。
+
+2026-05-15 继续推进（PDF import confidence 解析错误回归）：
+
+- 已补充 `pdf_cli_import_tests.cpp`，覆盖
+  `--min-table-continuation-confidence` 缺失值、非法值和重复传参三类 parse 错误。
+- 回归固定这些错误在 `--json` 下输出 `command:"import-pdf"`、`ok:false`、
+  `stage:"parse"` 和对应错误消息，避免被误归类为 import 阶段失败。
+- 本轮不改变 CLI 行为，只补齐 confidence 阈值参数的负路径 JSON 契约。
+
+2026-05-15 继续推进（PDF CLI CTest 超时治理）：
+
+- 已给 `pdf_cli_export` 和 `pdf_cli_import` 两个 CTest 入口补上 `TIMEOUT 60`，
+  对齐 PDF 执行计划中后台测试统一 60 秒超时的约束。
+- 本轮不改变 CLI 导入/导出行为，只收紧 CTest 调度边界，避免本地或 CI 后台任务
+  因 fixture、字体环境或进程异常而无界等待。
+- 继续 E7 时，可优先把 PDF CLI import/export 作为轻量烟测集合，配合
+  `cli;smoke;pdf` 标签筛选执行。
+
+2026-05-15 继续推进（PDF CTest 超时 helper 收口）：
+
+- 已把 `featherdoc_set_test_labels()` 扩展为：凡标签列表包含 `pdf` 的 C++ CTest，
+  默认继承 `TIMEOUT 60`，避免后续新增 PDF smoke 测试时只补标签、漏补超时。
+- 已移除 `pdf_cli_export`、`pdf_cli_import` 和 `pdf_regression_manifest` 的重复手写
+  超时设置，让 PDF C++ 测试的调度边界统一由标签 helper 承担。
+- 仍保留 PowerShell、动态 PDF regression 和视觉 gate 的显式 `TIMEOUT 60`，
+  因为这些测试不是通过 `featherdoc_set_test_labels()` 注册。
+
+2026-05-15 继续推进（PDF CTest 超时契约回归）：
+
+- 已新增 `pdf_ctest_timeout_contract_test.ps1`，直接扫描生成后的
+  `CTestTestfile.cmake`，要求所有 `LABELS` 包含 `pdf` 的测试都带 `TIMEOUT 60`。
+- 已把该契约挂入 CTest，标签为 `pdf;ctest;smoke`，自身也显式设置 60 秒超时。
+- 该回归覆盖 C++ helper、PowerShell 文档契约、视觉 gate 和动态 regression 测试，
+  避免后续新增 PDF 测试时绕过统一调度边界。
+
+2026-05-15 继续推进（CJK 常见阅读器手工验收入口）：
+
+- 已将 CJK/PDF 面向发布的手工复制、搜索验收纳入 `REVIEWER_CHECKLIST.md` 生成流程：
+  发布 reviewer 需要在至少一个常见阅读器中确认生成的中文 PDF 可以复制和搜索，并在 release notes
+  或 final review 中记录阅读器和版本。
+- 已补 `release_note_bundle_version_test.ps1` 契约，固定该 checklist 文案，避免后续 release bundle
+  重构时遗漏人工验收入口。
+- 验证过程中同步加固 `release_note_bundle_version_test.ps1` 的 UTF-8 断言读取，并将中文期望值改为码点构造，
+  让该回归在 Windows PowerShell 5.1 读取无 BOM 脚本时也能稳定执行。
+- 自动化代理验收与人工验收边界保持分离：PDFium 回读、`/ToUnicode`、`/Identity-H` 和中文搜索片段回归继续覆盖
+  可自动验证的语义代理；常见阅读器复制/搜索仍作为发布前人工签核项，不标记为自动完成。
+
+2026-05-15 继续推进（PDF import 文档拆页与安装闭环）：
+
+- 已将 `docs/pdf_import.rst` 收敛为 PDF import 用户总览页，把字段级 JSON 契约迁移到
+  `docs/pdf_import_json_diagnostics.rst`，把支持范围和限制迁移到 `docs/pdf_import_scope.rst`。
+- 已同步 `docs/index.rst` hidden toctree、README 中英入口、`BUILDING_PDF.md` 开发者说明和
+  CMake 安装清单，确保源码文档入口与安装包文档入口一致。
+- 已扩展 `pdf_import_docs_contract_test.ps1` 和 `package_release_assets_safety_test.ps1`：
+  前者固定拆页、README 指向和 CMake 安装规则，后者固定发布 ZIP 内必须携带三个 PDF import 文档页。
+- 本轮仍是文档和发布打包契约收口，不改变 PDF import 行为；继续 E7 时可以优先补 CLI diagnostics
+  的用户示例或更复杂导入负样本。
+
+2026-05-15 继续推进（PDF import CLI diagnostics 用户示例）：
+
+- 已在 `docs/pdf_import_json_diagnostics.rst` 增加常见 continuation blocker 示例，覆盖
+  `repeated_header_mismatch`、`column_anchors_mismatch` 和
+  `continuation_confidence_below_threshold` 三类用户最容易遇到的拆表原因。
+- 已扩展 `pdf_import_docs_contract_test.ps1`，固定这些 JSON 片段和
+  `minimum_continuation_confidence` 示例，避免后续文档拆分或重写时丢失用户可诊断入口。
+- 本轮只把现有 CLI 测试已经覆盖的诊断语义写入用户文档，不改变 importer 或 CLI JSON 输出。
+
+2026-05-15 继续推进（PDF import blocker CLI 覆盖补齐）：
+
+- 已补 `pdf_cli_import_tests.cpp` 的 CLI JSON 回归，覆盖
+  `not_near_page_top` 和 `not_first_block_on_page` 两个此前只有 importer 层断言的 continuation blocker。
+- 已同步 `docs/pdf_import_json_diagnostics.rst`，增加页顶距离过低和非页内首个 block 的用户可读示例。
+- 已扩展 `pdf_import_docs_contract_test.ps1`，固定这两类 blocker 的 JSON 片段，避免 CLI 层诊断文档漂移。
+- 剩余 `inconsistent_source_rows` 目前仍缺少稳定 PDF fixture；继续 E7 时应优先判断是否需要新增专门样本，
+  或把该 blocker 保持为内部保守兜底并在文档中明确触发条件。
+
+2026-05-15 继续推进（PDF import blocker 覆盖契约）：
+
+- 已将 `inconsistent_source_rows` 在 `docs/pdf_import_json_diagnostics.rst` 中明确标记为内部一致性兜底：
+  当前 PDF parser 按 column anchors 预填 rows，正常用户样本不应稳定触发该 blocker。
+- 已扩展 `pdf_import_docs_contract_test.ps1`，从 `PdfTableContinuationBlocker` enum 和
+  `pdf_cli_import_tests.cpp` 的 JSON 断言反向校验：除 `none` 与内部兜底
+  `inconsistent_source_rows` 外，每个 blocker 都必须有 CLI JSON 覆盖。
+- 这样后续如果新增 continuation blocker，测试会要求同步 CLI 层可见覆盖，避免只改 importer 内部映射。
+
+2026-05-15 继续推进（PDF import parse-error JSON 文档）：
+
+- 已在 `docs/pdf_import_json_diagnostics.rst` 增加 `Command-line parse errors` 小节，
+  明确 `--json` 下参数校验失败使用 `stage:"parse"` 和 `message` 字段。
+- 已记录 `--min-table-continuation-confidence` 缺值、非法值、重复值三类当前 CLI 已覆盖的错误消息。
+- 已扩展 `pdf_import_docs_contract_test.ps1` 固定这些 parse-error 文档片段，避免 CLI 负路径 JSON 契约只留在测试里。
+
+2026-05-15 继续推进（PDF import 文档 JSON 示例解析契约）：
+
+- 已扩展 `pdf_import_docs_contract_test.ps1`，解析 `docs/pdf_import_json_diagnostics.rst` 中全部
+  `.. code-block:: json` 示例并逐个执行 `ConvertFrom-Json`。
+- 该契约确保后续补充 success、failure、continuation blocker 或 parse-error 示例时，文档里的 JSON 片段本身保持可解析。
+
+2026-05-15 继续推进（PDF CTest 标签契约）：
+
+- 已新增 `pdf_ctest_label_contract_test.ps1`，扫描生成后的 `CTestTestfile.cmake`，要求所有 `pdf`
+  标签测试同时带 `smoke` 标签。
+- 同一契约还固定 `pdf_cli_*` 测试必须带 `cli;smoke;pdf`，把 PDF CLI import/export 作为轻量烟测入口的约定落到回归。
+- 该测试自身注册为 `pdf;ctest;smoke`，并显式设置 `TIMEOUT 60`，继续遵守 PDF 后台测试调度边界。
+
+2026-05-15 继续推进（PDF import parse-error 输出安全）：
+
+- 已增强 `pdf_cli_import_tests.cpp` 的 parse-error 回归：`--min-table-continuation-confidence`
+  缺值、非法值、重复值三类错误在返回 `stage:"parse"` JSON 时，都必须不写目标 DOCX。
+- 已同步 `docs/pdf_import_json_diagnostics.rst`，明确 parse errors do not write the target DOCX，
+  并用 `pdf_import_docs_contract_test.ps1` 固定该用户可见契约。
+
+2026-05-15 继续推进（PDF import README 与安装入口契约）：
+
+- 已同步 `README.md` 和 `README.zh-CN.md` 的 PDF import 小节，明确总览、
+  JSON diagnostics、supported scope 三份拆页文档的入口，避免只在安装清单里隐式出现。
+- 已扩展 `pdf_import_docs_contract_test.ps1`，从 README 的 PDF import 小节范围内断言
+  `docs/pdf_import.rst`、`docs/pdf_import_json_diagnostics.rst` 和
+  `docs/pdf_import_scope.rst` 都可见。
+- 同一契约现在还会解析 CMake `install(FILES ... DESTINATION ...)` 块，要求三份 PDF import
+  用户文档安装到同一个 `${FEATHERDOC_INSTALL_DATADIR}/docs` 目录，而不是只做全文件弱匹配。
+
+2026-05-15 继续推进（PDF import CLI usage 契约）：
+
+- 已让 `cli_usage_tests` 在 PDF import 构建中同步定义 `FEATHERDOC_CLI_ENABLE_PDF_IMPORT`，
+  避免测试目标单独编译 `featherdoc_cli_usage.cpp` 时漏测真实 CLI 的 `import-pdf` usage。
+- 已扩展 `cli_usage_tests.cpp`，固定 `import-pdf` 命令行、`--import-table-candidates-as-tables`、
+  `--min-table-continuation-confidence <score>`、`table_continuation_diagnostics` 和
+  `min_table_continuation_confidence` 的帮助文本入口。
+- 已同步 `featherdoc_cli_usage.cpp`，说明设置 continuation confidence 后 JSON 会记录
+  `min_table_continuation_confidence`，让 CLI help 与 JSON diagnostics 文档保持一致。
+
+2026-05-15 继续推进（PDF import toctree 契约）：
+
+- 已扩展 `pdf_import_docs_contract_test.ps1`，解析 RST `.. toctree::` 条目并断言
+  `pdf_import`、`pdf_import_json_diagnostics` 和 `pdf_import_scope` 都在文档目录中。
+- 该检查比单纯文本包含更严格，避免后续正文仍引用页面但 Sphinx 导航目录漏挂拆页文档。
+
+2026-05-15 继续推进（PDF import scope 覆盖锚点契约）：
+
+- 已扩展 `pdf_import_docs_contract_test.ps1`，把 `docs/pdf_import_scope.rst` 的支持范围、
+  保守拆表边界和段落保守分类声明映射到代表性测试锚点。
+- 当前契约会检查纯文本导入、默认拒绝表格候选、表格 opt-in、key-value / borderless 表格、
+  跨页合并、repeated-header 各类匹配、subtotal 行、continuation diagnostics、列数 /
+  anchor / semantic header / confidence / intervening paragraph / 低页位拆表，以及两栏正文、
+  编号列表、短标签正文和 free-form column drift 保持段落的测试覆盖。
+- 这样后续若扩展或重写 scope 文档，必须同时保留可追溯的测试覆盖入口，避免范围说明脱离回归样本。
+
+2026-05-15 继续推进（PDF import 发布包内容入口契约）：
+
+- 已增强 `package_release_assets_safety_test.ps1` 的安装包桩文档，让 `pdf_import.rst`
+  同时引用 `pdf_import_json_diagnostics` 与 `pdf_import_scope`，更贴近真实拆页入口关系。
+- 发布包 safety 回归现在会在 staging 后确认三份 PDF import 文档不仅存在，还保留总览页到
+  JSON diagnostics / scope 页的入口、JSON parse-error 小节，以及 scope 页的支持范围标题。
 
 ## Owner
 

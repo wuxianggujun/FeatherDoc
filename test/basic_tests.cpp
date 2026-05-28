@@ -22552,6 +22552,21 @@ TEST_CASE("inspect paragraph runs returns run style and language metadata") {
     CHECK(styled_run.set_east_asia_language("zh-CN"));
     CHECK(styled_run.set_bidi_language("ar-SA"));
     CHECK(styled_run.set_rtl());
+    auto strike_run = styled_run.insert_run_after(
+        " strike", featherdoc::formatting_flag::strikethrough);
+    REQUIRE(strike_run.has_next());
+    REQUIRE(strike_run.strikethrough().has_value());
+    CHECK(*strike_run.strikethrough());
+    auto superscript_run = strike_run.insert_run_after(
+        " super", featherdoc::formatting_flag::superscript);
+    REQUIRE(superscript_run.has_next());
+    REQUIRE(superscript_run.superscript().has_value());
+    CHECK(*superscript_run.superscript());
+    auto subscript_run = superscript_run.insert_run_after(
+        " sub", featherdoc::formatting_flag::subscript);
+    REQUIRE(subscript_run.has_next());
+    REQUIRE(subscript_run.subscript().has_value());
+    CHECK(*subscript_run.subscript());
 
     auto plain_run = paragraph.add_run(" plain");
     REQUIRE(plain_run.has_next());
@@ -22560,7 +22575,7 @@ TEST_CASE("inspect paragraph runs returns run style and language metadata") {
     REQUIRE(second_paragraph.has_next());
 
     const auto first_runs = doc.inspect_paragraph_runs(0);
-    REQUIRE(first_runs.size() == 2U);
+    REQUIRE(first_runs.size() == 5U);
 
     CHECK_EQ(first_runs[0].index, 0U);
     REQUIRE(first_runs[0].style_id.has_value());
@@ -22580,11 +22595,37 @@ TEST_CASE("inspect paragraph runs returns run style and language metadata") {
     CHECK_EQ(first_runs[0].text, "styled");
 
     CHECK_EQ(first_runs[1].index, 1U);
-    CHECK_FALSE(first_runs[1].style_id.has_value());
-    CHECK_FALSE(first_runs[1].font_family.has_value());
-    CHECK_FALSE(first_runs[1].language.has_value());
-    CHECK_FALSE(first_runs[1].rtl.has_value());
-    CHECK_EQ(first_runs[1].text, " plain");
+    REQUIRE(first_runs[1].strikethrough.has_value());
+    CHECK(*first_runs[1].strikethrough);
+    CHECK_FALSE(first_runs[1].superscript.has_value());
+    CHECK_FALSE(first_runs[1].subscript.has_value());
+    CHECK_EQ(first_runs[1].text, " strike");
+
+    CHECK_EQ(first_runs[2].index, 2U);
+    CHECK_FALSE(first_runs[2].strikethrough.has_value());
+    REQUIRE(first_runs[2].superscript.has_value());
+    CHECK(*first_runs[2].superscript);
+    REQUIRE(first_runs[2].subscript.has_value());
+    CHECK_FALSE(*first_runs[2].subscript);
+    CHECK_EQ(first_runs[2].text, " super");
+
+    CHECK_EQ(first_runs[3].index, 3U);
+    CHECK_FALSE(first_runs[3].strikethrough.has_value());
+    REQUIRE(first_runs[3].superscript.has_value());
+    CHECK_FALSE(*first_runs[3].superscript);
+    REQUIRE(first_runs[3].subscript.has_value());
+    CHECK(*first_runs[3].subscript);
+    CHECK_EQ(first_runs[3].text, " sub");
+
+    CHECK_EQ(first_runs[4].index, 4U);
+    CHECK_FALSE(first_runs[4].style_id.has_value());
+    CHECK_FALSE(first_runs[4].font_family.has_value());
+    CHECK_FALSE(first_runs[4].language.has_value());
+    CHECK_FALSE(first_runs[4].rtl.has_value());
+    CHECK_FALSE(first_runs[4].strikethrough.has_value());
+    CHECK_FALSE(first_runs[4].superscript.has_value());
+    CHECK_FALSE(first_runs[4].subscript.has_value());
+    CHECK_EQ(first_runs[4].text, " plain");
 
     const auto second_run = doc.inspect_paragraph_run(1U, 0U);
     REQUIRE(second_run.has_value());
@@ -22600,7 +22641,7 @@ TEST_CASE("inspect paragraph runs returns run style and language metadata") {
     CHECK_FALSE(reopened.open());
 
     const auto reopened_runs = reopened.inspect_paragraph_runs(0U);
-    REQUIRE(reopened_runs.size() == 2U);
+    REQUIRE(reopened_runs.size() == 5U);
     REQUIRE(reopened_runs[0].style_id.has_value());
     CHECK_EQ(*reopened_runs[0].style_id, "Strong");
     REQUIRE(reopened_runs[0].language.has_value());
@@ -22611,7 +22652,13 @@ TEST_CASE("inspect paragraph runs returns run style and language metadata") {
     CHECK_EQ(*reopened_runs[0].bidi_language, "ar-SA");
     REQUIRE(reopened_runs[0].rtl.has_value());
     CHECK(*reopened_runs[0].rtl);
-    CHECK_EQ(reopened_runs[1].text, " plain");
+    REQUIRE(reopened_runs[1].strikethrough.has_value());
+    CHECK(*reopened_runs[1].strikethrough);
+    REQUIRE(reopened_runs[2].superscript.has_value());
+    CHECK(*reopened_runs[2].superscript);
+    REQUIRE(reopened_runs[3].subscript.has_value());
+    CHECK(*reopened_runs[3].subscript);
+    CHECK_EQ(reopened_runs[4].text, " plain");
 
     fs::remove(target);
 }
@@ -26697,6 +26744,8 @@ TEST_CASE("rebase_character_style_based_on preserves resolved inherited values w
     base_a.based_on = std::string{"DefaultParagraphFont"};
     base_a.run_font_family = std::string{"Segoe UI"};
     base_a.run_east_asia_language = std::string{"zh-CN"};
+    base_a.run_strikethrough = true;
+    base_a.run_superscript = true;
     base_a.run_rtl = true;
     CHECK(doc.ensure_character_style("BaseA", base_a));
 
@@ -26705,6 +26754,8 @@ TEST_CASE("rebase_character_style_based_on preserves resolved inherited values w
     base_b.based_on = std::string{"DefaultParagraphFont"};
     base_b.run_font_family = std::string{"Arial"};
     base_b.run_east_asia_language = std::string{"ja-JP"};
+    base_b.run_strikethrough = false;
+    base_b.run_subscript = true;
     base_b.run_rtl = false;
     CHECK(doc.ensure_character_style("BaseB", base_b));
 
@@ -26720,6 +26771,14 @@ TEST_CASE("rebase_character_style_based_on preserves resolved inherited values w
     CHECK_EQ(*before->run_font_family.value, "Segoe UI");
     REQUIRE(before->run_font_family.source_style_id.has_value());
     CHECK_EQ(*before->run_font_family.source_style_id, "BaseA");
+    REQUIRE(before->run_strikethrough.value.has_value());
+    CHECK(*before->run_strikethrough.value);
+    REQUIRE(before->run_strikethrough.source_style_id.has_value());
+    CHECK_EQ(*before->run_strikethrough.source_style_id, "BaseA");
+    REQUIRE(before->run_superscript.value.has_value());
+    CHECK(*before->run_superscript.value);
+    REQUIRE(before->run_superscript.source_style_id.has_value());
+    CHECK_EQ(*before->run_superscript.source_style_id, "BaseA");
 
     CHECK(doc.rebase_character_style_based_on("ChildStyle", "BaseB"));
 
@@ -26744,6 +26803,16 @@ TEST_CASE("rebase_character_style_based_on preserves resolved inherited values w
     REQUIRE(after->run_language.source_style_id.has_value());
     CHECK_EQ(*after->run_language.value, "en-US");
     CHECK_EQ(*after->run_language.source_style_id, "ChildStyle");
+    REQUIRE(after->run_strikethrough.value.has_value());
+    REQUIRE(after->run_strikethrough.source_style_id.has_value());
+    CHECK(*after->run_strikethrough.value);
+    CHECK_EQ(*after->run_strikethrough.source_style_id, "ChildStyle");
+    REQUIRE(after->run_superscript.value.has_value());
+    REQUIRE(after->run_superscript.source_style_id.has_value());
+    CHECK(*after->run_superscript.value);
+    CHECK_EQ(*after->run_superscript.source_style_id, "ChildStyle");
+    REQUIRE(after->run_subscript.value.has_value());
+    CHECK_FALSE(*after->run_subscript.value);
     REQUIRE(after->run_rtl.value.has_value());
     REQUIRE(after->run_rtl.source_style_id.has_value());
     CHECK(*after->run_rtl.value);
@@ -26761,6 +26830,10 @@ TEST_CASE("rebase_character_style_based_on preserves resolved inherited values w
     REQUIRE(reopened_after.has_value());
     REQUIRE(reopened_after->run_font_family.source_style_id.has_value());
     CHECK_EQ(*reopened_after->run_font_family.source_style_id, "ChildStyle");
+    REQUIRE(reopened_after->run_strikethrough.source_style_id.has_value());
+    CHECK_EQ(*reopened_after->run_strikethrough.source_style_id, "ChildStyle");
+    REQUIRE(reopened_after->run_superscript.source_style_id.has_value());
+    CHECK_EQ(*reopened_after->run_superscript.source_style_id, "ChildStyle");
 
     fs::remove(target);
 }
@@ -26780,6 +26853,7 @@ TEST_CASE("paragraph style property mutators update metadata without clearing di
     definition.based_on = std::string{"Normal"};
     definition.next_style = std::string{"WorkingStyle"};
     definition.run_font_family = std::string{"Consolas"};
+    definition.run_strikethrough = true;
     CHECK(doc.ensure_paragraph_style("WorkingStyle", definition));
 
     REQUIRE(doc.paragraph_style_next_style("WorkingStyle").has_value());
@@ -26787,6 +26861,8 @@ TEST_CASE("paragraph style property mutators update metadata without clearing di
     CHECK_FALSE(doc.paragraph_style_outline_level("WorkingStyle").has_value());
     REQUIRE(doc.style_run_font_family("WorkingStyle").has_value());
     CHECK_EQ(*doc.style_run_font_family("WorkingStyle"), "Consolas");
+    REQUIRE(doc.style_run_strikethrough("WorkingStyle").has_value());
+    CHECK(*doc.style_run_strikethrough("WorkingStyle"));
 
     CHECK(doc.set_paragraph_style_based_on("WorkingStyle", "Heading1"));
     CHECK(doc.set_paragraph_style_next_style("WorkingStyle", "BodyText"));
@@ -26802,6 +26878,8 @@ TEST_CASE("paragraph style property mutators update metadata without clearing di
     CHECK_EQ(*doc.paragraph_style_outline_level("WorkingStyle"), 2U);
     REQUIRE(doc.style_run_font_family("WorkingStyle").has_value());
     CHECK_EQ(*doc.style_run_font_family("WorkingStyle"), "Consolas");
+    REQUIRE(doc.style_run_strikethrough("WorkingStyle").has_value());
+    CHECK(*doc.style_run_strikethrough("WorkingStyle"));
 
     CHECK(doc.clear_paragraph_style_based_on("WorkingStyle"));
     CHECK(doc.clear_paragraph_style_next_style("WorkingStyle"));
@@ -26826,6 +26904,8 @@ TEST_CASE("paragraph style property mutators update metadata without clearing di
     CHECK_FALSE(reopened.paragraph_style_outline_level("WorkingStyle").has_value());
     REQUIRE(reopened.style_run_font_family("WorkingStyle").has_value());
     CHECK_EQ(*reopened.style_run_font_family("WorkingStyle"), "Consolas");
+    REQUIRE(reopened.style_run_strikethrough("WorkingStyle").has_value());
+    CHECK(*reopened.style_run_strikethrough("WorkingStyle"));
 
     fs::remove(target);
 }

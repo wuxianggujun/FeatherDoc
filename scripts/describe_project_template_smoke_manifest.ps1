@@ -193,11 +193,21 @@ foreach ($entry in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Na
 }
 
 $report = [ordered]@{
+    schema = "featherdoc.project_template_smoke_manifest_description.v1"
     generated_at = (Get-Date).ToString("s")
     manifest_path = $resolvedManifestPath
+    manifest_path_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedManifestPath
     summary_json = if ($summary) { $resolvedSummaryPath } else { "" }
+    summary_json_display = if ($summary) { Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath } else { "" }
+    latest_summary_available = ($null -ne $summary)
     build_dir = $resolvedBuildDir
     entry_count = $entries.Count
+    registered_entry_count = $entries.Count
+    schema_validation_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.schema_validation_enabled }).Count
+    schema_baseline_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.schema_baseline_enabled }).Count
+    visual_smoke_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.visual_smoke_enabled }).Count
+    latest_available_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.latest_available }).Count
+    latest_missing_entry_count = @($entries.ToArray() | Where-Object { -not [bool]$_.latest_available }).Count
     latest_overall_status = if ($summary) { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summary -Name "overall_status" } else { "" }
     latest_visual_verdict = if ($summary) { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summary -Name "visual_verdict" } else { "" }
     latest_passed = if ($summary) { [bool]$summary.passed } else { $null }
