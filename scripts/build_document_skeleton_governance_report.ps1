@@ -235,13 +235,21 @@ function New-ActionItem {
     param(
         [string]$Id,
         [string]$Title,
-        [string]$Command
+        [string]$Command,
+        [string]$Category = "remediation",
+        [string]$Severity = "warning",
+        [bool]$ReleaseBlocking = $true,
+        [bool]$Optional = $false
     )
 
     return [ordered]@{
         id = $Id
         title = $Title
         command = $Command
+        category = $Category
+        severity = $Severity
+        release_blocking = $ReleaseBlocking
+        optional = $Optional
     }
 }
 
@@ -459,11 +467,19 @@ if ($styleMergeSuggestionCount -gt 0) {
 $actionItems += New-ActionItem `
     -Id "promote_numbering_catalog_exemplar" `
     -Title "Review and promote the generated exemplar numbering catalog" `
-    -Command ("featherdoc_cli check-numbering-catalog " + (ConvertTo-CommandLine -Arguments @($inputForCommand)) + " --catalog-file " + (ConvertTo-CommandLine -Arguments @($catalogForCommand)) + " --json")
+    -Command ("featherdoc_cli check-numbering-catalog " + (ConvertTo-CommandLine -Arguments @($inputForCommand)) + " --catalog-file " + (ConvertTo-CommandLine -Arguments @($catalogForCommand)) + " --json") `
+    -Category "release_checklist" `
+    -Severity "info" `
+    -ReleaseBlocking $false `
+    -Optional $true
 $actionItems += New-ActionItem `
     -Id "register_numbering_catalog_baseline" `
     -Title "Register the exemplar catalog in the numbering catalog baseline flow" `
-    -Command ("pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx " + (ConvertTo-CommandLine -Arguments @($inputForCommand)) + " -CatalogFile " + (ConvertTo-CommandLine -Arguments @($catalogForCommand)) + " -GeneratedCatalogOutput output/document-skeleton-governance/generated.numbering-catalog.json -SkipBuild")
+    -Command ("pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx " + (ConvertTo-CommandLine -Arguments @($inputForCommand)) + " -CatalogFile " + (ConvertTo-CommandLine -Arguments @($catalogForCommand)) + " -GeneratedCatalogOutput output/document-skeleton-governance/generated.numbering-catalog.json -SkipBuild") `
+    -Category "release_checklist" `
+    -Severity "info" `
+    -ReleaseBlocking $false `
+    -Optional $true
 
 $status = if ($commandFailureCount -gt 0) {
     "failed"

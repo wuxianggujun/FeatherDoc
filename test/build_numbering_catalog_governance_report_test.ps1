@@ -98,7 +98,22 @@ function New-SkeletonRollup {
                 }
             )
             release_blockers = @()
-            action_items = @()
+            action_items = @(
+                [ordered]@{
+                    id = "promote_numbering_catalog_exemplar"
+                    document_name = "invoice.docx"
+                    action = "promote_numbering_catalog_exemplar"
+                    title = "Review and promote the generated exemplar numbering catalog"
+                    command = "featherdoc_cli check-numbering-catalog samples/invoice.docx --json"
+                },
+                [ordered]@{
+                    id = "register_numbering_catalog_baseline"
+                    document_name = "invoice.docx"
+                    action = "register_numbering_catalog_baseline"
+                    title = "Register the exemplar catalog in the numbering catalog baseline flow"
+                    command = "pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx samples/invoice.docx"
+                }
+            )
         }
     }
 
@@ -476,6 +491,15 @@ if (Test-Scenario -Name "clean") {
         -Message "Clean evidence should align the single catalog exemplar with its baseline."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 0 `
         -Message "Clean evidence should not expose blockers."
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 0 `
+        -Message "Clean release checklist actions should not count as actionable release handoff items."
+    Assert-Equal -Actual ([int]$summary.informational_action_item_count) -Expected 2 `
+        -Message "Clean release checklist actions should remain as informational handoff evidence."
+    $informationalActionText = ($summary.informational_action_items | ForEach-Object { "$($_.id):$($_.category):$($_.release_blocking):$($_.optional)" }) -join "`n"
+    Assert-ContainsText -Text $informationalActionText -ExpectedText "promote_numbering_catalog_exemplar:release_checklist:False:True" `
+        -Message "Promote exemplar checklist action should be non-blocking informational evidence."
+    Assert-ContainsText -Text $informationalActionText -ExpectedText "register_numbering_catalog_baseline:release_checklist:False:True" `
+        -Message "Register baseline checklist action should be non-blocking informational evidence."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
         -Message "Clean evidence should not warn."
 }

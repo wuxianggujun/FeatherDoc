@@ -211,6 +211,55 @@ function Get-JsonBool {
     return $DefaultValue
 }
 
+function Test-InformationalActionItem {
+    param($Item)
+
+    $category = Get-JsonString -Object $Item -Name "category"
+    if ($category -in @("release_checklist", "manual_release_checklist", "informational")) {
+        return $true
+    }
+
+    if (Get-JsonBool -Object $Item -Name "optional") {
+        return $true
+    }
+
+    $releaseBlockingProperty = Get-JsonProperty -Object $Item -Name "release_blocking"
+    if ($null -ne $releaseBlockingProperty -and -not (Get-JsonBool -Object $Item -Name "release_blocking" -DefaultValue $true)) {
+        return $true
+    }
+
+    $id = Get-JsonString -Object $Item -Name "id"
+    $action = Get-JsonString -Object $Item -Name "action"
+    return ($id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline") -or
+        $action -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline"))
+}
+
+function Copy-ActionItemWithReleaseChecklistDefaults {
+    param($Item)
+
+    $copy = [ordered]@{}
+    if ($Item -is [System.Collections.IDictionary]) {
+        foreach ($key in @($Item.Keys)) {
+            $copy[[string]$key] = $Item[$key]
+        }
+    } else {
+        foreach ($property in @($Item.PSObject.Properties)) {
+            $copy[$property.Name] = $property.Value
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $copy -Name "category"))) {
+        $copy["category"] = "release_checklist"
+    }
+    if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $copy -Name "severity"))) {
+        $copy["severity"] = "info"
+    }
+    $copy["release_blocking"] = $false
+    $copy["optional"] = $true
+
+    return $copy
+}
+
 function Get-JsonArray {
     param($Object, [string]$Name)
 
@@ -1272,6 +1321,7 @@ function New-ReportMarkdown {
     $lines.Add("- source_failure_count: ``$($Summary.source_failure_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
+    $lines.Add("- Informational action items: ``$($Summary.informational_action_item_count)``") | Out-Null
     $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null
     $lines.Add("") | Out-Null
 
@@ -1524,7 +1574,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.composite_id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
+            $lines.Add("- ``$($item.composite_id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
@@ -1545,6 +1595,35 @@ function New-ReportMarkdown {
         }
     }
     $lines.Add("") | Out-Null
+
+    $lines.Add("## Informational Action Items") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.informational_action_items).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.informational_action_items)) {
+            $lines.Add("- ``$($item.composite_id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
+            Add-TraceabilityMarkdownLines -Lines $lines -Item $item
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.source_json_display)) {
+                $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
+                $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_hint)) {
+                $lines.Add("  - repair_hint: $($item.repair_hint)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
+                $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
+            }
+            Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $item
+        }
+    }
+    $lines.Add("") | Out-Null
+
     $lines.Add("## Warnings") | Out-Null
     $lines.Add("") | Out-Null
     if (@($Summary.warnings).Count -eq 0) {
@@ -1596,9 +1675,10 @@ Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($markdownPath))
 $inputPaths = @(Get-InputJsonPaths -RepoRoot $repoRoot -ExplicitPaths $InputJson -Roots $InputRoot)
 Write-Step "Reading $($inputPaths.Count) report summary file(s)"
 
-    $sourceReports = New-Object 'System.Collections.Generic.List[object]'
+$sourceReports = New-Object 'System.Collections.Generic.List[object]'
 $blockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
+$informationalActionItems = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
 $governanceMetrics = New-Object 'System.Collections.Generic.List[object]'
 $sourceIndex = 0
@@ -1655,6 +1735,7 @@ foreach ($path in @($inputPaths)) {
         if ($sourceActions.Count -eq 0) {
             $sourceActions = @(Get-JsonArray -Object $summaryObject -Name "next_steps")
         }
+        $sourceInformationalActions = @(Get-JsonArray -Object $summaryObject -Name "informational_action_items")
         $sourceWarnings = @(Get-JsonArray -Object $summaryObject -Name "warnings")
 
         $blockerIndex = 0
@@ -1750,8 +1831,17 @@ foreach ($path in @($inputPaths)) {
         }
 
         $actionIndex = 0
-        foreach ($item in $sourceActions) {
+        $sourceActionsToNormalize = @(
+            foreach ($sourceAction in @($sourceActions)) {
+                [pscustomobject]@{ Item = $sourceAction; ForceInformational = $false }
+            }
+            foreach ($sourceAction in @($sourceInformationalActions)) {
+                [pscustomobject]@{ Item = $sourceAction; ForceInformational = $true }
+            }
+        )
+        foreach ($sourceAction in $sourceActionsToNormalize) {
             $actionIndex++
+            $item = $sourceAction.Item
             $id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
             $sourceJson = Get-JsonString -Object $item -Name "source_json"
             $sourceJsonDisplay = Get-JsonString -Object $item -Name "source_json_display"
@@ -1790,6 +1880,10 @@ foreach ($path in @($inputPaths)) {
                 title = Get-JsonString -Object $item -Name "title"
                 command = Get-JsonString -Object $item -Name "command"
                 open_command = Get-FirstJsonString -Object $item -Names @("open_command", "command")
+                category = Get-JsonString -Object $item -Name "category"
+                severity = Get-JsonString -Object $item -Name "severity"
+                release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
+                optional = Get-JsonBool -Object $item -Name "optional"
                 input_docx = Get-JsonString -Object $item -Name "input_docx"
                 input_docx_display = Get-JsonString -Object $item -Name "input_docx_display"
                 schema_target = Get-JsonString -Object $item -Name "schema_target"
@@ -1837,7 +1931,11 @@ foreach ($path in @($inputPaths)) {
                 -DefaultSourceJson ([string]$rollupActionItem.source_json) `
                 -DefaultSourceJsonDisplay ([string]$rollupActionItem.source_json_display) `
                 -RepoRoot $repoRoot
-            $actionItems.Add($rollupActionItem) | Out-Null
+            if ([bool]$sourceAction.ForceInformational -or (Test-InformationalActionItem -Item $rollupActionItem)) {
+                $informationalActionItems.Add((Copy-ActionItemWithReleaseChecklistDefaults -Item $rollupActionItem)) | Out-Null
+            } else {
+                $actionItems.Add($rollupActionItem) | Out-Null
+            }
         }
 
         $warningIndex = 0
@@ -1975,6 +2073,9 @@ $summary = [ordered]@{
     action_item_count = $actionItems.Count
     action_items = @($actionItems.ToArray())
     action_item_summary = @(Add-SummaryGroup -Items $actionItems.ToArray() -PropertyName "action" -OutputName "action")
+    informational_action_item_count = $informationalActionItems.Count
+    informational_action_items = @($informationalActionItems.ToArray())
+    informational_action_item_summary = @(Add-SummaryGroup -Items $informationalActionItems.ToArray() -PropertyName "action" -OutputName "action")
     warning_count = $warnings.Count
     warnings = @($warnings.ToArray())
 }

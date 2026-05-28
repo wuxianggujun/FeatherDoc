@@ -127,6 +127,17 @@ function Get-JsonInt {
     return $DefaultValue
 }
 
+function Get-JsonBool {
+    param($Object, [string]$Name, [bool]$DefaultValue = $false)
+
+    $value = Get-JsonProperty -Object $Object -Name $Name
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        return $DefaultValue
+    }
+    if ($value -is [bool]) { return [bool]$value }
+    return [string]$value -in @("true", "True", "1", "yes", "Yes")
+}
+
 function Get-JsonArray {
     param($Object, [string]$Name)
 
@@ -535,6 +546,10 @@ foreach ($path in @($inputPaths)) {
                     action = Get-JsonString -Object $item -Name "action"
                     title = Get-JsonString -Object $item -Name "title"
                     command = Get-JsonString -Object $item -Name "command"
+                    category = Get-JsonString -Object $item -Name "category"
+                    severity = Get-JsonString -Object $item -Name "severity"
+                    release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
+                    optional = Get-JsonBool -Object $item -Name "optional"
                 }) | Out-Null
             }
 

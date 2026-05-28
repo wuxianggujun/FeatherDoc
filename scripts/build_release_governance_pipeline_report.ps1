@@ -247,6 +247,10 @@ function New-StageActionItems {
                 title = Get-JsonString -Object $item -Name "title"
                 command = $command
                 open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue $command
+                category = Get-JsonString -Object $item -Name "category"
+                severity = Get-JsonString -Object $item -Name "severity"
+                release_blocking = Get-JsonString -Object $item -Name "release_blocking"
+                optional = Get-JsonString -Object $item -Name "optional"
                 audit_command = Get-JsonString -Object $item -Name "audit_command"
                 review_command = Get-JsonString -Object $item -Name "review_command"
                 source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue $StageSchema
@@ -392,6 +396,14 @@ function New-StageEntry {
             -SummaryJson $SummaryJson `
             -SummaryJsonDisplay $summaryJsonDisplay `
             -Items @(Get-JsonArray -Object $Summary -Name "action_items"))
+    $informationalActionItems = @(New-StageActionItems `
+            -RepoRoot $RepoRoot `
+            -StageId $Id `
+            -StageTitle $Title `
+            -StageSchema $stageSchema `
+            -SummaryJson $SummaryJson `
+            -SummaryJsonDisplay $summaryJsonDisplay `
+            -Items @(Get-JsonArray -Object $Summary -Name "informational_action_items"))
     $warnings = @(New-StageWarningItems `
             -RepoRoot $RepoRoot `
             -StageId $Id `
@@ -418,6 +430,8 @@ function New-StageEntry {
         release_blockers = @($releaseBlockers)
         action_item_count = Get-JsonInt -Object $Summary -Name "action_item_count"
         action_items = @($actionItems)
+        informational_action_item_count = Get-JsonInt -Object $Summary -Name "informational_action_item_count"
+        informational_action_items = @($informationalActionItems)
         warning_count = Get-JsonInt -Object $Summary -Name "warning_count"
         warnings = @($warnings)
         missing_report_count = Get-JsonInt -Object $Summary -Name "missing_report_count"
@@ -499,7 +513,10 @@ function Add-StageGovernanceMarkdown {
     )
 
     foreach ($item in @($Items)) {
-        $Lines.Add("  - $Label ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+        $category = Get-JsonString -Object $item -Name "category"
+        $releaseBlocking = Get-JsonString -Object $item -Name "release_blocking"
+        $optional = Get-JsonString -Object $item -Name "optional"
+        $Lines.Add("  - $Label ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$category`` release_blocking=``$releaseBlocking`` optional=``$optional`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string](Get-JsonProperty -Object $item -Name "message"))) {
             $Lines.Add("    - message: ``$($item.message)``") | Out-Null
         }
@@ -509,7 +526,7 @@ function Add-StageGovernanceMarkdown {
                 $Lines.Add("    - ${repairFieldName}: ``$repairFieldValue``") | Out-Null
             }
         }
-        if ($Label -eq "action") {
+        if ($Label -in @("action", "informational_action")) {
             foreach ($commandName in @("open_command", "audit_command", "review_command")) {
                 $commandValue = Get-JsonString -Object $item -Name $commandName
                 if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
@@ -533,12 +550,13 @@ function New-ReportMarkdown {
     $lines.Add("- Missing reports: ``$($Summary.missing_report_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
+    $lines.Add("- Informational action items: ``$($Summary.informational_action_item_count)``") | Out-Null
     $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("## Stages") | Out-Null
     $lines.Add("") | Out-Null
     foreach ($stage in @($Summary.stages)) {
-        $lines.Add("- ``$($stage.id)``: status=``$($stage.status)`` blockers=``$($stage.release_blocker_count)`` actions=``$($stage.action_item_count)`` warnings=``$($stage.warning_count)`` missing_reports=``$($stage.missing_report_count)`` failed_reports=``$($stage.failed_report_count)`` source_failures=``$($stage.source_failure_count)`` source_failure_count=``$($stage.source_failure_count)``") | Out-Null
+        $lines.Add("- ``$($stage.id)``: status=``$($stage.status)`` blockers=``$($stage.release_blocker_count)`` actions=``$($stage.action_item_count)`` informational_actions=``$($stage.informational_action_item_count)`` warnings=``$($stage.warning_count)`` missing_reports=``$($stage.missing_report_count)`` failed_reports=``$($stage.failed_report_count)`` source_failures=``$($stage.source_failure_count)`` source_failure_count=``$($stage.source_failure_count)``") | Out-Null
         $lines.Add("  - summary: ``$($stage.summary_json_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string]$stage.error)) {
             $lines.Add("  - error: ``$($stage.error)``") | Out-Null
@@ -546,6 +564,7 @@ function New-ReportMarkdown {
         Add-StageGovernanceMarkdown -Lines $lines -Items @($stage.release_blockers) -Label "blocker"
         Add-StageGovernanceMarkdown -Lines $lines -Items @($stage.warnings) -Label "warning"
         Add-StageGovernanceMarkdown -Lines $lines -Items @($stage.action_items) -Label "action"
+        Add-StageGovernanceMarkdown -Lines $lines -Items @($stage.informational_action_items) -Label "informational_action"
     }
     return @($lines)
 }
@@ -695,18 +714,22 @@ $completedStageCount = @($stageItems | Where-Object {
 $missingReportCount = 0
 $releaseBlockerCount = 0
 $actionItemCount = 0
+$informationalActionItemCount = 0
 $warningCount = 0
 $releaseBlockers = @()
 $actionItems = @()
+$informationalActionItems = @()
 $warnings = @()
 $governanceDetailSource = "stage_aggregate_fallback"
 foreach ($stage in $stageItems) {
     $missingReportCount += [int]$stage.missing_report_count
     $releaseBlockerCount += [int]$stage.release_blocker_count
     $actionItemCount += [int]$stage.action_item_count
+    $informationalActionItemCount += [int]$stage.informational_action_item_count
     $warningCount += [int]$stage.warning_count
     $releaseBlockers += @($stage.release_blockers)
     $actionItems += @($stage.action_items)
+    $informationalActionItems += @($stage.informational_action_items)
     $warnings += @($stage.warnings)
 }
 $finalRollup = @($stageItems | Where-Object { [string]$_.id -eq "release_blocker_rollup" } | Select-Object -First 1)
@@ -715,9 +738,11 @@ if ($finalRollup.Count -gt 0 -and
     [int]$finalRollup[0].exit_code -eq 0) {
     $releaseBlockerCount = [int]$finalRollup[0].release_blocker_count
     $actionItemCount = [int]$finalRollup[0].action_item_count
+    $informationalActionItemCount = [int]$finalRollup[0].informational_action_item_count
     $warningCount = [int]$finalRollup[0].warning_count
     $releaseBlockers = @($finalRollup[0].release_blockers)
     $actionItems = @($finalRollup[0].action_items)
+    $informationalActionItems = @($finalRollup[0].informational_action_items)
     $warnings = @($finalRollup[0].warnings)
     $governanceDetailSource = "release_blocker_rollup"
 }
@@ -755,6 +780,8 @@ $summary = [ordered]@{
     release_blockers = $releaseBlockers
     action_item_count = $actionItemCount
     action_items = $actionItems
+    informational_action_item_count = $informationalActionItemCount
+    informational_action_items = $informationalActionItems
     warning_count = $warningCount
     warnings = $warnings
     stages = $stageItems

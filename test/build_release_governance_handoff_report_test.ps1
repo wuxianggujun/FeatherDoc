@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "missing", "failed_report", "fail_on_missing", "explicit_input", "explicit_only", "include_rollup")]
+    [ValidateSet("all", "aggregate", "missing", "failed_report", "fail_on_missing", "explicit_input", "explicit_only", "include_rollup", "informational_actions")]
     [string]$Scenario = "all"
 )
 
@@ -1706,6 +1706,82 @@ if (Test-Scenario -Name "explicit_only") {
         -Message "Explicit-only handoff Markdown should show that no default reports were expected."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF visual gate evidence source reports: ``1``" `
         -Message "Explicit-only handoff Markdown should expose PDF visual evidence from the explicit release candidate."
+}
+
+if (Test-Scenario -Name "informational_actions") {
+    $inputRoot = Join-Path $resolvedWorkingDir "informational-actions-input"
+    $explicitRoot = Join-Path $resolvedWorkingDir "informational-actions-explicit"
+    $outputDir = Join-Path $resolvedWorkingDir "informational-actions-report"
+    $numberingSummaryPath = Join-Path $explicitRoot "numbering-summary.json"
+    New-Item -ItemType Directory -Path $inputRoot -Force | Out-Null
+    Write-JsonFile -Path $numberingSummaryPath -Value ([ordered]@{
+        schema = "featherdoc.numbering_catalog_governance_report.v1"
+        status = "clean"
+        release_ready = $true
+        release_blocker_count = 0
+        release_blockers = @()
+        action_item_count = 0
+        action_items = @()
+        informational_action_item_count = 2
+        informational_action_items = @(
+            [ordered]@{
+                id = "promote_numbering_catalog_exemplar"
+                action = "promote_numbering_catalog_exemplar"
+                title = "Review and promote the generated exemplar numbering catalog"
+                category = "release_checklist"
+                severity = "info"
+                release_blocking = $false
+                optional = $true
+                source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                source_report = "output/document-skeleton-governance-rollup/summary.json"
+                source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                open_command = "featherdoc_cli check-numbering-catalog samples/invoice.docx --json"
+            },
+            [ordered]@{
+                id = "register_numbering_catalog_baseline"
+                action = "register_numbering_catalog_baseline"
+                title = "Register the exemplar catalog in the numbering catalog baseline flow"
+                category = "release_checklist"
+                severity = "info"
+                release_blocking = $false
+                optional = $true
+                source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                source_report = "output/document-skeleton-governance-rollup/summary.json"
+                source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx samples/invoice.docx"
+            }
+        )
+        warning_count = 0
+        warnings = @()
+    })
+
+    $result = Invoke-HandoffScript -Arguments @(
+        "-InputRoot", $inputRoot,
+        "-InputJson", $numberingSummaryPath,
+        "-OutputDir", $outputDir,
+        "-ExpectedReportProfile", "explicit-only",
+        "-IncludeReleaseBlockerRollup"
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Handoff should accept informational release checklist actions without creating actionable release items. Output: $($result.Text)"
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 0 `
+        -Message "Handoff should not count informational release checklist entries as actionable items."
+    Assert-Equal -Actual ([int]$summary.informational_action_item_count) -Expected 2 `
+        -Message "Handoff should preserve informational release checklist entries."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -Expected 0 `
+        -Message "Nested rollup should not count informational release checklist entries as actionable items."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.informational_action_item_count) -Expected 2 `
+        -Message "Nested rollup should preserve informational release checklist entries."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Informational Action Items" `
+        -Message "Handoff Markdown should expose informational action items separately."
+    Assert-ContainsText -Text $markdown -ExpectedText "release_blocking=``False`` optional=``True``" `
+        -Message "Handoff Markdown should mark informational actions as non-blocking optional checklist entries."
 }
 
 Write-Host "Release governance handoff report regression passed."

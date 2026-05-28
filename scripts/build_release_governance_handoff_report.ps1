@@ -170,6 +170,55 @@ function Get-JsonInt {
     return $DefaultValue
 }
 
+function Test-InformationalActionItem {
+    param($Item)
+
+    $category = Get-JsonString -Object $Item -Name "category"
+    if ($category -in @("release_checklist", "manual_release_checklist", "informational")) {
+        return $true
+    }
+
+    if (Get-JsonBool -Object $Item -Name "optional") {
+        return $true
+    }
+
+    $releaseBlockingProperty = Get-JsonProperty -Object $Item -Name "release_blocking"
+    if ($null -ne $releaseBlockingProperty -and -not (Get-JsonBool -Object $Item -Name "release_blocking" -DefaultValue $true)) {
+        return $true
+    }
+
+    $id = Get-JsonString -Object $Item -Name "id"
+    $action = Get-JsonString -Object $Item -Name "action"
+    return ($id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline") -or
+        $action -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline"))
+}
+
+function Copy-ActionItemWithReleaseChecklistDefaults {
+    param($Item)
+
+    $copy = [ordered]@{}
+    if ($Item -is [System.Collections.IDictionary]) {
+        foreach ($key in @($Item.Keys)) {
+            $copy[[string]$key] = $Item[$key]
+        }
+    } else {
+        foreach ($property in @($Item.PSObject.Properties)) {
+            $copy[$property.Name] = $property.Value
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $copy -Name "category"))) {
+        $copy["category"] = "release_checklist"
+    }
+    if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $copy -Name "severity"))) {
+        $copy["severity"] = "info"
+    }
+    $copy["release_blocking"] = $false
+    $copy["optional"] = $true
+
+    return $copy
+}
+
 function Get-JsonArray {
     param($Object, [string]$Name)
 
@@ -712,6 +761,8 @@ function New-ReportEntry {
         report_markdown_display = if ($null -eq $Json) { "" } else { Get-JsonString -Object $Json -Name "report_markdown_display" }
         release_blockers = if ($null -eq $Json) { @() } else { @(Get-JsonArray -Object $Json -Name "release_blockers") }
         action_items = if ($null -eq $Json) { @() } else { @(Get-JsonArray -Object $Json -Name "action_items") }
+        informational_action_item_count = if ($null -eq $Json) { 0 } else { Get-JsonInt -Object $Json -Name "informational_action_item_count" }
+        informational_action_items = if ($null -eq $Json) { @() } else { @(Get-JsonArray -Object $Json -Name "informational_action_items") }
         warnings = if ($null -eq $Json) { @() } else { @(Get-JsonArray -Object $Json -Name "warnings") }
         governance_metric_count = @($metrics).Count
         governance_metrics = @($metrics)
@@ -804,8 +855,10 @@ function Add-NormalizedBlockers {
 function Add-NormalizedActions {
     param(
         [System.Collections.Generic.List[object]]$Collection,
+        [System.Collections.Generic.List[object]]$InformationalCollection,
         [object]$Report,
-        [AllowNull()]$ProjectTemplateOnboardingGovernanceContract
+        [AllowNull()]$ProjectTemplateOnboardingGovernanceContract,
+        [switch]$ForceInformational
     )
 
     $isProjectTemplateDeliveryReadiness = Test-ProjectTemplateDeliveryReadinessReportEntry -Report $Report
@@ -820,7 +873,8 @@ function Add-NormalizedActions {
         ""
     }
 
-    foreach ($item in @($Report.action_items)) {
+    $sourceItems = if ($ForceInformational) { @($Report.informational_action_items) } else { @($Report.action_items) }
+    foreach ($item in @($sourceItems)) {
         $sourceReportDisplay = Get-JsonString -Object $item -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
         $sourceReport = Get-JsonString -Object $item -Name "source_report" -DefaultValue ([string]$Report.expected_summary)
         $sourceJsonDisplay = Get-JsonString -Object $item -Name "source_json_display" -DefaultValue $sourceReportDisplay
@@ -857,7 +911,7 @@ function Add-NormalizedActions {
         if ([string]::IsNullOrWhiteSpace($action)) {
             $action = $actionId
         }
-        $Collection.Add([ordered]@{
+        $normalizedAction = [ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
             id = $actionId
@@ -868,6 +922,10 @@ function Add-NormalizedActions {
             title = Get-JsonString -Object $item -Name "title"
             command = Get-JsonString -Object $item -Name "command"
             open_command = $openCommand
+            category = Get-JsonString -Object $item -Name "category"
+            severity = Get-JsonString -Object $item -Name "severity"
+            release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
+            optional = Get-JsonBool -Object $item -Name "optional"
             source_schema = $sourceSchema
             source_report = $sourceReport
             source_report_display = $sourceReportDisplay
@@ -888,7 +946,12 @@ function Add-NormalizedActions {
             repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
             repair_hint = Get-JsonString -Object $item -Name "repair_hint"
             command_template = Get-JsonString -Object $item -Name "command_template"
-        }) | Out-Null
+        }
+        if ($ForceInformational -or (Test-InformationalActionItem -Item $normalizedAction)) {
+            $InformationalCollection.Add((Copy-ActionItemWithReleaseChecklistDefaults -Item $normalizedAction)) | Out-Null
+        } else {
+            $Collection.Add($normalizedAction) | Out-Null
+        }
     }
 }
 
@@ -1068,6 +1131,7 @@ function New-ReportMarkdown {
     $lines.Add("- Failed reports: ``$($Summary.failed_report_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
+    $lines.Add("- Informational action items: ``$($Summary.informational_action_item_count)``") | Out-Null
     $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null
     $lines.Add("- Governance metrics: ``$($Summary.governance_metric_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -1082,6 +1146,7 @@ function New-ReportMarkdown {
         $lines.Add("- Source reports: ``$($rollup.source_report_count)``") | Out-Null
         $lines.Add("- Release blockers: ``$($rollup.release_blocker_count)``") | Out-Null
         $lines.Add("- Action items: ``$($rollup.action_item_count)``") | Out-Null
+        $lines.Add("- Informational action items: ``$($rollup.informational_action_item_count)``") | Out-Null
         $lines.Add("- Warnings: ``$($rollup.warning_count)``") | Out-Null
         $lines.Add("- PDF visual gate evidence source reports: ``$($rollup.pdf_visual_gate_evidence_source_report_count)``") | Out-Null
         foreach ($evidence in @($rollup.pdf_visual_gate_evidence_source_reports)) {
@@ -1263,7 +1328,7 @@ function New-ReportMarkdown {
     $lines.Add("## Report Status") | Out-Null
     $lines.Add("") | Out-Null
     foreach ($report in @($Summary.reports)) {
-        $lines.Add("- ``$($report.id)``: status=``$($report.status)`` ready=``$($report.release_ready)`` blockers=``$($report.release_blocker_count)`` actions=``$($report.action_item_count)`` source_failures=``$($report.source_failure_count)`` source_failure_count=``$($report.source_failure_count)`` schema=``$($report.schema)``") | Out-Null
+        $lines.Add("- ``$($report.id)``: status=``$($report.status)`` ready=``$($report.release_ready)`` blockers=``$($report.release_blocker_count)`` actions=``$($report.action_item_count)`` informational_actions=``$($report.informational_action_item_count)`` source_failures=``$($report.source_failure_count)`` source_failure_count=``$($report.source_failure_count)`` schema=``$($report.schema)``") | Out-Null
         $lines.Add("  - summary: ``$($report.expected_summary_display)``") | Out-Null
         $lines.Add("  - source_report_display: ``$($report.source_report_display)``") | Out-Null
         $lines.Add("  - source_json_display: ``$($report.source_json_display)``") | Out-Null
@@ -1340,7 +1405,40 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.report_id)`` / ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` schema=``$($item.source_schema)``") | Out-Null
+            $lines.Add("- ``$($item.report_id)`` / ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
+                $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_hint)) {
+                $lines.Add("  - repair_hint: $($item.repair_hint)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
+                $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
+            }
+            Add-TraceabilityMarkdownLines -Lines $lines -Item $item
+            $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
+            $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.readiness_status)) {
+                $lines.Add("  - readiness_status: ``$($item.readiness_status)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.readiness_release_ready)) {
+                $lines.Add("  - readiness_release_ready: ``$($item.readiness_release_ready)``") | Out-Null
+            }
+            Add-ProjectTemplateOnboardingContractMarkdownLines -Lines $lines -Item $item
+        }
+    }
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Informational Action Items") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.informational_action_items).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.informational_action_items)) {
+            $lines.Add("- ``$($item.report_id)`` / ``$($item.id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -1566,6 +1664,7 @@ $projectTemplateOnboardingGovernanceContract = Get-ProjectTemplateOnboardingGove
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
+$informationalActionItems = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
 foreach ($report in @($reports.ToArray())) {
     Add-NormalizedBlockers `
@@ -1574,8 +1673,15 @@ foreach ($report in @($reports.ToArray())) {
         -ProjectTemplateOnboardingGovernanceContract $projectTemplateOnboardingGovernanceContract
     Add-NormalizedActions `
         -Collection $actionItems `
+        -InformationalCollection $informationalActionItems `
         -Report $report `
         -ProjectTemplateOnboardingGovernanceContract $projectTemplateOnboardingGovernanceContract
+    Add-NormalizedActions `
+        -Collection $actionItems `
+        -InformationalCollection $informationalActionItems `
+        -Report $report `
+        -ProjectTemplateOnboardingGovernanceContract $projectTemplateOnboardingGovernanceContract `
+        -ForceInformational
     Add-NormalizedWarnings -Collection $warnings -Report $report
 }
 foreach ($report in @($explicitWarningReports.ToArray())) {
@@ -1643,6 +1749,7 @@ $summary = [ordered]@{
         source_failure_count = 0
         release_blocker_count = 0
         action_item_count = 0
+        informational_action_item_count = 0
         warning_count = 0
         pdf_visual_gate_evidence_source_report_count = 0
         pdf_visual_gate_evidence_source_reports = @()
@@ -1666,6 +1773,8 @@ $summary = [ordered]@{
     release_blockers = @($releaseBlockers.ToArray())
     action_item_count = $actionItems.Count
     action_items = @($actionItems.ToArray())
+    informational_action_item_count = $informationalActionItems.Count
+    informational_action_items = @($informationalActionItems.ToArray())
     warning_count = $warningCount
     warnings = @($warnings.ToArray())
     next_commands = @($nextCommands.ToArray())
@@ -1704,6 +1813,7 @@ if ($IncludeReleaseBlockerRollup) {
     $summary.release_blocker_rollup.source_failure_count = [int]$rollupSummary.source_failure_count
     $summary.release_blocker_rollup.release_blocker_count = [int]$rollupSummary.release_blocker_count
     $summary.release_blocker_rollup.action_item_count = [int]$rollupSummary.action_item_count
+    $summary.release_blocker_rollup.informational_action_item_count = [int](Get-JsonInt -Object $rollupSummary -Name "informational_action_item_count")
     $summary.release_blocker_rollup.warning_count = [int]$rollupSummary.warning_count
     $summary.release_blocker_rollup.pdf_visual_gate_evidence_source_report_count = @($pdfVisualGateEvidence).Count
     $summary.release_blocker_rollup.pdf_visual_gate_evidence_source_reports = @($pdfVisualGateEvidence)

@@ -363,7 +363,11 @@ function New-ActionItem {
         [string]$SourceKind,
         [string]$Action,
         [string]$Title,
-        [string]$Command = ""
+        [string]$Command = "",
+        [string]$Category = "remediation",
+        [string]$Severity = "warning",
+        [bool]$ReleaseBlocking = $true,
+        [bool]$Optional = $false
     )
 
     return [ordered]@{
@@ -376,7 +380,60 @@ function New-ActionItem {
         open_command = $Command
         audit_command = ""
         review_command = ""
+        category = $Category
+        severity = $Severity
+        release_blocking = $ReleaseBlocking
+        optional = $Optional
     }
+}
+
+function Copy-ActionItemWithReleaseChecklistDefaults {
+    param($Item)
+
+    $copy = [ordered]@{}
+    if ($Item -is [System.Collections.IDictionary]) {
+        foreach ($key in @($Item.Keys)) {
+            $copy[[string]$key] = $Item[$key]
+        }
+    } else {
+        foreach ($property in @($Item.PSObject.Properties)) {
+            $copy[$property.Name] = $property.Value
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $copy -Name "category"))) {
+        $copy["category"] = "release_checklist"
+    }
+    if ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $copy -Name "severity"))) {
+        $copy["severity"] = "info"
+    }
+    $copy["release_blocking"] = $false
+    $copy["optional"] = $true
+
+    return $copy
+}
+
+function Test-InformationalActionItem {
+    param($Item)
+
+    $category = Get-JsonString -Object $Item -Name "category"
+    if ($category -in @("release_checklist", "manual_release_checklist", "informational")) {
+        return $true
+    }
+
+    if (Get-JsonBool -Object $Item -Name "optional") {
+        return $true
+    }
+
+    $releaseBlockingProperty = Get-JsonProperty -Object $Item -Name "release_blocking"
+    if ($null -ne $releaseBlockingProperty -and -not (Get-JsonBool -Object $Item -Name "release_blocking" -DefaultValue $true)) {
+        return $true
+    }
+
+    $id = Get-JsonString -Object $Item -Name "id"
+    $action = Get-JsonString -Object $Item -Name "action"
+    return ($id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline") -or
+        $action -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline"))
 }
 
 function New-BaselineBlocker {
@@ -447,6 +504,8 @@ function New-ReportMarkdown {
     $lines.Add("- Catalog drift: ``$($Summary.drift_count)``") | Out-Null
     $lines.Add("- Dirty baselines: ``$($Summary.dirty_baseline_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
+    $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
+    $lines.Add("- Informational action items: ``$($Summary.informational_action_item_count)``") | Out-Null
     $lines.Add("") | Out-Null
 
     $lines.Add("## Real Corpus Confidence") | Out-Null
@@ -533,6 +592,23 @@ function New-ReportMarkdown {
     } else {
         foreach ($item in @($Summary.action_items)) {
             $lines.Add("- ``$($item.scope)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)`` title=$($item.title)") | Out-Null
+            foreach ($commandName in @("open_command", "audit_command", "review_command")) {
+                $commandValue = Get-JsonString -Object $item -Name $commandName
+                if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
+                    $lines.Add("  - ${commandName}: ``$commandValue``") | Out-Null
+                }
+            }
+        }
+    }
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Informational Action Items") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.informational_action_items).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.informational_action_items)) {
+            $lines.Add("- ``$($item.scope)`` / ``$($item.id)``: action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` title=$($item.title)") | Out-Null
             foreach ($commandName in @("open_command", "audit_command", "review_command")) {
                 $commandValue = Get-JsonString -Object $item -Name $commandName
                 if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
@@ -692,6 +768,10 @@ foreach ($path in @($inputPaths)) {
                         open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command")
                         audit_command = Get-JsonString -Object $item -Name "audit_command"
                         review_command = Get-JsonString -Object $item -Name "review_command"
+                        category = Get-JsonString -Object $item -Name "category"
+                        severity = Get-JsonString -Object $item -Name "severity"
+                        release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
+                        optional = Get-JsonBool -Object $item -Name "optional"
                     }) | Out-Null
                 }
             }
@@ -879,6 +959,16 @@ $status = if ($sourceFailureCount -gt 0 -or $totalCommandFailureCount -gt 0) {
     "clean"
 }
 
+$releaseActionItems = New-Object 'System.Collections.Generic.List[object]'
+$informationalActionItems = New-Object 'System.Collections.Generic.List[object]'
+foreach ($item in @($actionItems.ToArray())) {
+    if (Test-InformationalActionItem -Item $item) {
+        $informationalActionItems.Add((Copy-ActionItemWithReleaseChecklistDefaults -Item $item)) | Out-Null
+    } else {
+        $releaseActionItems.Add($item) | Out-Null
+    }
+}
+
 $summary = [ordered]@{
     schema = "featherdoc.numbering_catalog_governance_report.v1"
     generated_at = (Get-Date).ToString("s")
@@ -918,9 +1008,12 @@ $summary = [ordered]@{
     release_blocker_count = $releaseBlockers.Count
     release_blockers = @($releaseBlockers.ToArray())
     blocker_id_summary = @(Add-SummaryGroup -Items $releaseBlockers.ToArray() -PropertyName "id" -OutputName "id")
-    action_item_count = $actionItems.Count
-    action_items = @($actionItems.ToArray())
-    action_item_summary = @(Add-SummaryGroup -Items $actionItems.ToArray() -PropertyName "action" -OutputName "action")
+    action_item_count = $releaseActionItems.Count
+    action_items = @($releaseActionItems.ToArray())
+    action_item_summary = @(Add-SummaryGroup -Items $releaseActionItems.ToArray() -PropertyName "action" -OutputName "action")
+    informational_action_item_count = $informationalActionItems.Count
+    informational_action_items = @($informationalActionItems.ToArray())
+    informational_action_item_summary = @(Add-SummaryGroup -Items $informationalActionItems.ToArray() -PropertyName "action" -OutputName "action")
     warning_count = $warnings.Count
     warnings = @($warnings.ToArray())
 }
