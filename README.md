@@ -51,7 +51,8 @@ headers, and do not treat PDF support as part of the stable API.
 The current experimental PDF scope is narrower than a production export path
 but broader than a plain text proof of concept: it already covers basic
 paragraphs, tables, baseline styling, CJK fallback, font metrics, Unicode /
-ToUnicode roundtrip checks, and a small regression sample set. It is still
+ToUnicode roundtrip checks, floating table placement for the stable
+page/margin/column spec subset, and a small regression sample set. It is still
 explicitly experimental, and richer pagination and image handling remain in
 progress.
 
@@ -3223,6 +3224,15 @@ fine-grained offset, spec, wrapping, and overlap options. Use `<table-index|all>
 with repeated `--table <index>` entries when the same preset should be applied
 to several body tables in one mutation; `clear-table-position` accepts the same
 target syntax and returns `table_indices` / `positions` for every table-position mutation JSON.
+PDF export also consumes the stable subset of this placement metadata: horizontal
+`tblpXSpec` values place body tables within the selected page/margin/column
+reference frame, and vertical `tblpYSpec` values place tables for page and
+margin reference frames with `top`, `center`, and `bottom` semantics. Explicit
+signed twips offsets remain fine-tuning amounts after each spec is resolved.
+Vertical paragraph specs and vertical `inside` / `outside` specs are preserved
+in DOCX metadata, but the experimental PDF adapter keeps offset-based top
+anchoring for those cases because it does not yet model the full Word paragraph
+and page-side context.
 Use `plan-table-position-presets --preset <name>` first when you want a read-only
 migration plan that identifies unpositioned tables, already matching tables, and
 existing positions that should be reviewed before replacement. The plan also

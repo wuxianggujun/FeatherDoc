@@ -104,8 +104,35 @@ styling, selected CJK font fallback flows, section page setup, optional
 headers and footers, optional inline images, and regression samples used by the
 PDF visual validation workflow.
 
+Floating table placement
+------------------------
+
+The PDF adapter understands the first stable subset of body-table
+``w:tblpPr`` placement metadata. Absolute signed twips offsets are applied for
+``page``, ``margin``, ``column``, and ``paragraph`` anchors in the same
+coordinate conventions used by the in-process layout adapter.
+
+Word-native ``tblpXSpec`` values also affect PDF geometry. ``left`` and
+``inside`` align the table to the left side of the selected horizontal
+reference frame, ``center`` centers it, and ``right`` / ``outside`` align it
+to the right side. The explicit horizontal offset remains a signed fine-tuning
+amount after the spec is resolved.
+
+Word-native ``tblpYSpec`` values affect PDF geometry for the reliable
+``page`` and ``margin`` vertical reference frames. ``top`` anchors the table
+top to the reference top, ``center`` centers the full table block in that
+reference frame, and ``bottom`` anchors the table bottom to the reference
+bottom. The explicit vertical offset remains a signed fine-tuning amount after
+the spec is resolved.
+
+Vertical ``paragraph`` specs and vertical ``inside`` / ``outside`` specs are
+preserved in DOCX metadata, but the PDF adapter keeps the older offset-based
+top anchoring for those cases. They require Word page/paragraph and page-side
+context that the experimental PDF layout path does not yet model as a stable
+contract.
+
 It is not a production Word-compatible layout engine. Complex pagination,
-floating layout, full Word field evaluation, arbitrary drawing reconstruction,
-and visual-perfect reproduction remain outside the stable contract. Treat the
+full Word field evaluation, arbitrary drawing reconstruction, and
+visual-perfect reproduction remain outside the stable contract. Treat the
 exporter as an experimental automation surface and keep visual or PDFium
 readback checks in release workflows.

@@ -2604,7 +2604,11 @@ Current Limitations
   direction, marked to repeat header rows, retuned through ``tblLook``
   style-routing flags, given typed custom table style definitions, audited for
   table-style quality, and positioned as first-version floating tables through
-  ``Table::set_position(...)``. ``scripts/build_table_layout_delivery_report.ps1``
+  ``Table::set_position(...)``. The experimental PDF exporter also consumes the
+  stable page/margin/column placement subset, including horizontal specs and
+  page/margin ``top`` / ``center`` / ``bottom`` vertical specs, while preserving
+  the remaining Word-native placement metadata in DOCX output.
+  ``scripts/build_table_layout_delivery_report.ps1``
   can collect table style quality, safe ``tblLook`` repair planning, floating
   table preset planning, and visual-regression handoff entries for one
   document; ``scripts/build_table_layout_delivery_rollup_report.ps1`` then
