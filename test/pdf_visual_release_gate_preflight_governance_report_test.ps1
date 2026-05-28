@@ -81,6 +81,7 @@ $notReadyPreflightPath = Join-Path $resolvedWorkingDir "fixtures\not-ready-prefl
 $readyPreflightPath = Join-Path $resolvedWorkingDir "fixtures\ready-preflight.json"
 $syntheticReadyPreflightPath = Join-Path $resolvedWorkingDir "fixtures\synthetic-ready-preflight.json"
 $controlledVisualSmokePath = Join-Path $resolvedWorkingDir "fixtures\controlled-visual-smoke.json"
+$failedControlledVisualSmokePath = Join-Path $resolvedWorkingDir "fixtures\controlled-visual-smoke-failed.json"
 
 Write-JsonFile -Path $notReadyPreflightPath -Value ([ordered]@{
     generated_at = "2026-05-20T00:00:00"
@@ -525,6 +526,34 @@ Write-JsonFile -Path $controlledVisualSmokePath -Value ([ordered]@{
     )
 })
 
+Write-JsonFile -Path $failedControlledVisualSmokePath -Value ([ordered]@{
+    schema = "featherdoc.pdf_controlled_visual_smoke_check.v1"
+    status = "fail"
+    passed = $false
+    root = Join-Path $resolvedWorkingDir "controlled-smoke-failed"
+    case_count = 1
+    cases = @(
+        [ordered]@{
+            case = "minimal"
+            passed = $false
+            png_metrics = @(
+                [ordered]@{
+                    path = Join-Path $resolvedWorkingDir "controlled-smoke-failed\minimal\pages\page-01.png"
+                    width = 816
+                    height = 1056
+                    nonwhite_ratio = 0.0
+                },
+                [ordered]@{
+                    path = Join-Path $resolvedWorkingDir "controlled-smoke-failed\minimal\contact-sheet.png"
+                    width = 408
+                    height = 549
+                    nonwhite_ratio = 0.0
+                }
+            )
+        }
+    )
+})
+
 $missingPreflightPath = Join-Path $resolvedWorkingDir "fixtures\missing-preflight.json"
 $missingPreflightOutputDir = Join-Path $resolvedWorkingDir "missing-preflight-report"
 $missingPreflightResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
@@ -752,6 +781,49 @@ Assert-ContainsText -Text (($blockedSummary.controlled_visual_smoke.cases | ForE
 Assert-ContainsText -Text ([string]$blockedSummary.controlled_visual_smoke.min_nonwhite_ratio) `
     -ExpectedText "0.00534063" `
     -Message "Governance report should expose the minimum controlled smoke nonwhite ratio."
+Assert-Equal -Actual ([int]$blockedSummary.warning_count) -Expected 0 `
+    -Message "Passing controlled visual smoke evidence should not emit governance warnings."
+
+$failedSmokeOutputDir = Join-Path $resolvedWorkingDir "failed-smoke-report"
+$failedSmokeResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
+    "-PreflightJson", $notReadyPreflightPath,
+    "-ControlledVisualSmokeJson", $failedControlledVisualSmokePath,
+    "-OutputDir", $failedSmokeOutputDir,
+    "-BuildDir", ".bpdf-roundtrip-msvc"
+)
+Assert-Equal -Actual $failedSmokeResult.ExitCode -Expected 0 `
+    -Message "Failed controlled smoke should warn without changing default governance exit. Output: $($failedSmokeResult.Text)"
+$failedSmokeSummaryPath = Join-Path $failedSmokeOutputDir "summary.json"
+$failedSmokeSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $failedSmokeSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$failedSmokeSummary.status) -Expected "blocked" `
+    -Message "Failed controlled smoke should preserve the preflight blocker status."
+Assert-Equal -Actual ([int]$failedSmokeSummary.release_blocker_count) -Expected 1 `
+    -Message "Failed controlled smoke should not add release blockers beyond the preflight blocker."
+Assert-Equal -Actual ([int]$failedSmokeSummary.action_item_count) -Expected 1 `
+    -Message "Failed controlled smoke should not change preflight action item semantics."
+Assert-Equal -Actual ([int]$failedSmokeSummary.warning_count) -Expected 1 `
+    -Message "Failed controlled smoke should emit one governance warning."
+$failedSmokeWarning = @($failedSmokeSummary.warnings | Select-Object -First 1)[0]
+Assert-Equal -Actual ([string]$failedSmokeWarning.id) `
+    -Expected "pdf_controlled_visual_smoke.unavailable_or_failed" `
+    -Message "Failed controlled smoke warning should use the stable warning id."
+Assert-Equal -Actual ([string]$failedSmokeWarning.source_schema) `
+    -Expected "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" `
+    -Message "Failed controlled smoke warning should carry the governance schema."
+Assert-Equal -Actual ([string]$failedSmokeWarning.status) -Expected "fail" `
+    -Message "Failed controlled smoke warning should preserve the smoke status."
+Assert-ContainsText -Text ([string]$failedSmokeWarning.source_json_display) `
+    -ExpectedText "controlled-visual-smoke-failed.json" `
+    -Message "Failed controlled smoke warning should point reviewers at the smoke JSON."
+Assert-ContainsText -Text ([string]$failedSmokeWarning.source_report_display) `
+    -ExpectedText "failed-smoke-report\summary.json" `
+    -Message "Failed controlled smoke warning should point reviewers at the governance summary."
+Assert-Equal -Actual ([bool]$failedSmokeSummary.controlled_visual_smoke_available) -Expected $true `
+    -Message "Failed controlled smoke summary should still mark readable smoke evidence as available."
+Assert-Equal -Actual ([bool]$failedSmokeSummary.controlled_visual_smoke_passed) -Expected $false `
+    -Message "Failed controlled smoke summary should preserve the failing pass state."
+Assert-Equal -Actual ([int]$failedSmokeSummary.controlled_visual_smoke.failed_case_count) -Expected 1 `
+    -Message "Failed controlled smoke summary should count failed smoke cases."
 
 $outputGapChecks = ($blockedSummary.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n"
 Assert-ContainsText -Text $outputGapChecks `
