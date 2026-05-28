@@ -62,8 +62,13 @@ function Get-RepoRelativePath {
         return ""
     }
 
+    $candidate = if ([System.IO.Path]::IsPathRooted($Path)) {
+        $Path
+    } else {
+        Join-Path $RepoRoot $Path
+    }
     $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
-    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    $resolvedPath = [System.IO.Path]::GetFullPath($candidate)
     if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
         $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
         if ([string]::IsNullOrWhiteSpace($relative)) {
@@ -301,7 +306,7 @@ $pageNumberFieldsTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep 
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
 $visualReviewTaskSummaryLine = Get-VisualReviewTaskSummaryLine -VisualGateSummary $visualGateStep -GateSummary $gateSummary
 $pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
-$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath
+$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath -RepoRoot $repoRoot
 $pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 $installDirLeaf = if ([string]::IsNullOrWhiteSpace($installDir)) {
     "build-msvc-install"

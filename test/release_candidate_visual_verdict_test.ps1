@@ -245,9 +245,19 @@ Assert-ContainsText -Text $scriptText -ExpectedText '$visualGateArgs += "-Includ
 foreach ($name in @(
         "ReleaseBlockerRollupInputJson",
         "ReleaseBlockerRollupInputRoot",
+        "ReleaseBlockerRollupAutoDiscover",
+        "ReleaseBlockerRollupAutoDiscoverRoot",
         "ReleaseBlockerRollupOutputDir",
         "ReleaseBlockerRollupFailOnBlocker",
         "ReleaseBlockerRollupFailOnWarning",
+        "ReleaseGovernanceHandoff",
+        "ReleaseGovernanceHandoffInputRoot",
+        "ReleaseGovernanceHandoffInputJson",
+        "ReleaseGovernanceHandoffOutputDir",
+        "ReleaseGovernanceHandoffIncludeRollup",
+        "ReleaseGovernanceHandoffFailOnMissing",
+        "ReleaseGovernanceHandoffFailOnBlocker",
+        "ReleaseGovernanceHandoffFailOnWarning",
         "ReleaseGovernanceHandoffExpectedReportProfile",
         "ReleaseEvidenceScope"
     )) {
@@ -261,6 +271,8 @@ foreach ($marker in @(
     '$releaseManifestSignoffEntrypoints = if ($ReleaseEvidenceScope -eq "pdf-only")',
     'release_evidence_scope = $ReleaseEvidenceScope',
     'manifest_signoff_entrypoints = $releaseManifestSignoffEntrypoints',
+    '-IncludeRollup ([bool]$ReleaseGovernanceHandoffIncludeRollup)',
+    '-FailOnWarning ([bool]$ReleaseGovernanceHandoffFailOnWarning)',
     '-ExpectedReportProfile $ReleaseGovernanceHandoffExpectedReportProfile'
 )) {
     Assert-ContainsText -Text $scriptText -ExpectedText $marker `

@@ -55,6 +55,23 @@ function Get-OptionalPropertyObject {
     return Get-OptionalPropertyRawValue -Object $Object -Name $Name
 }
 
+function Resolve-VisualMetadataEvidencePath {
+    param(
+        [string]$RepoRoot = "",
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return ""
+    }
+
+    if ([System.IO.Path]::IsPathRooted($Path) -or [string]::IsNullOrWhiteSpace($RepoRoot)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $Path))
+}
+
 function Get-SupersededReviewTasksReportPath {
     param(
         $Summary,
@@ -240,7 +257,10 @@ function Get-PdfVisualGateSummaryPath {
 }
 
 function Get-PdfVisualGateEvidence {
-    param([string]$SummaryPath)
+    param(
+        [string]$SummaryPath,
+        [string]$RepoRoot = ""
+    )
 
     $evidence = [ordered]@{
         summary_json = $SummaryPath
@@ -264,12 +284,13 @@ function Get-PdfVisualGateEvidence {
         return [pscustomobject]$evidence
     }
 
-    if (-not (Test-Path -LiteralPath $SummaryPath)) {
+    $resolvedSummaryPath = Resolve-VisualMetadataEvidencePath -RepoRoot $RepoRoot -Path $SummaryPath
+    if (-not (Test-Path -LiteralPath $resolvedSummaryPath)) {
         return [pscustomobject]$evidence
     }
 
     try {
-        $summary = Get-Content -Raw -LiteralPath $SummaryPath | ConvertFrom-Json
+        $summary = Get-Content -Raw -LiteralPath $resolvedSummaryPath | ConvertFrom-Json
     } catch {
         $evidence.status = "unreadable"
         $evidence.error = $_.Exception.Message
