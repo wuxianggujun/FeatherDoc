@@ -64,6 +64,14 @@ Assert-ContainsText -Text $cmakeText -ExpectedText "featherdoc_set_test_labels(p
     -Message "CMake should keep cli/smoke/pdf labels for the PDF export CLI test."
 Assert-ContainsText -Text $cmakeText -ExpectedText "FEATHERDOC_CLI_ENABLE_PDF=1" `
     -Message "CMake should keep PDF-enabled CLI compile coverage."
+Assert-ContainsText -Text $cmakeText -ExpectedText 'CMAKE_BUILD_TYPE STREQUAL "Debug"' `
+    -Message "CMake should keep Debug PDF test runtime DLL resolution."
+Assert-ContainsText -Text $cmakeText -ExpectedText "PNG_LIBRARY_DEBUG PNG_LIBRARY_RELEASE PNG_LIBRARY" `
+    -Message "CMake should prefer Debug PNG runtime libraries for Debug PDF tests."
+Assert-ContainsText -Text $cmakeText -ExpectedText "FREETYPE_LIBRARY_DEBUG" `
+    -Message "CMake should prefer Debug FreeType runtime libraries for Debug PDF tests."
+Assert-ContainsText -Text $cmakeText -ExpectedText "HARFBUZZ_LIBRARY_DEBUG" `
+    -Message "CMake should prefer Debug HarfBuzz runtime libraries for Debug PDF tests."
 
 Assert-ContainsText -Text $visualGateText -ExpectedText 'name = "cli-cjk-font-source"' `
     -Message "PDF visual release gate should keep the CLI CJK font source baseline entry."

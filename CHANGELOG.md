@@ -17,6 +17,15 @@ performance.
 - Added `docs/pdf_export.rst` and README links for the experimental PDF export
   CLI entry point, supported options, JSON summary shape, and current scope
   limits.
+- Documented the `export-pdf --json` failure result contract, including parse,
+  open, export, and summary failure stages.
+
+### Fixed
+
+- Fixed `export-pdf --json` and `--summary-json` success output so the outer
+  JSON result object is closed after the nested `options` object.
+- Fixed Debug PDF CTest runtime-path resolution so `pdf_cli_export` uses Debug
+  vcpkg DLL directories instead of release-only runtime paths.
 
 ## [1.12.0] - 2026-05-28
 

@@ -576,6 +576,7 @@ $pdfExportSupportMatrixMarkers = @(
     "sectioned-report-text",
     "header-footer-text",
     "--expand-header-footer-page-placeholders",
+    "docs/pdf_export.rst",
     "document-cjk-table-wrap-page-flow-text",
     "pdf_real_business_sample_release_entry_trace",
     "release checklist"

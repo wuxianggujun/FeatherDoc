@@ -35,6 +35,14 @@ Common options
 - ``--summary-json <path>`` writes a stable machine-readable export summary.
 - ``--json`` prints a stable machine-readable command result to stdout.
 
+Detailed references
+-------------------
+
+- ``BUILDING_PDF.md`` is the build and local validation runbook for PDF writer
+  work.
+- ``docs/pdf_release_readiness_checklist_zh.rst`` records the release-readiness
+  gate, visual evidence expectations, and current PDF evidence boundaries.
+
 JSON result shape
 -----------------
 
@@ -56,6 +64,37 @@ name, output path, byte count, and the effective export switches:
         "use_system_font_fallbacks": true
       }
     }
+
+Failure JSON shape
+------------------
+
+When ``--json`` is supplied, failures use the shared CLI command-error shape on
+stderr. The stable fields are ``command``, ``ok``, ``stage``, and ``message``;
+document or writer failures can also include ``detail``, ``entry``, and
+``xml_offset`` when that context is available:
+
+.. code-block:: json
+
+    {
+      "command": "export-pdf",
+      "ok": false,
+      "stage": "export",
+      "message": "Operation not supported",
+      "detail": "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON"
+    }
+
+Current failure stages are:
+
+The stage field values are ``"stage": "parse"``, ``"stage": "open"``,
+``"stage": "export"``, and ``"stage": "summary"``.
+
+- ``parse`` for invalid command-line options such as malformed
+  ``--font-map`` values or missing ``--output``.
+- ``open`` when the input ``.docx`` cannot be opened.
+- ``export`` when PDF writing is disabled or the writer cannot produce the
+  output PDF.
+- ``summary`` when ``--summary-json`` was requested but the summary file cannot
+  be written.
 
 Supported scope and limits
 --------------------------

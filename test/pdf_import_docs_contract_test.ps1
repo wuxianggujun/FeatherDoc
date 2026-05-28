@@ -355,7 +355,16 @@ $requiredPdfExportDocsTerms = @(
     "--render-inline-images",
     "--font-map <family>=<path>",
     "--summary-json <path>",
+    "BUILDING_PDF.md",
+    "docs/pdf_release_readiness_checklist_zh.rst",
     '"options": {',
+    "Failure JSON shape",
+    '"ok": false',
+    '"stage": "parse"',
+    '"stage": "open"',
+    '"stage": "export"',
+    '"stage": "summary"',
+    "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON",
     "Supported scope and limits"
 )
 

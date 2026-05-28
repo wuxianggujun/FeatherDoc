@@ -194,6 +194,9 @@ void expect_pdf_export_options_json(
     CHECK_NE(text.find(std::string(R"("use_system_font_fallbacks":)") +
                        (use_system_font_fallbacks ? "true" : "false")),
              std::string::npos);
+    CHECK_NE(text.find(std::string(R"("use_system_font_fallbacks":)") +
+                       (use_system_font_fallbacks ? "true" : "false") + "}}"),
+             std::string::npos);
 }
 
 } // namespace

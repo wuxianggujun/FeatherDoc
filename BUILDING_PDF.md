@@ -494,6 +494,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 ## CLI 导出入口
 
 `featherdoc_cli export-pdf` 已经可以作为用户入口使用。当前常用参数是：
+完整选项、JSON summary 结构和导出边界见 `docs/pdf_export.rst`。
 
 - `--output <pdf>`
 - `--font-file <path>`

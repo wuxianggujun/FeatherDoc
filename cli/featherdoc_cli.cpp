@@ -26494,7 +26494,7 @@ void print_pdf_export_result(std::string_view command, const path_type &output_p
         std::cout << ",\"bytes_written\":" << result.bytes_written
                   << ",\"options\":";
         write_pdf_export_options_json(std::cout, options);
-        std::cout << '\n';
+        std::cout << "}\n";
         return;
     }
 
@@ -26522,7 +26522,7 @@ auto write_pdf_export_summary_json(std::string_view command,
     output << ",\"bytes_written\":" << result.bytes_written
            << ",\"options\":";
     write_pdf_export_options_json(output, options);
-    output << '\n';
+    output << "}\n";
     if (!output.good()) {
         error_message =
             "failed to write PDF export summary: " + summary_path.string();
