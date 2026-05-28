@@ -79,6 +79,13 @@ OCR 或任意视觉精确还原。
    manifest 中 ``expect_visual_baseline=true`` 的样本数，``baselines_count``
    对应 full gate 当前渲染并汇总的 baseline 产物数。
 
+   如果当前是干净检出或新 worktree，且本地 ``output/`` 没有持久化 visual gate
+   产物，只能把本轮状态记录为 ``local_persisted_visual_artifacts_missing``。
+   这种状态不是源码失败，也不能替代完整 visual gate；低资源轮次只能执行只读
+   preflight/readiness 契约和治理报告测试，等待 PDFio/PDFium、PDF build options、
+   baseline/render 输入以及 contact-sheet 产物齐备后，再进入 ``-FinalizeOnly``
+   复核或 full visual gate。
+
    发布证据允许三种可解释形态：资源受限复核路径必须显示
    ``finalize_only = true`` 和 ``skip_preflight = true``；fresh 非
    ``FinalizeOnly`` full visual gate 完整通过时，必须由
