@@ -294,6 +294,7 @@ $pdfImportScopeDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import_scope.rst
 $docsIndexPath = Join-Path $resolvedRepoRoot "docs\index.rst"
 $readmePath = Join-Path $resolvedRepoRoot "README.md"
 $readmeZhPath = Join-Path $resolvedRepoRoot "README.zh-CN.md"
+$changelogPath = Join-Path $resolvedRepoRoot "CHANGELOG.md"
 $cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
 $pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf_document_importer.hpp"
 $cliPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli.cpp"
@@ -309,6 +310,7 @@ $pdfImportScopeDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImpor
 $docsIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $docsIndexPath
 $readmeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmePath
 $readmeZhText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmeZhPath
+$changelogText = Get-Content -Raw -Encoding UTF8 -LiteralPath $changelogPath
 $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
 $cliText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cliPath
@@ -753,6 +755,13 @@ foreach ($marker in @(
 )) {
     Assert-ContainsText -Text $readmeText -ExpectedText $marker -Label "README.md"
     Assert-ContainsText -Text $readmeZhText -ExpectedText $marker -Label "README.zh-CN.md"
+}
+foreach ($marker in @(
+    'featherdoc_cli export-pdf --expand-header-footer-page-placeholders',
+    'both `--json` and `--summary-json` output',
+    'docs/pdf_export.rst'
+)) {
+    Assert-ContainsText -Text $changelogText -ExpectedText $marker -Label "CHANGELOG.md"
 }
 Assert-DoesNotContainText `
     -Text $readmeText `

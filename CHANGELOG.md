@@ -8,6 +8,16 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- Added `featherdoc_cli export-pdf --expand-header-footer-page-placeholders`
+  so header and footer `{{page}}` / `{{total_pages}}` placeholders can be
+  expanded during PDF export, with the effective export switches reported in
+  both `--json` and `--summary-json` output.
+- Added `docs/pdf_export.rst` and README links for the experimental PDF export
+  CLI entry point, supported options, JSON summary shape, and current scope
+  limits.
+
 ## [1.12.0] - 2026-05-28
 
 ### Added
