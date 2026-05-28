@@ -56,7 +56,6 @@ struct export_pdf_options {
     std::optional<std::string> creator;
     bool render_headers_and_footers = false;
     bool render_inline_images = false;
-    bool expand_header_footer_page_placeholders = false;
     bool subset_unicode_fonts = true;
     std::optional<path_type> summary_json_path;
     bool json_output = false;
@@ -2063,11 +2062,6 @@ auto parse_export_pdf_options(const std::vector<std::string_view> &arguments,
 
         if (argument == "--render-inline-images") {
             options.render_inline_images = true;
-            continue;
-        }
-
-        if (argument == "--expand-header-footer-page-placeholders") {
-            options.expand_header_footer_page_placeholders = true;
             continue;
         }
 
@@ -26468,22 +26462,7 @@ auto report_document_error(std::string_view command, std::string_view stage,
 }
 
 #if defined(FEATHERDOC_CLI_ENABLE_PDF)
-void write_pdf_export_options_json(std::ostream &stream,
-                                  const export_pdf_options &options) {
-    stream << "{\"render_headers_and_footers\":"
-           << json_bool(options.render_headers_and_footers)
-           << ",\"render_inline_images\":"
-           << json_bool(options.render_inline_images)
-           << ",\"expand_header_footer_page_placeholders\":"
-           << json_bool(options.expand_header_footer_page_placeholders)
-           << ",\"subset_unicode_fonts\":"
-           << json_bool(options.subset_unicode_fonts)
-           << ",\"use_system_font_fallbacks\":"
-           << json_bool(options.use_system_font_fallbacks) << '}';
-}
-
 void print_pdf_export_result(std::string_view command, const path_type &output_path,
-                             const export_pdf_options &options,
                              const featherdoc::pdf::PdfWriteResult &result,
                              bool json_output) {
     if (json_output) {
@@ -26491,10 +26470,7 @@ void print_pdf_export_result(std::string_view command, const path_type &output_p
         write_json_string(std::cout, command);
         std::cout << ",\"ok\":true,\"output\":";
         write_json_string(std::cout, output_path.string());
-        std::cout << ",\"bytes_written\":" << result.bytes_written
-                  << ",\"options\":";
-        write_pdf_export_options_json(std::cout, options);
-        std::cout << '\n';
+        std::cout << ",\"bytes_written\":" << result.bytes_written << "}\n";
         return;
     }
 
@@ -26505,7 +26481,6 @@ void print_pdf_export_result(std::string_view command, const path_type &output_p
 auto write_pdf_export_summary_json(std::string_view command,
                                    const path_type &summary_path,
                                    const path_type &output_path,
-                                   const export_pdf_options &options,
                                    const featherdoc::pdf::PdfWriteResult &result,
                                    std::string &error_message) -> bool {
     std::ofstream output(summary_path, std::ios::binary);
@@ -26519,10 +26494,7 @@ auto write_pdf_export_summary_json(std::string_view command,
     write_json_string(output, command);
     output << ",\"ok\":true,\"output\":";
     write_json_string(output, output_path.string());
-    output << ",\"bytes_written\":" << result.bytes_written
-           << ",\"options\":";
-    write_pdf_export_options_json(output, options);
-    output << '\n';
+    output << ",\"bytes_written\":" << result.bytes_written << "}\n";
     if (!output.good()) {
         error_message =
             "failed to write PDF export summary: " + summary_path.string();
@@ -41608,8 +41580,6 @@ int featherdoc_cli_main(int argc, char **argv) {
         adapter_options.render_headers_and_footers =
             options.render_headers_and_footers;
         adapter_options.render_inline_images = options.render_inline_images;
-        adapter_options.expand_header_footer_page_placeholders =
-            options.expand_header_footer_page_placeholders;
         adapter_options.use_system_font_fallbacks =
             options.use_system_font_fallbacks;
         if (options.font_file_path.has_value()) {
@@ -41649,7 +41619,7 @@ int featherdoc_cli_main(int argc, char **argv) {
             std::string summary_error;
             if (!write_pdf_export_summary_json(
                     command, *options.summary_json_path, *options.output_path,
-                    options, result, summary_error)) {
+                    result, summary_error)) {
                 featherdoc::document_error_info error_info{};
                 error_info.code = std::make_error_code(std::errc::io_error);
                 error_info.detail = std::move(summary_error);
@@ -41660,7 +41630,7 @@ int featherdoc_cli_main(int argc, char **argv) {
             }
         }
 
-        print_pdf_export_result(command, *options.output_path, options, result,
+        print_pdf_export_result(command, *options.output_path, result,
                                 options.json_output);
         return 0;
 #else

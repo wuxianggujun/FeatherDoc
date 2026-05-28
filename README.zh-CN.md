@@ -54,23 +54,11 @@ cmake --build build-pdf --target featherdoc_pdfio_probe
 `FeatherDoc::FeatherDoc` 不依赖 PDFio。
 
 默认构建不会拉取 PDFio / PDFium，也不会安装 PDF 实验模块头文件。
-PDF 能力目前仍是实验性方向：源码和 CLI 入口已经落地，但默认关闭，
-不属于稳定 API。
+PDF 能力目前只作为未来支持方向存在，不属于稳定 API。
 
 当前这条实验性 PDF 路线，已经不只是“最小文本样例”了：它覆盖基础段落、
 表格、基础样式、CJK 回退、字体度量、Unicode / ToUnicode 回环检查，以及一小批
 regression 样本，但仍然明确属于实验状态。更完整的分页和图片覆盖还在推进中。
-
-启用 PDF 写出后，`featherdoc_cli` 也可以直接导出 PDF：
-
-```bash
-featherdoc_cli export-pdf input.docx --output output.pdf \
-  --render-headers-and-footers \
-  --expand-header-footer-page-placeholders \
-  --summary-json output.summary.json --json
-```
-
-支持范围、参数和 JSON summary 结构见 `docs/pdf_export.rst`。
 
 实验性的 PDF 读入方向同样默认关闭。它默认使用 PDFium 源码 checkout，
 不会自动下载 PDFium：

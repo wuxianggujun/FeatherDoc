@@ -287,7 +287,6 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
-$pdfExportDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_export.rst"
 $pdfImportDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import.rst"
 $pdfImportJsonDiagnosticsDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import_json_diagnostics.rst"
 $pdfImportScopeDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import_scope.rst"
@@ -302,7 +301,6 @@ $pdfImportStructureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_stru
 $pdfImportFailureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_failure_tests.cpp"
 $pdfImportTableHeuristicTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_table_heuristic_tests.cpp"
 
-$pdfExportDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfExportDocsPath
 $pdfImportDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportDocsPath
 $pdfImportJsonDiagnosticsDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportJsonDiagnosticsDocsPath
 $pdfImportScopeDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportScopeDocsPath
@@ -332,29 +330,10 @@ $pdfImportInstalledDocs = @(
     'docs/pdf_import_json_diagnostics.rst',
     'docs/pdf_import_scope.rst'
 )
-$pdfInstalledDocs = @(
-    'docs/pdf_export.rst',
-    'docs/pdf_import.rst',
-    'docs/pdf_import_json_diagnostics.rst',
-    'docs/pdf_import_scope.rst'
-)
 $pdfImportToctreeEntries = @(
-    'pdf_export',
     'pdf_import',
     'pdf_import_json_diagnostics',
     'pdf_import_scope'
-)
-
-$requiredPdfExportDocsTerms = @(
-    "PDF Export",
-    "featherdoc_cli export-pdf input.docx --output output.pdf --json",
-    "--render-headers-and-footers",
-    "--expand-header-footer-page-placeholders",
-    "--render-inline-images",
-    "--font-map <family>=<path>",
-    "--summary-json <path>",
-    '"options": {',
-    "Supported scope and limits"
 )
 
 $requiredPdfImportDocsTerms = @(
@@ -609,13 +588,6 @@ $scopeCoverageAnchors = @(
     }
 )
 
-foreach ($term in $requiredPdfExportDocsTerms) {
-    Assert-ContainsText -Text $pdfExportDocsText -ExpectedText $term -Label "docs/pdf_export.rst"
-}
-Assert-RstJsonCodeBlocksParse `
-    -Text $pdfExportDocsText `
-    -Label "docs/pdf_export.rst"
-
 foreach ($term in $requiredPdfImportDocsTerms) {
     Assert-ContainsText -Text $pdfImportDocsText -ExpectedText $term -Label "docs/pdf_import.rst"
 }
@@ -707,7 +679,6 @@ Assert-ContainsText `
     -ExpectedText '``inconsistent_source_rows`` is an internal consistency guard' `
     -Label "docs/pdf_import_json_diagnostics.rst"
 
-Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_export" -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import" -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import_json_diagnostics" -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import_scope" -Label "docs/index.rst"
@@ -715,17 +686,14 @@ Assert-RstToctreeContainsEntries `
     -Text $docsIndexText `
     -ExpectedEntries $pdfImportToctreeEntries `
     -Label "docs/index.rst"
-Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_export`' -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import`' -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import_json_diagnostics`' -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import_scope`' -Label "docs/index.rst"
 Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import JSON diagnostics" -Label "docs/index.rst"
 Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import supported scope and limits" -Label "docs/index.rst"
 
-Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_export.rst" -Label "README.md"
 Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_import.rst" -Label "README.md"
 Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_import_json_diagnostics.rst" -Label "README.md"
-Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_export.rst" -Label "README.zh-CN.md"
 Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_import.rst" -Label "README.zh-CN.md"
 Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_import_json_diagnostics.rst" -Label "README.zh-CN.md"
 foreach ($installedDoc in $pdfImportInstalledDocs) {
@@ -746,14 +714,6 @@ Assert-ContainsText `
     -Text $readmeZhText `
     -ExpectedText "--min-table-continuation-confidence <score>" `
     -Label "README.zh-CN.md"
-foreach ($marker in @(
-    "featherdoc_cli export-pdf input.docx --output output.pdf",
-    "--expand-header-footer-page-placeholders",
-    "--summary-json output.summary.json --json"
-)) {
-    Assert-ContainsText -Text $readmeText -ExpectedText $marker -Label "README.md"
-    Assert-ContainsText -Text $readmeZhText -ExpectedText $marker -Label "README.zh-CN.md"
-}
 Assert-DoesNotContainText `
     -Text $readmeText `
     -UnexpectedText "--min-table-continuation-confidence <count>" `
@@ -762,14 +722,13 @@ Assert-DoesNotContainText `
     -Text $readmeZhText `
     -UnexpectedText "--min-table-continuation-confidence <count>" `
     -Label "README.zh-CN.md"
-Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_export.rst' -Label "CMakeLists.txt"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import.rst' -Label "CMakeLists.txt"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import_json_diagnostics.rst' -Label "CMakeLists.txt"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import_scope.rst' -Label "CMakeLists.txt"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText '${FEATHERDOC_INSTALL_DATADIR}/docs' -Label "CMakeLists.txt"
 Assert-CMakeInstallFilesToDestination `
     -Text $cmakeListsText `
-    -ExpectedFiles $pdfInstalledDocs `
+    -ExpectedFiles $pdfImportInstalledDocs `
     -Destination '${FEATHERDOC_INSTALL_DATADIR}/docs' `
     -Label "CMakeLists.txt"
 Assert-DoesNotContainText `

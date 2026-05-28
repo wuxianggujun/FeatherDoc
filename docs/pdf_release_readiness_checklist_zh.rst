@@ -8,12 +8,11 @@ OCR 或任意视觉精确还原。
 准入检查
 --------
 
-1. 状态证据已同步：
+1. 状态页已同步：
 
-   * 当前 preflight、governance 和 full gate 证据状态必须在脚本 summary
-     和 release/reviewer 材料里写清楚。
-   * 若继续维护 ``docs/pdf_visual_validation_status_zh.rst`` 这份历史状态快照，
-     不得停留在旧的 ``blocked`` / ``not_ready`` 叙事。
+   * ``docs/pdf_visual_validation_status_zh.rst`` 不得停留在旧的
+     ``blocked`` / ``not_ready`` 叙事。
+   * 当前 preflight、governance 和 full gate 证据状态必须写清楚。
 
 2. 样本统计已同步：
 
