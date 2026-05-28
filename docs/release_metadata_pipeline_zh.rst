@@ -477,6 +477,18 @@ guide、reviewer checklist、start-here 和 release note body 各自实现一套
 
     pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
 
+正式发版前推荐启用严格 warning gate，让 release blocker rollup 与 governance
+handoff 中的 warning 直接阻断候选发布：
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 `
+        -ReleaseBlockerRollupAutoDiscover `
+        -ReleaseBlockerRollupFailOnWarning `
+        -ReleaseGovernanceHandoff `
+        -ReleaseGovernanceHandoffIncludeRollup `
+        -ReleaseGovernanceHandoffFailOnWarning
+
 只同步最新视觉 verdict：
 
 .. code-block:: powershell

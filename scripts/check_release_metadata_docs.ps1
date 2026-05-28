@@ -329,7 +329,9 @@ $pipelineExpectedMarkers = @(
     '``featherdoc.table_layout_delivery_governance_report.v1``',
     '``sync_bound_content_control``',
     '``numbering_catalog_governance.real_corpus_alignment_gap``',
-    '``delivery_quality``'
+    '``delivery_quality``',
+    "ReleaseBlockerRollupFailOnWarning",
+    "ReleaseGovernanceHandoffFailOnWarning"
 )
 $checklistExpectedMarkers = @(
     ':doc:`release_metadata_pipeline_zh`',
@@ -366,7 +368,11 @@ $documentGovernanceExpectedMarkers = @(
     "featherdoc.table_layout_delivery_governance_report.v1",
     "delivery_quality"
 )
-$policyExpectedMarkers = @(':doc:`release_metadata_pipeline_zh`')
+$policyExpectedMarkers = @(
+    ':doc:`release_metadata_pipeline_zh`',
+    "ReleaseBlockerRollupFailOnWarning",
+    "ReleaseGovernanceHandoffFailOnWarning"
+)
 $resolvedRepoRoot = ""
 $summaryJsonPath = ""
 $checkedDocuments = @()

@@ -84,6 +84,18 @@
 
     pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
 
+正式发版前推荐启用严格 warning gate，把 release blocker rollup 与 governance
+handoff 中的 warning 当作阻断项处理：
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 `
+        -ReleaseBlockerRollupAutoDiscover `
+        -ReleaseBlockerRollupFailOnWarning `
+        -ReleaseGovernanceHandoff `
+        -ReleaseGovernanceHandoffIncludeRollup `
+        -ReleaseGovernanceHandoffFailOnWarning
+
 如果只是复用已有 ``build-msvc-nmake`` 构建目录，可改为：
 
 .. code-block:: powershell
