@@ -56,6 +56,47 @@ function Write-JsonFile {
     ($Value | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
+function Write-PngFixture {
+    param([string]$Path)
+
+    New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($Path)) -Force | Out-Null
+    Add-Type -AssemblyName System.Drawing
+    $bitmap = [System.Drawing.Bitmap]::new(128, 128)
+    try {
+        for ($y = 0; $y -lt $bitmap.Height; $y++) {
+            for ($x = 0; $x -lt $bitmap.Width; $x++) {
+                $r = ($x * 3 + $y) % 256
+                $g = ($x + $y * 5) % 256
+                $b = ($x * 7 + $y * 11) % 256
+                $bitmap.SetPixel($x, $y, [System.Drawing.Color]::FromArgb($r, $g, $b))
+            }
+        }
+        $bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+    } finally {
+        $bitmap.Dispose()
+    }
+}
+
+function Write-DocxVisualSmokeFixture {
+    param([string]$Root)
+
+    $reportDir = Join-Path $Root "report"
+    $evidenceDir = Join-Path $Root "evidence"
+    $pageDir = Join-Path $evidenceDir "pages"
+    New-Item -ItemType Directory -Path $reportDir, $pageDir -Force | Out-Null
+    Write-JsonFile -Path (Join-Path $reportDir "summary.json") -Value ([ordered]@{
+            status = "pass"
+            page_count = 1
+        })
+    Write-JsonFile -Path (Join-Path $reportDir "review_result.json") -Value ([ordered]@{
+            status = "reviewed"
+            verdict = "pass"
+        })
+    Set-Content -LiteralPath (Join-Path $Root "table_visual_smoke.pdf") -Encoding ASCII -Value "%PDF-1.4`n% fixture"
+    Write-PngFixture -Path (Join-Path $evidenceDir "contact_sheet.png")
+    Write-PngFixture -Path (Join-Path $pageDir "page-01.png")
+}
+
 function New-SkeletonRollup {
     return [ordered]@{
         schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
@@ -492,6 +533,18 @@ function New-PdfPreflightGovernance {
                 open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
             }
         )
+        warning_count = 1
+        warnings = @(
+            [ordered]@{
+                id = "pdf_controlled_visual_smoke.unavailable_or_failed"
+                action = "review_pdf_controlled_visual_smoke"
+                status = "fail"
+                message = "Controlled PDF visual smoke evidence was provided but is not passing."
+                source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                source_report_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
+                source_json_display = "output\pdf-visual-release-gate-preflight-governance\controlled-visual-smoke-failed.json"
+            }
+        )
     }
 }
 
@@ -507,6 +560,7 @@ function New-InputFixture {
     Write-JsonFile -Path (Join-Path $Root "project-template-smoke\summary.json") -Value (New-ProjectTemplateSmokeSummary)
     Write-JsonFile -Path (Join-Path $Root "project-template-schema-approval-history\history.json") -Value (New-SchemaApprovalHistory)
     Write-JsonFile -Path (Join-Path $Root "pdf-visual-release-gate-preflight-governance\summary.json") -Value (New-PdfPreflightGovernance)
+    Write-DocxVisualSmokeFixture -Root (Join-Path $Root "docx-functional-smoke-visual\passing-smoke")
 }
 
 function Invoke-Pipeline {
@@ -532,6 +586,7 @@ $scriptPath = Join-Path $resolvedRepoRoot "scripts\build_release_governance_pipe
 
 if ($Scenario -eq "markdown_counts") {
     New-Item -ItemType Directory -Path $inputRoot -Force | Out-Null
+    Write-DocxVisualSmokeFixture -Root (Join-Path $inputRoot "docx-functional-smoke-visual\passing-smoke")
     $result = Invoke-Pipeline -Arguments @(
         "-InputRoot"
         $inputRoot
@@ -628,6 +683,12 @@ Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string
 Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.action }) -join "`n") `
     -ExpectedText "prepare_pdf_visual_release_gate_build_outputs" `
     -Message "Pipeline top-level action details should mirror final rollup actions."
+Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
+    -Message "Pipeline top-level warning details should mirror final rollup warnings."
+Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+    -ExpectedText "controlled-visual-smoke-failed.json" `
+    -Message "Pipeline top-level warnings should preserve PDF controlled smoke source JSON display."
 
 $stageIds = @($summary.stages | ForEach-Object { [string]$_.id })
 foreach ($expectedStage in @(
@@ -808,6 +869,12 @@ Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object { [stri
 Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" `
     -Message "Pipeline final rollup should preserve the PDF preflight source schema."
+Assert-ContainsText -Text (($rollupSummary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
+    -Message "Pipeline final rollup should include PDF preflight warnings."
+Assert-ContainsText -Text (($rollupSummary.warnings | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+    -ExpectedText "controlled-visual-smoke-failed.json" `
+    -Message "Pipeline final rollup should preserve PDF preflight warning source JSON display."
 $rollupInformationalActions = @($rollupSummary.informational_action_items | Where-Object {
         [string]$_.id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline")
     })

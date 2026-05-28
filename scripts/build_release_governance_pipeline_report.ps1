@@ -633,6 +633,20 @@ $calibrationInputs = Select-ExistingInputJson -Paths @(
 )
 $calibrationInputRoot = Join-Path $resolvedInputRoot "project-template-smoke"
 # Keep schema calibration scoped; broad output roots can include invalid test fixtures.
+$docxVisualSmokeInputRoot = Join-Path $resolvedInputRoot "docx-functional-smoke-visual"
+$docxVisualSmokeRoots = @()
+if (Test-Path -LiteralPath $docxVisualSmokeInputRoot) {
+    $docxVisualSmokeRoots = @(
+        Get-ChildItem -LiteralPath $docxVisualSmokeInputRoot -Directory |
+            Sort-Object -Property Name |
+            ForEach-Object { $_.FullName }
+    )
+}
+$docxReadinessExtraArguments = @()
+if ($docxVisualSmokeRoots.Count -gt 0) {
+    $docxReadinessExtraArguments += "-VisualSmokeRoots"
+    $docxReadinessExtraArguments += @($docxVisualSmokeRoots)
+}
 
 $stages = New-Object 'System.Collections.Generic.List[object]'
 $stages.Add((Invoke-PipelineStage `
@@ -677,7 +691,8 @@ $stages.Add((Invoke-PipelineStage `
             -Title "DOCX Functional Smoke Readiness" `
             -ScriptPath (Join-Path $scriptsDir "check_docx_functional_smoke_readiness.ps1") `
             -OutputDir $docxReadinessOutputDir `
-            -InputJson @())) | Out-Null
+            -InputJson @() `
+            -ExtraArguments $docxReadinessExtraArguments)) | Out-Null
 
 $handoffInputs = @(
     Join-Path $numberingOutputDir "summary.json"
