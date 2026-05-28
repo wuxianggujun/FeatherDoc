@@ -173,30 +173,137 @@ void write_binary_file(const fs::path &path, const std::string &data) {
     REQUIRE(stream.good());
 }
 
+auto is_json_whitespace(char ch) -> bool {
+    return ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t';
+}
+
+auto is_complete_json_object(std::string_view text) -> bool {
+    std::size_t begin = 0U;
+    while (begin < text.size() && is_json_whitespace(text[begin])) {
+        ++begin;
+    }
+
+    std::size_t end = text.size();
+    while (end > begin && is_json_whitespace(text[end - 1U])) {
+        --end;
+    }
+
+    if (begin == end || text[begin] != '{' || text[end - 1U] != '}') {
+        return false;
+    }
+
+    int object_depth = 0;
+    int array_depth = 0;
+    bool in_string = false;
+    bool escaped = false;
+    for (std::size_t index = begin; index < end; ++index) {
+        const char ch = text[index];
+        if (in_string) {
+            if (escaped) {
+                escaped = false;
+            } else if (ch == '\\') {
+                escaped = true;
+            } else if (ch == '"') {
+                in_string = false;
+            }
+            continue;
+        }
+
+        switch (ch) {
+        case '"':
+            in_string = true;
+            break;
+        case '{':
+            ++object_depth;
+            break;
+        case '}':
+            if (object_depth == 0) {
+                return false;
+            }
+            --object_depth;
+            if (object_depth == 0 && array_depth == 0 && index + 1U != end) {
+                return false;
+            }
+            break;
+        case '[':
+            ++array_depth;
+            break;
+        case ']':
+            if (array_depth == 0) {
+                return false;
+            }
+            --array_depth;
+            break;
+        default:
+            break;
+        }
+    }
+
+    return !in_string && !escaped && object_depth == 0 && array_depth == 0;
+}
+
+void expect_json_object_text(const std::string &text) {
+    CHECK_MESSAGE(is_complete_json_object(text),
+                  "expected a complete JSON object, got: " << text);
+}
+
+void expect_json_field(const std::string &text, std::string_view fragment) {
+    CHECK_NE(text.find(std::string(fragment)), std::string::npos);
+}
+
 void expect_pdf_export_options_json(
     const std::string &text, bool render_headers_and_footers,
     bool render_inline_images, bool expand_header_footer_page_placeholders,
     bool subset_unicode_fonts, bool use_system_font_fallbacks) {
-    CHECK_NE(text.find(R"("options":{)"), std::string::npos);
-    CHECK_NE(text.find(std::string(R"("render_headers_and_footers":)") +
-                       (render_headers_and_footers ? "true" : "false")),
-             std::string::npos);
-    CHECK_NE(text.find(std::string(R"("render_inline_images":)") +
-                       (render_inline_images ? "true" : "false")),
-             std::string::npos);
-    CHECK_NE(text.find(std::string(R"("expand_header_footer_page_placeholders":)") +
-                       (expand_header_footer_page_placeholders ? "true"
-                                                                : "false")),
-             std::string::npos);
-    CHECK_NE(text.find(std::string(R"("subset_unicode_fonts":)") +
-                       (subset_unicode_fonts ? "true" : "false")),
-             std::string::npos);
-    CHECK_NE(text.find(std::string(R"("use_system_font_fallbacks":)") +
-                       (use_system_font_fallbacks ? "true" : "false")),
-             std::string::npos);
-    CHECK_NE(text.find(std::string(R"("use_system_font_fallbacks":)") +
-                       (use_system_font_fallbacks ? "true" : "false") + "}}"),
-             std::string::npos);
+    expect_json_field(text, R"("options":{)");
+    expect_json_field(text, std::string(R"("render_headers_and_footers":)") +
+                                (render_headers_and_footers ? "true" : "false"));
+    expect_json_field(text, std::string(R"("render_inline_images":)") +
+                                (render_inline_images ? "true" : "false"));
+    expect_json_field(
+        text,
+        std::string(R"("expand_header_footer_page_placeholders":)") +
+            (expand_header_footer_page_placeholders ? "true" : "false"));
+    expect_json_field(text, std::string(R"("subset_unicode_fonts":)") +
+                                (subset_unicode_fonts ? "true" : "false"));
+    expect_json_field(text, std::string(R"("use_system_font_fallbacks":)") +
+                                (use_system_font_fallbacks ? "true" : "false"));
+}
+
+void expect_pdf_export_success_json(
+    const std::string &text, const fs::path &output_path,
+    bool render_headers_and_footers, bool render_inline_images,
+    bool expand_header_footer_page_placeholders, bool subset_unicode_fonts,
+    bool use_system_font_fallbacks) {
+    expect_json_object_text(text);
+    expect_json_field(text, R"("command":"export-pdf")");
+    expect_json_field(text, R"("ok":true)");
+    expect_json_field(text,
+                      std::string(R"("output":)") +
+                          json_quote(output_path.string()));
+    expect_json_field(text,
+                      std::string(R"("bytes_written":)") +
+                          std::to_string(static_cast<unsigned long long>(
+                              fs::file_size(output_path))));
+    expect_pdf_export_options_json(text,
+                                   render_headers_and_footers,
+                                   render_inline_images,
+                                   expand_header_footer_page_placeholders,
+                                   subset_unicode_fonts,
+                                   use_system_font_fallbacks);
+}
+
+void expect_pdf_export_error_json(const std::string &text,
+                                  std::string_view stage,
+                                  std::string_view detail_fragment = {}) {
+    expect_json_object_text(text);
+    expect_json_field(text, R"("command":"export-pdf")");
+    expect_json_field(text, R"("ok":false)");
+    expect_json_field(text, std::string(R"("stage":)") + json_quote(stage));
+    expect_json_field(text, R"("message":)");
+    if (!detail_fragment.empty()) {
+        expect_json_field(text, detail_fragment);
+    }
 }
 
 } // namespace
@@ -235,18 +342,21 @@ TEST_CASE("cli export-pdf writes a PDF file and json summary") {
                            {"section 0 body", "section 1 body",
                             "section 2 body"});
 
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
-    CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
-    CHECK_NE(json.find(R"("bytes_written":)"), std::string::npos);
-    expect_pdf_export_options_json(json, true, false, false, true, true);
+    expect_pdf_export_success_json(read_text_file(json_output),
+                                   output,
+                                   true,
+                                   false,
+                                   false,
+                                   true,
+                                   true);
 
-    const auto summary = read_text_file(summary_json);
-    CHECK_NE(summary.find(R"("command":"export-pdf")"), std::string::npos);
-    CHECK_NE(summary.find(R"("ok":true)"), std::string::npos);
-    CHECK_NE(summary.find(R"("output":)"), std::string::npos);
-    CHECK_NE(summary.find(R"("bytes_written":)"), std::string::npos);
-    expect_pdf_export_options_json(summary, true, false, false, true, true);
+    expect_pdf_export_success_json(read_text_file(summary_json),
+                                   output,
+                                   true,
+                                   false,
+                                   false,
+                                   true,
+                                   true);
 }
 
 TEST_CASE("cli export-pdf expands header and footer page placeholders") {
@@ -287,13 +397,21 @@ TEST_CASE("cli export-pdf expands header and footer page placeholders") {
                             "Footer page 1 of 3",
                             "Footer page 3 of 3"});
 
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
-    CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
-    expect_pdf_export_options_json(json, true, false, true, true, true);
+    expect_pdf_export_success_json(read_text_file(json_output),
+                                   output,
+                                   true,
+                                   false,
+                                   true,
+                                   true,
+                                   true);
 
-    const auto summary = read_text_file(summary_json);
-    expect_pdf_export_options_json(summary, true, false, true, true, true);
+    expect_pdf_export_success_json(read_text_file(summary_json),
+                                   output,
+                                   true,
+                                   false,
+                                   true,
+                                   true,
+                                   true);
 }
 
 TEST_CASE("cli export-pdf can render inline images") {
@@ -334,9 +452,13 @@ TEST_CASE("cli export-pdf can render inline images") {
                            {"section 0 body", "section 1 body",
                             "section 2 body"});
 
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
-    CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
+    expect_pdf_export_success_json(read_text_file(json_output),
+                                   output,
+                                   false,
+                                   true,
+                                   false,
+                                   true,
+                                   true);
 }
 
 TEST_CASE("cli export-pdf accepts an explicit font family mapping") {
@@ -376,9 +498,13 @@ TEST_CASE("cli export-pdf accepts an explicit font family mapping") {
                            {"section 0 body", "section 1 body",
                             "section 2 body"});
 
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
-    CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
+    expect_pdf_export_success_json(read_text_file(json_output),
+                                   output,
+                                   false,
+                                   false,
+                                   false,
+                                   true,
+                                   true);
 }
 
 TEST_CASE("cli export-pdf honors font subset toggles for CJK fonts") {
@@ -444,12 +570,20 @@ TEST_CASE("cli export-pdf honors font subset toggles for CJK fonts") {
     CHECK_NE(full_pdf.find("/ToUnicode"), std::string::npos);
     CHECK_NE(full_pdf.find("/CIDFontType2"), std::string::npos);
 
-    const auto subset_summary = read_text_file(subset_json);
-    const auto full_summary = read_text_file(full_json);
-    CHECK_NE(subset_summary.find(R"("command":"export-pdf")"),
-             std::string::npos);
-    CHECK_NE(full_summary.find(R"("command":"export-pdf")"),
-             std::string::npos);
+    expect_pdf_export_success_json(read_text_file(subset_json),
+                                   subset_output,
+                                   false,
+                                   false,
+                                   false,
+                                   true,
+                                   true);
+    expect_pdf_export_success_json(read_text_file(full_json),
+                                   full_output,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   true);
 
     assert_pdfium_can_read(subset_output, 3U,
                            {"section 0 body", "section 1 body",
@@ -507,9 +641,52 @@ TEST_CASE("cli export-pdf accepts explicit CJK font without system fallback") {
                            {"section 0 body", "section 1 body",
                             "section 2 body", std::string_view{cjk_text}});
 
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
-    CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
+    expect_pdf_export_success_json(read_text_file(json_output),
+                                   output,
+                                   false,
+                                   false,
+                                   false,
+                                   true,
+                                   false);
+}
+
+TEST_CASE("cli export-pdf reports summary json write failures") {
+    const fs::path work_dir = test_binary_directory() / "pdf_cli_export";
+    std::error_code error;
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const fs::path source = work_dir / "summary-failure-source.docx";
+    const fs::path output = work_dir / "summary-failure-source.pdf";
+    const fs::path json_output = work_dir / "summary-failure-source-export.json";
+    const fs::path summary_json_dir = work_dir / "summary-json-directory";
+    remove_if_exists(output);
+    remove_if_exists(json_output);
+    remove_if_exists(summary_json_dir);
+
+    fs::create_directories(summary_json_dir, error);
+    REQUIRE_FALSE(error);
+
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"export-pdf",
+                      source.string(),
+                      "--output",
+                      output.string(),
+                      "--summary-json",
+                      summary_json_dir.string(),
+                      "--json"},
+                     json_output),
+             1);
+
+    REQUIRE(fs::exists(output));
+    CHECK_GT(fs::file_size(output), static_cast<std::uintmax_t>(500U));
+    CHECK_EQ(read_pdf_magic(output), "%PDF-");
+    expect_pdf_export_error_json(read_text_file(json_output),
+                                 "summary",
+                                 "failed to open PDF export summary");
+
+    remove_if_exists(summary_json_dir);
 }
 
 TEST_CASE("cli export-pdf rejects invalid font family mappings") {
@@ -536,12 +713,9 @@ TEST_CASE("cli export-pdf rejects invalid font family mappings") {
                      json_output),
              2);
 
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
-    CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
-    CHECK_NE(json.find(R"("stage":"parse")"), std::string::npos);
-    CHECK_NE(json.find("--font-map expects <font-family>=<font-file>"),
-             std::string::npos);
+    expect_pdf_export_error_json(read_text_file(json_output),
+                                 "parse",
+                                 "--font-map expects <font-family>=<font-file>");
 }
 
 TEST_CASE("cli export-pdf reports missing input documents") {
@@ -565,10 +739,7 @@ TEST_CASE("cli export-pdf reports missing input documents") {
                      json_output),
              1);
 
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
-    CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
-    CHECK_NE(json.find(R"("stage":"open")"), std::string::npos);
+    expect_pdf_export_error_json(read_text_file(json_output), "open");
 }
 
 TEST_CASE("cli export-pdf reports missing font files") {
@@ -602,10 +773,8 @@ TEST_CASE("cli export-pdf reports missing font files") {
                      json_output),
              1);
 
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
-    CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
-    CHECK_NE(json.find(R"("stage":"export")"), std::string::npos);
-    CHECK_NE(json.find("Unicode PDF text requires an embedded font file"),
-             std::string::npos);
+    expect_pdf_export_error_json(
+        read_text_file(json_output),
+        "export",
+        "Unicode PDF text requires an embedded font file");
 }
