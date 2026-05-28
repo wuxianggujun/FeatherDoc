@@ -29,6 +29,9 @@ performance.
   JSON result object is closed after the nested `options` object.
 - Fixed Debug PDF CTest runtime-path resolution so `pdf_cli_export` uses Debug
   vcpkg DLL directories instead of release-only runtime paths.
+- Clarified historical PDF visual validation changelog wording so old
+  reusable-build and baseline-output blocker notes do not read as current
+  release status.
 
 ## [1.12.0] - 2026-05-28
 
@@ -165,9 +168,9 @@ performance.
 - Documented the stricter PDF preflight reusable-build selection in the stale
   branch inventory so old `auto:build` evidence does not drive branch cleanup
   decisions.
-- Documented the current PDF visual validation boundary, including the
-  free-memory preflight check, governance passthrough, and why the gate is
-  still blocked by missing reusable build and baseline outputs.
+- Documented the then-current PDF visual validation boundary, including the
+  free-memory preflight check, governance passthrough, and the reusable-build
+  and baseline-output blockers that were active before later full-gate closure.
 
 ### Fixed
 

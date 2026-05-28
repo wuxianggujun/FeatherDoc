@@ -58,6 +58,8 @@ gate or release paths, fall back to `sync_visual_review_verdict.ps1`.
 - install + find_package smoke: <completed|skipped|failed>
 - Word visual release gate: <completed|skipped|failed>
 - Visual verdict: <pass|fail|pending_manual_review>
+- PDF release readiness: <pass|pass_with_warnings|fail>
+- PDF visual gate verdict: <pass|fail|pending_manual_review>
 
 ## Installed Package Entry Points
 - `share/FeatherDoc/VISUAL_VALIDATION_QUICKSTART.zh-CN.md`
@@ -77,6 +79,8 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_fixed_grid_merge_unme
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\open_latest_word_review_task.ps1
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\open_latest_fixed_grid_review_task.ps1 -PrintPrompt
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_latest_visual_review_verdict.ps1
+pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\check_pdf_release_readiness.ps1 `
+    -OutputJson <repo-root>\output\pdf-release-readiness-current\summary.json
 ```
 
 ## Evidence Files
@@ -91,6 +95,10 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_latest_visual_review
 - `output/release-candidate-checks/report/release_summary.zh-CN.md`
 - `output/word-visual-release-gate/report/gate_summary.json`
 - `output/word-visual-release-gate/report/gate_final_review.md`
+- `docs/pdf_release_readiness_checklist_zh.rst`
+- `output/pdf-release-readiness-current/summary.json`
+- `output/pdf-visual-release-gate-current/report/summary.json`
+- `output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png`
 - `output/fixed-grid-merge-unmerge-regression/aggregate-evidence/contact_sheet.png`
 - `output/word-visual-sample-merge-right-fixed-grid/evidence/pages/page-01.png`
 - `output/word-visual-sample-merge-down-fixed-grid/evidence/pages/page-01.png`

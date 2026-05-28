@@ -11,12 +11,13 @@ $checks = @(
     @{ Path = "README.md"; Unexpected = "release-facing drafts" }
     @{ Path = "VISUAL_VALIDATION_QUICKSTART.md"; Unexpected = "release-facing drafts" }
     @{ Path = "VISUAL_VALIDATION_QUICKSTART.md"; Unexpected = "regenerate those drafts" }
-    @{ Path = "VISUAL_VALIDATION_QUICKSTART.zh-CN.md"; Unexpected = "整套 release 草稿" }
-    @{ Path = "VISUAL_VALIDATION_QUICKSTART.zh-CN.md"; Unexpected = "这几份草稿" }
+    @{ Path = "VISUAL_VALIDATION_QUICKSTART.zh-CN.md"; Unexpected = [string]::Concat(@([char]0x6574, [char]0x5957, " release ", [char]0x8349, [char]0x7A3F)) }
+    @{ Path = "VISUAL_VALIDATION_QUICKSTART.zh-CN.md"; Unexpected = [string]::Concat(@([char]0x8FD9, [char]0x51E0, [char]0x4EFD, [char]0x8349, [char]0x7A3F)) }
     @{ Path = "RELEASE_ARTIFACT_TEMPLATE.md"; Unexpected = "release-facing drafts" }
     @{ Path = "RELEASE_ARTIFACT_TEMPLATE.md"; Unexpected = "trimming that draft" }
     @{ Path = "docs/index.rst"; Unexpected = "release-facing drafts" }
-    @{ Path = "docs/release_policy_zh.rst"; Unexpected = "提供一份中文草稿" }
+    @{ Path = "CHANGELOG.md"; Unexpected = "still blocked by missing reusable build and baseline outputs" }
+    @{ Path = "docs/release_policy_zh.rst"; Unexpected = [string]::Concat(@([char]0x63D0, [char]0x4F9B, [char]0x4E00, [char]0x4EFD, [char]0x4E2D, [char]0x6587, [char]0x8349, [char]0x7A3F)) }
 )
 
 foreach ($check in $checks) {
