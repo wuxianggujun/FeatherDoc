@@ -1049,6 +1049,7 @@ if ($recommendedRecoverySteps.Count -eq 0) {
         -Summary "No blocking preflight recovery steps remain; the current build inputs look ready for guarded PDF visual validation.")) | Out-Null
 }
 $summary = [ordered]@{
+    schema = "featherdoc.pdf_visual_release_gate_preflight.v1"
     generated_at = (Get-Date).ToString("s")
     status = $status
     strict = [bool]$Strict

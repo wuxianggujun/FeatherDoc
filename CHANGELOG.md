@@ -19,6 +19,9 @@ performance.
   limits.
 - Documented the `export-pdf --json` failure result contract, including parse,
   open, export, and summary failure stages.
+- Added a stable schema marker to the raw PDF visual release-gate preflight
+  summary so downstream governance and readiness evidence can identify it
+  without relying on path conventions.
 
 ### Fixed
 

@@ -84,6 +84,8 @@ if (-not (Test-Path -LiteralPath $plainBuildDefaultSummaryPath -PathType Leaf)) 
     throw "PDF visual release gate preflight should write the default current raw summary when -OutputJson is omitted."
 }
 $plainBuildDefaultSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $plainBuildDefaultSummaryPath | ConvertFrom-Json
+Assert-True -Condition ([string]$plainBuildDefaultSummary.schema -eq "featherdoc.pdf_visual_release_gate_preflight.v1") `
+    -Message "Default current raw summary should expose the stable preflight schema."
 Assert-True -Condition ([string]$plainBuildDefaultSummary.status -eq "not_ready") `
     -Message "Default current raw summary should preserve the preflight status."
 Assert-True -Condition (($plainBuildDefaultSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "build_dir_exists") `
@@ -392,6 +394,8 @@ Assert-True -Condition ([string]$disabledOverrideSummary.recommended_recovery_st
     -Message "Disabled PDF build override recovery should focus on restoring PDF build options first."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+Assert-True -Condition ([string]$summary.schema -eq "featherdoc.pdf_visual_release_gate_preflight.v1") `
+    -Message "Synthetic fixture preflight should expose the stable raw summary schema."
 Assert-True -Condition ($summary.status -eq "not_ready") `
     -Message "Preflight summary should reject reusable fake PDF build evidence."
 Assert-True -Condition ([int]$summary.blocking_summary.blocking_check_count -eq 1) `
@@ -569,6 +573,7 @@ foreach ($forbiddenText in @(
 $preflightText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 foreach ($expectedText in @(
     '[string]$OutputJson = "output/pdf-visual-release-gate-preflight-current/summary.json"',
+    'schema = "featherdoc.pdf_visual_release_gate_preflight.v1"',
     'if ([string]::IsNullOrWhiteSpace($OutputJson))',
     "Resolve-PreferredBuildDir",
     "Get-BuildDirectorySnapshot",
@@ -627,3 +632,4 @@ foreach ($expectedText in @(
 }
 
 Write-Host "PDF visual release gate preflight contract passed."
+exit 0
