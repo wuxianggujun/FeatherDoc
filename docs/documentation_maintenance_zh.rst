@@ -15,15 +15,20 @@
 
 1. ``docs/current_direction_zh.rst``：当前产品主线和功能准入标准。
 2. ``docs/document_governance_acceptance_zh.rst``：文档治理阶段验收边界。
-3. ``docs/document_api_mainline_status_zh.rst``：文档 API 主线、旧分支复核和
-   轻量验证状态。
-4. ``docs/stale_codex_branch_inventory_zh.rst``：远端 ``codex/*`` 参考分支库存。
-5. ``docs/release_metadata_pipeline_zh.rst``：发布治理、handoff、rollup 和
+3. ``docs/release_metadata_pipeline_zh.rst``：发布治理、handoff、rollup 和
    reviewer-facing bundle 的元数据链路。
-6. ``docs/release_metadata_maintenance_checklist_zh.rst``：release metadata 修改流程。
-7. ``docs/automation/word_visual_workflow_zh.rst``：Word 视觉验证流程。
-8. ``BUILDING_PDF.md`` 与 ``design/04-pdf-execution-plan.md``：PDF 保守维护和
+4. ``docs/release_metadata_maintenance_checklist_zh.rst``：release metadata 修改流程。
+5. ``docs/automation/word_visual_workflow_zh.rst``：Word 视觉验证流程。
+6. ``BUILDING_PDF.md`` 与 ``design/04-pdf-execution-plan.md``：PDF 保守维护和
    后续验证入口。
+
+历史参考页可以继续保留，但不再作为首页主入口：
+
+1. ``docs/document_api_mainline_status_zh.rst``：文档 API 主线和旧分支复核快照。
+2. ``docs/branch_recovery_and_governance_sync_zh.rst``：工作区恢复和分支同步记录。
+3. ``docs/stale_codex_branch_inventory_zh.rst``：远端 ``codex/*`` 参考分支库存。
+4. ``docs/pdf_visual_validation_status_zh.rst``：PDF 可视化验证状态快照。
+5. ``docs/v1_7_roadmap_zh.rst``：历史路线图归档。
 
 
 当前推进顺序

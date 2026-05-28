@@ -11,6 +11,7 @@ void print_usage(std::ostream &stream) {
            " --inputs <inputs.json> --output <output-dir> [--json]\n"
         << "  featherdoc_cli export-pdf <input.docx> --output <output.pdf>"
            " [--render-headers-and-footers] [--render-inline-images]"
+           " [--expand-header-footer-page-placeholders]"
            " [--font-file <path>] [--cjk-font-file <path>]"
            " [--font-map <family>=<path>]..."
            " [--title <text>] [--creator <text>] [--no-font-subset]"

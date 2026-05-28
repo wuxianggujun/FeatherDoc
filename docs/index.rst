@@ -21,17 +21,13 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    project_template_release_readiness_checklist_zh
    table_style_definition_zh
    document_governance_acceptance_zh
-   document_api_mainline_status_zh
    docx_functional_smoke_readiness_zh
    documentation_maintenance_zh
-   branch_recovery_and_governance_sync_zh
-   stale_codex_branch_inventory_zh
    project_score_assessment_zh
    release_policy_zh
    release_metadata_pipeline_zh
-   pdf_visual_validation_status_zh
    pdf_release_readiness_checklist_zh
-   v1_7_roadmap_zh
+   pdf_export
    pdf_import
    pdf_import_json_diagnostics
    pdf_import_scope
@@ -173,10 +169,11 @@ LibreOffice PDF Study Notes
 The LibreOffice PDF research log now lives under
 :doc:`libreoffice_pdf/index_zh`.
 
-PDF Import
-----------
-For the experimental import path, see :doc:`pdf_import`,
-:doc:`pdf_import_json_diagnostics`, and :doc:`pdf_import_scope`.
+PDF Export And Import
+---------------------
+For the experimental export path, see :doc:`pdf_export`. For the experimental
+import path, see :doc:`pdf_import`, :doc:`pdf_import_json_diagnostics`, and
+:doc:`pdf_import_scope`.
 
 
 How to install
