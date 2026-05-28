@@ -759,6 +759,7 @@ function New-ReportMarkdown {
         }
     }
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
+    $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null
     $lines.Add("- Output gap checks: ``$($Summary.output_gap_count)``") | Out-Null
     $lines.Add("- Missing outputs: ``$($Summary.missing_output_count)``") | Out-Null
     $lines.Add("") | Out-Null

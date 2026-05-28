@@ -783,6 +783,8 @@ Assert-ContainsText -Text ([string]$blockedSummary.controlled_visual_smoke.min_n
     -Message "Governance report should expose the minimum controlled smoke nonwhite ratio."
 Assert-Equal -Actual ([int]$blockedSummary.warning_count) -Expected 0 `
     -Message "Passing controlled visual smoke evidence should not emit governance warnings."
+Assert-Equal -Actual @($blockedSummary.warnings).Count -Expected 0 `
+    -Message "Passing controlled visual smoke evidence should preserve an empty warnings array."
 
 $failedSmokeOutputDir = Join-Path $resolvedWorkingDir "failed-smoke-report"
 $failedSmokeResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
@@ -1167,6 +1169,12 @@ Assert-ContainsText -Text $blockedMarkdown `
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "source_json: ``$([string]$actionItem.source_json)``" `
     -Message "Markdown should include the raw action item source JSON path."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "Warnings: ``0``" `
+    -Message "Markdown should summarize the warning count."
+Assert-ContainsText -Text $blockedMarkdown `
+    -ExpectedText "## Warnings`r`n`r`n- none" `
+    -Message "Markdown should include an explicit empty warnings section."
 Assert-ContainsText -Text $blockedMarkdown `
     -ExpectedText "Missing outputs" `
     -Message "Markdown should summarize the missing output count."
