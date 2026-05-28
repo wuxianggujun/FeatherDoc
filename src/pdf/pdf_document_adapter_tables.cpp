@@ -252,6 +252,10 @@ void emit_table(featherdoc::Document &document, PdfPageLayout *&page,
     const auto cell_spacing_points = table_cell_spacing_points(table);
     const auto table_height_points =
         table_block_height(rows, cell_spacing_points);
+    const auto bottom_from_text_points =
+        table.position && table.position->bottom_from_text_twips
+            ? twips_to_points(*table.position->bottom_from_text_twips)
+            : 0.0;
     const auto header_row_count = repeated_header_row_count(rows);
     const auto header_block_height = repeated_header_block_height(
         rows, header_row_count, cell_spacing_points);
@@ -292,6 +296,7 @@ void emit_table(featherdoc::Document &document, PdfPageLayout *&page,
         current_y = row_bottom - options.font_size_points - cell_spacing_points;
     }
 
+    current_y -= bottom_from_text_points;
     current_y -= options.paragraph_spacing_after_points;
 }
 

@@ -2962,6 +2962,7 @@ TEST_CASE("document PDF adapter keeps text after positioned tables below them") 
     position.vertical_reference =
         featherdoc::table_position_vertical_reference::paragraph;
     position.vertical_offset_twips = 0;
+    position.bottom_from_text_twips = 240U;
     CHECK(table.set_position(position));
 
     auto body_template = document.body_template();
@@ -2991,6 +2992,10 @@ TEST_CASE("document PDF adapter keeps text after positioned tables below them") 
 
     REQUIRE(after_text != nullptr);
     CHECK_LT(after_text->baseline_origin.y_points, table_rect.bounds.y_points);
+    CHECK(after_text->baseline_origin.y_points ==
+          doctest::Approx(table_rect.bounds.y_points - 12.0 -
+                          options.paragraph_spacing_after_points -
+                          options.font_size_points));
 }
 
 TEST_CASE("document PDF adapter repeats table header rows across pages") {

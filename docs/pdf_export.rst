@@ -131,6 +131,12 @@ top anchoring for those cases. They require Word page/paragraph and page-side
 context that the experimental PDF layout path does not yet model as a stable
 contract.
 
+``bottomFromText`` is honored as extra vertical spacing between a positioned
+table and following body text in the in-process PDF layout. The remaining
+per-edge text distances and ``tblOverlap`` are still preserved in DOCX metadata
+but are not yet a full Word-compatible table text-wrapping contract for PDF
+export.
+
 It is not a production Word-compatible layout engine. Complex pagination,
 full Word field evaluation, arbitrary drawing reconstruction, and
 visual-perfect reproduction remain outside the stable contract. Treat the
