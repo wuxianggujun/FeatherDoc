@@ -283,9 +283,11 @@ struct table_position {
     featherdoc::table_position_horizontal_reference horizontal_reference{
         featherdoc::table_position_horizontal_reference::margin};
     std::int32_t horizontal_offset_twips{0};
+    std::optional<featherdoc::table_position_horizontal_spec> horizontal_spec;
     featherdoc::table_position_vertical_reference vertical_reference{
         featherdoc::table_position_vertical_reference::paragraph};
     std::int32_t vertical_offset_twips{0};
+    std::optional<featherdoc::table_position_vertical_spec> vertical_spec;
     std::optional<std::uint32_t> left_from_text_twips;
     std::optional<std::uint32_t> right_from_text_twips;
     std::optional<std::uint32_t> top_from_text_twips;

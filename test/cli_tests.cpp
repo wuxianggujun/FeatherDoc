@@ -7959,6 +7959,8 @@ TEST_CASE("cli table position commands set inspect and clear body table position
         working_directory / "cli_table_position_clear_all_output.json";
     const fs::path clear_list_output =
         working_directory / "cli_table_position_clear_list_output.json";
+    const fs::path parse_error_output =
+        working_directory / "cli_table_position_parse_error.json";
 
     remove_if_exists(source);
     remove_if_exists(positioned);
@@ -7977,6 +7979,7 @@ TEST_CASE("cli table position commands set inspect and clear body table position
     remove_if_exists(list_output);
     remove_if_exists(clear_all_output);
     remove_if_exists(clear_list_output);
+    remove_if_exists(parse_error_output);
 
     create_cli_table_inspection_fixture(source);
 
@@ -7987,10 +7990,14 @@ TEST_CASE("cli table position commands set inspect and clear body table position
                       "page",
                       "--horizontal-offset",
                       "720",
+                      "--horizontal-spec",
+                      "center",
                       "--vertical-reference",
                       "paragraph",
                       "--vertical-offset",
                       "-120",
+                      "--vertical-spec",
+                      "bottom",
                       "--left-from-text",
                       "144",
                       "--right-from-text",
@@ -8012,8 +8019,9 @@ TEST_CASE("cli table position commands set inspect and clear body table position
             "{\"command\":\"set-table-position\",\"ok\":true,"
             "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
             "\"table_indices\":[0],\"positions\":[{\"horizontal_reference\":\"page\","
-            "\"horizontal_offset_twips\":720,\"vertical_reference\":\"paragraph\","
-            "\"vertical_offset_twips\":-120,\"left_from_text_twips\":144,"
+            "\"horizontal_offset_twips\":720,\"horizontal_spec\":\"center\","
+            "\"vertical_reference\":\"paragraph\",\"vertical_offset_twips\":-120,"
+            "\"vertical_spec\":\"bottom\",\"left_from_text_twips\":144,"
             "\"right_from_text_twips\":288,\"top_from_text_twips\":72,"
             "\"bottom_from_text_twips\":216,\"overlap\":\"never\"}]}\n"});
 
@@ -8031,10 +8039,14 @@ TEST_CASE("cli table position commands set inspect and clear body table position
              "page");
     CHECK_EQ(std::string_view{table_position.attribute("w:tblpX").value()},
              "720");
+    CHECK_EQ(std::string_view{table_position.attribute("w:tblpXSpec").value()},
+             "center");
     CHECK_EQ(std::string_view{table_position.attribute("w:vertAnchor").value()},
              "text");
     CHECK_EQ(std::string_view{table_position.attribute("w:tblpY").value()},
              "-120");
+    CHECK_EQ(std::string_view{table_position.attribute("w:tblpYSpec").value()},
+             "bottom");
     CHECK_EQ(std::string_view{table_position.attribute("w:leftFromText").value()},
              "144");
     CHECK_EQ(std::string_view{table_position.attribute("w:rightFromText").value()},
@@ -8055,9 +8067,15 @@ TEST_CASE("cli table position commands set inspect and clear body table position
     CHECK_EQ(reopened_position->horizontal_reference,
              featherdoc::table_position_horizontal_reference::page);
     CHECK_EQ(reopened_position->horizontal_offset_twips, 720);
+    REQUIRE(reopened_position->horizontal_spec.has_value());
+    CHECK_EQ(*reopened_position->horizontal_spec,
+             featherdoc::table_position_horizontal_spec::center);
     CHECK_EQ(reopened_position->vertical_reference,
              featherdoc::table_position_vertical_reference::paragraph);
     CHECK_EQ(reopened_position->vertical_offset_twips, -120);
+    REQUIRE(reopened_position->vertical_spec.has_value());
+    CHECK_EQ(*reopened_position->vertical_spec,
+             featherdoc::table_position_vertical_spec::bottom);
     REQUIRE(reopened_position->left_from_text_twips.has_value());
     CHECK_EQ(*reopened_position->left_from_text_twips, 144U);
     REQUIRE(reopened_position->right_from_text_twips.has_value());
@@ -8077,9 +8095,13 @@ TEST_CASE("cli table position commands set inspect and clear body table position
              std::string::npos);
     CHECK_NE(inspect_json.find("\"horizontal_offset_twips\":720"),
              std::string::npos);
+    CHECK_NE(inspect_json.find("\"horizontal_spec\":\"center\""),
+             std::string::npos);
     CHECK_NE(inspect_json.find("\"vertical_reference\":\"paragraph\""),
              std::string::npos);
     CHECK_NE(inspect_json.find("\"vertical_offset_twips\":-120"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"vertical_spec\":\"bottom\""),
              std::string::npos);
 
     CHECK_EQ(run_cli({"set-table-position",
@@ -8102,8 +8124,9 @@ TEST_CASE("cli table position commands set inspect and clear body table position
             "{\"command\":\"set-table-position\",\"ok\":true,"
             "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
             "\"table_indices\":[0],\"positions\":[{\"horizontal_reference\":\"page\","
-            "\"horizontal_offset_twips\":360,\"vertical_reference\":\"page\","
-            "\"vertical_offset_twips\":720,\"left_from_text_twips\":144,"
+            "\"horizontal_offset_twips\":360,\"horizontal_spec\":null,"
+            "\"vertical_reference\":\"page\",\"vertical_offset_twips\":720,"
+            "\"vertical_spec\":null,\"left_from_text_twips\":144,"
             "\"right_from_text_twips\":144,\"top_from_text_twips\":144,"
             "\"bottom_from_text_twips\":288,\"overlap\":\"never\"}]}\n"});
 
@@ -8151,12 +8174,14 @@ TEST_CASE("cli table position commands set inspect and clear body table position
             "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
             "\"table_indices\":[0,1],\"positions\":["
             "{\"horizontal_reference\":\"column\",\"horizontal_offset_twips\":0,"
-            "\"vertical_reference\":\"paragraph\",\"vertical_offset_twips\":0,"
+            "\"horizontal_spec\":null,\"vertical_reference\":\"paragraph\","
+            "\"vertical_offset_twips\":0,\"vertical_spec\":null,"
             "\"left_from_text_twips\":144,\"right_from_text_twips\":144,"
             "\"top_from_text_twips\":72,\"bottom_from_text_twips\":72,"
             "\"overlap\":\"never\"},"
             "{\"horizontal_reference\":\"column\",\"horizontal_offset_twips\":0,"
-            "\"vertical_reference\":\"paragraph\",\"vertical_offset_twips\":0,"
+            "\"horizontal_spec\":null,\"vertical_reference\":\"paragraph\","
+            "\"vertical_offset_twips\":0,\"vertical_spec\":null,"
             "\"left_from_text_twips\":144,\"right_from_text_twips\":144,"
             "\"top_from_text_twips\":72,\"bottom_from_text_twips\":72,"
             "\"overlap\":\"never\"}]}\n"});
@@ -8199,12 +8224,14 @@ TEST_CASE("cli table position commands set inspect and clear body table position
             "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
             "\"table_indices\":[0,1],\"positions\":["
             "{\"horizontal_reference\":\"margin\",\"horizontal_offset_twips\":0,"
-            "\"vertical_reference\":\"paragraph\",\"vertical_offset_twips\":0,"
+            "\"horizontal_spec\":null,\"vertical_reference\":\"paragraph\","
+            "\"vertical_offset_twips\":0,\"vertical_spec\":null,"
             "\"left_from_text_twips\":144,\"right_from_text_twips\":144,"
             "\"top_from_text_twips\":72,\"bottom_from_text_twips\":72,"
             "\"overlap\":\"never\"},"
             "{\"horizontal_reference\":\"margin\",\"horizontal_offset_twips\":0,"
-            "\"vertical_reference\":\"paragraph\",\"vertical_offset_twips\":0,"
+            "\"horizontal_spec\":null,\"vertical_reference\":\"paragraph\","
+            "\"vertical_offset_twips\":0,\"vertical_spec\":null,"
             "\"left_from_text_twips\":144,\"right_from_text_twips\":144,"
             "\"top_from_text_twips\":72,\"bottom_from_text_twips\":72,"
             "\"overlap\":\"never\"}]}\n"});
@@ -8239,6 +8266,28 @@ TEST_CASE("cli table position commands set inspect and clear body table position
              0);
     CHECK_NE(read_text_file(inspect_cleared_output).find("\"position\":null"),
              std::string::npos);
+
+    CHECK_EQ(run_cli({"set-table-position",
+                      source.string(),
+                      "0",
+                      "--horizontal-reference",
+                      "page",
+                      "--horizontal-offset",
+                      "0",
+                      "--horizontal-spec",
+                      "middle",
+                      "--vertical-reference",
+                      "paragraph",
+                      "--vertical-offset",
+                      "0",
+                      "--json"},
+                     parse_error_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_error_output),
+        std::string{
+            "{\"command\":\"set-table-position\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"invalid horizontal spec: middle\"}\n"});
 
 
     CHECK_EQ(run_cli({"clear-table-position",

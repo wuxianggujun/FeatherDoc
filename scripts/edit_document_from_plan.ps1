@@ -6503,8 +6503,12 @@ function New-OperationArguments {
             $positionOptions = @(
                 [pscustomobject]@{ Name = "horizontal_offset"; Flag = "--horizontal-offset" },
                 [pscustomobject]@{ Name = "horizontal_offset_twips"; Flag = "--horizontal-offset" },
+                [pscustomobject]@{ Name = "horizontal_spec"; Flag = "--horizontal-spec" },
+                [pscustomobject]@{ Name = "horizontal_position_spec"; Flag = "--horizontal-spec" },
                 [pscustomobject]@{ Name = "vertical_offset"; Flag = "--vertical-offset" },
                 [pscustomobject]@{ Name = "vertical_offset_twips"; Flag = "--vertical-offset" },
+                [pscustomobject]@{ Name = "vertical_spec"; Flag = "--vertical-spec" },
+                [pscustomobject]@{ Name = "vertical_position_spec"; Flag = "--vertical-spec" },
                 [pscustomobject]@{ Name = "left_from_text"; Flag = "--left-from-text" },
                 [pscustomobject]@{ Name = "left_from_text_twips"; Flag = "--left-from-text" },
                 [pscustomobject]@{ Name = "right_from_text"; Flag = "--right-from-text" },

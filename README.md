@@ -1468,7 +1468,12 @@ around an existing body table, or `insert_table_like_before` and
 cell text. Use `insert_paragraph_after_table` when an edit plan needs to add a
 regular body paragraph immediately after a selected table. Use
 `set_table_position` and `clear_table_position` when an edit plan needs to add
-or remove floating `w:tblpPr` table placement. Use
+or remove floating `w:tblpPr` table placement. `set_table_position` accepts
+`horizontal_spec` / `horizontal_position_spec` and `vertical_spec` /
+`vertical_position_spec` as edit-plan aliases for the CLI
+`--horizontal-spec` / `--vertical-spec` options. Horizontal spec values are
+`left`, `center`, `right`, `inside`, and `outside`; vertical spec values are
+`top`, `center`, `bottom`, `inside`, and `outside`. Use
 `apply_table_position_plan` when an edit plan needs to replay a saved
 `plan-table-position-presets` JSON plan; it accepts `plan_file` /
 `table_position_plan_file`, or an inline `table_position_plan` / `plan` object.
@@ -3209,9 +3214,12 @@ metadata from the command line. Use `featherdoc_cli set-table-position` and
 `clear-table-position` to add or remove a body table `w:tblpPr` floating
 position with margin/page/column horizontal references, margin/page/paragraph
 vertical references, signed twips offsets, optional text wrapping distances,
-and overlap policy. `set-table-position --preset paragraph-callout|page-corner|margin-anchor`
+Word native `tblpXSpec` / `tblpYSpec` relative-position specs, and overlap
+policy. `--horizontal-spec` accepts `left`, `center`, `right`, `inside`, and
+`outside`; `--vertical-spec` accepts `top`, `center`, `bottom`, `inside`, and
+`outside`. `set-table-position --preset paragraph-callout|page-corner|margin-anchor`
 provides migration-friendly defaults that can still be overridden by the
-fine-grained offset, wrapping, and overlap options. Use `<table-index|all>`
+fine-grained offset, spec, wrapping, and overlap options. Use `<table-index|all>`
 with repeated `--table <index>` entries when the same preset should be applied
 to several body tables in one mutation; `clear-table-position` accepts the same
 target syntax and returns `table_indices` / `positions` for every table-position mutation JSON.
@@ -3413,7 +3421,7 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   given first-pass custom table style definitions through `ensure_table_style(...)`
   for whole-table and conditional-region borders, fills, text colors, bold/italic flags, font sizes, font families, cell vertical alignment, text direction, paragraph alignment, paragraph spacing, line spacing, cell margins, and first/second band regions, and
   inspected back through `find_table_style_definition(...)` /
-  `featherdoc_cli inspect-table-style --json`; `audit-table-style-regions` can flag empty declared table-style regions, `audit-table-style-inheritance` can gate missing, cross-type, or cyclic table-style `basedOn` chains, `audit-table-style-quality` can aggregate those definition gates with table instance `tblLook` checks for CI, `plan-table-style-quality-fixes` can split quality findings into automatic `tblLook` repairs and manual style-definition work, `apply-table-style-quality-fixes --look-only` can write only the safe `tblLook` repairs, `scripts/run_table_style_quality_visual_regression.ps1` can archive before/after Word renders, contact sheets, and pixel summaries for visual validation, `check-table-style-look` can gate table instance `tblLook` flags against conditional regions, and `repair-table-style-look` can apply the safe flag fixes. Floating table positioning is now available through `Table::set_position(...)` / `position()` / `clear_position()` over `w:tblpPr`, including horizontal/vertical references, signed twips offsets, optional text wrapping distances, overlap policy, presets, batch targeting, plan/apply replay, and Word-rendered visual validation. `scripts/build_table_layout_delivery_report.ps1` can combine table style quality, safe `tblLook` repair planning, floating table preset planning, and visual-regression handoff for one document, while `scripts/build_table_layout_delivery_rollup_report.ps1` aggregates multiple layout summaries before the release blocker rollup consumes them.
+  `featherdoc_cli inspect-table-style --json`; `audit-table-style-regions` can flag empty declared table-style regions, `audit-table-style-inheritance` can gate missing, cross-type, or cyclic table-style `basedOn` chains, `audit-table-style-quality` can aggregate those definition gates with table instance `tblLook` checks for CI, `plan-table-style-quality-fixes` can split quality findings into automatic `tblLook` repairs and manual style-definition work, `apply-table-style-quality-fixes --look-only` can write only the safe `tblLook` repairs, `scripts/run_table_style_quality_visual_regression.ps1` can archive before/after Word renders, contact sheets, and pixel summaries for visual validation, `check-table-style-look` can gate table instance `tblLook` flags against conditional regions, and `repair-table-style-look` can apply the safe flag fixes. Floating table positioning is now available through `Table::set_position(...)` / `position()` / `clear_position()` over `w:tblpPr`, including horizontal/vertical references, signed twips offsets, Word native horizontal/vertical specs, optional text wrapping distances, overlap policy, presets, batch targeting, plan/apply replay, and Word-rendered visual validation. `scripts/build_table_layout_delivery_report.ps1` can combine table style quality, safe `tblLook` repair planning, floating table preset planning, and visual-regression handoff for one document, while `scripts/build_table_layout_delivery_rollup_report.ps1` aggregates multiple layout summaries before the release blocker rollup consumes them.
 - Paragraphs can now be attached to managed bullet and decimal lists and can
   restart managed list sequences. Custom numbering definitions and
   paragraph-style numbering are now supported through

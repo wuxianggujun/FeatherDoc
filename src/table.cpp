@@ -2051,6 +2051,24 @@ auto to_xml_table_position_horizontal_reference(
     return "margin";
 }
 
+auto to_xml_table_position_horizontal_spec(
+    featherdoc::table_position_horizontal_spec spec) -> const char * {
+    switch (spec) {
+    case featherdoc::table_position_horizontal_spec::left:
+        return "left";
+    case featherdoc::table_position_horizontal_spec::center:
+        return "center";
+    case featherdoc::table_position_horizontal_spec::right:
+        return "right";
+    case featherdoc::table_position_horizontal_spec::inside:
+        return "inside";
+    case featherdoc::table_position_horizontal_spec::outside:
+        return "outside";
+    }
+
+    return "left";
+}
+
 auto to_xml_table_position_vertical_reference(
     featherdoc::table_position_vertical_reference reference) -> const char * {
     switch (reference) {
@@ -2063,6 +2081,24 @@ auto to_xml_table_position_vertical_reference(
     }
 
     return "text";
+}
+
+auto to_xml_table_position_vertical_spec(
+    featherdoc::table_position_vertical_spec spec) -> const char * {
+    switch (spec) {
+    case featherdoc::table_position_vertical_spec::top:
+        return "top";
+    case featherdoc::table_position_vertical_spec::center:
+        return "center";
+    case featherdoc::table_position_vertical_spec::bottom:
+        return "bottom";
+    case featherdoc::table_position_vertical_spec::inside:
+        return "inside";
+    case featherdoc::table_position_vertical_spec::outside:
+        return "outside";
+    }
+
+    return "top";
 }
 
 auto to_xml_table_overlap(featherdoc::table_overlap overlap) -> const char * {
@@ -2119,6 +2155,31 @@ auto parse_table_position_horizontal_reference(std::string_view reference)
     return std::nullopt;
 }
 
+auto parse_table_position_horizontal_spec(std::string_view spec)
+    -> std::optional<featherdoc::table_position_horizontal_spec> {
+    if (spec == "left") {
+        return featherdoc::table_position_horizontal_spec::left;
+    }
+
+    if (spec == "center") {
+        return featherdoc::table_position_horizontal_spec::center;
+    }
+
+    if (spec == "right") {
+        return featherdoc::table_position_horizontal_spec::right;
+    }
+
+    if (spec == "inside") {
+        return featherdoc::table_position_horizontal_spec::inside;
+    }
+
+    if (spec == "outside") {
+        return featherdoc::table_position_horizontal_spec::outside;
+    }
+
+    return std::nullopt;
+}
+
 auto parse_table_position_vertical_reference(std::string_view reference)
     -> std::optional<featherdoc::table_position_vertical_reference> {
     if (reference == "margin") {
@@ -2131,6 +2192,31 @@ auto parse_table_position_vertical_reference(std::string_view reference)
 
     if (reference == "text" || reference == "paragraph") {
         return featherdoc::table_position_vertical_reference::paragraph;
+    }
+
+    return std::nullopt;
+}
+
+auto parse_table_position_vertical_spec(std::string_view spec)
+    -> std::optional<featherdoc::table_position_vertical_spec> {
+    if (spec == "top") {
+        return featherdoc::table_position_vertical_spec::top;
+    }
+
+    if (spec == "center") {
+        return featherdoc::table_position_vertical_spec::center;
+    }
+
+    if (spec == "bottom") {
+        return featherdoc::table_position_vertical_spec::bottom;
+    }
+
+    if (spec == "inside") {
+        return featherdoc::table_position_vertical_spec::inside;
+    }
+
+    if (spec == "outside") {
+        return featherdoc::table_position_vertical_spec::outside;
     }
 
     return std::nullopt;
@@ -3966,12 +4052,20 @@ std::optional<featherdoc::table_position> Table::position() const {
     if (const auto horizontal_offset = parse_signed_attribute(position_node, "w:tblpX")) {
         position.horizontal_offset_twips = *horizontal_offset;
     }
+    if (const auto horizontal_spec = parse_table_position_horizontal_spec(
+            std::string_view{position_node.attribute("w:tblpXSpec").value()})) {
+        position.horizontal_spec = *horizontal_spec;
+    }
     if (const auto vertical_reference = parse_table_position_vertical_reference(
             std::string_view{position_node.attribute("w:vertAnchor").value()})) {
         position.vertical_reference = *vertical_reference;
     }
     if (const auto vertical_offset = parse_signed_attribute(position_node, "w:tblpY")) {
         position.vertical_offset_twips = *vertical_offset;
+    }
+    if (const auto vertical_spec = parse_table_position_vertical_spec(
+            std::string_view{position_node.attribute("w:tblpYSpec").value()})) {
+        position.vertical_spec = *vertical_spec;
     }
     position.left_from_text_twips =
         parse_unsigned_attribute(position_node, "w:leftFromText");
@@ -4005,10 +4099,24 @@ bool Table::set_position(featherdoc::table_position position) {
                            to_xml_table_position_horizontal_reference(
                                position.horizontal_reference));
     ensure_attribute_value(position_node, "w:tblpX", horizontal_offset.c_str());
+    if (position.horizontal_spec.has_value()) {
+        ensure_attribute_value(
+            position_node, "w:tblpXSpec",
+            to_xml_table_position_horizontal_spec(*position.horizontal_spec));
+    } else if (position_node.attribute("w:tblpXSpec") != pugi::xml_attribute{}) {
+        position_node.remove_attribute("w:tblpXSpec");
+    }
     ensure_attribute_value(position_node, "w:vertAnchor",
                            to_xml_table_position_vertical_reference(
                                position.vertical_reference));
     ensure_attribute_value(position_node, "w:tblpY", vertical_offset.c_str());
+    if (position.vertical_spec.has_value()) {
+        ensure_attribute_value(
+            position_node, "w:tblpYSpec",
+            to_xml_table_position_vertical_spec(*position.vertical_spec));
+    } else if (position_node.attribute("w:tblpYSpec") != pugi::xml_attribute{}) {
+        position_node.remove_attribute("w:tblpYSpec");
+    }
     set_optional_unsigned_attribute(position_node, "w:leftFromText",
                                     position.left_from_text_twips);
     set_optional_unsigned_attribute(position_node, "w:rightFromText",

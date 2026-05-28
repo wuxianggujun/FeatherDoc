@@ -10059,10 +10059,18 @@ auto semantic_table_position_value(
     stream << "horizontal_reference="
            << static_cast<int>(position->horizontal_reference)
            << ";horizontal_offset=" << position->horizontal_offset_twips
-           << ";vertical_reference="
+           << ";horizontal_spec=";
+    if (position->horizontal_spec.has_value()) {
+        stream << static_cast<int>(*position->horizontal_spec);
+    }
+    stream << ";vertical_reference="
            << static_cast<int>(position->vertical_reference)
            << ";vertical_offset=" << position->vertical_offset_twips
-           << ";left=" << semantic_optional_numeric(position->left_from_text_twips)
+           << ";vertical_spec=";
+    if (position->vertical_spec.has_value()) {
+        stream << static_cast<int>(*position->vertical_spec);
+    }
+    stream << ";left=" << semantic_optional_numeric(position->left_from_text_twips)
            << ";right=" << semantic_optional_numeric(position->right_from_text_twips)
            << ";top=" << semantic_optional_numeric(position->top_from_text_twips)
            << ";bottom=" << semantic_optional_numeric(position->bottom_from_text_twips)

@@ -109,6 +109,8 @@ void print_usage(std::ostream &stream) {
            " (--preset paragraph-callout|page-corner|margin-anchor |"
            " --horizontal-reference margin|page|column --horizontal-offset <twips>"
            " --vertical-reference margin|page|paragraph --vertical-offset <twips>)"
+           " [--horizontal-spec left|center|right|inside|outside]"
+           " [--vertical-spec top|center|bottom|inside|outside]"
            " [--left-from-text <twips>] [--right-from-text <twips>]"
            " [--top-from-text <twips>] [--bottom-from-text <twips>]"
            " [--overlap allow|never] [--output <path>] [--json]\n"
