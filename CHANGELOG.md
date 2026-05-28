@@ -8,6 +8,8 @@ performance.
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-05-28
+
 ### Added
 
 - Added release metadata docs checks that keep the document-governance
