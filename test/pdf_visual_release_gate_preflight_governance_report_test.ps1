@@ -794,6 +794,7 @@ $failedSmokeResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments 
 Assert-Equal -Actual $failedSmokeResult.ExitCode -Expected 0 `
     -Message "Failed controlled smoke should warn without changing default governance exit. Output: $($failedSmokeResult.Text)"
 $failedSmokeSummaryPath = Join-Path $failedSmokeOutputDir "summary.json"
+$failedSmokeMarkdownPath = Join-Path $failedSmokeOutputDir "pdf_visual_release_gate_preflight_governance.md"
 $failedSmokeSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $failedSmokeSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$failedSmokeSummary.status) -Expected "blocked" `
     -Message "Failed controlled smoke should preserve the preflight blocker status."
@@ -824,6 +825,22 @@ Assert-Equal -Actual ([bool]$failedSmokeSummary.controlled_visual_smoke_passed) 
     -Message "Failed controlled smoke summary should preserve the failing pass state."
 Assert-Equal -Actual ([int]$failedSmokeSummary.controlled_visual_smoke.failed_case_count) -Expected 1 `
     -Message "Failed controlled smoke summary should count failed smoke cases."
+$failedSmokeMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $failedSmokeMarkdownPath
+Assert-ContainsText -Text $failedSmokeMarkdown `
+    -ExpectedText "## Warnings" `
+    -Message "Failed controlled smoke Markdown should include a warnings section."
+Assert-ContainsText -Text $failedSmokeMarkdown `
+    -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
+    -Message "Failed controlled smoke Markdown should expose the warning id."
+Assert-ContainsText -Text $failedSmokeMarkdown `
+    -ExpectedText "Controlled PDF visual smoke evidence was provided but is not passing." `
+    -Message "Failed controlled smoke Markdown should explain the warning."
+Assert-ContainsText -Text $failedSmokeMarkdown `
+    -ExpectedText "source_json_display: ``$([string]$failedSmokeWarning.source_json_display)``" `
+    -Message "Failed controlled smoke Markdown should expose the warning source JSON display."
+Assert-ContainsText -Text $failedSmokeMarkdown `
+    -ExpectedText "source_report_display: ``$([string]$failedSmokeWarning.source_report_display)``" `
+    -Message "Failed controlled smoke Markdown should expose the warning source report display."
 
 $outputGapChecks = ($blockedSummary.output_gap_summary | ForEach-Object { [string]$_.check }) -join "`n"
 Assert-ContainsText -Text $outputGapChecks `
