@@ -1725,7 +1725,18 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEviden
         return ""
     }
 
-    $report = $reports | Select-Object -First 1
+    $report = $reports |
+        Where-Object {
+            $schema = Get-ReleaseBlockerPropertyValue -Object $_ -Name "schema"
+            $pathDisplay = Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display"
+
+            $schema -eq "featherdoc.release_candidate_summary" -and
+                $pathDisplay -match "release-candidate-checks|release_candidate_summary|report[\\/]+summary\.json"
+        } |
+        Select-Object -First 1
+    if ($null -eq $report) {
+        $report = $reports | Select-Object -First 1
+    }
     $entrypointIds = @(
         Get-ReleaseBlockerArrayProperty -Object $report -Name "project_template_readiness_checklist_entrypoints_entrypoint_ids" |
             ForEach-Object { [string]$_ } |

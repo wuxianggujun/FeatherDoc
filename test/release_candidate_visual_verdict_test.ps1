@@ -969,7 +969,7 @@ if ($expandedRollupPaths.Count -ne 3 -or
     throw "Release blocker rollup path expansion should support comma-delimited and repeated arguments."
 }
 
-$candidateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-pdf-visual-gate-consumption"
+$candidateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-checks"
 $candidateBuildDir = Join-Path $resolvedWorkingDir "build"
 $candidateInstallDir = Join-Path $resolvedWorkingDir "install"
 $candidateConsumerBuildDir = Join-Path $resolvedWorkingDir "consumer-build"
@@ -996,8 +996,26 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "numbering-ca
         real_corpus_confidence_level = "high"
         real_corpus_confidence = [ordered]@{
             document_count = 2
+            catalog_exemplar_count = 2
+            baseline_entry_count = 2
             matched_document_count = 2
+            unmatched_catalog_document_count = 0
+            unmatched_baseline_document_count = 0
+            alignment_gap_count = 0
+            catalog_coverage_percent = 100
+            baseline_coverage_percent = 100
             coverage_score = 100
+            catalog_document_keys = @("catalog.invoice", "catalog.statement")
+            baseline_document_keys = @("catalog.invoice", "catalog.statement")
+            matched_document_keys = @("catalog.invoice", "catalog.statement")
+            penalty_summary = @(
+                [ordered]@{
+                    factor = "style_numbering_issues"
+                    count = 0
+                    penalty = 0
+                }
+            )
+            style_numbering_issues = @()
         }
     })
 Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "table-layout-delivery-governance\summary.json") -Value ([ordered]@{
@@ -1011,6 +1029,30 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "table-layout
         warning_count = 0
         warnings = @()
         source_failure_count = 0
+        delivery_quality_score = 100
+        delivery_quality_level = "high"
+        delivery_quality = [ordered]@{
+            document_count = 3
+            ready_document_count = 3
+            ready_document_percent = 100
+            needs_review_document_count = 0
+            failed_document_count = 0
+            table_style_issue_count = 0
+            automatic_tblLook_fix_count = 0
+            manual_table_style_fix_count = 0
+            table_position_automatic_count = 0
+            table_position_review_count = 0
+            command_failure_count = 0
+            unresolved_item_count = 0
+            penalty_summary = @(
+                [ordered]@{
+                    factor = "floating_table_plans_pending"
+                    count = 0
+                    penalty = 0
+                }
+            )
+            floating_table_plans_pending = 0
+        }
     })
 Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "content-control-data-binding-governance\summary.json") -Value ([ordered]@{
         schema = "featherdoc.content_control_data_binding_governance_report.v1"
@@ -1371,14 +1413,26 @@ if ([int]$candidateSummary.release_governance_handoff.project_template_readiness
     [int]$candidateSummary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 2) {
     throw "Release candidate summary did not consume project-template release entry evidence from release governance handoff."
 }
-if ([int]$candidateSummary.governance_metric_count -ne 1 -or @($candidateSummary.governance_metrics).Count -ne 1) {
-    throw "Release candidate summary did not expose a single release governance metric as top-level material safety evidence."
+if ([int]$candidateSummary.governance_metric_count -ne 2 -or @($candidateSummary.governance_metrics).Count -ne 2) {
+    throw "Release candidate summary did not expose both release governance metrics as top-level material safety evidence."
 }
-$singleMetric = @($candidateSummary.governance_metrics) |
+$numberingMetric = @($candidateSummary.governance_metrics) |
     Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_confidence" } |
     Select-Object -First 1
-if ($null -eq $singleMetric -or [string]::IsNullOrWhiteSpace([string]$singleMetric.level) -or $null -eq $singleMetric.score) {
-    throw "Release candidate summary lost the single governance metric."
+if ($null -eq $numberingMetric -or [string]::IsNullOrWhiteSpace([string]$numberingMetric.level) -or $null -eq $numberingMetric.score -or
+    [int]$numberingMetric.details.catalog_coverage_percent -ne 100 -or
+    @($numberingMetric.details.catalog_document_keys).Count -ne 2 -or
+    @($numberingMetric.details.style_numbering_issues).Count -ne 0) {
+    throw "Release candidate summary lost the numbering governance metric details."
+}
+$tableMetric = @($candidateSummary.governance_metrics) |
+    Where-Object { [string]$_.id -eq "table_layout_delivery_governance.delivery_quality" } |
+    Select-Object -First 1
+if ($null -eq $tableMetric -or [string]::IsNullOrWhiteSpace([string]$tableMetric.level) -or $null -eq $tableMetric.score -or
+    [int]$tableMetric.details.ready_document_percent -ne 100 -or
+    [int]$tableMetric.details.unresolved_item_count -ne 0 -or
+    [int]$tableMetric.details.floating_table_plans_pending -ne 0) {
+    throw "Release candidate summary lost the table-layout delivery governance metric details."
 }
 if ([int]$candidateSummary.release_governance_handoff.report_count -ne 6 -or
     @($candidateSummary.release_governance_handoff.reports).Count -ne 6) {
@@ -1554,6 +1608,8 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Proje
     "entrypoint_paths=",
     "release_entry_project_template_readiness_checklist_trace",
     "source_schema=featherdoc.release_candidate_summary",
+    "source_report=",
+    "report\summary.json",
     "Project-template readiness checklist packaged audit evidence",
     "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=2",
     "assert_release_material_safety.ps1",
