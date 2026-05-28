@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("aggregate", "fail_on_blocker", "markdown_counts")]
+    [ValidateSet("aggregate", "fail_on_blocker", "fail_on_warning", "markdown_counts")]
     [string]$Scenario = "aggregate"
 )
 
@@ -636,11 +636,18 @@ $arguments = @(
 if ($Scenario -eq "fail_on_blocker") {
     $arguments += "-FailOnBlocker"
 }
+if ($Scenario -eq "fail_on_warning") {
+    $arguments += "-FailOnWarning"
+}
 
 $result = Invoke-Pipeline -Arguments $arguments
 if ($Scenario -eq "fail_on_blocker") {
     if ($result.ExitCode -eq 0) {
         throw "Pipeline fail-on-blocker run should fail. Output: $($result.Text)"
+    }
+} elseif ($Scenario -eq "fail_on_warning") {
+    if ($result.ExitCode -eq 0) {
+        throw "Pipeline fail-on-warning run should fail. Output: $($result.Text)"
     }
 } else {
     Assert-Equal -Actual $result.ExitCode -Expected 0 `

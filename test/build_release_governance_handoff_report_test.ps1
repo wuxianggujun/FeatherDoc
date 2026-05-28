@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "missing", "failed_report", "fail_on_missing", "explicit_input", "explicit_only", "include_rollup", "informational_actions")]
+    [ValidateSet("all", "aggregate", "missing", "failed_report", "fail_on_missing", "fail_on_warning", "explicit_input", "explicit_only", "include_rollup", "informational_actions")]
     [string]$Scenario = "all"
 )
 
@@ -863,6 +863,49 @@ if (Test-Scenario -Name "fail_on_missing") {
         -Message "Fail-on-missing handoff Markdown should expose the missing report source failure count as a machine-readable field."
     Assert-ContainsText -Text $markdown -ExpectedText "build_project_template_delivery_readiness_report.ps1" `
         -Message "Fail-on-missing handoff Markdown should include the rebuild command."
+}
+
+if (Test-Scenario -Name "fail_on_warning") {
+    $inputRoot = Join-Path $resolvedWorkingDir "fail-warning-input"
+    $explicitRoot = Join-Path $resolvedWorkingDir "fail-warning-explicit"
+    $outputDir = Join-Path $resolvedWorkingDir "fail-warning-report"
+    $releaseCandidateSummaryPath = Join-Path $explicitRoot "release-candidate-summary.json"
+    New-Item -ItemType Directory -Path $inputRoot -Force | Out-Null
+    Write-JsonFile -Path $releaseCandidateSummaryPath -Value ([ordered]@{
+        schema = "featherdoc.release_candidate_summary"
+        status = "needs_review"
+        release_ready = $false
+        warning_count = 1
+        warnings = @(
+            [ordered]@{
+                id = "pdf_controlled_visual_smoke.unavailable_or_failed"
+                action = "review_pdf_controlled_visual_smoke"
+                status = "fail"
+                message = "Controlled PDF visual smoke evidence was provided but is not passing."
+                source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                source_report_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
+                source_json_display = "output\pdf-visual-release-gate-preflight-governance\controlled-visual-smoke-failed.json"
+            }
+        )
+    })
+
+    $result = Invoke-HandoffScript -Arguments @(
+        "-InputRoot", $inputRoot,
+        "-InputJson", $releaseCandidateSummaryPath,
+        "-OutputDir", $outputDir,
+        "-ExpectedReportProfile", "explicit-only",
+        "-FailOnWarning"
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 1 `
+        -Message "Handoff should fail fail-on-warning when explicit PDF warnings are present. Output: $($result.Text)"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
+        -Message "Fail-on-warning handoff should keep warning-only summaries in needs_review status."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Fail-on-warning handoff should still write structured warning evidence."
+    Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
+        -Message "Fail-on-warning handoff should preserve PDF preflight warnings in summary output."
 }
 
 if (Test-Scenario -Name "explicit_input") {

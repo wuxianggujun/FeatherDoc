@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "passing", "comma_input", "empty", "malformed", "failed_source", "dedupe")]
+    [ValidateSet("all", "passing", "fail_on_warning", "comma_input", "empty", "malformed", "failed_source", "dedupe")]
     [string]$Scenario = "all"
 )
 
@@ -849,27 +849,33 @@ Write-JsonFile -Path $dedupePath -Value ([ordered]@{
     )
 })
 
+function Write-PassingInputRoot {
+    param([string]$Root)
+
+    Write-JsonFile -Path (Join-Path $Root "document-skeleton\document_skeleton_governance.summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $documentSkeletonPath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $Root "numbering-governance\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $numberingGovernancePath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $Root "table-layout\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $tableLayoutPath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $Root "style-governance\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $styleGovernancePath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $Root "content-control\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlPath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $Root "project-template-readiness\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $projectTemplateReadinessPath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $Root "schema-patch-confidence-calibration\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $schemaCalibrationPath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $Root "release-candidate\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseCandidatePath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $Root "pdf-preflight-governance\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfPreflightGovernancePath | ConvertFrom-Json)
+}
+
 if (Test-Scenario -Name "passing") {
     $outputDir = Join-Path $resolvedWorkingDir "passing-report"
     $passingInputRoot = Join-Path $resolvedWorkingDir "passing-input"
-    Write-JsonFile -Path (Join-Path $passingInputRoot "document-skeleton\document_skeleton_governance.summary.json") `
-        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $documentSkeletonPath | ConvertFrom-Json)
-    Write-JsonFile -Path (Join-Path $passingInputRoot "numbering-governance\summary.json") `
-        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $numberingGovernancePath | ConvertFrom-Json)
-    Write-JsonFile -Path (Join-Path $passingInputRoot "table-layout\summary.json") `
-        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $tableLayoutPath | ConvertFrom-Json)
-    Write-JsonFile -Path (Join-Path $passingInputRoot "style-governance\summary.json") `
-        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $styleGovernancePath | ConvertFrom-Json)
-    Write-JsonFile -Path (Join-Path $passingInputRoot "content-control\summary.json") `
-        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlPath | ConvertFrom-Json)
-    Write-JsonFile -Path (Join-Path $passingInputRoot "project-template-readiness\summary.json") `
-        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $projectTemplateReadinessPath | ConvertFrom-Json)
-    Write-JsonFile -Path (Join-Path $passingInputRoot "schema-patch-confidence-calibration\summary.json") `
-        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $schemaCalibrationPath | ConvertFrom-Json)
-    Write-JsonFile -Path (Join-Path $passingInputRoot "release-candidate\summary.json") `
-        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseCandidatePath | ConvertFrom-Json)
-    Write-JsonFile -Path (Join-Path $passingInputRoot "pdf-preflight-governance\summary.json") `
-        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfPreflightGovernancePath | ConvertFrom-Json)
+    Write-PassingInputRoot -Root $passingInputRoot
     $result = Invoke-RollupScript -Arguments @(
         "-InputRoot", $passingInputRoot,
         "-OutputDir", $outputDir
@@ -1633,6 +1639,25 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include command template details."
     Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-finance` template=`invoice-template` candidate=`rename`' `
         -Message "Markdown should include calibration project/template/candidate routing fields."
+}
+
+if (Test-Scenario -Name "fail_on_warning") {
+    $outputDir = Join-Path $resolvedWorkingDir "fail-on-warning-report"
+    $inputRoot = Join-Path $resolvedWorkingDir "fail-on-warning-input"
+    Write-PassingInputRoot -Root $inputRoot
+    $result = Invoke-RollupScript -Arguments @(
+        "-InputRoot", $inputRoot,
+        "-OutputDir", $outputDir,
+        "-FailOnWarning"
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 1 `
+        -Message "Rollup should fail fail-on-warning when PDF preflight warnings are present. Output: $($result.Text)"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 3 `
+        -Message "Fail-on-warning rollup should still write structured warning evidence."
+    Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
+        -Message "Fail-on-warning rollup should preserve PDF preflight warnings in summary output."
 }
 
 if (Test-Scenario -Name "empty") {
