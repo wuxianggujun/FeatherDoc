@@ -793,6 +793,18 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
             )
         }
     )
+    warning_count = 1
+    warnings = @(
+        [ordered]@{
+            id = "pdf_controlled_visual_smoke.unavailable_or_failed"
+            action = "review_pdf_controlled_visual_smoke"
+            status = "fail"
+            message = "Controlled PDF visual smoke evidence was provided but is not passing."
+            source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+            source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+            source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\controlled-visual-smoke-failed.json"
+        }
+    )
 })
 
 Write-JsonFile -Path $emptyPath -Value ([ordered]@{
@@ -881,7 +893,7 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should aggregate all blockers."
     Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 6 `
         -Message "Rollup should aggregate action items."
-    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 3 `
         -Message "Rollup should aggregate warning items."
     Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 9 `
         -Message "Rollup should keep source report count."
@@ -1360,6 +1372,17 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve calibration warning raw source JSON."
     Assert-ContainsText -Text ([string]$calibrationWarning.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Rollup should preserve calibration warning origin source report display."
+    $pdfPreflightWarning = ($summary.warnings |
+        Where-Object { [string]$_.id -eq "pdf_controlled_visual_smoke.unavailable_or_failed" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$pdfPreflightWarning.action) -Expected "review_pdf_controlled_visual_smoke" `
+        -Message "Rollup should preserve PDF preflight warning action."
+    Assert-Equal -Actual ([string]$pdfPreflightWarning.source_schema) -Expected "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" `
+        -Message "Rollup should preserve PDF preflight warning source schema."
+    Assert-ContainsText -Text ([string]$pdfPreflightWarning.source_json_display) -ExpectedText "controlled-visual-smoke-failed.json" `
+        -Message "Rollup should preserve PDF preflight warning source JSON display."
+    Assert-ContainsText -Text ([string]$pdfPreflightWarning.message) -ExpectedText "Controlled PDF visual smoke evidence was provided but is not passing." `
+        -Message "Rollup should preserve PDF preflight warning message."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blocker Rollup Report" `
@@ -1388,6 +1411,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF full visual gate status from source report contracts."
     Assert-ContainsText -Text $markdown -ExpectedText "not_run_by_preflight_governance" `
         -Message "Markdown should make clear that PDF preflight did not run the full visual gate."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
+        -Message "Markdown should include PDF preflight warning ids."
+    Assert-ContainsText -Text $markdown -ExpectedText "controlled-visual-smoke-failed.json" `
+        -Message "Markdown should include PDF preflight warning source JSON display paths."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict" `
         -Message "Markdown should include PDF visual gate verdict evidence from release candidate summaries."
     Assert-ContainsText -Text $markdown -ExpectedText "full_visual_gate_status: ``pass``" `
