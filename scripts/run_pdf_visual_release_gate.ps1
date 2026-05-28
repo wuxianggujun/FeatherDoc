@@ -204,12 +204,24 @@ function Render-PdfSample {
     $contactSheetPath = Join-Path $SampleOutputDir "contact-sheet.png"
 
     Write-Step "Rendering $SampleName"
-    & $Python $RenderScript `
-        --input $InputPdf `
-        --output-dir $pagesDir `
-        --summary $summaryPath `
-        --contact-sheet $contactSheetPath `
-        --dpi $Dpi
+    $renderArguments = @(
+        $RenderScript,
+        "--input",
+        $InputPdf,
+        "--output-dir",
+        $pagesDir,
+        "--summary",
+        $summaryPath,
+        "--contact-sheet",
+        $contactSheetPath,
+        "--dpi",
+        [string]$Dpi
+    )
+    if (-not $VisualBaselineSliceOnly) {
+        $renderArguments += "--skip-contact-sheet"
+    }
+
+    & $Python @renderArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to render PDF sample '$SampleName'."
     }
@@ -297,7 +309,7 @@ function Read-ExistingRenderedSample {
     $pagesDir = Join-Path $Sample.output "pages"
     $page1 = Join-Path $pagesDir "page-01.png"
 
-    foreach ($requiredPath in @($Sample.pdf, $summaryPath, $contactSheetPath, $page1)) {
+    foreach ($requiredPath in @($Sample.pdf, $summaryPath, $page1)) {
         if (-not (Test-Path $requiredPath)) {
             throw "Missing existing rendered visual evidence for '$($Sample.name)': $requiredPath"
         }
@@ -323,7 +335,7 @@ function Read-ExistingRenderedSample {
         pages_dir = $pagesDir
         first_page = $page1
         summary_path = $summaryPath
-        contact_sheet_path = $contactSheetPath
+        contact_sheet_path = if (Test-Path $contactSheetPath) { $contactSheetPath } else { "" }
     }
 }
 
@@ -728,7 +740,7 @@ if ($FinalizeOnly) {
     }
 }
 
-$summary = [ordered]@{
+$summaryCore = [ordered]@{
     generated_at = (Get-Date).ToString("s")
     status = "pass"
     verdict = "pass"
@@ -750,10 +762,26 @@ $summary = [ordered]@{
     cjk_copy_search_count = $cjkCopySearchResults.Count
     visual_baseline_manifest_count = $visualManifestSamples.Count
     baselines_count = $renderedSamples.Count
-    cjk_copy_search = $cjkCopySearchResults
-    baselines = $renderedSamples
+    summary_detail_payload_included = $false
+    summary_detail_status = "core_pass_written_before_detail_payload"
+    marker = "pdf_visual_gate_core_pass_summary_trace"
 }
 
-($summary | ConvertTo-Json -Depth 8) | Set-Content -Path $summaryPath -Encoding UTF8
+($summaryCore | ConvertTo-Json -Depth 6) | Set-Content -Path $summaryPath -Encoding UTF8
+Write-Step "Visual gate core pass summary written to $summaryPath"
+
+$summary = [ordered]@{}
+foreach ($entry in $summaryCore.GetEnumerator()) {
+    $summary[$entry.Key] = $entry.Value
+}
+$summary.generated_at = (Get-Date).ToString("s")
+$summary.summary_detail_payload_included = $true
+$summary.summary_detail_status = "complete"
+$summary.cjk_copy_search = $cjkCopySearchResults
+$summary.baselines = $renderedSamples
+
+$summaryDetailPath = "$summaryPath.detail.tmp"
+($summary | ConvertTo-Json -Depth 8) | Set-Content -Path $summaryDetailPath -Encoding UTF8
+Move-Item -LiteralPath $summaryDetailPath -Destination $summaryPath -Force
 Write-Step "Visual gate summary written to $summaryPath"
 exit 0

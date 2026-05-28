@@ -334,6 +334,21 @@ OCR 或任意视觉精确还原。
      ``final_review.md`` 中的 attempt summary/contact sheet reviewer 入口也必须经过
      line/section scoped 审计。固定标记：
      ``pdf_visual_gate_attempt_final_review_material_safety_trace``。
+     当 ``attempt-summary.json`` 已经写出
+     ``visual_baseline_resume_slice_offset`` 和
+     ``visual_baseline_resume_slice_limit`` 时，优先运行
+     ``scripts/run_pdf_visual_segmented_resume.ps1`` 自动规划和执行 tail 切片。
+     该 helper 必须写出 ``segmented-resume-summary.json``，schema 为
+     ``featherdoc.pdf_visual_segmented_resume_summary.v1``，并保留
+     ``evidence_scope = visual_segmented_resume_auxiliary_only``、
+     ``full_visual_gate_status = not_complete``、
+     ``resume_tail_fully_planned``、``total_resume_slice_count``、
+     ``planned_slice_count``、``executed_slice_count``、``passed_slice_count``、
+     ``failed_slice_count``、``timeout_slice_count``、
+     ``aggregate_rebuild_status``、``segmented_summary_status`` 和
+     ``segmented_resume_does_not_replace_full_visual_gate_verdict``。固定标记：
+     ``pdf_visual_segmented_resume_summary_trace``。该证据只能说明 resume tail
+     辅助闭合，不能替代 fresh full visual gate verdict。
    * visual baseline render 阶段如果无法在单个 60 秒外层保护内完成，可以补跑
      ``scripts/run_pdf_visual_release_gate.ps1 -VisualBaselineSliceOnly``。
      该模式必须携带 ``VisualBaselineOffset`` 和 ``VisualBaselineLimit``，生成
@@ -344,6 +359,18 @@ OCR 或任意视觉精确还原。
      ``slice_summary_does_not_replace_full_visual_gate_verdict``。固定标记：
      ``pdf_visual_baseline_slice_summary_trace``。切片证据只能补强 fresh baseline render
      计数，不能替代 full visual gate verdict。
+   * fresh full gate 在 aggregate contact sheet 构建成功后，必须先把核心 pass
+     summary 写入 ``report/summary.json``，再追加较大的 baseline / CJK 详情 payload。
+     该路径必须保留 ``pdf_visual_gate_core_pass_summary_trace``、
+     ``summary_detail_payload_included``、``summary_detail_status`` 和
+     ``core_pass_written_before_detail_payload``。如果 60 秒外层保护正好在详情
+     payload 序列化阶段触发，``run_pdf_visual_full_gate_guarded.ps1`` 只有在同轮
+     stage 已全 pass 时才能输出 ``outer_guard_status = timed_out_after_pass_summary``。
+   * full gate 的 baseline 渲染默认传递 ``--skip-contact-sheet`` 给
+     ``scripts/render_pdf_pages.py``，只生成页面 PNG 和 sample summary；release
+     reviewer-facing 可视化入口仍统一使用 ``report/aggregate-contact-sheet.png``。
+     sample summary 必须保留 ``contact_sheet_skipped``，用于说明单样本
+     ``contact-sheet.png`` 不是 full gate 硬前提。
    * baseline 已经存在但 aggregate contact sheet 需要在 60 秒外层保护内单独刷新时，
      可以运行 ``scripts/run_pdf_visual_release_gate.ps1 -RebuildAggregateContactSheetOnly``。
      该模式只读取现有 baseline summary / ``page-01.png``，重建

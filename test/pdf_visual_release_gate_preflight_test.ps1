@@ -45,6 +45,7 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1"
 $visualGatePath = Join-Path $resolvedRepoRoot "scripts\run_pdf_visual_release_gate.ps1"
+$renderPdfPagesPath = Join-Path $resolvedRepoRoot "scripts\render_pdf_pages.py"
 $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
 $summaryPath = Join-Path $resolvedWorkingDir "preflight-summary.json"
 $plainBuildRepoRoot = Join-Path $resolvedWorkingDir "plain-build-repo"
@@ -487,6 +488,7 @@ foreach ($name in @(
 }
 
 $visualGateText = Get-Content -Raw -Encoding UTF8 -LiteralPath $visualGatePath
+$renderPdfPagesText = Get-Content -Raw -Encoding UTF8 -LiteralPath $renderPdfPagesPath
 foreach ($expectedText in @(
     "[string]`$PreflightJson",
     "[switch]`$PreflightOnly",
@@ -507,6 +509,24 @@ foreach ($expectedText in @(
 )) {
     Assert-True -Condition ($visualGateText -match [regex]::Escape($expectedText)) `
         -Message "PDF visual release gate should keep preflight contract marker '$expectedText'."
+}
+foreach ($expectedText in @(
+    "pdf_visual_gate_core_pass_summary_trace",
+    "summary_detail_payload_included",
+    "summary_detail_status",
+    "core_pass_written_before_detail_payload",
+    "Visual gate core pass summary written",
+    "--skip-contact-sheet"
+)) {
+    Assert-True -Condition ($visualGateText -match [regex]::Escape($expectedText)) `
+        -Message "PDF visual release gate should write a core pass summary before large detail payload serialization: '$expectedText'."
+}
+foreach ($expectedText in @(
+    "--skip-contact-sheet",
+    "contact_sheet_skipped"
+)) {
+    Assert-True -Condition ($renderPdfPagesText -match [regex]::Escape($expectedText)) `
+        -Message "PDF render helper should preserve the skipped per-sample contact sheet marker '$expectedText'."
 }
 foreach ($expectedText in @(
     "FEATHERDOC_RENDER_PYTHON_EXECUTABLE",

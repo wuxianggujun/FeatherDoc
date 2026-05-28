@@ -388,6 +388,8 @@ $fullSummary = Read-JsonFile -Path $summaryJson
 $fullSummaryItem = if (Test-Path -LiteralPath $summaryJson) { Get-Item -LiteralPath $summaryJson } else { $null }
 $fullSummaryVerdict = Get-JsonString -Object $fullSummary -Name "verdict"
 $fullSummaryFinalizeOnly = [bool](Get-JsonProperty -Object $fullSummary -Name "finalize_only")
+$fullSummaryDetailPayloadIncluded = [bool](Get-JsonProperty -Object $fullSummary -Name "summary_detail_payload_included")
+$fullSummaryDetailStatus = Get-JsonString -Object $fullSummary -Name "summary_detail_status"
 $latestAttemptEvidence = @(
     $pdfCliExportLog,
     $pdfRegressionLog,
@@ -456,6 +458,8 @@ $summary = [ordered]@{
     full_summary_verdict = $fullSummaryVerdict
     full_summary_finalize_only = $fullSummaryFinalizeOnly
     full_summary_fresh_for_attempt = $fullSummaryFresh
+    full_summary_detail_payload_included = $fullSummaryDetailPayloadIncluded
+    full_summary_detail_status = $fullSummaryDetailStatus
     attempt_started_after = if ($null -ne $attemptStart) { $attemptStart.ToString("s") } else { "" }
     outer_guard_status = $outerGuardStatus
     outer_guard_timed_out = [bool]$OuterGuardTimedOut

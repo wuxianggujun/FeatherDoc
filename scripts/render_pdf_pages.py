@@ -78,13 +78,18 @@ def build_contact_sheet(page_paths: list[Path], output_path: Path) -> None:
 
 
 def write_summary(
-    input_pdf: Path, page_paths: list[Path], contact_sheet_path: Path, output_path: Path
+    input_pdf: Path,
+    page_paths: list[Path],
+    contact_sheet_path: Path,
+    output_path: Path,
+    contact_sheet_skipped: bool,
 ) -> None:
     payload = {
         "input_pdf": str(input_pdf.resolve()),
         "page_count": len(page_paths),
         "pages": [str(path.resolve()) for path in page_paths],
-        "contact_sheet": str(contact_sheet_path.resolve()),
+        "contact_sheet": "" if contact_sheet_skipped else str(contact_sheet_path.resolve()),
+        "contact_sheet_skipped": contact_sheet_skipped,
     }
     output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
@@ -105,11 +110,23 @@ def main() -> int:
         help="Path to the combined preview PNG",
     )
     parser.add_argument("--dpi", default=144, type=int, help="Render DPI")
+    parser.add_argument(
+        "--skip-contact-sheet",
+        action="store_true",
+        help="Render page PNGs and summary only; callers can build an aggregate sheet separately.",
+    )
     args = parser.parse_args()
 
     page_paths = render_pages(args.input, args.output_dir, args.dpi)
-    build_contact_sheet(page_paths, args.contact_sheet)
-    write_summary(args.input, page_paths, args.contact_sheet, args.summary)
+    if not args.skip_contact_sheet:
+        build_contact_sheet(page_paths, args.contact_sheet)
+    write_summary(
+        args.input,
+        page_paths,
+        args.contact_sheet,
+        args.summary,
+        args.skip_contact_sheet,
+    )
     return 0
 
 

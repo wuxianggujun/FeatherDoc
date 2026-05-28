@@ -139,6 +139,83 @@ PDF 可视化验证状态
    “已有 full gate 产物链，且已被 ``-FinalizeOnly`` 路径原生复核；只是本轮没有
    重跑重型 full gate”。
 
+9. 2026-05-28 最新闭环状态已经从 segmented resume 债务推进到真实 fresh
+   single-run pass：
+
+   * 本轮 ``scripts/run_pdf_visual_full_gate_guarded.ps1`` 在 60 秒外层保护内完成，
+     ``full-visual-gate-guarded-summary.json`` 写回
+     ``generated_at = 2026-05-28T14:35:38``、
+     ``status = pass``、``verdict = pass``、
+     ``full_visual_gate_status = pass``、
+     ``outer_guard_status = completed`` 和
+     ``outer_guard_timed_out = false``。
+   * 同轮 ``attempt-summary.json`` 写回
+     ``generated_at = 2026-05-28T14:35:38``、
+     ``status = pass``、``verdict = pass``、
+     ``full_visual_gate_status = pass``、
+     ``full_summary_fresh_for_attempt = true``、
+     ``passed_stage_count = 6``、``failed_stage_count = 0``、
+     ``incomplete_stage_count = 0``、
+     ``visual_baseline_fresh_rendered_count = 44`` /
+     ``expected_visual_render_count = 44``、
+     ``visual_baseline_fresh_missing_sample_count = 0`` 和
+     ``aggregate_contact_sheet_status = pass``。
+   * 同轮 ``report/summary.json`` 写回
+     ``status = pass``、``verdict = pass``、``finalize_only = false``、
+     ``baselines_count = 44``、``cjk_copy_search_count = 43``、
+     ``summary_detail_payload_included = true`` 和
+     ``summary_detail_status = complete``。固定标记：
+     ``pdf_visual_gate_core_pass_summary_trace``、
+     ``summary_detail_payload_included``、``summary_detail_status`` 和
+     ``core_pass_written_before_detail_payload``。
+   * 2026-05-28 14:38 的 lightweight preflight 写回
+     ``generated_at = 2026-05-28T14:38:22``、
+     ``status = ready``、``blocking_check_count = 0``、
+     ``blocking_checks = []``、``free_memory_mb = 4061.3``、
+     ``pdf_dependency_inputs_status = ready``、
+     ``pdf_build_options_enabled = true``、
+     ``visual_baseline_sample_count = 42``、
+     ``cjk_text_layer_sample_count = 43``、``output_gap_count = 0`` 和
+     ``missing_output_count = 0``。
+   * 刷新后的 PDF readiness 写回
+     ``generated_at = 2026-05-28T14:38:23``、
+     ``status = pass``、``verdict = pass``、
+     ``release_ready = true``、``failed_check_count = 0`` 和
+     ``warning_count = 0``，并暴露
+     ``visual_full_gate_status = pass``、
+     ``visual_full_gate_full_visual_gate_status = pass``、
+     ``visual_full_gate_outer_guard_status = completed``、
+     ``visual_full_gate_attempt_summary_full_visual_gate_status = pass`` 和
+     ``visual_gate_release_evidence_accepted = true``。
+   * 刷新后的 release governance pipeline 写回
+     ``generated_at = 2026-05-28T14:49:37``、
+     ``status = ready``、``release_blocker_count = 0`` 和 ``warning_count = 0``；
+     PDF-only release candidate 写回
+     ``generated_at = 2026-05-28T14:38:33``、
+     ``execution_status = pass``、``release_blocker_count = 0`` 和
+     ``warning_count = 0``。之前的 segmented resume 证据仍可作为历史辅助证据追溯，
+     但不再承担 release warning。
+   * 历史辅助 resume 链路仍保留固定入口：
+     ``scripts/run_pdf_visual_segmented_resume.ps1``、
+     ``segmented-resume-summary.json``、
+     ``featherdoc.pdf_visual_segmented_resume_summary.v1``、
+     ``visual_segmented_resume_auxiliary_only``、``resume_tail_fully_planned``、
+     ``segmented_resume_does_not_replace_full_visual_gate_verdict`` 和
+     ``pdf_visual_segmented_resume_summary_trace``。该证据只能解释过往 tail
+     切片闭合过程，不能覆盖当前 fresh single-run pass 结论。
+   * 2026-05-28 起，``scripts/run_pdf_visual_release_gate.ps1`` 会先写入
+     轻量 core pass summary，再补充详情 payload；对应标记为
+     ``pdf_visual_gate_core_pass_summary_trace``，
+     ``summary_detail_payload_included``、``summary_detail_status`` 和
+     ``core_pass_written_before_detail_payload``。这样即使 60 秒外层保护在详情
+     序列化阶段触发，``summary.json`` 也能保留同一轮 fresh pass 的核心证据，
+     而不会把真实 pass 误判成超时未完成。
+   * 同一轮性能收口还让 full gate baseline 渲染默认传递
+     ``--skip-contact-sheet`` 给 ``scripts/render_pdf_pages.py``，只生成页面 PNG
+     和 summary；最终可视化 reviewer 入口仍是
+     ``report/aggregate-contact-sheet.png``。单样本 summary 使用
+     ``contact_sheet_skipped`` 明确该边界。
+
 治理链路
 --------
 

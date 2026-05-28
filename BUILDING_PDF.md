@@ -905,6 +905,19 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    `evidence_scope = visual_baseline_slice_only` 和
    `slice_summary_does_not_replace_full_visual_gate_verdict`。固定标记：
    `pdf_visual_baseline_slice_summary_trace`。
+   如果 `attempt-summary.json` 已经写出
+   `visual_baseline_resume_slice_offset` 和
+   `visual_baseline_resume_slice_limit`，优先运行
+   `scripts/run_pdf_visual_segmented_resume.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputDir .\output\pdf-visual-release-gate-current -ChunkSize 6 -PerSliceTimeoutSeconds 60`
+   自动规划尾段切片并生成 `segmented-resume-summary.json`。该 summary 必须保留
+   `schema = featherdoc.pdf_visual_segmented_resume_summary.v1`、
+   `evidence_scope = visual_segmented_resume_auxiliary_only`、
+   `full_visual_gate_status = not_complete`、`resume_tail_fully_planned`、
+   `total_resume_slice_count`、`planned_slice_count`、`executed_slice_count`、
+   `passed_slice_count`、`failed_slice_count`、`timeout_slice_count`、
+   `aggregate_rebuild_status`、`segmented_summary_status` 和
+   `segmented_resume_does_not_replace_full_visual_gate_verdict`。固定标记：
+   `pdf_visual_segmented_resume_summary_trace`。
 7. 汇总图：如需单独刷新 aggregate contact sheet，运行
    `scripts/run_pdf_visual_release_gate.ps1 -BuildDir .\.bpdf-roundtrip-msvc -OutputDir .\output\pdf-visual-release-gate-current -RebuildAggregateContactSheetOnly -SkipPreflight`，
    生成 `aggregate-contact-sheet-rebuild-summary.json`，确认
@@ -912,7 +925,20 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    `evidence_scope = aggregate_contact_sheet_rebuild_only` 和
    `aggregate_rebuild_summary_does_not_replace_full_visual_gate_verdict`。固定标记：
    `pdf_visual_aggregate_contact_sheet_rebuild_trace`。
-8. 分段汇总：如 visual gate 由 attempt、slice 和 aggregate rebuild 分段完成，
+8. fresh full gate 在 aggregate contact sheet 构建成功后，会先把核心 pass
+   summary 写入 `report/summary.json`，再追加较大的 baseline/CJK 详情 payload。
+   固定标记：`pdf_visual_gate_core_pass_summary_trace`、
+   `summary_detail_payload_included`、`summary_detail_status` 和
+   `core_pass_written_before_detail_payload`。如果外层 guard 正好在详情序列化阶段
+   触发，`run_pdf_visual_full_gate_guarded.ps1` 只能在同一轮阶段证据全量 pass 时
+   输出 `outer_guard_status = timed_out_after_pass_summary`；阶段不全时仍必须保持
+   `full_visual_gate_status = not_complete`。
+9. full gate 的 baseline 渲染默认传递 `--skip-contact-sheet` 给
+   `scripts/render_pdf_pages.py`，只生成页面 PNG 和 summary；reviewer-facing
+   视觉证据仍由 `report/aggregate-contact-sheet.png` 统一承载。summary 会保留
+   `contact_sheet_skipped`，用于解释为什么单样本 `contact-sheet.png` 不是 full gate
+   的硬前提。
+10. 分段汇总：如 visual gate 由 attempt、slice 和 aggregate rebuild 分段完成，
    运行 `scripts/write_pdf_visual_segmented_gate_summary.ps1 -ReportDir .\output\pdf-visual-release-gate-current\report`，
    生成 `segmented-summary.json`，确认
    `schema = featherdoc.pdf_visual_segmented_gate_summary.v1`、
@@ -922,20 +948,21 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    `segmented_summary_does_not_replace_full_visual_gate_verdict`。固定标记：
    `pdf_visual_segmented_gate_summary_trace`、
    `pdf_visual_segmented_gate_governance_trace`。
-9. 机器结论：`output/pdf-visual-release-gate-current/report/summary.json` 必须包含
+11. 机器结论：`output/pdf-visual-release-gate-current/report/summary.json` 必须包含
    `verdict = pass`、`baselines_count > 0`、`cjk_copy_search_count > 0` 和
    `aggregate_contact_sheet`。
-10. 机器准入入口：运行
+12. 机器准入入口：运行
    `scripts/check_pdf_release_readiness.ps1 -OutputJson .\output\pdf-release-readiness-current\summary.json`，
    确认 `schema = featherdoc.pdf_release_readiness_check.v1`、
-   `status = pass`、`verdict = pass_with_warnings`、
-   `release_ready = true` 和
+   `status = pass`、`release_ready = true`、当前 fresh full gate pass 时
+   `verdict = pass` / `warning_count = 0`，以及
    `evidence_scope = persisted_pdf_release_evidence_only`。固定标记：
    `pdf_release_readiness_machine_gate_trace`。该入口只读取现有证据，不运行 CMake、
    CTest、渲染、Office、LibreOffice、浏览器或 PDF 生成；其中
    `pdf_full_fresh_visual_gate.not_completed_in_current_window` 和
-   `pdf_full_ctest.not_completed_in_current_window` 是剩余 heavy gate warning，
-   不能被解释为 fresh full gate 已完成。若已执行
+   `pdf_full_ctest.not_completed_in_current_window` 只在对应 heavy gate 未完整闭合时
+   作为 `verdict = pass_with_warnings` 的 warning，不能被解释为 fresh full gate
+   已完成。若已执行
    `scripts/run_pdf_visual_full_gate_guarded.ps1`，该 readiness summary 还必须读取
    `output/pdf-visual-release-gate-current/report/full-visual-gate-guarded-summary.json`，
    保留 `schema = featherdoc.pdf_visual_full_gate_guarded_summary.v1`、
@@ -1000,10 +1027,10 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    `full_ctest_zero_failed_tests_observed`，并把这些字段附到
    `pdf_full_ctest.not_completed_in_current_window` warning 上。固定标记：
    `pdf_full_ctest_guarded_summary_trace`。
-11. 发布治理：`scripts/run_release_candidate_checks.ps1` 的 summary / final review
+13. 发布治理：`scripts/run_release_candidate_checks.ps1` 的 summary / final review
    必须消费 PDF visual gate verdict、计数和 contact sheet 路径。
-12. 视觉证据：复用或生成的 `aggregate-contact-sheet.png` 必须非空，且抽检不是白图。
-13. 轻量验证：至少运行相关 PowerShell 契约测试；资源窗口允许时再运行
+14. 视觉证据：复用或生成的 `aggregate-contact-sheet.png` 必须非空，且抽检不是白图。
+15. 轻量验证：至少运行相关 PowerShell 契约测试；资源窗口允许时再运行
    `ctest -R "pdf_" --output-on-failure --timeout 60`。
 
 资源受限时，先使用 bounded PDF CTest helper 记录 smoke/import 证据，避免完整

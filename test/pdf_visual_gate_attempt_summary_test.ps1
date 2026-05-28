@@ -177,6 +177,9 @@ Visual summary written to output/pdf-visual-release-gate-current/unicode-font/re
         verdict = "pass"
         finalize_only = -not $FreshFullPass
         aggregate_contact_sheet = $contactSheetPath
+        summary_detail_payload_included = $FreshFullPass
+        summary_detail_status = if ($FreshFullPass) { "complete" } else { "core_pass_written_before_detail_payload" }
+        marker = "pdf_visual_gate_core_pass_summary_trace"
     })
     (Get-Item -LiteralPath (Join-Path $reportDir "summary.json")).LastWriteTime = if ($FreshFullPass) { $freshTime.AddMinutes(1) } else { $oldTime }
 
@@ -257,6 +260,10 @@ Assert-Equal -Actual $passSummary.full_visual_gate_status -Expected "pass" `
     -Message "Fresh non-finalize full summary should preserve full_visual_gate_status=pass."
 Assert-True -Condition ([bool]$passSummary.full_summary_fresh_for_attempt) `
     -Message "Fresh full summary should be marked fresh for the attempt."
+Assert-Equal -Actual ([string]$passSummary.full_summary_detail_status) -Expected "complete" `
+    -Message "Attempt summary should preserve the fresh full summary detail status."
+Assert-True -Condition ([bool]$passSummary.full_summary_detail_payload_included) `
+    -Message "Attempt summary should preserve that the full detail payload was included when present."
 Assert-Equal -Actual $passSummary.outer_guard_status -Expected "completed" `
     -Message "Fresh non-finalize full pass should preserve a completed outer guard status."
 Assert-Equal -Actual ([bool]$passSummary.outer_guard_timed_out) -Expected $false `
