@@ -383,7 +383,8 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_(cjk|document-eastasia)
 
 - 已先阅读 `cli/featherdoc_cli.cpp`、`cli/featherdoc_cli_usage.cpp`、`test/pdf_cli_export_tests.cpp`、`test/cli_tests.cpp` 和 `test/cli_usage_tests.cpp`，
   确认当前 E5 实际进度：CLI 已具备 `export-pdf` 用户入口，`--output`、`--font-file`、`--cjk-font-file`、`--font-map`、
-  `--render-headers-and-footers`、`--render-inline-images`、`--no-font-subset`、`--no-system-font-fallbacks`、`--summary-json` 和 `--json`。
+  `--render-headers-and-footers`、`--expand-header-footer-page-placeholders`、`--render-inline-images`、`--no-font-subset`、
+  `--no-system-font-fallbacks`、`--summary-json` 和 `--json`。
 - 已补充 `--font-map` 的解析和转发，`--summary-json` 的机器可读输出，以及 `--no-system-font-fallbacks` 的诊断开关。
 - 已补充 `pdf_cli_export` 回归覆盖：成功导出、inline image、font-map、非法 font-map、缺输入、缺字体。
 - 已补充 `cli_usage` 断言，固定 `export-pdf` 的帮助文本和新增参数名。
@@ -396,6 +397,14 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_(cjk|document-eastasia)
 - 已补充 `cli_usage` 断言，确保 `export-pdf` 帮助文本继续暴露 `--no-font-subset`。
 - 已补充 `pdf_cli_export` 回归，直接对比 `--no-font-subset` 与默认子集化输出，确认
   CJK 导出场景里完整嵌入与子集嵌入确实走的是不同路径。
+
+2026-05-28：
+
+- 已把 `--expand-header-footer-page-placeholders` 暴露到 `export-pdf` CLI，页眉 / 页脚里的
+  `{{page}}` 和 `{{total_pages}}` 可以在导出时展开。
+- 已让 `--summary-json` 记录 `render_headers_and_footers`、`render_inline_images`、
+  `expand_header_footer_page_placeholders`、`subset_unicode_fonts` 和 `use_system_font_fallbacks`，
+  方便 CI 与回归报告追踪实际导出配置。
 
 ### 推荐验证命令
 

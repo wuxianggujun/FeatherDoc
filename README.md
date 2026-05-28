@@ -55,6 +55,19 @@ ToUnicode roundtrip checks, and a small regression sample set. It is still
 explicitly experimental, and richer pagination and image handling remain in
 progress.
 
+When PDF export is enabled, `featherdoc_cli` exposes a scriptable export entry
+point:
+
+```bash
+featherdoc_cli export-pdf input.docx --output output.pdf \
+  --render-headers-and-footers \
+  --expand-header-footer-page-placeholders \
+  --summary-json output.summary.json --json
+```
+
+See `docs/pdf_export.rst` for the supported scope, options, and JSON summary
+shape.
+
 The experimental PDF import path is also opt-in. It builds against a PDFium
 source checkout by default and does not download PDFium automatically:
 
@@ -582,7 +595,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync_visual_review_verdict.ps
 
 ## CLI
 
-`featherdoc_cli` is a small command-line wrapper around the current
+`featherdoc_cli` is a scriptable automation CLI around the current
 inspection and editing APIs for sections, styles, numbering, page setup,
 bookmarks, content controls, images, and template parts.
 

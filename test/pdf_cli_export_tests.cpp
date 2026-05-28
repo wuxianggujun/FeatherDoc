@@ -51,6 +51,24 @@ auto tiny_png_data() -> std::string {
             sizeof(tiny_png_bytes)};
 }
 
+void add_header_footer_placeholder_fixture(const fs::path &path) {
+    featherdoc::Document document(path);
+    REQUIRE_FALSE(document.open());
+
+    for (std::size_t section_index = 0U; section_index < document.section_count();
+         ++section_index) {
+        auto header = document.ensure_section_header_paragraphs(section_index);
+        REQUIRE(header.has_next());
+        CHECK(header.set_text("Header page {{page}} of {{total_pages}}"));
+
+        auto footer = document.ensure_section_footer_paragraphs(section_index);
+        REQUIRE(footer.has_next());
+        CHECK(footer.set_text("Footer page {{page}} of {{total_pages}}"));
+    }
+
+    REQUIRE_FALSE(document.save());
+}
+
 auto candidate_latin_fonts() -> std::vector<fs::path> {
     std::vector<fs::path> candidates;
 
@@ -155,6 +173,29 @@ void write_binary_file(const fs::path &path, const std::string &data) {
     REQUIRE(stream.good());
 }
 
+void expect_pdf_export_options_json(
+    const std::string &text, bool render_headers_and_footers,
+    bool render_inline_images, bool expand_header_footer_page_placeholders,
+    bool subset_unicode_fonts, bool use_system_font_fallbacks) {
+    CHECK_NE(text.find(R"("options":{)"), std::string::npos);
+    CHECK_NE(text.find(std::string(R"("render_headers_and_footers":)") +
+                       (render_headers_and_footers ? "true" : "false")),
+             std::string::npos);
+    CHECK_NE(text.find(std::string(R"("render_inline_images":)") +
+                       (render_inline_images ? "true" : "false")),
+             std::string::npos);
+    CHECK_NE(text.find(std::string(R"("expand_header_footer_page_placeholders":)") +
+                       (expand_header_footer_page_placeholders ? "true"
+                                                                : "false")),
+             std::string::npos);
+    CHECK_NE(text.find(std::string(R"("subset_unicode_fonts":)") +
+                       (subset_unicode_fonts ? "true" : "false")),
+             std::string::npos);
+    CHECK_NE(text.find(std::string(R"("use_system_font_fallbacks":)") +
+                       (use_system_font_fallbacks ? "true" : "false")),
+             std::string::npos);
+}
+
 } // namespace
 
 TEST_CASE("cli export-pdf writes a PDF file and json summary") {
@@ -195,12 +236,61 @@ TEST_CASE("cli export-pdf writes a PDF file and json summary") {
     CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
     CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
     CHECK_NE(json.find(R"("bytes_written":)"), std::string::npos);
+    expect_pdf_export_options_json(json, true, false, false, true, true);
 
     const auto summary = read_text_file(summary_json);
     CHECK_NE(summary.find(R"("command":"export-pdf")"), std::string::npos);
     CHECK_NE(summary.find(R"("ok":true)"), std::string::npos);
     CHECK_NE(summary.find(R"("output":)"), std::string::npos);
     CHECK_NE(summary.find(R"("bytes_written":)"), std::string::npos);
+    expect_pdf_export_options_json(summary, true, false, false, true, true);
+}
+
+TEST_CASE("cli export-pdf expands header and footer page placeholders") {
+    const fs::path work_dir = test_binary_directory() / "pdf_cli_export";
+    std::error_code error;
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const fs::path source = work_dir / "placeholders-source.docx";
+    const fs::path output = work_dir / "placeholders-source.pdf";
+    const fs::path json_output = work_dir / "placeholders-source-export.json";
+    const fs::path summary_json = work_dir / "placeholders-source-summary.json";
+    remove_if_exists(output);
+    remove_if_exists(json_output);
+    remove_if_exists(summary_json);
+
+    create_cli_fixture(source);
+    add_header_footer_placeholder_fixture(source);
+
+    CHECK_EQ(run_cli({"export-pdf",
+                      source.string(),
+                      "--output",
+                      output.string(),
+                      "--render-headers-and-footers",
+                      "--expand-header-footer-page-placeholders",
+                      "--summary-json",
+                      summary_json.string(),
+                      "--json"},
+                     json_output),
+             0);
+
+    REQUIRE(fs::exists(output));
+    CHECK_GT(fs::file_size(output), static_cast<std::uintmax_t>(500U));
+    CHECK_EQ(read_pdf_magic(output), "%PDF-");
+    assert_pdfium_can_read(output, 3U,
+                           {"Header page 1 of 3",
+                            "Header page 3 of 3",
+                            "Footer page 1 of 3",
+                            "Footer page 3 of 3"});
+
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
+    CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
+    expect_pdf_export_options_json(json, true, false, true, true, true);
+
+    const auto summary = read_text_file(summary_json);
+    expect_pdf_export_options_json(summary, true, false, true, true, true);
 }
 
 TEST_CASE("cli export-pdf can render inline images") {

@@ -38,6 +38,11 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
 $statusDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_visual_validation_status_zh.rst"
+$orphanMarker = ":orphan:"
+
+Assert-ContainsText -Text $statusDoc -ExpectedText $orphanMarker `
+    -Message "PDF visual validation status should be kept as an orphaned reference page."
+
 $buildingPdfDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "BUILDING_PDF.md"
 $releaseChecklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_release_readiness_checklist_zh.rst"
 $pdfImportScopeDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_import_scope.rst"
@@ -570,6 +575,7 @@ $pdfExportSupportMatrixMarkers = @(
     "document-long-flow-text",
     "sectioned-report-text",
     "header-footer-text",
+    "--expand-header-footer-page-placeholders",
     "document-cjk-table-wrap-page-flow-text",
     "pdf_real_business_sample_release_entry_trace",
     "release checklist"
