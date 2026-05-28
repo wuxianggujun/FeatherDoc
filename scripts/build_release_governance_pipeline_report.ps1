@@ -105,6 +105,17 @@ function Get-JsonInt {
     return $DefaultValue
 }
 
+function Get-JsonBool {
+    param($Object, [string]$Name, [bool]$DefaultValue = $false)
+
+    $value = Get-JsonProperty -Object $Object -Name $Name
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        return $DefaultValue
+    }
+    if ($value -is [bool]) { return [bool]$value }
+    return [string]$value -in @("true", "True", "1", "yes", "Yes")
+}
+
 function Get-JsonArray {
     param($Object, [string]$Name)
 
@@ -249,8 +260,8 @@ function New-StageActionItems {
                 open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue $command
                 category = Get-JsonString -Object $item -Name "category"
                 severity = Get-JsonString -Object $item -Name "severity"
-                release_blocking = Get-JsonString -Object $item -Name "release_blocking"
-                optional = Get-JsonString -Object $item -Name "optional"
+                release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
+                optional = Get-JsonBool -Object $item -Name "optional"
                 audit_command = Get-JsonString -Object $item -Name "audit_command"
                 review_command = Get-JsonString -Object $item -Name "review_command"
                 source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue $StageSchema

@@ -98,6 +98,28 @@ function New-SkeletonRollup {
                 title = "Review contract style numbering audit"
                 audit_command = "featherdoc_cli audit-style-numbering samples/contract.docx --json"
                 review_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1"
+            },
+            [ordered]@{
+                id = "promote_numbering_catalog_exemplar"
+                document_name = "contract.docx"
+                action = "promote_numbering_catalog_exemplar"
+                title = "Review and promote the generated exemplar numbering catalog"
+                command = "featherdoc_cli check-numbering-catalog samples/contract.docx --json"
+                category = "release_checklist"
+                severity = "info"
+                release_blocking = $false
+                optional = $true
+            },
+            [ordered]@{
+                id = "register_numbering_catalog_baseline"
+                document_name = "contract.docx"
+                action = "register_numbering_catalog_baseline"
+                title = "Register the exemplar catalog in the numbering catalog baseline flow"
+                command = "pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx samples/contract.docx"
+                category = "release_checklist"
+                severity = "info"
+                release_blocking = $false
+                optional = $true
             }
         )
     }
@@ -638,6 +660,29 @@ Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [str
 Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [string]$_.review_command }) -join "`n") `
     -ExpectedText "build_document_skeleton_governance_rollup_report.ps1" `
     -Message "Pipeline numbering stage should preserve action review commands."
+$numberingInformationalActions = @($numberingStage.informational_action_items | Where-Object {
+        [string]$_.id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline")
+    })
+Assert-Equal -Actual $numberingInformationalActions.Count -Expected 2 `
+    -Message "Pipeline numbering stage should preserve release checklist actions as informational evidence."
+Assert-Equal -Actual (@($numberingStage.action_items | Where-Object {
+            [string]$_.id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline")
+        }).Count) -Expected 0 `
+    -Message "Pipeline numbering stage should not expose release checklist actions as actionable items."
+foreach ($item in $numberingInformationalActions) {
+    Assert-Equal -Actual ([string]$item.category) -Expected "release_checklist" `
+        -Message "Pipeline numbering informational action should preserve release-checklist category."
+    Assert-Equal -Actual ([string]$item.severity) -Expected "info" `
+        -Message "Pipeline numbering informational action should preserve info severity."
+    Assert-Equal -Actual ($item.release_blocking -is [bool]) -Expected $true `
+        -Message "Pipeline numbering informational action should keep release_blocking as JSON bool."
+    Assert-Equal -Actual ([bool]$item.release_blocking) -Expected $false `
+        -Message "Pipeline numbering informational action should be non-blocking."
+    Assert-Equal -Actual ($item.optional -is [bool]) -Expected $true `
+        -Message "Pipeline numbering informational action should keep optional as JSON bool."
+    Assert-Equal -Actual ([bool]$item.optional) -Expected $true `
+        -Message "Pipeline numbering informational action should remain optional."
+}
 
 $contentControlStage = Get-StageById -Summary $summary -Id "content_control_data_binding_governance"
 Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
@@ -763,6 +808,27 @@ Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object { [stri
 Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" `
     -Message "Pipeline final rollup should preserve the PDF preflight source schema."
+$rollupInformationalActions = @($rollupSummary.informational_action_items | Where-Object {
+        [string]$_.id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline")
+    })
+Assert-Equal -Actual $rollupInformationalActions.Count -Expected 2 `
+    -Message "Pipeline final rollup should preserve release checklist actions as informational evidence."
+Assert-Equal -Actual (@($summary.action_items | Where-Object {
+            [string]$_.id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline")
+        }).Count) -Expected 0 `
+    -Message "Pipeline top-level summary should not expose release checklist actions as actionable items."
+foreach ($item in @($summary.informational_action_items | Where-Object {
+            [string]$_.id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline")
+        })) {
+    Assert-Equal -Actual ($item.release_blocking -is [bool]) -Expected $true `
+        -Message "Pipeline top-level informational action should keep release_blocking as JSON bool."
+    Assert-Equal -Actual ([bool]$item.release_blocking) -Expected $false `
+        -Message "Pipeline top-level informational action should be non-blocking."
+    Assert-Equal -Actual ($item.optional -is [bool]) -Expected $true `
+        -Message "Pipeline top-level informational action should keep optional as JSON bool."
+    Assert-Equal -Actual ([bool]$item.optional) -Expected $true `
+        -Message "Pipeline top-level informational action should remain optional."
+}
 
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline" `
