@@ -923,6 +923,7 @@ if (Test-Scenario -Name "include_rollup") {
     $explicitRoot = Join-Path $resolvedWorkingDir "include-rollup-explicit"
     $outputDir = Join-Path $resolvedWorkingDir "include-rollup-report"
     $releaseCandidateSummaryPath = Join-Path $explicitRoot "release-candidate-summary.json"
+    $pdfPreflightGovernanceSummaryPath = Join-Path $explicitRoot "pdf-preflight-governance-summary.json"
     Write-GovernanceFixtures -Root $inputRoot
     Write-JsonFile -Path $releaseCandidateSummaryPath -Value ([ordered]@{
         project_template_smoke = [ordered]@{
@@ -1120,10 +1121,52 @@ if (Test-Scenario -Name "include_rollup") {
             }
         }
     })
+    Write-JsonFile -Path $pdfPreflightGovernanceSummaryPath -Value ([ordered]@{
+        schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+        status = "blocked"
+        release_ready = $false
+        release_blocker_count = 1
+        release_blockers = @(
+            [ordered]@{
+                id = "pdf_visual_release_gate_preflight.build_outputs_missing"
+                severity = "error"
+                status = "blocked"
+                action = "prepare_pdf_visual_release_gate_build_outputs"
+                message = "PDF visual release gate build outputs are missing."
+                source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                source_report_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
+                source_json_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
+            }
+        )
+        action_item_count = 1
+        action_items = @(
+            [ordered]@{
+                id = "prepare_pdf_visual_release_gate_build_outputs"
+                action = "prepare_pdf_visual_release_gate_build_outputs"
+                title = "Prepare PDF visual release gate build outputs"
+                source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                source_report_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
+                source_json_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
+            }
+        )
+        warning_count = 1
+        warnings = @(
+            [ordered]@{
+                id = "pdf_controlled_visual_smoke.unavailable_or_failed"
+                action = "review_pdf_controlled_visual_smoke"
+                status = "fail"
+                message = "Controlled PDF visual smoke evidence was provided but is not passing."
+                source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+                source_report_display = "output\pdf-visual-release-gate-preflight-governance\summary.json"
+                source_json_display = "output\pdf-visual-release-gate-preflight-governance\controlled-visual-smoke-failed.json"
+            }
+        )
+    })
 
     $result = Invoke-HandoffScript -Arguments @(
         "-InputRoot", $inputRoot,
-        "-InputJson", $releaseCandidateSummaryPath,
+        "-InputJson", (@($releaseCandidateSummaryPath, $pdfPreflightGovernanceSummaryPath) -join ","),
         "-OutputDir", $outputDir,
         "-IncludeReleaseBlockerRollup"
     )
@@ -1147,13 +1190,13 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should not expose a local absolute nested rollup summary path."
     Assert-Equal -Actual ([string]$summary.release_blocker_rollup.status) -Expected "blocked" `
         -Message "Handoff summary should consume nested rollup status."
-    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.source_report_count) -Expected 7 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.source_report_count) -Expected 8 `
         -Message "Handoff summary should consume nested rollup source report count."
-    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.release_blocker_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.release_blocker_count) -Expected 5 `
         -Message "Handoff summary should consume nested rollup blocker count."
-    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -Expected 5 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -Expected 6 `
         -Message "Handoff summary should consume nested rollup action item count."
-    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 2 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 3 `
         -Message "Handoff summary should consume nested rollup warning count."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.pdf_visual_gate_evidence_source_report_count) -Expected 1 `
         -Message "Handoff summary should consume nested PDF visual gate evidence count."
@@ -1375,11 +1418,11 @@ if (Test-Scenario -Name "include_rollup") {
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
         -Message "Nested rollup should expose release blocker rollup schema."
-    Assert-Equal -Actual ([int]$rollupSummary.source_report_count) -Expected 7 `
+    Assert-Equal -Actual ([int]$rollupSummary.source_report_count) -Expected 8 `
         -Message "Nested rollup should consume all loaded governance reports and explicit release-candidate evidence."
-    Assert-Equal -Actual ([int]$rollupSummary.release_blocker_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$rollupSummary.release_blocker_count) -Expected 5 `
         -Message "Nested rollup should preserve blocker count."
-    Assert-Equal -Actual ([int]$rollupSummary.action_item_count) -Expected 5 `
+    Assert-Equal -Actual ([int]$rollupSummary.action_item_count) -Expected 6 `
         -Message "Nested rollup should preserve action item count."
     Assert-Equal -Actual ([int]$rollupSummary.governance_metric_count) -Expected 2 `
         -Message "Nested rollup should preserve governance metric count."
@@ -1404,6 +1447,15 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (($rollupSummary.warnings | ForEach-Object { [string]$_.candidate_type }) -join "`n") `
         -ExpectedText "rename" `
         -Message "Nested rollup should preserve calibration candidate type."
+    Assert-ContainsText -Text (($rollupSummary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
+        -Message "Nested rollup should preserve PDF preflight warnings."
+    Assert-ContainsText -Text (($rollupSummary.warnings | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" `
+        -Message "Nested rollup should preserve PDF preflight warning source schema."
+    Assert-ContainsText -Text (($rollupSummary.warnings | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "controlled-visual-smoke-failed.json" `
+        -Message "Nested rollup should preserve PDF preflight warning source JSON display."
     $rollupReleaseCandidateSourceReport = ($rollupSummary.source_reports |
         Where-Object { [string]$_.schema -eq "featherdoc.release_candidate_summary" } |
         Select-Object -First 1)
