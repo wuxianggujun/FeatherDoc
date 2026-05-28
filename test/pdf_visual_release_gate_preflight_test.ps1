@@ -88,6 +88,12 @@ Assert-True -Condition ([string]$plainBuildDefaultSummary.status -eq "not_ready"
     -Message "Default current raw summary should preserve the preflight status."
 Assert-True -Condition (($plainBuildDefaultSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "build_dir_exists") `
     -Message "Default current raw summary should preserve blocking checks from the omitted -OutputJson run."
+Assert-True -Condition ($null -ne $plainBuildDefaultSummary.PSObject.Properties["recommended_recovery_steps"]) `
+    -Message "Default current raw summary should expose ordered recovery steps."
+Assert-True -Condition ([string]$plainBuildDefaultSummary.recommended_recovery_steps[0].id -eq "prepare_pdf_dependencies") `
+    -Message "Plain-build recovery should start by preparing PDF dependencies."
+Assert-True -Condition ([string]$plainBuildDefaultSummary.minimum_risk_next_action -match [regex]::Escape("Provide reusable PDFio/PDFium inputs first")) `
+    -Message "Plain-build minimum-risk next action should explain that PDF dependency inputs come first."
 
 New-Item -ItemType Directory -Path (Join-Path $malformedManifestRepoRoot "scripts") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $malformedManifestRepoRoot "test") -Force | Out-Null
@@ -382,6 +388,8 @@ Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.d
     -Message "Dependency override summary should expose the provider override."
 Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.pdfium_prebuilt_root -eq [System.IO.Path]::GetFullPath($overridePdfiumPrebuiltDir)) `
     -Message "Dependency overrides should replace CMakeCache dependency inputs for the dependency check."
+Assert-True -Condition ([string]$disabledOverrideSummary.recommended_recovery_steps[0].id -eq "restore_pdf_build_options") `
+    -Message "Disabled PDF build override recovery should focus on restoring PDF build options first."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-True -Condition ($summary.status -eq "not_ready") `
@@ -450,6 +458,10 @@ Assert-True -Condition ([int]$summary.evidence_kind_details.synthetic_marker_cou
     -Message "Synthetic fixture preflight should expose synthetic evidence markers for fake fixtures."
 Assert-True -Condition ([int]$summary.blocking_summary.synthetic_evidence_marker_count -gt 0) `
     -Message "Ready preflight blocking summary should mirror synthetic evidence marker count."
+Assert-True -Condition ([string]$summary.recommended_recovery_steps[0].id -eq "preflight_ready") `
+    -Message "Synthetic fixture summary should expose the ready-state recovery sentinel when no real blockers remain."
+Assert-True -Condition ([string]$summary.minimum_risk_next_action -match [regex]::Escape("No blocking preflight recovery steps remain")) `
+    -Message "Synthetic fixture minimum-risk next action should explain that no preflight blockers remain."
 $syntheticMarkers = ($summary.evidence_kind_details.synthetic_markers | ForEach-Object { [string]$_ }) -join "`n"
 Assert-True -Condition ($syntheticMarkers -match [regex]::Escape("fake-pdf-build")) `
     -Message "Ready fake fixture preflight should identify the fake build directory evidence marker."
@@ -467,6 +479,10 @@ Assert-True -Condition ([bool]$lowMemorySummary.blocking_summary.memory_guard_bl
     -Message "Low-memory preflight should expose the memory guard blocker summary."
 Assert-True -Condition (($lowMemorySummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "workstation_free_memory_available") `
     -Message "Low-memory preflight should expose workstation_free_memory_available as a blocker."
+Assert-True -Condition ([string]$lowMemorySummary.recommended_recovery_steps[0].id -eq "stay_read_only_until_memory_recovers") `
+    -Message "Low-memory preflight should prioritize the read-only memory recovery step."
+Assert-True -Condition ([string]$lowMemorySummary.minimum_risk_next_action -match [regex]::Escape("read-only mode")) `
+    -Message "Low-memory minimum-risk next action should explain the read-only recovery posture."
 
 foreach ($name in @(
     "build_dir_exists",
