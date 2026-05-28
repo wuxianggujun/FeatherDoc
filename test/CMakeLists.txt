@@ -3179,6 +3179,23 @@ if(WIN32)
 
             add_test(
                 NAME
+                build_release_blocker_rollup_report_fail_on_warning
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_blocker_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_fail_on_warning
+                -Scenario
+                fail_on_warning
+            )
+
+            add_test(
+                NAME
                 build_release_governance_handoff_report_aggregate
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
@@ -3190,64 +3207,64 @@ if(WIN32)
                 ${PROJECT_SOURCE_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_aggregate
-            -Scenario
-            aggregate
-        )
-        featherdoc_set_test_labels(build_release_governance_handoff_report_aggregate release smoke release_smoke governance)
+                -Scenario
+                aggregate
+            )
+            featherdoc_set_test_labels(build_release_governance_handoff_report_aggregate release smoke release_smoke governance)
 
-        add_test(
-            NAME
-            build_release_governance_pipeline_report_aggregate
-            COMMAND
-            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
-            -ExecutionPolicy
-            Bypass
-            -File
-            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
-            -RepoRoot
-            ${PROJECT_SOURCE_DIR}
-            -WorkingDir
-            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_aggregate
-            -Scenario
-            aggregate
-        )
-        featherdoc_set_test_labels(build_release_governance_pipeline_report_aggregate release smoke release_smoke governance)
+            add_test(
+                NAME
+                build_release_governance_pipeline_report_aggregate
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_aggregate
+                -Scenario
+                aggregate
+            )
+            featherdoc_set_test_labels(build_release_governance_pipeline_report_aggregate release smoke release_smoke governance)
 
-        add_test(
-            NAME
-            build_release_governance_pipeline_report_fail_on_blocker
-            COMMAND
-            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
-            -ExecutionPolicy
-            Bypass
-            -File
-            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
-            -RepoRoot
-            ${PROJECT_SOURCE_DIR}
-            -WorkingDir
-            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_blocker
-            -Scenario
-            fail_on_blocker
-        )
-        featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_blocker release smoke release_smoke governance)
+            add_test(
+                NAME
+                build_release_governance_pipeline_report_fail_on_blocker
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_blocker
+                -Scenario
+                fail_on_blocker
+            )
+            featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_blocker release smoke release_smoke governance)
 
-        add_test(
-            NAME
-            build_release_governance_pipeline_report_fail_on_warning
-            COMMAND
-            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
-            -ExecutionPolicy
-            Bypass
-            -File
-            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
-            -RepoRoot
-            ${PROJECT_SOURCE_DIR}
-            -WorkingDir
-            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_warning
-            -Scenario
-            fail_on_warning
-        )
-        featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_warning release smoke release_smoke governance)
+            add_test(
+                NAME
+                build_release_governance_pipeline_report_fail_on_warning
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_warning
+                -Scenario
+                fail_on_warning
+            )
+            featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_warning release smoke release_smoke governance)
 
         add_test(
             NAME
@@ -3281,6 +3298,23 @@ if(WIN32)
                 ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_fail_on_missing
                 -Scenario
                 fail_on_missing
+            )
+
+            add_test(
+                NAME
+                build_release_governance_handoff_report_fail_on_warning
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_handoff_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_fail_on_warning
+                -Scenario
+                fail_on_warning
             )
 
             add_test(
@@ -3336,7 +3370,7 @@ if(WIN32)
 
             add_test(
                 NAME
-                build_release_blocker_rollup_report_style_merge_warning
+                build_release_blocker_rollup_report_failed_source
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
@@ -3346,9 +3380,9 @@ if(WIN32)
                 -RepoRoot
                 ${PROJECT_SOURCE_DIR}
                 -WorkingDir
-                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_style_merge_warning
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_failed_source
                 -Scenario
-                style_merge_warning
+                failed_source
             )
 
             add_test(
@@ -3855,6 +3889,24 @@ if(NOT WIN32)
             aggregate
         )
         featherdoc_set_test_labels(build_release_governance_handoff_report_aggregate release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            build_release_governance_handoff_report_fail_on_warning
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_handoff_report_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_fail_on_warning
+            -Scenario
+            fail_on_warning
+        )
+        featherdoc_set_test_labels(build_release_governance_handoff_report_fail_on_warning release smoke release_smoke governance)
 
         add_test(
             NAME
