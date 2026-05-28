@@ -147,6 +147,13 @@ OCR 或任意视觉精确还原。
    ``visual_full_gate_attempt_summary_aggregate_contact_sheet_status``，并把
    ``attempt_summary_visual_baseline_fresh_rendered_count`` 与
    ``attempt_summary_aggregate_contact_sheet_status`` 附到同一个 warning 上。该
+   warning 还必须携带
+   ``attempt_summary_visual_baseline_fresh_missing_sample_count``、
+   ``attempt_summary_visual_baseline_resume_slice_offset``、
+   ``attempt_summary_visual_baseline_resume_slice_limit`` 和
+   ``attempt_summary_visual_baseline_resume_slice_command_template``，让 reviewer
+   能直接看到下一段 ``-VisualBaselineSliceOnly`` 恢复命令，而不是从
+   ``attempt-summary.json`` 反推。
    post-timeout attempt-summary evidence 只能解释辅助证据补齐情况，不能替代
    fresh full visual gate pass。
 

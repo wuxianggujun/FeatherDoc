@@ -167,12 +167,17 @@ function New-PassingFixture {
         full_visual_gate_status = "not_complete"
         evidence_scope = "bounded_attempt_auxiliary_only"
         stage_count = 6
-        passed_stage_count = 6
-        incomplete_stage_count = 0
-        visual_baseline_render_status = "pass"
-        visual_baseline_fresh_rendered_count = 44
+        passed_stage_count = 4
+        incomplete_stage_count = 2
+        visual_baseline_render_status = "partial"
+        visual_baseline_fresh_rendered_count = 37
         expected_visual_render_count = 44
-        aggregate_contact_sheet_status = "pass"
+        visual_baseline_fresh_missing_sample_count = 7
+        visual_baseline_resume_needed = $true
+        visual_baseline_resume_slice_offset = 37
+        visual_baseline_resume_slice_limit = 7
+        visual_baseline_resume_slice_command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir <build-dir> -OutputDir .\output\pdf-visual-release-gate-current -VisualBaselineSliceOnly -VisualBaselineOffset 37 -VisualBaselineLimit 7 -SkipPreflight"
+        aggregate_contact_sheet_status = "stale"
         aggregate_contact_sheet_bytes = 1822428
         marker = "pdf_visual_gate_attempt_summary_trace"
     })
@@ -299,11 +304,21 @@ Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_attempt_summary_s
     -Message "Passing fixture should preserve post-timeout visual gate attempt summary status."
 Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_attempt_summary_verdict) -Expected "not_complete" `
     -Message "Passing fixture should preserve post-timeout visual gate attempt summary verdict."
-Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_summary_passed_stage_count) -Expected 6 `
+Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_summary_passed_stage_count) -Expected 4 `
     -Message "Passing fixture should preserve post-timeout visual gate attempt passed stage count."
-Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_summary_visual_baseline_fresh_rendered_count) -Expected 44 `
+Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_summary_visual_baseline_fresh_rendered_count) -Expected 37 `
     -Message "Passing fixture should preserve post-timeout visual gate fresh render count."
-Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_attempt_summary_aggregate_contact_sheet_status) -Expected "pass" `
+Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_summary_visual_baseline_fresh_missing_sample_count) -Expected 7 `
+    -Message "Passing fixture should preserve post-timeout visual gate fresh missing sample count."
+Assert-Equal -Actual ([bool]$fixtureSummary.visual_full_gate_attempt_summary_visual_baseline_resume_needed) -Expected $true `
+    -Message "Passing fixture should preserve post-timeout visual gate resume-needed state."
+Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_summary_visual_baseline_resume_slice_offset) -Expected 37 `
+    -Message "Passing fixture should preserve post-timeout visual gate resume offset."
+Assert-Equal -Actual ([int]$fixtureSummary.visual_full_gate_attempt_summary_visual_baseline_resume_slice_limit) -Expected 7 `
+    -Message "Passing fixture should preserve post-timeout visual gate resume limit."
+Assert-ContainsText -Text ([string]$fixtureSummary.visual_full_gate_attempt_summary_visual_baseline_resume_slice_command_template) -ExpectedText "VisualBaselineSliceOnly" `
+    -Message "Passing fixture should preserve post-timeout visual gate resume command template."
+Assert-Equal -Actual ([string]$fixtureSummary.visual_full_gate_attempt_summary_aggregate_contact_sheet_status) -Expected "stale" `
     -Message "Passing fixture should preserve post-timeout visual gate contact sheet status."
 Assert-Equal -Actual ([bool]$fixtureSummary.visual_segmented_gate_summary_exists) -Expected $true `
     -Message "Passing fixture should detect segmented visual gate evidence."
@@ -368,10 +383,22 @@ Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_visual_baselin
     -Message "Fresh full visual gate warning should carry guarded attempt fresh render counts."
 Assert-Equal -Actual ([string]$visualFullGateWarning.details.attempt_aggregate_contact_sheet_status) -Expected "stale" `
     -Message "Fresh full visual gate warning should carry guarded attempt contact sheet status."
-Assert-Equal -Actual ([string]$visualFullGateWarning.details.attempt_summary_aggregate_contact_sheet_status) -Expected "pass" `
+Assert-Equal -Actual ([string]$visualFullGateWarning.details.attempt_summary_aggregate_contact_sheet_status) -Expected "stale" `
     -Message "Fresh full visual gate warning should carry post-timeout attempt summary contact sheet status."
-Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_summary_visual_baseline_fresh_rendered_count) -Expected 44 `
+Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_summary_visual_baseline_fresh_rendered_count) -Expected 37 `
     -Message "Fresh full visual gate warning should carry post-timeout attempt summary fresh render count."
+Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_summary_visual_baseline_fresh_missing_sample_count) -Expected 7 `
+    -Message "Fresh full visual gate warning should carry post-timeout attempt summary missing sample count."
+Assert-Equal -Actual ([bool]$visualFullGateWarning.details.attempt_summary_visual_baseline_resume_needed) -Expected $true `
+    -Message "Fresh full visual gate warning should expose whether a visual baseline resume is still needed."
+Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_summary_visual_baseline_resume_slice_offset) -Expected 37 `
+    -Message "Fresh full visual gate warning should expose the next resume offset."
+Assert-Equal -Actual ([int]$visualFullGateWarning.details.attempt_summary_visual_baseline_resume_slice_limit) -Expected 7 `
+    -Message "Fresh full visual gate warning should expose the remaining resume limit."
+Assert-ContainsText -Text ([string]$visualFullGateWarning.details.attempt_summary_visual_baseline_resume_slice_command_template) -ExpectedText "run_pdf_visual_release_gate.ps1" `
+    -Message "Fresh full visual gate warning should expose a visual baseline resume command template."
+Assert-ContainsText -Text ([string]$visualFullGateWarning.details.attempt_summary_visual_baseline_resume_slice_command_template) -ExpectedText "-VisualBaselineSliceOnly" `
+    -Message "Fresh full visual gate warning should point reviewers at the slice-only resume mode."
 Assert-Equal -Actual ([string]$visualFullGateWarning.details.segmented_gate_status) -Expected "pass" `
     -Message "Fresh full visual gate warning should carry segmented visual gate status."
 Assert-Equal -Actual ([string]$visualFullGateWarning.details.segmented_gate_verdict) -Expected "pass" `
@@ -621,6 +648,8 @@ foreach ($expectedText in @(
         "visual_full_gate_attempt_visual_baseline_fresh_rendered_count",
         "visual_full_gate_attempt_aggregate_contact_sheet_status",
         "visual_full_gate_attempt_summary_aggregate_contact_sheet_status",
+        "visual_full_gate_attempt_summary_visual_baseline_fresh_missing_sample_count",
+        "visual_full_gate_attempt_summary_visual_baseline_resume_slice_command_template",
         "visual_gate_pass_summary_before_outer_timeout",
         "visual_full_gate_pass_summary_before_outer_timeout",
         "pass_summary_before_outer_timeout",
@@ -629,6 +658,10 @@ foreach ($expectedText in @(
         "attempt_visual_baseline_fresh_rendered_count",
         "attempt_aggregate_contact_sheet_status",
         "attempt_summary_visual_baseline_fresh_rendered_count",
+        "attempt_summary_visual_baseline_fresh_missing_sample_count",
+        "attempt_summary_visual_baseline_resume_slice_offset",
+        "attempt_summary_visual_baseline_resume_slice_limit",
+        "attempt_summary_visual_baseline_resume_slice_command_template",
         "visual_gate_release_evidence",
         "visual_gate_fresh_full_guarded_evidence",
         "visual_gate_segmented_full_coverage_evidence",

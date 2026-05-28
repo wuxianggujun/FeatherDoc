@@ -980,6 +980,13 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
    release-owner acceptance 继续发版，summary / handoff 必须保留
    `release_owner_acceptance_required = true`、`release_owner_acceptance_policy`、
    `release_owner_acceptance_boundary` 和 `release_owner_acceptance_command_template`。
+   当 fresh attempt 仍是 partial/not_complete 时，warning 还必须保留
+   `attempt_summary_visual_baseline_fresh_missing_sample_count`、
+   `attempt_summary_visual_baseline_resume_slice_offset`、
+   `attempt_summary_visual_baseline_resume_slice_limit` 和
+   `attempt_summary_visual_baseline_resume_slice_command_template`，让 reviewer
+   可以直接使用 `-VisualBaselineSliceOnly` 命令继续补齐，而不是只看到
+   “缺失数不为 0”的结论。
    该 acceptance 只接受 segmented full coverage、aggregate contact sheet 非空和
    bounded CTest 等辅助证据；不能改写 `full_visual_gate_status`，也不能删除
    `pdf_full_fresh_visual_gate.not_completed_in_current_window` 的单次 full gate debt。

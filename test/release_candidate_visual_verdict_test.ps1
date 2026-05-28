@@ -294,6 +294,9 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'id = "pdf_visual_gate_attem
 Assert-ContainsText -Text $scriptText -ExpectedText 'release_owner_acceptance_boundary' `
     -Message "Release warnings should keep the release-owner acceptance boundary explicit."
 
+Assert-ContainsText -Text $scriptText -ExpectedText 'visual_baseline_resume_slice_command_template' `
+    -Message "Release warnings should carry the PDF visual baseline resume command template."
+
 Assert-ContainsText -Text $scriptText -ExpectedText 'warning_count = 0' `
     -Message "Release summary should expose a top-level warning count."
 
@@ -603,6 +606,11 @@ $pdfAttemptSummaryPath = Join-Path $pdfSummaryDir "attempt-summary.json"
         visual_baseline_render_status = "partial"
         visual_baseline_fresh_rendered_count = 37
         expected_visual_render_count = 44
+        visual_baseline_fresh_missing_sample_count = 7
+        visual_baseline_resume_needed = $true
+        visual_baseline_resume_slice_offset = 37
+        visual_baseline_resume_slice_limit = 7
+        visual_baseline_resume_slice_command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir <build-dir> -OutputDir .\output\pdf-visual-release-gate-current -VisualBaselineSliceOnly -VisualBaselineOffset 37 -VisualBaselineLimit 7 -SkipPreflight"
         outer_guard_status = "timed_out"
         outer_guard_timed_out = $true
         outer_guard_timeout_seconds = 60
@@ -619,7 +627,12 @@ if ($pdfAttemptInfo.status -ne "partial" -or
     -not [bool]$pdfAttemptInfo.outer_guard_timed_out -or
     [int]$pdfAttemptInfo.outer_guard_timeout_seconds -ne 60 -or
     [int]$pdfAttemptInfo.visual_baseline_fresh_rendered_count -ne 37 -or
-    [int]$pdfAttemptInfo.expected_visual_render_count -ne 44) {
+    [int]$pdfAttemptInfo.expected_visual_render_count -ne 44 -or
+    [int]$pdfAttemptInfo.visual_baseline_fresh_missing_sample_count -ne 7 -or
+    -not [bool]$pdfAttemptInfo.visual_baseline_resume_needed -or
+    [int]$pdfAttemptInfo.visual_baseline_resume_slice_offset -ne 37 -or
+    [int]$pdfAttemptInfo.visual_baseline_resume_slice_limit -ne 7 -or
+    [string]$pdfAttemptInfo.visual_baseline_resume_slice_command_template -notmatch "VisualBaselineSliceOnly") {
     throw "PDF visual gate attempt summary metadata was not loaded with outer-guard evidence."
 }
 
@@ -1256,6 +1269,11 @@ if ($null -eq $pdfAttemptWarning -or
     -not [bool]$pdfAttemptWarning.release_owner_acceptance_required -or
     [string]$pdfAttemptWarning.release_owner_acceptance_boundary -ne "acceptance_does_not_replace_fresh_single_run_full_visual_gate" -or
     [string]$pdfAttemptWarning.visual_baseline_render_status -ne "partial" -or
+    [int]$pdfAttemptWarning.visual_baseline_fresh_missing_sample_count -ne 7 -or
+    -not [bool]$pdfAttemptWarning.visual_baseline_resume_needed -or
+    [int]$pdfAttemptWarning.visual_baseline_resume_slice_offset -ne 37 -or
+    [int]$pdfAttemptWarning.visual_baseline_resume_slice_limit -ne 7 -or
+    [string]$pdfAttemptWarning.visual_baseline_resume_slice_command_template -notmatch "VisualBaselineSliceOnly" -or
     [string]$pdfAttemptWarning.aggregate_contact_sheet_status -ne "stale") {
     throw "Release candidate summary did not materialize the PDF fresh-attempt warning with reviewer-facing evidence."
 }
@@ -1265,6 +1283,8 @@ Assert-ContainsText -Text ([string]$pdfAttemptWarning.release_owner_acceptance_p
     -Message "PDF fresh-attempt warning should expose the release-owner acceptance policy."
 Assert-ContainsText -Text ([string]$pdfAttemptWarning.release_owner_acceptance_command_template) -ExpectedText "run_release_candidate_checks.ps1" `
     -Message "PDF fresh-attempt warning should expose the release-owner acceptance command template."
+Assert-ContainsText -Text ([string]$pdfAttemptWarning.visual_baseline_resume_slice_command_template) -ExpectedText "run_pdf_visual_release_gate.ps1" `
+    -Message "PDF fresh-attempt warning should expose the visual baseline resume command template."
 if ([string]$pdfAttemptWarning.message -match "relies on FinalizeOnly") {
     throw "PDF fresh-attempt warning should not claim FinalizeOnly evidence when segmented full coverage is accepted."
 }

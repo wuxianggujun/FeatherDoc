@@ -608,6 +608,11 @@ function Get-PdfVisualGateAttemptSummaryInfo {
         visual_baseline_render_status = ""
         visual_baseline_fresh_rendered_count = 0
         expected_visual_render_count = 0
+        visual_baseline_fresh_missing_sample_count = 0
+        visual_baseline_resume_needed = $false
+        visual_baseline_resume_slice_offset = 0
+        visual_baseline_resume_slice_limit = 0
+        visual_baseline_resume_slice_command_template = ""
         outer_guard_status = ""
         outer_guard_timed_out = $false
         outer_guard_timeout_seconds = 0
@@ -643,6 +648,11 @@ function Get-PdfVisualGateAttemptSummaryInfo {
         $info.visual_baseline_render_status = [string](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_render_status")
         $info.visual_baseline_fresh_rendered_count = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_fresh_rendered_count")
         $info.expected_visual_render_count = [int](Get-OptionalPropertyValue -Object $summary -Name "expected_visual_render_count")
+        $info.visual_baseline_fresh_missing_sample_count = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_fresh_missing_sample_count")
+        $info.visual_baseline_resume_needed = [bool](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_resume_needed")
+        $info.visual_baseline_resume_slice_offset = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_resume_slice_offset")
+        $info.visual_baseline_resume_slice_limit = [int](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_resume_slice_limit")
+        $info.visual_baseline_resume_slice_command_template = [string](Get-OptionalPropertyValue -Object $summary -Name "visual_baseline_resume_slice_command_template")
         $info.outer_guard_status = [string](Get-OptionalPropertyValue -Object $summary -Name "outer_guard_status")
         $info.outer_guard_timed_out = [bool](Get-OptionalPropertyValue -Object $summary -Name "outer_guard_timed_out")
         $info.outer_guard_timeout_seconds = [int](Get-OptionalPropertyValue -Object $summary -Name "outer_guard_timeout_seconds")
@@ -683,6 +693,11 @@ function Get-PdfVisualGateAttemptReleaseWarnings {
     $attemptIncompleteStageCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "incomplete_stage_count")
     $renderedCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_fresh_rendered_count")
     $expectedRenderCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "expected_visual_render_count")
+    $freshMissingSampleCount = [int](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_fresh_missing_sample_count")
+    $resumeNeeded = [bool](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_resume_needed")
+    $resumeSliceOffset = [int](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_resume_slice_offset")
+    $resumeSliceLimit = [int](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_resume_slice_limit")
+    $resumeSliceCommandTemplate = [string](Get-OptionalPropertyValue -Object $attempt -Name "visual_baseline_resume_slice_command_template")
     $pdfRegressionStatus = [string](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_status")
     $pdfRegressionSelected = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_selected_test_count")
     $pdfRegressionFailed = [int](Get-OptionalPropertyValue -Object $attempt -Name "pdf_regression_failed_test_count")
@@ -785,6 +800,11 @@ function Get-PdfVisualGateAttemptReleaseWarnings {
             visual_baseline_render_status = $renderStatus
             visual_baseline_fresh_rendered_count = $renderedCount
             expected_visual_render_count = $expectedRenderCount
+            visual_baseline_fresh_missing_sample_count = $freshMissingSampleCount
+            visual_baseline_resume_needed = $resumeNeeded
+            visual_baseline_resume_slice_offset = $resumeSliceOffset
+            visual_baseline_resume_slice_limit = $resumeSliceLimit
+            visual_baseline_resume_slice_command_template = $resumeSliceCommandTemplate
             aggregate_contact_sheet_status = $contactSheetStatus
             aggregate_contact_sheet = [string](Get-OptionalPropertyValue -Object $attempt -Name "aggregate_contact_sheet")
             release_owner_acceptance_required = $true

@@ -491,6 +491,11 @@ fresh 非 ``FinalizeOnly`` attempt 未完成且辅助证据仍不完整的事实
 ``visual_gate_segmented_full_coverage_evidence`` 和 ``visual_gate_finalize_only``，
 并按当前 evidence path 说明发布结论依赖 segmented full-coverage、fresh guarded
 full gate 或 explicit ``FinalizeOnly`` 证据。
+当 ``attempt-summary.json`` 仍显示 partial/not_complete 时，该 warning 还必须携带
+``visual_baseline_fresh_missing_sample_count``、
+``visual_baseline_resume_slice_offset``、``visual_baseline_resume_slice_limit`` 和
+``visual_baseline_resume_slice_command_template``，让 release reviewer 可以直接看到
+下一段 ``-VisualBaselineSliceOnly`` 恢复命令。
 若 readiness 已 ``release_ready = true``、``visual_gate_release_evidence_accepted = true``、
 ``visual_gate_segmented_full_coverage_evidence = true``，且 ``attempt-summary.json``
 自身已经达到阶段全 pass、0 failed、44/44 fresh baseline 和 contact sheet pass，
