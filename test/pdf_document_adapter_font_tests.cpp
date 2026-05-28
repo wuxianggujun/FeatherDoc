@@ -3634,6 +3634,107 @@ TEST_CASE("document PDF adapter maps table alignment and indent") {
         REQUIRE(table.has_next());
         CHECK(table.set_width_twips(1440U));
         CHECK(table.set_column_width_twips(0U, 1440U));
+        CHECK(table.set_cell_text(0U, 0U, "Page middle"));
+
+        auto row = table.rows();
+        REQUIRE(row.has_next());
+        CHECK(row.set_height_twips(720U, featherdoc::row_height_rule::exact));
+
+        auto position = featherdoc::table_position{};
+        position.horizontal_reference =
+            featherdoc::table_position_horizontal_reference::page;
+        position.horizontal_offset_twips = 0;
+        position.vertical_reference =
+            featherdoc::table_position_vertical_reference::page;
+        position.vertical_offset_twips = 120;
+        position.vertical_spec =
+            featherdoc::table_position_vertical_spec::center;
+        CHECK(table.set_position(position));
+
+        const auto table_summary = document.inspect_table(0U);
+        REQUIRE(table_summary.has_value());
+        REQUIRE(table_summary->position.has_value());
+        REQUIRE(table_summary->position->vertical_spec.has_value());
+        CHECK_EQ(*table_summary->position->vertical_spec,
+                 featherdoc::table_position_vertical_spec::center);
+
+        featherdoc::pdf::PdfDocumentAdapterOptions options;
+        options.use_system_font_fallbacks = false;
+        options.page_size = featherdoc::pdf::PdfPageSize{300.0, 220.0};
+
+        const auto layout =
+            featherdoc::pdf::layout_document_paragraphs(document, options);
+
+        REQUIRE_EQ(layout.pages.size(), 1U);
+        REQUIRE_EQ(layout.pages.front().rectangles.size(), 1U);
+
+        const auto &rectangle = layout.pages.front().rectangles.front();
+        const auto table_height = 36.0;
+        CHECK(rectangle.bounds.y_points + rectangle.bounds.height_points ==
+              doctest::Approx(options.page_size.height_points -
+                              (options.page_size.height_points -
+                               table_height) /
+                                  2.0 -
+                              6.0));
+    }
+
+    {
+        featherdoc::Document document;
+        REQUIRE_FALSE(document.create_empty());
+
+        auto table = document.append_table(1U, 1U);
+        REQUIRE(table.has_next());
+        CHECK(table.set_width_twips(1440U));
+        CHECK(table.set_column_width_twips(0U, 1440U));
+        CHECK(table.set_cell_text(0U, 0U, "Margin bottom"));
+
+        auto row = table.rows();
+        REQUIRE(row.has_next());
+        CHECK(row.set_height_twips(720U, featherdoc::row_height_rule::exact));
+
+        auto position = featherdoc::table_position{};
+        position.horizontal_reference =
+            featherdoc::table_position_horizontal_reference::margin;
+        position.horizontal_offset_twips = 0;
+        position.vertical_reference =
+            featherdoc::table_position_vertical_reference::margin;
+        position.vertical_offset_twips = -240;
+        position.vertical_spec =
+            featherdoc::table_position_vertical_spec::bottom;
+        CHECK(table.set_position(position));
+
+        const auto table_summary = document.inspect_table(0U);
+        REQUIRE(table_summary.has_value());
+        REQUIRE(table_summary->position.has_value());
+        REQUIRE(table_summary->position->vertical_spec.has_value());
+        CHECK_EQ(*table_summary->position->vertical_spec,
+                 featherdoc::table_position_vertical_spec::bottom);
+
+        featherdoc::pdf::PdfDocumentAdapterOptions options;
+        options.use_system_font_fallbacks = false;
+        options.page_size = featherdoc::pdf::PdfPageSize{300.0, 220.0};
+        options.margin_top_points = 30.0;
+        options.margin_bottom_points = 40.0;
+
+        const auto layout =
+            featherdoc::pdf::layout_document_paragraphs(document, options);
+
+        REQUIRE_EQ(layout.pages.size(), 1U);
+        REQUIRE_EQ(layout.pages.front().rectangles.size(), 1U);
+
+        const auto &rectangle = layout.pages.front().rectangles.front();
+        CHECK(rectangle.bounds.y_points + rectangle.bounds.height_points ==
+              doctest::Approx(options.margin_bottom_points + 36.0 + 12.0));
+    }
+
+    {
+        featherdoc::Document document;
+        REQUIRE_FALSE(document.create_empty());
+
+        auto table = document.append_table(1U, 1U);
+        REQUIRE(table.has_next());
+        CHECK(table.set_width_twips(1440U));
+        CHECK(table.set_column_width_twips(0U, 1440U));
         CHECK(table.set_cell_text(0U, 0U, "Negative margin positioned"));
 
         auto position = featherdoc::table_position{};

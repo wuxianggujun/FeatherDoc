@@ -193,6 +193,11 @@ struct TableHorizontalReferenceFrame {
     double width_points{0.0};
 };
 
+struct TableVerticalReferenceFrame {
+    double top_points{0.0};
+    double height_points{0.0};
+};
+
 [[nodiscard]] std::optional<TableHorizontalReferenceFrame>
 table_horizontal_reference_frame(
     const featherdoc::table_position &position,
@@ -253,6 +258,58 @@ table_horizontal_reference_frame(
     }
 
     return origin_points;
+}
+
+[[nodiscard]] std::optional<TableVerticalReferenceFrame>
+table_vertical_reference_frame(
+    const featherdoc::table_position &position,
+    const PdfDocumentAdapterOptions &options) noexcept {
+    switch (position.vertical_reference) {
+    case featherdoc::table_position_vertical_reference::page:
+        return TableVerticalReferenceFrame{options.page_size.height_points,
+                                           options.page_size.height_points};
+    case featherdoc::table_position_vertical_reference::margin:
+        return TableVerticalReferenceFrame{
+            options.page_size.height_points - options.margin_top_points,
+            std::max(0.0, options.page_size.height_points -
+                              options.margin_top_points -
+                              options.margin_bottom_points)};
+    case featherdoc::table_position_vertical_reference::paragraph:
+        return std::nullopt;
+    }
+
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<double> table_vertical_spec_row_top_points(
+    const featherdoc::table_position &position,
+    const PdfDocumentAdapterOptions &options, double offset_points,
+    double table_height_points) noexcept {
+    if (!position.vertical_spec.has_value()) {
+        return std::nullopt;
+    }
+
+    const auto reference_frame = table_vertical_reference_frame(position, options);
+    if (!reference_frame.has_value()) {
+        return std::nullopt;
+    }
+
+    const auto free_height =
+        std::max(0.0, reference_frame->height_points - table_height_points);
+
+    switch (*position.vertical_spec) {
+    case featherdoc::table_position_vertical_spec::top:
+        return reference_frame->top_points - offset_points;
+    case featherdoc::table_position_vertical_spec::center:
+        return reference_frame->top_points - free_height / 2.0 - offset_points;
+    case featherdoc::table_position_vertical_spec::bottom:
+        return reference_frame->top_points - free_height - offset_points;
+    case featherdoc::table_position_vertical_spec::inside:
+    case featherdoc::table_position_vertical_spec::outside:
+        return std::nullopt;
+    }
+
+    return std::nullopt;
 }
 
 [[nodiscard]] double
@@ -472,13 +529,18 @@ build_table_column_widths(const featherdoc::table_inspection_summary &table,
 
 [[nodiscard]] std::optional<double> positioned_table_row_top_points(
     const featherdoc::table_inspection_summary &table, double anchor_top_points,
-    const PdfDocumentAdapterOptions &options) noexcept {
+    const PdfDocumentAdapterOptions &options,
+    double table_height_points) noexcept {
     if (!table.position.has_value()) {
         return std::nullopt;
     }
 
     const auto offset_points =
         signed_twips_to_points(table.position->vertical_offset_twips);
+    if (const auto spec_row_top = table_vertical_spec_row_top_points(
+            *table.position, options, offset_points, table_height_points)) {
+        return *spec_row_top;
+    }
 
     switch (table.position->vertical_reference) {
     case featherdoc::table_position_vertical_reference::page:

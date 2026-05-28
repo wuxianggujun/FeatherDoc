@@ -27,6 +27,9 @@ performance.
 
 - Fixed `export-pdf --json` and `--summary-json` success output so the outer
   JSON result object is closed after the nested `options` object.
+- Fixed PDF table layout so floating table horizontal specs and reliable
+  page/margin vertical specs affect rendered table placement instead of being
+  preserved only in DOCX metadata.
 - Fixed Debug PDF CTest runtime-path resolution so `pdf_cli_export` uses Debug
   vcpkg DLL directories instead of release-only runtime paths.
 - Clarified historical PDF visual validation changelog wording so old
