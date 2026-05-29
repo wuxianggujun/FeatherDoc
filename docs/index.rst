@@ -228,6 +228,11 @@ It also writes ``output/release-candidate-checks/START_HERE.md`` plus
 ``report/ARTIFACT_GUIDE.md``, ``REVIEWER_CHECKLIST.md``,
 ``release_handoff.md``, ``release_body.zh-CN.md``, and
 ``release_summary.zh-CN.md``. Use ``START_HERE.md`` as the local entry point.
+``release_governance_handoff.md`` preserves the detailed
+``word_visual_standard_review_metadata_source_reports``, while
+``START_HERE.md``, ``ARTIFACT_GUIDE.md``, ``REVIEWER_CHECKLIST.md``,
+``final_review.md``, and ``release_handoff.md`` expose the compact
+``Word visual standard review metadata evidence`` line for release reviewers.
 When top-level ``release_blockers`` are present, those handoff artifacts render
 the blocker count, stable ids, issue keys, blocked items, and repair actions; the
 reviewer checklist stops public release until the blocker list is empty. The

@@ -84,7 +84,10 @@ $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMake
 foreach ($marker in @(
     "project_template_release_readiness_checklist_zh",
     "template_schema_mutation_zh",
-    "release_metadata_pipeline_zh"
+    "release_metadata_pipeline_zh",
+    "release_governance_handoff.md",
+    "word_visual_standard_review_metadata_source_reports",
+    "Word visual standard review metadata evidence"
 )) {
     Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
         -Message "Docs index should expose the project-template release readiness entry."
