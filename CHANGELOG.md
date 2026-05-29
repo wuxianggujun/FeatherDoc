@@ -23,8 +23,9 @@ performance.
   summary so downstream governance and readiness evidence can identify it
   without relying on path conventions.
 - Added PDF floating table regression coverage for preservation-only wrapping
-  metadata so `leftFromText`, `rightFromText`, `topFromText`, and `tblOverlap`
-  stay layout-neutral until full Word-compatible table wrapping is implemented.
+  metadata so `leftFromText`, `rightFromText`, non-paragraph `topFromText`, and
+  `tblOverlap` stay layout-neutral until full Word-compatible table wrapping is
+  implemented.
 
 ### Fixed
 
@@ -33,6 +34,8 @@ performance.
 - Fixed PDF table layout so floating table horizontal specs and reliable
   page/margin vertical specs affect rendered table placement instead of being
   preserved only in DOCX metadata.
+- Fixed PDF table layout so paragraph-anchored floating tables honor
+  `topFromText` as spacing above the table.
 - Fixed Debug PDF CTest runtime-path resolution so `pdf_cli_export` uses Debug
   vcpkg DLL directories instead of release-only runtime paths.
 - Clarified historical PDF visual validation changelog wording so old

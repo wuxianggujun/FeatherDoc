@@ -3232,11 +3232,12 @@ signed twips offsets remain fine-tuning amounts after each spec is resolved.
 Vertical paragraph specs and vertical `inside` / `outside` specs are preserved
 in DOCX metadata, but the experimental PDF adapter keeps offset-based top
 anchoring for those cases because it does not yet model the full Word paragraph
-and page-side context. `bottomFromText` is honored as additional vertical
-spacing before following body text; the remaining per-edge text distances and
-`tblOverlap` are still DOCX metadata for the PDF path and intentionally remain
-layout-neutral until the exporter has a complete Word-compatible table
-text-wrapping contract.
+and page-side context. `topFromText` is honored for paragraph-anchored tables
+as additional vertical spacing above the table, and `bottomFromText` is honored
+as additional vertical spacing before following body text. The remaining
+per-edge text distances and `tblOverlap` are still DOCX metadata for the PDF
+path and intentionally remain layout-neutral until the exporter has a complete
+Word-compatible table text-wrapping contract.
 Use `plan-table-position-presets --preset <name>` first when you want a read-only
 migration plan that identifies unpositioned tables, already matching tables, and
 existing positions that should be reviewed before replacement. The plan also

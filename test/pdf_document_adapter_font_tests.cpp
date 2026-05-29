@@ -3870,6 +3870,56 @@ TEST_CASE("document PDF adapter maps table alignment and indent") {
         featherdoc::Document document;
         REQUIRE_FALSE(document.create_empty());
 
+        auto paragraph = document.paragraphs();
+        REQUIRE(paragraph.has_next());
+        CHECK(paragraph.set_text("Before top-spaced table"));
+
+        auto table = document.append_table(1U, 1U);
+        REQUIRE(table.has_next());
+        CHECK(table.set_width_twips(1440U));
+        CHECK(table.set_column_width_twips(0U, 1440U));
+        CHECK(table.set_cell_text(0U, 0U, "Top-spaced"));
+
+        auto row = table.rows();
+        REQUIRE(row.has_next());
+        CHECK(row.set_height_twips(720U, featherdoc::row_height_rule::exact));
+
+        auto position = featherdoc::table_position{};
+        position.horizontal_reference =
+            featherdoc::table_position_horizontal_reference::column;
+        position.horizontal_offset_twips = 0;
+        position.vertical_reference =
+            featherdoc::table_position_vertical_reference::paragraph;
+        position.vertical_offset_twips = 0;
+        position.top_from_text_twips = 240U;
+        CHECK(table.set_position(position));
+
+        featherdoc::pdf::PdfDocumentAdapterOptions options;
+        options.use_system_font_fallbacks = false;
+        options.page_size = featherdoc::pdf::PdfPageSize{300.0, 220.0};
+        options.margin_top_points = 48.0;
+        options.line_height_points = 16.0;
+        options.paragraph_spacing_after_points = 6.0;
+
+        const auto layout =
+            featherdoc::pdf::layout_document_paragraphs(document, options);
+
+        REQUIRE_EQ(layout.pages.size(), 1U);
+        REQUIRE_EQ(layout.pages.front().rectangles.size(), 1U);
+
+        const auto &rectangle = layout.pages.front().rectangles.front();
+        const auto expected_row_top =
+            options.page_size.height_points - options.margin_top_points -
+            options.line_height_points - options.paragraph_spacing_after_points -
+            12.0;
+        CHECK(rectangle.bounds.y_points + rectangle.bounds.height_points ==
+              doctest::Approx(expected_row_top));
+    }
+
+    {
+        featherdoc::Document document;
+        REQUIRE_FALSE(document.create_empty());
+
         auto table = document.append_table(1U, 1U);
         REQUIRE(table.has_next());
         CHECK(table.set_width_twips(1440U));

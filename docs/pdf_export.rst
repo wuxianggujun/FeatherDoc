@@ -129,13 +129,15 @@ Vertical ``paragraph`` specs and vertical ``inside`` / ``outside`` specs are
 preserved in DOCX metadata, but the PDF adapter keeps the older offset-based
 top anchoring for those cases. They require Word page/paragraph and page-side
 context that the experimental PDF layout path does not yet model as a stable
-contract.
+contract, though paragraph-anchored tables still consume ``topFromText`` as a
+local top spacing adjustment.
 
-``bottomFromText`` is honored as extra vertical spacing between a positioned
-table and following body text in the in-process PDF layout. The remaining
-per-edge text distances and ``tblOverlap`` are still preserved in DOCX metadata
-and intentionally remain layout-neutral for PDF export until the adapter has a
-full Word-compatible table text-wrapping contract.
+``topFromText`` is honored as extra spacing above paragraph-anchored positioned
+tables, and ``bottomFromText`` is honored as extra vertical spacing between a
+positioned table and following body text in the in-process PDF layout. The
+remaining per-edge text distances and ``tblOverlap`` are still preserved in
+DOCX metadata and intentionally remain layout-neutral for PDF export until the
+adapter has a full Word-compatible table text-wrapping contract.
 
 It is not a production Word-compatible layout engine. Complex pagination,
 full Word field evaluation, arbitrary drawing reconstruction, and

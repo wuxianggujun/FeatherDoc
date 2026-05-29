@@ -312,6 +312,17 @@ table_vertical_reference_frame(
     return std::nullopt;
 }
 
+[[nodiscard]] double paragraph_table_top_from_text_points(
+    const featherdoc::table_position &position) noexcept {
+    if (position.vertical_reference !=
+            featherdoc::table_position_vertical_reference::paragraph ||
+        !position.top_from_text_twips) {
+        return 0.0;
+    }
+
+    return twips_to_points(*position.top_from_text_twips);
+}
+
 [[nodiscard]] double
 table_origin_x_points(const featherdoc::table_inspection_summary &table,
                       const std::vector<double> &column_widths,
@@ -549,7 +560,9 @@ build_table_column_widths(const featherdoc::table_inspection_summary &table,
         return options.page_size.height_points - options.margin_top_points -
                offset_points;
     case featherdoc::table_position_vertical_reference::paragraph:
-        return anchor_top_points - offset_points;
+        return anchor_top_points -
+               paragraph_table_top_from_text_points(*table.position) -
+               offset_points;
     }
 
     return std::nullopt;
