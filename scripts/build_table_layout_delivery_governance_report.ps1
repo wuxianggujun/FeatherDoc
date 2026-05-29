@@ -211,7 +211,11 @@ function New-DeliveryQuality {
         [int]$TotalManualTableStyleFixCount,
         [int]$TotalTablePositionAutomaticCount,
         [int]$TotalTablePositionReviewCount,
-        [int]$TotalCommandFailureCount
+        [int]$TotalCommandFailureCount,
+        [string]$PdfFloatingTableCapabilityStatus = "not_reported",
+        [string]$PdfFloatingTableLayoutBoundary = "",
+        [int]$PdfFloatingTableSupportedGeometryCount = 0,
+        [int]$PdfFloatingTableMetadataOnlyCount = 0
     )
 
     $readyDocumentPercent = Get-Percent -Numerator $ReadyDocumentCount -Denominator $DocumentCount
@@ -242,6 +246,10 @@ function New-DeliveryQuality {
         manual_table_style_fix_count = $TotalManualTableStyleFixCount
         table_position_automatic_count = $TotalTablePositionAutomaticCount
         table_position_review_count = $TotalTablePositionReviewCount
+        pdf_floating_table_capability_status = $PdfFloatingTableCapabilityStatus
+        pdf_floating_table_layout_boundary = $PdfFloatingTableLayoutBoundary
+        pdf_floating_table_supported_geometry_count = $PdfFloatingTableSupportedGeometryCount
+        pdf_floating_table_metadata_only_count = $PdfFloatingTableMetadataOnlyCount
         command_failure_count = $TotalCommandFailureCount
         unresolved_item_count = $unresolvedItemCount
         penalty_summary = @(
@@ -309,6 +317,27 @@ function Add-SummaryGroup {
             $summary[$OutputName] = [string]$group.Name
             $summary["count"] = [int]$group.Count
             $summary
+        }
+    )
+}
+
+function Add-PdfFloatingTableSupportSummary {
+    param([object[]]$Items)
+
+    $totals = @{}
+    foreach ($item in @($Items)) {
+        $status = Get-JsonString -Object $item -Name "status" -DefaultValue "not_reported"
+        if ([string]::IsNullOrWhiteSpace($status)) { $status = "not_reported" }
+        if (-not $totals.ContainsKey($status)) { $totals[$status] = 0 }
+        $totals[$status] = [int]$totals[$status] + 1
+    }
+
+    return @(
+        foreach ($status in @($totals.Keys | Sort-Object)) {
+            [ordered]@{
+                status = [string]$status
+                count = [int]$totals[$status]
+            }
         }
     )
 }
@@ -421,6 +450,7 @@ function New-ReportMarkdown {
     $lines.Add("- Manual table style fixes: ``$($Summary.total_manual_table_style_fix_count)``") | Out-Null
     $lines.Add("- Floating table automatic plans: ``$($Summary.total_table_position_automatic_count)``") | Out-Null
     $lines.Add("- Floating table review plans: ``$($Summary.total_table_position_review_count)``") | Out-Null
+    $lines.Add("- PDF floating table support reports: ``$($Summary.pdf_floating_table_support_report_count)``") | Out-Null
     $lines.Add("- Delivery quality: ``$($Summary.delivery_quality_level)`` (score=``$($Summary.delivery_quality_score)``)") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -436,6 +466,8 @@ function New-ReportMarkdown {
     $lines.Add("- Manual table style fixes: ``$($quality.manual_table_style_fix_count)``") | Out-Null
     $lines.Add("- Floating table automatic plans: ``$($quality.table_position_automatic_count)``") | Out-Null
     $lines.Add("- Floating table review plans: ``$($quality.table_position_review_count)``") | Out-Null
+    $lines.Add("- PDF floating table capability: ``$($quality.pdf_floating_table_capability_status)``") | Out-Null
+    $lines.Add("- PDF floating table boundary: ``$($quality.pdf_floating_table_layout_boundary)``") | Out-Null
     $lines.Add("- Command failures: ``$($quality.command_failure_count)``") | Out-Null
     $lines.Add("- Unresolved items: ``$($quality.unresolved_item_count)``") | Out-Null
     foreach ($penalty in @($quality.penalty_summary)) {
@@ -476,6 +508,23 @@ function New-ReportMarkdown {
                 $plan.table_position_plan_display,
                 $plan.automatic_count,
                 $plan.review_count)) | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## PDF Floating Table Support") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.pdf_floating_table_support).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($support in @($Summary.pdf_floating_table_support)) {
+            $lines.Add(("- ``{0}``: status=``{1}`` boundary=``{2}`` supported=``{3}`` metadata_only=``{4}`` source=``{5}``" -f
+                $support.document_name,
+                $support.status,
+                $support.boundary,
+                $support.supported_geometry_count,
+                $support.metadata_only_count,
+                $support.source_json_display)) | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -551,6 +600,7 @@ Write-Step "Reading $($inputPaths.Count) table layout governance input JSON file
 $sourceFiles = New-Object 'System.Collections.Generic.List[object]'
 $documents = New-Object 'System.Collections.Generic.List[object]'
 $positionPlans = New-Object 'System.Collections.Generic.List[object]'
+$pdfFloatingTableSupport = New-Object 'System.Collections.Generic.List[object]'
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $deliveryActions = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
@@ -599,9 +649,31 @@ foreach ($path in @($inputPaths)) {
                         table_position_automatic_count = Get-JsonInt -Object $document -Name "table_position_automatic_count"
                         table_position_review_count = Get-JsonInt -Object $document -Name "table_position_review_count"
                         table_position_already_matching_count = Get-JsonInt -Object $document -Name "table_position_already_matching_count"
+                        pdf_floating_table_support_status = Get-JsonString -Object $document -Name "pdf_floating_table_support_status" -DefaultValue "not_reported"
+                        pdf_floating_table_layout_boundary = Get-JsonString -Object $document -Name "pdf_floating_table_layout_boundary"
+                        pdf_floating_table_supported_geometry_count = Get-JsonInt -Object $document -Name "pdf_floating_table_supported_geometry_count"
+                        pdf_floating_table_metadata_only_count = Get-JsonInt -Object $document -Name "pdf_floating_table_metadata_only_count"
                         command_failure_count = Get-JsonInt -Object $document -Name "command_failure_count"
                         table_position_plan_path = Get-JsonString -Object $document -Name "table_position_plan_path"
                         table_position_plan_display = Get-JsonString -Object $document -Name "table_position_plan_display"
+                    }) | Out-Null
+                }
+                foreach ($support in @(Get-JsonArray -Object $json -Name "pdf_floating_table_support")) {
+                    $pdfFloatingTableSupport.Add([ordered]@{
+                        document_name = Get-JsonString -Object $support -Name "document_name"
+                        input_docx = Get-JsonString -Object $support -Name "input_docx"
+                        source_report = $path
+                        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                        source_json = $path
+                        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                        status = Get-JsonString -Object $support -Name "status" -DefaultValue "not_reported"
+                        boundary = Get-JsonString -Object $support -Name "boundary"
+                        supported_geometry_count = Get-JsonInt -Object $support -Name "supported_geometry_count"
+                        metadata_only_count = Get-JsonInt -Object $support -Name "metadata_only_count"
+                        review_required_count = Get-JsonInt -Object $support -Name "review_required_count"
+                        supported_geometry = @(Get-JsonArray -Object $support -Name "supported_geometry")
+                        metadata_only = @(Get-JsonArray -Object $support -Name "metadata_only")
+                        review_required = @(Get-JsonArray -Object $support -Name "review_required")
                     }) | Out-Null
                 }
                 foreach ($plan in @(Get-JsonArray -Object $json -Name "table_position_plans")) {
@@ -800,6 +872,48 @@ $sourceFailureCount = @($sourceFiles.ToArray() | Where-Object { $_.status -eq "f
 $readyDocumentCount = @($documents.ToArray() | Where-Object { [bool]$_.ready }).Count
 $needsReviewDocumentCount = @($documents.ToArray() | Where-Object { $_.status -eq "needs_review" }).Count
 $failedDocumentCount = @($documents.ToArray() | Where-Object { $_.status -eq "failed" }).Count
+$pdfFloatingTableSupportReportCount = @($pdfFloatingTableSupport.ToArray() | Where-Object {
+    [string]$_.status -ne "not_reported"
+}).Count
+$pdfFloatingTableCapabilityStatus = if ($pdfFloatingTableSupportReportCount -gt 0) {
+    $reportedSupport = @($pdfFloatingTableSupport.ToArray() | Where-Object {
+        [string]$_.status -ne "not_reported"
+    })
+    if (@($reportedSupport | Where-Object { [string]$_.status -ne "partial" }).Count -eq 0) {
+        "partial"
+    } else {
+        "mixed"
+    }
+} else {
+    "not_reported"
+}
+$pdfFloatingTableLayoutBoundary = if ($pdfFloatingTableSupportReportCount -gt 0) {
+    $boundaries = @($pdfFloatingTableSupport.ToArray() |
+        Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.boundary) } |
+        ForEach-Object { [string]$_.boundary } |
+        Sort-Object -Unique)
+    if ($boundaries.Count -eq 1) { $boundaries[0] } else { "mixed" }
+} else {
+    ""
+}
+$pdfFloatingTableSupportedGeometryCount = if ($pdfFloatingTableSupportReportCount -gt 0) {
+    $maxCount = 0
+    foreach ($support in @($pdfFloatingTableSupport.ToArray())) {
+        $maxCount = [Math]::Max($maxCount, (Get-JsonInt -Object $support -Name "supported_geometry_count"))
+    }
+    $maxCount
+} else {
+    0
+}
+$pdfFloatingTableMetadataOnlyCount = if ($pdfFloatingTableSupportReportCount -gt 0) {
+    $maxCount = 0
+    foreach ($support in @($pdfFloatingTableSupport.ToArray())) {
+        $maxCount = [Math]::Max($maxCount, (Get-JsonInt -Object $support -Name "metadata_only_count"))
+    }
+    $maxCount
+} else {
+    0
+}
 $deliveryQuality = New-DeliveryQuality `
     -DocumentCount $documents.Count `
     -ReadyDocumentCount $readyDocumentCount `
@@ -810,7 +924,11 @@ $deliveryQuality = New-DeliveryQuality `
     -TotalManualTableStyleFixCount $totalManualFixCount `
     -TotalTablePositionAutomaticCount $totalPositionAutomaticCount `
     -TotalTablePositionReviewCount $totalPositionReviewCount `
-    -TotalCommandFailureCount $totalCommandFailureCount
+    -TotalCommandFailureCount $totalCommandFailureCount `
+    -PdfFloatingTableCapabilityStatus $pdfFloatingTableCapabilityStatus `
+    -PdfFloatingTableLayoutBoundary $pdfFloatingTableLayoutBoundary `
+    -PdfFloatingTableSupportedGeometryCount $pdfFloatingTableSupportedGeometryCount `
+    -PdfFloatingTableMetadataOnlyCount $pdfFloatingTableMetadataOnlyCount
 $status = if ($sourceFailureCount -gt 0 -or $failedDocumentCount -gt 0 -or $totalCommandFailureCount -gt 0) {
     "failed"
 } elseif ($releaseBlockers.Count -gt 0 -or $warnings.Count -gt 0 -or $needsReviewDocumentCount -gt 0 -or
@@ -848,6 +966,9 @@ $summary = [ordered]@{
     status_summary = @(Add-SummaryGroup -Items $documents.ToArray() -PropertyName "status" -OutputName "status")
     table_position_plan_count = $positionPlans.Count
     table_position_plans = @($positionPlans.ToArray())
+    pdf_floating_table_support_report_count = $pdfFloatingTableSupportReportCount
+    pdf_floating_table_support_summary = @(Add-PdfFloatingTableSupportSummary -Items $pdfFloatingTableSupport.ToArray())
+    pdf_floating_table_support = @($pdfFloatingTableSupport.ToArray())
     total_table_style_issue_count = $totalIssueCount
     total_automatic_tblLook_fix_count = $totalAutomaticFixCount
     total_manual_table_style_fix_count = $totalManualFixCount

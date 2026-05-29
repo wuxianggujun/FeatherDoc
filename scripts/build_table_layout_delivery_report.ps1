@@ -100,10 +100,37 @@ function Invoke-CliJsonCommand {
     }
 }
 
+function New-PdfFloatingTableSupport {
+    return [ordered]@{
+        schema = "featherdoc.pdf_floating_table_support.v1"
+        status = "partial"
+        boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
+        supported_geometry = @(
+            "tblpXSpec left/inside/center/right/outside within page, margin, and column reference frames",
+            "tblpYSpec top/center/bottom within page and margin reference frames",
+            "topFromText for paragraph-anchored positioned tables",
+            "bottomFromText as spacing before following body text"
+        )
+        metadata_only = @(
+            "leftFromText",
+            "rightFromText",
+            "topFromText outside paragraph anchoring",
+            "tblOverlap",
+            "vertical paragraph/inside/outside Word page-side context"
+        )
+        review_required = @(
+            "full Word-compatible floating table text wrapping",
+            "table overlap avoidance and collision resolution",
+            "inside/outside parity for page-side aware layout"
+        )
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
     $lines = New-Object 'System.Collections.Generic.List[string]'
+    $pdfSupport = $Summary.pdf_floating_table_support
     $lines.Add("# Table Layout Delivery Report") | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("- Input DOCX: ``$($Summary.input_docx)``") | Out-Null
@@ -116,6 +143,26 @@ function New-ReportMarkdown {
     $lines.Add("- Position automatic count: ``$($Summary.table_position_automatic_count)``") | Out-Null
     $lines.Add("- Position review count: ``$($Summary.table_position_review_count)``") | Out-Null
     $lines.Add("- Command failures: ``$($Summary.command_failure_count)``") | Out-Null
+    $lines.Add("- PDF floating table support: ``$($Summary.pdf_floating_table_support_status)``") | Out-Null
+    $lines.Add("- PDF floating table boundary: ``$($Summary.pdf_floating_table_layout_boundary)``") | Out-Null
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## PDF Floating Table Support") | Out-Null
+    $lines.Add("") | Out-Null
+    $lines.Add("- Status: ``$($pdfSupport.status)``") | Out-Null
+    $lines.Add("- Boundary: ``$($pdfSupport.boundary)``") | Out-Null
+    $lines.Add("- Supported geometry:") | Out-Null
+    foreach ($item in @($pdfSupport.supported_geometry)) {
+        $lines.Add("  - $item") | Out-Null
+    }
+    $lines.Add("- Metadata-only until full wrapping:") | Out-Null
+    foreach ($item in @($pdfSupport.metadata_only)) {
+        $lines.Add("  - $item") | Out-Null
+    }
+    $lines.Add("- Review-required areas:") | Out-Null
+    foreach ($item in @($pdfSupport.review_required)) {
+        $lines.Add("  - $item") | Out-Null
+    }
     $lines.Add("") | Out-Null
 
     $lines.Add("## Suggested Actions") | Out-Null
@@ -210,6 +257,7 @@ $manualFixCount = Get-JsonInt -Object $fixPlan -Name "manual_fix_count"
 $positionAutomaticCount = Get-JsonInt -Object $positionPlan -Name "automatic_count"
 $positionReviewCount = Get-JsonInt -Object $positionPlan -Name "review_count"
 $positionAlreadyMatchingCount = Get-JsonInt -Object $positionPlan -Name "already_matching_count"
+$pdfFloatingTableSupport = New-PdfFloatingTableSupport
 
 $releaseBlockers = @()
 if ($commandFailures.Count -gt 0) {
@@ -294,6 +342,11 @@ $summary = [ordered]@{
     table_position_automatic_count = $positionAutomaticCount
     table_position_review_count = $positionReviewCount
     table_position_already_matching_count = $positionAlreadyMatchingCount
+    pdf_floating_table_support = $pdfFloatingTableSupport
+    pdf_floating_table_support_status = $pdfFloatingTableSupport.status
+    pdf_floating_table_layout_boundary = $pdfFloatingTableSupport.boundary
+    pdf_floating_table_supported_geometry_count = @($pdfFloatingTableSupport.supported_geometry).Count
+    pdf_floating_table_metadata_only_count = @($pdfFloatingTableSupport.metadata_only).Count
     release_blockers = @($releaseBlockers)
     release_blocker_count = @($releaseBlockers).Count
     action_items = @($actionItems)

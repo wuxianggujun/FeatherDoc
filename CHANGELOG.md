@@ -26,6 +26,9 @@ performance.
   metadata so `leftFromText`, `rightFromText`, non-paragraph `topFromText`, and
   `tblOverlap` stay layout-neutral until full Word-compatible table wrapping is
   implemented.
+- Added PDF floating table support-boundary evidence to the table layout
+  delivery report, rollup, and governance summaries so release reviewers can
+  distinguish the stable PDF geometry subset from metadata-only wrapping scope.
 
 ### Fixed
 
