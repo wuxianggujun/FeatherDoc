@@ -3179,6 +3179,23 @@ if(WIN32)
 
             add_test(
                 NAME
+                visual_regression_entrypoints_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/visual_regression_entrypoints_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(visual_regression_entrypoints_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;visual")
+
+            add_test(
+                NAME
                 build_release_blocker_rollup_report_passing
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
