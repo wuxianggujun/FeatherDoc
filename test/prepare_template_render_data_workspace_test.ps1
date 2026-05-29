@@ -42,6 +42,12 @@ function Assert-ContainsText {
     }
 }
 
+function Decode-Utf8Base64 {
+    param([string]$Value)
+
+    return [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Value))
+}
+
 function Find-ExecutableByName {
     param(
         [string]$SearchRoot,
@@ -213,13 +219,13 @@ Assert-ContainsText -Text $startHere `
     -ExpectedText ([System.IO.Path]::GetFileName([string]$summary.validation_report)) `
     -Message "Workspace start-here guide should mention the validation report file."
 Assert-ContainsText -Text $startHere `
-    -ExpectedText "建议检查的 data JSON 字段" `
+    -ExpectedText (Decode-Utf8Base64 "5bu66K6u5qOA5p+l55qEIGRhdGEgSlNPTiDlrZfmrrU=") `
     -Message "Workspace start-here guide should explain what the validation report points to."
 Assert-ContainsText -Text $startHere `
-    -ExpectedText "先编辑业务数据 JSON" `
+    -ExpectedText (Decode-Utf8Base64 "5YWI57yW6L6R5Lia5Yqh5pWw5o2uIEpTT04=") `
     -Message "Workspace start-here guide should explain the JSON-first workflow."
 Assert-ContainsText -Text $startHere `
-    -ExpectedText '最终的 `.docx` 文档' `
+    -ExpectedText (Decode-Utf8Base64 "5pyA57uI55qEIGAuZG9jeGAg5paH5qGj") `
     -Message "Workspace start-here guide should explain the final DOCX render goal."
 
 $patchOutput = Join-Path $workspaceDir "invoice.workspace.patch.json"

@@ -18322,7 +18322,7 @@ TEST_CASE("cli inspect-content-controls reports form state") {
              std::string::npos);
     CHECK_NE(json.find(R"("data_binding_xpath":"/invoice/dueDate")"),
              std::string::npos);
-    CHECK_NE(json.find(R"("data_binding_prefix_mappings":"xmlns:fd=\"urn:featherdoc\"")"),
+    CHECK_NE(json.find(R"json("data_binding_prefix_mappings":"xmlns:fd=\"urn:featherdoc\"")json"),
              std::string::npos);
 
     CHECK_EQ(run_cli({"inspect-content-controls", source.string()}, text_output),

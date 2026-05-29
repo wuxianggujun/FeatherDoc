@@ -148,6 +148,7 @@ Assert-True -Condition (Test-Path -LiteralPath $patchSummary) `
 
 $filledPlanObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $filledPlan | ConvertFrom-Json
 $patchSummaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $patchSummary | ConvertFrom-Json
+$samplePatchObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $samplePatchPath | ConvertFrom-Json
 
 Assert-Equal -Actual $patchSummaryObject.status -Expected "completed" `
     -Message "Patch summary did not report status=completed."
@@ -168,12 +169,18 @@ Assert-Equal -Actual $patchSummaryObject.patch_counts.bookmark_table_rows.applie
 Assert-Equal -Actual $patchSummaryObject.remaining_placeholder_count -Expected 0 `
     -Message "Filled render plan should not retain placeholders."
 
-Assert-Equal -Actual $filledPlanObject.bookmark_text[0].text -Expected "上海羽文档科技有限公司" `
+$expectedCustomerName = $samplePatchObject.bookmark_text[0].text
+$expectedInvoiceNumber = $samplePatchObject.bookmark_text[1].text
+$expectedIssueDate = $samplePatchObject.bookmark_text[2].text
+$expectedFirstNoteLine = $samplePatchObject.bookmark_paragraphs[0].paragraphs[0]
+$expectedLineItemRows = $samplePatchObject.bookmark_table_rows[0].rows
+
+Assert-Equal -Actual $filledPlanObject.bookmark_text[0].text -Expected $expectedCustomerName `
     -Message "Filled render plan did not patch customer_name."
 Assert-Equal -Actual $filledPlanObject.bookmark_paragraphs[0].paragraphs[0] `
-    -Expected "1. 当成品文档同时包含中文与英文标签时，建议显式保留 East Asia 字体设置。" `
+    -Expected $expectedFirstNoteLine `
     -Message "Filled render plan did not patch note_lines paragraphs."
-Assert-Equal -Actual $filledPlanObject.bookmark_table_rows[0].rows[0][0] -Expected "需求梳理" `
+Assert-Equal -Actual $filledPlanObject.bookmark_table_rows[0].rows[0][0] -Expected $expectedLineItemRows[0][0] `
     -Message "Filled render plan did not patch line_item_row rows."
 
 & $renderScriptPath `
@@ -189,12 +196,12 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $renderedDocumentXml = Read-DocxEntryText -DocxPath $renderedDocx -EntryName "word/document.xml"
-Assert-ContainsText -Text $renderedDocumentXml -ExpectedText "上海羽文档科技有限公司" -Label "Patched invoice document.xml"
-Assert-ContainsText -Text $renderedDocumentXml -ExpectedText "报价单-2026-0410" -Label "Patched invoice document.xml"
-Assert-ContainsText -Text $renderedDocumentXml -ExpectedText "2026年4月10日" -Label "Patched invoice document.xml"
-Assert-ContainsText -Text $renderedDocumentXml -ExpectedText "需求梳理" -Label "Patched invoice document.xml"
-Assert-ContainsText -Text $renderedDocumentXml -ExpectedText "文档生成" -Label "Patched invoice document.xml"
-Assert-ContainsText -Text $renderedDocumentXml -ExpectedText "验收交付" -Label "Patched invoice document.xml"
+Assert-ContainsText -Text $renderedDocumentXml -ExpectedText $expectedCustomerName -Label "Patched invoice document.xml"
+Assert-ContainsText -Text $renderedDocumentXml -ExpectedText $expectedInvoiceNumber -Label "Patched invoice document.xml"
+Assert-ContainsText -Text $renderedDocumentXml -ExpectedText $expectedIssueDate -Label "Patched invoice document.xml"
+Assert-ContainsText -Text $renderedDocumentXml -ExpectedText $expectedLineItemRows[0][0] -Label "Patched invoice document.xml"
+Assert-ContainsText -Text $renderedDocumentXml -ExpectedText $expectedLineItemRows[1][0] -Label "Patched invoice document.xml"
+Assert-ContainsText -Text $renderedDocumentXml -ExpectedText $expectedLineItemRows[2][0] -Label "Patched invoice document.xml"
 Assert-NotContainsText -Text $renderedDocumentXml -UnexpectedText "TODO:" -Label "Patched invoice document.xml"
 
 $visibilityFixtureDocx = Join-Path $resolvedWorkingDir "block_visibility_fixture.docx"
