@@ -646,6 +646,46 @@ Assert-SummaryFailure `
     -ExpectedFailureRelativePath 'docs\release_policy_zh.rst' `
     -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
 
+$missingPipelineWordVisualMetadataText = $defaultPipelineText.Replace(
+    "Word visual standard review metadata evidence",
+    "Word visual metadata evidence removed"
+)
+$missingPipelineWordVisualMetadataCaseRoot = New-DocsCase `
+    -Name "missing-pipeline-word-visual-metadata" `
+    -PipelineText $missingPipelineWordVisualMetadataText
+$missingPipelineWordVisualMetadataSummaryJsonPath = Join-Path $missingPipelineWordVisualMetadataCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingPipelineWordVisualMetadataCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release metadata pipeline doc is missing expected text: Word visual standard review metadata evidence" `
+    -SummaryJson $missingPipelineWordVisualMetadataSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingPipelineWordVisualMetadataSummaryJsonPath `
+    -ExpectedMessage "release metadata pipeline doc is missing expected text: Word visual standard review metadata evidence" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs\release_metadata_pipeline_zh.rst' `
+    -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
+
+$missingChecklistWordVisualMetadataText = $defaultChecklistText.Replace(
+    "Word visual standard review metadata evidence",
+    "Word visual metadata evidence removed"
+)
+$missingChecklistWordVisualMetadataCaseRoot = New-DocsCase `
+    -Name "missing-checklist-word-visual-metadata" `
+    -ChecklistText $missingChecklistWordVisualMetadataText
+$missingChecklistWordVisualMetadataSummaryJsonPath = Join-Path $missingChecklistWordVisualMetadataCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingChecklistWordVisualMetadataCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: Word visual standard review metadata evidence" `
+    -SummaryJson $missingChecklistWordVisualMetadataSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingChecklistWordVisualMetadataSummaryJsonPath `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: Word visual standard review metadata evidence" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
+    -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
+
 $trailingWhitespacePipelineText = $defaultPipelineText.Replace(
     "- review_task_summary",
     "- review_task_summary "
