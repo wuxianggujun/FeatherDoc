@@ -85,6 +85,7 @@ foreach ($marker in @(
         "check_template_schema_baseline.ps1",
         "export_template_render_plan.ps1",
         "check_docx_functional_smoke_readiness.ps1",
+        "check_script_task_index.ps1",
         "build_numbering_catalog_governance_report.ps1",
         "build_table_layout_delivery_report.ps1",
         "check_word_visual_release_gate_preflight.ps1",
@@ -100,6 +101,7 @@ foreach ($marker in @(
 
 $requiredScriptPaths = @(
     "scripts\check_template_schema_baseline.ps1",
+    "scripts\check_script_task_index.ps1",
     "scripts\check_template_schema_manifest.ps1",
     "scripts\run_project_template_smoke.ps1",
     "scripts\build_project_template_onboarding_governance_report.ps1",

@@ -290,8 +290,9 @@ CLI 自动化方面比较突出。但如果按商业级完整 Word SDK 的标准
 - 统一 ``bool`` 返回接口的错误语义，逐步引入更明确的结果类型。
 - 将模板、样式、编号、图片、表格等领域能力拆成更清晰的内部模块。
 - 为 DOCX ZIP/XML 输入增加恶意样本、损坏样本和 fuzz 风格回归。
-- 继续维护 ``docs/script_task_index_zh.rst`` 脚本任务索引，标注当前优先入口、
-  输出边界和是否适合轻量 CI。
+- 继续维护 ``docs/script_task_index_zh.rst`` 脚本任务索引，并用
+  ``scripts/check_script_task_index.ps1`` 固定索引路径、文档入口和轻量 CI
+  注册的一致性。
 
 
 评分总结

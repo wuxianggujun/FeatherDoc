@@ -22,7 +22,8 @@
 6. ``BUILDING_PDF.md`` 与 ``design/04-pdf-execution-plan.md``：PDF 保守维护和
    后续验证入口。
 7. ``docs/script_task_index_zh.rst``：脚本任务索引，固定 ``scripts`` 目录里
-   当前应优先维护的轻量检查、治理报告、视觉复核和发布材料入口。
+   当前应优先维护的轻量检查、治理报告、视觉复核和发布材料入口；配套
+   ``scripts/check_script_task_index.ps1`` 做只读路径一致性检查。
 
 历史参考页可以继续保留，但不再作为首页主入口：
 
@@ -138,7 +139,8 @@ LibreOffice PDF 研究文档
    workflow 契约测试确认是维护项还是构建失败，再决定是否改 workflow。
 3. 维护 ``docs/script_task_index_zh.rst``，把新增脚本先归入模板契约、样式 /
    编号治理、表格 / 版式交付、Word 视觉复核、release governance 或 PDF 保守维护
-   之一；不属于这些入口的脚本应先说明维护价值。
+   之一；不属于这些入口的脚本应先说明维护价值。调整后运行
+   ``scripts/check_script_task_index.ps1`` 确认索引与实际路径一致。
 4. 若资源允许，先运行 ``check_word_visual_release_gate_preflight.ps1``；完整 gate
    仍需等工作区干净、源码已推送且本机资源稳定。
 5. PDF visual gate 继续后置，只验证当前 ``dev`` 已有能力，不从旧分支搬入大批样例。

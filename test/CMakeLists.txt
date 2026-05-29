@@ -3487,6 +3487,45 @@ if(WIN32)
 
             add_test(
                 NAME
+                check_script_task_index
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${PROJECT_SOURCE_DIR}/scripts/check_script_task_index.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -SummaryJson
+                ${CMAKE_CURRENT_BINARY_DIR}/check_script_task_index/summary.json
+                -Quiet
+            )
+            set_tests_properties(check_script_task_index
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;scripts")
+
+            add_test(
+                NAME
+                check_script_task_index_regression
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/check_script_task_index_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/check_script_task_index_regression
+            )
+            set_tests_properties(check_script_task_index_regression
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;scripts")
+
+            add_test(
+                NAME
                 style_merge_confidence_route_docs_contract
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
