@@ -1608,6 +1608,21 @@ catalogs through stable JSON files:
     featherdoc_cli diff-numbering-catalog numbering-catalog.json numbering-catalog.patched.json --fail-on-diff --json
     featherdoc_cli import-numbering-catalog target.docx --catalog-file numbering-catalog.patched.json --output target-numbering.docx --json
 
+For release governance, pair
+``featherdoc.document_skeleton_governance_rollup_report.v1`` evidence with
+numbering catalog manifest checks and run
+``scripts/build_numbering_catalog_governance_report.ps1``. The report writes
+``output/numbering-catalog-governance/summary.json`` with
+``featherdoc.numbering_catalog_governance_report.v1`` as its schema, promotes
+``numbering_catalog_governance.real_corpus_confidence`` /
+``real_corpus_confidence`` as the reviewer-facing coverage metric, and emits
+``numbering_catalog_governance.real_corpus_alignment_gap`` when exemplar
+catalog document keys and baseline document keys no longer align. Blockers,
+warnings, action items, and governance metrics keep ``source_schema``,
+``source_report_display``, ``source_json_display``, and ``open_command`` so
+the release governance pipeline, final rollup, and reviewer bundle can trace
+numbering evidence without reopening the original DOCX.
+
 Edit plans can call the same import path with
 ``import_numbering_catalog`` and a ``catalog_file`` /
 ``numbering_catalog_file`` value.

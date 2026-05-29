@@ -173,7 +173,10 @@ candidate ``summary.json`` 与 ``final_review.md``，并在 reviewer-facing bund
 blocker / warning / action item 的 ``id``、``action``、``message``、``open_command``、
 ``source_schema``、``source_report_display`` 和 ``source_json_display``，让
 ``featherdoc.document_skeleton_governance_rollup_report.v1`` 不再只通过计数进入发布面板。
-同时，release governance pipeline 的 ``numbering_catalog_governance`` stage 会直接保留
+同时，``scripts/build_numbering_catalog_governance_report.ps1`` 会把骨架治理 rollup
+和 numbering catalog manifest checks 汇总到
+``output/numbering-catalog-governance/summary.json``；release governance pipeline 的
+``numbering_catalog_governance`` stage 会直接保留
 document skeleton rollup 的 blocker / action item 明细，便于发布面板在 final rollup 之前
 按 stage 展开骨架治理证据；release governance handoff 也会把同一批骨架治理明细继续
 透传到 handoff summary、final review、release bundle 和 reviewer checklist。

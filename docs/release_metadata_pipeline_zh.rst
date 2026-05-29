@@ -238,10 +238,16 @@ recommendation 会同步成 ``action_items`` 并携带重建校准报告的 ``op
 ``schema-patch-confidence-calibration/summary.json``，因此 reviewer 可以在发布面板
 中直接看到校准 blocker / warning / action item 的 ``source_schema`` 与证据 JSON。
 
-编号真实语料治理会写出 ``featherdoc.numbering_catalog_governance_report.v1``。
-当 catalog 与 baseline 的真实文档键不能对齐时，报告会生成稳定阻断项
-``numbering_catalog_governance.real_corpus_alignment_gap``；release metadata 文档检查会
-要求这一路径继续出现在发布说明材料中，防止样式/编号治理退回到只看数量的弱检查。
+编号真实语料治理会写出 ``featherdoc.numbering_catalog_governance_report.v1``，
+默认产物为 ``output/numbering-catalog-governance/summary.json``。当 catalog
+与 baseline 的真实文档键不能对齐时，报告会生成稳定阻断项
+``numbering_catalog_governance.real_corpus_alignment_gap``；同时
+``numbering_catalog_governance.real_corpus_confidence`` / ``real_corpus_confidence``
+会作为治理指标进入 rollup、handoff、bundle 与
+``numbering_catalog_real_corpus_confidence`` 打包镜像字段。该指标必须继续携带
+score / level、``catalog_coverage_percent``、``baseline_coverage_percent``、
+``matched_document_count`` 与 ``penalty_summary``，release metadata 文档检查会
+要求这些路径继续出现在发布说明材料中，防止样式/编号治理退回到只看数量的弱检查。
 
 表格与版式交付治理会写出
 ``featherdoc.table_layout_delivery_governance_report.v1``。它的 ``delivery_quality``

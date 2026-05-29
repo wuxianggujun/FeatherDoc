@@ -3247,6 +3247,23 @@ if(WIN32)
 
             add_test(
                 NAME
+                numbering_catalog_governance_route_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/numbering_catalog_governance_route_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(numbering_catalog_governance_route_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;numbering")
+
+            add_test(
+                NAME
                 visual_regression_entrypoints_docs_contract
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
