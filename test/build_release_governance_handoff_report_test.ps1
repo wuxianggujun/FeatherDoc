@@ -87,6 +87,53 @@ function Test-Scenario {
     return ($Scenario -eq "all" -or $Scenario -eq $Name)
 }
 
+$wordVisualStandardReviewMetadata = @(
+    [ordered]@{
+        task_key = "smoke"
+        review_task_key = "document"
+        label = "Word visual smoke"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:10:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\document\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\document\report\final_review.md"
+    },
+    [ordered]@{
+        task_key = "fixed_grid"
+        review_task_key = "fixed_grid"
+        label = "Fixed-grid merge/unmerge"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:20:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\final_review.md"
+    },
+    [ordered]@{
+        task_key = "section_page_setup"
+        review_task_key = "section_page_setup"
+        label = "Section page setup"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:30:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\final_review.md"
+    },
+    [ordered]@{
+        task_key = "page_number_fields"
+        review_task_key = "page_number_fields"
+        label = "Page number fields"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:40:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md"
+    }
+)
+
 function Invoke-HandoffScript {
     param([string[]]$Arguments)
 
@@ -1077,6 +1124,8 @@ if (Test-Scenario -Name "include_rollup") {
             checklist_marker = "release_entry_project_template_readiness_checklist_trace"
             material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
         }
+        word_visual_standard_review_metadata_count = 4
+        word_visual_standard_review_metadata = $wordVisualStandardReviewMetadata
         release_blocker_count = 0
         release_blockers = @()
         action_item_count = 0
@@ -1504,6 +1553,50 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should expose packaged release-entry checklist material-safety compact evidence source schema."
     Assert-Equal -Actual ([string]$releaseEntryChecklistAuditEvidence.release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker) -Expected "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
         -Message "Handoff summary should expose packaged release-entry checklist material-safety marker."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.word_visual_standard_review_metadata_source_report_count) -Expected 1 `
+        -Message "Handoff summary should consume nested Word visual standard review metadata evidence count."
+    $wordVisualMetadataEvidence = $summary.release_blocker_rollup.word_visual_standard_review_metadata_source_reports | Select-Object -First 1
+    Assert-True -Condition ($null -ne $wordVisualMetadataEvidence) `
+        -Message "Handoff summary should expose at least one Word visual standard review metadata source report."
+    Assert-Equal -Actual ([string]$wordVisualMetadataEvidence.schema) -Expected "featherdoc.release_candidate_summary" `
+        -Message "Handoff summary should preserve Word visual metadata release-candidate source schema."
+    Assert-Equal -Actual ([int]$wordVisualMetadataEvidence.word_visual_standard_review_metadata_count) -Expected 4 `
+        -Message "Handoff summary should expose Word visual standard review metadata count."
+    Assert-ContainsText -Text (@($wordVisualMetadataEvidence.word_visual_standard_review_task_keys) -join "`n") `
+        -ExpectedText "page_number_fields" `
+        -Message "Handoff summary should expose Word visual standard review task keys."
+    Assert-Equal -Actual ([string]$wordVisualMetadataEvidence.word_visual_standard_review_status_summary) -Expected "reviewed=4" `
+        -Message "Handoff summary should expose Word visual standard review status summary."
+    Assert-Equal -Actual ([string]$wordVisualMetadataEvidence.word_visual_standard_review_verdict_summary) -Expected "pass=4" `
+        -Message "Handoff summary should expose Word visual standard review verdict summary."
+    $handoffWordVisualMetadata = @($wordVisualMetadataEvidence.word_visual_standard_review_metadata)
+    Assert-Equal -Actual $handoffWordVisualMetadata.Count -Expected 4 `
+        -Message "Handoff summary should expose four Word visual standard review metadata entries."
+    $handoffWordVisualMetadataByTask = @{}
+    foreach ($entry in $handoffWordVisualMetadata) {
+        $handoffWordVisualMetadataByTask[[string]$entry.task_key] = $entry
+        Assert-True -Condition ($null -eq $entry.PSObject.Properties["review_note"]) `
+            -Message "Handoff summary should not expose Word visual standard review notes."
+    }
+    $handoffSmokeWordVisualMetadata = $handoffWordVisualMetadataByTask["smoke"]
+    Assert-Equal -Actual ([string]$handoffSmokeWordVisualMetadata.review_task_key) -Expected "document" `
+        -Message "Handoff summary should preserve the smoke Word visual review task key."
+    Assert-Equal -Actual ([string]$handoffSmokeWordVisualMetadata.label) -Expected "Word visual smoke" `
+        -Message "Handoff summary should preserve the smoke Word visual review label."
+    Assert-Equal -Actual ([string]$handoffSmokeWordVisualMetadata.verdict) -Expected "pass" `
+        -Message "Handoff summary should preserve the smoke Word visual review verdict."
+    Assert-Equal -Actual ([string]$handoffSmokeWordVisualMetadata.review_status) -Expected "reviewed" `
+        -Message "Handoff summary should preserve the smoke Word visual review status."
+    Assert-Equal -Actual ([string]$handoffSmokeWordVisualMetadata.review_method) -Expected "operator_supplied" `
+        -Message "Handoff summary should preserve the smoke Word visual review method."
+    Assert-ContainsText -Text ([string]$handoffSmokeWordVisualMetadata.review_result_path) `
+        -ExpectedText "review_result.json" `
+        -Message "Handoff summary should preserve the smoke Word visual review result path."
+    Assert-ContainsText -Text ([string]$handoffSmokeWordVisualMetadata.final_review_path) `
+        -ExpectedText "final_review.md" `
+        -Message "Handoff summary should preserve the smoke Word visual final review path."
+    Assert-DoesNotContainText -Text ($summary | ConvertTo-Json -Depth 32) -UnexpectedText "review_note" `
+        -Message "Handoff summary JSON should not expose private Word visual review notes."
 
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
@@ -1596,6 +1689,30 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Nested rollup should keep segmented evidence separate from full visual gate pass."
     Assert-Equal -Actual ([int]$rollupReleaseCandidateSourceReport.pdf_visual_segmented_gate_covered_baseline_count) -Expected 44 `
         -Message "Nested rollup should preserve segmented PDF visual gate coverage."
+    Assert-Equal -Actual ([int]$rollupReleaseCandidateSourceReport.word_visual_standard_review_metadata_count) -Expected 4 `
+        -Message "Nested rollup should preserve Word visual standard review metadata count."
+    Assert-ContainsText -Text (@($rollupReleaseCandidateSourceReport.word_visual_standard_review_task_keys) -join "`n") `
+        -ExpectedText "section_page_setup" `
+        -Message "Nested rollup should preserve Word visual standard review task keys."
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.word_visual_standard_review_status_summary) -Expected "reviewed=4" `
+        -Message "Nested rollup should preserve Word visual standard review status summary."
+    Assert-Equal -Actual ([string]$rollupReleaseCandidateSourceReport.word_visual_standard_review_verdict_summary) -Expected "pass=4" `
+        -Message "Nested rollup should preserve Word visual standard review verdict summary."
+    $nestedWordVisualMetadata = @($rollupReleaseCandidateSourceReport.word_visual_standard_review_metadata)
+    Assert-Equal -Actual $nestedWordVisualMetadata.Count -Expected 4 `
+        -Message "Nested rollup should preserve four Word visual standard review metadata entries."
+    $nestedSmokeWordVisualMetadata = $nestedWordVisualMetadata |
+        Where-Object { [string]$_.task_key -eq "smoke" } |
+        Select-Object -First 1
+    Assert-Equal -Actual ([string]$nestedSmokeWordVisualMetadata.review_task_key) -Expected "document" `
+        -Message "Nested rollup should preserve the smoke Word visual review task key."
+    Assert-Equal -Actual ([string]$nestedSmokeWordVisualMetadata.review_status) -Expected "reviewed" `
+        -Message "Nested rollup should preserve the smoke Word visual review status."
+    Assert-ContainsText -Text ([string]$nestedSmokeWordVisualMetadata.review_result_path) `
+        -ExpectedText "review_result.json" `
+        -Message "Nested rollup should preserve the smoke Word visual review result path."
+    Assert-DoesNotContainText -Text ($rollupSummary | ConvertTo-Json -Depth 32) -UnexpectedText "review_note" `
+        -Message "Nested rollup summary should not expose private Word visual review notes."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
     Assert-ContainsText -Text $markdown -ExpectedText "DOCX functional smoke readiness evidence source reports: ``1``" `
@@ -1703,6 +1820,25 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should expose release-entry checklist material-safety audited entrypoints."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
         -Message "Handoff Markdown should expose release-entry checklist material-safety marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "Word visual standard review metadata source reports: ``1``" `
+        -Message "Handoff Markdown should expose Word visual standard review metadata evidence count."
+    Assert-ContainsText -Text $markdown -ExpectedText "word_visual_standard_review_metadata_count: ``4``" `
+        -Message "Handoff Markdown should expose Word visual standard review metadata count."
+    Assert-ContainsText -Text $markdown -ExpectedText "word_visual_standard_review_task_keys: ``smoke, fixed_grid, section_page_setup, page_number_fields``" `
+        -Message "Handoff Markdown should expose Word visual standard review task keys."
+    Assert-ContainsText -Text $markdown -ExpectedText "word_visual_standard_review_status_summary: ``reviewed=4``" `
+        -Message "Handoff Markdown should expose Word visual standard review status summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "word_visual_standard_review_verdict_summary: ``pass=4``" `
+        -Message "Handoff Markdown should expose Word visual standard review verdict summary."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "Word visual standard review metadata source reports" -ExpectedFragments @(
+        "schema=``featherdoc.release_candidate_summary``",
+        "``smoke``: review_task_key=``document`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``",
+        "label: ``Word visual smoke``",
+        "review_result.json",
+        "final_review.md"
+    ) -Message "Handoff Markdown should keep Word visual metadata and release-candidate source identity in one evidence block."
+    Assert-DoesNotContainText -Text $markdown -UnexpectedText "review_note" `
+        -Message "Handoff Markdown should not expose private Word visual review notes."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "schema=``featherdoc.docx_functional_smoke_readiness.v1``" -ExpectedFragments @(
         "status: ``loaded``",
         "verdict: ``pass``",

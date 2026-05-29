@@ -122,6 +122,17 @@ manifest。该字段只覆盖 ``smoke``、``fixed_grid``、``section_page_setup`
 ``final_review_path`` 等可追溯证据；``review_note`` 仍属于 operator-only 自由文本，
 不得进入 packaged manifest 或公开 release body。
 
+后续 ``build_release_blocker_rollup_report.ps1`` 会继续把同一组
+``word_visual_standard_review_metadata`` 保留在 release candidate source report
+contract evidence 中，并额外给出 ``word_visual_standard_review_task_keys``、
+``word_visual_standard_review_status_summary`` 与
+``word_visual_standard_review_verdict_summary``。``build_release_governance_handoff_report.ps1``
+再把这些字段汇总为 ``word_visual_standard_review_metadata_source_reports``，让
+治理交接材料能直接展示四个标准 Word 视觉审阅任务的 task key、review task key、
+verdict、review status、review method、review result path 和 final review path。
+这条下游证据链仍禁止公开 ``review_note``，避免 operator-only 备注从 packaged
+manifest 泄漏到 rollup 或 handoff。
+
 
 第三层：verdict 同步
 --------------------

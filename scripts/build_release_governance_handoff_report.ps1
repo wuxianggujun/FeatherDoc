@@ -465,6 +465,49 @@ function Get-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditRol
     )
 }
 
+function Get-WordVisualStandardReviewMetadataRollupEvidence {
+    param($RollupSummary)
+
+    return @(
+        foreach ($sourceReport in @(Get-JsonArray -Object $RollupSummary -Name "source_reports")) {
+            $metadataCount = Get-FirstJsonProperty -Object $sourceReport -Names @("word_visual_standard_review_metadata_count")
+            $metadata = @(Get-JsonArray -Object $sourceReport -Name "word_visual_standard_review_metadata")
+            if ($null -eq $metadataCount -and $metadata.Count -eq 0) {
+                continue
+            }
+
+            [ordered]@{
+                schema = Get-JsonString -Object $sourceReport -Name "schema"
+                path_display = Get-JsonString -Object $sourceReport -Name "path_display"
+                word_visual_standard_review_metadata_count = $metadataCount
+                word_visual_standard_review_task_keys = @(Get-JsonArray -Object $sourceReport -Name "word_visual_standard_review_task_keys")
+                word_visual_standard_review_status_summary = Get-JsonString -Object $sourceReport -Name "word_visual_standard_review_status_summary"
+                word_visual_standard_review_verdict_summary = Get-JsonString -Object $sourceReport -Name "word_visual_standard_review_verdict_summary"
+                word_visual_standard_review_metadata = @(
+                    foreach ($entry in $metadata) {
+                        $taskKey = Get-JsonString -Object $entry -Name "task_key"
+                        if ([string]::IsNullOrWhiteSpace($taskKey)) {
+                            continue
+                        }
+
+                        [ordered]@{
+                            task_key = $taskKey
+                            review_task_key = Get-JsonString -Object $entry -Name "review_task_key"
+                            label = Get-JsonString -Object $entry -Name "label"
+                            verdict = Get-JsonString -Object $entry -Name "verdict"
+                            review_status = Get-JsonString -Object $entry -Name "review_status"
+                            reviewed_at = Get-JsonString -Object $entry -Name "reviewed_at"
+                            review_method = Get-JsonString -Object $entry -Name "review_method"
+                            review_result_path = Get-JsonString -Object $entry -Name "review_result_path"
+                            final_review_path = Get-JsonString -Object $entry -Name "final_review_path"
+                        }
+                    }
+                )
+            }
+        }
+    )
+}
+
 function Get-GovernanceMetricByContract {
     param(
         $Metrics,
@@ -1339,6 +1382,23 @@ function New-ReportMarkdown {
             $lines.Add("    - release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: ``$($evidence.release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker)``") | Out-Null
             $lines.Add("    - release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``$($evidence.release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker)``") | Out-Null
         }
+        $lines.Add("- Word visual standard review metadata source reports: ``$($rollup.word_visual_standard_review_metadata_source_report_count)``") | Out-Null
+        foreach ($evidence in @($rollup.word_visual_standard_review_metadata_source_reports)) {
+            $lines.Add("  - source_report: ``$($evidence.path_display)`` schema=``$($evidence.schema)``") | Out-Null
+            $lines.Add("    - word_visual_standard_review_metadata_count: ``$($evidence.word_visual_standard_review_metadata_count)``") | Out-Null
+            $lines.Add("    - word_visual_standard_review_task_keys: ``$(@($evidence.word_visual_standard_review_task_keys) -join ', ')``") | Out-Null
+            $lines.Add("    - word_visual_standard_review_status_summary: ``$($evidence.word_visual_standard_review_status_summary)``") | Out-Null
+            $lines.Add("    - word_visual_standard_review_verdict_summary: ``$($evidence.word_visual_standard_review_verdict_summary)``") | Out-Null
+            foreach ($entry in @($evidence.word_visual_standard_review_metadata)) {
+                $lines.Add("    - ``$($entry.task_key)``: review_task_key=``$($entry.review_task_key)`` verdict=``$($entry.verdict)`` review_status=``$($entry.review_status)`` review_method=``$($entry.review_method)``") | Out-Null
+                foreach ($fieldName in @("label", "reviewed_at", "review_result_path", "final_review_path")) {
+                    $fieldValue = Get-JsonString -Object $entry -Name $fieldName
+                    if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+                        $lines.Add("      - ${fieldName}: ``$fieldValue``") | Out-Null
+                    }
+                }
+            }
+        }
         $lines.Add("") | Out-Null
     }
 
@@ -1830,6 +1890,8 @@ $summary = [ordered]@{
         project_template_readiness_checklist_entrypoints_source_reports = @()
         release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = 0
         release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @()
+        word_visual_standard_review_metadata_source_report_count = 0
+        word_visual_standard_review_metadata_source_reports = @()
     }
     expected_report_count = $expectedReports.Count
     loaded_report_count = $loadedReportCount
@@ -1900,6 +1962,9 @@ if ($IncludeReleaseBlockerRollup) {
     $releaseEntryChecklistAuditEvidence = @(Get-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditRollupEvidence -RollupSummary $rollupSummary)
     $summary.release_blocker_rollup.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = @($releaseEntryChecklistAuditEvidence).Count
     $summary.release_blocker_rollup.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @($releaseEntryChecklistAuditEvidence)
+    $wordVisualStandardReviewMetadataEvidence = @(Get-WordVisualStandardReviewMetadataRollupEvidence -RollupSummary $rollupSummary)
+    $summary.release_blocker_rollup.word_visual_standard_review_metadata_source_report_count = @($wordVisualStandardReviewMetadataEvidence).Count
+    $summary.release_blocker_rollup.word_visual_standard_review_metadata_source_reports = @($wordVisualStandardReviewMetadataEvidence)
     Write-ReleaseMaterialFiles -Summary $summary -SummaryPath $summaryPath -MarkdownPath $markdownPath -JsonDepth 32
 }
 

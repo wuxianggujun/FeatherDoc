@@ -33,6 +33,13 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-DoesNotContainText {
+    param([string]$Text, [string]$UnexpectedText, [string]$Message)
+    if ($Text -match [regex]::Escape($UnexpectedText)) {
+        throw "$Message Unexpected='$UnexpectedText'."
+    }
+}
+
 function Assert-MarkdownListBlockContainsAll {
     param(
         [string]$Text,
@@ -79,6 +86,53 @@ function Test-Scenario {
     param([string]$Name)
     return ($Scenario -eq "all" -or $Scenario -eq $Name)
 }
+
+$wordVisualStandardReviewMetadata = @(
+    [ordered]@{
+        task_key = "smoke"
+        review_task_key = "document"
+        label = "Word visual smoke"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:10:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\document\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\document\report\final_review.md"
+    },
+    [ordered]@{
+        task_key = "fixed_grid"
+        review_task_key = "fixed_grid"
+        label = "Fixed-grid merge/unmerge"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:20:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\final_review.md"
+    },
+    [ordered]@{
+        task_key = "section_page_setup"
+        review_task_key = "section_page_setup"
+        label = "Section page setup"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:30:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\final_review.md"
+    },
+    [ordered]@{
+        task_key = "page_number_fields"
+        review_task_key = "page_number_fields"
+        label = "Page number fields"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:40:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md"
+    }
+)
 
 function Invoke-RollupScript {
     param([string[]]$Arguments)
@@ -475,6 +529,8 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
         checklist_marker = "release_entry_project_template_readiness_checklist_trace"
         material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
     }
+    word_visual_standard_review_metadata_count = 4
+    word_visual_standard_review_metadata = $wordVisualStandardReviewMetadata
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -1332,6 +1388,47 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve packaged release-entry checklist material-safety checklist marker."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker) -Expected "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
         -Message "Rollup should preserve packaged release-entry checklist material-safety audit marker."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.word_visual_standard_review_metadata_count) -Expected 4 `
+        -Message "Rollup should preserve Word visual standard review metadata count."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.word_visual_standard_review_status_summary) -Expected "reviewed=4" `
+        -Message "Rollup should summarize Word visual standard review statuses."
+    Assert-Equal -Actual ([string]$releaseCandidateSourceReport.word_visual_standard_review_verdict_summary) -Expected "pass=4" `
+        -Message "Rollup should summarize Word visual standard review verdicts."
+    Assert-ContainsText -Text (@($releaseCandidateSourceReport.word_visual_standard_review_task_keys) -join "`n") `
+        -ExpectedText "page_number_fields" `
+        -Message "Rollup should preserve Word visual standard review task keys."
+    $wordVisualMetadata = @($releaseCandidateSourceReport.word_visual_standard_review_metadata)
+    Assert-Equal -Actual $wordVisualMetadata.Count -Expected 4 `
+        -Message "Rollup should preserve four Word visual standard review metadata entries."
+    $wordVisualMetadataByTask = @{}
+    foreach ($entry in $wordVisualMetadata) {
+        $wordVisualMetadataByTask[[string]$entry.task_key] = $entry
+        Assert-True -Condition ($null -eq $entry.PSObject.Properties["review_note"]) `
+            -Message "Rollup should not expose Word visual standard review notes."
+    }
+    foreach ($expectedTaskKey in @("smoke", "fixed_grid", "section_page_setup", "page_number_fields")) {
+        Assert-True -Condition $wordVisualMetadataByTask.ContainsKey($expectedTaskKey) `
+            -Message "Rollup should preserve Word visual standard review metadata task '$expectedTaskKey'."
+    }
+    $smokeWordVisualMetadata = $wordVisualMetadataByTask["smoke"]
+    Assert-Equal -Actual ([string]$smokeWordVisualMetadata.review_task_key) -Expected "document" `
+        -Message "Rollup should preserve the smoke Word visual review task key."
+    Assert-Equal -Actual ([string]$smokeWordVisualMetadata.label) -Expected "Word visual smoke" `
+        -Message "Rollup should preserve the smoke Word visual review label."
+    Assert-Equal -Actual ([string]$smokeWordVisualMetadata.verdict) -Expected "pass" `
+        -Message "Rollup should preserve the smoke Word visual review verdict."
+    Assert-Equal -Actual ([string]$smokeWordVisualMetadata.review_status) -Expected "reviewed" `
+        -Message "Rollup should preserve the smoke Word visual review status."
+    Assert-Equal -Actual ([string]$smokeWordVisualMetadata.reviewed_at) -Expected "2026-04-12T12:10:00" `
+        -Message "Rollup should preserve the smoke Word visual reviewed timestamp."
+    Assert-Equal -Actual ([string]$smokeWordVisualMetadata.review_method) -Expected "operator_supplied" `
+        -Message "Rollup should preserve the smoke Word visual review method."
+    Assert-ContainsText -Text ([string]$smokeWordVisualMetadata.review_result_path) `
+        -ExpectedText "word-visual-release-gate\review-tasks\document\report\review_result.json" `
+        -Message "Rollup should preserve the smoke Word visual review result path."
+    Assert-ContainsText -Text ([string]$wordVisualMetadataByTask["page_number_fields"].final_review_path) `
+        -ExpectedText "word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md" `
+        -Message "Rollup should preserve the page-number-fields Word visual final review path."
     $skeletonWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "document_skeleton.exemplar_catalog_missing" } |
         Select-Object -First 1)
@@ -1575,8 +1672,23 @@ if (Test-Scenario -Name "passing") {
         "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema: ``featherdoc.release_candidate_summary``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``",
-        "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``"
+        "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``",
+        "word_visual_standard_review_metadata_count: ``4``",
+        "word_visual_standard_review_task_keys: ``smoke, fixed_grid, section_page_setup, page_number_fields``",
+        "word_visual_standard_review_status_summary: ``reviewed=4``",
+        "word_visual_standard_review_verdict_summary: ``pass=4``",
+        "word_visual_standard_review_metadata:",
+        "``smoke``: review_task_key=``document`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``",
+        "``fixed_grid``: review_task_key=``fixed_grid`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``",
+        "``section_page_setup``: review_task_key=``section_page_setup`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``",
+        "``page_number_fields``: review_task_key=``page_number_fields`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``",
+        "review_result_path:",
+        "word-visual-release-gate\review-tasks\document\report\review_result.json",
+        "final_review_path:",
+        "word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md"
     ) -Message "Markdown should keep release-candidate PDF visual source-report evidence in one Source Report Contracts block."
+    Assert-DoesNotContainText -Text $markdown -UnexpectedText "review_note" `
+        -Message "Markdown should not expose private Word visual review notes."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_status" `
         -Message "Markdown should include controlled PDF visual smoke status."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled_visual_smoke_json_display" `
