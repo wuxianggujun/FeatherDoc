@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 111) {
-        throw "Expected JSON summary to count 111 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 113) {
+        throw "Expected JSON summary to count 113 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -360,6 +360,8 @@ $defaultChecklistText = @(
     '- style_merge_suggestion_count',
     '- check_docx_functional_smoke_readiness.ps1',
     '- docx_functional_smoke_readiness_test.ps1',
+    '- docx_functional_smoke_readiness_route_docs_contract',
+    '- docx_functional_smoke_readiness_route_docs_contract_test.ps1',
     '- docx_functional_smoke_readiness',
     '- ``featherdoc.docx_functional_smoke_readiness.v1``',
     '- docx_functional_smoke_readiness_trace',
@@ -434,8 +436,8 @@ if ($summary.checked_document_count -ne 4) {
 if ($summary.required_pipeline_marker_count -ne 52) {
     throw "Expected JSON summary pipeline marker count 52, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 46) {
-    throw "Expected JSON summary checklist marker count 46, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 48) {
+    throw "Expected JSON summary checklist marker count 48, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 10) {
     throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
@@ -443,8 +445,8 @@ if ($summary.required_document_governance_marker_count -ne 10) {
 if ($summary.required_policy_marker_count -ne 3) {
     throw "Expected JSON summary policy marker count 3, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 111) {
-    throw "Expected JSON summary total marker count 111, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 113) {
+    throw "Expected JSON summary total marker count 113, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 4) {
     throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
@@ -509,6 +511,10 @@ Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "docx_functional_smoke_readiness_test.ps1" `
     -Message "JSON summary should list DOCX functional smoke readiness regression marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "docx_functional_smoke_readiness_route_docs_contract_test.ps1" `
+    -Message "JSON summary should list DOCX functional smoke readiness route docs contract marker."
 Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "open_latest_word_review_task_curated_source_kind_test.ps1" `

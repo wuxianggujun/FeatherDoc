@@ -239,7 +239,10 @@ CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制
 ``featherdoc.word_visual_release_gate_preflight.v1``、
 ``word_visual_release_gate_preflight_static_contract_only``、``preflight_ready``、
 ``release_ready``、``check_docx_functional_smoke_readiness.ps1``、
-``docx_functional_smoke_readiness_test.ps1``、``docx_functional_smoke_readiness``、
+``docx_functional_smoke_readiness_test.ps1``、
+``docx_functional_smoke_readiness_route_docs_contract``、
+``docx_functional_smoke_readiness_route_docs_contract_test.ps1``、
+``docx_functional_smoke_readiness``、
 ``featherdoc.docx_functional_smoke_readiness.v1``、
 ``docx_functional_smoke_readiness_trace``、
 ``persisted_docx_functional_smoke_evidence_only``、``summary_json_display``、

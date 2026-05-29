@@ -388,6 +388,8 @@ $checklistExpectedMarkers = @(
     "style_merge_suggestion_count",
     "check_docx_functional_smoke_readiness.ps1",
     "docx_functional_smoke_readiness_test.ps1",
+    "docx_functional_smoke_readiness_route_docs_contract",
+    "docx_functional_smoke_readiness_route_docs_contract_test.ps1",
     "docx_functional_smoke_readiness",
     '``featherdoc.docx_functional_smoke_readiness.v1``',
     "docx_functional_smoke_readiness_trace",
