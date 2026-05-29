@@ -2719,7 +2719,19 @@ Current Limitations
   ``set-content-control-form-state``. ``sync_content_controls_from_custom_xml()``
   and ``sync-content-controls-from-custom-xml`` can also read matching
   ``customXml/item*.xml`` parts and refresh bound content-control display text
-  from ``w:dataBinding`` XPath values. Document-level semantic diff is now
+  from ``w:dataBinding`` XPath values. Content-control data-binding governance
+  can be rebuilt with
+  ``scripts/build_content_control_data_binding_governance_report.ps1`` and its
+  default release-facing summary path is
+  ``output/content-control-data-binding-governance/summary.json``. The summary
+  uses ``featherdoc.content_control_data_binding_governance_report.v1``,
+  promotes ``content_control_data_binding.custom_xml_sync_issue`` and
+  ``content_control_data_binding.bound_placeholder`` into stable governance
+  items, and keeps the ``sync_bound_content_control`` repair strategy plus
+  ``source_schema``, ``source_report_display``, ``source_json_display``,
+  ``open_command``, ``input_docx``, ``template_name``, ``schema_target``, and
+  ``target_mode`` fields for release handoff and reviewer traceability.
+  Document-level semantic diff is now
   available through ``compare_semantic(...)`` /
   ``document_semantic_diff_result`` and ``semantic-diff``. It compares
   paragraphs, table summaries, drawing images, content controls, generic field
