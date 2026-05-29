@@ -180,7 +180,10 @@ foreach ($marker in @(
     "manifest_signoff_entrypoints_release_trace",
     "manifest_signoff_entrypoints_rollup_material_safety_trace",
     "manifest_signoff_entrypoints_handoff_material_safety_trace",
-    "manifest_signoff_entrypoints_manifest_trace"
+    "manifest_signoff_entrypoints_manifest_trace",
+    "-CasePattern",
+    "final-review-pdf-visual",
+    "release-material-safety-final-review-pdf-check"
 )) {
     Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `
         -Message "Project-template release readiness checklist should preserve marker '$marker'."

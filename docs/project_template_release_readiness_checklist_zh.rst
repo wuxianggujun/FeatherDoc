@@ -425,6 +425,13 @@ approval、content-control 和 release governance 报告之间手工拼结论。
    powershell -NoProfile -ExecutionPolicy Bypass -File .\test\release_note_bundle_version_test.ps1 -RepoRoot . -WorkingDir .\build\release-note-bundle-version-check
    powershell -NoProfile -ExecutionPolicy Bypass -File .\test\assert_release_material_safety_test.ps1 -RepoRoot . -WorkingDir .\build\release-material-safety-check
 
+material safety 全量回归在 Windows 上可能较慢；定位 final review 的 PDF visual
+证据时，可以先运行聚焦切片，但正式发布路径仍必须跑完整审计：
+
+.. code-block:: powershell
+
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\test\assert_release_material_safety_test.ps1 -RepoRoot . -WorkingDir .\build\release-material-safety-final-review-pdf-check -CasePattern "final-review-pdf-visual"
+
 如果资源允许，再让 ``scripts/run_release_candidate_checks.ps1`` 生成完整 release
 candidate summary，并检查 final review、handoff 和 reviewer checklist 中是否能从
 ``project_template_delivery_readiness`` 与
