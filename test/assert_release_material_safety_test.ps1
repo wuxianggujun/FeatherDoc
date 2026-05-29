@@ -1,6 +1,7 @@
 ﻿param(
     [string]$RepoRoot,
-    [string]$WorkingDir
+    [string]$WorkingDir,
+    [string[]]$CasePattern = @()
 )
 
 Set-StrictMode -Version Latest
@@ -16,7 +17,7 @@ if (-not $WorkingDir) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
-$auditScript = Join-Path $resolvedRepoRoot "scripts\assert_release_material_safety.ps1"
+$auditScriptPath = Join-Path $resolvedRepoRoot "scripts\assert_release_material_safety.ps1"
 
 $contentControlInputDocx = "samples/invoice.docx"
 $contentControlInputDocxDisplay = ".\samples\invoice.docx"
@@ -44,6 +45,122 @@ $passDir = Join-Path $resolvedWorkingDir "pass"
 $failDir = Join-Path $resolvedWorkingDir "fail"
 New-Item -ItemType Directory -Path $passDir -Force | Out-Null
 New-Item -ItemType Directory -Path $failDir -Force | Out-Null
+
+$materialSafetyCasePatterns = @($CasePattern | Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_)
+    })
+$materialSafetyCaseFilterEnabled = $materialSafetyCasePatterns.Count -gt 0
+$materialSafetyPassDir = [System.IO.Path]::GetFullPath($passDir).TrimEnd('\', '/')
+$materialSafetyFailDir = [System.IO.Path]::GetFullPath($failDir).TrimEnd('\', '/')
+$materialSafetyAuditRunCount = 0
+$materialSafetyAuditSkipCount = 0
+
+# Optional filters keep targeted slices of this large regression runnable under
+# bounded CI/test runners. The default path still executes every audit case.
+function Get-MaterialSafetyAuditCaseLabels {
+    param([string[]]$Path)
+
+    $labels = [System.Collections.Generic.List[string]]::new()
+    foreach ($item in @($Path)) {
+        if ([string]::IsNullOrWhiteSpace($item)) {
+            continue
+        }
+
+        $rawPath = [string]$item
+        [void]$labels.Add($rawPath)
+
+        try {
+            $fullPath = [System.IO.Path]::GetFullPath($rawPath)
+        } catch {
+            continue
+        }
+
+        [void]$labels.Add($fullPath)
+        foreach ($root in @($script:materialSafetyPassDir, $script:materialSafetyFailDir, $script:resolvedWorkingDir, $script:resolvedRepoRoot)) {
+            if ([string]::IsNullOrWhiteSpace($root)) {
+                continue
+            }
+
+            $normalizedRoot = [System.IO.Path]::GetFullPath($root).TrimEnd('\', '/')
+            if ($fullPath.StartsWith($normalizedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $relativePath = $fullPath.Substring($normalizedRoot.Length).TrimStart('\', '/')
+                if (-not [string]::IsNullOrWhiteSpace($relativePath)) {
+                    [void]$labels.Add($relativePath)
+                }
+            }
+        }
+    }
+
+    return @($labels.ToArray())
+}
+
+function Test-MaterialSafetyAuditCaseSelected {
+    param([string[]]$Path)
+
+    if (-not $script:materialSafetyCaseFilterEnabled) {
+        return $true
+    }
+
+    if ($script:materialSafetyCasePatterns.Count -gt 0) {
+        $labelText = (Get-MaterialSafetyAuditCaseLabels -Path $Path) -join [Environment]::NewLine
+        $selectedByPattern = $false
+        foreach ($pattern in $script:materialSafetyCasePatterns) {
+            if ($labelText -match $pattern) {
+                $selectedByPattern = $true
+                break
+            }
+        }
+
+        if (-not $selectedByPattern) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function Test-MaterialSafetyAuditCaseExpectsFailure {
+    param([string[]]$Path)
+
+    foreach ($item in @($Path)) {
+        if ([string]::IsNullOrWhiteSpace($item)) {
+            continue
+        }
+
+        try {
+            $fullPath = [System.IO.Path]::GetFullPath([string]$item)
+        } catch {
+            continue
+        }
+
+        if ($fullPath.StartsWith($script:materialSafetyFailDir, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Invoke-MaterialSafetyAuditCase {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Path
+    )
+
+    if (-not (Test-MaterialSafetyAuditCaseSelected -Path $Path)) {
+        $script:materialSafetyAuditSkipCount++
+        if (Test-MaterialSafetyAuditCaseExpectsFailure -Path $Path) {
+            throw "Skipped filtered release material safety negative case."
+        }
+
+        return
+    }
+
+    $script:materialSafetyAuditRunCount++
+    & $script:auditScriptPath -Path $Path
+}
+
+$auditScript = "Invoke-MaterialSafetyAuditCase"
 
 $passFile = Join-Path $passDir "release_body.zh-CN.md"
 Set-Content -LiteralPath $passFile -Encoding UTF8 -Value @"
@@ -5753,6 +5870,14 @@ try {
 
 if (-not $badEntryGovernanceTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release entry document without table_layout_delivery_governance.delivery_quality."
+}
+
+if ($materialSafetyCaseFilterEnabled -and $materialSafetyAuditRunCount -eq 0) {
+    throw "assert_release_material_safety_test.ps1 CasePattern did not match any audit case."
+}
+
+if ($materialSafetyCaseFilterEnabled) {
+    Write-Host "Release material safety filtered audit cases: ran $materialSafetyAuditRunCount, skipped $materialSafetyAuditSkipCount."
 }
 
 Write-Host "Release material safety audit regression passed."
