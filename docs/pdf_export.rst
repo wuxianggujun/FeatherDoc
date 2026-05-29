@@ -134,8 +134,8 @@ contract.
 ``bottomFromText`` is honored as extra vertical spacing between a positioned
 table and following body text in the in-process PDF layout. The remaining
 per-edge text distances and ``tblOverlap`` are still preserved in DOCX metadata
-but are not yet a full Word-compatible table text-wrapping contract for PDF
-export.
+and intentionally remain layout-neutral for PDF export until the adapter has a
+full Word-compatible table text-wrapping contract.
 
 It is not a production Word-compatible layout engine. Complex pagination,
 full Word field evaluation, arbitrary drawing reconstruction, and

@@ -22,6 +22,9 @@ performance.
 - Added a stable schema marker to the raw PDF visual release-gate preflight
   summary so downstream governance and readiness evidence can identify it
   without relying on path conventions.
+- Added PDF floating table regression coverage for preservation-only wrapping
+  metadata so `leftFromText`, `rightFromText`, `topFromText`, and `tblOverlap`
+  stay layout-neutral until full Word-compatible table wrapping is implemented.
 
 ### Fixed
 

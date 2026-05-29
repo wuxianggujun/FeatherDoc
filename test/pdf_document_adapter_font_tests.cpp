@@ -3869,6 +3869,64 @@ TEST_CASE("document PDF adapter maps table alignment and indent") {
     {
         featherdoc::Document document;
         REQUIRE_FALSE(document.create_empty());
+
+        auto table = document.append_table(1U, 1U);
+        REQUIRE(table.has_next());
+        CHECK(table.set_width_twips(1440U));
+        CHECK(table.set_column_width_twips(0U, 1440U));
+        CHECK(table.set_cell_text(0U, 0U, "Wrap metadata"));
+
+        auto row = table.rows();
+        REQUIRE(row.has_next());
+        CHECK(row.set_height_twips(720U, featherdoc::row_height_rule::exact));
+
+        auto position = featherdoc::table_position{};
+        position.horizontal_reference =
+            featherdoc::table_position_horizontal_reference::margin;
+        position.horizontal_offset_twips = 240;
+        position.vertical_reference =
+            featherdoc::table_position_vertical_reference::page;
+        position.vertical_offset_twips = 720;
+        position.left_from_text_twips = 960U;
+        position.right_from_text_twips = 480U;
+        position.top_from_text_twips = 600U;
+        position.overlap = featherdoc::table_overlap::never;
+        CHECK(table.set_position(position));
+
+        const auto table_summary = document.inspect_table(0U);
+        REQUIRE(table_summary.has_value());
+        REQUIRE(table_summary->position.has_value());
+        REQUIRE(table_summary->position->left_from_text_twips.has_value());
+        REQUIRE(table_summary->position->right_from_text_twips.has_value());
+        REQUIRE(table_summary->position->top_from_text_twips.has_value());
+        REQUIRE(table_summary->position->overlap.has_value());
+        CHECK_EQ(*table_summary->position->left_from_text_twips, 960U);
+        CHECK_EQ(*table_summary->position->right_from_text_twips, 480U);
+        CHECK_EQ(*table_summary->position->top_from_text_twips, 600U);
+        CHECK_EQ(*table_summary->position->overlap,
+                 featherdoc::table_overlap::never);
+
+        featherdoc::pdf::PdfDocumentAdapterOptions options;
+        options.use_system_font_fallbacks = false;
+        options.page_size = featherdoc::pdf::PdfPageSize{300.0, 220.0};
+        options.margin_left_points = 40.0;
+
+        const auto layout =
+            featherdoc::pdf::layout_document_paragraphs(document, options);
+
+        REQUIRE_EQ(layout.pages.size(), 1U);
+        REQUIRE_EQ(layout.pages.front().rectangles.size(), 1U);
+
+        const auto &rectangle = layout.pages.front().rectangles.front();
+        CHECK(rectangle.bounds.x_points ==
+              doctest::Approx(options.margin_left_points + 12.0));
+        CHECK(rectangle.bounds.y_points + rectangle.bounds.height_points ==
+              doctest::Approx(options.page_size.height_points - 36.0));
+    }
+
+    {
+        featherdoc::Document document;
+        REQUIRE_FALSE(document.create_empty());
         auto paragraph = document.paragraphs();
         REQUIRE(paragraph.has_next());
         CHECK(paragraph.set_text("Before positioned table"));
