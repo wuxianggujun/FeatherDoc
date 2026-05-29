@@ -100,7 +100,12 @@ foreach ($marker in @(
 
 foreach ($marker in @(
         "docx_functional_smoke_readiness",
-        "featherdoc.docx_functional_smoke_readiness.v1"
+        "featherdoc.docx_functional_smoke_readiness.v1",
+        "docx_functional_smoke_readiness_trace",
+        "persisted_docx_functional_smoke_evidence_only",
+        "word_visual_smoke.pending_manual_review",
+        "summary_json_display",
+        "report_markdown_display"
     )) {
     Assert-ContainsText -Text $releaseMetadataDoc -ExpectedText $marker `
         -Message "Release metadata pipeline docs should preserve DOCX readiness marker '$marker'."
