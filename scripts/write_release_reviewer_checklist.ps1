@@ -26,13 +26,22 @@ function Resolve-FullPath {
 }
 
 function Get-DisplayValue {
-    param([string]$Value)
+    param($Value)
 
-    if ([string]::IsNullOrWhiteSpace($Value)) {
+    if ($null -eq $Value) {
         return "(not available)"
     }
 
-    return $Value
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return "(not available)"
+    }
+
+    return $text
 }
 
 function Get-DisplayPath {
@@ -78,8 +87,13 @@ function Get-RepoRelativePath {
         return ""
     }
 
+    $candidate = if ([System.IO.Path]::IsPathRooted($Path)) {
+        $Path
+    } else {
+        Join-Path $RepoRoot $Path
+    }
     $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
-    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    $resolvedPath = [System.IO.Path]::GetFullPath($candidate)
     if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
         $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
         if ([string]::IsNullOrWhiteSpace($relative)) {
@@ -118,6 +132,11 @@ $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
 $requiresProjectTemplateGovernanceSignoff = Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary
 $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
 $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
+$wordVisualStandardReviewMetadataEvidenceLine = Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary $summary
+$hasProjectTemplateReleaseEntryEvidence = (
+    -not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine) -or
+    -not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)
+)
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $artifactGuidePath = Get-OptionalPropertyValue -Object $summary -Name "artifact_guide"
 if ([string]::IsNullOrWhiteSpace($artifactGuidePath)) {
@@ -343,6 +362,14 @@ $smokeReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateSt
 $fixedGridReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
 $sectionPageSetupReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeReviewResultPath = Get-VisualTaskReviewResultPath -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridReviewResultPath = Get-VisualTaskReviewResultPath -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
+$sectionPageSetupReviewResultPath = Get-VisualTaskReviewResultPath -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsReviewResultPath = Get-VisualTaskReviewResultPath -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeFinalReviewPath = Get-VisualTaskFinalReviewPath -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridFinalReviewPath = Get-VisualTaskFinalReviewPath -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
+$sectionPageSetupFinalReviewPath = Get-VisualTaskFinalReviewPath -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsFinalReviewPath = Get-VisualTaskFinalReviewPath -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
 $visualReviewTaskSummaryLine = Get-VisualReviewTaskSummaryLine -VisualGateSummary $visualGateStep -GateSummary $gateSummary
 $supersededReviewTasksReportPath = Get-SupersededReviewTasksReportPath -Summary $summary -VisualGateSummary $visualGateStep
@@ -354,7 +381,7 @@ if ([string]::IsNullOrWhiteSpace($visualVerdict)) {
     $visualVerdict = "pending_manual_review"
 }
 $pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
-$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath
+$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath -RepoRoot $repoRoot
 
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
 $syncProjectTemplateSmokeCommand = ""
@@ -452,21 +479,29 @@ if ($pdfBoundedCtestEvidence.status -ne "not_available") {
 [void]$lines.Add("- Smoke reviewed at: $(Get-DisplayValue -Value $smokeReviewedAt)")
 [void]$lines.Add("- Smoke review method: $(Get-DisplayValue -Value $smokeReviewMethod)")
 [void]$lines.Add("- Smoke review note: $(Get-DisplayValue -Value $smokeReviewNote)")
+[void]$lines.Add("- Smoke review result: $(Get-DisplayPath -RepoRoot $repoRoot -Path $smokeReviewResultPath)")
+[void]$lines.Add("- Smoke final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $smokeFinalReviewPath)")
 [void]$lines.Add("- Fixed-grid verdict: $(Get-DisplayValue -Value $fixedGridVerdict)")
 [void]$lines.Add("- Fixed-grid review status: $(Get-DisplayValue -Value $fixedGridReviewStatus)")
 [void]$lines.Add("- Fixed-grid reviewed at: $(Get-DisplayValue -Value $fixedGridReviewedAt)")
 [void]$lines.Add("- Fixed-grid review method: $(Get-DisplayValue -Value $fixedGridReviewMethod)")
 [void]$lines.Add("- Fixed-grid review note: $(Get-DisplayValue -Value $fixedGridReviewNote)")
+[void]$lines.Add("- Fixed-grid review result: $(Get-DisplayPath -RepoRoot $repoRoot -Path $fixedGridReviewResultPath)")
+[void]$lines.Add("- Fixed-grid final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $fixedGridFinalReviewPath)")
 [void]$lines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$lines.Add("- Section page setup review status: $(Get-DisplayValue -Value $sectionPageSetupReviewStatus)")
 [void]$lines.Add("- Section page setup reviewed at: $(Get-DisplayValue -Value $sectionPageSetupReviewedAt)")
 [void]$lines.Add("- Section page setup review method: $(Get-DisplayValue -Value $sectionPageSetupReviewMethod)")
 [void]$lines.Add("- Section page setup review note: $(Get-DisplayValue -Value $sectionPageSetupReviewNote)")
+[void]$lines.Add("- Section page setup review result: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupReviewResultPath)")
+[void]$lines.Add("- Section page setup final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupFinalReviewPath)")
 [void]$lines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
 [void]$lines.Add("- Page number fields review status: $(Get-DisplayValue -Value $pageNumberFieldsReviewStatus)")
 [void]$lines.Add("- Page number fields reviewed at: $(Get-DisplayValue -Value $pageNumberFieldsReviewedAt)")
 [void]$lines.Add("- Page number fields review method: $(Get-DisplayValue -Value $pageNumberFieldsReviewMethod)")
 [void]$lines.Add("- Page number fields review note: $(Get-DisplayValue -Value $pageNumberFieldsReviewNote)")
+[void]$lines.Add("- Page number fields review result: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsReviewResultPath)")
+[void]$lines.Add("- Page number fields final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsFinalReviewPath)")
 [void]$lines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
 foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
     [void]$lines.Add("- $($curatedVisualReview.label) verdict: $(Get-DisplayValue -Value $curatedVisualReview.verdict)")
@@ -474,6 +509,8 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
     [void]$lines.Add("- $($curatedVisualReview.label) reviewed at: $(Get-DisplayValue -Value $curatedVisualReview.reviewed_at)")
     [void]$lines.Add("- $($curatedVisualReview.label) review method: $(Get-DisplayValue -Value $curatedVisualReview.review_method)")
     [void]$lines.Add("- $($curatedVisualReview.label) review note: $(Get-DisplayValue -Value $curatedVisualReview.review_note)")
+    [void]$lines.Add("- $($curatedVisualReview.label) review result: $(Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.review_result_path)")
+    [void]$lines.Add("- $($curatedVisualReview.label) final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.final_review_path)")
 }
 [void]$lines.Add("- Superseded review tasks: $(Get-DisplayValue -Value $supersededReviewTasksCount)")
 [void]$lines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
@@ -643,12 +680,17 @@ if ($pdfBoundedCtestEvidence.status -ne "not_available") {
     Add-CheckboxLine -Lines $lines -Text ('Open the bounded CTest summary list when you need to verify the auxiliary evidence source set: {0}' -f (Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', ')))
 }
 Add-CheckboxLine -Lines $lines -Text 'Confirm the fixed PDF release readiness checklist has been reviewed before publishing: `docs/pdf_release_readiness_checklist_zh.rst`.'
-Add-CheckboxLine -Lines $lines -Text 'Confirm the fixed Project template release readiness checklist has been reviewed before publishing: `docs/project_template_release_readiness_checklist_zh.rst`.'
+if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence) {
+    Add-CheckboxLine -Lines $lines -Text 'Confirm the fixed Project template release readiness checklist has been reviewed before publishing: `docs/project_template_release_readiness_checklist_zh.rst`.'
+}
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm release governance handoff carries project-template readiness checklist entrypoint evidence: {0}.' -f $projectTemplateChecklistHandoffEvidenceLine)
 }
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm release governance handoff carries packaged project-template readiness checklist material-safety audit evidence: {0}.' -f $projectTemplateChecklistMaterialSafetyAuditEvidenceLine)
+}
+if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceLine)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm release governance handoff carries Word visual standard review metadata evidence: {0}.' -f $wordVisualStandardReviewMetadataEvidenceLine)
 }
 Add-CheckboxLine -Lines $lines -Text 'For PDF/CJK-facing releases, manually verify a generated Chinese PDF can be copied and searched in at least one common reader, and record the reader/version in the release notes or final review.'
 
@@ -687,7 +729,7 @@ if ($readmeGalleryStatus -eq "completed") {
 Add-CheckboxLine -Lines $lines -Text 'Use `release_summary.zh-CN.md` for the GitHub Release first-screen bullets.'
 Add-CheckboxLine -Lines $lines -Text 'Use `release_body.zh-CN.md` for the full release notes or translated handoff notes.'
 Add-CheckboxLine -Lines $lines -Text ('Generate or refresh the local public release ZIP files before publishing: `{0}`' -f $packageAssetsCommand)
-if ($requiresProjectTemplateGovernanceSignoff) {
+if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm the packaged release manifest preserves project-template governance contracts before publishing: {0} must include `project_template_delivery_readiness_contract` and `project_template_onboarding_governance_contract` with `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display`.' -f $releaseAssetsManifestDisplayPath)
 }
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
@@ -695,6 +737,9 @@ if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLi
 }
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm the packaged checklist material-safety audit source-report evidence remains ready for publishing: {0}.' -f $projectTemplateChecklistMaterialSafetyAuditEvidenceLine)
+}
+if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceLine)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the Word visual standard review metadata evidence remains ready for publishing: {0}.' -f $wordVisualStandardReviewMetadataEvidenceLine)
 }
 Add-CheckboxLine -Lines $lines -Text ('Sync the audited full release body into the GitHub Release notes: `{0}`' -f $syncReleaseNotesCommand)
 Add-CheckboxLine -Lines $lines -Text ('When all gates pass and the GitHub Release is ready to go live, publish it with: `{0}`' -f $publishReleaseCommand)

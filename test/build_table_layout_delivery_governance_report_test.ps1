@@ -70,10 +70,45 @@ function Write-JsonFile {
     ($Value | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
+function New-PdfFloatingTableSupportEntry {
+    param([string]$DocumentName, [string]$InputDocx)
+
+    return [ordered]@{
+        document_name = $DocumentName
+        input_docx = $InputDocx
+        source_report = "output/table-layout-delivery/$DocumentName/summary.json"
+        source_report_display = ".\output\table-layout-delivery\$DocumentName\summary.json"
+        status = "partial"
+        boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
+        supported_geometry_count = 4
+        metadata_only_count = 5
+        review_required_count = 3
+        supported_geometry = @(
+            "tblpXSpec left/inside/center/right/outside within page, margin, and column reference frames",
+            "tblpYSpec top/center/bottom within page and margin reference frames",
+            "topFromText for paragraph-anchored positioned tables",
+            "bottomFromText as spacing before following body text"
+        )
+        metadata_only = @(
+            "leftFromText",
+            "rightFromText",
+            "topFromText outside paragraph anchoring",
+            "tblOverlap",
+            "vertical paragraph/inside/outside Word page-side context"
+        )
+        review_required = @(
+            "full Word-compatible floating table text wrapping",
+            "table overlap avoidance and collision resolution",
+            "inside/outside parity for page-side aware layout"
+        )
+    }
+}
+
 function New-LayoutRollup {
     param([bool]$Ready)
 
     if ($Ready) {
+        $invoicePdfSupport = New-PdfFloatingTableSupportEntry -DocumentName "invoice.docx" -InputDocx "samples/invoice.docx"
         return [ordered]@{
             schema = "featherdoc.table_layout_delivery_rollup_report.v1"
             status = "ready"
@@ -93,6 +128,10 @@ function New-LayoutRollup {
                     table_position_automatic_count = 0
                     table_position_review_count = 0
                     table_position_already_matching_count = 1
+                    pdf_floating_table_support_status = "partial"
+                    pdf_floating_table_layout_boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
+                    pdf_floating_table_supported_geometry_count = 4
+                    pdf_floating_table_metadata_only_count = 5
                     command_failure_count = 0
                     table_position_plan_path = "output/table-layout-delivery/invoice/table-position.plan.json"
                     table_position_plan_display = ".\output\table-layout-delivery\invoice\table-position.plan.json"
@@ -117,11 +156,16 @@ function New-LayoutRollup {
             total_table_position_review_count = 0
             total_table_position_already_matching_count = 1
             total_command_failure_count = 0
+            pdf_floating_table_support_report_count = 1
+            pdf_floating_table_support_summary = @([ordered]@{ status = "partial"; count = 1 })
+            pdf_floating_table_support = @($invoicePdfSupport)
             release_blockers = @()
             action_items = @()
         }
     }
 
+    $invoicePdfSupport = New-PdfFloatingTableSupportEntry -DocumentName "invoice.docx" -InputDocx "samples/invoice.docx"
+    $contractPdfSupport = New-PdfFloatingTableSupportEntry -DocumentName "contract.docx" -InputDocx "samples/contract.docx"
     return [ordered]@{
         schema = "featherdoc.table_layout_delivery_rollup_report.v1"
         status = "needs_review"
@@ -141,6 +185,10 @@ function New-LayoutRollup {
                 table_position_automatic_count = 0
                 table_position_review_count = 0
                 table_position_already_matching_count = 1
+                pdf_floating_table_support_status = "partial"
+                pdf_floating_table_layout_boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
+                pdf_floating_table_supported_geometry_count = 4
+                pdf_floating_table_metadata_only_count = 5
                 command_failure_count = 0
                 table_position_plan_path = "output/table-layout-delivery/invoice/table-position.plan.json"
                 table_position_plan_display = ".\output\table-layout-delivery\invoice\table-position.plan.json"
@@ -158,6 +206,10 @@ function New-LayoutRollup {
                 table_position_automatic_count = 2
                 table_position_review_count = 1
                 table_position_already_matching_count = 0
+                pdf_floating_table_support_status = "partial"
+                pdf_floating_table_layout_boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
+                pdf_floating_table_supported_geometry_count = 4
+                pdf_floating_table_metadata_only_count = 5
                 command_failure_count = 0
                 table_position_plan_path = "output/table-layout-delivery/contract/table-position.plan.json"
                 table_position_plan_display = ".\output\table-layout-delivery\contract\table-position.plan.json"
@@ -192,6 +244,9 @@ function New-LayoutRollup {
         total_table_position_review_count = 1
         total_table_position_already_matching_count = 1
         total_command_failure_count = 0
+        pdf_floating_table_support_report_count = 2
+        pdf_floating_table_support_summary = @([ordered]@{ status = "partial"; count = 2 })
+        pdf_floating_table_support = @($invoicePdfSupport, $contractPdfSupport)
         release_blockers = @(
             [ordered]@{
                 id = "table_layout.manual_table_style_quality_work"
@@ -281,6 +336,14 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Unresolved table layout delivery work should reduce quality score."
     Assert-Equal -Actual ([string]$summary.delivery_quality_level) -Expected "blocked" `
         -Message "Unresolved table layout delivery work should produce blocked quality."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.id) -Expected "table_layout_delivery_governance.delivery_quality" `
+        -Message "Delivery quality details should expose a stable governance metric id."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.metric) -Expected "delivery_quality" `
+        -Message "Delivery quality details should expose the metric name."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.report_id) -Expected "table_layout_delivery_governance" `
+        -Message "Delivery quality details should expose the report id."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.source_schema) -Expected "featherdoc.table_layout_delivery_governance_report.v1" `
+        -Message "Delivery quality details should expose the source schema."
     Assert-Equal -Actual ([int]$summary.delivery_quality.ready_document_percent) -Expected 50 `
         -Message "Summary should expose ready document percentage."
     Assert-Equal -Actual ([int]$summary.delivery_quality.table_style_issue_count) -Expected 3 `
@@ -293,6 +356,15 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should expose automatic floating table plan count in delivery quality details."
     Assert-Equal -Actual ([int]$summary.delivery_quality.table_position_review_count) -Expected 1 `
         -Message "Summary should expose floating table review count in delivery quality details."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.pdf_floating_table_capability_status) -Expected "partial" `
+        -Message "Summary should expose PDF floating table capability status in delivery quality details."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.pdf_floating_table_layout_boundary) `
+        -Expected "stable_pdf_geometry_subset_not_full_word_wrapping" `
+        -Message "Summary should expose PDF floating table layout boundary in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.pdf_floating_table_supported_geometry_count) -Expected 4 `
+        -Message "Summary should expose supported PDF floating table geometry count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.pdf_floating_table_metadata_only_count) -Expected 5 `
+        -Message "Summary should expose metadata-only PDF floating table count in delivery quality details."
     Assert-Equal -Actual ([int]$summary.delivery_quality.command_failure_count) -Expected 0 `
         -Message "Summary should expose command failure count in delivery quality details."
     Assert-Equal -Actual ([int]$summary.delivery_quality.unresolved_item_count) -Expected 10 `
@@ -315,6 +387,16 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should preserve floating table review count."
     Assert-Equal -Actual ([int]$summary.table_position_plan_count) -Expected 2 `
         -Message "Summary should expose table position plans."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_support_report_count) -Expected 2 `
+        -Message "Summary should preserve PDF floating table support evidence count."
+    Assert-ContainsText -Text (($summary.pdf_floating_table_support_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "partial:2" `
+        -Message "Summary should group PDF floating table support statuses."
+    Assert-Equal -Actual ([string]$summary.documents[0].pdf_floating_table_support_status) -Expected "partial" `
+        -Message "Governance documents should preserve PDF floating table support status."
+    Assert-ContainsText -Text (($summary.pdf_floating_table_support[0].metadata_only | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "tblOverlap" `
+        -Message "Governance summary should preserve metadata-only PDF floating table rows."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 5 `
         -Message "Summary should include source and governance blockers."
     Assert-True -Condition ([int]$summary.action_item_count -ge 5) `
@@ -430,10 +512,18 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include title."
     Assert-ContainsText -Text $markdown -ExpectedText "Floating Table Plans" `
         -Message "Markdown should include floating table plans."
+    Assert-ContainsText -Text $markdown -ExpectedText "PDF Floating Table Support" `
+        -Message "Markdown should include PDF floating table support."
+    Assert-ContainsText -Text $markdown -ExpectedText "stable_pdf_geometry_subset_not_full_word_wrapping" `
+        -Message "Markdown should include the PDF floating table boundary."
     Assert-ContainsText -Text $markdown -ExpectedText "Delivery Actions" `
         -Message "Markdown should include delivery actions."
     Assert-ContainsText -Text $markdown -ExpectedText "Delivery Quality" `
         -Message "Markdown should include delivery quality section."
+    Assert-ContainsText -Text $markdown -ExpectedText "table_layout_delivery_governance.delivery_quality" `
+        -Message "Markdown should include the stable delivery quality metric id."
+    Assert-ContainsText -Text $markdown -ExpectedText "PDF floating table capability" `
+        -Message "Markdown should include PDF floating table capability in delivery quality."
     Assert-ContainsText -Text $markdown -ExpectedText "safe_tblLook_fixes_pending" `
         -Message "Markdown should include delivery quality penalty details."
     Assert-ContainsText -Text $markdown -ExpectedText "source_schema" `
@@ -475,10 +565,14 @@ if (Test-Scenario -Name "ready") {
         -Message "Ready table layout delivery evidence should produce full quality score."
     Assert-Equal -Actual ([string]$summary.delivery_quality_level) -Expected "release_ready" `
         -Message "Ready table layout delivery evidence should produce release-ready quality."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.pdf_floating_table_capability_status) -Expected "partial" `
+        -Message "Ready evidence should preserve PDF floating table capability status in delivery quality details."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 0 `
         -Message "Ready evidence should not expose blockers."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
         -Message "Ready evidence should not warn."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_support_report_count) -Expected 1 `
+        -Message "Ready evidence should preserve PDF floating table support evidence."
 }
 
 if (Test-Scenario -Name "missing_rollup") {

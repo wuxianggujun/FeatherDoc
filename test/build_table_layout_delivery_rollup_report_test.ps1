@@ -66,6 +66,32 @@ function Write-JsonFile {
     ($Value | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
+function New-PdfFloatingTableSupport {
+    return [ordered]@{
+        schema = "featherdoc.pdf_floating_table_support.v1"
+        status = "partial"
+        boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
+        supported_geometry = @(
+            "tblpXSpec left/inside/center/right/outside within page, margin, and column reference frames",
+            "tblpYSpec top/center/bottom within page and margin reference frames",
+            "topFromText for paragraph-anchored positioned tables",
+            "bottomFromText as spacing before following body text"
+        )
+        metadata_only = @(
+            "leftFromText",
+            "rightFromText",
+            "topFromText outside paragraph anchoring",
+            "tblOverlap",
+            "vertical paragraph/inside/outside Word page-side context"
+        )
+        review_required = @(
+            "full Word-compatible floating table text wrapping",
+            "table overlap avoidance and collision resolution",
+            "inside/outside parity for page-side aware layout"
+        )
+    }
+}
+
 function New-LayoutSummary {
     param(
         [string]$InputDocx,
@@ -83,6 +109,7 @@ function New-LayoutSummary {
         [object[]]$ActionItems = @()
     )
 
+    $pdfSupport = New-PdfFloatingTableSupport
     return [ordered]@{
         schema = "featherdoc.table_layout_delivery_report.v1"
         generated_at = "2026-05-03T00:00:00"
@@ -118,6 +145,11 @@ function New-LayoutSummary {
         table_position_automatic_count = $PositionAutomaticCount
         table_position_review_count = $PositionReviewCount
         table_position_already_matching_count = $PositionAlreadyMatchingCount
+        pdf_floating_table_support = $pdfSupport
+        pdf_floating_table_support_status = $pdfSupport.status
+        pdf_floating_table_layout_boundary = $pdfSupport.boundary
+        pdf_floating_table_supported_geometry_count = @($pdfSupport.supported_geometry).Count
+        pdf_floating_table_metadata_only_count = @($pdfSupport.metadata_only).Count
         release_blockers = @($ReleaseBlockers)
         release_blocker_count = @($ReleaseBlockers).Count
         action_items = @($ActionItems)
@@ -240,6 +272,18 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate layout rollup should preserve action items."
     Assert-Equal -Actual ([int]$summary.table_position_plan_count) -Expected 2 `
         -Message "Aggregate layout rollup should expose per-document position plans."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_support_report_count) -Expected 2 `
+        -Message "Aggregate layout rollup should count PDF floating table support reports."
+    Assert-ContainsText -Text (($summary.pdf_floating_table_support_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "partial:2" `
+        -Message "Aggregate layout rollup should group PDF floating table support statuses."
+    Assert-Equal -Actual ([string]$summary.document_entries[0].pdf_floating_table_support_status) -Expected "partial" `
+        -Message "Document entries should preserve PDF floating table support status."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_support[0].supported_geometry_count) -Expected 4 `
+        -Message "Rollup should preserve supported PDF floating table geometry count."
+    Assert-ContainsText -Text (($summary.pdf_floating_table_support[0].metadata_only | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "tblOverlap" `
+        -Message "Rollup should preserve metadata-only PDF floating table rows."
     Assert-ContainsText -Text (($summary.table_position_plans | ForEach-Object { [string]$_.table_position_plan_path }) -join "`n") `
         -ExpectedText "contract/table-position-margin-anchor.plan.json" `
         -Message "Aggregate layout rollup should include contract floating position plan path."
@@ -255,6 +299,10 @@ if (Test-Scenario -Name "aggregate") {
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Floating Table Plans" `
         -Message "Markdown report should include floating table plan section."
+    Assert-ContainsText -Text $markdown -ExpectedText "PDF Floating Table Support" `
+        -Message "Markdown report should include PDF floating table support section."
+    Assert-ContainsText -Text $markdown -ExpectedText "stable_pdf_geometry_subset_not_full_word_wrapping" `
+        -Message "Markdown report should include PDF floating table boundary."
     Assert-ContainsText -Text $markdown -ExpectedText "contract.docx" `
         -Message "Markdown report should include source document names."
     Assert-ContainsText -Text $markdown -ExpectedText "bad_tblLook" `
@@ -289,6 +337,8 @@ if (Test-Scenario -Name "empty") {
         -Message "Clean layout rollup should not invent release blockers."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
         -Message "Clean layout rollup should not warn for a valid layout summary."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_support_report_count) -Expected 1 `
+        -Message "Clean layout rollup should still preserve PDF floating table support evidence."
 }
 
 if (Test-Scenario -Name "failed_source_report") {

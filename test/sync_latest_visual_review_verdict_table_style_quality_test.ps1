@@ -62,6 +62,7 @@ $bundleId = "table-style-quality"
 $bundleLabel = "Table style quality"
 $bundleRoot = Join-Path $gateRoot $bundleId
 $bundleSummaryPath = Join-Path $bundleRoot "summary.json"
+$readmeGalleryAssetsDir = Join-Path $resolvedWorkingDir "docs\assets\readme"
 $taskDir = Join-Path $tasksRoot "$bundleId-task-reviewed"
 $taskId = "$bundleId-task-reviewed"
 $pointerPath = Join-Path $tasksRoot "latest_table-style-quality-visual-regression-bundle_task.json"
@@ -71,6 +72,7 @@ New-Item -ItemType Directory -Path $tasksRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $gateReportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $releaseReportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $bundleRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $readmeGalleryAssetsDir -Force | Out-Null
 
 (@{ generated_at = "2026-04-30T12:40:00"; status = "completed" } | ConvertTo-Json -Depth 4) |
     Set-Content -LiteralPath $bundleSummaryPath -Encoding UTF8
@@ -91,7 +93,10 @@ $releaseSummaryPath = Join-Path $releaseReportDir "summary.json"
     report_dir = $gateReportDir
     execution_status = "pass"
     visual_verdict = "pending_manual_review"
-    readme_gallery = @{ status = "not_requested" }
+    readme_gallery = @{
+        status = "completed"
+        assets_dir = $readmeGalleryAssetsDir
+    }
     curated_visual_regressions = @(
         @{
             id = $bundleId
@@ -134,6 +139,7 @@ $releaseSummaryPath = Join-Path $releaseReportDir "summary.json"
     -GateSummaryJson $gateSummaryPath `
     -ReleaseCandidateSummaryJson $releaseSummaryPath `
     -TaskOutputRoot $tasksRoot `
+    -SkipReleaseBundle `
     -SkipSupersededReviewTaskAudit
 if ($LASTEXITCODE -ne 0) { throw "sync_latest_visual_review_verdict.ps1 failed." }
 
@@ -149,6 +155,18 @@ Assert-True -Condition ($gateSummary.visual_verdict -eq "pass") `
     -Message "Gate summary visual verdict should be promoted by table-style-quality review."
 Assert-True -Condition ($releaseSummary.visual_verdict -eq "pass") `
     -Message "Release summary visual verdict should be promoted by table-style-quality review."
+Assert-True -Condition ($gateSummary.release_summary_discovery.release_bundle_refresh_requested -eq $false) `
+    -Message "Gate summary should record that release bundle refresh was skipped."
+Assert-True -Condition ($releaseSummary.release_summary_discovery.release_bundle_refresh_requested -eq $false) `
+    -Message "Release summary should record that release bundle refresh was skipped."
+Assert-True -Condition ($gateSummary.readme_gallery.status -eq "completed") `
+    -Message "Gate summary should preserve completed README gallery status."
+Assert-True -Condition ($gateSummary.readme_gallery.assets_dir -eq $readmeGalleryAssetsDir) `
+    -Message "Gate summary should preserve README gallery assets_dir."
+Assert-True -Condition ($releaseSummary.readme_gallery.status -eq "completed") `
+    -Message "Release summary should inherit completed README gallery status."
+Assert-True -Condition ($releaseSummary.readme_gallery.assets_dir -eq $readmeGalleryAssetsDir) `
+    -Message "Release summary should inherit README gallery assets_dir."
 Assert-True -Condition ($curatedGateFlow.task.task_id -eq $taskId) `
     -Message "Gate summary curated flow should be refreshed from latest table-style-quality pointer."
 Assert-True -Condition ($curatedGateReview.verdict -eq "pass") `
@@ -160,6 +178,7 @@ Assert-True -Condition ($curatedReleaseReview.review_note -eq "table style quali
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Table style quality flow: completed" -Label "gate_final_review.md"
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Table style quality verdict: pass" -Label "gate_final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Curated - Table style quality: verdict=pass" -Label "release final_review.md"
-Assert-Contains -Path $releaseSummary.release_summary_zh_cn -ExpectedText 'Table style quality=`pass`' -Label "release_summary.zh-CN.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "README gallery refresh: completed (.\output\codex-" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "\docs\assets\readme)" -Label "release final_review.md"
 
 Write-Host "Sync latest visual review verdict table style quality bundle regression passed."

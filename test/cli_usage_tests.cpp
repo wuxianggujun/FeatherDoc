@@ -18,6 +18,8 @@ TEST_CASE("cli print_usage includes core command families") {
              std::string::npos);
     CHECK_NE(text.find("--render-headers-and-footers"), std::string::npos);
     CHECK_NE(text.find("--render-inline-images"), std::string::npos);
+    CHECK_NE(text.find("--expand-header-footer-page-placeholders"),
+             std::string::npos);
     CHECK_NE(text.find("--font-file <path>"), std::string::npos);
     CHECK_NE(text.find("--cjk-font-file <path>"), std::string::npos);
     CHECK_NE(text.find("--font-map <family>=<path>]..."), std::string::npos);

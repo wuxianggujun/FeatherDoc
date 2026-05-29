@@ -7,6 +7,18 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#if !defined(_WIN32) && !defined(__WIN32__) && !defined(_MSC_VER) &&           \
+    !defined(__MINGW32__)
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE 1
+#endif
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
+#define _DARWIN_C_SOURCE 1
+#endif
+#endif
 #define __STDC_WANT_LIB_EXT1__ 1
 
 #include <errno.h>
@@ -25,9 +37,7 @@
 
 #else
 
-#if ZIP_HAVE_SYMLINK
-#include <unistd.h> // needed for symlink()
-#endif
+#include <unistd.h> // needed for ftruncate() and symlink()
 
 #endif
 

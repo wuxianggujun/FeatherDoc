@@ -25,6 +25,7 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 1. 这次改动属于哪一层？
 
    - visual gate
+   - Word visual release gate preflight
    - release candidate preflight
    - verdict sync
    - release note bundle
@@ -66,6 +67,18 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 - curated visual regression 只读取 ``review_verdict`` 字段。
 - ``reviewed_at`` 输出保持 ``yyyy-MM-ddTHH:mm:ss`` 格式，避免文化区域差异。
 
+涉及 Word visual standard review metadata 时，必须确认：
+
+- ``release_governance_handoff.md`` 保留
+  ``word_visual_standard_review_metadata_source_reports`` detailed source reports。
+- ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、
+  ``final_review.md`` 与 ``release_handoff.md`` 都渲染
+  ``Word visual standard review metadata evidence`` compact evidence line。
+- compact evidence line 必须把 ``task_reviews=``、
+  ``source_schema=featherdoc.release_candidate_summary`` 与 ``source_report`` 保持在同一行，
+  且 ``source_report`` 指向 ``release-candidate-checks`` 的 release-candidate summary。
+- ``review_note`` 仍是 operator-only 字段，不能进入任何发布入口或公开发布材料。
+
 涉及公开 release 正文时，必须确认：
 
 - ``release_body.zh-CN.md`` 不输出 ``review_note``。
@@ -85,6 +98,15 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 .. code-block:: powershell
 
     pwsh -NoProfile -ExecutionPolicy Bypass -File `
+        .\scripts\check_word_visual_release_gate_preflight.ps1 `
+        -RepoRoot .
+
+    pwsh -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\check_word_visual_release_gate_preflight_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir output\codex-word-visual-release-gate-preflight-check
+
+    pwsh -NoProfile -ExecutionPolicy Bypass -File `
         .\test\word_visual_release_gate_smoke_verdict_test.ps1 `
         -RepoRoot . `
         -WorkingDir output\codex-word-visual-release-gate-check
@@ -93,6 +115,41 @@ release 流水线的详细设计文档；详细字段流向请先阅读
         -R "^word_visual_release_gate_smoke_verdict$" `
         --output-on-failure `
         --timeout 60
+
+``check_word_visual_release_gate_preflight.ps1`` 只证明静态 gate 契约可进入下一步。
+它输出 ``featherdoc.word_visual_release_gate_preflight.v1``，证据边界是
+``word_visual_release_gate_preflight_static_contract_only``；``preflight_ready``
+为 true 时也不能把 ``release_ready`` 当作 true。只有完整 Word 视觉 gate 的
+截图证据和 review verdict 才能作为 release-ready evidence。
+
+修改 DOCX 功能 smoke 准入或 release governance 接入：
+
+.. code-block:: powershell
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\scripts\check_docx_functional_smoke_readiness.ps1 `
+        -RepoRoot . `
+        -OutputDir .\output\docx-functional-smoke-readiness-current
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\docx_functional_smoke_readiness_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir output\codex-docx-functional-smoke-readiness-check
+
+    ctest --test-dir build-codex-clang-compat `
+        -R "^docx_functional_smoke_readiness$" `
+        --output-on-failure `
+        --timeout 60
+
+``check_docx_functional_smoke_readiness.ps1`` 作为
+``docx_functional_smoke_readiness`` stage 时，只能复用已持久化的 Word visual
+smoke 证据。它必须保留 schema
+``featherdoc.docx_functional_smoke_readiness.v1``、固定 trace
+``docx_functional_smoke_readiness_trace``、边界标记
+``persisted_docx_functional_smoke_evidence_only``、``summary_json_display``、
+``report_markdown_display``、``warning_count``、``release_blocker_count`` 和
+``word_visual_smoke.pending_manual_review``，避免把低资源证据复用误判为新鲜 Word
+渲染或已完成人工视觉审查。
 
 修改 release candidate preflight：
 
@@ -113,9 +170,14 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 .. code-block:: powershell
 
     ctest --test-dir build-codex-clang-compat `
-        -R "^sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle)$" `
+        -R "^(sync_latest_visual_review_verdict_table_style_quality|sync_latest_visual_review_verdict_cmake_contract|sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle))$" `
         --output-on-failure `
         --timeout 60
+
+如果改动 curated review task 的打开入口，同时覆盖：
+``open_latest_word_review_task_curated_source_kind_test.ps1``。它保护
+``open_latest_word_review_task.ps1 -SourceKind table-style-quality-visual-regression-bundle``
+会读取 ``latest_table-style-quality-visual-regression-bundle_task.json``。
 
 修改 release note bundle 或 helper：
 
@@ -181,9 +243,25 @@ CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制
 为了保持发布面板兼容，维护文档还要继续提到 ``release governance warning``、
 ``warning_count``、``release_blocker_rollup``、
 ``release_governance_handoff``、``release_governance_pipeline``、
-``source_schema``、``source_report_display``、``source_json_display`` 和
-``style_merge_suggestion_count``。其中 ``source_report_display`` 用于让 reviewer
-先打开治理源报告，``source_json_display`` 用于继续追溯到原始证据 JSON。
+``source_schema``、``source_report_display``、``source_json_display``、
+``style_merge_suggestion_count``、``check_word_visual_release_gate_preflight.ps1``、
+``check_word_visual_release_gate_preflight_test.ps1``、
+``word_visual_release_gate_preflight_route_docs_contract``、
+``word_visual_release_gate_preflight_route_docs_contract_test.ps1``、
+``featherdoc.word_visual_release_gate_preflight.v1``、
+``word_visual_release_gate_preflight_static_contract_only``、``preflight_ready``、
+``release_ready``、``check_docx_functional_smoke_readiness.ps1``、
+``docx_functional_smoke_readiness_test.ps1``、
+``docx_functional_smoke_readiness_route_docs_contract``、
+``docx_functional_smoke_readiness_route_docs_contract_test.ps1``、
+``docx_functional_smoke_readiness``、
+``featherdoc.docx_functional_smoke_readiness.v1``、
+``docx_functional_smoke_readiness_trace``、
+``persisted_docx_functional_smoke_evidence_only``、``summary_json_display``、
+``report_markdown_display``、``word_visual_smoke.pending_manual_review``、
+``release_blocker_count``、``ReleaseBlockerRollupFailOnWarning`` 和
+``ReleaseGovernanceHandoffFailOnWarning``。其中 ``source_report_display`` 用于让
+reviewer 先打开治理源报告，``source_json_display`` 用于继续追溯到原始证据 JSON。
 
 如果改动检查脚本本身，额外运行独立回归测试：
 

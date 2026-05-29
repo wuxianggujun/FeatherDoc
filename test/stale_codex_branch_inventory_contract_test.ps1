@@ -17,6 +17,18 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-NotContainsText {
+    param(
+        [string]$Text,
+        [string]$UnexpectedText,
+        [string]$Message
+    )
+
+    if ($Text -match [regex]::Escape($UnexpectedText)) {
+        throw "$Message Unexpected='$UnexpectedText'."
+    }
+}
+
 function Get-RepoFileText {
     param(
         [string]$Root,
@@ -104,8 +116,11 @@ foreach ($marker in @(
         -Message "Documentation maintenance guide should keep the stale branch inventory entry and policy."
 }
 
-Assert-ContainsText -Text $indexDoc -ExpectedText "stale_codex_branch_inventory_zh" `
-    -Message "Documentation index should keep the stale branch inventory page reachable."
+Assert-ContainsText -Text $inventoryDoc -ExpectedText ":orphan:" `
+    -Message "Stale codex branch inventory should be marked as an orphaned reference page."
+
+Assert-NotContainsText -Text $indexDoc -UnexpectedText "stale_codex_branch_inventory_zh" `
+    -Message "Documentation index should no longer expose the stale branch inventory page."
 
 foreach ($marker in @(
     "stale_codex_branch_inventory_contract",

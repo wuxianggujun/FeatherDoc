@@ -49,7 +49,8 @@ build_table_column_widths(const featherdoc::table_inspection_summary &table,
 
 [[nodiscard]] std::optional<double> positioned_table_row_top_points(
     const featherdoc::table_inspection_summary &table, double anchor_top_points,
-    const PdfDocumentAdapterOptions &options) noexcept;
+    const PdfDocumentAdapterOptions &options,
+    double table_height_points) noexcept;
 
 [[nodiscard]] bool is_vertical_merge_continuation(
     const featherdoc::table_cell_inspection_summary &cell) noexcept;

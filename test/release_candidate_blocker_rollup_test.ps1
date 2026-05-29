@@ -588,6 +588,40 @@ if ($Scenario -eq "handoff") {
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Fail-on-blocker handoff step summary should keep action open commands."
 
+    $handoffFailOnWarningOutputDir = Join-Path $resolvedWorkingDir "release-candidate-governance-handoff-fail-on-warning"
+    $handoffFailOnWarningArguments = @($handoffArguments)
+    $handoffWarningSummaryOutputIndex = [Array]::IndexOf($handoffFailOnWarningArguments, "-SummaryOutputDir")
+    $handoffFailOnWarningArguments[$handoffWarningSummaryOutputIndex + 1] = $handoffFailOnWarningOutputDir
+    $handoffFailOnWarningArguments += "-ReleaseGovernanceHandoffFailOnWarning"
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $handoffFailOnWarningResult = @(& (Get-Process -Id $PID).Path @handoffFailOnWarningArguments 2>&1)
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    $handoffFailOnWarningExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+    if ($handoffFailOnWarningExitCode -eq 0) {
+        $handoffFailOnWarningText = (@($handoffFailOnWarningResult | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
+        throw "Release governance handoff fail-on-warning run should fail. Output: $handoffFailOnWarningText"
+    }
+    $handoffFailOnWarningSummaryPath = Join-Path $handoffFailOnWarningOutputDir "report\summary.json"
+    Assert-True -Condition (Test-Path -LiteralPath $handoffFailOnWarningSummaryPath) `
+        -Message "Fail-on-warning handoff run should still write release candidate summary."
+    $handoffFailOnWarningSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffFailOnWarningSummaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$handoffFailOnWarningSummary.release_governance_handoff.status) -Expected "failed" `
+        -Message "Fail-on-warning handoff run should mark handoff as failed in release summary."
+    Assert-Equal -Actual ([int]$handoffFailOnWarningSummary.release_governance_handoff.warning_count) -Expected 2 `
+        -Message "Fail-on-warning handoff summary should preserve warning count."
+    Assert-ContainsText -Text (($handoffFailOnWarningSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
+        -Message "Fail-on-warning handoff summary should keep calibration warnings written before child failure."
+    Assert-ContainsText -Text (($handoffFailOnWarningSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "custom_xml_sync_evidence_missing" `
+        -Message "Fail-on-warning handoff summary should keep content-control governance warnings."
+    Assert-Equal -Actual ([int]$handoffFailOnWarningSummary.steps.release_governance_handoff.warning_count) -Expected 2 `
+        -Message "Fail-on-warning handoff step summary should mirror warning count."
+
     Write-Host "Release candidate governance handoff regression passed."
     exit 0
 }
@@ -710,6 +744,37 @@ Assert-ContainsText -Text (($gateSummary.release_blocker_rollup.release_blockers
 Assert-ContainsText -Text (($gateSummary.steps.release_blocker_rollup.action_items | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "run_table_style_quality_visual_regression" `
     -Message "Fail-on-blocker step summary should keep rollup actions written before the child failure."
+
+$warningGateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-fail-on-warning"
+$warningGateArguments = @($scriptArguments)
+$warningSummaryOutputIndex = [Array]::IndexOf($warningGateArguments, "-SummaryOutputDir")
+$warningGateArguments[$warningSummaryOutputIndex + 1] = $warningGateOutputDir
+$warningGateArguments += "-ReleaseBlockerRollupFailOnWarning"
+${previousErrorActionPreference} = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+    $warningGateResult = @(& (Get-Process -Id $PID).Path @warningGateArguments 2>&1)
+} finally {
+    $ErrorActionPreference = ${previousErrorActionPreference}
+}
+$warningGateExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+if ($warningGateExitCode -eq 0) {
+    $warningGateText = (@($warningGateResult | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
+    throw "Release candidate rollup fail-on-warning run should fail. Output: $warningGateText"
+}
+$warningGateSummaryPath = Join-Path $warningGateOutputDir "report\summary.json"
+Assert-True -Condition (Test-Path -LiteralPath $warningGateSummaryPath) `
+    -Message "Fail-on-warning run should still write release candidate summary."
+$warningGateSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $warningGateSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$warningGateSummary.release_blocker_rollup.status) -Expected "failed" `
+    -Message "Fail-on-warning run should mark rollup as failed in release summary."
+Assert-Equal -Actual ([int]$warningGateSummary.release_blocker_rollup.warning_count) -Expected 1 `
+    -Message "Fail-on-warning summary should preserve rollup warning count."
+Assert-ContainsText -Text (($warningGateSummary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "document_skeleton.exemplar_catalog_missing" `
+    -Message "Fail-on-warning summary should keep rollup warnings written before the child failure."
+Assert-Equal -Actual ([int]$warningGateSummary.steps.release_blocker_rollup.warning_count) -Expected 1 `
+    -Message "Fail-on-warning step summary should mirror rollup warning count."
 
 $autoDiscoverOutputDir = Join-Path $resolvedWorkingDir "release-candidate-auto-discover"
 $autoDiscoverArguments = @(

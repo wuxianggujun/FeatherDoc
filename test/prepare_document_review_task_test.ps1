@@ -84,6 +84,7 @@ $copiedPage01Path = Join-Path $taskDir "evidence\pages\page-01.png"
 $copiedSummaryPath = Join-Path $taskDir "report\summary.json"
 $copiedReviewChecklistPath = Join-Path $taskDir "report\review_checklist.md"
 $seedReviewResultPath = Join-Path $taskDir "report\review_result.json"
+$seedFinalReviewPath = Join-Path $taskDir "report\final_review.md"
 $copiedSourceReviewResultPath = Join-Path $taskDir "report\source_visual_review_result.json"
 $copiedSourceFinalReviewPath = Join-Path $taskDir "report\source_visual_final_review.md"
 
@@ -114,6 +115,17 @@ Assert-True -Condition ([System.IO.Path]::GetFullPath($manifest.document_visual_
 Assert-True -Condition ([System.IO.Path]::GetFullPath($manifest.document_visual_artifacts.copied_summary_path) -eq [System.IO.Path]::GetFullPath($copiedSummaryPath)) `
     -Message "Prepared task manifest recorded an unexpected copied summary path."
 
-Assert-Contains -Path $promptPath -ExpectedText "优先复用这些现成证据" -Label "task_prompt.md"
+$taskEvidenceDir = Join-Path $taskDir "evidence"
+$pagesPromptGlob = Join-Path $taskEvidenceDir "pages\*.png"
+foreach ($expectedPromptText in @(
+        $copiedSummaryPath,
+        $copiedReviewChecklistPath,
+        $copiedContactSheetPath,
+        $pagesPromptGlob,
+        $seedReviewResultPath,
+        $seedFinalReviewPath
+    )) {
+    Assert-Contains -Path $promptPath -ExpectedText $expectedPromptText -Label "task_prompt.md"
+}
 
 Write-Host "Prepare document review task regression passed."

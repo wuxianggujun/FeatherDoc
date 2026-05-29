@@ -264,6 +264,26 @@ function Get-JsonPropertyValue {
     return $property.Value
 }
 
+function New-RecoveryStep {
+    param(
+        [string]$Id,
+        [string]$Priority,
+        [string]$Summary,
+        [string]$Command = ""
+    )
+
+    $step = [ordered]@{
+        id = $Id
+        priority = $Priority
+        summary = $Summary
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Command)) {
+        $step.command = $Command
+    }
+
+    return $step
+}
+
 function Test-SyntheticEvidencePath {
     param([string]$Value)
 
@@ -989,7 +1009,47 @@ $blockingSummary = [ordered]@{
     evidence_kind = $evidenceKind
     synthetic_evidence_marker_count = [int]$evidenceKindDetails.synthetic_marker_count
 }
+$recommendedRecoverySteps = New-Object System.Collections.ArrayList
+if ($memoryGuardBlocked) {
+    $recommendedRecoverySteps.Add((New-RecoveryStep `
+        -Id "stay_read_only_until_memory_recovers" `
+        -Priority "now" `
+        -Summary "Keep this workstation in read-only mode and wait for at least $MinFreeMemoryMB MB free memory before starting any guarded PDF visual gate or CTest run.")) | Out-Null
+}
+if ([string]$pdfDependencyInputs.status -ne "ready") {
+    $recommendedRecoverySteps.Add((New-RecoveryStep `
+        -Id "prepare_pdf_dependencies" `
+        -Priority "next" `
+        -Summary "Provide reusable PDFio/PDFium inputs first so later PDF preflight and visual-gate runs can stay on a real-build evidence path." `
+        -Command "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pdf_dependency_inputs.ps1 -BuildDir $BuildDir")) | Out-Null
+}
+if (-not $pdfBuildOptionsReady) {
+    $recommendedRecoverySteps.Add((New-RecoveryStep `
+        -Id "restore_pdf_build_options" `
+        -Priority "next" `
+        -Summary "Reuse or prepare a build directory whose CMake cache enables FEATHERDOC_BUILD_PDF=ON and FEATHERDOC_BUILD_PDF_IMPORT=ON before expecting PDF gate outputs.")) | Out-Null
+}
+if ($renderPythonStatus -ne "pass") {
+    $recommendedRecoverySteps.Add((New-RecoveryStep `
+        -Id "prepare_render_python" `
+        -Priority "later" `
+        -Summary "Point FEATHERDOC_RENDER_PYTHON_EXECUTABLE at a reusable Python that already imports both PIL and fitz, or restore .venv-pdf-visual-smoke before rendering contact sheets.")) | Out-Null
+}
+if ($missingOutputCount -gt 0) {
+    $recommendedRecoverySteps.Add((New-RecoveryStep `
+        -Id "regenerate_missing_pdf_outputs" `
+        -Priority "later" `
+        -Summary "After dependencies, build options, and render Python are ready, rerun the guarded visual gate to regenerate missing baseline and text-layer PDF outputs." `
+        -Command "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir $BuildDir -OutputDir .\output\pdf-visual-release-gate-current")) | Out-Null
+}
+if ($recommendedRecoverySteps.Count -eq 0) {
+    $recommendedRecoverySteps.Add((New-RecoveryStep `
+        -Id "preflight_ready" `
+        -Priority "done" `
+        -Summary "No blocking preflight recovery steps remain; the current build inputs look ready for guarded PDF visual validation.")) | Out-Null
+}
 $summary = [ordered]@{
+    schema = "featherdoc.pdf_visual_release_gate_preflight.v1"
     generated_at = (Get-Date).ToString("s")
     status = $status
     strict = [bool]$Strict
@@ -1004,6 +1064,8 @@ $summary = [ordered]@{
     evidence_kind = $evidenceKind
     evidence_kind_details = $evidenceKindDetails
     pdf_dependency_inputs = $pdfDependencyInputs
+    recommended_recovery_steps = @($recommendedRecoverySteps)
+    minimum_risk_next_action = [string]$recommendedRecoverySteps[0].summary
     checks = @($checks)
     blocking_checks = @($blockingChecks | ForEach-Object { $_.name })
 }

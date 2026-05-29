@@ -134,10 +134,11 @@ function Assert-MarkdownSectionContainsAll {
             }
         }
 
-        $section = ($lines[$lineIndex..$sectionEnd]) -join "`n"
+        $section = (($lines[$lineIndex..$sectionEnd]) -join "`n") -replace '/', '\'
         $sectionMatches = $true
         foreach ($fragment in $Fragments) {
-            if ($section -notmatch [regex]::Escape($fragment)) {
+            $normalizedFragment = $fragment -replace '/', '\'
+            if ($section -notmatch [regex]::Escape($normalizedFragment)) {
                 $sectionMatches = $false
                 break
             }
@@ -245,9 +246,19 @@ Assert-ContainsText -Text $scriptText -ExpectedText '$visualGateArgs += "-Includ
 foreach ($name in @(
         "ReleaseBlockerRollupInputJson",
         "ReleaseBlockerRollupInputRoot",
+        "ReleaseBlockerRollupAutoDiscover",
+        "ReleaseBlockerRollupAutoDiscoverRoot",
         "ReleaseBlockerRollupOutputDir",
         "ReleaseBlockerRollupFailOnBlocker",
         "ReleaseBlockerRollupFailOnWarning",
+        "ReleaseGovernanceHandoff",
+        "ReleaseGovernanceHandoffInputRoot",
+        "ReleaseGovernanceHandoffInputJson",
+        "ReleaseGovernanceHandoffOutputDir",
+        "ReleaseGovernanceHandoffIncludeRollup",
+        "ReleaseGovernanceHandoffFailOnMissing",
+        "ReleaseGovernanceHandoffFailOnBlocker",
+        "ReleaseGovernanceHandoffFailOnWarning",
         "ReleaseGovernanceHandoffExpectedReportProfile",
         "ReleaseEvidenceScope"
     )) {
@@ -261,6 +272,8 @@ foreach ($marker in @(
     '$releaseManifestSignoffEntrypoints = if ($ReleaseEvidenceScope -eq "pdf-only")',
     'release_evidence_scope = $ReleaseEvidenceScope',
     'manifest_signoff_entrypoints = $releaseManifestSignoffEntrypoints',
+    '-IncludeRollup ([bool]$ReleaseGovernanceHandoffIncludeRollup)',
+    '-FailOnWarning ([bool]$ReleaseGovernanceHandoffFailOnWarning)',
     '-ExpectedReportProfile $ReleaseGovernanceHandoffExpectedReportProfile'
 )) {
     Assert-ContainsText -Text $scriptText -ExpectedText $marker `
@@ -411,8 +424,14 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'Get-ReleaseGovernanceProjec
 Assert-ContainsText -Text $scriptText -ExpectedText 'Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary' `
     -Message "Release preflight final_review.md should derive packaged project-template checklist audit evidence from release governance handoff."
 
+Assert-ContainsText -Text $scriptText -ExpectedText 'Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary $summary' `
+    -Message "Release preflight final_review.md should derive compact Word visual metadata evidence from release governance handoff."
+
 Assert-ContainsText -Text $scriptText -ExpectedText '## Project-template release entry evidence' `
     -Message "Release preflight final_review.md should expose project-template release entry evidence as a reviewer-facing section."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '## Word visual standard review metadata evidence' `
+    -Message "Release preflight final_review.md should expose compact Word visual metadata evidence as a reviewer-facing section."
 
 Assert-ContainsText -Text $scriptText -ExpectedText 'Project template smoke schema approval gate blocked.' `
     -Message "Release preflight should fail when schema approval gate is blocked."
@@ -957,7 +976,7 @@ if ($expandedRollupPaths.Count -ne 3 -or
     throw "Release blocker rollup path expansion should support comma-delimited and repeated arguments."
 }
 
-$candidateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-pdf-visual-gate-consumption"
+$candidateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-checks"
 $candidateBuildDir = Join-Path $resolvedWorkingDir "build"
 $candidateInstallDir = Join-Path $resolvedWorkingDir "install"
 $candidateConsumerBuildDir = Join-Path $resolvedWorkingDir "consumer-build"
@@ -965,7 +984,7 @@ $candidateGateOutputDir = Join-Path $resolvedWorkingDir "word-visual-gate"
 $candidateTaskOutputRoot = Join-Path $resolvedWorkingDir "visual-tasks"
 $releaseGovernanceHandoffInputRoot = Join-Path $resolvedWorkingDir "release-governance-handoff-input"
 $releaseGovernanceHandoffOutputDir = Join-Path $resolvedWorkingDir "release-governance-handoff"
-$releaseGovernanceSourceDir = Join-Path $resolvedWorkingDir "release-candidate-governance-source"
+$releaseGovernanceSourceDir = Join-Path $resolvedWorkingDir "release-candidate-checks-source"
 $releaseGovernanceSourcePath = Join-Path $releaseGovernanceSourceDir "summary.json"
 New-Item -ItemType Directory -Path $releaseGovernanceHandoffInputRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $releaseGovernanceSourceDir -Force | Out-Null
@@ -984,8 +1003,26 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "numbering-ca
         real_corpus_confidence_level = "high"
         real_corpus_confidence = [ordered]@{
             document_count = 2
+            catalog_exemplar_count = 2
+            baseline_entry_count = 2
             matched_document_count = 2
+            unmatched_catalog_document_count = 0
+            unmatched_baseline_document_count = 0
+            alignment_gap_count = 0
+            catalog_coverage_percent = 100
+            baseline_coverage_percent = 100
             coverage_score = 100
+            catalog_document_keys = @("catalog.invoice", "catalog.statement")
+            baseline_document_keys = @("catalog.invoice", "catalog.statement")
+            matched_document_keys = @("catalog.invoice", "catalog.statement")
+            penalty_summary = @(
+                [ordered]@{
+                    factor = "style_numbering_issues"
+                    count = 0
+                    penalty = 0
+                }
+            )
+            style_numbering_issues = @()
         }
     })
 Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "table-layout-delivery-governance\summary.json") -Value ([ordered]@{
@@ -999,6 +1036,30 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "table-layout
         warning_count = 0
         warnings = @()
         source_failure_count = 0
+        delivery_quality_score = 100
+        delivery_quality_level = "high"
+        delivery_quality = [ordered]@{
+            document_count = 3
+            ready_document_count = 3
+            ready_document_percent = 100
+            needs_review_document_count = 0
+            failed_document_count = 0
+            table_style_issue_count = 0
+            automatic_tblLook_fix_count = 0
+            manual_table_style_fix_count = 0
+            table_position_automatic_count = 0
+            table_position_review_count = 0
+            command_failure_count = 0
+            unresolved_item_count = 0
+            penalty_summary = @(
+                [ordered]@{
+                    factor = "floating_table_plans_pending"
+                    count = 0
+                    penalty = 0
+                }
+            )
+            floating_table_plans_pending = 0
+        }
     })
 Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "content-control-data-binding-governance\summary.json") -Value ([ordered]@{
         schema = "featherdoc.content_control_data_binding_governance_report.v1"
@@ -1130,6 +1191,62 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "docx-functio
             checklist_marker = "release_entry_project_template_readiness_checklist_trace"
             material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
         }
+        word_visual_standard_review_metadata_count = 4
+        word_visual_standard_review_task_keys = @(
+            "smoke",
+            "fixed_grid",
+            "section_page_setup",
+            "page_number_fields"
+        )
+        word_visual_standard_review_status_summary = "reviewed=4"
+        word_visual_standard_review_verdict_summary = "pass=4"
+        word_visual_standard_review_metadata = @(
+            [ordered]@{
+                task_key = "smoke"
+                review_task_key = "document"
+                label = "Word visual smoke"
+                verdict = "pass"
+                review_status = "reviewed"
+                reviewed_at = "2026-04-12T12:10:00"
+                review_method = "operator_supplied"
+                review_result_path = ".\output\word-visual-release-gate\review-tasks\document\report\review_result.json"
+                final_review_path = ".\output\word-visual-release-gate\review-tasks\document\report\final_review.md"
+                review_note = "Private operator note"
+            },
+            [ordered]@{
+                task_key = "fixed_grid"
+                review_task_key = "fixed_grid"
+                label = "Fixed-grid merge/unmerge"
+                verdict = "pass"
+                review_status = "reviewed"
+                reviewed_at = "2026-04-12T12:20:00"
+                review_method = "operator_supplied"
+                review_result_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\review_result.json"
+                final_review_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\final_review.md"
+            },
+            [ordered]@{
+                task_key = "section_page_setup"
+                review_task_key = "section_page_setup"
+                label = "Section page setup"
+                verdict = "pass"
+                review_status = "reviewed"
+                reviewed_at = "2026-04-12T12:30:00"
+                review_method = "operator_supplied"
+                review_result_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\review_result.json"
+                final_review_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\final_review.md"
+            },
+            [ordered]@{
+                task_key = "page_number_fields"
+                review_task_key = "page_number_fields"
+                label = "Page number fields"
+                verdict = "pass"
+                review_status = "reviewed"
+                reviewed_at = "2026-04-12T12:40:00"
+                review_method = "operator_supplied"
+                review_result_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\review_result.json"
+                final_review_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md"
+            }
+        )
         release_blocker_count = 0
         release_blockers = @()
         action_item_count = 0
@@ -1359,14 +1476,48 @@ if ([int]$candidateSummary.release_governance_handoff.project_template_readiness
     [int]$candidateSummary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count -ne 2) {
     throw "Release candidate summary did not consume project-template release entry evidence from release governance handoff."
 }
-if ([int]$candidateSummary.governance_metric_count -ne 1 -or @($candidateSummary.governance_metrics).Count -ne 1) {
-    throw "Release candidate summary did not expose a single release governance metric as top-level material safety evidence."
+if ([int]$candidateSummary.release_governance_handoff.word_visual_standard_review_metadata_source_report_count -ne 1 -or
+    @($candidateSummary.release_governance_handoff.word_visual_standard_review_metadata_source_reports).Count -ne 1 -or
+    [int]$candidateSummary.steps.release_governance_handoff.word_visual_standard_review_metadata_source_report_count -ne 1 -or
+    @($candidateSummary.steps.release_governance_handoff.word_visual_standard_review_metadata_source_reports).Count -ne 1) {
+    throw "Release candidate summary did not consume Word visual standard review metadata evidence from release governance handoff."
 }
-$singleMetric = @($candidateSummary.governance_metrics) |
+$wordVisualMetadataReport = @($candidateSummary.release_governance_handoff.word_visual_standard_review_metadata_source_reports) |
+    Where-Object { [string]$_.schema -eq "featherdoc.release_candidate_summary" } |
+    Select-Object -First 1
+if ($null -eq $wordVisualMetadataReport -or
+    [int]$wordVisualMetadataReport.word_visual_standard_review_metadata_count -ne 4 -or
+    [string]$wordVisualMetadataReport.word_visual_standard_review_status_summary -ne "reviewed=4" -or
+    [string]$wordVisualMetadataReport.word_visual_standard_review_verdict_summary -ne "pass=4" -or
+    @($wordVisualMetadataReport.word_visual_standard_review_task_keys).Count -ne 4 -or
+    @($wordVisualMetadataReport.word_visual_standard_review_metadata).Count -ne 4) {
+    throw "Release candidate summary lost Word visual standard review metadata details."
+}
+foreach ($entry in @($wordVisualMetadataReport.word_visual_standard_review_metadata)) {
+    if ($entry.PSObject.Properties.Name -contains "review_note") {
+        throw "Release candidate summary exposed Word visual standard review notes in handoff metadata."
+    }
+}
+if ([int]$candidateSummary.governance_metric_count -ne 2 -or @($candidateSummary.governance_metrics).Count -ne 2) {
+    throw "Release candidate summary did not expose both release governance metrics as top-level material safety evidence."
+}
+$numberingMetric = @($candidateSummary.governance_metrics) |
     Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_confidence" } |
     Select-Object -First 1
-if ($null -eq $singleMetric -or [string]::IsNullOrWhiteSpace([string]$singleMetric.level) -or $null -eq $singleMetric.score) {
-    throw "Release candidate summary lost the single governance metric."
+if ($null -eq $numberingMetric -or [string]::IsNullOrWhiteSpace([string]$numberingMetric.level) -or $null -eq $numberingMetric.score -or
+    [int]$numberingMetric.details.catalog_coverage_percent -ne 100 -or
+    @($numberingMetric.details.catalog_document_keys).Count -ne 2 -or
+    @($numberingMetric.details.style_numbering_issues).Count -ne 0) {
+    throw "Release candidate summary lost the numbering governance metric details."
+}
+$tableMetric = @($candidateSummary.governance_metrics) |
+    Where-Object { [string]$_.id -eq "table_layout_delivery_governance.delivery_quality" } |
+    Select-Object -First 1
+if ($null -eq $tableMetric -or [string]::IsNullOrWhiteSpace([string]$tableMetric.level) -or $null -eq $tableMetric.score -or
+    [int]$tableMetric.details.ready_document_percent -ne 100 -or
+    [int]$tableMetric.details.unresolved_item_count -ne 0 -or
+    [int]$tableMetric.details.floating_table_plans_pending -ne 0) {
+    throw "Release candidate summary lost the table-layout delivery governance metric details."
 }
 if ([int]$candidateSummary.release_governance_handoff.report_count -ne 6 -or
     @($candidateSummary.release_governance_handoff.reports).Count -ne 6) {
@@ -1542,6 +1693,8 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Proje
     "entrypoint_paths=",
     "release_entry_project_template_readiness_checklist_trace",
     "source_schema=featherdoc.release_candidate_summary",
+    "source_report=",
+    "summary.json",
     "Project-template readiness checklist packaged audit evidence",
     "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=2",
     "assert_release_material_safety.ps1",
@@ -1550,6 +1703,25 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Proje
     "compact_evidence_source_schema=featherdoc.release_candidate_summary",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
 ) -Message "final_review.md should expose project-template checklist handoff and packaged audit evidence consumed from release governance handoff."
+Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Word visual standard review metadata evidence" -Fragments @(
+    "Word visual standard review metadata evidence",
+    "word_visual_standard_review_metadata_source_reports=1",
+    "metadata_count=4",
+    "task_keys=smoke, fixed_grid, section_page_setup, page_number_fields",
+    "status_summary=reviewed=4",
+    "verdict_summary=pass=4",
+    "smoke:review_task_key=document",
+    "fixed_grid:review_task_key=fixed_grid",
+    "section_page_setup:review_task_key=section_page_setup",
+    "page_number_fields:review_task_key=page_number_fields",
+    "review_result_path=",
+    "final_review_path=",
+    "source_schema=featherdoc.release_candidate_summary",
+    "source_report=",
+    "release-candidate-checks-source\summary.json"
+) -Message "final_review.md should expose compact Word visual standard review metadata evidence consumed from release governance handoff."
+Assert-DoesNotContainText -Text $candidateFinalReview -UnexpectedText "review_note" `
+    -Message "final_review.md compact Word visual metadata evidence should not expose private operator review notes."
 Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "project_template_delivery_readiness / project_template_onboarding.schema_approval" -Fragments @(
     "project_template_delivery_readiness / project_template_onboarding.schema_approval",
     "project_template_onboarding_governance_contract",

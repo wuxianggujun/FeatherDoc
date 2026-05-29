@@ -51,9 +51,23 @@ headers, and do not treat PDF support as part of the stable API.
 The current experimental PDF scope is narrower than a production export path
 but broader than a plain text proof of concept: it already covers basic
 paragraphs, tables, baseline styling, CJK fallback, font metrics, Unicode /
-ToUnicode roundtrip checks, and a small regression sample set. It is still
+ToUnicode roundtrip checks, floating table placement for the stable
+page/margin/column spec subset, and a small regression sample set. It is still
 explicitly experimental, and richer pagination and image handling remain in
 progress.
+
+When PDF export is enabled, `featherdoc_cli` exposes a scriptable export entry
+point:
+
+```bash
+featherdoc_cli export-pdf input.docx --output output.pdf \
+  --render-headers-and-footers \
+  --expand-header-footer-page-placeholders \
+  --summary-json output.summary.json --json
+```
+
+See `docs/pdf_export.rst` for the supported scope, options, and JSON summary
+shape.
 
 The experimental PDF import path is also opt-in. It builds against a PDFium
 source checkout by default and does not download PDFium automatically:
@@ -540,9 +554,17 @@ mapping.
 For a one-shot local gate that also refreshes the repository gallery, use:
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_word_visual_release_gate_preflight.ps1
+
 powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
     -RefreshReadmeAssets
 ```
+
+The preflight writes `featherdoc.word_visual_release_gate_preflight.v1` using
+the `word_visual_release_gate_preflight_static_contract_only` evidence scope.
+It only checks the static gate contract, helper scripts, CMake test
+registration, and docs; it does not run Word, CMake, CTest, browsers,
+LibreOffice, or visual rendering.
 
 If the standard smoke contact sheet is reviewed during the same gate run, add
 `-SmokeReviewVerdict pass` (or `fail` / `undetermined`) and `-SmokeReviewNote`
@@ -582,7 +604,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync_visual_review_verdict.ps
 
 ## CLI
 
-`featherdoc_cli` is a small command-line wrapper around the current
+`featherdoc_cli` is a scriptable automation CLI around the current
 inspection and editing APIs for sections, styles, numbering, page setup,
 bookmarks, content controls, images, and template parts.
 
@@ -768,9 +790,14 @@ For schema patch threshold tuning, run
 `scripts/write_schema_patch_confidence_calibration_report.ps1`. It reads
 existing smoke summaries or approval-history reports, groups schema patch
 review size, approval outcomes, and optional `confidence` metadata into
-calibration buckets, and emits
+confidence buckets / calibration buckets, and emits
 `featherdoc.schema_patch_confidence_calibration_report.v1` with conservative
-recommendations such as `recommended_min_confidence`. The script is a read-only
+recommendations such as `recommended_min_confidence`. The summary is written to
+`output/schema-patch-confidence-calibration/summary.json`, with
+`schema_patch_confidence_calibration.md` beside it for reviewer triage. Its
+`release_blockers`, `warnings`, and `action_items` preserve
+`source_report_display`, `source_json_display`, and action `open_command`
+fields before release blocker rollup consumes them. The script is a read-only
 rollup; `-FailOnPending` blocks threshold tightening while approval items are
 still unresolved.
 
@@ -826,6 +853,12 @@ visual automation. If those four final governance summaries are already
 available under the input root, pass `-UseExistingGovernanceReports` to reuse
 them directly and only rebuild the handoff, final blocker rollup, and pipeline
 summary.
+The same read-only pipeline also runs
+`scripts/check_docx_functional_smoke_readiness.ps1` as
+`docx_functional_smoke_readiness`, producing
+`docx-functional-smoke-readiness/summary.json` with
+`featherdoc.docx_functional_smoke_readiness.v1` and
+`docx_functional_smoke_readiness.md` evidence before the handoff consumes it.
 The Linux/macOS CI `release_smoke` steps upload the release candidate blocker
 rollup, release governance handoff, and release governance pipeline smoke
 outputs as GitHub Actions artifacts so reviewer evidence can be downloaded from
@@ -1455,7 +1488,12 @@ around an existing body table, or `insert_table_like_before` and
 cell text. Use `insert_paragraph_after_table` when an edit plan needs to add a
 regular body paragraph immediately after a selected table. Use
 `set_table_position` and `clear_table_position` when an edit plan needs to add
-or remove floating `w:tblpPr` table placement. Use
+or remove floating `w:tblpPr` table placement. `set_table_position` accepts
+`horizontal_spec` / `horizontal_position_spec` and `vertical_spec` /
+`vertical_position_spec` as edit-plan aliases for the CLI
+`--horizontal-spec` / `--vertical-spec` options. Horizontal spec values are
+`left`, `center`, `right`, `inside`, and `outside`; vertical spec values are
+`top`, `center`, `bottom`, `inside`, and `outside`. Use
 `apply_table_position_plan` when an edit plan needs to replay a saved
 `plan-table-position-presets` JSON plan; it accepts `plan_file` /
 `table_position_plan_file`, or an inline `table_position_plan` / `plan` object.
@@ -3196,12 +3234,29 @@ metadata from the command line. Use `featherdoc_cli set-table-position` and
 `clear-table-position` to add or remove a body table `w:tblpPr` floating
 position with margin/page/column horizontal references, margin/page/paragraph
 vertical references, signed twips offsets, optional text wrapping distances,
-and overlap policy. `set-table-position --preset paragraph-callout|page-corner|margin-anchor`
+Word native `tblpXSpec` / `tblpYSpec` relative-position specs, and overlap
+policy. `--horizontal-spec` accepts `left`, `center`, `right`, `inside`, and
+`outside`; `--vertical-spec` accepts `top`, `center`, `bottom`, `inside`, and
+`outside`. `set-table-position --preset paragraph-callout|page-corner|margin-anchor`
 provides migration-friendly defaults that can still be overridden by the
-fine-grained offset, wrapping, and overlap options. Use `<table-index|all>`
+fine-grained offset, spec, wrapping, and overlap options. Use `<table-index|all>`
 with repeated `--table <index>` entries when the same preset should be applied
 to several body tables in one mutation; `clear-table-position` accepts the same
 target syntax and returns `table_indices` / `positions` for every table-position mutation JSON.
+PDF export also consumes the stable subset of this placement metadata: horizontal
+`tblpXSpec` values place body tables within the selected page/margin/column
+reference frame, and vertical `tblpYSpec` values place tables for page and
+margin reference frames with `top`, `center`, and `bottom` semantics. Explicit
+signed twips offsets remain fine-tuning amounts after each spec is resolved.
+Vertical paragraph specs and vertical `inside` / `outside` specs are preserved
+in DOCX metadata, but the experimental PDF adapter keeps offset-based top
+anchoring for those cases because it does not yet model the full Word paragraph
+and page-side context. `topFromText` is honored for paragraph-anchored tables
+as additional vertical spacing above the table, and `bottomFromText` is honored
+as additional vertical spacing before following body text. The remaining
+per-edge text distances and `tblOverlap` are still DOCX metadata for the PDF
+path and intentionally remain layout-neutral until the exporter has a complete
+Word-compatible table text-wrapping contract.
 Use `plan-table-position-presets --preset <name>` first when you want a read-only
 migration plan that identifies unpositioned tables, already matching tables, and
 existing positions that should be reviewed before replacement. The plan also
@@ -3400,7 +3455,10 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   given first-pass custom table style definitions through `ensure_table_style(...)`
   for whole-table and conditional-region borders, fills, text colors, bold/italic flags, font sizes, font families, cell vertical alignment, text direction, paragraph alignment, paragraph spacing, line spacing, cell margins, and first/second band regions, and
   inspected back through `find_table_style_definition(...)` /
-  `featherdoc_cli inspect-table-style --json`; `audit-table-style-regions` can flag empty declared table-style regions, `audit-table-style-inheritance` can gate missing, cross-type, or cyclic table-style `basedOn` chains, `audit-table-style-quality` can aggregate those definition gates with table instance `tblLook` checks for CI, `plan-table-style-quality-fixes` can split quality findings into automatic `tblLook` repairs and manual style-definition work, `apply-table-style-quality-fixes --look-only` can write only the safe `tblLook` repairs, `scripts/run_table_style_quality_visual_regression.ps1` can archive before/after Word renders, contact sheets, and pixel summaries for visual validation, `check-table-style-look` can gate table instance `tblLook` flags against conditional regions, and `repair-table-style-look` can apply the safe flag fixes. Floating table positioning is now available through `Table::set_position(...)` / `position()` / `clear_position()` over `w:tblpPr`, including horizontal/vertical references, signed twips offsets, optional text wrapping distances, overlap policy, presets, batch targeting, plan/apply replay, and Word-rendered visual validation. `scripts/build_table_layout_delivery_report.ps1` can combine table style quality, safe `tblLook` repair planning, floating table preset planning, and visual-regression handoff for one document, while `scripts/build_table_layout_delivery_rollup_report.ps1` aggregates multiple layout summaries before the release blocker rollup consumes them.
+  `featherdoc_cli inspect-table-style --json`; `audit-table-style-regions` can flag empty declared table-style regions, `audit-table-style-inheritance` can gate missing, cross-type, or cyclic table-style `basedOn` chains, `audit-table-style-quality` can aggregate those definition gates with table instance `tblLook` checks for CI, `plan-table-style-quality-fixes` can split quality findings into automatic `tblLook` repairs and manual style-definition work, `apply-table-style-quality-fixes --look-only` can write only the safe `tblLook` repairs, `scripts/run_table_style_quality_visual_regression.ps1` can archive before/after Word renders, contact sheets, and pixel summaries for visual validation, `check-table-style-look` can gate table instance `tblLook` flags against conditional regions, and `repair-table-style-look` can apply the safe flag fixes. Floating table positioning is now available through `Table::set_position(...)` / `position()` / `clear_position()` over `w:tblpPr`, including horizontal/vertical references, signed twips offsets, Word native horizontal/vertical specs, optional text wrapping distances, overlap policy, presets, batch targeting, plan/apply replay, and Word-rendered visual validation. `scripts/build_table_layout_delivery_report.ps1` can combine table style quality, safe `tblLook` repair planning, floating table preset planning, and visual-regression handoff for one document, while `scripts/build_table_layout_delivery_rollup_report.ps1` aggregates multiple layout summaries before the release blocker rollup consumes them.
+  The table layout delivery report, rollup, and governance summaries also
+  expose `pdf_floating_table_support` evidence to keep the stable PDF geometry
+  subset separate from metadata-only wrapping scope.
 - Paragraphs can now be attached to managed bullet and decimal lists and can
   restart managed list sequences. Custom numbering definitions and
   paragraph-style numbering are now supported through

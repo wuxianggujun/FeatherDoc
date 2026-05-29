@@ -21,17 +21,13 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    project_template_release_readiness_checklist_zh
    table_style_definition_zh
    document_governance_acceptance_zh
-   document_api_mainline_status_zh
    docx_functional_smoke_readiness_zh
    documentation_maintenance_zh
-   branch_recovery_and_governance_sync_zh
-   stale_codex_branch_inventory_zh
    project_score_assessment_zh
    release_policy_zh
    release_metadata_pipeline_zh
-   pdf_visual_validation_status_zh
    pdf_release_readiness_checklist_zh
-   v1_7_roadmap_zh
+   pdf_export
    pdf_import
    pdf_import_json_diagnostics
    pdf_import_scope
@@ -173,10 +169,11 @@ LibreOffice PDF Study Notes
 The LibreOffice PDF research log now lives under
 :doc:`libreoffice_pdf/index_zh`.
 
-PDF Import
-----------
-For the experimental import path, see :doc:`pdf_import`,
-:doc:`pdf_import_json_diagnostics`, and :doc:`pdf_import_scope`.
+PDF Export And Import
+---------------------
+For the experimental export path, see :doc:`pdf_export`. For the experimental
+import path, see :doc:`pdf_import`, :doc:`pdf_import_json_diagnostics`, and
+:doc:`pdf_import_scope`.
 
 
 How to install
@@ -231,6 +228,11 @@ It also writes ``output/release-candidate-checks/START_HERE.md`` plus
 ``report/ARTIFACT_GUIDE.md``, ``REVIEWER_CHECKLIST.md``,
 ``release_handoff.md``, ``release_body.zh-CN.md``, and
 ``release_summary.zh-CN.md``. Use ``START_HERE.md`` as the local entry point.
+``release_governance_handoff.md`` preserves the detailed
+``word_visual_standard_review_metadata_source_reports``, while
+``START_HERE.md``, ``ARTIFACT_GUIDE.md``, ``REVIEWER_CHECKLIST.md``,
+``final_review.md``, and ``release_handoff.md`` expose the compact
+``Word visual standard review metadata evidence`` line for release reviewers.
 When top-level ``release_blockers`` are present, those handoff artifacts render
 the blocker count, stable ids, issue keys, blocked items, and repair actions; the
 reviewer checklist stops public release until the blocker list is empty. The
@@ -464,9 +466,25 @@ project-template smoke summaries into the stable
 handoff, with ``-FailOnBlocker`` for release gates. For threshold tuning,
 ``scripts/write_schema_patch_confidence_calibration_report.ps1`` reads existing
 smoke or approval-history evidence and writes
-``featherdoc.schema_patch_confidence_calibration_report.v1`` with confidence
-buckets, approval outcomes, and conservative recommendations such as
-``recommended_min_confidence``. For skeleton governance,
+``featherdoc.schema_patch_confidence_calibration_report.v1`` with confidence buckets,
+approval outcomes, and conservative recommendations such as
+``recommended_min_confidence``. It writes
+``output/schema-patch-confidence-calibration/summary.json`` and
+``schema_patch_confidence_calibration.md``; release-facing
+``release_blockers``, ``warnings`` and ``action_items`` preserve
+``source_report_display``, ``source_json_display`` and reviewer
+``open_command`` fields before the release blocker rollup consumes them. For
+DOCX functional smoke readiness,
+``scripts/check_docx_functional_smoke_readiness.ps1`` runs as the
+``docx_functional_smoke_readiness`` release-governance stage. It writes
+``docx-functional-smoke-readiness/summary.json`` and
+``docx_functional_smoke_readiness.md`` using
+``featherdoc.docx_functional_smoke_readiness.v1`` while keeping the
+``persisted_docx_functional_smoke_evidence_only`` boundary explicit. The stage
+preserves ``summary_json_display`` and ``report_markdown_display`` for handoff
+traceability, and keeps ``word_visual_smoke.pending_manual_review`` as a warning
+when reused visual evidence is non-empty but screenshot review is not closed. For
+skeleton governance,
 ``scripts/build_document_skeleton_governance_rollup_report.ps1`` rolls multiple
 single-document summaries into
 ``featherdoc.document_skeleton_governance_rollup_report.v1`` with exemplar
@@ -1611,6 +1629,39 @@ catalogs through stable JSON files:
     featherdoc_cli diff-numbering-catalog numbering-catalog.json numbering-catalog.patched.json --fail-on-diff --json
     featherdoc_cli import-numbering-catalog target.docx --catalog-file numbering-catalog.patched.json --output target-numbering.docx --json
 
+``scripts/build_document_skeleton_governance_report.ps1`` writes the
+single-document ``featherdoc.document_skeleton_governance_report.v1`` summary
+as ``document_skeleton_governance.summary.json`` under
+``output/document-skeleton-governance``. It preserves
+``exemplar.numbering-catalog.json``, ``style-merge-suggestions.json``,
+``style_numbering_issue_count`` and ``style_merge_suggestion_count`` alongside
+reviewer actions such as ``review_style_numbering_audit``,
+``preview_style_numbering_repair``, ``promote_numbering_catalog_exemplar`` and
+``register_numbering_catalog_baseline``. Roll those summaries up with
+``scripts/build_document_skeleton_governance_rollup_report.ps1`` to produce
+``output/document-skeleton-governance-rollup/summary.json`` using
+``featherdoc.document_skeleton_governance_rollup_report.v1``. The rollup keeps
+``source_schema``, ``source_report_display``, ``source_json_display``,
+``origin_source_report_display`` and action ``open_command`` fields so release
+blocker rollup, release governance handoff and reviewer checklists can trace
+document skeleton evidence back to the single-document source summary or a
+narrower source JSON.
+
+For release governance, pair
+``featherdoc.document_skeleton_governance_rollup_report.v1`` evidence with
+numbering catalog manifest checks and run
+``scripts/build_numbering_catalog_governance_report.ps1``. The report writes
+``output/numbering-catalog-governance/summary.json`` with
+``featherdoc.numbering_catalog_governance_report.v1`` as its schema, promotes
+``numbering_catalog_governance.real_corpus_confidence`` /
+``real_corpus_confidence`` as the reviewer-facing coverage metric, and emits
+``numbering_catalog_governance.real_corpus_alignment_gap`` when exemplar
+catalog document keys and baseline document keys no longer align. Blockers,
+warnings, action items, and governance metrics keep ``source_schema``,
+``source_report_display``, ``source_json_display``, and ``open_command`` so
+the release governance pipeline, final rollup, and reviewer bundle can trace
+numbering evidence without reopening the original DOCX.
+
 Edit plans can call the same import path with
 ``import_numbering_catalog`` and a ``catalog_file`` /
 ``numbering_catalog_file`` value.
@@ -1958,7 +2009,8 @@ patch onto the draft so missing mappings, invalid ``source`` paths, duplicate
 targets, or leftover placeholders can fail before the final ``.docx`` step.
 Pass ``-ExportTargetMode resolved-section-targets`` when the mapping targets
 effective section header/footer references; workspace validation infers that
-same mode from workspace metadata and records it in JSON / Markdown summaries.
+same mode from workspace metadata and records it as ``export_target_mode`` in
+JSON / Markdown summaries.
 Prepared workspace summaries also carry that mode into their recommended
 validation and render commands.
 
@@ -2607,14 +2659,29 @@ Current Limitations
   direction, marked to repeat header rows, retuned through ``tblLook``
   style-routing flags, given typed custom table style definitions, audited for
   table-style quality, and positioned as first-version floating tables through
-  ``Table::set_position(...)``. ``scripts/build_table_layout_delivery_report.ps1``
+  ``Table::set_position(...)``. The experimental PDF exporter also consumes the
+  stable page/margin/column placement subset, including horizontal specs and
+  page/margin ``top`` / ``center`` / ``bottom`` vertical specs, while preserving
+  the remaining Word-native placement metadata in DOCX output.
+  ``scripts/build_table_layout_delivery_report.ps1``
   can collect table style quality, safe ``tblLook`` repair planning, floating
   table preset planning, and visual-regression handoff entries for one
   document; ``scripts/build_table_layout_delivery_rollup_report.ps1`` then
   aggregates multiple layout summaries into
   ``featherdoc.table_layout_delivery_rollup_report.v1`` before release blocker
-  rollups consume the results. Advanced table-style coverage and the remaining
-  ``w:tblpPr`` wrapping/overlap details are still active extension areas.
+  rollups consume the results.
+  ``scripts/build_table_layout_delivery_governance_report.ps1`` promotes the
+  rollup into ``output/table-layout-delivery-governance/summary.json`` using
+  ``featherdoc.table_layout_delivery_governance_report.v1``. That governance
+  summary exposes ``table_layout_delivery_governance.delivery_quality``,
+  ``delivery_quality`` score details, ``safe_tblLook_fixes_pending`` and
+  ``floating_table_plans_pending`` penalties, ``pdf_floating_table_support``,
+  and release-facing ``source_schema``, ``source_report_display``,
+  ``source_json_display``, and ``open_command`` fields so release handoff can
+  trace table-style, ``tblLook``, floating-table, and PDF support evidence
+  without re-reading the original DOCX. Advanced table-style coverage and the
+  remaining ``w:tblpPr`` wrapping/overlap details are still active extension
+  areas.
 - Paragraphs can now be attached to managed bullet and decimal lists and can
   restart managed list sequences, and custom numbering definitions can now be
   created through ``ensure_numbering_definition(...)`` /
@@ -2717,7 +2784,19 @@ Current Limitations
   ``set-content-control-form-state``. ``sync_content_controls_from_custom_xml()``
   and ``sync-content-controls-from-custom-xml`` can also read matching
   ``customXml/item*.xml`` parts and refresh bound content-control display text
-  from ``w:dataBinding`` XPath values. Document-level semantic diff is now
+  from ``w:dataBinding`` XPath values. Content-control data-binding governance
+  can be rebuilt with
+  ``scripts/build_content_control_data_binding_governance_report.ps1`` and its
+  default release-facing summary path is
+  ``output/content-control-data-binding-governance/summary.json``. The summary
+  uses ``featherdoc.content_control_data_binding_governance_report.v1``,
+  promotes ``content_control_data_binding.custom_xml_sync_issue`` and
+  ``content_control_data_binding.bound_placeholder`` into stable governance
+  items, and keeps the ``sync_bound_content_control`` repair strategy plus
+  ``source_schema``, ``source_report_display``, ``source_json_display``,
+  ``open_command``, ``input_docx``, ``template_name``, ``schema_target``, and
+  ``target_mode`` fields for release handoff and reviewer traceability.
+  Document-level semantic diff is now
   available through ``compare_semantic(...)`` /
   ``document_semantic_diff_result`` and ``semantic-diff``. It compares
   paragraphs, table summaries, drawing images, content controls, generic field

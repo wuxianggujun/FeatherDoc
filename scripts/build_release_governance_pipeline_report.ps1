@@ -87,10 +87,19 @@ function Get-JsonString {
     param($Object, [string]$Name, [string]$DefaultValue = "")
 
     $value = Get-JsonProperty -Object $Object -Name $Name
-    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+    if ($null -eq $value) {
         return $DefaultValue
     }
-    return [string]$value
+
+    $text = if ($value -is [datetime]) {
+        $value.ToString("yyyy-MM-ddTHH:mm:ss")
+    } else {
+        [string]$value
+    }
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $DefaultValue
+    }
+    return $text
 }
 
 function Get-JsonInt {
@@ -428,7 +437,7 @@ function New-StageEntry {
         id = $Id
         title = $Title
         script = $Script
-        input_json = @($InputJson)
+        input_json = @($InputJson | ForEach-Object { Get-DisplayPath -RepoRoot $RepoRoot -Path $_ })
         output_dir = $OutputDir
         output_dir_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $OutputDir
         summary_json = $SummaryJson
@@ -633,6 +642,20 @@ $calibrationInputs = Select-ExistingInputJson -Paths @(
 )
 $calibrationInputRoot = Join-Path $resolvedInputRoot "project-template-smoke"
 # Keep schema calibration scoped; broad output roots can include invalid test fixtures.
+$docxVisualSmokeInputRoot = Join-Path $resolvedInputRoot "docx-functional-smoke-visual"
+$docxVisualSmokeRoots = @()
+if (Test-Path -LiteralPath $docxVisualSmokeInputRoot) {
+    $docxVisualSmokeRoots = @(
+        Get-ChildItem -LiteralPath $docxVisualSmokeInputRoot -Directory |
+            Sort-Object -Property Name |
+            ForEach-Object { $_.FullName }
+    )
+}
+$docxReadinessExtraArguments = @()
+if ($docxVisualSmokeRoots.Count -gt 0) {
+    $docxReadinessExtraArguments += "-VisualSmokeRoots"
+    $docxReadinessExtraArguments += @($docxVisualSmokeRoots)
+}
 
 $stages = New-Object 'System.Collections.Generic.List[object]'
 $stages.Add((Invoke-PipelineStage `
@@ -677,7 +700,8 @@ $stages.Add((Invoke-PipelineStage `
             -Title "DOCX Functional Smoke Readiness" `
             -ScriptPath (Join-Path $scriptsDir "check_docx_functional_smoke_readiness.ps1") `
             -OutputDir $docxReadinessOutputDir `
-            -InputJson @())) | Out-Null
+            -InputJson @() `
+            -ExtraArguments $docxReadinessExtraArguments)) | Out-Null
 
 $handoffInputs = @(
     Join-Path $numberingOutputDir "summary.json"
@@ -796,7 +820,7 @@ $summary = [ordered]@{
     warning_count = $warningCount
     warnings = $warnings
     stages = $stageItems
-    final_governance_reports = $handoffInputs
+    final_governance_reports = @($handoffInputs | ForEach-Object { Get-DisplayPath -RepoRoot $repoRoot -Path $_ })
     release_governance_handoff_summary = Join-Path $handoffOutputDir "summary.json"
     release_blocker_rollup_summary = Join-Path $rollupOutputDir "summary.json"
 }

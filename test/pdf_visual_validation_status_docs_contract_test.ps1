@@ -38,8 +38,15 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
 $statusDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_visual_validation_status_zh.rst"
+$orphanMarker = ":orphan:"
+
+Assert-ContainsText -Text $statusDoc -ExpectedText $orphanMarker `
+    -Message "PDF visual validation status should be kept as an orphaned reference page."
+
 $buildingPdfDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "BUILDING_PDF.md"
 $releaseChecklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_release_readiness_checklist_zh.rst"
+$releaseArtifactTemplateEn = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "RELEASE_ARTIFACT_TEMPLATE.md"
+$releaseArtifactTemplateZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
 $pdfImportScopeDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_import_scope.rst"
 $dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
 $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
@@ -570,6 +577,8 @@ $pdfExportSupportMatrixMarkers = @(
     "document-long-flow-text",
     "sectioned-report-text",
     "header-footer-text",
+    "--expand-header-footer-page-placeholders",
+    "docs/pdf_export.rst",
     "document-cjk-table-wrap-page-flow-text",
     "pdf_real_business_sample_release_entry_trace",
     "release checklist"
@@ -846,6 +855,24 @@ foreach ($marker in @(
 )) {
     Assert-ContainsText -Text $releaseChecklistDoc -ExpectedText $marker `
         -Message "PDF release readiness checklist should preserve marker '$marker'."
+}
+
+foreach ($template in @(
+    @{ Label = "RELEASE_ARTIFACT_TEMPLATE.md"; Text = $releaseArtifactTemplateEn },
+    @{ Label = "RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"; Text = $releaseArtifactTemplateZh }
+)) {
+    foreach ($marker in @(
+        "PDF release readiness",
+        "PDF visual gate verdict",
+        "check_pdf_release_readiness.ps1",
+        "docs/pdf_release_readiness_checklist_zh.rst",
+        "output/pdf-release-readiness-current/summary.json",
+        "output/pdf-visual-release-gate-current/report/summary.json",
+        "output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png"
+    )) {
+        Assert-ContainsText -Text ([string]$template.Text) -ExpectedText $marker `
+            -Message "$($template.Label) should preserve PDF release readiness template marker '$marker'."
+    }
 }
 
 $finalReviewPdfAuxMaterialSafetyScriptMarkers = @(

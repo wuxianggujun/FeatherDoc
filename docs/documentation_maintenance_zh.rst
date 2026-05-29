@@ -15,15 +15,20 @@
 
 1. ``docs/current_direction_zh.rst``：当前产品主线和功能准入标准。
 2. ``docs/document_governance_acceptance_zh.rst``：文档治理阶段验收边界。
-3. ``docs/document_api_mainline_status_zh.rst``：文档 API 主线、旧分支复核和
-   轻量验证状态。
-4. ``docs/stale_codex_branch_inventory_zh.rst``：远端 ``codex/*`` 参考分支库存。
-5. ``docs/release_metadata_pipeline_zh.rst``：发布治理、handoff、rollup 和
+3. ``docs/release_metadata_pipeline_zh.rst``：发布治理、handoff、rollup 和
    reviewer-facing bundle 的元数据链路。
-6. ``docs/release_metadata_maintenance_checklist_zh.rst``：release metadata 修改流程。
-7. ``docs/automation/word_visual_workflow_zh.rst``：Word 视觉验证流程。
-8. ``BUILDING_PDF.md`` 与 ``design/04-pdf-execution-plan.md``：PDF 保守维护和
+4. ``docs/release_metadata_maintenance_checklist_zh.rst``：release metadata 修改流程。
+5. ``docs/automation/word_visual_workflow_zh.rst``：Word 视觉验证流程。
+6. ``BUILDING_PDF.md`` 与 ``design/04-pdf-execution-plan.md``：PDF 保守维护和
    后续验证入口。
+
+历史参考页可以继续保留，但不再作为首页主入口：
+
+1. ``docs/document_api_mainline_status_zh.rst``：文档 API 主线和旧分支复核快照。
+2. ``docs/branch_recovery_and_governance_sync_zh.rst``：工作区恢复和分支同步记录。
+3. ``docs/stale_codex_branch_inventory_zh.rst``：远端 ``codex/*`` 参考分支库存。
+4. ``docs/pdf_visual_validation_status_zh.rst``：PDF 可视化验证状态快照。
+5. ``docs/v1_7_roadmap_zh.rst``：历史路线图归档。
 
 
 当前推进顺序
@@ -55,6 +60,12 @@
    表头 fitting 等可低风险摘入能力已经在当前 ``dev`` 中有等价实现。
 6. 最小 Word smoke 已生成证据，并完成只读证据质量复核；这不等同于完整
    ``run_word_visual_release_gate.ps1`` 通过。
+7. Word release gate 现在有只读前置检查
+   ``scripts/check_word_visual_release_gate_preflight.ps1``，输出
+   ``featherdoc.word_visual_release_gate_preflight.v1``，并固定
+   ``word_visual_release_gate_preflight_static_contract_only`` 边界；它只检查
+   静态脚本、helper、CMake 轻量测试注册和文档入口，不启动 ``Word``、
+   ``CMake``、``CTest`` 或视觉渲染。
 
 
 旧参考分支处理规则
@@ -116,8 +127,8 @@ LibreOffice PDF 研究文档
 下一步优先做三件事：
 
 1. 继续保持 ``dev`` 与 ``origin/dev`` 对齐，任何小改动后及时提交推送。
-2. 若资源允许，先补 Word release gate 的更受控前置检查；完整 gate 仍需等工作区干净、
-   源码已推送且本机资源稳定。
+2. 若资源允许，先运行 ``check_word_visual_release_gate_preflight.ps1``；完整 gate
+   仍需等工作区干净、源码已推送且本机资源稳定。
 3. PDF visual gate 继续后置，只验证当前 ``dev`` 已有能力，不从旧分支搬入大批样例。
 
 

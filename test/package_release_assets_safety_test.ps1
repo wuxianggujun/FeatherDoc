@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$RepoRoot,
     [string]$WorkingDir
 )
@@ -35,6 +35,26 @@ function Assert-NotContains {
     }
 }
 
+function Convert-TestComparableValue {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    return [string]$Value
+}
+
+function Convert-TestComparablePathValue {
+    param($Value)
+
+    return (Convert-TestComparableValue -Value $Value) -replace '/', '\'
+}
+
 function Convert-TestPathToRepoRelativeDisplay {
     param(
         [string]$Path,
@@ -46,6 +66,29 @@ function Convert-TestPathToRepoRelativeDisplay {
     if ($normalizedPath.StartsWith($normalizedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
         $relativePath = $normalizedPath.Substring($normalizedRepoRoot.Length).TrimStart('\', '/')
         return ".\" + ($relativePath -replace '/', '\')
+    }
+
+    return $normalizedPath
+}
+
+function Convert-TestEvidencePathToPublicDisplay {
+    param(
+        [string]$Path,
+        [string]$RepoRoot
+    )
+
+    $repoDisplay = Convert-TestPathToRepoRelativeDisplay -Path $Path -RepoRoot $RepoRoot
+    $normalizedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($repoDisplay -ne $normalizedPath) {
+        return $repoDisplay
+    }
+
+    $normalizedDisplay = $normalizedPath -replace '/', '\'
+    foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
+        $index = $normalizedDisplay.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+        if ($index -ge 0) {
+            return ".\" + $normalizedDisplay.Substring($index + 1)
+        }
     }
 
     return $normalizedPath
@@ -70,6 +113,10 @@ $gateReportDir = Join-Path $gateOutputDir "report"
 $smokeEvidenceDir = Join-Path $gateOutputDir "smoke\evidence"
 $fixedGridAggregateDir = Join-Path $gateOutputDir "fixed-grid\aggregate-evidence"
 $sectionPageSetupAggregateDir = Join-Path $gateOutputDir "section-page-setup\aggregate-evidence"
+$smokeTaskDir = Join-Path $gateOutputDir "review-tasks\document"
+$fixedGridTaskDir = Join-Path $gateOutputDir "review-tasks\fixed-grid"
+$sectionPageSetupTaskDir = Join-Path $gateOutputDir "review-tasks\section-page-setup"
+$pageNumberFieldsTaskDir = Join-Path $gateOutputDir "review-tasks\page-number-fields"
 $pdfGateOutputDir = Join-Path $resolvedWorkingDir "output\pdf-visual-release-gate"
 $pdfGateReportDir = Join-Path $pdfGateOutputDir "report"
 $pdfGateCopySearchDir = Join-Path $pdfGateReportDir "cjk-copy-search"
@@ -82,6 +129,11 @@ New-Item -ItemType Directory -Path $gateReportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $smokeEvidenceDir -Force | Out-Null
 New-Item -ItemType Directory -Path $fixedGridAggregateDir -Force | Out-Null
 New-Item -ItemType Directory -Path $sectionPageSetupAggregateDir -Force | Out-Null
+foreach ($reviewTaskDir in @($smokeTaskDir, $fixedGridTaskDir, $sectionPageSetupTaskDir, $pageNumberFieldsTaskDir)) {
+    New-Item -ItemType Directory -Path (Join-Path $reviewTaskDir "report") -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $reviewTaskDir "report\review_result.json") -Encoding UTF8 -Value '{"review_verdict":"pass"}'
+    Set-Content -LiteralPath (Join-Path $reviewTaskDir "report\final_review.md") -Encoding UTF8 -Value "# Final Review"
+}
 New-Item -ItemType Directory -Path $pdfGateReportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $pdfGateCopySearchDir -Force | Out-Null
 New-Item -ItemType Directory -Path $pdfGateUnicodeReportDir -Force | Out-Null
@@ -101,6 +153,8 @@ $gateSummaryPath = Join-Path $gateReportDir "gate_summary.json"
 $gateFinalReviewPath = Join-Path $gateReportDir "gate_final_review.md"
 $pdfGateSummaryPath = Join-Path $pdfGateReportDir "summary.json"
 $pdfGateAggregateContactSheetPath = Join-Path $pdfGateReportDir "aggregate-contact-sheet.png"
+$pdfGateSummaryPathDisplay = ".\output\pdf-visual-release-gate\report\summary.json"
+$pdfGateAggregateContactSheetPathDisplay = ".\output\pdf-visual-release-gate\report\aggregate-contact-sheet.png"
 $pdfGateCliExportLogPath = Join-Path $pdfGateReportDir "pdf-cli-export-test.log"
 $pdfGateRegressionLogPath = Join-Path $pdfGateReportDir "pdf-regression-test.log"
 $pdfGateUnicodeLogPath = Join-Path $pdfGateReportDir "unicode-font.log"
@@ -141,12 +195,12 @@ Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 - Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
-- PDF visual gate summary: $pdfGateSummaryPath
+- PDF visual gate summary: $pdfGateSummaryPathDisplay
 - PDF CJK manifest samples: 43
 - PDF CJK copy/search samples: 2
 - PDF visual baseline manifest samples: 42
 - PDF visual baselines: 3
-- PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPath
+- PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPathDisplay
 - PDF release readiness checklist: docs/pdf_release_readiness_checklist_zh.rst
 "@
 
@@ -214,8 +268,8 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
     - full_visual_gate_status: ``pass``
     - pdf_visual_gate_verdict: ``pass``
     - pdf_visual_gate_finalizable: ``True``
-    - pdf_visual_gate_summary_json_display: ``$pdfGateSummaryPath``
-    - pdf_visual_gate_aggregate_contact_sheet_display: ``$pdfGateAggregateContactSheetPath``
+    - pdf_visual_gate_summary_json_display: ``$pdfGateSummaryPathDisplay``
+    - pdf_visual_gate_aggregate_contact_sheet_display: ``$pdfGateAggregateContactSheetPathDisplay``
     - pdf_visual_gate_cjk_manifest_count: ``43``
     - pdf_visual_gate_cjk_copy_search_count: ``2``
     - pdf_visual_gate_visual_baseline_manifest_count: ``42``
@@ -226,6 +280,20 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
     - pdf_bounded_ctest_selected_test_count: ``70``
     - pdf_bounded_ctest_subsets: ``$pdfBoundedCtestSubsetsText``
     - pdf_bounded_ctest_summary_json_display: ``$pdfBoundedCtestSummaryJsonDisplayText``
+- Word visual standard review metadata source reports: ``1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - word_visual_standard_review_metadata_count: ``4``
+    - word_visual_standard_review_task_keys: ``smoke, fixed_grid, section_page_setup, page_number_fields``
+    - word_visual_standard_review_status_summary: ``reviewed=4``
+    - word_visual_standard_review_verdict_summary: ``pass=4``
+    - ``smoke``: review_task_key=``document`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``
+      - label: ``Word visual smoke``
+      - reviewed_at: ``2026-04-12T12:10:00``
+      - review_result_path: ``.\output\word-visual-release-gate\review-tasks\document\report\review_result.json``
+      - final_review_path: ``.\output\word-visual-release-gate\review-tasks\document\report\final_review.md``
+    - ``fixed_grid``: review_task_key=``fixed_grid`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``
+    - ``section_page_setup``: review_task_key=``section_page_setup`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``
+    - ``page_number_fields``: review_task_key=``page_number_fields`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``
 "@
 
 Set-Content -LiteralPath $releaseBodyPath -Encoding UTF8 -Value @"
@@ -276,8 +344,8 @@ Set-Content -LiteralPath $finalReviewPath -Encoding UTF8 -Value @"
 
 ## Key outputs
 
-- PDF visual gate summary: $pdfGateSummaryPath
-- PDF visual gate contact sheet: $pdfGateAggregateContactSheetPath
+- PDF visual gate summary: $pdfGateSummaryPathDisplay
+- PDF visual gate contact sheet: $pdfGateAggregateContactSheetPathDisplay
 "@
 
 Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
@@ -293,12 +361,12 @@ Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 - Content-control provenance: input_docx=samples/invoice.docx input_docx_display=.\samples\invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
-- PDF visual gate summary: $pdfGateSummaryPath
+- PDF visual gate summary: $pdfGateSummaryPathDisplay
 - PDF CJK manifest samples: 43
 - PDF CJK copy/search samples: 2
 - PDF visual baseline manifest samples: 42
 - PDF visual baselines: 3
-- PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPath
+- PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPathDisplay
 - PDF release readiness checklist: docs/pdf_release_readiness_checklist_zh.rst
 "@
 
@@ -315,8 +383,8 @@ Set-Content -LiteralPath $reviewerChecklistPath -Encoding UTF8 -Value @"
 - Confirm Project template release readiness checklist docs/project_template_release_readiness_checklist_zh.rst before release.
 - Confirm release governance handoff carries project-template readiness checklist entrypoint evidence: Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json.
 - Confirm table_layout_delivery_governance.delivery_quality table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0) before release.
-- Confirm PDF visual gate summary $pdfGateSummaryPath with 2 CJK copy/search samples and 3 visual baselines before release.
-- Confirm PDF visual gate aggregate contact sheet $pdfGateAggregateContactSheetPath before release.
+- Confirm PDF visual gate summary $pdfGateSummaryPathDisplay with 2 CJK copy/search samples and 3 visual baselines before release.
+- Confirm PDF visual gate aggregate contact sheet $pdfGateAggregateContactSheetPathDisplay before release.
 - Confirm PDF release readiness checklist docs/pdf_release_readiness_checklist_zh.rst before release.
 "@
 
@@ -372,9 +440,41 @@ $gateSummary = [ordered]@{
     visual_verdict = "pass"
     smoke = [ordered]@{
         evidence_dir = $smokeEvidenceDir
+        review_verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:10:00"
+        review_method = "operator_supplied"
+        task = [ordered]@{
+            task_dir = $smokeTaskDir
+        }
     }
     fixed_grid = [ordered]@{
         aggregate_evidence_dir = $fixedGridAggregateDir
+        review_verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:20:00"
+        review_method = "operator_supplied"
+        task = [ordered]@{
+            task_dir = $fixedGridTaskDir
+        }
+    }
+    section_page_setup = [ordered]@{
+        review_verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:30:00"
+        review_method = "operator_supplied"
+        task = [ordered]@{
+            task_dir = $sectionPageSetupTaskDir
+        }
+    }
+    page_number_fields = [ordered]@{
+        review_verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:40:00"
+        review_method = "operator_supplied"
+        task = [ordered]@{
+            task_dir = $pageNumberFieldsTaskDir
+        }
     }
 }
 ($gateSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $gateSummaryPath -Encoding UTF8
@@ -690,6 +790,14 @@ $summary = [ordered]@{
             summary_json = $gateSummaryPath
             final_review = $gateFinalReviewPath
             visual_verdict = "pass"
+            smoke_review_result_path = (Join-Path $smokeTaskDir "report\review_result.json")
+            smoke_final_review_path = (Join-Path $smokeTaskDir "report\final_review.md")
+            fixed_grid_review_result_path = (Join-Path $fixedGridTaskDir "report\review_result.json")
+            fixed_grid_final_review_path = (Join-Path $fixedGridTaskDir "report\final_review.md")
+            section_page_setup_review_result_path = (Join-Path $sectionPageSetupTaskDir "report\review_result.json")
+            section_page_setup_final_review_path = (Join-Path $sectionPageSetupTaskDir "report\final_review.md")
+            page_number_fields_review_result_path = (Join-Path $pageNumberFieldsTaskDir "report\review_result.json")
+            page_number_fields_final_review_path = (Join-Path $pageNumberFieldsTaskDir "report\final_review.md")
         }
         pdf_visual_gate = [ordered]@{
             requested = $true
@@ -742,6 +850,12 @@ $expectedRelativeHandoff = ".\$relativeWorkingDir\output\release-candidate-check
 $expectedRelativeGateReport = ".\$relativeWorkingDir\output\word-visual-release-gate\report"
 $expectedRelativePdfGateSummary = ".\$relativeWorkingDir\output\pdf-visual-release-gate\report\summary.json"
 $expectedRelativePdfGateRoot = ".\$relativeWorkingDir\output\pdf-visual-release-gate"
+$expectedSmokeReviewResultPath = Convert-TestEvidencePathToPublicDisplay `
+    -Path (Join-Path $smokeTaskDir "report\review_result.json") `
+    -RepoRoot $resolvedRepoRoot
+$expectedSmokeFinalReviewPath = Convert-TestEvidencePathToPublicDisplay `
+    -Path (Join-Path $smokeTaskDir "report\final_review.md") `
+    -RepoRoot $resolvedRepoRoot
 $stagedSummary = Get-Content -Raw -LiteralPath $stagedSummaryPath | ConvertFrom-Json
 $stagedGateSummary = Get-Content -Raw -LiteralPath $stagedGateSummaryPath | ConvertFrom-Json
 $stagedPdfGateSummary = Get-Content -Raw -LiteralPath $stagedPdfGateSummaryPath | ConvertFrom-Json
@@ -751,6 +865,8 @@ Assert-NotContains -Path $stagedSummaryPath -UnexpectedText $resolvedRepoRoot -L
 Assert-NotContains -Path $stagedGateSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged gate_summary.json'
 Assert-NotContains -Path $stagedPdfGateSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged PDF visual gate summary.json'
 Assert-NotContains -Path $manifestPath -UnexpectedText $resolvedRepoRoot -Label 'release_assets_manifest.json'
+Assert-NotContains -Path $manifestPath -UnexpectedText '<windows-absolute-path>' -Label 'release_assets_manifest.json'
+Assert-NotContains -Path $manifestPath -UnexpectedText '<unix-absolute-path>' -Label 'release_assets_manifest.json'
 Assert-NotContains -Path $stagedHandoffPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_handoff.md'
 Assert-NotContains -Path $stagedGovernanceHandoffPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_governance_handoff.md'
 Assert-NotContains -Path $stagedReleaseBodyPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_body.zh-CN.md'
@@ -803,6 +919,15 @@ Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_bounded_ct
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_bounded_ctest_selected_test_count: `70`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText "pdf_bounded_ctest_subsets: ``$pdfBoundedCtestSubsetsText``" -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText "pdf_bounded_ctest_summary_json_display: ``$pdfBoundedCtestSummaryJsonDisplayText``" -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'Word visual standard review metadata source reports: `1`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'word_visual_standard_review_metadata_count: `4`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'word_visual_standard_review_task_keys: `smoke, fixed_grid, section_page_setup, page_number_fields`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'word_visual_standard_review_status_summary: `reviewed=4`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'word_visual_standard_review_verdict_summary: `pass=4`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText '`smoke`: review_task_key=`document` verdict=`pass` review_status=`reviewed` review_method=`operator_supplied`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'reviewed_at: `2026-04-12T12:10:00`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'review_result_path: `.\output\word-visual-release-gate\review-tasks\document\report\review_result.json`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'final_review_path: `.\output\word-visual-release-gate\review-tasks\document\report\final_review.md`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness_contract:' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'source_schema: featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_handoff.md'
@@ -1070,6 +1195,50 @@ foreach ($expectedDisplay in $pdfBoundedCtestSummaryJsonDisplay) {
         throw "release_assets_manifest.json lost bounded PDF CTest summary display '$expectedDisplay'."
     }
 }
+$wordVisualStandardReviewMetadata = @($manifest.word_visual_standard_review_metadata)
+if ([int]$manifest.word_visual_standard_review_metadata_count -ne 4) {
+    throw "release_assets_manifest.json did not record four standard Word visual review metadata entries."
+}
+if ($wordVisualStandardReviewMetadata.Count -ne 4) {
+    throw "release_assets_manifest.json lost standard Word visual review metadata entries."
+}
+$wordVisualStandardReviewMetadataByTask = @{}
+foreach ($entry in $wordVisualStandardReviewMetadata) {
+    $wordVisualStandardReviewMetadataByTask[[string]$entry.task_key] = $entry
+    if ($entry.PSObject.Properties["review_note"]) {
+        throw "release_assets_manifest.json must not expose standard Word visual review notes."
+    }
+    foreach ($pathField in @("review_result_path", "final_review_path")) {
+        $pathValue = [string]$entry.$pathField
+        if ([string]::IsNullOrWhiteSpace($pathValue)) {
+            throw "release_assets_manifest.json lost standard Word visual review $pathField for '$($entry.task_key)'."
+        }
+        if ($pathValue.Contains($resolvedRepoRoot)) {
+            throw "release_assets_manifest.json did not public-sanitize standard Word visual review $pathField for '$($entry.task_key)'."
+        }
+    }
+}
+foreach ($expectedTaskKey in @("smoke", "fixed_grid", "section_page_setup", "page_number_fields")) {
+    if (-not $wordVisualStandardReviewMetadataByTask.ContainsKey($expectedTaskKey)) {
+        throw "release_assets_manifest.json lost standard Word visual review metadata task '$expectedTaskKey'."
+    }
+}
+$manifestSmokeReviewMetadata = $wordVisualStandardReviewMetadataByTask["smoke"]
+if ([string]$manifestSmokeReviewMetadata.review_task_key -ne "document") {
+    throw "release_assets_manifest.json did not preserve the smoke review task key alias."
+}
+if ((Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.verdict) -ne "pass" -or
+    (Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.review_status) -ne "reviewed" -or
+    (Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.reviewed_at) -ne "2026-04-12T12:10:00" -or
+    (Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.review_method) -ne "operator_supplied") {
+    throw "release_assets_manifest.json lost the smoke standard Word visual review status metadata."
+}
+if ([string]$manifestSmokeReviewMetadata.review_result_path -ne $expectedSmokeReviewResultPath) {
+    throw "release_assets_manifest.json lost the smoke standard Word visual review result path."
+}
+if ([string]$manifestSmokeReviewMetadata.final_review_path -ne $expectedSmokeFinalReviewPath) {
+    throw "release_assets_manifest.json lost the smoke standard Word visual final review path."
+}
 if ([string]$manifest.workspace -ne ".") {
     throw "release_assets_manifest.json did not rewrite workspace to a public relative path."
 }
@@ -1254,7 +1423,7 @@ if ([int]$manifestProjectTemplateReadiness.ready_template_count -ne 4) {
 if ([int]$manifestProjectTemplateReadiness.release_blocker_count -ne 0) {
     throw "release_assets_manifest.json lost project template delivery readiness release_blocker_count."
 }
-$expectedProjectTemplateDeliveryReadinessDisplay = Convert-TestPathToRepoRelativeDisplay `
+$expectedProjectTemplateDeliveryReadinessDisplay = Convert-TestEvidencePathToPublicDisplay `
     -Path $projectTemplateDeliveryReadinessSummaryPath `
     -RepoRoot $resolvedRepoRoot
 if ([string]$manifestProjectTemplateReadiness.source_report_display -ne $expectedProjectTemplateDeliveryReadinessDisplay) {
@@ -1297,7 +1466,7 @@ if ([int]$manifestProjectTemplateOnboarding.release_blocker_count -ne 0) {
 if (@($manifestProjectTemplateOnboarding.schema_approval_status_summary).Count -ne 2) {
     throw "release_assets_manifest.json lost project template onboarding governance schema_approval_status_summary."
 }
-$expectedProjectTemplateOnboardingGovernanceDisplay = Convert-TestPathToRepoRelativeDisplay `
+$expectedProjectTemplateOnboardingGovernanceDisplay = Convert-TestEvidencePathToPublicDisplay `
     -Path $projectTemplateOnboardingGovernanceSummaryPath `
     -RepoRoot $resolvedRepoRoot
 if ([string]$manifestProjectTemplateOnboarding.source_report_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
@@ -1314,7 +1483,7 @@ if ($null -eq $manifestSignoffEntrypoints) {
 if ([string]$manifestSignoffEntrypoints.status -ne "declared") {
     throw "release_assets_manifest.json lost manifest signoff status."
 }
-$expectedManifestDisplay = Convert-TestPathToRepoRelativeDisplay `
+$expectedManifestDisplay = Convert-TestEvidencePathToPublicDisplay `
     -Path $manifestPath `
     -RepoRoot $resolvedRepoRoot
 if ([string]$manifestSignoffEntrypoints.release_assets_manifest -ne $expectedManifestDisplay) {
@@ -1401,14 +1570,17 @@ foreach ($entrypointExpectation in @(
         [ordered]@{
             id = "start_here"
             path = $startHerePath
+            path_display = ".\output\release-candidate-checks\START_HERE.md"
         },
         [ordered]@{
             id = "artifact_guide"
             path = $artifactGuidePath
+            path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
         },
         [ordered]@{
             id = "reviewer_checklist"
             path = $reviewerChecklistPath
+            path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
         }
     )) {
     $entrypointId = [string]$entrypointExpectation.id
@@ -1421,14 +1593,16 @@ foreach ($entrypointExpectation in @(
         throw "release_assets_manifest.json lost required=true for manifest signoff entrypoint '$entrypointId'."
     }
 
-    $expectedEntrypointDisplay = Convert-TestPathToRepoRelativeDisplay `
+    $expectedEntrypointDisplay = Convert-TestEvidencePathToPublicDisplay `
         -Path ([string]$entrypointExpectation.path) `
         -RepoRoot $resolvedRepoRoot
     if ([string]$entrypoint.path -ne $expectedEntrypointDisplay) {
         throw "release_assets_manifest.json did not public-sanitize manifest signoff entrypoint '$entrypointId' path."
     }
-    if ([string]$entrypoint.path_display -ne $expectedEntrypointDisplay) {
-        throw "release_assets_manifest.json lost manifest signoff entrypoint '$entrypointId' path_display."
+
+    $expectedEntrypointPathDisplay = [string]$entrypointExpectation.path_display
+    if ((Convert-TestComparablePathValue -Value $entrypoint.path_display) -ne (Convert-TestComparablePathValue -Value $expectedEntrypointPathDisplay)) {
+        throw "release_assets_manifest.json lost manifest signoff entrypoint '$entrypointId' path_display. Expected='$expectedEntrypointPathDisplay' Actual='$($entrypoint.path_display)'."
     }
 }
 
@@ -1437,9 +1611,9 @@ foreach ($entrypoint in @($manifestProjectTemplateChecklistEntrypoints.entrypoin
     $manifestProjectTemplateChecklistEntrypointsById[[string]$entrypoint.id] = $entrypoint
 }
 foreach ($entrypointExpectation in @(
-        [ordered]@{ id = "start_here"; path = $startHerePath },
-        [ordered]@{ id = "artifact_guide"; path = $artifactGuidePath },
-        [ordered]@{ id = "reviewer_checklist"; path = $reviewerChecklistPath }
+        [ordered]@{ id = "start_here"; path = $startHerePath; path_display = ".\output\release-candidate-checks\START_HERE.md" },
+        [ordered]@{ id = "artifact_guide"; path = $artifactGuidePath; path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md" },
+        [ordered]@{ id = "reviewer_checklist"; path = $reviewerChecklistPath; path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md" }
     )) {
     $entrypointId = [string]$entrypointExpectation.id
     if (-not $manifestProjectTemplateChecklistEntrypointsById.ContainsKey($entrypointId)) {
@@ -1451,14 +1625,16 @@ foreach ($entrypointExpectation in @(
         throw "release_assets_manifest.json lost required=true for project-template readiness checklist entrypoint '$entrypointId'."
     }
 
-    $expectedEntrypointDisplay = Convert-TestPathToRepoRelativeDisplay `
+    $expectedEntrypointDisplay = Convert-TestEvidencePathToPublicDisplay `
         -Path ([string]$entrypointExpectation.path) `
         -RepoRoot $resolvedRepoRoot
     if ([string]$entrypoint.path -ne $expectedEntrypointDisplay) {
         throw "release_assets_manifest.json did not public-sanitize project-template readiness checklist entrypoint '$entrypointId' path."
     }
-    if ([string]$entrypoint.path_display -ne $expectedEntrypointDisplay) {
-        throw "release_assets_manifest.json lost project-template readiness checklist entrypoint '$entrypointId' path_display."
+
+    $expectedEntrypointPathDisplay = [string]$entrypointExpectation.path_display
+    if ((Convert-TestComparablePathValue -Value $entrypoint.path_display) -ne (Convert-TestComparablePathValue -Value $expectedEntrypointPathDisplay)) {
+        throw "release_assets_manifest.json lost project-template readiness checklist entrypoint '$entrypointId' path_display. Expected='$expectedEntrypointPathDisplay' Actual='$($entrypoint.path_display)'."
     }
 }
 

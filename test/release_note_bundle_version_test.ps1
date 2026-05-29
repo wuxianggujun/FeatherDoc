@@ -857,6 +857,69 @@ $summary = [ordered]@{
                 release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
             }
         )
+        word_visual_standard_review_metadata_source_report_count = 1
+        word_visual_standard_review_metadata_source_reports = @(
+            [ordered]@{
+                schema = "featherdoc.release_candidate_summary"
+                path_display = ".\output\release-candidate-checks\summary.json"
+                word_visual_standard_review_metadata_count = 4
+                word_visual_standard_review_task_keys = @(
+                    "smoke",
+                    "fixed_grid",
+                    "section_page_setup",
+                    "page_number_fields"
+                )
+                word_visual_standard_review_status_summary = "reviewed=4"
+                word_visual_standard_review_verdict_summary = "pass=4"
+                word_visual_standard_review_metadata = @(
+                    [ordered]@{
+                        task_key = "smoke"
+                        review_task_key = "document"
+                        label = "Word visual smoke"
+                        verdict = "pass"
+                        review_status = "reviewed"
+                        reviewed_at = "2026-04-12T12:10:00"
+                        review_method = "operator_supplied"
+                        review_result_path = ".\output\word-visual-release-gate\review-tasks\document\report\review_result.json"
+                        final_review_path = ".\output\word-visual-release-gate\review-tasks\document\report\final_review.md"
+                        review_note = "Private operator note"
+                    },
+                    [ordered]@{
+                        task_key = "fixed_grid"
+                        review_task_key = "fixed_grid"
+                        label = "Fixed-grid merge/unmerge"
+                        verdict = "pass"
+                        review_status = "reviewed"
+                        reviewed_at = "2026-04-12T12:20:00"
+                        review_method = "operator_supplied"
+                        review_result_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\review_result.json"
+                        final_review_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\final_review.md"
+                    },
+                    [ordered]@{
+                        task_key = "section_page_setup"
+                        review_task_key = "section_page_setup"
+                        label = "Section page setup"
+                        verdict = "pass"
+                        review_status = "reviewed"
+                        reviewed_at = "2026-04-12T12:30:00"
+                        review_method = "operator_supplied"
+                        review_result_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\review_result.json"
+                        final_review_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\final_review.md"
+                    },
+                    [ordered]@{
+                        task_key = "page_number_fields"
+                        review_task_key = "page_number_fields"
+                        label = "Page number fields"
+                        verdict = "pass"
+                        review_status = "reviewed"
+                        reviewed_at = "2026-04-12T12:40:00"
+                        review_method = "operator_supplied"
+                        review_result_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\review_result.json"
+                        final_review_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md"
+                    }
+                )
+            }
+        )
         governance_metric_count = 2
         governance_metrics = @(
             (New-NumberingGovernanceMetricFixture),
@@ -983,6 +1046,24 @@ Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionP
 Assert-Contains -Path $handoffPath -ExpectedText 'Release Governance Handoff Details' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'Handoff Warnings' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'schema_patch_confidence_calibration.unscored_candidates' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Word Visual Standard Review Metadata Evidence' -Label 'release_handoff.md'
+Assert-LineContainsAll -Path $handoffPath -ExpectedFragments @(
+    'Word visual standard review metadata evidence',
+    'word_visual_standard_review_metadata_source_reports=1',
+    'metadata_count=4',
+    'task_keys=smoke, fixed_grid, section_page_setup, page_number_fields',
+    'status_summary=reviewed=4',
+    'verdict_summary=pass=4',
+    'smoke:review_task_key=document',
+    'fixed_grid:review_task_key=fixed_grid',
+    'section_page_setup:review_task_key=section_page_setup',
+    'page_number_fields:review_task_key=page_number_fields',
+    'review_result_path=',
+    'final_review_path=',
+    'source_schema=featherdoc.release_candidate_summary',
+    'source_report=.\output\release-candidate-checks\summary.json'
+) -Label 'release_handoff.md'
+Assert-NotContains -Path $handoffPath -UnexpectedText 'review_note' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'source_report_display: .\output\project-template-delivery-readiness\summary.json' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\project-template-onboarding-governance\summary.json' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText $expectedSupersededReviewTasksReportDisplayPath -Label 'release_handoff.md'
@@ -1230,11 +1311,30 @@ foreach ($document in $checklistHandoffEntryDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_schema=featherdoc.release_candidate_summary' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report=.\output\release-blocker-rollup\summary.json' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'Word visual standard review metadata evidence' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'word_visual_standard_review_metadata_source_reports=1' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'metadata_count=4' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'task_keys=smoke, fixed_grid, section_page_setup, page_number_fields' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'status_summary=reviewed=4' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'verdict_summary=pass=4' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'smoke:review_task_key=document' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'fixed_grid:review_task_key=fixed_grid' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'section_page_setup:review_task_key=section_page_setup' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'page_number_fields:review_task_key=page_number_fields' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'review_result.json' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'final_review.md' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_schema=featherdoc.release_candidate_summary' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'source_report=.\output\release-candidate-checks\summary.json' -Label $document.Label
+    Assert-NotContains -Path $document.Path -UnexpectedText 'review_note' -Label $document.Label
 }
 Assert-Contains -Path $checklistPath -ExpectedText 'Confirm release governance handoff carries project-template readiness checklist entrypoint evidence' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Confirm release governance handoff carries packaged project-template readiness checklist material-safety audit evidence' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Confirm release governance handoff carries Word visual standard review metadata evidence' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Confirm the Word visual standard review metadata evidence remains ready for publishing' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Confirm release governance handoff carries packaged project-template readiness checklist material-safety audit evidence' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'Confirm release governance handoff carries Word visual standard review metadata evidence' -Label 'START_HERE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Project-template readiness checklist packaged audit signoff' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'Word visual standard review metadata signoff' -Label 'ARTIFACT_GUIDE.md'
 foreach ($document in @(
         [pscustomobject]@{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
         [pscustomobject]@{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },

@@ -169,6 +169,21 @@ if (Test-Scenario -Name "passing") {
         -Message "Summary should include automatic table position count."
     Assert-Equal -Actual ([int]$summary.table_position_review_count) -Expected 1 `
         -Message "Summary should include table position review count."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_support_status) -Expected "partial" `
+        -Message "Summary should expose PDF floating table support status."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_layout_boundary) `
+        -Expected "stable_pdf_geometry_subset_not_full_word_wrapping" `
+        -Message "Summary should expose the PDF floating table boundary."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_supported_geometry_count) -Expected 4 `
+        -Message "Summary should count supported PDF floating table geometry rows."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_metadata_only_count) -Expected 5 `
+        -Message "Summary should count metadata-only PDF floating table rows."
+    Assert-ContainsText -Text (($summary.pdf_floating_table_support.supported_geometry | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "topFromText" `
+        -Message "PDF support evidence should mention topFromText support."
+    Assert-ContainsText -Text (($summary.pdf_floating_table_support.metadata_only | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "tblOverlap" `
+        -Message "PDF support evidence should preserve tblOverlap as metadata-only."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 2 `
         -Message "Summary should expose both manual style and positioned-table review blockers."
     Assert-True -Condition (@($summary.action_items).Count -ge 4) `
@@ -181,6 +196,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown report should include a title."
     Assert-ContainsText -Text $markdown -ExpectedText "Suggested Actions" `
         -Message "Markdown report should include suggested actions."
+    Assert-ContainsText -Text $markdown -ExpectedText "PDF Floating Table Support" `
+        -Message "Markdown report should include PDF floating table support evidence."
+    Assert-ContainsText -Text $markdown -ExpectedText "stable_pdf_geometry_subset_not_full_word_wrapping" `
+        -Message "Markdown report should include the PDF floating table boundary."
     Assert-ContainsText -Text $markdown -ExpectedText "apply-table-position-plan" `
         -Message "Markdown report should include table position dry-run command."
 }

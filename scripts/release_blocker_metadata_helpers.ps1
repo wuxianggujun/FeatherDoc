@@ -35,6 +35,10 @@ function Get-ReleaseBlockerPropertyValue {
         return ""
     }
 
+    if ($value -is [datetime]) {
+        return $value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
     return [string]$value
 }
 
@@ -339,11 +343,20 @@ function Get-ReleaseBlockerDisplayValue {
         [string]$Fallback = "(not available)"
     )
 
-    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {
+    if ($null -eq $Value) {
         return $Fallback
     }
 
-    return [string]$Value
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $Fallback
+    }
+
+    return $text
 }
 
 function Get-ReleaseBlockerDisplayPath {
@@ -801,7 +814,9 @@ function Get-ReleaseBlockerRegisteredActions {
         "complete_visual_manual_review",
         "fix_schema_patch_approval_result",
         "prepare_pdf_visual_release_gate_build_outputs",
-        "rerun_pdf_visual_release_gate_preflight"
+        "rerun_pdf_controlled_visual_smoke_check",
+        "rerun_pdf_visual_release_gate_preflight",
+        "restore_docx_functional_smoke_evidence"
     )
 }
 
@@ -819,6 +834,120 @@ function Test-ReleaseBlockerActionRegistered {
     }
 
     return $false
+}
+
+function Add-PdfControlledVisualSmokeCheckGuidanceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item,
+        [string]$RepoRoot = "",
+        [string]$ReleaseSummaryJson = "",
+        [string]$ContextText = ""
+    )
+
+    $contextSuffix = if ([string]::IsNullOrWhiteSpace($ContextText)) { "" } else { " $ContextText" }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `rerun_pdf_controlled_visual_smoke_check`{0}: rerun the controlled PDF visual smoke check against existing PNG/text evidence, then rebuild the PDF preflight governance report.' -f $contextSuffix)
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Item -Name "status"
+    $errorMessage = Get-ReleaseBlockerPropertyValue -Object $Item -Name "error_message"
+    if (-not [string]::IsNullOrWhiteSpace($status) -or -not [string]::IsNullOrWhiteSpace($errorMessage)) {
+        $statusLine = "Controlled PDF visual smoke status"
+        if (-not [string]::IsNullOrWhiteSpace($status)) {
+            $statusLine += ": $status"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($errorMessage)) {
+            $statusLine += "; error: $errorMessage"
+        }
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text $statusLine
+    }
+
+    $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Inspect the controlled PDF visual smoke JSON before rerunning: {0}" -f $sourceJsonDisplay)
+    }
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Open the PDF preflight governance report that emitted the smoke warning: {0}" -f $sourceReportDisplay)
+    }
+
+    $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        $commandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_controlled_visual_smoke.ps1 -Root .\output\pdf-controlled-visual-smoke-20260520 -OutputJson .\output\pdf-controlled-visual-smoke-20260520\controlled-visual-smoke-check-latest.json'
+    }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Run the controlled smoke check command: `{0}`' -f $commandTemplate)
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'The controlled smoke check is read-only: it validates existing PNG/text evidence and does not run CMake, CTest, Word, LibreOffice, browser automation, PDF rendering, virtual environment creation, or dependency installation.'
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'A passing controlled smoke check refreshes only low-resource evidence; it is not release-ready evidence until the full PDF visual release gate and release governance checks pass.'
+
+    $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    if ([string]::IsNullOrWhiteSpace($releaseSummaryDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'After the controlled smoke JSON is passing, rerun `write_pdf_visual_release_gate_preflight_governance_report.ps1`, rebuild the release blocker rollup, and regenerate the release note bundle before publishing.'
+    } else {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('After the controlled smoke JSON is passing, rerun `write_pdf_visual_release_gate_preflight_governance_report.ps1`, rerun release governance checks, and regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)
+    }
+}
+
+function Add-DocxFunctionalSmokeEvidenceGuidanceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item,
+        [string]$RepoRoot = "",
+        [string]$ReleaseSummaryJson = "",
+        [string]$ContextText = ""
+    )
+
+    $contextSuffix = if ([string]::IsNullOrWhiteSpace($ContextText)) { "" } else { " $ContextText" }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `restore_docx_functional_smoke_evidence`{0}: restore the missing persisted DOCX functional smoke evidence, then rerun the low-resource DOCX readiness check.' -f $contextSuffix)
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Item -Name "status"
+    $message = Get-ReleaseBlockerPropertyValue -Object $Item -Name "message"
+    if (-not [string]::IsNullOrWhiteSpace($status) -or -not [string]::IsNullOrWhiteSpace($message)) {
+        $statusLine = "DOCX functional smoke blocker"
+        if (-not [string]::IsNullOrWhiteSpace($status)) {
+            $statusLine += ": $status"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($message)) {
+            $statusLine += "; message: $message"
+        }
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text $statusLine
+    }
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Open the DOCX functional smoke readiness report first: {0}" -f $sourceReportDisplay)
+    }
+
+    $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Inspect the DOCX readiness source JSON before changing evidence: {0}" -f $sourceJsonDisplay)
+    }
+
+    $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_docx_functional_smoke_readiness.ps1 -RepoRoot . -OutputDir .\output\docx-functional-smoke-readiness-current'
+    }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Run the low-resource DOCX readiness command: `{0}`' -f $commandTemplate)
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'The DOCX functional smoke readiness check is read-only: it validates persisted package, feature, and Word visual smoke PNG evidence and does not run CMake, CTest, Word, LibreOffice, browser automation, document rendering, virtual environment creation, or dependency installation.'
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'A passing DOCX readiness check refreshes only persisted DOCX functional smoke evidence; it is not a fresh Word COM render and is not release-ready visual evidence until the required visual review or release gate also passes.'
+
+    $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    if ([string]::IsNullOrWhiteSpace($releaseSummaryDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'After DOCX readiness is passing, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle before publishing.'
+    } else {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('After DOCX readiness is passing, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)
+    }
 }
 
 function Get-ReleaseBlockerActionGuidanceLines {
@@ -894,6 +1023,14 @@ function Get-ReleaseBlockerActionGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'After each PDF preflight or gate attempt, clean up only task-owned PDF gate processes and transient outputs after capturing the required evidence; do not terminate unrelated external build, Office, browser, node, or PowerShell processes.'
             break
         }
+        "rerun_pdf_controlled_visual_smoke_check" {
+            Add-PdfControlledVisualSmokeCheckGuidanceLines `
+                -Lines $guidanceLines `
+                -Item $Blocker `
+                -RepoRoot $RepoRoot `
+                -ReleaseSummaryJson $ReleaseSummaryJson
+            break
+        }
         "rerun_pdf_visual_release_gate_preflight" {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Use action `rerun_pdf_visual_release_gate_preflight`: regenerate the PDF visual release gate preflight summary, then rebuild the PDF preflight governance report.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text (Get-PdfVisualPreflightBlockingSummaryLine -Item $Blocker)
@@ -917,6 +1054,14 @@ function Get-ReleaseBlockerActionGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'A regenerated PDF preflight summary only refreshes prerequisite evidence; it is not release-ready evidence until the full PDF visual release gate passes.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'After the preflight summary is readable, rerun `write_pdf_visual_release_gate_preflight_governance_report.ps1`, rebuild the release blocker rollup, and regenerate the release note bundle.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'After each PDF preflight or gate attempt, clean up only task-owned PDF gate processes and transient outputs after capturing the required evidence; do not terminate unrelated external build, Office, browser, node, or PowerShell processes.'
+            break
+        }
+        "restore_docx_functional_smoke_evidence" {
+            Add-DocxFunctionalSmokeEvidenceGuidanceLines `
+                -Lines $guidanceLines `
+                -Item $Blocker `
+                -RepoRoot $RepoRoot `
+                -ReleaseSummaryJson $ReleaseSummaryJson
             break
         }
         default {
@@ -1477,6 +1622,10 @@ function Add-ReleaseGovernanceSourceReportContractLines {
             -Lines $Lines `
             -Report $report `
             -Indent "  "
+        Add-ReleaseGovernanceWordVisualStandardReviewMetadataSourceReportLines `
+            -Lines $Lines `
+            -Report $report `
+            -Indent "  "
 
         foreach ($fieldName in @(
                 "preflight_ready",
@@ -1711,6 +1860,59 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditSou
     }
 }
 
+function Add-ReleaseGovernanceWordVisualStandardReviewMetadataSourceReportLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Report,
+        [string]$Indent = "  "
+    )
+
+    $metadataCount = Get-ReleaseBlockerPropertyValue -Object $Report -Name "word_visual_standard_review_metadata_count"
+    $metadata = @(Get-ReleaseBlockerArrayProperty -Object $Report -Name "word_visual_standard_review_metadata")
+    if ([string]::IsNullOrWhiteSpace($metadataCount) -and $metadata.Count -eq 0) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "word_visual_standard_review_metadata_count",
+            "word_visual_standard_review_status_summary",
+            "word_visual_standard_review_verdict_summary"
+        )) {
+        $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Report -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+            [void]$Lines.Add("${Indent}- ${fieldName}: $fieldValue")
+        }
+    }
+
+    $taskKeys = @(
+        Get-ReleaseBlockerArrayProperty -Object $Report -Name "word_visual_standard_review_task_keys" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($taskKeys.Count -gt 0) {
+        [void]$Lines.Add("${Indent}- word_visual_standard_review_task_keys: $($taskKeys -join ', ')")
+    }
+
+    if ($metadata.Count -eq 0) {
+        return
+    }
+
+    [void]$Lines.Add("${Indent}- word_visual_standard_review_metadata:")
+    $entryIndent = "${Indent}  "
+    foreach ($entry in $metadata) {
+        $taskKey = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "task_key") -Fallback "(unknown task)"
+        $reviewTaskKey = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "review_task_key")
+        $label = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "label")
+        $verdict = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "verdict")
+        $reviewStatus = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "review_status")
+        $reviewMethod = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "review_method")
+        $reviewResultPath = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "review_result_path")
+        $finalReviewPath = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "final_review_path")
+
+        [void]$Lines.Add("${entryIndent}- ${taskKey}: review_task_key=$reviewTaskKey label=$label verdict=$verdict review_status=$reviewStatus review_method=$reviewMethod review_result_path=$reviewResultPath final_review_path=$finalReviewPath")
+    }
+}
+
 function Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine {
     param([AllowNull()]$Summary)
 
@@ -1725,7 +1927,18 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEviden
         return ""
     }
 
-    $report = $reports | Select-Object -First 1
+    $report = $reports |
+        Where-Object {
+            $schema = Get-ReleaseBlockerPropertyValue -Object $_ -Name "schema"
+            $pathDisplay = Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display"
+
+            $schema -eq "featherdoc.release_candidate_summary" -and
+                $pathDisplay -match "release-candidate-checks|release_candidate_summary|report[\\/]+summary\.json"
+        } |
+        Select-Object -First 1
+    if ($null -eq $report) {
+        $report = $reports | Select-Object -First 1
+    }
     $entrypointIds = @(
         Get-ReleaseBlockerArrayProperty -Object $report -Name "project_template_readiness_checklist_entrypoints_entrypoint_ids" |
             ForEach-Object { [string]$_ } |
@@ -1762,7 +1975,18 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAud
         return ""
     }
 
-    $report = $reports | Select-Object -First 1
+    $report = $reports |
+        Where-Object {
+            $schema = Get-ReleaseBlockerPropertyValue -Object $_ -Name "schema"
+            $pathDisplay = Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display"
+
+            $schema -eq "featherdoc.release_candidate_summary" -and
+                $pathDisplay -match "release-candidate-checks|release_candidate_summary|report[\\/]+summary\.json"
+        } |
+        Select-Object -First 1
+    if ($null -eq $report) {
+        $report = $reports | Select-Object -First 1
+    }
     $rollup = Get-ReleaseBlockerPropertyObject -Object $handoff -Name "release_blocker_rollup"
     $sourceReport = ""
     foreach ($fieldName in @("report_markdown_display", "report_markdown", "summary_json_display", "summary_json")) {
@@ -1782,6 +2006,59 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAud
     )
 
     return "Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=$count, status=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_status")), audit_script=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_script")), audited_entrypoint_count=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count")), audited_entrypoints=$(Get-ReleaseBlockerDisplayValue -Value ($auditedEntrypoints -join ', ')), compact_evidence_label=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label")), compact_evidence_field=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field")), compact_evidence_source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema")), checklist_path=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path")), checklist_marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker")), material_safety_marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker")), source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")), source_report=$(Get-ReleaseBlockerDisplayValue -Value $sourceReport)"
+}
+
+function Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine {
+    param([AllowNull()]$Summary)
+
+    $handoff = Get-ReleaseGovernanceHandoff -Summary $Summary
+    $reports = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "word_visual_standard_review_metadata_source_reports")
+    $count = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "word_visual_standard_review_metadata_source_report_count"
+    if ([string]::IsNullOrWhiteSpace($count)) {
+        $count = [string]$reports.Count
+    }
+
+    if ($reports.Count -eq 0 -and $count -eq "0") {
+        return ""
+    }
+
+    $report = $reports |
+        Where-Object {
+            $schema = Get-ReleaseBlockerPropertyValue -Object $_ -Name "schema"
+            $pathDisplay = Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display"
+
+            $schema -eq "featherdoc.release_candidate_summary" -and
+                $pathDisplay -match "release-candidate-checks|release_candidate_summary|report[\\/]+summary\.json"
+        } |
+        Select-Object -First 1
+    if ($null -eq $report) {
+        $report = $reports | Select-Object -First 1
+    }
+
+    $taskKeys = @(
+        Get-ReleaseBlockerArrayProperty -Object $report -Name "word_visual_standard_review_task_keys" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    $taskReviewParts = @(
+        Get-ReleaseBlockerArrayProperty -Object $report -Name "word_visual_standard_review_metadata" |
+            ForEach-Object {
+                $taskKey = Get-ReleaseBlockerPropertyValue -Object $_ -Name "task_key"
+                if (-not [string]::IsNullOrWhiteSpace($taskKey)) {
+                    $reviewTaskKey = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "review_task_key")
+                    $verdict = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "verdict")
+                    $reviewStatus = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "review_status")
+                    $reviewMethod = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "review_method")
+                    $reviewResultPath = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "review_result_path")
+                    $finalReviewPath = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "final_review_path")
+
+                    "${taskKey}:review_task_key=${reviewTaskKey}:verdict=${verdict}:review_status=${reviewStatus}:review_method=${reviewMethod}:review_result_path=${reviewResultPath}:final_review_path=${finalReviewPath}"
+                }
+            } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+
+    return "Word visual standard review metadata evidence: word_visual_standard_review_metadata_source_reports=$count, metadata_count=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "word_visual_standard_review_metadata_count")), task_keys=$(Get-ReleaseBlockerDisplayValue -Value ($taskKeys -join ', ')), status_summary=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "word_visual_standard_review_status_summary")), verdict_summary=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "word_visual_standard_review_verdict_summary")), task_reviews=$(Get-ReleaseBlockerDisplayValue -Value ($taskReviewParts -join '; ')), source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")), source_report=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display"))"
 }
 
 function Get-ReleaseGovernanceChecklistSections {
@@ -2503,6 +2780,13 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text 'After each PDF preflight or gate attempt, clean up only task-owned PDF gate processes and transient outputs after capturing the required evidence; do not terminate unrelated external build, Office, browser, node, or PowerShell processes.'
+    } elseif ([string]::Equals($action, "rerun_pdf_controlled_visual_smoke_check", [System.StringComparison]::OrdinalIgnoreCase)) {
+        Add-PdfControlledVisualSmokeCheckGuidanceLines `
+            -Lines $guidanceLines `
+            -Item $Item `
+            -RepoRoot $RepoRoot `
+            -ReleaseSummaryJson $ReleaseSummaryJson `
+            -ContextText ('for release governance {0} `{1}`' -f $ItemKind, $id)
     } elseif ([string]::Equals($action, "rerun_pdf_visual_release_gate_preflight", [System.StringComparison]::OrdinalIgnoreCase)) {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
@@ -2535,6 +2819,13 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text 'After each PDF preflight or gate attempt, clean up only task-owned PDF gate processes and transient outputs after capturing the required evidence; do not terminate unrelated external build, Office, browser, node, or PowerShell processes.'
+    } elseif ([string]::Equals($action, "restore_docx_functional_smoke_evidence", [System.StringComparison]::OrdinalIgnoreCase)) {
+        Add-DocxFunctionalSmokeEvidenceGuidanceLines `
+            -Lines $guidanceLines `
+            -Item $Item `
+            -RepoRoot $RepoRoot `
+            -ReleaseSummaryJson $ReleaseSummaryJson `
+            -ContextText ('for release governance {0} `{1}`' -f $ItemKind, $id)
     }
 
     $hadCommand = $false
@@ -2947,6 +3238,23 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
             $schema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")
             [void]$Lines.Add("  - source_report: $sourceReportDisplay schema=$schema")
             Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditSourceReportLines `
+                -Lines $Lines `
+                -Report $report `
+                -Indent "    "
+        }
+    }
+    $wordVisualMetadataReports = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "word_visual_standard_review_metadata_source_reports")
+    $wordVisualMetadataCount = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "word_visual_standard_review_metadata_source_report_count"
+    if ([string]::IsNullOrWhiteSpace($wordVisualMetadataCount)) {
+        $wordVisualMetadataCount = [string]$wordVisualMetadataReports.Count
+    }
+    if ($wordVisualMetadataReports.Count -gt 0 -or $wordVisualMetadataCount -ne "0") {
+        [void]$Lines.Add("- Word visual standard review metadata source reports: $wordVisualMetadataCount")
+        foreach ($report in $wordVisualMetadataReports) {
+            $sourceReportDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display")
+            $schema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")
+            [void]$Lines.Add("  - source_report: $sourceReportDisplay schema=$schema")
+            Add-ReleaseGovernanceWordVisualStandardReviewMetadataSourceReportLines `
                 -Lines $Lines `
                 -Report $report `
                 -Indent "    "

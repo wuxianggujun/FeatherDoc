@@ -56,6 +56,7 @@ struct export_pdf_options {
     std::optional<std::string> creator;
     bool render_headers_and_footers = false;
     bool render_inline_images = false;
+    bool expand_header_footer_page_placeholders = false;
     bool subset_unicode_fonts = true;
     std::optional<path_type> summary_json_path;
     bool json_output = false;
@@ -348,8 +349,10 @@ struct table_position_options {
     std::vector<std::size_t> additional_table_indices;
     bool has_horizontal_reference = false;
     bool has_horizontal_offset = false;
+    bool has_horizontal_spec = false;
     bool has_vertical_reference = false;
     bool has_vertical_offset = false;
+    bool has_vertical_spec = false;
     std::optional<path_type> output_path;
     bool json_output = false;
 };
@@ -2062,6 +2065,11 @@ auto parse_export_pdf_options(const std::vector<std::string_view> &arguments,
 
         if (argument == "--render-inline-images") {
             options.render_inline_images = true;
+            continue;
+        }
+
+        if (argument == "--expand-header-footer-page-placeholders") {
+            options.expand_header_footer_page_placeholders = true;
             continue;
         }
 
@@ -6348,8 +6356,10 @@ auto table_positions_equal(const featherdoc::table_position &left,
                                const featherdoc::table_position &right) -> bool {
     return left.horizontal_reference == right.horizontal_reference &&
            left.horizontal_offset_twips == right.horizontal_offset_twips &&
+           left.horizontal_spec == right.horizontal_spec &&
            left.vertical_reference == right.vertical_reference &&
            left.vertical_offset_twips == right.vertical_offset_twips &&
+           left.vertical_spec == right.vertical_spec &&
            left.left_from_text_twips == right.left_from_text_twips &&
            left.right_from_text_twips == right.right_from_text_twips &&
            left.top_from_text_twips == right.top_from_text_twips &&
@@ -6460,6 +6470,10 @@ void apply_table_position_preset_defaults(table_position_options &options) {
             preset_position.horizontal_offset_twips;
         options.has_horizontal_offset = true;
     }
+    if (!options.has_horizontal_spec && preset_position.horizontal_spec.has_value()) {
+        options.position.horizontal_spec = preset_position.horizontal_spec;
+        options.has_horizontal_spec = true;
+    }
     if (!options.has_vertical_reference) {
         options.position.vertical_reference = preset_position.vertical_reference;
         options.has_vertical_reference = true;
@@ -6467,6 +6481,10 @@ void apply_table_position_preset_defaults(table_position_options &options) {
     if (!options.has_vertical_offset) {
         options.position.vertical_offset_twips = preset_position.vertical_offset_twips;
         options.has_vertical_offset = true;
+    }
+    if (!options.has_vertical_spec && preset_position.vertical_spec.has_value()) {
+        options.position.vertical_spec = preset_position.vertical_spec;
+        options.has_vertical_spec = true;
     }
     if (!options.position.left_from_text_twips.has_value()) {
         options.position.left_from_text_twips =
@@ -6520,6 +6538,60 @@ auto parse_table_position_vertical_reference(
     }
     if (text == "paragraph") {
         reference = featherdoc::table_position_vertical_reference::paragraph;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_table_position_horizontal_spec(
+    std::string_view text,
+    featherdoc::table_position_horizontal_spec &spec) -> bool {
+    if (text == "left") {
+        spec = featherdoc::table_position_horizontal_spec::left;
+        return true;
+    }
+    if (text == "center") {
+        spec = featherdoc::table_position_horizontal_spec::center;
+        return true;
+    }
+    if (text == "right") {
+        spec = featherdoc::table_position_horizontal_spec::right;
+        return true;
+    }
+    if (text == "inside") {
+        spec = featherdoc::table_position_horizontal_spec::inside;
+        return true;
+    }
+    if (text == "outside") {
+        spec = featherdoc::table_position_horizontal_spec::outside;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_table_position_vertical_spec(
+    std::string_view text,
+    featherdoc::table_position_vertical_spec &spec) -> bool {
+    if (text == "top") {
+        spec = featherdoc::table_position_vertical_spec::top;
+        return true;
+    }
+    if (text == "center") {
+        spec = featherdoc::table_position_vertical_spec::center;
+        return true;
+    }
+    if (text == "bottom") {
+        spec = featherdoc::table_position_vertical_spec::bottom;
+        return true;
+    }
+    if (text == "inside") {
+        spec = featherdoc::table_position_vertical_spec::inside;
+        return true;
+    }
+    if (text == "outside") {
+        spec = featherdoc::table_position_vertical_spec::outside;
         return true;
     }
 
@@ -6621,6 +6693,27 @@ auto parse_table_position_options(
             continue;
         }
 
+        if (argument == "--horizontal-spec") {
+            if (options.has_horizontal_spec) {
+                error_message = "duplicate --horizontal-spec option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --horizontal-spec";
+                return false;
+            }
+            featherdoc::table_position_horizontal_spec spec{};
+            if (!parse_table_position_horizontal_spec(arguments[index + 1U], spec)) {
+                error_message = "invalid horizontal spec: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            options.position.horizontal_spec = spec;
+            options.has_horizontal_spec = true;
+            ++index;
+            continue;
+        }
+
         if (argument == "--vertical-reference") {
             if (options.has_vertical_reference) {
                 error_message = "duplicate --vertical-reference option";
@@ -6657,6 +6750,27 @@ auto parse_table_position_options(
                 return false;
             }
             options.has_vertical_offset = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--vertical-spec") {
+            if (options.has_vertical_spec) {
+                error_message = "duplicate --vertical-spec option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --vertical-spec";
+                return false;
+            }
+            featherdoc::table_position_vertical_spec spec{};
+            if (!parse_table_position_vertical_spec(arguments[index + 1U], spec)) {
+                error_message = "invalid vertical spec: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            options.position.vertical_spec = spec;
+            options.has_vertical_spec = true;
             ++index;
             continue;
         }
@@ -19144,6 +19258,42 @@ auto table_position_vertical_reference_name(
     return "paragraph";
 }
 
+auto table_position_horizontal_spec_name(
+    featherdoc::table_position_horizontal_spec spec) noexcept -> std::string_view {
+    switch (spec) {
+    case featherdoc::table_position_horizontal_spec::left:
+        return "left";
+    case featherdoc::table_position_horizontal_spec::center:
+        return "center";
+    case featherdoc::table_position_horizontal_spec::right:
+        return "right";
+    case featherdoc::table_position_horizontal_spec::inside:
+        return "inside";
+    case featherdoc::table_position_horizontal_spec::outside:
+        return "outside";
+    }
+
+    return "left";
+}
+
+auto table_position_vertical_spec_name(
+    featherdoc::table_position_vertical_spec spec) noexcept -> std::string_view {
+    switch (spec) {
+    case featherdoc::table_position_vertical_spec::top:
+        return "top";
+    case featherdoc::table_position_vertical_spec::center:
+        return "center";
+    case featherdoc::table_position_vertical_spec::bottom:
+        return "bottom";
+    case featherdoc::table_position_vertical_spec::inside:
+        return "inside";
+    case featherdoc::table_position_vertical_spec::outside:
+        return "outside";
+    }
+
+    return "top";
+}
+
 auto table_overlap_name(featherdoc::table_overlap overlap) noexcept
     -> std::string_view {
     switch (overlap) {
@@ -19175,6 +19325,26 @@ void write_json_optional_table_overlap(
     }
 }
 
+void write_json_optional_table_position_horizontal_spec(
+    std::ostream &stream,
+    const std::optional<featherdoc::table_position_horizontal_spec> &spec) {
+    if (spec.has_value()) {
+        write_json_string(stream, table_position_horizontal_spec_name(*spec));
+    } else {
+        stream << "null";
+    }
+}
+
+void write_json_optional_table_position_vertical_spec(
+    std::ostream &stream,
+    const std::optional<featherdoc::table_position_vertical_spec> &spec) {
+    if (spec.has_value()) {
+        write_json_string(stream, table_position_vertical_spec_name(*spec));
+    } else {
+        stream << "null";
+    }
+}
+
 void write_json_table_position(std::ostream &stream,
                                const featherdoc::table_position &position) {
     stream << "{\"horizontal_reference\":";
@@ -19182,12 +19352,17 @@ void write_json_table_position(std::ostream &stream,
         stream,
         table_position_horizontal_reference_name(position.horizontal_reference));
     stream << ",\"horizontal_offset_twips\":"
-           << position.horizontal_offset_twips << ",\"vertical_reference\":";
+           << position.horizontal_offset_twips << ",\"horizontal_spec\":";
+    write_json_optional_table_position_horizontal_spec(stream,
+                                                       position.horizontal_spec);
+    stream << ",\"vertical_reference\":";
     write_json_string(stream,
                       table_position_vertical_reference_name(
                           position.vertical_reference));
     stream << ",\"vertical_offset_twips\":" << position.vertical_offset_twips
-           << ",\"left_from_text_twips\":";
+           << ",\"vertical_spec\":";
+    write_json_optional_table_position_vertical_spec(stream, position.vertical_spec);
+    stream << ",\"left_from_text_twips\":";
     write_json_optional_u32_value(stream, position.left_from_text_twips);
     stream << ",\"right_from_text_twips\":";
     write_json_optional_u32_value(stream, position.right_from_text_twips);
@@ -19220,9 +19395,17 @@ void write_table_position_text(
 
     stream << table_position_horizontal_reference_name(
                   position->horizontal_reference)
-           << ':' << position->horizontal_offset_twips << ','
+           << ':' << position->horizontal_offset_twips;
+    if (position->horizontal_spec.has_value()) {
+        stream << ':' << table_position_horizontal_spec_name(
+                              *position->horizontal_spec);
+    }
+    stream << ','
            << table_position_vertical_reference_name(position->vertical_reference)
            << ':' << position->vertical_offset_twips;
+    if (position->vertical_spec.has_value()) {
+        stream << ':' << table_position_vertical_spec_name(*position->vertical_spec);
+    }
     if (position->left_from_text_twips.has_value() ||
         position->right_from_text_twips.has_value() ||
         position->top_from_text_twips.has_value() ||
@@ -26433,13 +26616,26 @@ void print_parse_error(std::string_view command, const std::string &message,
     print_parse_error(message);
 }
 
+auto portable_json_error_message(const std::error_code &code) -> std::string {
+    if (code == std::make_error_code(std::errc::invalid_argument)) {
+        return "invalid argument";
+    }
+    if (code == std::make_error_code(std::errc::result_out_of_range)) {
+        return "result out of range";
+    }
+    if (code == std::make_error_code(std::errc::not_supported)) {
+        return "Operation not supported";
+    }
+    return code.message();
+}
+
 auto report_operation_failure(std::string_view command, std::string_view stage,
                               std::string_view fallback_message,
                               const featherdoc::document_error_info &error_info,
                               bool json_output) -> bool {
     if (json_output) {
         const auto message = error_info.code
-                                 ? error_info.code.message()
+                                 ? portable_json_error_message(error_info.code)
                                  : std::string{fallback_message};
         write_json_command_error(std::cerr, command, stage, message, &error_info);
         return false;
@@ -26462,7 +26658,22 @@ auto report_document_error(std::string_view command, std::string_view stage,
 }
 
 #if defined(FEATHERDOC_CLI_ENABLE_PDF)
+void write_pdf_export_options_json(std::ostream &stream,
+                                  const export_pdf_options &options) {
+    stream << "{\"render_headers_and_footers\":"
+           << json_bool(options.render_headers_and_footers)
+           << ",\"render_inline_images\":"
+           << json_bool(options.render_inline_images)
+           << ",\"expand_header_footer_page_placeholders\":"
+           << json_bool(options.expand_header_footer_page_placeholders)
+           << ",\"subset_unicode_fonts\":"
+           << json_bool(options.subset_unicode_fonts)
+           << ",\"use_system_font_fallbacks\":"
+           << json_bool(options.use_system_font_fallbacks) << '}';
+}
+
 void print_pdf_export_result(std::string_view command, const path_type &output_path,
+                             const export_pdf_options &options,
                              const featherdoc::pdf::PdfWriteResult &result,
                              bool json_output) {
     if (json_output) {
@@ -26470,7 +26681,10 @@ void print_pdf_export_result(std::string_view command, const path_type &output_p
         write_json_string(std::cout, command);
         std::cout << ",\"ok\":true,\"output\":";
         write_json_string(std::cout, output_path.string());
-        std::cout << ",\"bytes_written\":" << result.bytes_written << "}\n";
+        std::cout << ",\"bytes_written\":" << result.bytes_written
+                  << ",\"options\":";
+        write_pdf_export_options_json(std::cout, options);
+        std::cout << "}\n";
         return;
     }
 
@@ -26481,6 +26695,7 @@ void print_pdf_export_result(std::string_view command, const path_type &output_p
 auto write_pdf_export_summary_json(std::string_view command,
                                    const path_type &summary_path,
                                    const path_type &output_path,
+                                   const export_pdf_options &options,
                                    const featherdoc::pdf::PdfWriteResult &result,
                                    std::string &error_message) -> bool {
     std::ofstream output(summary_path, std::ios::binary);
@@ -26494,7 +26709,10 @@ auto write_pdf_export_summary_json(std::string_view command,
     write_json_string(output, command);
     output << ",\"ok\":true,\"output\":";
     write_json_string(output, output_path.string());
-    output << ",\"bytes_written\":" << result.bytes_written << "}\n";
+    output << ",\"bytes_written\":" << result.bytes_written
+           << ",\"options\":";
+    write_pdf_export_options_json(output, options);
+    output << "}\n";
     if (!output.good()) {
         error_message =
             "failed to write PDF export summary: " + summary_path.string();
@@ -41580,6 +41798,8 @@ int featherdoc_cli_main(int argc, char **argv) {
         adapter_options.render_headers_and_footers =
             options.render_headers_and_footers;
         adapter_options.render_inline_images = options.render_inline_images;
+        adapter_options.expand_header_footer_page_placeholders =
+            options.expand_header_footer_page_placeholders;
         adapter_options.use_system_font_fallbacks =
             options.use_system_font_fallbacks;
         if (options.font_file_path.has_value()) {
@@ -41619,7 +41839,7 @@ int featherdoc_cli_main(int argc, char **argv) {
             std::string summary_error;
             if (!write_pdf_export_summary_json(
                     command, *options.summary_json_path, *options.output_path,
-                    result, summary_error)) {
+                    options, result, summary_error)) {
                 featherdoc::document_error_info error_info{};
                 error_info.code = std::make_error_code(std::errc::io_error);
                 error_info.detail = std::move(summary_error);
@@ -41630,14 +41850,19 @@ int featherdoc_cli_main(int argc, char **argv) {
             }
         }
 
-        print_pdf_export_result(command, *options.output_path, result,
+        print_pdf_export_result(command, *options.output_path, options, result,
                                 options.json_output);
         return 0;
 #else
         featherdoc::document_error_info error_info{};
-        error_info.code = std::make_error_code(std::errc::not_supported);
         error_info.detail =
             "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON";
+        if (options.json_output) {
+            write_json_command_error(std::cerr, command, "export",
+                                     "Operation not supported", &error_info);
+            return 1;
+        }
+        error_info.code = std::make_error_code(std::errc::not_supported);
         report_operation_failure(command, "export",
                                  "PDF export is not enabled in this build",
                                  error_info, options.json_output);

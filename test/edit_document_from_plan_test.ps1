@@ -4110,7 +4110,9 @@ Set-Content -LiteralPath $setTablePositionPlanPath -Encoding UTF8 -Value @'
       "op": "set_table_position",
       "table_index": 0,
       "preset": "page-corner",
+      "horizontal_spec": "center",
       "horizontal_offset": 360,
+      "vertical_spec": "bottom",
       "bottom_from_text": 288
     }
   ]
@@ -4147,7 +4149,7 @@ Assert-Equal -Actual $setTablePositionSummary.operations[0].command -Expected "s
 Assert-DocxXPath `
     -Document $tablePositionedDocument `
     -NamespaceManager $tablePositionedNamespaceManager `
-    -XPath "//w:tbl[1]/w:tblPr/w:tblpPr[@w:horzAnchor='page' and @w:tblpX='360' and @w:vertAnchor='page' and @w:bottomFromText='288' and @w:tblOverlap='never']" `
+    -XPath "//w:tbl[1]/w:tblPr/w:tblpPr[@w:horzAnchor='page' and @w:tblpX='360' and @w:tblpXSpec='center' and @w:vertAnchor='page' and @w:tblpYSpec='bottom' and @w:bottomFromText='288' and @w:tblOverlap='never']" `
     -Message "Set-table-position output should contain the requested floating table position."
 
 $clearTablePositionPlanPath = Join-Path $resolvedWorkingDir "invoice.clear_table_position_plan.json"

@@ -34,8 +34,7 @@ function(featherdoc_get_runtime_dir out_var target_name)
         return()
     endif()
 
-    set(runtime_location "")
-    foreach(property_name IN ITEMS
+    set(runtime_property_names
         IMPORTED_LOCATION_RELEASE
         IMPORTED_LOCATION_RELWITHDEBINFO
         IMPORTED_LOCATION_MINSIZEREL
@@ -47,8 +46,25 @@ function(featherdoc_get_runtime_dir out_var target_name)
         IMPORTED_IMPLIB_MINSIZEREL
         IMPORTED_IMPLIB_DEBUG
         IMPORTED_IMPLIB_NOCONFIG
-        IMPORTED_IMPLIB
-    )
+        IMPORTED_IMPLIB)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(runtime_property_names
+            IMPORTED_LOCATION_DEBUG
+            IMPORTED_IMPLIB_DEBUG
+            IMPORTED_LOCATION_RELEASE
+            IMPORTED_LOCATION_RELWITHDEBINFO
+            IMPORTED_LOCATION_MINSIZEREL
+            IMPORTED_LOCATION_NOCONFIG
+            IMPORTED_LOCATION
+            IMPORTED_IMPLIB_RELEASE
+            IMPORTED_IMPLIB_RELWITHDEBINFO
+            IMPORTED_IMPLIB_MINSIZEREL
+            IMPORTED_IMPLIB_NOCONFIG
+            IMPORTED_IMPLIB)
+    endif()
+
+    set(runtime_location "")
+    foreach(property_name IN LISTS runtime_property_names)
         if(runtime_location STREQUAL "")
             get_target_property(runtime_location ${target_name} ${property_name})
             if(runtime_location STREQUAL "runtime_location-NOTFOUND")
@@ -59,7 +75,11 @@ function(featherdoc_get_runtime_dir out_var target_name)
 
     if(runtime_location STREQUAL "")
         if(target_name STREQUAL "PNG::PNG")
-            foreach(variable_name IN ITEMS PNG_LIBRARY_RELEASE PNG_LIBRARY_DEBUG PNG_LIBRARY)
+            set(runtime_variable_names PNG_LIBRARY_RELEASE PNG_LIBRARY_DEBUG PNG_LIBRARY)
+            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+                set(runtime_variable_names PNG_LIBRARY_DEBUG PNG_LIBRARY_RELEASE PNG_LIBRARY)
+            endif()
+            foreach(variable_name IN LISTS runtime_variable_names)
                 if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
                     set(runtime_location "${${variable_name}}")
                     if(runtime_location MATCHES "-NOTFOUND$")
@@ -68,13 +88,21 @@ function(featherdoc_get_runtime_dir out_var target_name)
                 endif()
             endforeach()
         elseif(target_name STREQUAL "Freetype::Freetype")
-            foreach(variable_name IN ITEMS
+            set(runtime_variable_names
                 FREETYPE_LIBRARY_RELEASE
                 FREETYPE_LIBRARY_DEBUG
                 FEATHERDOC_FREETYPE_LIBRARY_RELEASE
                 FEATHERDOC_FREETYPE_LIBRARY_DEBUG
-                FREETYPE_LIBRARY
-            )
+                FREETYPE_LIBRARY)
+            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+                set(runtime_variable_names
+                    FREETYPE_LIBRARY_DEBUG
+                    FEATHERDOC_FREETYPE_LIBRARY_DEBUG
+                    FREETYPE_LIBRARY_RELEASE
+                    FEATHERDOC_FREETYPE_LIBRARY_RELEASE
+                    FREETYPE_LIBRARY)
+            endif()
+            foreach(variable_name IN LISTS runtime_variable_names)
                 if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
                     set(runtime_location "${${variable_name}}")
                     if(runtime_location MATCHES "-NOTFOUND$")
@@ -83,11 +111,17 @@ function(featherdoc_get_runtime_dir out_var target_name)
                 endif()
             endforeach()
         elseif(target_name STREQUAL "harfbuzz::harfbuzz-subset")
-            foreach(variable_name IN ITEMS
+            set(runtime_variable_names
                 HARFBUZZ_SUBSET_LIBRARY_RELEASE
                 HARFBUZZ_SUBSET_LIBRARY_DEBUG
-                HARFBUZZ_SUBSET_LIBRARY
-            )
+                HARFBUZZ_SUBSET_LIBRARY)
+            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+                set(runtime_variable_names
+                    HARFBUZZ_SUBSET_LIBRARY_DEBUG
+                    HARFBUZZ_SUBSET_LIBRARY_RELEASE
+                    HARFBUZZ_SUBSET_LIBRARY)
+            endif()
+            foreach(variable_name IN LISTS runtime_variable_names)
                 if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
                     set(runtime_location "${${variable_name}}")
                     if(runtime_location MATCHES "-NOTFOUND$")
@@ -96,11 +130,17 @@ function(featherdoc_get_runtime_dir out_var target_name)
                 endif()
             endforeach()
         elseif(target_name STREQUAL "harfbuzz::harfbuzz")
-            foreach(variable_name IN ITEMS
+            set(runtime_variable_names
                 HARFBUZZ_LIBRARY_RELEASE
                 HARFBUZZ_LIBRARY_DEBUG
-                HARFBUZZ_LIBRARY
-            )
+                HARFBUZZ_LIBRARY)
+            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+                set(runtime_variable_names
+                    HARFBUZZ_LIBRARY_DEBUG
+                    HARFBUZZ_LIBRARY_RELEASE
+                    HARFBUZZ_LIBRARY)
+            endif()
+            foreach(variable_name IN LISTS runtime_variable_names)
                 if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
                     set(runtime_location "${${variable_name}}")
                     if(runtime_location MATCHES "-NOTFOUND$")
@@ -1724,6 +1764,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/prepare_document_review_task
         )
+        set_tests_properties(prepare_document_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1739,6 +1783,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/prepare_word_review_task_verdict
         )
+        set_tests_properties(prepare_word_review_task_verdict
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1754,6 +1802,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/prepare_visual_regression_bundle_review_task
         )
+        set_tests_properties(prepare_visual_regression_bundle_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1769,6 +1821,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/refresh_readme_visual_assets
         )
+        set_tests_properties(refresh_readme_visual_assets
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1784,6 +1840,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/prepare_section_page_setup_review_task
         )
+        set_tests_properties(prepare_section_page_setup_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1799,6 +1859,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/prepare_page_number_fields_review_task
         )
+        set_tests_properties(prepare_page_number_fields_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1814,6 +1878,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/open_latest_section_page_setup_review_task
         )
+        set_tests_properties(open_latest_section_page_setup_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1829,6 +1897,84 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/open_latest_page_number_fields_review_task
         )
+        set_tests_properties(open_latest_page_number_fields_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
+
+        add_test(
+            NAME
+            open_latest_fixed_grid_review_task
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/open_latest_fixed_grid_review_task_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/open_latest_fixed_grid_review_task
+        )
+        set_tests_properties(open_latest_fixed_grid_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
+
+        add_test(
+            NAME
+            open_latest_word_review_task_curated_source_kind
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/open_latest_word_review_task_curated_source_kind_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/open_latest_word_review_task_curated_source_kind
+        )
+        set_tests_properties(open_latest_word_review_task_curated_source_kind
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
+
+        add_test(
+            NAME
+            print_latest_fixed_grid_review_prompt
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/print_latest_fixed_grid_review_prompt_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/print_latest_fixed_grid_review_prompt
+        )
+        set_tests_properties(print_latest_fixed_grid_review_prompt
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
+
+        add_test(
+            NAME
+            latest_review_task_wrappers_cmake_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/latest_review_task_wrappers_cmake_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(latest_review_task_wrappers_cmake_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1844,6 +1990,46 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/word_visual_release_gate_smoke_verdict
         )
+        set_tests_properties(word_visual_release_gate_smoke_verdict
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-gate;smoke")
+
+        add_test(
+            NAME
+            check_word_visual_release_gate_preflight
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/check_word_visual_release_gate_preflight_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/check_word_visual_release_gate_preflight
+        )
+        set_tests_properties(check_word_visual_release_gate_preflight
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-gate;smoke")
+
+        add_test(
+            NAME
+            word_visual_release_gate_preflight_route_docs_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/word_visual_release_gate_preflight_route_docs_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(word_visual_release_gate_preflight_route_docs_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-gate;smoke")
 
         add_test(
             NAME
@@ -2000,6 +2186,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict
         )
+        set_tests_properties(sync_latest_visual_review_verdict
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2015,6 +2205,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_uses_latest_release_summary_candidate
         )
+        set_tests_properties(sync_latest_visual_review_verdict_uses_latest_release_summary_candidate
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2030,6 +2224,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_tiebreaks_release_summary_candidate
         )
+        set_tests_properties(sync_latest_visual_review_verdict_tiebreaks_release_summary_candidate
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2045,6 +2243,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_curated_visual_bundle
         )
+        set_tests_properties(sync_latest_visual_review_verdict_curated_visual_bundle
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2060,6 +2262,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_table_style_quality
         )
+        set_tests_properties(sync_latest_visual_review_verdict_table_style_quality
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2075,6 +2281,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_no_release_summary
         )
+        set_tests_properties(sync_latest_visual_review_verdict_no_release_summary
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2090,6 +2300,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_malformed_release_summary_candidate_only
         )
+        set_tests_properties(sync_latest_visual_review_verdict_malformed_release_summary_candidate_only
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2105,6 +2319,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_conflicting_gates
         )
+        set_tests_properties(sync_latest_visual_review_verdict_conflicting_gates
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2120,6 +2338,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_missing_source_path
         )
+        set_tests_properties(sync_latest_visual_review_verdict_missing_source_path
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2135,6 +2357,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_unsupported_source_kind
         )
+        set_tests_properties(sync_latest_visual_review_verdict_unsupported_source_kind
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2150,6 +2376,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_malformed_pointer_json
         )
+        set_tests_properties(sync_latest_visual_review_verdict_malformed_pointer_json
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2165,6 +2395,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_malformed_release_summary
         )
+        set_tests_properties(sync_latest_visual_review_verdict_malformed_release_summary
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2180,6 +2414,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_skips_malformed_release_summary_candidate
         )
+        set_tests_properties(sync_latest_visual_review_verdict_skips_malformed_release_summary_candidate
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2195,6 +2433,46 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_missing_release_summary
         )
+        set_tests_properties(sync_latest_visual_review_verdict_missing_release_summary
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
+
+        add_test(
+            NAME
+            sync_latest_visual_review_verdict_explicit_gate_mismatch
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_latest_visual_review_verdict_explicit_gate_mismatch_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_explicit_gate_mismatch
+        )
+        set_tests_properties(sync_latest_visual_review_verdict_explicit_gate_mismatch
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
+
+        add_test(
+            NAME
+            sync_latest_visual_review_verdict_cmake_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_latest_visual_review_verdict_cmake_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(sync_latest_visual_review_verdict_cmake_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2285,6 +2563,23 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/export_render_data_skeleton
         )
+
+        add_test(
+            NAME
+            render_data_mapping_route_docs_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/render_data_mapping_route_docs_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(render_data_mapping_route_docs_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;template")
 
         add_test(
             NAME
@@ -3122,6 +3417,197 @@ if(WIN32)
 
             add_test(
                 NAME
+                check_release_metadata_docs
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/check_release_metadata_docs_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/check_release_metadata_docs
+            )
+            set_tests_properties(check_release_metadata_docs
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;release-metadata")
+
+            add_test(
+                NAME
+                current_direction_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/current_direction_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(current_direction_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance")
+
+            add_test(
+                NAME
+                style_merge_confidence_route_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/style_merge_confidence_route_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(style_merge_confidence_route_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;style")
+
+            add_test(
+                NAME
+                schema_patch_confidence_calibration_route_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/schema_patch_confidence_calibration_route_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(schema_patch_confidence_calibration_route_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;schema-calibration")
+
+            add_test(
+                NAME
+                content_control_data_binding_route_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/content_control_data_binding_route_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(content_control_data_binding_route_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;content-control")
+
+            add_test(
+                NAME
+                table_layout_delivery_route_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/table_layout_delivery_route_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(table_layout_delivery_route_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;table-layout")
+
+            add_test(
+                NAME
+                numbering_catalog_governance_route_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/numbering_catalog_governance_route_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(numbering_catalog_governance_route_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;numbering")
+
+            add_test(
+                NAME
+                document_skeleton_governance_route_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/document_skeleton_governance_route_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(document_skeleton_governance_route_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;document-skeleton")
+
+            add_test(
+                NAME
+                docx_functional_smoke_readiness
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/docx_functional_smoke_readiness_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/docx_functional_smoke_readiness
+            )
+            set_tests_properties(docx_functional_smoke_readiness
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;docx")
+
+            add_test(
+                NAME
+                docx_functional_smoke_readiness_route_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/docx_functional_smoke_readiness_route_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(docx_functional_smoke_readiness_route_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;docx")
+
+            add_test(
+                NAME
+                visual_regression_entrypoints_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/visual_regression_entrypoints_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(visual_regression_entrypoints_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;visual")
+
+            add_test(
+                NAME
                 build_release_blocker_rollup_report_passing
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
@@ -3139,6 +3625,23 @@ if(WIN32)
 
             add_test(
                 NAME
+                build_release_blocker_rollup_report_fail_on_warning
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_blocker_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_fail_on_warning
+                -Scenario
+                fail_on_warning
+            )
+
+            add_test(
+                NAME
                 build_release_governance_handoff_report_aggregate
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
@@ -3150,46 +3653,64 @@ if(WIN32)
                 ${PROJECT_SOURCE_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_aggregate
-            -Scenario
-            aggregate
-        )
-        featherdoc_set_test_labels(build_release_governance_handoff_report_aggregate release smoke release_smoke governance)
+                -Scenario
+                aggregate
+            )
+            featherdoc_set_test_labels(build_release_governance_handoff_report_aggregate release smoke release_smoke governance)
 
-        add_test(
-            NAME
-            build_release_governance_pipeline_report_aggregate
-            COMMAND
-            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
-            -ExecutionPolicy
-            Bypass
-            -File
-            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
-            -RepoRoot
-            ${PROJECT_SOURCE_DIR}
-            -WorkingDir
-            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_aggregate
-            -Scenario
-            aggregate
-        )
-        featherdoc_set_test_labels(build_release_governance_pipeline_report_aggregate release smoke release_smoke governance)
+            add_test(
+                NAME
+                build_release_governance_pipeline_report_aggregate
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_aggregate
+                -Scenario
+                aggregate
+            )
+            featherdoc_set_test_labels(build_release_governance_pipeline_report_aggregate release smoke release_smoke governance)
 
-        add_test(
-            NAME
-            build_release_governance_pipeline_report_fail_on_blocker
-            COMMAND
-            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
-            -ExecutionPolicy
-            Bypass
-            -File
-            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
-            -RepoRoot
-            ${PROJECT_SOURCE_DIR}
-            -WorkingDir
-            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_blocker
-            -Scenario
-            fail_on_blocker
-        )
-        featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_blocker release smoke release_smoke governance)
+            add_test(
+                NAME
+                build_release_governance_pipeline_report_fail_on_blocker
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_blocker
+                -Scenario
+                fail_on_blocker
+            )
+            featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_blocker release smoke release_smoke governance)
+
+            add_test(
+                NAME
+                build_release_governance_pipeline_report_fail_on_warning
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_warning
+                -Scenario
+                fail_on_warning
+            )
+            featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_warning release smoke release_smoke governance)
 
         add_test(
             NAME
@@ -3223,6 +3744,23 @@ if(WIN32)
                 ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_fail_on_missing
                 -Scenario
                 fail_on_missing
+            )
+
+            add_test(
+                NAME
+                build_release_governance_handoff_report_fail_on_warning
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_handoff_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_fail_on_warning
+                -Scenario
+                fail_on_warning
             )
 
             add_test(
@@ -3278,7 +3816,7 @@ if(WIN32)
 
             add_test(
                 NAME
-                build_release_blocker_rollup_report_style_merge_warning
+                build_release_blocker_rollup_report_failed_source
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
@@ -3288,9 +3826,9 @@ if(WIN32)
                 -RepoRoot
                 ${PROJECT_SOURCE_DIR}
                 -WorkingDir
-                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_style_merge_warning
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_failed_source
                 -Scenario
-                style_merge_warning
+                failed_source
             )
 
             add_test(
@@ -3800,6 +4338,24 @@ if(NOT WIN32)
 
         add_test(
             NAME
+            build_release_governance_handoff_report_fail_on_warning
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_handoff_report_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_fail_on_warning
+            -Scenario
+            fail_on_warning
+        )
+        featherdoc_set_test_labels(build_release_governance_handoff_report_fail_on_warning release smoke release_smoke governance)
+
+        add_test(
+            NAME
             build_release_governance_pipeline_report_aggregate
             COMMAND
             ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
@@ -3833,6 +4389,24 @@ if(NOT WIN32)
             fail_on_blocker
         )
         featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_blocker release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            build_release_governance_pipeline_report_fail_on_warning
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_warning
+            -Scenario
+            fail_on_warning
+        )
+        featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_warning release smoke release_smoke governance)
     endif()
 endif()
 

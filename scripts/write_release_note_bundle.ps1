@@ -49,6 +49,10 @@ function Get-OptionalPropertyValue {
         return ""
     }
 
+    if ($property.Value -is [datetime]) {
+        return $property.Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
     return [string]$property.Value
 }
 
