@@ -469,6 +469,16 @@ approval outcomes, and conservative recommendations such as
 ``release_blockers``, ``warnings`` and ``action_items`` preserve
 ``source_report_display``, ``source_json_display`` and reviewer
 ``open_command`` fields before the release blocker rollup consumes them. For
+DOCX functional smoke readiness,
+``scripts/check_docx_functional_smoke_readiness.ps1`` runs as the
+``docx_functional_smoke_readiness`` release-governance stage. It writes
+``docx-functional-smoke-readiness/summary.json`` and
+``docx_functional_smoke_readiness.md`` using
+``featherdoc.docx_functional_smoke_readiness.v1`` while keeping the
+``persisted_docx_functional_smoke_evidence_only`` boundary explicit. The stage
+preserves ``summary_json_display`` and ``report_markdown_display`` for handoff
+traceability, and keeps ``word_visual_smoke.pending_manual_review`` as a warning
+when reused visual evidence is non-empty but screenshot review is not closed. For
 skeleton governance,
 ``scripts/build_document_skeleton_governance_rollup_report.ps1`` rolls multiple
 single-document summaries into

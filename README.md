@@ -845,6 +845,12 @@ visual automation. If those four final governance summaries are already
 available under the input root, pass `-UseExistingGovernanceReports` to reuse
 them directly and only rebuild the handoff, final blocker rollup, and pipeline
 summary.
+The same read-only pipeline also runs
+`scripts/check_docx_functional_smoke_readiness.ps1` as
+`docx_functional_smoke_readiness`, producing
+`docx-functional-smoke-readiness/summary.json` with
+`featherdoc.docx_functional_smoke_readiness.v1` and
+`docx_functional_smoke_readiness.md` evidence before the handoff consumes it.
 The Linux/macOS CI `release_smoke` steps upload the release candidate blocker
 rollup, release governance handoff, and release governance pipeline smoke
 outputs as GitHub Actions artifacts so reviewer evidence can be downloaded from

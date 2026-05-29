@@ -106,7 +106,8 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``project_template_delivery_readiness`` 和
      ``content_control_data_binding_governance``；同时必须保留
      ``docx_functional_smoke_readiness``，让 DOCX 功能 smoke 与复用 Word visual PNG
-     非空证据进入同一条 release governance 证据链。
+     非空证据进入同一条 release governance 证据链；其 summary schema 必须保留
+     ``featherdoc.docx_functional_smoke_readiness.v1``，以便 handoff 按固定报告类型消费。
    * ``scripts/build_release_governance_handoff_report.ps1`` 必须把同一批
      blocker / warning / action item 明细继续写入 handoff。
    * ``scripts/run_release_candidate_checks.ps1`` 生成的 summary / final review
