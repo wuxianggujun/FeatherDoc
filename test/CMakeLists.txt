@@ -1854,6 +1854,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/open_latest_section_page_setup_review_task
         )
+        set_tests_properties(open_latest_section_page_setup_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1869,6 +1873,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/open_latest_page_number_fields_review_task
         )
+        set_tests_properties(open_latest_page_number_fields_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1884,6 +1892,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/open_latest_fixed_grid_review_task
         )
+        set_tests_properties(open_latest_fixed_grid_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1899,6 +1911,27 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/print_latest_fixed_grid_review_prompt
         )
+        set_tests_properties(print_latest_fixed_grid_review_prompt
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
+
+        add_test(
+            NAME
+            latest_review_task_wrappers_cmake_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/latest_review_task_wrappers_cmake_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(latest_review_task_wrappers_cmake_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
