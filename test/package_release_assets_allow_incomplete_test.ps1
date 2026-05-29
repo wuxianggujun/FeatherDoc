@@ -45,6 +45,16 @@ function Convert-TestEvidencePathToPublicDisplay {
     return $normalizedPath
 }
 
+function Convert-TestComparablePathValue {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    return ([string]$Value) -replace '/', '\'
+}
+
 function Assert-NotContains {
     param(
         [string]$Path,
@@ -638,8 +648,8 @@ foreach ($entrypointExpectation in @(
     $expectedEntrypointPathDisplay = Convert-TestEvidencePathToPublicDisplay `
         -Path ([string]$entrypointExpectation.path_display) `
         -RepoRoot $resolvedRepoRoot
-    if ([string]$entrypoint.path_display -ne $expectedEntrypointPathDisplay) {
-        throw "Release assets manifest lost manifest signoff entrypoint '$entrypointId' path_display in AllowIncomplete mode."
+    if ((Convert-TestComparablePathValue -Value $entrypoint.path_display) -ne (Convert-TestComparablePathValue -Value $expectedEntrypointPathDisplay)) {
+        throw "Release assets manifest lost manifest signoff entrypoint '$entrypointId' path_display in AllowIncomplete mode. Expected='$expectedEntrypointPathDisplay' Actual='$($entrypoint.path_display)'."
     }
 }
 

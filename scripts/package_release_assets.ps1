@@ -744,11 +744,25 @@ function Convert-RepoPathToRelative {
 function Convert-EvidencePathToPublicDisplay {
     param(
         [string]$Value,
-        [string]$RepoRoot
+        [string]$RepoRoot,
+        [switch]$PreferEvidenceAnchor
     )
 
     if ([string]::IsNullOrWhiteSpace($Value)) {
         return $Value
+    }
+
+    $normalized = $Value -replace '/', '\'
+    if ($PreferEvidenceAnchor) {
+        foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
+            $index = $normalized.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+            if ($index -ge 0) {
+                $relative = $normalized.Substring($index + 1)
+                if (-not [string]::IsNullOrWhiteSpace($relative)) {
+                    return ".\" + $relative
+                }
+            }
+        }
     }
 
     $repoDisplay = Convert-RepoPathToRelative -Value $Value -RepoRoot $RepoRoot
@@ -756,7 +770,6 @@ function Convert-EvidencePathToPublicDisplay {
         return $repoDisplay
     }
 
-    $normalized = $Value -replace '/', '\'
     foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
         $index = $normalized.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
         if ($index -ge 0) {
@@ -890,7 +903,7 @@ function Convert-EvidenceEntrypointsToPublicDisplay {
             $pathDisplay = [string](Get-EvidenceObjectProperty -Object $targetEntrypoint -Name "path")
         }
         if (-not [string]::IsNullOrWhiteSpace($pathDisplay)) {
-            $publicEntrypoint["path_display"] = Convert-EvidencePathToPublicDisplay -Value $pathDisplay -RepoRoot $RepoRoot
+            $publicEntrypoint["path_display"] = Convert-EvidencePathToPublicDisplay -Value $pathDisplay -RepoRoot $RepoRoot -PreferEvidenceAnchor
         }
 
         $convertedEntrypoints.Add($publicEntrypoint) | Out-Null

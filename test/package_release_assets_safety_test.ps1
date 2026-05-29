@@ -49,6 +49,12 @@ function Convert-TestComparableValue {
     return [string]$Value
 }
 
+function Convert-TestComparablePathValue {
+    param($Value)
+
+    return (Convert-TestComparableValue -Value $Value) -replace '/', '\'
+}
+
 function Convert-TestPathToRepoRelativeDisplay {
     param(
         [string]$Path,
@@ -1597,8 +1603,8 @@ foreach ($entrypointExpectation in @(
     $expectedEntrypointPathDisplay = Convert-TestEvidencePathToPublicDisplay `
         -Path ([string]$entrypointExpectation.path_display) `
         -RepoRoot $resolvedRepoRoot
-    if ([string]$entrypoint.path_display -ne $expectedEntrypointPathDisplay) {
-        throw "release_assets_manifest.json lost manifest signoff entrypoint '$entrypointId' path_display."
+    if ((Convert-TestComparablePathValue -Value $entrypoint.path_display) -ne (Convert-TestComparablePathValue -Value $expectedEntrypointPathDisplay)) {
+        throw "release_assets_manifest.json lost manifest signoff entrypoint '$entrypointId' path_display. Expected='$expectedEntrypointPathDisplay' Actual='$($entrypoint.path_display)'."
     }
 }
 

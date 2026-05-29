@@ -134,10 +134,11 @@ function Assert-MarkdownSectionContainsAll {
             }
         }
 
-        $section = ($lines[$lineIndex..$sectionEnd]) -join "`n"
+        $section = (($lines[$lineIndex..$sectionEnd]) -join "`n") -replace '/', '\'
         $sectionMatches = $true
         foreach ($fragment in $Fragments) {
-            if ($section -notmatch [regex]::Escape($fragment)) {
+            $normalizedFragment = $fragment -replace '/', '\'
+            if ($section -notmatch [regex]::Escape($normalizedFragment)) {
                 $sectionMatches = $false
                 break
             }
