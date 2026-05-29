@@ -1947,6 +1947,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/word_visual_release_gate_smoke_verdict
         )
+        set_tests_properties(word_visual_release_gate_smoke_verdict
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-gate;smoke")
 
         add_test(
             NAME
@@ -1962,6 +1966,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/check_word_visual_release_gate_preflight
         )
+        set_tests_properties(check_word_visual_release_gate_preflight
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-gate;smoke")
 
         add_test(
             NAME

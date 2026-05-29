@@ -224,7 +224,9 @@ $cmakeMarkers = @(
     "word_visual_release_gate_smoke_verdict",
     "word_visual_release_gate_smoke_verdict_test.ps1",
     "check_word_visual_release_gate_preflight",
-    "check_word_visual_release_gate_preflight_test.ps1"
+    "check_word_visual_release_gate_preflight_test.ps1",
+    "TIMEOUT 60",
+    'LABELS "word;visual;release-gate;smoke"'
 )
 $missingCMakeMarkers = @(Get-MissingTextMarkers -Text $cmakeListsText -Markers $cmakeMarkers)
 Add-Check -Checks $checks `
