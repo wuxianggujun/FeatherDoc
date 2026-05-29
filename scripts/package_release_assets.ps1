@@ -1058,6 +1058,8 @@ $hasPdfBoundedCtestEvidence = $pdfBoundedCtestStatus -ne "not_available"
 $pdfBoundedCtestManifestEvidence = Convert-StructuredValueToPublic -Value $pdfBoundedCtestEvidence -RepoRoot $repoRoot
 $wordVisualStandardReviewMetadata = @(Get-WordVisualStandardReviewMetadata -RepoRoot $repoRoot -Summary $summary)
 $governanceMetrics = @(Get-GovernanceMetrics -Summary $summary)
+$releaseGovernanceHandoff = Get-OptionalPropertyObject -Object $summary -Name "release_governance_handoff"
+$releaseGovernanceHandoffStatus = Get-OptionalPropertyValue -Object $releaseGovernanceHandoff -Name "status"
 $numberingCatalogRealCorpusConfidence = Get-NumberingCatalogRealCorpusConfidence -GovernanceMetrics $governanceMetrics
 $tableLayoutDeliveryQuality = Get-TableLayoutDeliveryQuality -GovernanceMetrics $governanceMetrics
 $contentControlRepairContracts = @(Get-ContentControlRepairContracts -RepoRoot $repoRoot -Summary $summary)
@@ -1073,6 +1075,10 @@ $governanceMetricCount = if (-not [string]::IsNullOrWhiteSpace($summaryGovernanc
 } else {
     $governanceMetrics.Count
 }
+$allowIncompleteCiPreview = $AllowIncomplete -and
+    $visualGateStatus -eq "skipped" -and
+    $releaseGovernanceHandoffStatus -eq "not_requested"
+$runStrictReleaseMaterialAudit = -not $allowIncompleteCiPreview
 
 if (-not $AllowIncomplete) {
     if ($executionStatus -ne "pass") {
@@ -1206,8 +1212,12 @@ if ($hasPdfVisualGateEvidence) {
 Write-Step "Sanitizing staged release materials"
 Sanitize-StagedReleaseMaterials -RepoRoot $repoRoot -RootPaths $releaseMaterialRoots
 
-Write-Step "Checking staged project-template checklist handoff evidence"
-Assert-StagedProjectTemplateChecklistHandoffEvidence -ReleaseCandidateRoot $stageReleaseCandidateRoot
+if ($runStrictReleaseMaterialAudit) {
+    Write-Step "Checking staged project-template checklist handoff evidence"
+    Assert-StagedProjectTemplateChecklistHandoffEvidence -ReleaseCandidateRoot $stageReleaseCandidateRoot
+} else {
+    Write-Step "Skipping staged project-template checklist handoff evidence check for incomplete CI preview"
+}
 
 if ($wordVisualStandardReviewMetadata.Count -gt 0) {
     Write-Step "Checking staged Word visual metadata handoff evidence"
@@ -1216,14 +1226,18 @@ if ($wordVisualStandardReviewMetadata.Count -gt 0) {
         -ExpectedMetadataCount $wordVisualStandardReviewMetadata.Count
 }
 
-Write-Step "Auditing staged release materials"
-& $releaseMaterialAuditScript -Path $releaseMaterialRoots
+if ($runStrictReleaseMaterialAudit) {
+    Write-Step "Auditing staged release materials"
+    & $releaseMaterialAuditScript -Path $releaseMaterialRoots
+} else {
+    Write-Step "Skipping staged release material safety audit for incomplete CI preview"
+}
 
 $releaseEntryProjectTemplateChecklistMaterialSafetyAudit = [ordered]@{
-    status = "passed"
+    status = if ($runStrictReleaseMaterialAudit) { "passed" } else { "skipped_allow_incomplete" }
     audit_script = ".\scripts\assert_release_material_safety.ps1"
-    audited_entrypoint_count = 3
-    audited_entrypoints = @("start_here", "artifact_guide", "reviewer_checklist")
+    audited_entrypoint_count = if ($runStrictReleaseMaterialAudit) { 3 } else { 0 }
+    audited_entrypoints = if ($runStrictReleaseMaterialAudit) { @("start_here", "artifact_guide", "reviewer_checklist") } else { @() }
     compact_evidence_label = "Project-template readiness checklist handoff evidence"
     compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
     compact_evidence_source_schema = "featherdoc.release_candidate_summary"
@@ -1406,8 +1420,12 @@ if ($null -ne $releaseView) {
 $publicManifest = Convert-StructuredValueToPublic -Value $manifest -RepoRoot $repoRoot
 ($publicManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $manifestPath -Encoding UTF8
 
-Write-Step "Auditing release asset manifest"
-& $releaseMaterialAuditScript -Path $manifestPath
+if ($runStrictReleaseMaterialAudit) {
+    Write-Step "Auditing release asset manifest"
+    & $releaseMaterialAuditScript -Path $manifestPath
+} else {
+    Write-Step "Skipping release asset manifest safety audit for incomplete CI preview"
+}
 
 if (-not $KeepStaging) {
     Remove-Item -LiteralPath $stagingRoot -Recurse -Force
