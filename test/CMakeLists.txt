@@ -3498,6 +3498,8 @@ if(WIN32)
                 ${PROJECT_SOURCE_DIR}
                 -SummaryJson
                 ${CMAKE_CURRENT_BINARY_DIR}/check_script_task_index/summary.json
+                -ReportMarkdown
+                ${CMAKE_CURRENT_BINARY_DIR}/check_script_task_index/script_task_index_check.md
                 -Quiet
             )
             set_tests_properties(check_script_task_index

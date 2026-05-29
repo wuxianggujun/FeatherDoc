@@ -49,6 +49,19 @@ function Assert-FileHasNoBom {
     }
 }
 
+function Assert-FileContainsText {
+    param(
+        [string]$Path,
+        [string]$ExpectedText,
+        [string]$Message
+    )
+
+    $text = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path
+    if ($text -notmatch [regex]::Escape($ExpectedText)) {
+        throw "$Message Missing='$ExpectedText'."
+    }
+}
+
 function Assert-ScriptParses {
     param([string]$Path)
 
@@ -80,12 +93,16 @@ function Invoke-IndexCheck {
     param(
         [string]$Root,
         [string]$SummaryJson,
+        [string]$ReportMarkdown,
         [switch]$Quiet
     )
 
     $parameters = @{
         RepoRoot = $Root
         SummaryJson = $SummaryJson
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ReportMarkdown)) {
+        $parameters.ReportMarkdown = $ReportMarkdown
     }
     if ($Quiet) {
         $parameters.Quiet = $true
@@ -102,7 +119,11 @@ $checkerScript = Join-Path $resolvedRepoRoot "scripts\check_script_task_index.ps
 Assert-ScriptParses -Path $checkerScript
 
 $passingSummaryJson = Join-Path $resolvedWorkingDir "passing-summary.json"
-$passingOutput = Invoke-IndexCheck -Root $resolvedRepoRoot -SummaryJson $passingSummaryJson
+$passingReportMarkdown = Join-Path $resolvedWorkingDir "passing-report.md"
+$passingOutput = Invoke-IndexCheck `
+    -Root $resolvedRepoRoot `
+    -SummaryJson $passingSummaryJson `
+    -ReportMarkdown $passingReportMarkdown
 $joinedPassingOutput = ($passingOutput | ForEach-Object { $_.ToString() }) -join "`n"
 if ($joinedPassingOutput -notmatch [regex]::Escape("Script task index check passed.")) {
     throw "check_script_task_index.ps1 did not print the success marker."
@@ -110,7 +131,11 @@ if ($joinedPassingOutput -notmatch [regex]::Escape("Script task index check pass
 if (-not (Test-Path -LiteralPath $passingSummaryJson -PathType Leaf)) {
     throw "check_script_task_index.ps1 did not write a passing summary."
 }
+if (-not (Test-Path -LiteralPath $passingReportMarkdown -PathType Leaf)) {
+    throw "check_script_task_index.ps1 did not write a passing Markdown report."
+}
 Assert-FileHasNoBom -Path $passingSummaryJson
+Assert-FileHasNoBom -Path $passingReportMarkdown
 $passingSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $passingSummaryJson | ConvertFrom-Json
 if ($passingSummary.status -ne "passed") {
     throw "Expected passing summary status, got: $($passingSummary.status)"
@@ -120,6 +145,12 @@ if ($passingSummary.schema -ne "featherdoc.script_task_index_check.v1") {
 }
 if ($passingSummary.checker_name -ne "check_script_task_index.ps1") {
     throw "Unexpected checker name: $($passingSummary.checker_name)"
+}
+if ($passingSummary.report_markdown_path -ne $passingReportMarkdown) {
+    throw "Unexpected Markdown report path: $($passingSummary.report_markdown_path)"
+}
+if ($passingSummary.report_markdown_relative_path -notmatch [regex]::Escape("passing-report.md")) {
+    throw "Unexpected Markdown report relative path: $($passingSummary.report_markdown_relative_path)"
 }
 if ($passingSummary.script_reference_count -lt 20) {
     throw "Expected at least 20 indexed scripts, got: $($passingSummary.script_reference_count)"
@@ -142,12 +173,33 @@ Assert-ArrayContains `
     -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
     -ExpectedValue "scripts\check_pdf_release_readiness.ps1" `
     -Message "Summary should list the PDF release readiness script."
+foreach ($marker in @(
+        '# Script Task Index Check',
+        '- schema: `featherdoc.script_task_index_check.v1`',
+        '- status: `passed`',
+        '- missing_script_count: `0`',
+        '- missing_marker_count: `0`',
+        '## Checked Scripts',
+        '[ok] `scripts\check_script_task_index.ps1`',
+        '[ok] `scripts\run_release_candidate_checks.ps1`'
+    )) {
+    Assert-FileContainsText -Path $passingReportMarkdown -ExpectedText $marker `
+        -Message "Passing Markdown report should include marker."
+}
 
 $quietSummaryJson = Join-Path $resolvedWorkingDir "quiet-summary.json"
-$quietOutput = Invoke-IndexCheck -Root $resolvedRepoRoot -SummaryJson $quietSummaryJson -Quiet
+$quietReportMarkdown = Join-Path $resolvedWorkingDir "quiet-report.md"
+$quietOutput = Invoke-IndexCheck `
+    -Root $resolvedRepoRoot `
+    -SummaryJson $quietSummaryJson `
+    -ReportMarkdown $quietReportMarkdown `
+    -Quiet
 $joinedQuietOutput = ($quietOutput | ForEach-Object { $_.ToString() }) -join "`n"
 if ($joinedQuietOutput -match [regex]::Escape("Script task index check passed.")) {
     throw "check_script_task_index.ps1 printed the success marker in quiet mode."
+}
+if (-not (Test-Path -LiteralPath $quietReportMarkdown -PathType Leaf)) {
+    throw "check_script_task_index.ps1 did not write a quiet Markdown report."
 }
 
 $failingRoot = Join-Path $resolvedWorkingDir "failing-repo"
@@ -186,10 +238,14 @@ Write-Utf8NoBomFile `
     -Text "param()`n"
 
 $failingSummaryJson = Join-Path $failingRoot "summary.json"
+$failingReportMarkdown = Join-Path $failingRoot "script-task-index-report.md"
 $failed = $false
 $failureOutput = @()
 try {
-    $failureOutput = Invoke-IndexCheck -Root $failingRoot -SummaryJson $failingSummaryJson
+    $failureOutput = Invoke-IndexCheck `
+        -Root $failingRoot `
+        -SummaryJson $failingSummaryJson `
+        -ReportMarkdown $failingReportMarkdown
 } catch {
     $failed = $true
     $failureOutput += $_.Exception.Message
@@ -204,7 +260,11 @@ if ($joinedFailureOutput -notmatch [regex]::Escape("MissingScripts=1")) {
 if (-not (Test-Path -LiteralPath $failingSummaryJson -PathType Leaf)) {
     throw "check_script_task_index.ps1 did not write a failing summary."
 }
+if (-not (Test-Path -LiteralPath $failingReportMarkdown -PathType Leaf)) {
+    throw "check_script_task_index.ps1 did not write a failing Markdown report."
+}
 Assert-FileHasNoBom -Path $failingSummaryJson
+Assert-FileHasNoBom -Path $failingReportMarkdown
 $failingSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $failingSummaryJson | ConvertFrom-Json
 if ($failingSummary.status -ne "failed") {
     throw "Expected failing summary status, got: $($failingSummary.status)"
@@ -216,5 +276,15 @@ Assert-ArrayContains `
     -Values @($failingSummary.missing_scripts) `
     -ExpectedValue "scripts\missing_tool.ps1" `
     -Message "Failing summary should list the missing script."
+foreach ($marker in @(
+        '- status: `failed`',
+        '- missing_script_count: `1`',
+        '[missing] `scripts\missing_tool.ps1`',
+        '## Missing Scripts',
+        '`scripts\missing_tool.ps1`'
+    )) {
+    Assert-FileContainsText -Path $failingReportMarkdown -ExpectedText $marker `
+        -Message "Failing Markdown report should include marker."
+}
 
 Write-Host "Script task index checker regression passed."

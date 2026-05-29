@@ -24,7 +24,10 @@
 
 - ``scripts/check_script_task_index.ps1``：只读检查本页列出的 ``scripts/*.ps1``
   和 ``scripts/*.py`` 路径是否真实存在，同时确认本文已经进入 Sphinx 首页、
-  文档维护计划、项目评分建议和 CMake 轻量测试注册。
+  文档维护计划、项目评分建议和 CMake 轻量测试注册；默认同时写出
+  ``summary.json`` 和 ``script_task_index_check.md``，让 CI / release 面板消费
+  稳定 JSON，也让人工复核直接阅读 Markdown 摘要；可用 ``-SummaryJson`` /
+  ``-ReportMarkdown`` 显式指定输出路径。
 
 
 模板契约与项目模板

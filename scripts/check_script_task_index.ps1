@@ -1,6 +1,7 @@
 param(
     [string]$RepoRoot = "",
     [string]$SummaryJson = "output/script-task-index-check/summary.json",
+    [string]$ReportMarkdown = "output/script-task-index-check/script_task_index_check.md",
     [switch]$Quiet
 )
 
@@ -133,8 +134,65 @@ function New-ScriptCheckEntry {
     }
 }
 
+function New-MarkdownReport {
+    param(
+        [object]$Summary,
+        [object[]]$CheckedScripts,
+        [string[]]$MissingScripts,
+        [object[]]$MissingMarkers
+    )
+
+    $lines = New-Object 'System.Collections.Generic.List[string]'
+    $lines.Add("# Script Task Index Check")
+    $lines.Add("")
+    $lines.Add("- schema: ``$($Summary.schema)``")
+    $lines.Add("- status: ``$($Summary.status)``")
+    $lines.Add("- checked_at_utc: ``$($Summary.checked_at_utc)``")
+    $lines.Add("- checker: ``$($Summary.checker_name)``")
+    $lines.Add("- script_index: ``$($Summary.script_index_relative_path)``")
+    $lines.Add("- script_reference_count: ``$($Summary.script_reference_count)``")
+    $lines.Add("- missing_script_count: ``$($Summary.missing_script_count)``")
+    $lines.Add("- required_marker_count: ``$($Summary.required_marker_count)``")
+    $lines.Add("- missing_marker_count: ``$($Summary.missing_marker_count)``")
+    $lines.Add("- summary_json: ``$($Summary.summary_json_relative_path)``")
+    $lines.Add("- report_markdown: ``$($Summary.report_markdown_relative_path)``")
+    $lines.Add("")
+    $lines.Add("## Checked Scripts")
+    $lines.Add("")
+
+    foreach ($script in $CheckedScripts) {
+        $scriptStatus = if ([bool]$script.exists) { "ok" } else { "missing" }
+        $lines.Add("- [$scriptStatus] ``$($script.relative_path)``")
+    }
+
+    $lines.Add("")
+    $lines.Add("## Missing Scripts")
+    $lines.Add("")
+    if ($MissingScripts.Count -eq 0) {
+        $lines.Add("- none")
+    } else {
+        foreach ($script in $MissingScripts) {
+            $lines.Add("- ``$script``")
+        }
+    }
+
+    $lines.Add("")
+    $lines.Add("## Missing Markers")
+    $lines.Add("")
+    if ($MissingMarkers.Count -eq 0) {
+        $lines.Add("- none")
+    } else {
+        foreach ($marker in $MissingMarkers) {
+            $lines.Add("- ``$($marker.document)`` missing ``$($marker.marker)``")
+        }
+    }
+
+    return (($lines.ToArray()) -join [Environment]::NewLine) + [Environment]::NewLine
+}
+
 $resolvedRepoRoot = Resolve-RepoRoot -InputRoot $RepoRoot
 $summaryJsonPath = Resolve-RepoPath -Root $resolvedRepoRoot -InputPath $SummaryJson
+$reportMarkdownPath = Resolve-RepoPath -Root $resolvedRepoRoot -InputPath $ReportMarkdown
 
 $scriptIndexRelativePath = "docs\script_task_index_zh.rst"
 $indexRelativePath = "docs\index.rst"
@@ -227,6 +285,7 @@ $checkedAtUtc = [DateTime]::UtcNow.ToString(
     [System.Globalization.CultureInfo]::InvariantCulture
 )
 $summaryJsonRelativePath = Get-RepoRelativePath -BaseRoot $resolvedRepoRoot -Path $summaryJsonPath
+$reportMarkdownRelativePath = Get-RepoRelativePath -BaseRoot $resolvedRepoRoot -Path $reportMarkdownPath
 $requiredMarkerCount = [int](($requiredMarkerGroups | ForEach-Object { $_.markers.Count } | Measure-Object -Sum).Sum)
 $missingMarkerEntries = @($missingMarkers.ToArray())
 
@@ -240,6 +299,8 @@ $summary = [ordered]@{
     repo_root = $resolvedRepoRoot
     summary_json_path = $summaryJsonPath
     summary_json_relative_path = $summaryJsonRelativePath
+    report_markdown_path = $reportMarkdownPath
+    report_markdown_relative_path = $reportMarkdownRelativePath
     script_index_relative_path = $scriptIndexRelativePath
     script_reference_count = $scriptReferences.Count
     checked_scripts = @($checkedScripts)
@@ -251,6 +312,11 @@ $summary = [ordered]@{
 }
 
 Write-Utf8NoBomFile -Path $summaryJsonPath -Text (($summary | ConvertTo-Json -Depth 8) + [Environment]::NewLine)
+Write-Utf8NoBomFile -Path $reportMarkdownPath -Text (New-MarkdownReport `
+        -Summary ([pscustomobject]$summary) `
+        -CheckedScripts $checkedScripts `
+        -MissingScripts $missingScripts `
+        -MissingMarkers $missingMarkerEntries)
 
 if ($status -ne "passed") {
     throw "Script task index check failed. MissingScripts=$($missingScripts.Count); MissingMarkers=$($missingMarkers.Count)."

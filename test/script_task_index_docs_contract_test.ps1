@@ -86,12 +86,15 @@ foreach ($marker in @(
         "export_template_render_plan.ps1",
         "check_docx_functional_smoke_readiness.ps1",
         "check_script_task_index.ps1",
+        "summary.json",
+        "script_task_index_check.md",
         "build_numbering_catalog_governance_report.ps1",
         "build_table_layout_delivery_report.ps1",
         "check_word_visual_release_gate_preflight.ps1",
         "build_release_governance_pipeline_report.ps1",
         "check_pdf_release_readiness.ps1",
         "TIMEOUT 60",
+        "ReportMarkdown",
         "-SkipBuild",
         "schema_version"
     )) {
@@ -144,6 +147,8 @@ foreach ($relativePath in $requiredScriptPaths) {
 foreach ($marker in @(
         "script_task_index_docs_contract",
         "script_task_index_docs_contract_test.ps1",
+        "ReportMarkdown",
+        "script_task_index_check.md",
         "TIMEOUT 60",
         'LABELS "docs;smoke;governance;scripts"'
     )) {
