@@ -3658,6 +3658,7 @@ try {
     }
     $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
     $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
+    $wordVisualStandardReviewMetadataEvidenceLine = Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary $summary
     $projectTemplateChecklistEvidenceLines = New-Object 'System.Collections.Generic.List[string]'
     foreach ($evidenceLine in @(
             $projectTemplateChecklistHandoffEvidenceLine,
@@ -3671,6 +3672,14 @@ try {
         "## Project-template release entry evidence" + [Environment]::NewLine +
         [Environment]::NewLine +
         ($projectTemplateChecklistEvidenceLines.ToArray() -join [Environment]::NewLine) +
+        [Environment]::NewLine
+    } else {
+        ""
+    }
+    $wordVisualStandardReviewMetadataEvidenceMarkdown = if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceLine)) {
+        "## Word visual standard review metadata evidence" + [Environment]::NewLine +
+        [Environment]::NewLine +
+        "- $wordVisualStandardReviewMetadataEvidenceLine" +
         [Environment]::NewLine
     } else {
         ""
@@ -3732,6 +3741,7 @@ $visualGateReviewSummary
 $releaseGovernanceRollupMarkdown
 $releaseGovernanceHandoffMarkdown
 $projectTemplateChecklistEvidenceMarkdown
+$wordVisualStandardReviewMetadataEvidenceMarkdown
 ## Key outputs
 
 - Build directory: $buildDirDisplay

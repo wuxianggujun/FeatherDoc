@@ -423,8 +423,14 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'Get-ReleaseGovernanceProjec
 Assert-ContainsText -Text $scriptText -ExpectedText 'Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary' `
     -Message "Release preflight final_review.md should derive packaged project-template checklist audit evidence from release governance handoff."
 
+Assert-ContainsText -Text $scriptText -ExpectedText 'Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary $summary' `
+    -Message "Release preflight final_review.md should derive compact Word visual metadata evidence from release governance handoff."
+
 Assert-ContainsText -Text $scriptText -ExpectedText '## Project-template release entry evidence' `
     -Message "Release preflight final_review.md should expose project-template release entry evidence as a reviewer-facing section."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '## Word visual standard review metadata evidence' `
+    -Message "Release preflight final_review.md should expose compact Word visual metadata evidence as a reviewer-facing section."
 
 Assert-ContainsText -Text $scriptText -ExpectedText 'Project template smoke schema approval gate blocked.' `
     -Message "Release preflight should fail when schema approval gate is blocked."
@@ -1696,6 +1702,25 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Proje
     "compact_evidence_source_schema=featherdoc.release_candidate_summary",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
 ) -Message "final_review.md should expose project-template checklist handoff and packaged audit evidence consumed from release governance handoff."
+Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Word visual standard review metadata evidence" -Fragments @(
+    "Word visual standard review metadata evidence",
+    "word_visual_standard_review_metadata_source_reports=1",
+    "metadata_count=4",
+    "task_keys=smoke, fixed_grid, section_page_setup, page_number_fields",
+    "status_summary=reviewed=4",
+    "verdict_summary=pass=4",
+    "smoke:review_task_key=document",
+    "fixed_grid:review_task_key=fixed_grid",
+    "section_page_setup:review_task_key=section_page_setup",
+    "page_number_fields:review_task_key=page_number_fields",
+    "review_result_path=",
+    "final_review_path=",
+    "source_schema=featherdoc.release_candidate_summary",
+    "source_report=",
+    "release-candidate-checks-source\summary.json"
+) -Message "final_review.md should expose compact Word visual standard review metadata evidence consumed from release governance handoff."
+Assert-DoesNotContainText -Text $candidateFinalReview -UnexpectedText "review_note" `
+    -Message "final_review.md compact Word visual metadata evidence should not expose private operator review notes."
 Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "project_template_delivery_readiness / project_template_onboarding.schema_approval" -Fragments @(
     "project_template_delivery_readiness / project_template_onboarding.schema_approval",
     "project_template_onboarding_governance_contract",

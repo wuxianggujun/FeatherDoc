@@ -1046,6 +1046,24 @@ Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionP
 Assert-Contains -Path $handoffPath -ExpectedText 'Release Governance Handoff Details' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'Handoff Warnings' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'schema_patch_confidence_calibration.unscored_candidates' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Word Visual Standard Review Metadata Evidence' -Label 'release_handoff.md'
+Assert-LineContainsAll -Path $handoffPath -ExpectedFragments @(
+    'Word visual standard review metadata evidence',
+    'word_visual_standard_review_metadata_source_reports=1',
+    'metadata_count=4',
+    'task_keys=smoke, fixed_grid, section_page_setup, page_number_fields',
+    'status_summary=reviewed=4',
+    'verdict_summary=pass=4',
+    'smoke:review_task_key=document',
+    'fixed_grid:review_task_key=fixed_grid',
+    'section_page_setup:review_task_key=section_page_setup',
+    'page_number_fields:review_task_key=page_number_fields',
+    'review_result_path=',
+    'final_review_path=',
+    'source_schema=featherdoc.release_candidate_summary',
+    'source_report=.\output\release-candidate-checks\summary.json'
+) -Label 'release_handoff.md'
+Assert-NotContains -Path $handoffPath -UnexpectedText 'review_note' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'source_report_display: .\output\project-template-delivery-readiness\summary.json' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\project-template-onboarding-governance\summary.json' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText $expectedSupersededReviewTasksReportDisplayPath -Label 'release_handoff.md'

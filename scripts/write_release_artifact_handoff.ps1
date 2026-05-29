@@ -129,6 +129,7 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+$wordVisualStandardReviewMetadataEvidenceLine = Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary $summary
 $summaryReleaseVersion = Get-OptionalPropertyValue -Object $summary -Name "release_version"
 $projectVersion = if (-not [string]::IsNullOrWhiteSpace($ReleaseVersion)) {
     $ReleaseVersion
@@ -499,6 +500,12 @@ if ($pdfBoundedCtestEvidence.status -ne "not_available") {
 Add-ReleaseBlockerMarkdownSection -Lines $handoffLines -Summary $summary -RepoRoot $repoRoot
 Add-ReleaseGovernanceRollupMarkdownSection -Lines $handoffLines -Summary $summary -RepoRoot $repoRoot
 Add-ReleaseGovernanceHandoffMarkdownSection -Lines $handoffLines -Summary $summary -RepoRoot $repoRoot
+if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceLine)) {
+    [void]$handoffLines.Add("")
+    [void]$handoffLines.Add("## Word Visual Standard Review Metadata Evidence")
+    [void]$handoffLines.Add("")
+    [void]$handoffLines.Add("- $wordVisualStandardReviewMetadataEvidenceLine")
+}
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Installed Package Entry Points")
 [void]$handoffLines.Add("")

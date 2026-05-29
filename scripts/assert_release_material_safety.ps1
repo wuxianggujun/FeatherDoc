@@ -1283,7 +1283,7 @@ function Add-ReleaseEntryWordVisualStandardReviewMetadataEvidenceTraceViolations
     )
 
     $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
-    if ($leafName -notin @("start_here.md", "artifact_guide.md", "reviewer_checklist.md")) {
+    if ($leafName -notin @("start_here.md", "artifact_guide.md", "reviewer_checklist.md", "final_review.md", "release_handoff.md")) {
         return
     }
 
