@@ -133,6 +133,8 @@ $requiredScripts = @(
     "scripts\run_fixed_grid_merge_unmerge_regression.ps1",
     "scripts\run_section_page_setup_visual_regression.ps1",
     "scripts\run_page_number_fields_visual_regression.ps1",
+    "scripts\run_bookmark_floating_image_visual_regression.ps1",
+    "scripts\run_floating_image_z_order_visual_regression.ps1",
     "scripts\prepare_word_review_task.ps1",
     "scripts\refresh_readme_visual_assets.ps1",
     "scripts\build_image_contact_sheet.py"
@@ -183,6 +185,10 @@ $requiredGateMarkers = @(
     '[string]$SectionPageSetupReviewVerdict = "undecided"',
     '[string]$PageNumberFieldsReviewVerdict = "undecided"',
     '[string]$CuratedVisualReviewVerdict = "undecided"',
+    '[string]$BookmarkFloatingImageBuildDir = "build-msvc-nmake-bookmark-floating-image-visual"',
+    '[string]$FloatingImageZOrderBuildDir = "build-floating-image-z-order-visual-nmake"',
+    '[switch]$SkipBookmarkFloatingImage',
+    '[switch]$SkipFloatingImageZOrder',
     '$gateSummary.review_task_summary = Get-ReviewTaskSummary -ReviewTasks $gateSummary.review_tasks',
     'visual_verdict = if ($SkipReviewTasks)',
     'Gate summary: $gateSummaryPath',
@@ -204,6 +210,8 @@ $coreFlowMarkers = @(
     'scripts\run_fixed_grid_merge_unmerge_regression.ps1',
     'scripts\run_section_page_setup_visual_regression.ps1',
     'scripts\run_page_number_fields_visual_regression.ps1',
+    'scripts\run_bookmark_floating_image_visual_regression.ps1',
+    'scripts\run_floating_image_z_order_visual_regression.ps1',
     'scripts\prepare_word_review_task.ps1',
     'scripts\refresh_readme_visual_assets.ps1',
     'curatedVisualFlowDescriptors'
@@ -217,6 +225,29 @@ Add-Check -Checks $checks `
     -Details ([ordered]@{
         required_markers = $coreFlowMarkers
         missing_markers = @($missingCoreFlowMarkers)
+    })
+
+$floatingImageFlowMarkers = @(
+    'id = "bookmark-floating-image"',
+    'label = "Bookmark floating image"',
+    '$SkipBookmarkFloatingImage.IsPresent',
+    '$BookmarkFloatingImageBuildDir',
+    '$bookmarkFloatingImageScript',
+    'id = "floating-image-z-order"',
+    'label = "Floating image z-order"',
+    '$SkipFloatingImageZOrder.IsPresent',
+    '$FloatingImageZOrderBuildDir',
+    '$floatingImageZOrderScript'
+)
+$missingFloatingImageFlowMarkers = @(Get-MissingTextMarkers -Text $gateScriptText -Markers $floatingImageFlowMarkers)
+Add-Check -Checks $checks `
+    -Name "word_visual_gate_floating_image_flows_wired" `
+    -Status $(if ($missingFloatingImageFlowMarkers.Count -eq 0) { "pass" } else { "missing" }) `
+    -Required $true `
+    -Message $(if ($missingFloatingImageFlowMarkers.Count -eq 0) { "Word visual release gate still wires bookmark-floating-image and floating-image-z-order visual flows." } else { "Word visual release gate lost a floating image visual flow marker." }) `
+    -Details ([ordered]@{
+        required_markers = $floatingImageFlowMarkers
+        missing_markers = @($missingFloatingImageFlowMarkers)
     })
 
 $cmakeListsText = Get-RepoFileText -Root $repoRoot -RelativePath "test\CMakeLists.txt"

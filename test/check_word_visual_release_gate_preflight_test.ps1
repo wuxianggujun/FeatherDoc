@@ -102,6 +102,7 @@ foreach ($checkName in @(
         "word_visual_gate_parseable",
         "word_visual_gate_contract_markers",
         "word_visual_gate_core_flows_wired",
+        "word_visual_gate_floating_image_flows_wired",
         "word_visual_gate_cmake_contract_registered",
         "word_visual_gate_docs_linked"
     )) {
@@ -115,7 +116,8 @@ foreach ($marker in @(
         "Word Visual Release Gate Preflight",
         "featherdoc.word_visual_release_gate_preflight.v1",
         "word_visual_release_gate_preflight_static_contract_only",
-        "word_visual_gate_core_flows_wired"
+        "word_visual_gate_core_flows_wired",
+        "word_visual_gate_floating_image_flows_wired"
     )) {
     Assert-ContainsText -Text $markdown -ExpectedText $marker `
         -Message "Markdown report should preserve marker '$marker'."
