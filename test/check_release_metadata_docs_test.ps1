@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 117) {
-        throw "Expected JSON summary to count 117 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 122) {
+        throw "Expected JSON summary to count 122 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -351,6 +351,11 @@ $defaultChecklistText = @(
     '- open_latest_word_review_task.ps1 -SourceKind table-style-quality-visual-regression-bundle',
     '- latest_table-style-quality-visual-regression-bundle_task.json',
     '- release_note_bundle_visual_verdict_metadata',
+    '- Word visual standard review metadata evidence',
+    '- word_visual_standard_review_metadata_source_reports',
+    '- task_reviews=',
+    '- source_schema=featherdoc.release_candidate_summary',
+    '- release-candidate-checks',
     '- public_release_wording_regression_test.ps1',
     '- git diff --check',
     '- release governance warning contract',
@@ -440,8 +445,8 @@ if ($summary.checked_document_count -ne 4) {
 if ($summary.required_pipeline_marker_count -ne 56) {
     throw "Expected JSON summary pipeline marker count 56, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 48) {
-    throw "Expected JSON summary checklist marker count 48, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 53) {
+    throw "Expected JSON summary checklist marker count 53, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 10) {
     throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
@@ -449,8 +454,8 @@ if ($summary.required_document_governance_marker_count -ne 10) {
 if ($summary.required_policy_marker_count -ne 3) {
     throw "Expected JSON summary policy marker count 3, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 117) {
-    throw "Expected JSON summary total marker count 117, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 122) {
+    throw "Expected JSON summary total marker count 122, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 4) {
     throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
@@ -467,6 +472,26 @@ Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "release_note_bundle_visual_verdict_metadata" `
     -Message "JSON summary should list required checklist markers."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "Word visual standard review metadata evidence" `
+    -Message "JSON summary checklist should list Word visual metadata compact evidence marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "word_visual_standard_review_metadata_source_reports" `
+    -Message "JSON summary checklist should list Word visual metadata source reports marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "task_reviews=" `
+    -Message "JSON summary checklist should list Word visual metadata task review compact marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "source_schema=featherdoc.release_candidate_summary" `
+    -Message "JSON summary checklist should list Word visual metadata source schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "release-candidate-checks" `
+    -Message "JSON summary checklist should list release-candidate summary source marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue '``output_gap_count``' `
@@ -614,7 +639,7 @@ Assert-SummaryFailure `
     -ExpectedMessage "Tab character found" `
     -ExpectedFailureKind "tab_character" `
     -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
-    -ExpectedFailureLineNumber 23 `
+    -ExpectedFailureLineNumber 28 `
     -ExpectedFailureColumnNumber 6 `
     -ExpectedFailureExcerpt "- git`t diff --check"
 

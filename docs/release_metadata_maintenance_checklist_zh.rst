@@ -67,6 +67,18 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 - curated visual regression 只读取 ``review_verdict`` 字段。
 - ``reviewed_at`` 输出保持 ``yyyy-MM-ddTHH:mm:ss`` 格式，避免文化区域差异。
 
+涉及 Word visual standard review metadata 时，必须确认：
+
+- ``release_governance_handoff.md`` 保留
+  ``word_visual_standard_review_metadata_source_reports`` detailed source reports。
+- ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、
+  ``final_review.md`` 与 ``release_handoff.md`` 都渲染
+  ``Word visual standard review metadata evidence`` compact evidence line。
+- compact evidence line 必须把 ``task_reviews=``、
+  ``source_schema=featherdoc.release_candidate_summary`` 与 ``source_report`` 保持在同一行，
+  且 ``source_report`` 指向 ``release-candidate-checks`` 的 release-candidate summary。
+- ``review_note`` 仍是 operator-only 字段，不能进入任何发布入口或公开发布材料。
+
 涉及公开 release 正文时，必须确认：
 
 - ``release_body.zh-CN.md`` 不输出 ``review_note``。
