@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$RepoRoot,
     [string]$WorkingDir
 )
@@ -93,6 +93,10 @@ $gateReportDir = Join-Path $gateOutputDir "report"
 $smokeEvidenceDir = Join-Path $gateOutputDir "smoke\evidence"
 $fixedGridAggregateDir = Join-Path $gateOutputDir "fixed-grid\aggregate-evidence"
 $sectionPageSetupAggregateDir = Join-Path $gateOutputDir "section-page-setup\aggregate-evidence"
+$smokeTaskDir = Join-Path $gateOutputDir "review-tasks\document"
+$fixedGridTaskDir = Join-Path $gateOutputDir "review-tasks\fixed-grid"
+$sectionPageSetupTaskDir = Join-Path $gateOutputDir "review-tasks\section-page-setup"
+$pageNumberFieldsTaskDir = Join-Path $gateOutputDir "review-tasks\page-number-fields"
 $pdfGateOutputDir = Join-Path $resolvedWorkingDir "output\pdf-visual-release-gate"
 $pdfGateReportDir = Join-Path $pdfGateOutputDir "report"
 $pdfGateCopySearchDir = Join-Path $pdfGateReportDir "cjk-copy-search"
@@ -105,6 +109,11 @@ New-Item -ItemType Directory -Path $gateReportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $smokeEvidenceDir -Force | Out-Null
 New-Item -ItemType Directory -Path $fixedGridAggregateDir -Force | Out-Null
 New-Item -ItemType Directory -Path $sectionPageSetupAggregateDir -Force | Out-Null
+foreach ($reviewTaskDir in @($smokeTaskDir, $fixedGridTaskDir, $sectionPageSetupTaskDir, $pageNumberFieldsTaskDir)) {
+    New-Item -ItemType Directory -Path (Join-Path $reviewTaskDir "report") -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $reviewTaskDir "report\review_result.json") -Encoding UTF8 -Value '{"review_verdict":"pass"}'
+    Set-Content -LiteralPath (Join-Path $reviewTaskDir "report\final_review.md") -Encoding UTF8 -Value "# Final Review"
+}
 New-Item -ItemType Directory -Path $pdfGateReportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $pdfGateCopySearchDir -Force | Out-Null
 New-Item -ItemType Directory -Path $pdfGateUnicodeReportDir -Force | Out-Null
@@ -397,9 +406,41 @@ $gateSummary = [ordered]@{
     visual_verdict = "pass"
     smoke = [ordered]@{
         evidence_dir = $smokeEvidenceDir
+        review_verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:10:00"
+        review_method = "operator_supplied"
+        task = [ordered]@{
+            task_dir = $smokeTaskDir
+        }
     }
     fixed_grid = [ordered]@{
         aggregate_evidence_dir = $fixedGridAggregateDir
+        review_verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:20:00"
+        review_method = "operator_supplied"
+        task = [ordered]@{
+            task_dir = $fixedGridTaskDir
+        }
+    }
+    section_page_setup = [ordered]@{
+        review_verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:30:00"
+        review_method = "operator_supplied"
+        task = [ordered]@{
+            task_dir = $sectionPageSetupTaskDir
+        }
+    }
+    page_number_fields = [ordered]@{
+        review_verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:40:00"
+        review_method = "operator_supplied"
+        task = [ordered]@{
+            task_dir = $pageNumberFieldsTaskDir
+        }
     }
 }
 ($gateSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $gateSummaryPath -Encoding UTF8
@@ -715,6 +756,14 @@ $summary = [ordered]@{
             summary_json = $gateSummaryPath
             final_review = $gateFinalReviewPath
             visual_verdict = "pass"
+            smoke_review_result_path = (Join-Path $smokeTaskDir "report\review_result.json")
+            smoke_final_review_path = (Join-Path $smokeTaskDir "report\final_review.md")
+            fixed_grid_review_result_path = (Join-Path $fixedGridTaskDir "report\review_result.json")
+            fixed_grid_final_review_path = (Join-Path $fixedGridTaskDir "report\final_review.md")
+            section_page_setup_review_result_path = (Join-Path $sectionPageSetupTaskDir "report\review_result.json")
+            section_page_setup_final_review_path = (Join-Path $sectionPageSetupTaskDir "report\final_review.md")
+            page_number_fields_review_result_path = (Join-Path $pageNumberFieldsTaskDir "report\review_result.json")
+            page_number_fields_final_review_path = (Join-Path $pageNumberFieldsTaskDir "report\final_review.md")
         }
         pdf_visual_gate = [ordered]@{
             requested = $true
@@ -1096,6 +1145,56 @@ foreach ($expectedDisplay in $pdfBoundedCtestSummaryJsonDisplay) {
     if (-not ($manifestPdfBoundedCtestSummaryJsonDisplay -contains $expectedDisplay)) {
         throw "release_assets_manifest.json lost bounded PDF CTest summary display '$expectedDisplay'."
     }
+}
+$wordVisualStandardReviewMetadata = @($manifest.word_visual_standard_review_metadata)
+if ([int]$manifest.word_visual_standard_review_metadata_count -ne 4) {
+    throw "release_assets_manifest.json did not record four standard Word visual review metadata entries."
+}
+if ($wordVisualStandardReviewMetadata.Count -ne 4) {
+    throw "release_assets_manifest.json lost standard Word visual review metadata entries."
+}
+$wordVisualStandardReviewMetadataByTask = @{}
+foreach ($entry in $wordVisualStandardReviewMetadata) {
+    $wordVisualStandardReviewMetadataByTask[[string]$entry.task_key] = $entry
+    if ($entry.PSObject.Properties["review_note"]) {
+        throw "release_assets_manifest.json must not expose standard Word visual review notes."
+    }
+    foreach ($pathField in @("review_result_path", "final_review_path")) {
+        $pathValue = [string]$entry.$pathField
+        if ([string]::IsNullOrWhiteSpace($pathValue)) {
+            throw "release_assets_manifest.json lost standard Word visual review $pathField for '$($entry.task_key)'."
+        }
+        if ($pathValue.Contains($resolvedRepoRoot)) {
+            throw "release_assets_manifest.json did not public-sanitize standard Word visual review $pathField for '$($entry.task_key)'."
+        }
+    }
+}
+foreach ($expectedTaskKey in @("smoke", "fixed_grid", "section_page_setup", "page_number_fields")) {
+    if (-not $wordVisualStandardReviewMetadataByTask.ContainsKey($expectedTaskKey)) {
+        throw "release_assets_manifest.json lost standard Word visual review metadata task '$expectedTaskKey'."
+    }
+}
+$manifestSmokeReviewMetadata = $wordVisualStandardReviewMetadataByTask["smoke"]
+if ([string]$manifestSmokeReviewMetadata.review_task_key -ne "document") {
+    throw "release_assets_manifest.json did not preserve the smoke review task key alias."
+}
+if ([string]$manifestSmokeReviewMetadata.verdict -ne "pass" -or
+    [string]$manifestSmokeReviewMetadata.review_status -ne "reviewed" -or
+    [string]$manifestSmokeReviewMetadata.reviewed_at -ne "2026-04-12T12:10:00" -or
+    [string]$manifestSmokeReviewMetadata.review_method -ne "operator_supplied") {
+    throw "release_assets_manifest.json lost the smoke standard Word visual review status metadata."
+}
+$expectedSmokeReviewResultPath = Convert-TestEvidencePathToPublicDisplay `
+    -Path (Join-Path $smokeTaskDir "report\review_result.json") `
+    -RepoRoot $resolvedRepoRoot
+$expectedSmokeFinalReviewPath = Convert-TestEvidencePathToPublicDisplay `
+    -Path (Join-Path $smokeTaskDir "report\final_review.md") `
+    -RepoRoot $resolvedRepoRoot
+if ([string]$manifestSmokeReviewMetadata.review_result_path -ne $expectedSmokeReviewResultPath) {
+    throw "release_assets_manifest.json lost the smoke standard Word visual review result path."
+}
+if ([string]$manifestSmokeReviewMetadata.final_review_path -ne $expectedSmokeFinalReviewPath) {
+    throw "release_assets_manifest.json lost the smoke standard Word visual final review path."
 }
 if ([string]$manifest.workspace -ne ".") {
     throw "release_assets_manifest.json did not rewrite workspace to a public relative path."

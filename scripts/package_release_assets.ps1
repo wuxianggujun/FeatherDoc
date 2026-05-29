@@ -375,6 +375,61 @@ function Get-VisualGateStatus {
     return Get-OptionalPropertyValue -Object $visualGate -Name "status"
 }
 
+function Get-WordVisualStandardReviewMetadata {
+    param(
+        [string]$RepoRoot,
+        $Summary
+    )
+
+    $visualGate = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $Summary -Name "steps") -Name "visual_gate"
+    if ($null -eq $visualGate) {
+        return @()
+    }
+
+    $visualGateStatus = Get-OptionalPropertyValue -Object $visualGate -Name "status"
+    if ($visualGateStatus -eq "skipped") {
+        return @()
+    }
+
+    $gateSummary = [pscustomobject]@{}
+    $gateSummaryPath = Get-OptionalPropertyValue -Object $visualGate -Name "summary_json"
+    if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath)) {
+        $resolvedGateSummaryPath = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $gateSummaryPath
+        if (Test-Path -LiteralPath $resolvedGateSummaryPath) {
+            try {
+                $gateSummary = Get-Content -Raw -LiteralPath $resolvedGateSummaryPath | ConvertFrom-Json
+            } catch {
+                $gateSummary = [pscustomobject]@{}
+            }
+        }
+    }
+
+    $tasks = @(
+        [ordered]@{ key = "smoke"; label = "Word visual smoke" },
+        [ordered]@{ key = "fixed_grid"; label = "Fixed-grid merge/unmerge" },
+        [ordered]@{ key = "section_page_setup"; label = "Section page setup" },
+        [ordered]@{ key = "page_number_fields"; label = "Page number fields" }
+    )
+
+    $metadata = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($task in $tasks) {
+        $taskKey = [string]$task.key
+        [void]$metadata.Add([ordered]@{
+            task_key = $taskKey
+            review_task_key = Get-VisualTaskReviewTaskKey -TaskKey $taskKey
+            label = [string]$task.label
+            verdict = Get-VisualTaskVerdict -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+            review_status = Get-VisualTaskReviewStatus -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+            reviewed_at = Get-VisualTaskReviewedAt -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+            review_method = Get-VisualTaskReviewMethod -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+            review_result_path = Get-VisualTaskReviewResultPath -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+            final_review_path = Get-VisualTaskFinalReviewPath -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+        })
+    }
+
+    return @($metadata.ToArray())
+}
+
 function Get-GovernanceMetrics {
     param($Summary)
 
@@ -932,6 +987,7 @@ $pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 $pdfBoundedCtestStatus = Get-OptionalPropertyValue -Object $pdfBoundedCtestEvidence -Name "status"
 $hasPdfBoundedCtestEvidence = $pdfBoundedCtestStatus -ne "not_available"
 $pdfBoundedCtestManifestEvidence = Convert-StructuredValueToPublic -Value $pdfBoundedCtestEvidence -RepoRoot $repoRoot
+$wordVisualStandardReviewMetadata = @(Get-WordVisualStandardReviewMetadata -RepoRoot $repoRoot -Summary $summary)
 $governanceMetrics = @(Get-GovernanceMetrics -Summary $summary)
 $numberingCatalogRealCorpusConfidence = Get-NumberingCatalogRealCorpusConfidence -GovernanceMetrics $governanceMetrics
 $tableLayoutDeliveryQuality = Get-TableLayoutDeliveryQuality -GovernanceMetrics $governanceMetrics
@@ -1229,6 +1285,8 @@ $manifest = [ordered]@{
     pdf_visual_gate_evidence = $pdfVisualGateManifestEvidence
     pdf_bounded_ctest_evidence_included = $hasPdfBoundedCtestEvidence
     pdf_bounded_ctest_evidence = $pdfBoundedCtestManifestEvidence
+    word_visual_standard_review_metadata_count = $wordVisualStandardReviewMetadata.Count
+    word_visual_standard_review_metadata = $wordVisualStandardReviewMetadata
     governance_metric_count = $governanceMetricCount
     governance_metrics = $governanceMetrics
     numbering_catalog_real_corpus_confidence = $numberingCatalogRealCorpusConfidence

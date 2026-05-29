@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$RepoRoot,
     [string]$WorkingDir,
     [string[]]$CasePattern = @()
@@ -407,6 +407,52 @@ $releaseEntryProjectTemplateChecklistMaterialSafetyAudit = [ordered]@{
     checklist_marker = "release_entry_project_template_readiness_checklist_trace"
     material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
 }
+$wordVisualStandardReviewMetadata = @(
+    [ordered]@{
+        task_key = "smoke"
+        review_task_key = "document"
+        label = "Word visual smoke"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:10:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\document\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\document\report\final_review.md"
+    },
+    [ordered]@{
+        task_key = "fixed_grid"
+        review_task_key = "fixed_grid"
+        label = "Fixed-grid merge/unmerge"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:20:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\final_review.md"
+    },
+    [ordered]@{
+        task_key = "section_page_setup"
+        review_task_key = "section_page_setup"
+        label = "Section page setup"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:30:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\final_review.md"
+    },
+    [ordered]@{
+        task_key = "page_number_fields"
+        review_task_key = "page_number_fields"
+        label = "Page number fields"
+        verdict = "pass"
+        review_status = "reviewed"
+        reviewed_at = "2026-04-12T12:40:00"
+        review_method = "operator_supplied"
+        review_result_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\review_result.json"
+        final_review_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md"
+    }
+)
 
 function New-NumberingCatalogRealCorpusConfidenceMirror {
     param($GovernanceMetrics)
@@ -449,11 +495,14 @@ $passManifest = [ordered]@{
     release_version = "1.6.4"
     execution_status = "pass"
     visual_gate_status = "completed"
+    visual_gate_evidence_included = $true
     pdf_visual_gate_status = "loaded"
     pdf_visual_gate_summary_json = $pdfVisualGateSummaryJson
     pdf_visual_gate_output_dir = ".\output\pdf-visual-release-gate-current"
     pdf_visual_gate_evidence_included = $true
     pdf_visual_gate_evidence = $pdfVisualGateEvidence
+    word_visual_standard_review_metadata_count = 4
+    word_visual_standard_review_metadata = $wordVisualStandardReviewMetadata
     governance_metric_count = $governanceMetricCount
     governance_metrics = $governanceMetrics
     numbering_catalog_real_corpus_confidence = (New-NumberingCatalogRealCorpusConfidenceMirror -GovernanceMetrics $governanceMetrics)
@@ -506,6 +555,42 @@ try {
 
 if (-not $missingProjectTemplateChecklistMaterialSafetyAuditFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing release_entry_project_template_readiness_checklist_material_safety_audit."
+}
+
+$badManifestMissingWordVisualReviewMetadataDir = Join-Path $failDir "manifest-missing-word-visual-standard-review-metadata"
+$badManifestMissingWordVisualReviewMetadataPath = Join-Path $badManifestMissingWordVisualReviewMetadataDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingWordVisualReviewMetadataDir -Force | Out-Null
+$badManifestMissingWordVisualReviewMetadata = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingWordVisualReviewMetadata.PSObject.Properties.Remove("word_visual_standard_review_metadata")
+($badManifestMissingWordVisualReviewMetadata | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingWordVisualReviewMetadataPath -Encoding UTF8
+
+$missingWordVisualReviewMetadataFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingWordVisualReviewMetadataPath
+} catch {
+    $missingWordVisualReviewMetadataFailedAsExpected = $true
+}
+
+if (-not $missingWordVisualReviewMetadataFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing word_visual_standard_review_metadata."
+}
+
+$badManifestWordVisualReviewNoteDir = Join-Path $failDir "manifest-word-visual-standard-review-note"
+$badManifestWordVisualReviewNotePath = Join-Path $badManifestWordVisualReviewNoteDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestWordVisualReviewNoteDir -Force | Out-Null
+$badManifestWordVisualReviewNote = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestWordVisualReviewNote.word_visual_standard_review_metadata[0] | Add-Member -NotePropertyName "review_note" -NotePropertyValue "Manual private note"
+($badManifestWordVisualReviewNote | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestWordVisualReviewNotePath -Encoding UTF8
+
+$wordVisualReviewNoteFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestWordVisualReviewNotePath
+} catch {
+    $wordVisualReviewNoteFailedAsExpected = $true
+}
+
+if (-not $wordVisualReviewNoteFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest exposing word_visual_standard_review_metadata.review_note."
 }
 
 $badManifestMissingProjectTemplateChecklistMaterialSafetyAuditSourceSchemaDir = Join-Path $failDir "manifest-missing-project-template-checklist-material-safety-audit-source-schema"
