@@ -50,6 +50,36 @@ $cmakeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakePath
 
 $contracts = @(
     [ordered]@{
+        name = "prepare_document_review_task"
+        script = "prepare_document_review_task_test.ps1"
+        working_dir = "prepare_document_review_task"
+    },
+    [ordered]@{
+        name = "prepare_word_review_task_verdict"
+        script = "prepare_word_review_task_verdict_test.ps1"
+        working_dir = "prepare_word_review_task_verdict"
+    },
+    [ordered]@{
+        name = "prepare_visual_regression_bundle_review_task"
+        script = "prepare_visual_regression_bundle_review_task_test.ps1"
+        working_dir = "prepare_visual_regression_bundle_review_task"
+    },
+    [ordered]@{
+        name = "refresh_readme_visual_assets"
+        script = "refresh_readme_visual_assets_test.ps1"
+        working_dir = "refresh_readme_visual_assets"
+    },
+    [ordered]@{
+        name = "prepare_section_page_setup_review_task"
+        script = "prepare_section_page_setup_review_task_test.ps1"
+        working_dir = "prepare_section_page_setup_review_task"
+    },
+    [ordered]@{
+        name = "prepare_page_number_fields_review_task"
+        script = "prepare_page_number_fields_review_task_test.ps1"
+        working_dir = "prepare_page_number_fields_review_task"
+    },
+    [ordered]@{
         name = "open_latest_section_page_setup_review_task"
         script = "open_latest_section_page_setup_review_task_test.ps1"
         working_dir = "open_latest_section_page_setup_review_task"

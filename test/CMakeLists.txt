@@ -1764,6 +1764,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/prepare_document_review_task
         )
+        set_tests_properties(prepare_document_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1779,6 +1783,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/prepare_word_review_task_verdict
         )
+        set_tests_properties(prepare_word_review_task_verdict
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1794,6 +1802,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/prepare_visual_regression_bundle_review_task
         )
+        set_tests_properties(prepare_visual_regression_bundle_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1809,6 +1821,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/refresh_readme_visual_assets
         )
+        set_tests_properties(refresh_readme_visual_assets
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1824,6 +1840,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/prepare_section_page_setup_review_task
         )
+        set_tests_properties(prepare_section_page_setup_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
@@ -1839,6 +1859,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/prepare_page_number_fields_review_task
         )
+        set_tests_properties(prepare_page_number_fields_review_task
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
 
         add_test(
             NAME
