@@ -1872,6 +1872,36 @@ if(WIN32)
 
         add_test(
             NAME
+            open_latest_fixed_grid_review_task
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/open_latest_fixed_grid_review_task_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/open_latest_fixed_grid_review_task
+        )
+
+        add_test(
+            NAME
+            print_latest_fixed_grid_review_prompt
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/print_latest_fixed_grid_review_prompt_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/print_latest_fixed_grid_review_prompt
+        )
+
+        add_test(
+            NAME
             word_visual_release_gate_smoke_verdict
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
