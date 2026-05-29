@@ -437,7 +437,7 @@ function New-StageEntry {
         id = $Id
         title = $Title
         script = $Script
-        input_json = @($InputJson)
+        input_json = @($InputJson | ForEach-Object { Get-DisplayPath -RepoRoot $RepoRoot -Path $_ })
         output_dir = $OutputDir
         output_dir_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $OutputDir
         summary_json = $SummaryJson
