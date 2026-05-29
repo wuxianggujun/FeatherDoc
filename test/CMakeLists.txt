@@ -3313,6 +3313,25 @@ if(WIN32)
 
             add_test(
                 NAME
+                docx_functional_smoke_readiness
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/docx_functional_smoke_readiness_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/docx_functional_smoke_readiness
+            )
+            set_tests_properties(docx_functional_smoke_readiness
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;docx")
+
+            add_test(
+                NAME
                 docx_functional_smoke_readiness_route_docs_contract
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
