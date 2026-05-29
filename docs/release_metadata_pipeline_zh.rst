@@ -203,6 +203,11 @@ reviewer 复核。
 schema confidence calibration 和 content-control data-binding governance 的治理项可以
 被发布面板直接消费，而不只停留在 blocker / warning / action item 计数里。机器摘要里的
 ``warning_count`` 仍然只作为聚合计数使用，reviewer 必须继续读取下面的明细数组。
+其中 document skeleton governance rollup 的重复样式建议会以稳定 warning
+``document_skeleton.style_merge_suggestions_pending`` 暴露，并保留
+``style_merge_suggestion_count``、``source_schema``、``source_report_display``、
+``source_json_display`` 与 ``open_command``，让 reviewer 能先打开 rollup summary，
+再回到单文档 skeleton source 或更窄的 style merge evidence。
 其中 content-control data-binding governance 的 blocker、warning 与 action item 会固定携带
 ``featherdoc.content_control_data_binding_governance_report.v1`` 作为 ``source_schema``，
 把 ``inspect-content-controls`` 或治理 summary 同步写入 ``source_report_display`` 与

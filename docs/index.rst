@@ -1608,6 +1608,24 @@ catalogs through stable JSON files:
     featherdoc_cli diff-numbering-catalog numbering-catalog.json numbering-catalog.patched.json --fail-on-diff --json
     featherdoc_cli import-numbering-catalog target.docx --catalog-file numbering-catalog.patched.json --output target-numbering.docx --json
 
+``scripts/build_document_skeleton_governance_report.ps1`` writes the
+single-document ``featherdoc.document_skeleton_governance_report.v1`` summary
+as ``document_skeleton_governance.summary.json`` under
+``output/document-skeleton-governance``. It preserves
+``exemplar.numbering-catalog.json``, ``style-merge-suggestions.json``,
+``style_numbering_issue_count`` and ``style_merge_suggestion_count`` alongside
+reviewer actions such as ``review_style_numbering_audit``,
+``preview_style_numbering_repair``, ``promote_numbering_catalog_exemplar`` and
+``register_numbering_catalog_baseline``. Roll those summaries up with
+``scripts/build_document_skeleton_governance_rollup_report.ps1`` to produce
+``output/document-skeleton-governance-rollup/summary.json`` using
+``featherdoc.document_skeleton_governance_rollup_report.v1``. The rollup keeps
+``source_schema``, ``source_report_display``, ``source_json_display``,
+``origin_source_report_display`` and action ``open_command`` fields so release
+blocker rollup, release governance handoff and reviewer checklists can trace
+document skeleton evidence back to the single-document source summary or a
+narrower source JSON.
+
 For release governance, pair
 ``featherdoc.document_skeleton_governance_rollup_report.v1`` evidence with
 numbering catalog manifest checks and run
