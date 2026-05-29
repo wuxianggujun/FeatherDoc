@@ -87,10 +87,19 @@ function Get-JsonString {
     param($Object, [string]$Name, [string]$DefaultValue = "")
 
     $value = Get-JsonProperty -Object $Object -Name $Name
-    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+    if ($null -eq $value) {
         return $DefaultValue
     }
-    return [string]$value
+
+    $text = if ($value -is [datetime]) {
+        $value.ToString("yyyy-MM-ddTHH:mm:ss")
+    } else {
+        [string]$value
+    }
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $DefaultValue
+    }
+    return $text
 }
 
 function Get-JsonInt {
@@ -811,7 +820,7 @@ $summary = [ordered]@{
     warning_count = $warningCount
     warnings = $warnings
     stages = $stageItems
-    final_governance_reports = $handoffInputs
+    final_governance_reports = @($handoffInputs | ForEach-Object { Get-DisplayPath -RepoRoot $repoRoot -Path $_ })
     release_governance_handoff_summary = Join-Path $handoffOutputDir "summary.json"
     release_blocker_rollup_summary = Join-Path $rollupOutputDir "summary.json"
 }
