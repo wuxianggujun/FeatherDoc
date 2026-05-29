@@ -626,6 +626,26 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "missing_file" `
     -ExpectedFailureRelativePath 'docs\release_policy_zh.rst'
 
+$missingPolicyWordVisualMetadataText = $defaultPolicyText.Replace(
+    "Word visual standard review metadata evidence",
+    "Word visual metadata evidence removed"
+)
+$missingPolicyWordVisualMetadataCaseRoot = New-DocsCase `
+    -Name "missing-policy-word-visual-metadata" `
+    -PolicyText $missingPolicyWordVisualMetadataText
+$missingPolicyWordVisualMetadataSummaryJsonPath = Join-Path $missingPolicyWordVisualMetadataCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingPolicyWordVisualMetadataCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release policy doc is missing expected text: Word visual standard review metadata evidence" `
+    -SummaryJson $missingPolicyWordVisualMetadataSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingPolicyWordVisualMetadataSummaryJsonPath `
+    -ExpectedMessage "release policy doc is missing expected text: Word visual standard review metadata evidence" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs\release_policy_zh.rst' `
+    -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
+
 $trailingWhitespacePipelineText = $defaultPipelineText.Replace(
     "- review_task_summary",
     "- review_task_summary "
