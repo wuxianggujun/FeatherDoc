@@ -1887,6 +1887,21 @@ if(WIN32)
 
         add_test(
             NAME
+            check_word_visual_release_gate_preflight
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/check_word_visual_release_gate_preflight_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/check_word_visual_release_gate_preflight
+        )
+
+        add_test(
+            NAME
             release_candidate_visual_verdict
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

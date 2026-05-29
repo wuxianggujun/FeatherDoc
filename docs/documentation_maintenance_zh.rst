@@ -60,6 +60,12 @@
    表头 fitting 等可低风险摘入能力已经在当前 ``dev`` 中有等价实现。
 6. 最小 Word smoke 已生成证据，并完成只读证据质量复核；这不等同于完整
    ``run_word_visual_release_gate.ps1`` 通过。
+7. Word release gate 现在有只读前置检查
+   ``scripts/check_word_visual_release_gate_preflight.ps1``，输出
+   ``featherdoc.word_visual_release_gate_preflight.v1``，并固定
+   ``word_visual_release_gate_preflight_static_contract_only`` 边界；它只检查
+   静态脚本、helper、CMake 轻量测试注册和文档入口，不启动 ``Word``、
+   ``CMake``、``CTest`` 或视觉渲染。
 
 
 旧参考分支处理规则
@@ -121,8 +127,8 @@ LibreOffice PDF 研究文档
 下一步优先做三件事：
 
 1. 继续保持 ``dev`` 与 ``origin/dev`` 对齐，任何小改动后及时提交推送。
-2. 若资源允许，先补 Word release gate 的更受控前置检查；完整 gate 仍需等工作区干净、
-   源码已推送且本机资源稳定。
+2. 若资源允许，先运行 ``check_word_visual_release_gate_preflight.ps1``；完整 gate
+   仍需等工作区干净、源码已推送且本机资源稳定。
 3. PDF visual gate 继续后置，只验证当前 ``dev`` 已有能力，不从旧分支搬入大批样例。
 
 

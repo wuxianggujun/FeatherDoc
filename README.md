@@ -554,9 +554,17 @@ mapping.
 For a one-shot local gate that also refreshes the repository gallery, use:
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_word_visual_release_gate_preflight.ps1
+
 powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
     -RefreshReadmeAssets
 ```
+
+The preflight writes `featherdoc.word_visual_release_gate_preflight.v1` using
+the `word_visual_release_gate_preflight_static_contract_only` evidence scope.
+It only checks the static gate contract, helper scripts, CMake test
+registration, and docs; it does not run Word, CMake, CTest, browsers,
+LibreOffice, or visual rendering.
 
 If the standard smoke contact sheet is reviewed during the same gate run, add
 `-SmokeReviewVerdict pass` (or `fail` / `undetermined`) and `-SmokeReviewNote`
