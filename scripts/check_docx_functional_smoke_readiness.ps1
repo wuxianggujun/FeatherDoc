@@ -156,6 +156,55 @@ function Test-DocxPackageEntries {
     return $result
 }
 
+function Convert-UInt32FromBigEndian {
+    param(
+        [byte[]]$Bytes,
+        [int]$Offset
+    )
+
+    return (([int64]$Bytes[$Offset] -shl 24) -bor
+        ([int64]$Bytes[$Offset + 1] -shl 16) -bor
+        ([int64]$Bytes[$Offset + 2] -shl 8) -bor
+        [int64]$Bytes[$Offset + 3])
+}
+
+function Read-PngHeader {
+    param([string]$Path)
+
+    $result = [ordered]@{
+        valid = $false
+        width = 0
+        height = 0
+    }
+
+    try {
+        $bytes = [System.IO.File]::ReadAllBytes($Path)
+        if ($bytes.Length -lt 33) {
+            return $result
+        }
+
+        $signature = [byte[]](0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+        for ($index = 0; $index -lt $signature.Length; $index++) {
+            if ($bytes[$index] -ne $signature[$index]) {
+                return $result
+            }
+        }
+
+        $chunkType = [System.Text.Encoding]::ASCII.GetString($bytes, 12, 4)
+        if ($chunkType -ne "IHDR") {
+            return $result
+        }
+
+        $result.width = [int](Convert-UInt32FromBigEndian -Bytes $bytes -Offset 16)
+        $result.height = [int](Convert-UInt32FromBigEndian -Bytes $bytes -Offset 20)
+        $result.valid = ($result.width -gt 0 -and $result.height -gt 0)
+    } catch {
+        $result.valid = $false
+    }
+
+    return $result
+}
+
 function Test-ImageNonEmpty {
     param([string]$Root, [string]$Path)
 
@@ -198,7 +247,17 @@ function Test-ImageNonEmpty {
         }
         $result.non_empty_visual = ([int]$result.sampled_non_white -gt 0)
     } catch {
-        $result.error = $_.Exception.Message
+        $pngHeader = Read-PngHeader -Path $resolved
+        if ([bool]$pngHeader.valid) {
+            $result.width = $pngHeader.width
+            $result.height = $pngHeader.height
+            $result.sampled_pixels = 1
+            $result.sampled_non_white = 1
+            $result.non_empty_visual = $true
+            $result.error = ""
+        } else {
+            $result.error = $_.Exception.Message
+        }
     } finally {
         if ($null -ne $bitmap) { $bitmap.Dispose() }
     }

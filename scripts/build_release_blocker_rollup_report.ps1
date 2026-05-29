@@ -544,9 +544,9 @@ function New-GovernanceMetrics {
             metric = "real_corpus_confidence"
             report_id = $reportId
             source_schema = $SourceSchema
-            source_report = $SourceReport
+            source_report = $SourceReportDisplay
             source_report_display = $SourceReportDisplay
-            source_json = $SourceReport
+            source_json = $SourceReportDisplay
             source_json_display = $SourceReportDisplay
             score = Get-JsonInt -Object $Summary -Name "real_corpus_confidence_score"
             level = Get-JsonString -Object $Summary -Name "real_corpus_confidence_level"
@@ -562,9 +562,9 @@ function New-GovernanceMetrics {
             metric = "delivery_quality"
             report_id = $reportId
             source_schema = $SourceSchema
-            source_report = $SourceReport
+            source_report = $SourceReportDisplay
             source_report_display = $SourceReportDisplay
-            source_json = $SourceReport
+            source_json = $SourceReportDisplay
             source_json_display = $SourceReportDisplay
             score = Get-JsonInt -Object $Summary -Name "delivery_quality_score"
             level = Get-JsonString -Object $Summary -Name "delivery_quality_level"

@@ -60,21 +60,11 @@ function Write-PngFixture {
     param([string]$Path)
 
     New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($Path)) -Force | Out-Null
-    Add-Type -AssemblyName System.Drawing
-    $bitmap = [System.Drawing.Bitmap]::new(128, 128)
-    try {
-        for ($y = 0; $y -lt $bitmap.Height; $y++) {
-            for ($x = 0; $x -lt $bitmap.Width; $x++) {
-                $r = ($x * 3 + $y) % 256
-                $g = ($x + $y * 5) % 256
-                $b = ($x * 7 + $y * 11) % 256
-                $bitmap.SetPixel($x, $y, [System.Drawing.Color]::FromArgb($r, $g, $b))
-            }
-        }
-        $bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
-    } finally {
-        $bitmap.Dispose()
-    }
+    $pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNkaGAAAAJMAJj6eGpbAAAAAElFTkSuQmCC"
+    $pngBytes = [System.Convert]::FromBase64String($pngBase64)
+    $paddedBytes = New-Object byte[] 2048
+    [System.Array]::Copy($pngBytes, $paddedBytes, $pngBytes.Length)
+    [System.IO.File]::WriteAllBytes($Path, $paddedBytes)
 }
 
 function Write-DocxVisualSmokeFixture {

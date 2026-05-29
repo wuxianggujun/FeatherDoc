@@ -26616,13 +26616,26 @@ void print_parse_error(std::string_view command, const std::string &message,
     print_parse_error(message);
 }
 
+auto portable_json_error_message(const std::error_code &code) -> std::string {
+    if (code == std::make_error_code(std::errc::invalid_argument)) {
+        return "invalid argument";
+    }
+    if (code == std::make_error_code(std::errc::result_out_of_range)) {
+        return "result out of range";
+    }
+    if (code == std::make_error_code(std::errc::not_supported)) {
+        return "Operation not supported";
+    }
+    return code.message();
+}
+
 auto report_operation_failure(std::string_view command, std::string_view stage,
                               std::string_view fallback_message,
                               const featherdoc::document_error_info &error_info,
                               bool json_output) -> bool {
     if (json_output) {
         const auto message = error_info.code
-                                 ? error_info.code.message()
+                                 ? portable_json_error_message(error_info.code)
                                  : std::string{fallback_message};
         write_json_command_error(std::cerr, command, stage, message, &error_info);
         return false;
