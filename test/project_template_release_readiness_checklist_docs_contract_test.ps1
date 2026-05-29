@@ -308,6 +308,67 @@ Assert-TextOrder -Text $onboardingGuidance -ExpectedTexts @(
     "schema approval"
 ) -Message "Release metadata pipeline onboarding guidance should tell reviewers to open report, then source JSON, then command."
 
+$wordVisualMetadataEvidenceIndex = $releasePipelineDoc.IndexOf(
+    "Word visual standard review metadata evidence",
+    [System.StringComparison]::Ordinal)
+if ($wordVisualMetadataEvidenceIndex -lt 0) {
+    throw "Release metadata pipeline docs should describe the Word visual metadata compact evidence line."
+}
+
+$wordVisualMetadataGuidanceStart = $releasePipelineDoc.LastIndexOf(
+    "START_HERE.md",
+    $wordVisualMetadataEvidenceIndex,
+    [System.StringComparison]::Ordinal)
+if ($wordVisualMetadataGuidanceStart -lt 0) {
+    throw "Release metadata pipeline docs should list release materials before the Word visual metadata compact evidence line."
+}
+
+$wordVisualMetadataGuidanceEnd = $releasePipelineDoc.IndexOf(
+    "package_release_assets.ps1",
+    $wordVisualMetadataEvidenceIndex,
+    [System.StringComparison]::Ordinal)
+if ($wordVisualMetadataGuidanceEnd -lt 0) {
+    throw "Release metadata pipeline docs should keep package_release_assets guidance after Word visual metadata compact evidence."
+}
+
+$wordVisualMetadataGuidance = $releasePipelineDoc.Substring(
+    $wordVisualMetadataGuidanceStart,
+    $wordVisualMetadataGuidanceEnd - $wordVisualMetadataGuidanceStart)
+
+foreach ($marker in @(
+    "START_HERE.md",
+    "ARTIFACT_GUIDE.md",
+    "REVIEWER_CHECKLIST.md",
+    "final_review.md",
+    "release_handoff.md",
+    "release_governance_handoff.md",
+    "word_visual_standard_review_metadata_source_reports",
+    "task_reviews=",
+    "final_review_path=",
+    "source_schema=featherdoc.release_candidate_summary",
+    "source_report",
+    "release-candidate-checks",
+    "review_note",
+    "detailed"
+)) {
+    Assert-ContainsText -Text $wordVisualMetadataGuidance -ExpectedText $marker `
+        -Message "Release metadata pipeline docs should keep Word visual metadata guidance '$marker'."
+}
+
+Assert-TextOrder -Text $wordVisualMetadataGuidance -ExpectedTexts @(
+    "START_HERE.md",
+    "ARTIFACT_GUIDE.md",
+    "REVIEWER_CHECKLIST.md",
+    "final_review.md",
+    "release_handoff.md",
+    "release_governance_handoff.md",
+    "detailed",
+    "source_schema=featherdoc.release_candidate_summary",
+    "source_report",
+    "release-candidate-checks",
+    "review_note"
+) -Message "Release metadata pipeline Word visual metadata guidance should separate compact release materials from detailed governance handoff source reports."
+
 Assert-ContainsText -Text $releasePolicyDoc -ExpectedText "schema_patch_approval_gate_status" `
     -Message "Release policy should keep project-template schema approval as a release criterion."
 

@@ -423,13 +423,18 @@ summary schema 身份，``source_report`` 还必须能识别 release-candidate s
 ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``、
 ``project_template_readiness_checklist_entrypoints_release_entry_source_report_identity_trace``。
 
-``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 也会渲染
+``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、
+``final_review.md`` 与 ``release_handoff.md`` 也会渲染
 ``Word visual standard review metadata evidence`` compact line，用同一条 release
-governance handoff evidence 暴露四个标准 Word 视觉审阅任务的 task/review key、verdict、
-review status、review method、review result path 与 final review path。
-``assert_release_material_safety.ps1`` 会审计该行仍来自
-``featherdoc.release_candidate_summary`` source report，并继续禁止 ``review_note`` 进入
-任何发布入口。
+governance handoff evidence 暴露四个标准 Word 视觉审阅任务的
+``word_visual_standard_review_metadata_source_reports``、``task_reviews=``、
+task/review key、verdict、review status、review method、review result path 与
+``final_review_path=``。``release_governance_handoff.md`` 继续保留 detailed
+``word_visual_standard_review_metadata_source_reports`` source reports，不降级为
+发布入口使用的 compact line。``assert_release_material_safety.ps1`` 会审计该行仍把
+``source_schema=featherdoc.release_candidate_summary`` 与 ``source_report`` 保持在同一行，
+且 ``source_report`` 指向 ``release-candidate-checks`` 的 release-candidate summary
+证据源，并继续禁止 ``review_note`` 进入任何发布入口。
 
 ``package_release_assets.ps1`` 在 staged release materials 审计前还会直接检查
 ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 中的同一条
