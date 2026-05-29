@@ -66,6 +66,11 @@
    ``word_visual_release_gate_preflight_static_contract_only`` 边界；它只检查
    静态脚本、helper、CMake 轻量测试注册和文档入口，不启动 ``Word``、
    ``CMake``、``CTest`` 或视觉渲染。
+8. GitHub Actions CI 维护已收口到当前 ``dev``：官方 ``checkout`` 与
+   ``upload-artifact`` actions 升级到 Node 24 兼容主版本，Windows MSVC
+   workflow 固定 ``windows-2022`` runner，并改用 ``vswhere`` +
+   ``vcvars64.bat`` 内联导出 MSVC x64 环境，避免 ``windows-latest`` 迁移和
+   Node 20 action 注解变成后续构建风险。
 
 
 旧参考分支处理规则
@@ -127,9 +132,11 @@ LibreOffice PDF 研究文档
 下一步优先做三件事：
 
 1. 继续保持 ``dev`` 与 ``origin/dev`` 对齐，任何小改动后及时提交推送。
-2. 若资源允许，先运行 ``check_word_visual_release_gate_preflight.ps1``；完整 gate
+2. CI 维护后若 GitHub Actions 出现新的 runner 或 action 注解，优先用轻量
+   workflow 契约测试确认是维护项还是构建失败，再决定是否改 workflow。
+3. 若资源允许，先运行 ``check_word_visual_release_gate_preflight.ps1``；完整 gate
    仍需等工作区干净、源码已推送且本机资源稳定。
-3. PDF visual gate 继续后置，只验证当前 ``dev`` 已有能力，不从旧分支搬入大批样例。
+4. PDF visual gate 继续后置，只验证当前 ``dev`` 已有能力，不从旧分支搬入大批样例。
 
 
 删除规则

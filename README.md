@@ -867,6 +867,12 @@ The Linux/macOS CI `release_smoke` steps upload the release candidate blocker
 rollup, release governance handoff, and release governance pipeline smoke
 outputs as GitHub Actions artifacts so reviewer evidence can be downloaded from
 remote builds.
+GitHub Actions workflow maintenance is covered by
+`test/github_actions_workflow_maintenance_test.ps1`: CI workflows use the
+Node 24-compatible official `checkout` / `upload-artifact` action majors, and
+the Windows MSVC workflow is pinned to `windows-2022` with an inline
+`vswhere` / `vcvars64.bat` setup step instead of depending on
+`windows-latest` runner drift or a Node 20 MSVC setup action.
 
 To validate the manifest contract before running the full harness, use
 `scripts/check_project_template_smoke_manifest.ps1`. The sample manifest now

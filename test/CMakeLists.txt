@@ -785,6 +785,23 @@ if(WIN32)
 
         add_test(
             NAME
+            github_actions_workflow_maintenance
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/github_actions_workflow_maintenance_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(github_actions_workflow_maintenance
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;governance;smoke")
+
+        add_test(
+            NAME
             release_governance_warning_helper_contract
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

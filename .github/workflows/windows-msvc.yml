@@ -13,17 +13,85 @@ on:
 
 jobs:
   build-test-samples:
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 30
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup MSVC environment
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
+
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path -LiteralPath $vswhere)) {
+              throw "vswhere.exe was not found at: $vswhere"
+          }
+
+          $installationPath = & $vswhere `
+              -latest `
+              -products "*" `
+              -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+              -property installationPath
+          $installationPath = [string]$installationPath
+          if ([string]::IsNullOrWhiteSpace($installationPath)) {
+              throw "No Visual Studio installation with x64 MSVC tools was found."
+          }
+
+          $vcvars = Join-Path $installationPath "VC\Auxiliary\Build\vcvars64.bat"
+          if (-not (Test-Path -LiteralPath $vcvars)) {
+              throw "vcvars64.bat was not found at: $vcvars"
+          }
+
+          $exportNames = @(
+              "CommandPromptType",
+              "DevEnvDir",
+              "ExtensionSdkDir",
+              "Framework40Version",
+              "FrameworkDir",
+              "FrameworkDir64",
+              "FrameworkVersion",
+              "FrameworkVersion64",
+              "INCLUDE",
+              "LIB",
+              "LIBPATH",
+              "NETFXSDKDir",
+              "Path",
+              "UCRTVersion",
+              "UniversalCRTSdkDir",
+              "VCIDEInstallDir",
+              "VCINSTALLDIR",
+              "VCToolsInstallDir",
+              "VCToolsRedistDir",
+              "VCToolsVersion",
+              "VisualStudioVersion",
+              "WindowsLibPath",
+              "WindowsSdkBinPath",
+              "WindowsSdkDir",
+              "WindowsSDKLibVersion",
+              "WindowsSDKVersion"
+          )
+
+          $environmentLines = & cmd.exe /s /c "`"$vcvars`" >nul && set"
+          foreach ($line in $environmentLines) {
+              $separatorIndex = $line.IndexOf("=")
+              if ($separatorIndex -le 0) {
+                  continue
+              }
+
+              $name = $line.Substring(0, $separatorIndex)
+              $value = $line.Substring($separatorIndex + 1)
+              if (($exportNames -notcontains $name) -and (-not $name.StartsWith("VSCMD_", [System.StringComparison]::OrdinalIgnoreCase))) {
+                  continue
+              }
+
+              Add-Content -LiteralPath $env:GITHUB_ENV -Encoding UTF8 -Value "$name=$value"
+          }
+
+          Write-Host "MSVC x64 environment exported from $vcvars"
 
       - name: Configure
         shell: pwsh
@@ -154,7 +222,7 @@ jobs:
 
       - name: Upload generated sample documents
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-msvc-sample-docx
           path: |
@@ -165,7 +233,7 @@ jobs:
 
       - name: Upload installed metadata and release report bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-msvc-release-metadata
           path: |
@@ -178,7 +246,7 @@ jobs:
 
       - name: Upload release asset preview bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-msvc-release-assets-preview
           path: |
