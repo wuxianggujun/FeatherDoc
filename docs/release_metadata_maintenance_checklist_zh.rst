@@ -129,9 +129,14 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 .. code-block:: powershell
 
     ctest --test-dir build-codex-clang-compat `
-        -R "^sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle)$" `
+        -R "^(sync_latest_visual_review_verdict_table_style_quality|sync_latest_visual_review_verdict_cmake_contract|sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle))$" `
         --output-on-failure `
         --timeout 60
+
+如果改动 curated review task 的打开入口，同时覆盖：
+``open_latest_word_review_task_curated_source_kind_test.ps1``。它保护
+``open_latest_word_review_task.ps1 -SourceKind table-style-quality-visual-regression-bundle``
+会读取 ``latest_table-style-quality-visual-regression-bundle_task.json``。
 
 修改 release note bundle 或 helper：
 

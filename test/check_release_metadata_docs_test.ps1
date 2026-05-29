@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 77) {
-        throw "Expected JSON summary to count 77 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 87) {
+        throw "Expected JSON summary to count 87 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -272,6 +272,11 @@ $defaultPipelineText = @(
     '- run_word_visual_release_gate.ps1',
     '- run_release_candidate_checks.ps1',
     '- sync_visual_review_verdict.ps1',
+    '- sync_latest_visual_review_verdict.ps1',
+    '- -GateSummaryJson',
+    '- readme_gallery',
+    '- assets_dir',
+    '- refresh_readme_visual_assets.ps1',
     '- write_release_note_bundle.ps1',
     '- check_word_visual_release_gate_preflight.ps1',
     '- ``featherdoc.word_visual_release_gate_preflight.v1``',
@@ -321,7 +326,12 @@ $defaultChecklistText = @(
     '- ``preflight_ready``',
     '- ``release_ready``',
     '- release_candidate_visual_verdict',
+    '- sync_latest_visual_review_verdict_table_style_quality',
+    '- sync_latest_visual_review_verdict_cmake_contract',
     '- sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle)',
+    '- open_latest_word_review_task_curated_source_kind_test.ps1',
+    '- open_latest_word_review_task.ps1 -SourceKind table-style-quality-visual-regression-bundle',
+    '- latest_table-style-quality-visual-regression-bundle_task.json',
     '- release_note_bundle_visual_verdict_metadata',
     '- public_release_wording_regression_test.ps1',
     '- git diff --check',
@@ -397,11 +407,11 @@ Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 4) {
     throw "Expected JSON summary checked document count 4, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 35) {
-    throw "Expected JSON summary pipeline marker count 35, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 40) {
+    throw "Expected JSON summary pipeline marker count 40, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 29) {
-    throw "Expected JSON summary checklist marker count 29, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 34) {
+    throw "Expected JSON summary checklist marker count 34, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 10) {
     throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
@@ -409,8 +419,8 @@ if ($summary.required_document_governance_marker_count -ne 10) {
 if ($summary.required_policy_marker_count -ne 3) {
     throw "Expected JSON summary policy marker count 3, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 77) {
-    throw "Expected JSON summary total marker count 77, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 87) {
+    throw "Expected JSON summary total marker count 87, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 4) {
     throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
@@ -440,9 +450,21 @@ Assert-ArrayContains `
     -ExpectedValue '``featherdoc.word_visual_release_gate_preflight.v1``' `
     -Message "JSON summary should list Word visual release gate preflight schema marker."
 Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "readme_gallery" `
+    -Message "JSON summary should list README gallery metadata marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "refresh_readme_visual_assets.ps1" `
+    -Message "JSON summary should list README gallery refresh marker."
+Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "check_word_visual_release_gate_preflight_test.ps1" `
     -Message "JSON summary should list Word visual preflight test marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "open_latest_word_review_task_curated_source_kind_test.ps1" `
+    -Message "JSON summary should list curated open-latest test marker."
 Assert-ArrayContains `
     -Values @($summary.required_document_governance_markers) `
     -ExpectedValue "sync_bound_content_control" `
@@ -498,7 +520,7 @@ Assert-SummaryFailure `
     -ExpectedMessage "Trailing whitespace" `
     -ExpectedFailureKind "trailing_whitespace" `
     -ExpectedFailureRelativePath 'docs\release_metadata_pipeline_zh.rst' `
-    -ExpectedFailureLineNumber 13 `
+    -ExpectedFailureLineNumber 18 `
     -ExpectedFailureColumnNumber 22 `
     -ExpectedFailureExcerpt "- review_task_summary "
 
@@ -518,7 +540,7 @@ Assert-SummaryFailure `
     -ExpectedMessage "Tab character found" `
     -ExpectedFailureKind "tab_character" `
     -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
-    -ExpectedFailureLineNumber 16 `
+    -ExpectedFailureLineNumber 21 `
     -ExpectedFailureColumnNumber 6 `
     -ExpectedFailureExcerpt "- git`t diff --check"
 
