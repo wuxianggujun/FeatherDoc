@@ -95,7 +95,7 @@ function Get-TaskFieldValue {
         "source_kind" { return $TaskInfo.source.kind }
         "source_path" { return $TaskInfo.source.path }
         "document_path" {
-            if ($TaskInfo.document) {
+            if ($TaskInfo.PSObject.Properties.Name -contains "document" -and $TaskInfo.document) {
                 return $TaskInfo.document.path
             }
             return ""

@@ -95,6 +95,11 @@ $contracts = @(
         working_dir = "open_latest_fixed_grid_review_task"
     },
     [ordered]@{
+        name = "open_latest_word_review_task_curated_source_kind"
+        script = "open_latest_word_review_task_curated_source_kind_test.ps1"
+        working_dir = "open_latest_word_review_task_curated_source_kind"
+    },
+    [ordered]@{
         name = "print_latest_fixed_grid_review_prompt"
         script = "print_latest_fixed_grid_review_prompt_test.ps1"
         working_dir = "print_latest_fixed_grid_review_prompt"

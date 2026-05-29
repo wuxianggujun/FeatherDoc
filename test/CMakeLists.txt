@@ -1923,6 +1923,25 @@ if(WIN32)
 
         add_test(
             NAME
+            open_latest_word_review_task_curated_source_kind
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/open_latest_word_review_task_curated_source_kind_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/open_latest_word_review_task_curated_source_kind
+        )
+        set_tests_properties(open_latest_word_review_task_curated_source_kind
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
+
+        add_test(
+            NAME
             print_latest_fixed_grid_review_prompt
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
