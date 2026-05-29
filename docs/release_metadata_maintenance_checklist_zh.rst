@@ -110,6 +110,35 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 为 true 时也不能把 ``release_ready`` 当作 true。只有完整 Word 视觉 gate 的
 截图证据和 review verdict 才能作为 release-ready evidence。
 
+修改 DOCX 功能 smoke 准入或 release governance 接入：
+
+.. code-block:: powershell
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\scripts\check_docx_functional_smoke_readiness.ps1 `
+        -RepoRoot . `
+        -OutputDir .\output\docx-functional-smoke-readiness-current
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\docx_functional_smoke_readiness_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir output\codex-docx-functional-smoke-readiness-check
+
+    ctest --test-dir build-codex-clang-compat `
+        -R "^docx_functional_smoke_readiness$" `
+        --output-on-failure `
+        --timeout 60
+
+``check_docx_functional_smoke_readiness.ps1`` 作为
+``docx_functional_smoke_readiness`` stage 时，只能复用已持久化的 Word visual
+smoke 证据。它必须保留 schema
+``featherdoc.docx_functional_smoke_readiness.v1``、固定 trace
+``docx_functional_smoke_readiness_trace``、边界标记
+``persisted_docx_functional_smoke_evidence_only``、``summary_json_display``、
+``report_markdown_display``、``warning_count``、``release_blocker_count`` 和
+``word_visual_smoke.pending_manual_review``，避免把低资源证据复用误判为新鲜 Word
+渲染或已完成人工视觉审查。
+
 修改 release candidate preflight：
 
 .. code-block:: powershell
@@ -207,7 +236,13 @@ CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制
 ``check_word_visual_release_gate_preflight_test.ps1``、
 ``featherdoc.word_visual_release_gate_preflight.v1``、
 ``word_visual_release_gate_preflight_static_contract_only``、``preflight_ready``、
-``release_ready``、``ReleaseBlockerRollupFailOnWarning`` 和
+``release_ready``、``check_docx_functional_smoke_readiness.ps1``、
+``docx_functional_smoke_readiness_test.ps1``、``docx_functional_smoke_readiness``、
+``featherdoc.docx_functional_smoke_readiness.v1``、
+``docx_functional_smoke_readiness_trace``、
+``persisted_docx_functional_smoke_evidence_only``、``summary_json_display``、
+``report_markdown_display``、``word_visual_smoke.pending_manual_review``、
+``release_blocker_count``、``ReleaseBlockerRollupFailOnWarning`` 和
 ``ReleaseGovernanceHandoffFailOnWarning``。其中 ``source_report_display`` 用于让
 reviewer 先打开治理源报告，``source_json_display`` 用于继续追溯到原始证据 JSON。
 
