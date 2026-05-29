@@ -551,11 +551,23 @@ function Merge-CuratedVisualReviewEntry {
     }
 
     $reviewResultPath = Get-OptionalPropertyValue -Object $taskInfo -Name "review_result_path"
+    if ([string]::IsNullOrWhiteSpace($reviewResultPath)) {
+        $reviewResultPath = Get-OptionalPropertyValue -Object $Source -Name "review_result_path"
+    }
+    if ([string]::IsNullOrWhiteSpace($reviewResultPath) -and -not [string]::IsNullOrWhiteSpace($taskDir)) {
+        $reviewResultPath = Join-Path $taskDir "report\review_result.json"
+    }
     if (-not [string]::IsNullOrWhiteSpace($reviewResultPath)) {
         $Entry.review_result_path = $reviewResultPath
     }
 
     $finalReviewPath = Get-OptionalPropertyValue -Object $taskInfo -Name "final_review_path"
+    if ([string]::IsNullOrWhiteSpace($finalReviewPath)) {
+        $finalReviewPath = Get-OptionalPropertyValue -Object $Source -Name "final_review_path"
+    }
+    if ([string]::IsNullOrWhiteSpace($finalReviewPath) -and -not [string]::IsNullOrWhiteSpace($taskDir)) {
+        $finalReviewPath = Join-Path $taskDir "report\final_review.md"
+    }
     if (-not [string]::IsNullOrWhiteSpace($finalReviewPath)) {
         $Entry.final_review_path = $finalReviewPath
     }
