@@ -3213,6 +3213,23 @@ if(WIN32)
 
             add_test(
                 NAME
+                schema_patch_confidence_calibration_route_docs_contract
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/schema_patch_confidence_calibration_route_docs_contract_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+            set_tests_properties(schema_patch_confidence_calibration_route_docs_contract
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;schema-calibration")
+
+            add_test(
+                NAME
                 content_control_data_binding_route_docs_contract
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

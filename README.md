@@ -782,9 +782,14 @@ For schema patch threshold tuning, run
 `scripts/write_schema_patch_confidence_calibration_report.ps1`. It reads
 existing smoke summaries or approval-history reports, groups schema patch
 review size, approval outcomes, and optional `confidence` metadata into
-calibration buckets, and emits
+confidence buckets / calibration buckets, and emits
 `featherdoc.schema_patch_confidence_calibration_report.v1` with conservative
-recommendations such as `recommended_min_confidence`. The script is a read-only
+recommendations such as `recommended_min_confidence`. The summary is written to
+`output/schema-patch-confidence-calibration/summary.json`, with
+`schema_patch_confidence_calibration.md` beside it for reviewer triage. Its
+`release_blockers`, `warnings`, and `action_items` preserve
+`source_report_display`, `source_json_display`, and action `open_command`
+fields before release blocker rollup consumes them. The script is a read-only
 rollup; `-FailOnPending` blocks threshold tightening while approval items are
 still unresolved.
 

@@ -461,9 +461,15 @@ project-template smoke summaries into the stable
 handoff, with ``-FailOnBlocker`` for release gates. For threshold tuning,
 ``scripts/write_schema_patch_confidence_calibration_report.ps1`` reads existing
 smoke or approval-history evidence and writes
-``featherdoc.schema_patch_confidence_calibration_report.v1`` with confidence
-buckets, approval outcomes, and conservative recommendations such as
-``recommended_min_confidence``. For skeleton governance,
+``featherdoc.schema_patch_confidence_calibration_report.v1`` with confidence buckets,
+approval outcomes, and conservative recommendations such as
+``recommended_min_confidence``. It writes
+``output/schema-patch-confidence-calibration/summary.json`` and
+``schema_patch_confidence_calibration.md``; release-facing
+``release_blockers``, ``warnings`` and ``action_items`` preserve
+``source_report_display``, ``source_json_display`` and reviewer
+``open_command`` fields before the release blocker rollup consumes them. For
+skeleton governance,
 ``scripts/build_document_skeleton_governance_rollup_report.ps1`` rolls multiple
 single-document summaries into
 ``featherdoc.document_skeleton_governance_rollup_report.v1`` with exemplar
