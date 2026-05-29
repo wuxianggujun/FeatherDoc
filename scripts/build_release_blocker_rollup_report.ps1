@@ -652,6 +652,32 @@ function Add-PdfVisualGateEvidenceFields {
         -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("visual_baseline_count", "baselines_count"))
 }
 
+function Add-DocxFunctionalSmokeReadinessEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary
+    )
+
+    $schema = Get-JsonString -Object $Summary -Name "schema"
+    if (-not [string]::Equals($schema, "featherdoc.docx_functional_smoke_readiness.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return
+    }
+
+    foreach ($field in @(
+            "verdict",
+            "docx_functional_smoke_ready",
+            "evidence_scope",
+            "evidence_scope_note",
+            "boundary",
+            "marker",
+            "summary_json_display",
+            "report_markdown_display"
+        )) {
+        Set-OptionalSourceReportField -Target $Target -Name $field `
+            -Value (Get-JsonProperty -Object $Summary -Name $field)
+    }
+}
+
 function Get-PdfBoundedCtestEvidenceObject {
     param($Summary)
 
@@ -1401,6 +1427,14 @@ function New-ReportMarkdown {
                 $lines.Add("  - full_visual_gate_status: ``$fullVisualGateStatus``") | Out-Null
             }
             foreach ($fieldName in @(
+                    "verdict",
+                    "docx_functional_smoke_ready",
+                    "evidence_scope",
+                    "evidence_scope_note",
+                    "boundary",
+                    "marker",
+                    "summary_json_display",
+                    "report_markdown_display",
                     "pdf_visual_gate_status",
                     "pdf_visual_gate_verdict",
                     "pdf_visual_gate_finalizable",
@@ -2031,6 +2065,7 @@ foreach ($path in @($inputPaths)) {
             "controlled_visual_smoke_json_display"
         )
     Add-PdfVisualGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
+    Add-DocxFunctionalSmokeReadinessEvidenceFields -Target $sourceReport -Summary $summaryObject
     Add-PdfBoundedCtestEvidenceFields -Target $sourceReport -Summary $summaryObject
     Add-PdfFullCtestReadinessEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-PdfVisualGateAttemptEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot

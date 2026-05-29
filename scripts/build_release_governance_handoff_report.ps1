@@ -354,6 +354,34 @@ function Get-PdfVisualGateRollupEvidence {
     )
 }
 
+function Get-DocxFunctionalSmokeReadinessRollupEvidence {
+    param($RollupSummary)
+
+    return @(
+        foreach ($sourceReport in @(Get-JsonArray -Object $RollupSummary -Name "source_reports")) {
+            $schema = Get-JsonString -Object $sourceReport -Name "schema"
+            if (-not [string]::Equals($schema, "featherdoc.docx_functional_smoke_readiness.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
+                continue
+            }
+
+            [ordered]@{
+                schema = $schema
+                path_display = Get-JsonString -Object $sourceReport -Name "path_display"
+                status = Get-JsonString -Object $sourceReport -Name "status"
+                verdict = Get-JsonString -Object $sourceReport -Name "verdict"
+                release_ready = Get-FirstJsonProperty -Object $sourceReport -Names @("release_ready")
+                docx_functional_smoke_ready = Get-FirstJsonProperty -Object $sourceReport -Names @("docx_functional_smoke_ready")
+                evidence_scope = Get-JsonString -Object $sourceReport -Name "evidence_scope"
+                evidence_scope_note = Get-JsonString -Object $sourceReport -Name "evidence_scope_note"
+                boundary = Get-JsonString -Object $sourceReport -Name "boundary"
+                marker = Get-JsonString -Object $sourceReport -Name "marker"
+                summary_json_display = Get-JsonString -Object $sourceReport -Name "summary_json_display"
+                report_markdown_display = Get-JsonString -Object $sourceReport -Name "report_markdown_display"
+            }
+        }
+    )
+}
+
 function Get-ManifestSignoffEntrypointsRollupEvidence {
     param($RollupSummary)
 
@@ -735,6 +763,10 @@ function New-ReportEntry {
             -SourceReport $ExpectedSummaryPath `
             -SourceReportDisplay (Get-DisplayPath -RepoRoot $RepoRoot -Path $ExpectedSummaryPath))
     }
+    $isDocxFunctionalSmokeReadiness = [string]::Equals(
+        $schema,
+        "featherdoc.docx_functional_smoke_readiness.v1",
+        [System.StringComparison]::OrdinalIgnoreCase)
     return [ordered]@{
         id = $Id
         title = $Title
@@ -759,6 +791,12 @@ function New-ReportEntry {
         schema_approval_status_summary = if ($null -eq $Json) { @() } else { @(Get-JsonArray -Object $Json -Name "schema_approval_status_summary") }
         report_markdown = if ($null -eq $Json) { "" } else { Get-JsonString -Object $Json -Name "report_markdown" }
         report_markdown_display = if ($null -eq $Json) { "" } else { Get-JsonString -Object $Json -Name "report_markdown_display" }
+        docx_functional_smoke_ready = if ($isDocxFunctionalSmokeReadiness -and $null -ne $Json) { Get-JsonBool -Object $Json -Name "docx_functional_smoke_ready" } else { $false }
+        evidence_scope = if ($isDocxFunctionalSmokeReadiness -and $null -ne $Json) { Get-JsonString -Object $Json -Name "evidence_scope" } else { "" }
+        evidence_scope_note = if ($isDocxFunctionalSmokeReadiness -and $null -ne $Json) { Get-JsonString -Object $Json -Name "evidence_scope_note" } else { "" }
+        boundary = if ($isDocxFunctionalSmokeReadiness -and $null -ne $Json) { Get-JsonString -Object $Json -Name "boundary" } else { "" }
+        marker = if ($isDocxFunctionalSmokeReadiness -and $null -ne $Json) { Get-JsonString -Object $Json -Name "marker" } else { "" }
+        summary_json_display = if ($isDocxFunctionalSmokeReadiness -and $null -ne $Json) { Get-JsonString -Object $Json -Name "summary_json_display" } else { "" }
         release_blockers = if ($null -eq $Json) { @() } else { @(Get-JsonArray -Object $Json -Name "release_blockers") }
         action_items = if ($null -eq $Json) { @() } else { @(Get-JsonArray -Object $Json -Name "action_items") }
         informational_action_item_count = if ($null -eq $Json) { 0 } else { Get-JsonInt -Object $Json -Name "informational_action_item_count" }
@@ -1148,6 +1186,24 @@ function New-ReportMarkdown {
         $lines.Add("- Action items: ``$($rollup.action_item_count)``") | Out-Null
         $lines.Add("- Informational action items: ``$($rollup.informational_action_item_count)``") | Out-Null
         $lines.Add("- Warnings: ``$($rollup.warning_count)``") | Out-Null
+        $lines.Add("- DOCX functional smoke readiness evidence source reports: ``$($rollup.docx_functional_smoke_readiness_evidence_source_report_count)``") | Out-Null
+        foreach ($evidence in @($rollup.docx_functional_smoke_readiness_evidence_source_reports)) {
+            $lines.Add("  - source_report: ``$($evidence.path_display)`` schema=``$($evidence.schema)``") | Out-Null
+            $lines.Add("    - status: ``$($evidence.status)``") | Out-Null
+            $lines.Add("    - verdict: ``$($evidence.verdict)``") | Out-Null
+            $lines.Add("    - release_ready: ``$($evidence.release_ready)``") | Out-Null
+            $lines.Add("    - docx_functional_smoke_ready: ``$($evidence.docx_functional_smoke_ready)``") | Out-Null
+            $lines.Add("    - evidence_scope: ``$($evidence.evidence_scope)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$evidence.evidence_scope_note)) {
+                $lines.Add("    - evidence_scope_note: $($evidence.evidence_scope_note)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$evidence.boundary)) {
+                $lines.Add("    - boundary: $($evidence.boundary)") | Out-Null
+            }
+            $lines.Add("    - marker: ``$($evidence.marker)``") | Out-Null
+            $lines.Add("    - summary_json_display: ``$($evidence.summary_json_display)``") | Out-Null
+            $lines.Add("    - report_markdown_display: ``$($evidence.report_markdown_display)``") | Out-Null
+        }
         $lines.Add("- PDF visual gate evidence source reports: ``$($rollup.pdf_visual_gate_evidence_source_report_count)``") | Out-Null
         foreach ($evidence in @($rollup.pdf_visual_gate_evidence_source_reports)) {
             $lines.Add("  - source_report: ``$($evidence.path_display)`` schema=``$($evidence.schema)``") | Out-Null
@@ -1338,6 +1394,19 @@ function New-ReportMarkdown {
         if (@($report.schema_approval_status_summary).Count -gt 0) {
             $statusParts = @($report.schema_approval_status_summary | ForEach-Object { "$($_.status)=$($_.count)" })
             $lines.Add("  - schema_approval_status_summary: ``$($statusParts -join ', ')``") | Out-Null
+        }
+        if ([string]::Equals([string]$report.schema, "featherdoc.docx_functional_smoke_readiness.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
+            $lines.Add("  - docx_functional_smoke_ready: ``$($report.docx_functional_smoke_ready)``") | Out-Null
+            $lines.Add("  - evidence_scope: ``$($report.evidence_scope)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$report.evidence_scope_note)) {
+                $lines.Add("  - evidence_scope_note: $($report.evidence_scope_note)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$report.boundary)) {
+                $lines.Add("  - boundary: $($report.boundary)") | Out-Null
+            }
+            $lines.Add("  - marker: ``$($report.marker)``") | Out-Null
+            $lines.Add("  - summary_json_display: ``$($report.summary_json_display)``") | Out-Null
+            $lines.Add("  - report_markdown_display: ``$($report.report_markdown_display)``") | Out-Null
         }
         foreach ($metric in @($report.governance_metrics)) {
             $lines.Add("  - metric ``$($metric.id)``: name=``$($metric.metric)`` level=``$($metric.level)`` score=``$($metric.score)`` report=``$($metric.report_id)`` schema=``$($metric.source_schema)``") | Out-Null
@@ -1751,6 +1820,8 @@ $summary = [ordered]@{
         action_item_count = 0
         informational_action_item_count = 0
         warning_count = 0
+        docx_functional_smoke_readiness_evidence_source_report_count = 0
+        docx_functional_smoke_readiness_evidence_source_reports = @()
         pdf_visual_gate_evidence_source_report_count = 0
         pdf_visual_gate_evidence_source_reports = @()
         manifest_signoff_entrypoints_source_report_count = 0
@@ -1807,6 +1878,9 @@ if ($IncludeReleaseBlockerRollup) {
     }
 
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseBlockerRollupSummaryPath | ConvertFrom-Json
+    $docxFunctionalSmokeReadinessEvidence = @(Get-DocxFunctionalSmokeReadinessRollupEvidence -RollupSummary $rollupSummary)
+    $summary.release_blocker_rollup.docx_functional_smoke_readiness_evidence_source_report_count = @($docxFunctionalSmokeReadinessEvidence).Count
+    $summary.release_blocker_rollup.docx_functional_smoke_readiness_evidence_source_reports = @($docxFunctionalSmokeReadinessEvidence)
     $pdfVisualGateEvidence = @(Get-PdfVisualGateRollupEvidence -RollupSummary $rollupSummary)
     $summary.release_blocker_rollup.status = [string]$rollupSummary.status
     $summary.release_blocker_rollup.source_report_count = [int]$rollupSummary.source_report_count

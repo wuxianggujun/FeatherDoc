@@ -403,6 +403,12 @@ function Write-GovernanceFixtures {
         verdict = "pass"
         release_ready = $true
         docx_functional_smoke_ready = $true
+        summary_json_display = ".\output\docx-functional-smoke-readiness\summary.json"
+        report_markdown_display = ".\output\docx-functional-smoke-readiness\docx_functional_smoke_readiness.md"
+        evidence_scope = "persisted_docx_functional_smoke_evidence_only"
+        evidence_scope_note = "This read-only gate does not run CMake, CTest, Word, LibreOffice, browsers, or document rendering."
+        boundary = "Pass means persisted DOCX functional evidence is coherent, reused visual PNGs are non-empty, and screenshot-backed review verdicts are pass; it does not claim a fresh Word COM render."
+        marker = "docx_functional_smoke_readiness_trace"
         release_blocker_count = 0
         release_blockers = @()
         action_item_count = 0
@@ -461,6 +467,19 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve project-template report source_report_display."
     Assert-ContainsText -Text ([string]$projectTemplateReport.source_json_display) -ExpectedText "project-template-delivery-readiness\summary.json" `
         -Message "Aggregate handoff should preserve project-template report source_json_display."
+    $docxReadinessReport = ($summary.reports |
+        Where-Object { [string]$_.id -eq "docx_functional_smoke_readiness" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$docxReadinessReport.evidence_scope) -Expected "persisted_docx_functional_smoke_evidence_only" `
+        -Message "Aggregate handoff should expose DOCX readiness evidence scope."
+    Assert-Equal -Actual ([string]$docxReadinessReport.marker) -Expected "docx_functional_smoke_readiness_trace" `
+        -Message "Aggregate handoff should expose DOCX readiness trace marker."
+    Assert-ContainsText -Text ([string]$docxReadinessReport.summary_json_display) -ExpectedText "docx-functional-smoke-readiness\summary.json" `
+        -Message "Aggregate handoff should expose DOCX readiness summary display path."
+    Assert-ContainsText -Text ([string]$docxReadinessReport.report_markdown_display) -ExpectedText "docx_functional_smoke_readiness.md" `
+        -Message "Aggregate handoff should expose DOCX readiness report markdown display path."
+    Assert-ContainsText -Text ([string]$docxReadinessReport.boundary) -ExpectedText "does not claim a fresh Word COM render" `
+        -Message "Aggregate handoff should expose DOCX readiness boundary."
     $projectTemplateBlocker = ($summary.release_blockers |
         Where-Object { [string]$_.report_id -eq "project_template_delivery_readiness" } |
         Select-Object -First 1)
@@ -673,6 +692,19 @@ if (Test-Scenario -Name "aggregate") {
         'latest_schema_approval_gate_status:',
         'schema_approval_status_summary:'
     ) -Message "Markdown should keep project-template readiness status, ready flag, schema approval summary, and source displays in one report-status block."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor '`docx_functional_smoke_readiness`' -ExpectedFragments @(
+        'docx_functional_smoke_ready:',
+        'evidence_scope: `persisted_docx_functional_smoke_evidence_only`',
+        'evidence_scope_note:',
+        'does not run CMake, CTest, Word, LibreOffice, browsers, or document rendering',
+        'boundary:',
+        'does not claim a fresh Word COM render',
+        'marker: `docx_functional_smoke_readiness_trace`',
+        'summary_json_display:',
+        'docx-functional-smoke-readiness\summary.json',
+        'report_markdown_display:',
+        'docx_functional_smoke_readiness.md'
+    ) -Message "Markdown should keep DOCX readiness evidence boundary in one report-status block."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor '`project_template_delivery_readiness` / `project_template_delivery.pending_schema_approval`' -ExpectedFragments @(
         'source_report_display:',
         'source_json_display:',
@@ -1241,6 +1273,21 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should consume nested rollup action item count."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 3 `
         -Message "Handoff summary should consume nested rollup warning count."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.docx_functional_smoke_readiness_evidence_source_report_count) -Expected 1 `
+        -Message "Handoff summary should consume nested DOCX functional smoke readiness evidence count."
+    $docxRollupEvidence = $summary.release_blocker_rollup.docx_functional_smoke_readiness_evidence_source_reports | Select-Object -First 1
+    Assert-True -Condition ($null -ne $docxRollupEvidence) `
+        -Message "Handoff summary should expose at least one DOCX functional smoke readiness evidence source report."
+    Assert-Equal -Actual ([string]$docxRollupEvidence.evidence_scope) -Expected "persisted_docx_functional_smoke_evidence_only" `
+        -Message "Handoff summary should expose DOCX readiness evidence scope from the nested rollup."
+    Assert-Equal -Actual ([string]$docxRollupEvidence.marker) -Expected "docx_functional_smoke_readiness_trace" `
+        -Message "Handoff summary should expose DOCX readiness marker from the nested rollup."
+    Assert-ContainsText -Text ([string]$docxRollupEvidence.summary_json_display) -ExpectedText "docx-functional-smoke-readiness\summary.json" `
+        -Message "Handoff summary should expose DOCX readiness summary display from the nested rollup."
+    Assert-ContainsText -Text ([string]$docxRollupEvidence.report_markdown_display) -ExpectedText "docx_functional_smoke_readiness.md" `
+        -Message "Handoff summary should expose DOCX readiness report markdown display from the nested rollup."
+    Assert-ContainsText -Text ([string]$docxRollupEvidence.boundary) -ExpectedText "does not claim a fresh Word COM render" `
+        -Message "Handoff summary should expose DOCX readiness boundary from the nested rollup."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.pdf_visual_gate_evidence_source_report_count) -Expected 1 `
         -Message "Handoff summary should consume nested PDF visual gate evidence count."
     $pdfEvidence = $summary.release_blocker_rollup.pdf_visual_gate_evidence_source_reports | Select-Object -First 1
@@ -1551,6 +1598,14 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Nested rollup should preserve segmented PDF visual gate coverage."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "DOCX functional smoke readiness evidence source reports: ``1``" `
+        -Message "Handoff Markdown should expose the DOCX functional smoke readiness evidence count."
+    Assert-ContainsText -Text $markdown -ExpectedText "evidence_scope: ``persisted_docx_functional_smoke_evidence_only``" `
+        -Message "Handoff Markdown should expose the DOCX evidence scope."
+    Assert-ContainsText -Text $markdown -ExpectedText "marker: ``docx_functional_smoke_readiness_trace``" `
+        -Message "Handoff Markdown should expose the DOCX readiness marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "docx_functional_smoke_readiness.md" `
+        -Message "Handoff Markdown should expose the DOCX readiness report markdown display."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF visual gate evidence source reports: ``1``" `
         -Message "Handoff Markdown should expose the PDF visual gate evidence count."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict: ``pass``" `
@@ -1648,6 +1703,20 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should expose release-entry checklist material-safety audited entrypoints."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
         -Message "Handoff Markdown should expose release-entry checklist material-safety marker."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "schema=``featherdoc.docx_functional_smoke_readiness.v1``" -ExpectedFragments @(
+        "status: ``loaded``",
+        "verdict: ``pass``",
+        "release_ready: ``True``",
+        "docx_functional_smoke_ready: ``True``",
+        "evidence_scope: ``persisted_docx_functional_smoke_evidence_only``",
+        "does not run CMake, CTest, Word, LibreOffice, browsers, or document rendering",
+        "does not claim a fresh Word COM render",
+        "marker: ``docx_functional_smoke_readiness_trace``",
+        "summary_json_display:",
+        "docx-functional-smoke-readiness\summary.json",
+        "report_markdown_display:",
+        "docx_functional_smoke_readiness.md"
+    ) -Message "Handoff Markdown should keep DOCX readiness evidence and source identity in one source_report block."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
         "schema=``featherdoc.release_candidate_summary``",
         "pdf_visual_gate_status: ``loaded``",
