@@ -121,6 +121,10 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 ``word_visual_release_gate_preflight_static_contract_only``；``preflight_ready``
 为 true 时也不能把 ``release_ready`` 当作 true。只有完整 Word 视觉 gate 的
 截图证据和 review verdict 才能作为 release-ready evidence。
+维护者还应检查 ``minimum_risk_next_action_command`` 是否符合当前状态：ready
+时指向 ``run_word_visual_release_gate.ps1``，not_ready 时指向 strict preflight
+复查命令；``strict_preflight_command_template`` 与 ``full_gate_command_template``
+应保持可复制、可审阅，避免 release 面板只能展示自然语言下一步。
 
 修改 DOCX 功能 smoke 准入或 release governance 接入：
 

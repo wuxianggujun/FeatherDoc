@@ -75,6 +75,7 @@ foreach ($assertion in @(
                 "check_word_visual_release_gate_preflight.ps1",
                 "featherdoc.word_visual_release_gate_preflight.v1",
                 "word_visual_release_gate_preflight_static_contract_only",
+                "minimum_risk_next_action_command",
                 "preflight_ready",
                 "release_ready"
             )
@@ -112,6 +113,9 @@ foreach ($marker in @(
         "featherdoc.word_visual_release_gate_preflight.v1",
         "word_visual_release_gate_preflight_static_contract_only",
         "preflight_ready",
+        "minimum_risk_next_action_command",
+        "strict_preflight_command_template",
+        "full_gate_command_template",
         'release_ready = $false',
         "This read-only preflight",
         "does not run Word, CMake, CTest",
@@ -139,6 +143,7 @@ foreach ($unexpected in @(
 foreach ($marker in @(
         "featherdoc.word_visual_release_gate_preflight.v1",
         "word_visual_release_gate_preflight_static_contract_only",
+        "minimum_risk_next_action_command",
         "preflight_ready should be true",
         "Static preflight should never claim release readiness",
         "does not run Word, CMake, CTest",

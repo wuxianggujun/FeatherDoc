@@ -70,7 +70,10 @@ regression bundles。
 只表示 gate 脚本、helper、CMake 轻量测试注册和文档入口仍然一致，``release_ready``
 必须保持为 ``false``。该 preflight 不启动 Word、CMake、CTest、浏览器、
 LibreOffice 或任何视觉渲染流程，不能替代截图级 ``gate_summary.json`` 和人工
-review verdict。
+review verdict。summary 还会输出 ``minimum_risk_next_action_command``、
+``strict_preflight_command_template`` 和 ``full_gate_command_template``，让
+自动化或 reviewer 在 ready 时直接进入完整 gate，在 not_ready 时先用 strict
+preflight 复查静态阻断项。
 
 ``review_task_summary`` 必须同时包含下面三个字段才算完整：
 

@@ -96,6 +96,15 @@ Assert-Equal -Actual ([string]$summary.evidence_scope) -Expected "word_visual_re
     -Message "Evidence scope mismatch."
 Assert-ContainsText -Text ([string]$summary.boundary) -ExpectedText "does not run Word, CMake, CTest" `
     -Message "Boundary should explicitly stay read-only."
+Assert-Equal -Actual ([string]$summary.minimum_risk_next_action_command) `
+    -Expected 'powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1' `
+    -Message "Ready preflight should point to the full gate command template."
+Assert-Equal -Actual ([string]$summary.strict_preflight_command_template) `
+    -Expected 'powershell -ExecutionPolicy Bypass -File .\scripts\check_word_visual_release_gate_preflight.ps1 -RepoRoot . -Strict' `
+    -Message "Strict preflight command template mismatch."
+Assert-Equal -Actual ([string]$summary.full_gate_command_template) `
+    -Expected 'powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1' `
+    -Message "Full gate command template mismatch."
 
 foreach ($checkName in @(
         "word_visual_gate_scripts_exist",
@@ -114,8 +123,11 @@ foreach ($checkName in @(
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $reportPath
 foreach ($marker in @(
         "Word Visual Release Gate Preflight",
+        "## Next Action",
         "featherdoc.word_visual_release_gate_preflight.v1",
         "word_visual_release_gate_preflight_static_contract_only",
+        'powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1',
+        'powershell -ExecutionPolicy Bypass -File .\scripts\check_word_visual_release_gate_preflight.ps1 -RepoRoot . -Strict',
         "word_visual_gate_core_flows_wired",
         "word_visual_gate_floating_image_flows_wired"
     )) {
@@ -154,6 +166,9 @@ Assert-True -Condition ((@($missingSummary.blocking_checks) | ForEach-Object { [
     -Message "Missing fixture should report missing scripts as a blocker."
 Assert-True -Condition ((@($missingSummary.blocking_checks) | ForEach-Object { [string]$_ }) -contains "word_visual_gate_docs_linked") `
     -Message "Missing fixture should report missing docs as a blocker."
+Assert-Equal -Actual ([string]$missingSummary.minimum_risk_next_action_command) `
+    -Expected 'powershell -ExecutionPolicy Bypass -File .\scripts\check_word_visual_release_gate_preflight.ps1 -RepoRoot . -Strict' `
+    -Message "Blocked preflight should point back to the strict preflight command template."
 
 $strictSummaryPath = Join-Path $resolvedWorkingDir "missing-contract-strict-summary.json"
 $strictReportPath = Join-Path $resolvedWorkingDir "missing-contract-strict.md"

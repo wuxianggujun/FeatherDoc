@@ -95,6 +95,10 @@ fixed-grid 一键回归并生成 review task：
 ``CMake``、``CTest``、浏览器、``LibreOffice`` 或任何视觉渲染流程；即使
 preflight 为 ``ready``，也不等同于完整截图级 release gate 已通过，不能作为
 release-ready evidence。
+summary 和 Markdown 报告会同时给出 ``minimum_risk_next_action_command``：
+ready 时指向完整 ``run_word_visual_release_gate.ps1``，not_ready 时指向
+``check_word_visual_release_gate_preflight.ps1 -Strict``，方便 reviewer 先按机器可读命令
+继续推进。
 
 若只想复用已有 build 目录、重点验证脚本链路：
 

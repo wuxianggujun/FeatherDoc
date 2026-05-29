@@ -297,6 +297,13 @@ Add-Check -Checks $checks `
 $blockingChecks = @($checks | Where-Object { [bool]$_.required -and [string]$_.status -ne "pass" })
 $status = if ($blockingChecks.Count -eq 0) { "ready" } else { "not_ready" }
 $boundary = "Ready means the Word visual release gate static contract is coherent. This preflight does not run Word, CMake, CTest, browsers, LibreOffice, or visual rendering, and it is not release-ready evidence until the full screenshot-backed gate and review verdicts pass."
+$strictPreflightCommandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\check_word_visual_release_gate_preflight.ps1 -RepoRoot . -Strict'
+$fullGateCommandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1'
+$minimumRiskNextActionCommand = if ($blockingChecks.Count -eq 0) {
+    $fullGateCommandTemplate
+} else {
+    $strictPreflightCommandTemplate
+}
 $summary = [ordered]@{
     schema = "featherdoc.word_visual_release_gate_preflight.v1"
     generated_at = (Get-Date).ToString("s")
@@ -320,6 +327,9 @@ $summary = [ordered]@{
     } else {
         "Repair the blocking static Word visual release gate contract checks before starting the full gate."
     }
+    minimum_risk_next_action_command = $minimumRiskNextActionCommand
+    strict_preflight_command_template = $strictPreflightCommandTemplate
+    full_gate_command_template = $fullGateCommandTemplate
     boundary = $boundary
 }
 
@@ -336,6 +346,13 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReportMarkdown)) {
     $markdownLines.Add("- Evidence scope: ``$($summary.evidence_scope)``") | Out-Null
     $markdownLines.Add("- Blocking checks: ``$($summary.blocking_check_count)``") | Out-Null
     $markdownLines.Add("- Boundary: $boundary") | Out-Null
+    $markdownLines.Add("") | Out-Null
+    $markdownLines.Add("## Next Action") | Out-Null
+    $markdownLines.Add("") | Out-Null
+    $markdownLines.Add("- Minimum risk action: $($summary.minimum_risk_next_action)") | Out-Null
+    $markdownLines.Add("- Command template: ``$($summary.minimum_risk_next_action_command)``") | Out-Null
+    $markdownLines.Add("- Strict preflight: ``$($summary.strict_preflight_command_template)``") | Out-Null
+    $markdownLines.Add("- Full gate: ``$($summary.full_gate_command_template)``") | Out-Null
     $markdownLines.Add("") | Out-Null
     $markdownLines.Add("## Checks") | Out-Null
     $markdownLines.Add("") | Out-Null

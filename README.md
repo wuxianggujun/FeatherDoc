@@ -565,6 +565,10 @@ the `word_visual_release_gate_preflight_static_contract_only` evidence scope.
 It only checks the static gate contract, helper scripts, CMake test
 registration, and docs; it does not run Word, CMake, CTest, browsers,
 LibreOffice, or visual rendering.
+Its JSON and Markdown reports also include `minimum_risk_next_action_command`,
+`strict_preflight_command_template`, and `full_gate_command_template` so a
+reviewer or automation can copy the correct next command without treating the
+static preflight as release-ready evidence.
 
 If the standard smoke contact sheet is reviewed during the same gate run, add
 `-SmokeReviewVerdict pass` (or `fail` / `undetermined`) and `-SmokeReviewNote`
