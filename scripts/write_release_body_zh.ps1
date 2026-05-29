@@ -51,8 +51,13 @@ function Get-RepoRelativePath {
     }
 
     try {
+        $candidate = if ([System.IO.Path]::IsPathRooted($Value)) {
+            $Value
+        } else {
+            Join-Path $RepoRoot $Value
+        }
         $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
-        $resolvedValue = [System.IO.Path]::GetFullPath($Value)
+        $resolvedValue = [System.IO.Path]::GetFullPath($candidate)
     } catch {
         return ""
     }
@@ -1127,7 +1132,7 @@ $sectionPageSetupReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $s
 $pageNumberFieldsReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary)
 $pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
-$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath
+$pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath -RepoRoot $repoRoot
 $pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 
 $installedDataDir = ""

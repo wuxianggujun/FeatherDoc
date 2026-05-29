@@ -106,7 +106,15 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``project_template_delivery_readiness`` 和
      ``content_control_data_binding_governance``；同时必须保留
      ``docx_functional_smoke_readiness``，让 DOCX 功能 smoke 与复用 Word visual PNG
-     非空证据进入同一条 release governance 证据链。
+     非空证据进入同一条 release governance 证据链；其 summary schema 必须保留
+     ``featherdoc.docx_functional_smoke_readiness.v1``，同时保留
+     ``docx_functional_smoke_readiness_trace``、
+     ``persisted_docx_functional_smoke_evidence_only``、
+     ``word_visual_smoke.pending_manual_review``、``summary_json_display`` 和
+     ``report_markdown_display``，以便 handoff 按固定报告类型消费并展示低资源证据边界。
+     如果该 stage 产生 ``restore_docx_functional_smoke_evidence`` blocker action，
+     reviewer 必须先恢复缺失的持久化 DOCX 功能或 Word visual smoke 证据，再只读重跑
+     ``check_docx_functional_smoke_readiness.ps1``，不能把它当作新鲜 Word COM 渲染。
    * ``scripts/build_release_governance_handoff_report.ps1`` 必须把同一批
      blocker / warning / action item 明细继续写入 handoff。
    * ``scripts/run_release_candidate_checks.ps1`` 生成的 summary / final review
@@ -424,6 +432,13 @@ approval、content-control 和 release governance 报告之间手工拼结论。
    powershell -NoProfile -ExecutionPolicy Bypass -File .\test\release_governance_metrics_contract_test.ps1 -RepoRoot .
    powershell -NoProfile -ExecutionPolicy Bypass -File .\test\release_note_bundle_version_test.ps1 -RepoRoot . -WorkingDir .\build\release-note-bundle-version-check
    powershell -NoProfile -ExecutionPolicy Bypass -File .\test\assert_release_material_safety_test.ps1 -RepoRoot . -WorkingDir .\build\release-material-safety-check
+
+material safety 全量回归在 Windows 上可能较慢；定位 final review 的 PDF visual
+证据时，可以先运行聚焦切片，但正式发布路径仍必须跑完整审计：
+
+.. code-block:: powershell
+
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\test\assert_release_material_safety_test.ps1 -RepoRoot . -WorkingDir .\build\release-material-safety-final-review-pdf-check -CasePattern "final-review-pdf-visual"
 
 如果资源允许，再让 ``scripts/run_release_candidate_checks.ps1`` 生成完整 release
 candidate summary，并检查 final review、handoff 和 reviewer checklist 中是否能从

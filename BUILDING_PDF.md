@@ -494,12 +494,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 ## CLI 导出入口
 
 `featherdoc_cli export-pdf` 已经可以作为用户入口使用。当前常用参数是：
+完整选项、JSON summary 结构和导出边界见 `docs/pdf_export.rst`。
 
 - `--output <pdf>`
 - `--font-file <path>`
 - `--cjk-font-file <path>`
 - `--font-map <family>=<path>`
 - `--render-headers-and-footers`
+- `--expand-header-footer-page-placeholders`
 - `--render-inline-images`
 - `--no-font-subset`
 - `--no-system-font-fallbacks`
@@ -882,8 +884,9 @@ manifest ID 要存在于 `test/pdf_regression_manifest.json`，低资源
 发布准入清单固定入口（release checklist，详见
 `docs/pdf_release_readiness_checklist_zh.rst`）：
 
-1. 文档状态：`docs/pdf_visual_validation_status_zh.rst` 必须反映当前 preflight /
-   full gate evidence 状态，不能停留在旧的 blocked 叙事。
+1. 文档状态：当前 preflight / full gate evidence 以脚本生成的 summary 和 release
+   材料为准；`docs/pdf_visual_validation_status_zh.rst` 只保留为历史状态快照，
+   若继续维护，不能停留在旧的 blocked 叙事。
 2. 样本计数：`test/pdf_regression_manifest.json` 统计必须与本文 90 / 42 / 43 保持一致。
 3. 预检：运行 `scripts/check_pdf_visual_release_gate_preflight.ps1`，确认
    raw summary 为 `blocking_checks = []`、

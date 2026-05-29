@@ -72,6 +72,9 @@ $visualMetadataHelperPath = Join-Path (Join-Path $resolvedRepoRoot "scripts") "r
 Assert-ScriptParses -Path $visualMetadataHelperPath
 $visualMetadataHelperText = Get-Content -Raw -LiteralPath $visualMetadataHelperPath
 Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$summaryVerdict = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_verdict" -f $TaskKey)' `
+    -Message "release_visual_metadata_helpers.ps1 should read same-run task verdict fields from the release summary before falling back to the visual gate summary."
+Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$gateFlowVerdict = Get-OptionalPropertyValue -Object $gateFlow -Name "review_verdict"' `
     -Message "release_visual_metadata_helpers.ps1 should read same-run review_verdict from the visual gate summary."
 Assert-ContainsText -Text $visualMetadataHelperText `
@@ -90,6 +93,24 @@ Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$summaryReviewMethod = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_review_method" -f $TaskKey)' `
     -Message "release_visual_metadata_helpers.ps1 should read same-run review_method from the release summary."
 Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText 'function Get-VisualTaskReviewTaskKey' `
+    -Message "release_visual_metadata_helpers.ps1 should map smoke metadata to the document review task."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText 'function Get-VisualTaskReviewResultPath' `
+    -Message "release_visual_metadata_helpers.ps1 should expose standard visual task review result paths."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText 'function Get-VisualTaskFinalReviewPath' `
+    -Message "release_visual_metadata_helpers.ps1 should expose standard visual task final review paths."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$summaryPath = Get-OptionalPropertyValue -Object $VisualGateSummary -Name $pathProperty' `
+    -Message "release_visual_metadata_helpers.ps1 should read release-summary path overrides."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$reviewTaskPath = Get-OptionalPropertyValue -Object $reviewTask -Name $PathPropertyName' `
+    -Message "release_visual_metadata_helpers.ps1 should read gate review task evidence paths."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$flowTaskPath = Get-OptionalPropertyValue -Object $flowTask -Name $PathPropertyName' `
+    -Message "release_visual_metadata_helpers.ps1 should read gate flow task evidence paths."
+Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$reviewStatus = Get-OptionalPropertyValue -Object $Source -Name "review_status"' `
     -Message "release_visual_metadata_helpers.ps1 should read curated review_status values."
 Assert-ContainsText -Text $visualMetadataHelperText `
@@ -104,6 +125,18 @@ Assert-ContainsText -Text $visualMetadataHelperText `
 Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$verdict = Get-OptionalPropertyValue -Object $Source -Name "review_verdict"' `
     -Message "release_visual_metadata_helpers.ps1 should read curated review_verdict values directly."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$reviewResultPath = Get-OptionalPropertyValue -Object $Source -Name "review_result_path"' `
+    -Message "release_visual_metadata_helpers.ps1 should read curated review_result_path values directly."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$reviewResultPath = Join-Path $taskDir "report\review_result.json"' `
+    -Message "release_visual_metadata_helpers.ps1 should derive curated review_result_path from task_dir when needed."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$finalReviewPath = Get-OptionalPropertyValue -Object $Source -Name "final_review_path"' `
+    -Message "release_visual_metadata_helpers.ps1 should read curated final_review_path values directly."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$finalReviewPath = Join-Path $taskDir "report\final_review.md"' `
+    -Message "release_visual_metadata_helpers.ps1 should derive curated final_review_path from task_dir when needed."
 Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '(Get-OptionalPropertyArray -Object $reviewTasks -Name "curated_visual_regressions")' `
     -Message "release_visual_metadata_helpers.ps1 should merge curated review task metadata."
@@ -187,6 +220,12 @@ foreach ($scriptInfo in $metadataScripts) {
         -ExpectedText '$smokeReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"' `
         -Message "$label should collect the smoke visual review method."
     Assert-ContainsText -Text $scriptText `
+        -ExpectedText '$smokeReviewResultPath = Get-VisualTaskReviewResultPath -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"' `
+        -Message "$label should collect the smoke visual review result path."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText '$smokeFinalReviewPath = Get-VisualTaskFinalReviewPath -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"' `
+        -Message "$label should collect the smoke visual final review path."
+    Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the smoke visual review status."
     Assert-ContainsText -Text $scriptText `
@@ -198,6 +237,12 @@ foreach ($scriptInfo in $metadataScripts) {
     Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Smoke review note: $(Get-DisplayValue -Value $smokeReviewNote)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the smoke visual review note."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Smoke review result: $(Get-DisplayPath -RepoRoot $repoRoot -Path $smokeReviewResultPath)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the smoke visual review result path."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Smoke final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $smokeFinalReviewPath)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the smoke visual final review path."
     Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Fixed-grid verdict: $(Get-DisplayValue -Value $fixedGridVerdict)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the fixed-grid visual verdict."
@@ -214,6 +259,12 @@ foreach ($scriptInfo in $metadataScripts) {
         -ExpectedText (('[void]${0}.Add("- Fixed-grid review note: $(Get-DisplayValue -Value $fixedGridReviewNote)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the fixed-grid visual review note."
     Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Fixed-grid review result: $(Get-DisplayPath -RepoRoot $repoRoot -Path $fixedGridReviewResultPath)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the fixed-grid visual review result path."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Fixed-grid final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $fixedGridFinalReviewPath)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the fixed-grid visual final review path."
+    Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the section page setup visual verdict."
     Assert-ContainsText -Text $scriptText `
@@ -228,6 +279,12 @@ foreach ($scriptInfo in $metadataScripts) {
     Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Section page setup review note: $(Get-DisplayValue -Value $sectionPageSetupReviewNote)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the section page setup visual review note."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Section page setup review result: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupReviewResultPath)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the section page setup visual review result path."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Section page setup final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupFinalReviewPath)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the section page setup visual final review path."
     Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the page number fields visual verdict."
@@ -244,11 +301,32 @@ foreach ($scriptInfo in $metadataScripts) {
         -ExpectedText (('[void]${0}.Add("- Page number fields review note: $(Get-DisplayValue -Value $pageNumberFieldsReviewNote)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the page number fields visual review note."
     Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Page number fields review result: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsReviewResultPath)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the page number fields visual review result path."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Page number fields final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsFinalReviewPath)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the page number fields visual final review path."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- $($curatedVisualReview.label) verdict: $(Get-DisplayValue -Value $curatedVisualReview.verdict)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render curated visual review verdicts."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- $($curatedVisualReview.label) review status: $(Get-DisplayValue -Value $curatedVisualReview.review_status)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render curated visual review statuses."
+    Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- $($curatedVisualReview.label) reviewed at: $(Get-DisplayValue -Value $curatedVisualReview.reviewed_at)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render curated visual review timestamps."
     Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- $($curatedVisualReview.label) review method: $(Get-DisplayValue -Value $curatedVisualReview.review_method)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render curated visual review methods."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- $($curatedVisualReview.label) review note: $(Get-DisplayValue -Value $curatedVisualReview.review_note)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render curated visual review notes."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- $($curatedVisualReview.label) review result: $(Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.review_result_path)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render curated visual review result paths."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- $($curatedVisualReview.label) final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.final_review_path)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render curated visual final review paths."
 }
 
 $bodyScriptPath = Join-Path $resolvedRepoRoot "scripts\write_release_body_zh.ps1"

@@ -1,3 +1,5 @@
+:orphan:
+
 PDF 可视化验证状态
 ====================
 
@@ -215,6 +217,19 @@ PDF 可视化验证状态
      和 summary；最终可视化 reviewer 入口仍是
      ``report/aggregate-contact-sheet.png``。单样本 summary 使用
      ``contact_sheet_skipped`` 明确该边界。
+
+本地证据缺失边界
+----------------
+
+干净检出或新 worktree 可能没有本地 ``output/`` 产物。此时不得把缺少
+``output/pdf-visual-release-gate-current/report/summary.json`` 或
+``aggregate-contact-sheet.png`` 直接解释为源码回归；应先记录为
+``local_persisted_visual_artifacts_missing``，只运行不触发构建/渲染的
+preflight、readiness 或治理契约测试来确认脚本与文档契约仍然闭合。
+完整 PDF visual gate 只有在 PDFio/PDFium 输入、PDF build options、
+baseline/render 输入和可复用 contact-sheet 产物齐备时才应启动；若这些本地产物
+不在当前 worktree，发布结论必须回退到最近一次已归档的 full gate 证据或等待
+资源窗口重新生成。
 
 治理链路
 --------

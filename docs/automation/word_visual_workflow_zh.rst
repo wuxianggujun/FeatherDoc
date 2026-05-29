@@ -84,7 +84,17 @@ fixed-grid 一键回归并生成 review task：
 
 .. code-block:: powershell
 
+    powershell -ExecutionPolicy Bypass -File .\scripts\check_word_visual_release_gate_preflight.ps1
+
     powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1
+
+``check_word_visual_release_gate_preflight.ps1`` 会输出
+``featherdoc.word_visual_release_gate_preflight.v1``，并固定
+``word_visual_release_gate_preflight_static_contract_only`` 证据边界。它只检查
+总 gate 脚本、helper 脚本、CMake 轻量测试注册和文档入口，不启动 ``Word``、
+``CMake``、``CTest``、浏览器、``LibreOffice`` 或任何视觉渲染流程；即使
+preflight 为 ``ready``，也不等同于完整截图级 release gate 已通过，不能作为
+release-ready evidence。
 
 若只想复用已有 build 目录、重点验证脚本链路：
 

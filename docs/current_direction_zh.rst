@@ -5,10 +5,10 @@
 
 ``FeatherDoc`` 接下来到底继续推进什么功能，什么功能不该抢着做。
 
-这份文档和 :doc:`project_identity_zh`、:doc:`v1_7_roadmap_zh` 的关系是：
+这份文档和 :doc:`project_identity_zh`、历史路线图 :doc:`v1_7_roadmap_zh` 的关系是：
 
 - ``project_identity_zh`` 负责说明项目是什么、为什么独立演进
-- ``v1_7_roadmap_zh`` 负责记录前一阶段能力补齐的路线
+- ``v1_7_roadmap_zh`` 只作为前一阶段能力补齐路线的历史归档
 - 本文负责约束当前阶段的产品主线和功能准入标准
 
 
@@ -173,7 +173,11 @@
 - numbering catalog JSON check / diff 准入与单文件 / manifest baseline gate
 - 多份 document skeleton governance summary 的 rollup 汇总入口，可把
   exemplar catalog、样式编号 issue、release blocker 和 action item 先聚合成
-  ``featherdoc.document_skeleton_governance_rollup_report.v1``，再进入统一发布阻断视图
+  ``featherdoc.document_skeleton_governance_rollup_report.v1``，再进入统一发布阻断视图。
+  单文档入口为 ``build_document_skeleton_governance_report.ps1``，
+  汇总入口为 ``build_document_skeleton_governance_rollup_report.ps1``，默认写入
+  ``output/document-skeleton-governance`` 与
+  ``output/document-skeleton-governance-rollup/summary.json``。
 
   这一层现在不应只看聚合计数。发布面板会从 final release blocker rollup 中继续展示
   ``release_blocker_rollup.release_blockers``、``warnings`` 与 ``action_items`` 的明细，

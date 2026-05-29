@@ -759,6 +759,7 @@ function New-ReportMarkdown {
         }
     }
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
+    $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null
     $lines.Add("- Output gap checks: ``$($Summary.output_gap_count)``") | Out-Null
     $lines.Add("- Missing outputs: ``$($Summary.missing_output_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -845,6 +846,35 @@ function New-ReportMarkdown {
             $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
                 $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
+            }
+        }
+    }
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Warnings") | Out-Null
+    $lines.Add("") | Out-Null
+    $warnings = @(Get-JsonArray -Object $Summary -Name "warnings")
+    if ($warnings.Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($warning in $warnings) {
+            $lines.Add("- ``$(Get-JsonString -Object $warning -Name "id")``: action=``$(Get-JsonString -Object $warning -Name "action")`` status=``$(Get-JsonString -Object $warning -Name "status")``") | Out-Null
+            $lines.Add("  - message: $(Get-JsonString -Object $warning -Name "message")") | Out-Null
+            $warningSourceReport = Get-JsonString -Object $warning -Name "source_report"
+            if (-not [string]::IsNullOrWhiteSpace($warningSourceReport)) {
+                $lines.Add("  - source_report: ``$warningSourceReport``") | Out-Null
+            }
+            $warningSourceJson = Get-JsonString -Object $warning -Name "source_json"
+            if (-not [string]::IsNullOrWhiteSpace($warningSourceJson)) {
+                $lines.Add("  - source_json: ``$warningSourceJson``") | Out-Null
+            }
+            $warningSourceReportDisplay = Get-JsonString -Object $warning -Name "source_report_display"
+            if (-not [string]::IsNullOrWhiteSpace($warningSourceReportDisplay)) {
+                $lines.Add("  - source_report_display: ``$warningSourceReportDisplay``") | Out-Null
+            }
+            $warningSourceJsonDisplay = Get-JsonString -Object $warning -Name "source_json_display"
+            if (-not [string]::IsNullOrWhiteSpace($warningSourceJsonDisplay)) {
+                $lines.Add("  - source_json_display: ``$warningSourceJsonDisplay``") | Out-Null
             }
         }
     }

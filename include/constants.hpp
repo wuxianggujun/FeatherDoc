@@ -83,6 +83,22 @@ enum class table_position_vertical_reference : std::uint8_t {
     paragraph,
 };
 
+enum class table_position_horizontal_spec : std::uint8_t {
+    left = 0U,
+    center,
+    right,
+    inside,
+    outside,
+};
+
+enum class table_position_vertical_spec : std::uint8_t {
+    top = 0U,
+    center,
+    bottom,
+    inside,
+    outside,
+};
+
 enum class table_overlap : std::uint8_t {
     allow = 0U,
     never,

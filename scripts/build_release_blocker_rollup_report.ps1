@@ -151,14 +151,29 @@ function Get-JsonProperty {
     return $property.Value
 }
 
+function Convert-JsonScalarToString {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    return [string]$Value
+}
+
 function Get-JsonString {
     param($Object, [string]$Name, [string]$DefaultValue = "")
 
     $value = Get-JsonProperty -Object $Object -Name $Name
-    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+    $text = Convert-JsonScalarToString -Value $value
+    if ([string]::IsNullOrWhiteSpace($text)) {
         return $DefaultValue
     }
-    return [string]$value
+    return $text
 }
 
 function Get-FirstJsonString {
@@ -209,6 +224,33 @@ function Get-JsonBool {
     $parsed = $false
     if ([bool]::TryParse([string]$value, [ref]$parsed)) { return $parsed }
     return $DefaultValue
+}
+
+function Get-SourcePayloadPreview {
+    param(
+        [string]$Path,
+        [int]$MaxLength = 2048
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return ""
+    }
+
+    try {
+        $payload = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path
+        if ($null -eq $payload) {
+            return ""
+        }
+
+        $normalized = ([string]$payload).Trim()
+        if ($normalized.Length -le $MaxLength) {
+            return $normalized
+        }
+
+        return $normalized.Substring(0, $MaxLength)
+    } catch {
+        return ""
+    }
 }
 
 function Test-InformationalActionItem {
@@ -502,9 +544,9 @@ function New-GovernanceMetrics {
             metric = "real_corpus_confidence"
             report_id = $reportId
             source_schema = $SourceSchema
-            source_report = $SourceReport
+            source_report = $SourceReportDisplay
             source_report_display = $SourceReportDisplay
-            source_json = $SourceReport
+            source_json = $SourceReportDisplay
             source_json_display = $SourceReportDisplay
             score = Get-JsonInt -Object $Summary -Name "real_corpus_confidence_score"
             level = Get-JsonString -Object $Summary -Name "real_corpus_confidence_level"
@@ -520,9 +562,9 @@ function New-GovernanceMetrics {
             metric = "delivery_quality"
             report_id = $reportId
             source_schema = $SourceSchema
-            source_report = $SourceReport
+            source_report = $SourceReportDisplay
             source_report_display = $SourceReportDisplay
-            source_json = $SourceReport
+            source_json = $SourceReportDisplay
             source_json_display = $SourceReportDisplay
             score = Get-JsonInt -Object $Summary -Name "delivery_quality_score"
             level = Get-JsonString -Object $Summary -Name "delivery_quality_level"
@@ -650,6 +692,32 @@ function Add-PdfVisualGateEvidenceFields {
         -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("visual_baseline_manifest_count"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_visual_baseline_count" `
         -Value (Get-FirstJsonProperty -Object $pdfVisualGate -Names @("visual_baseline_count", "baselines_count"))
+}
+
+function Add-DocxFunctionalSmokeReadinessEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary
+    )
+
+    $schema = Get-JsonString -Object $Summary -Name "schema"
+    if (-not [string]::Equals($schema, "featherdoc.docx_functional_smoke_readiness.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return
+    }
+
+    foreach ($field in @(
+            "verdict",
+            "docx_functional_smoke_ready",
+            "evidence_scope",
+            "evidence_scope_note",
+            "boundary",
+            "marker",
+            "summary_json_display",
+            "report_markdown_display"
+        )) {
+        Set-OptionalSourceReportField -Target $Target -Name $field `
+            -Value (Get-JsonProperty -Object $Summary -Name $field)
+    }
 }
 
 function Get-PdfBoundedCtestEvidenceObject {
@@ -1114,6 +1182,85 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvi
         -Value (Get-JsonString -Object $audit -Name "material_safety_marker")
 }
 
+function Get-WordVisualStandardReviewMetadataSummaryText {
+    param(
+        [object[]]$Items,
+        [string]$PropertyName
+    )
+
+    $values = @(
+        foreach ($item in @($Items)) {
+            $value = Get-JsonString -Object $item -Name $PropertyName
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                $value
+            }
+        }
+    )
+
+    if ($values.Count -eq 0) {
+        return ""
+    }
+
+    return @(
+        $values |
+            Group-Object |
+            Sort-Object -Property @{ Expression = "Count"; Descending = $true }, @{ Expression = "Name"; Ascending = $true } |
+            ForEach-Object { "$($_.Name)=$($_.Count)" }
+    ) -join ", "
+}
+
+function Get-WordVisualStandardReviewMetadataEntries {
+    param($Summary)
+
+    return @(
+        foreach ($entry in @(Get-JsonArray -Object $Summary -Name "word_visual_standard_review_metadata")) {
+            $taskKey = Get-JsonString -Object $entry -Name "task_key"
+            if ([string]::IsNullOrWhiteSpace($taskKey)) {
+                continue
+            }
+
+            [ordered]@{
+                task_key = $taskKey
+                review_task_key = Get-JsonString -Object $entry -Name "review_task_key"
+                label = Get-JsonString -Object $entry -Name "label"
+                verdict = Get-JsonString -Object $entry -Name "verdict"
+                review_status = Get-JsonString -Object $entry -Name "review_status"
+                reviewed_at = Get-JsonString -Object $entry -Name "reviewed_at"
+                review_method = Get-JsonString -Object $entry -Name "review_method"
+                review_result_path = Get-JsonString -Object $entry -Name "review_result_path"
+                final_review_path = Get-JsonString -Object $entry -Name "final_review_path"
+            }
+        }
+    )
+}
+
+function Add-WordVisualStandardReviewMetadataEvidenceFields {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Summary
+    )
+
+    $metadata = @(Get-WordVisualStandardReviewMetadataEntries -Summary $Summary)
+    $count = Get-FirstJsonProperty -Object $Summary -Names @("word_visual_standard_review_metadata_count")
+    if ($null -eq $count -and $metadata.Count -eq 0) {
+        return
+    }
+    if ($null -eq $count) {
+        $count = $metadata.Count
+    }
+
+    Set-OptionalSourceReportField -Target $Target -Name "word_visual_standard_review_metadata_count" `
+        -Value $count
+    Set-OptionalSourceReportField -Target $Target -Name "word_visual_standard_review_task_keys" `
+        -Value @($metadata | ForEach-Object { [string]$_.task_key })
+    Set-OptionalSourceReportField -Target $Target -Name "word_visual_standard_review_status_summary" `
+        -Value (Get-WordVisualStandardReviewMetadataSummaryText -Items $metadata -PropertyName "review_status")
+    Set-OptionalSourceReportField -Target $Target -Name "word_visual_standard_review_verdict_summary" `
+        -Value (Get-WordVisualStandardReviewMetadataSummaryText -Items $metadata -PropertyName "verdict")
+    Set-OptionalSourceReportField -Target $Target -Name "word_visual_standard_review_metadata" `
+        -Value @($metadata)
+}
+
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
@@ -1308,6 +1455,56 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditMar
     }
 }
 
+function Add-WordVisualStandardReviewMetadataMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Report
+    )
+
+    $metadataCount = Get-JsonProperty -Object $Report -Name "word_visual_standard_review_metadata_count"
+    $metadata = @(Get-JsonArray -Object $Report -Name "word_visual_standard_review_metadata")
+    if ($null -eq $metadataCount -and $metadata.Count -eq 0) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "word_visual_standard_review_metadata_count",
+            "word_visual_standard_review_task_keys",
+            "word_visual_standard_review_status_summary",
+            "word_visual_standard_review_verdict_summary"
+        )) {
+        $fieldValue = Get-JsonProperty -Object $Report -Name $fieldName
+        $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+            @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+        } else {
+            [string]$fieldValue
+        }
+        if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+            $Lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
+        }
+    }
+
+    if ($metadata.Count -eq 0) {
+        return
+    }
+
+    $Lines.Add("  - word_visual_standard_review_metadata:") | Out-Null
+    foreach ($entry in $metadata) {
+        $taskKey = Get-JsonString -Object $entry -Name "task_key" -DefaultValue "(unknown task)"
+        $reviewTaskKey = Get-JsonString -Object $entry -Name "review_task_key"
+        $verdict = Get-JsonString -Object $entry -Name "verdict"
+        $reviewStatus = Get-JsonString -Object $entry -Name "review_status"
+        $reviewMethod = Get-JsonString -Object $entry -Name "review_method"
+        $Lines.Add("    - ``${taskKey}``: review_task_key=``$reviewTaskKey`` verdict=``$verdict`` review_status=``$reviewStatus`` review_method=``$reviewMethod``") | Out-Null
+        foreach ($fieldName in @("label", "reviewed_at", "review_result_path", "final_review_path")) {
+            $fieldValue = Get-JsonString -Object $entry -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+                $Lines.Add("      - ${fieldName}: ``$fieldValue``") | Out-Null
+            }
+        }
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -1392,6 +1589,10 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$report.error)) {
                 $lines.Add("  - error: ``$($report.error)``") | Out-Null
             }
+            $payloadPreview = Get-JsonString -Object $report -Name "payload_preview"
+            if (-not [string]::IsNullOrWhiteSpace($payloadPreview)) {
+                $lines.Add("  - payload_preview: ``$payloadPreview``") | Out-Null
+            }
             $fullVisualGateRequired = Get-JsonProperty -Object $report -Name "full_visual_gate_required"
             if ($null -ne $fullVisualGateRequired) {
                 $lines.Add("  - full_visual_gate_required: ``$fullVisualGateRequired``") | Out-Null
@@ -1401,6 +1602,14 @@ function New-ReportMarkdown {
                 $lines.Add("  - full_visual_gate_status: ``$fullVisualGateStatus``") | Out-Null
             }
             foreach ($fieldName in @(
+                    "verdict",
+                    "docx_functional_smoke_ready",
+                    "evidence_scope",
+                    "evidence_scope_note",
+                    "boundary",
+                    "marker",
+                    "summary_json_display",
+                    "report_markdown_display",
                     "pdf_visual_gate_status",
                     "pdf_visual_gate_verdict",
                     "pdf_visual_gate_finalizable",
@@ -1500,6 +1709,7 @@ function New-ReportMarkdown {
             Add-ManifestSignoffEntrypointsMarkdownLines -Lines $lines -Report $report
             Add-ProjectTemplateReadinessChecklistEntrypointsMarkdownLines -Lines $lines -Report $report
             Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditMarkdownLines -Lines $lines -Report $report
+            Add-WordVisualStandardReviewMetadataMarkdownLines -Lines $lines -Report $report
             $controlledVisualSmokeAvailable = Get-JsonProperty -Object $report -Name "controlled_visual_smoke_available"
             if ($null -ne $controlledVisualSmokeAvailable) {
                 $lines.Add("  - controlled_visual_smoke_available: ``$controlledVisualSmokeAvailable``") | Out-Null
@@ -1688,6 +1898,7 @@ foreach ($path in @($inputPaths)) {
     $kind = "unknown"
     $status = "loaded"
     $errorMessage = ""
+    $payloadPreview = ""
     $sourceMetrics = @()
     $releaseReady = $false
     $sourceReportStatus = ""
@@ -1989,6 +2200,7 @@ foreach ($path in @($inputPaths)) {
     } catch {
         $status = "failed"
         $errorMessage = $_.Exception.Message
+        $payloadPreview = Get-SourcePayloadPreview -Path $path
         $warnings.Add([ordered]@{
             id = "source_report_read_failed"
             project_id = ""
@@ -2011,6 +2223,7 @@ foreach ($path in @($inputPaths)) {
         status = $status
         release_ready = $releaseReady
         error = $errorMessage
+        payload_preview = $payloadPreview
         latest_schema_approval_gate_status = $latestSchemaApprovalGateStatus
         schema_approval_status_summary = @($schemaApprovalStatusSummary)
         governance_metric_count = @($sourceMetrics).Count
@@ -2031,6 +2244,7 @@ foreach ($path in @($inputPaths)) {
             "controlled_visual_smoke_json_display"
         )
     Add-PdfVisualGateEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
+    Add-DocxFunctionalSmokeReadinessEvidenceFields -Target $sourceReport -Summary $summaryObject
     Add-PdfBoundedCtestEvidenceFields -Target $sourceReport -Summary $summaryObject
     Add-PdfFullCtestReadinessEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-PdfVisualGateAttemptEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
@@ -2038,6 +2252,7 @@ foreach ($path in @($inputPaths)) {
     Add-ManifestSignoffEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject -RepoRoot $repoRoot
     Add-ProjectTemplateReadinessChecklistEntrypointsEvidenceFields -Target $sourceReport -Summary $summaryObject
     Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceFields -Target $sourceReport -Summary $summaryObject
+    Add-WordVisualStandardReviewMetadataEvidenceFields -Target $sourceReport -Summary $summaryObject
     $sourceReports.Add($sourceReport) | Out-Null
 }
 

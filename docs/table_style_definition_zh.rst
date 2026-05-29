@@ -409,8 +409,8 @@ JSON 顶层会输出总 ``issue_count``，以及 ``region_issue_count``、
 表格样式定义本身不负责表格实例在页面上的浮动位置；这类属性存放在
 ``w:tblPr/w:tblpPr``。当前已经提供第一版 typed API：
 ``Table::set_position(...)``、``position()`` 和 ``clear_position()``，可读写
-水平参照（margin / page / column）、垂直参照（margin / page / paragraph）
-以及 ``tblpX`` / ``tblpY`` twips 偏移。
+水平参照（margin / page / column）、垂直参照（margin / page / paragraph）、
+``tblpX`` / ``tblpY`` twips 偏移，以及 Word 原生的相对定位 spec。
 
 CLI 侧也已打通同一能力，便于模板迁移脚本直接批量处理：
 
@@ -424,7 +424,7 @@ CLI 侧也已打通同一能力，便于模板迁移脚本直接批量处理：
    featherdoc_cli set-table-position input.docx 0 --preset page-corner --horizontal-offset 360 --bottom-from-text 288 --output table-position-preset.docx --json
    featherdoc_cli set-table-position input.docx all --preset paragraph-callout --output table-position-all.docx --json
    featherdoc_cli set-table-position input.docx 0 --table 1 --preset margin-anchor --output table-position-list.docx --json
-   featherdoc_cli set-table-position input.docx 0 --horizontal-reference page --horizontal-offset 720 --vertical-reference paragraph --vertical-offset -120 --left-from-text 144 --right-from-text 288 --top-from-text 72 --bottom-from-text 216 --overlap never --output table-position.docx --json
+   featherdoc_cli set-table-position input.docx 0 --horizontal-reference page --horizontal-offset 720 --horizontal-spec center --vertical-reference paragraph --vertical-offset -120 --vertical-spec bottom --left-from-text 144 --right-from-text 288 --top-from-text 72 --bottom-from-text 216 --overlap never --output table-position.docx --json
    featherdoc_cli clear-table-position table-position-all.docx all --output table-position-all-cleared.docx --json
    featherdoc_cli clear-table-position table-position-list.docx 0 --table 1 --output table-position-list-cleared.docx --json
    featherdoc_cli clear-table-position table-position.docx 0 --output table-position-cleared.docx --json
@@ -437,12 +437,13 @@ CLI 侧也已打通同一能力，便于模板迁移脚本直接批量处理：
 - ``page-corner``：相对页面左上区域锚定，适合页内固定角标或摘要表。
 - ``margin-anchor``：相对页边距 / 段落锚定，适合随段落移动的边距浮动表。
 
-显式传入的 ``--horizontal-offset``、``--bottom-from-text``、``--overlap`` 等细粒度参数会覆盖预设默认值，便于先套模板再微调。
+显式传入的 ``--horizontal-offset``、``--bottom-from-text``、``--overlap`` 等细粒度参数会覆盖预设默认值，便于先套模板再微调。``--horizontal-spec`` 会写入 ``w:tblpXSpec``，表达相对水平参照的 Word 原生定位规则，允许 ``left``、``center``、``right``、``inside``、``outside``；``--vertical-spec`` 会写入 ``w:tblpYSpec``，表达相对垂直参照的 Word 原生定位规则，允许 ``top``、``center``、``bottom``、``inside``、``outside``。如果同时提供 signed twips 偏移和 spec，偏移仍保留为显式微调量，spec 负责描述锚点语义。
 
 批量场景可将第二个位置参数写为 ``all``，一次处理所有正文表格；也可保留第一个表格索引，并重复传入 ``--table <index>`` 追加目标表格。``set-table-position`` 与 ``clear-table-position`` 使用同一套目标语义。单表 JSON 输出继续返回 ``table_index`` / ``position``；多表输出返回 ``table_indices`` / ``positions`` 数组，清除时 ``positions`` 中对应项为 ``null``。
 
 ``inspect-tables --table <index> --json`` 会同步返回 ``position`` 字段；未设置时
-为 ``null``，设置后包含水平 / 垂直参照、signed twips 偏移、文本环绕距离
+为 ``null``，设置后包含水平 / 垂直参照、signed twips 偏移、相对定位
+``horizontal_spec`` / ``vertical_spec``、文本环绕距离
 （``left/right/top/bottom_from_text_twips``）以及 ``overlap`` 策略。
 
 这能覆盖模板中常见的“表格相对页面、边距或段落固定摆放”的迁移场景。

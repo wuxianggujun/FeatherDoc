@@ -179,6 +179,8 @@ if (Test-Scenario -Name "aggregate") {
                 message = "Style numbering audit reported issues."
                 action = "review_style_numbering_audit"
                 issue_count = 3
+                source_json = "output/document-skeleton-governance/contract/style-numbering-audit.json"
+                source_json_display = ".\output\document-skeleton-governance\contract\style-numbering-audit.json"
             }
         ) `
         -ActionItems @(
@@ -258,6 +260,38 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate rollup should group dangling instance issues."
     Assert-Equal -Actual ([string]$summary.release_blockers[0].document_name) -Expected "contract.docx" `
         -Message "Release blockers should carry the source document name."
+    Assert-Equal -Actual ([string]$summary.release_blockers[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Release blockers should identify the skeleton rollup as the release-facing source schema."
+    Assert-ContainsText -Text ([string]$summary.release_blockers[0].source_report_display) `
+        -ExpectedText "aggregate-output\summary.json" `
+        -Message "Release blockers should point source_report_display at the rollup summary."
+    Assert-ContainsText -Text ([string]$summary.release_blockers[0].source_json_display) `
+        -ExpectedText "style-numbering-audit.json" `
+        -Message "Release blockers should preserve the original source evidence JSON display."
+    Assert-ContainsText -Text ([string]$summary.release_blockers[0].origin_source_report_display) `
+        -ExpectedText "contract\summary.json" `
+        -Message "Release blockers should preserve the original single-document source report display."
+    $previewRepairAction = @(
+        $summary.action_items |
+            Where-Object { [string]$_.id -eq "preview_style_numbering_repair" } |
+            Select-Object -First 1
+    )
+    Assert-True -Condition ($null -ne $previewRepairAction) `
+        -Message "Aggregate rollup should include the preview repair action."
+    Assert-Equal -Actual ([string]$previewRepairAction.source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Action items should identify the skeleton rollup as the release-facing source schema."
+    Assert-ContainsText -Text ([string]$previewRepairAction.source_report_display) `
+        -ExpectedText "aggregate-output\summary.json" `
+        -Message "Action items should point source_report_display at the rollup summary."
+    Assert-ContainsText -Text ([string]$previewRepairAction.source_json_display) `
+        -ExpectedText "contract\summary.json" `
+        -Message "Action items should preserve the source summary as source_json_display when no narrower evidence exists."
+    Assert-ContainsText -Text ([string]$previewRepairAction.origin_source_report_display) `
+        -ExpectedText "contract\summary.json" `
+        -Message "Action items should preserve the original single-document source report display."
+    Assert-ContainsText -Text ([string]$previewRepairAction.open_command) `
+        -ExpectedText "repair-style-numbering" `
+        -Message "Action items should expose an open_command fallback from command."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Catalog Exemplars" `
@@ -270,6 +304,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should expose a machine-readable source failure count."
     Assert-ContainsText -Text $markdown -ExpectedText "style_merge_suggestions=``2``" `
         -Message "Markdown report should include per-document style merge suggestion counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display:" `
+        -Message "Markdown report should expose source_json_display for reviewer traceability."
+    Assert-ContainsText -Text $markdown -ExpectedText "origin_source_report_display:" `
+        -Message "Markdown report should expose origin source report display for reviewer traceability."
+    Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
+        -Message "Markdown report should expose action open_command for reviewer traceability."
 }
 
 if (Test-Scenario -Name "empty") {

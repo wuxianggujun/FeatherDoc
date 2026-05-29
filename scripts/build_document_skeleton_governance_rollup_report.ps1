@@ -301,11 +301,18 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add(("- ``{0}``: document=``{1}`` action=``{2}`` source=``{3}``" -f
+            $lines.Add(("- ``{0}``: document=``{1}`` action=``{2}`` schema=``{3}`` source=``{4}``" -f
                 $blocker.composite_id,
                 $blocker.document_name,
                 $blocker.action,
+                $blocker.source_schema,
                 $blocker.source_report_display)) | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.source_json_display)) {
+                $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.origin_source_report_display)) {
+                $lines.Add("  - origin_source_report_display: ``$($blocker.origin_source_report_display)``") | Out-Null
+            }
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - $($blocker.message)") | Out-Null
             }
@@ -319,10 +326,22 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add(("- ``{0}``: document=``{1}`` title=``{2}``" -f
+            $lines.Add(("- ``{0}``: document=``{1}`` action=``{2}`` title=``{3}`` schema=``{4}`` source=``{5}``" -f
                 $item.composite_id,
                 $item.document_name,
-                $item.title)) | Out-Null
+                $item.action,
+                $item.title,
+                $item.source_schema,
+                $item.source_report_display)) | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.source_json_display)) {
+                $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.origin_source_report_display)) {
+                $lines.Add("  - origin_source_report_display: ``$($item.origin_source_report_display)``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -333,10 +352,15 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add(("- ``{0}``: source=``{1}`` {2}" -f
+            $lines.Add(("- ``{0}``: action=``{1}`` schema=``{2}`` source=``{3}`` {4}" -f
                 $warning.id,
+                $warning.action,
+                $warning.source_schema,
                 $warning.source_report_display,
                 $warning.message)) | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$warning.source_json_display)) {
+                $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -375,6 +399,8 @@ $markdownPath = if ([string]::IsNullOrWhiteSpace($ReportMarkdown)) {
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($summaryPath))
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($markdownPath))
 
+$rollupSchema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+$rollupSummaryDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
 $inputPaths = @(Get-InputJsonPaths -RepoRoot $repoRoot -ExplicitPaths $InputJson -Roots $InputRoot)
 Write-Step "Reading $($inputPaths.Count) document skeleton summary file(s)"
 
@@ -412,15 +438,22 @@ foreach ($path in @($inputPaths)) {
         $kind = Get-ReportKind -Summary $summaryObject
         if ($kind -ne "featherdoc.document_skeleton_governance_report.v1") {
             $sourceStatus = "skipped"
+            $sourceReportDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             $warnings.Add([ordered]@{
                 id = "source_report_schema_skipped"
                 action = "review_document_skeleton_governance_sources"
-                source_schema = "featherdoc.document_skeleton_governance_report.v1"
-                source_report = $path
-                source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_schema = $rollupSchema
+                source_report = $summaryPath
+                source_report_display = $rollupSummaryDisplay
+                source_json = $path
+                source_json_display = $sourceReportDisplay
+                origin_source_schema = $kind
+                origin_source_report = $path
+                origin_source_report_display = $sourceReportDisplay
                 message = "Report schema '$kind' is not a document skeleton governance summary."
             }) | Out-Null
         } else {
+            $sourceReportDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             $sourceStatus = Get-JsonString -Object $summaryObject -Name "status" -DefaultValue "loaded"
             $inputDocx = Get-FirstJsonString -Object $summaryObject -Names @("input_docx_relative", "input_docx")
             $inputDocxDisplay = Get-ReportPathDisplay -RepoRoot $repoRoot -Path $inputDocx
@@ -443,9 +476,14 @@ foreach ($path in @($inputPaths)) {
                 $warnings.Add([ordered]@{
                     id = "release_blocker_count_mismatch"
                     action = "review_document_skeleton_governance_sources"
-                    source_schema = "featherdoc.document_skeleton_governance_report.v1"
-                    source_report = $path
-                    source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                    source_schema = $rollupSchema
+                    source_report = $summaryPath
+                    source_report_display = $rollupSummaryDisplay
+                    source_json = $path
+                    source_json_display = $sourceReportDisplay
+                    origin_source_schema = "featherdoc.document_skeleton_governance_report.v1"
+                    origin_source_report = $path
+                    origin_source_report_display = $sourceReportDisplay
                     message = "release_blocker_count is $declaredBlockerCount but release_blockers contains $releaseBlockerCount item(s)."
                 }) | Out-Null
             }
@@ -464,7 +502,7 @@ foreach ($path in @($inputPaths)) {
                 input_docx = $inputDocx
                 input_docx_display = $inputDocxDisplay
                 source_report = $path
-                source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_report_display = $sourceReportDisplay
                 status = $sourceStatus
                 clean = ($sourceStatus -eq "clean")
                 style_numbering_issue_count = $styleIssueCount
@@ -487,7 +525,7 @@ foreach ($path in @($inputPaths)) {
                 input_docx = $inputDocx
                 input_docx_display = $inputDocxDisplay
                 source_report = $path
-                source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_report_display = $sourceReportDisplay
                 exemplar_catalog_path = $catalogPath
                 exemplar_catalog_display = $catalogDisplay
                 definition_count = $definitionCount
@@ -517,13 +555,30 @@ foreach ($path in @($inputPaths)) {
             foreach ($blocker in @($sourceBlockers)) {
                 $blockerIndex++
                 $id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
+                $originSourceReport = Get-JsonString -Object $blocker -Name "source_report" -DefaultValue $path
+                $originSourceReportDisplay = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue $sourceReportDisplay
+                $sourceJson = Get-JsonString -Object $blocker -Name "source_json" -DefaultValue $originSourceReport
+                $sourceJsonDisplay = Get-JsonString -Object $blocker -Name "source_json_display"
+                if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                    $sourceJsonDisplay = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                        Get-ReportPathDisplay -RepoRoot $repoRoot -Path $sourceJson
+                    } else {
+                        $originSourceReportDisplay
+                    }
+                }
                 $blockers.Add([ordered]@{
                     composite_id = ("document{0}.blocker{1}.{2}" -f $documents.Count, $blockerIndex, $id)
                     id = $id
                     document_name = $documentName
                     input_docx = $inputDocx
-                    source_report = $path
-                    source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                    source_schema = $rollupSchema
+                    source_report = $summaryPath
+                    source_report_display = $rollupSummaryDisplay
+                    source_json = $sourceJson
+                    source_json_display = $sourceJsonDisplay
+                    origin_source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue "featherdoc.document_skeleton_governance_report.v1"
+                    origin_source_report = $originSourceReport
+                    origin_source_report_display = $originSourceReportDisplay
                     severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
                     status = Get-JsonString -Object $blocker -Name "status"
                     action = Get-JsonString -Object $blocker -Name "action"
@@ -536,16 +591,35 @@ foreach ($path in @($inputPaths)) {
             foreach ($item in @($sourceActions)) {
                 $actionIndex++
                 $id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
+                $originSourceReport = Get-JsonString -Object $item -Name "source_report" -DefaultValue $path
+                $originSourceReportDisplay = Get-JsonString -Object $item -Name "source_report_display" -DefaultValue $sourceReportDisplay
+                $sourceJson = Get-JsonString -Object $item -Name "source_json" -DefaultValue $originSourceReport
+                $sourceJsonDisplay = Get-JsonString -Object $item -Name "source_json_display"
+                if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                    $sourceJsonDisplay = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                        Get-ReportPathDisplay -RepoRoot $repoRoot -Path $sourceJson
+                    } else {
+                        $originSourceReportDisplay
+                    }
+                }
+                $command = Get-JsonString -Object $item -Name "command"
                 $actionItems.Add([ordered]@{
                     composite_id = ("document{0}.action{1}.{2}" -f $documents.Count, $actionIndex, $id)
                     id = $id
                     document_name = $documentName
                     input_docx = $inputDocx
-                    source_report = $path
-                    source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                    action = Get-JsonString -Object $item -Name "action"
+                    source_schema = $rollupSchema
+                    source_report = $summaryPath
+                    source_report_display = $rollupSummaryDisplay
+                    source_json = $sourceJson
+                    source_json_display = $sourceJsonDisplay
+                    origin_source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue "featherdoc.document_skeleton_governance_report.v1"
+                    origin_source_report = $originSourceReport
+                    origin_source_report_display = $originSourceReportDisplay
+                    action = Get-FirstJsonString -Object $item -Names @("action", "id") -DefaultValue "action_item"
                     title = Get-JsonString -Object $item -Name "title"
-                    command = Get-JsonString -Object $item -Name "command"
+                    command = $command
+                    open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue $command
                     category = Get-JsonString -Object $item -Name "category"
                     severity = Get-JsonString -Object $item -Name "severity"
                     release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
@@ -568,9 +642,14 @@ foreach ($path in @($inputPaths)) {
         $warnings.Add([ordered]@{
             id = "source_report_read_failed"
             action = "review_document_skeleton_governance_sources"
-            source_schema = "featherdoc.document_skeleton_governance_report.v1"
-            source_report = $path
-            source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_schema = $rollupSchema
+            source_report = $summaryPath
+            source_report_display = $rollupSummaryDisplay
+            source_json = $path
+            source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            origin_source_schema = $kind
+            origin_source_report = $path
+            origin_source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage
         }) | Out-Null
     }
@@ -606,7 +685,7 @@ $status = if ($sourceFailureCount -gt 0) {
 }
 
 $summary = [ordered]@{
-    schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+    schema = $rollupSchema
     generated_at = (Get-Date).ToString("s")
     status = $status
     clean = ($status -eq "clean")

@@ -221,6 +221,34 @@ function Assert-StagedProjectTemplateChecklistHandoffEvidence {
         -Label "staged REVIEWER_CHECKLIST.md project-template checklist handoff evidence"
 }
 
+function Assert-StagedWordVisualStandardReviewMetadataHandoffEvidence {
+    param(
+        [string]$ReleaseCandidateRoot,
+        [int]$ExpectedMetadataCount
+    )
+
+    $path = Join-Path $ReleaseCandidateRoot "report\release_governance_handoff.md"
+    $label = "staged release_governance_handoff.md Word visual standard review metadata evidence"
+    Assert-PathExists -Path $path -Label $label
+
+    $content = Get-Content -Raw -LiteralPath $path
+    $requiredFragments = @(
+        "Word visual standard review metadata source reports",
+        "word_visual_standard_review_metadata_count: ``$ExpectedMetadataCount``",
+        "word_visual_standard_review_task_keys",
+        "word_visual_standard_review_status_summary",
+        "word_visual_standard_review_verdict_summary",
+        "review_result_path",
+        "final_review_path"
+    )
+
+    foreach ($fragment in $requiredFragments) {
+        if ($content.IndexOf($fragment, [System.StringComparison]::Ordinal) -lt 0) {
+            throw "$label must keep detailed Word visual standard review metadata source reports, including '$fragment'."
+        }
+    }
+}
+
 function New-ZipArchive {
     param(
         [string[]]$SourcePaths,
@@ -375,6 +403,61 @@ function Get-VisualGateStatus {
     return Get-OptionalPropertyValue -Object $visualGate -Name "status"
 }
 
+function Get-WordVisualStandardReviewMetadata {
+    param(
+        [string]$RepoRoot,
+        $Summary
+    )
+
+    $visualGate = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $Summary -Name "steps") -Name "visual_gate"
+    if ($null -eq $visualGate) {
+        return @()
+    }
+
+    $visualGateStatus = Get-OptionalPropertyValue -Object $visualGate -Name "status"
+    if ($visualGateStatus -eq "skipped") {
+        return @()
+    }
+
+    $gateSummary = [pscustomobject]@{}
+    $gateSummaryPath = Get-OptionalPropertyValue -Object $visualGate -Name "summary_json"
+    if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath)) {
+        $resolvedGateSummaryPath = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $gateSummaryPath
+        if (Test-Path -LiteralPath $resolvedGateSummaryPath) {
+            try {
+                $gateSummary = Get-Content -Raw -LiteralPath $resolvedGateSummaryPath | ConvertFrom-Json
+            } catch {
+                $gateSummary = [pscustomobject]@{}
+            }
+        }
+    }
+
+    $tasks = @(
+        [ordered]@{ key = "smoke"; label = "Word visual smoke" },
+        [ordered]@{ key = "fixed_grid"; label = "Fixed-grid merge/unmerge" },
+        [ordered]@{ key = "section_page_setup"; label = "Section page setup" },
+        [ordered]@{ key = "page_number_fields"; label = "Page number fields" }
+    )
+
+    $metadata = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($task in $tasks) {
+        $taskKey = [string]$task.key
+        [void]$metadata.Add([ordered]@{
+            task_key = $taskKey
+            review_task_key = Get-VisualTaskReviewTaskKey -TaskKey $taskKey
+            label = [string]$task.label
+            verdict = Get-VisualTaskVerdict -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+            review_status = Get-VisualTaskReviewStatus -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+            reviewed_at = Get-VisualTaskReviewedAt -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+            review_method = Get-VisualTaskReviewMethod -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+            review_result_path = Get-VisualTaskReviewResultPath -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+            final_review_path = Get-VisualTaskFinalReviewPath -VisualGateSummary $visualGate -GateSummary $gateSummary -TaskKey $taskKey
+        })
+    }
+
+    return @($metadata.ToArray())
+}
+
 function Get-GovernanceMetrics {
     param($Summary)
 
@@ -484,7 +567,7 @@ function Get-ContentControlRepairContracts {
         [void]$contracts.Add([ordered]@{
             id = $blockerId
             source_schema = $schema
-            source_json_display = Convert-RepoPathToRelative -Value $resolvedContentControlSummaryPath -RepoRoot $RepoRoot
+            source_json_display = Convert-EvidencePathToPublicDisplay -Value $resolvedContentControlSummaryPath -RepoRoot $RepoRoot
             input_docx = Get-OptionalPropertyValue -Object $blocker -Name "input_docx"
             input_docx_display = Get-OptionalPropertyValue -Object $blocker -Name "input_docx_display"
             template_name = Get-OptionalPropertyValue -Object $blocker -Name "template_name"
@@ -514,7 +597,7 @@ function Get-ProjectTemplateDeliveryReadinessContract {
     Assert-PathExists -Path $resolvedReadinessSummaryPath -Label "project template delivery readiness summary"
 
     $readinessSummary = Get-Content -Raw -LiteralPath $resolvedReadinessSummaryPath | ConvertFrom-Json
-    $readinessSummaryDisplay = Convert-RepoPathToRelative -Value $resolvedReadinessSummaryPath -RepoRoot $RepoRoot
+    $readinessSummaryDisplay = Convert-EvidencePathToPublicDisplay -Value $resolvedReadinessSummaryPath -RepoRoot $RepoRoot
     return [ordered]@{
         schema = Get-OptionalPropertyValue -Object $readinessSummary -Name "schema"
         source_schema = Get-OptionalPropertyValue -Object $readinessSummary -Name "schema"
@@ -551,7 +634,7 @@ function Get-ProjectTemplateOnboardingGovernanceContract {
     Assert-PathExists -Path $resolvedOnboardingSummaryPath -Label "project template onboarding governance summary"
 
     $onboardingSummary = Get-Content -Raw -LiteralPath $resolvedOnboardingSummaryPath | ConvertFrom-Json
-    $onboardingSummaryDisplay = Convert-RepoPathToRelative -Value $resolvedOnboardingSummaryPath -RepoRoot $RepoRoot
+    $onboardingSummaryDisplay = Convert-EvidencePathToPublicDisplay -Value $resolvedOnboardingSummaryPath -RepoRoot $RepoRoot
     return [ordered]@{
         schema = Get-OptionalPropertyValue -Object $onboardingSummary -Name "schema"
         source_schema = Get-OptionalPropertyValue -Object $onboardingSummary -Name "schema"
@@ -658,6 +741,180 @@ function Convert-RepoPathToRelative {
     return ".\" + ($relative -replace '/', '\')
 }
 
+function Convert-EvidencePathToPublicDisplay {
+    param(
+        [string]$Value,
+        [string]$RepoRoot,
+        [switch]$PreferEvidenceAnchor
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $Value
+    }
+
+    $normalized = $Value -replace '/', '\'
+    if ($PreferEvidenceAnchor) {
+        foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
+            $index = $normalized.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+            if ($index -ge 0) {
+                $relative = $normalized.Substring($index + 1)
+                if (-not [string]::IsNullOrWhiteSpace($relative)) {
+                    return ".\" + $relative
+                }
+            }
+        }
+    }
+
+    $repoDisplay = Convert-RepoPathToRelative -Value $Value -RepoRoot $RepoRoot
+    if ($repoDisplay -ne $Value) {
+        return $repoDisplay
+    }
+
+    foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
+        $index = $normalized.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+        if ($index -ge 0) {
+            $relative = $normalized.Substring($index + 1)
+            if (-not [string]::IsNullOrWhiteSpace($relative)) {
+                return ".\" + $relative
+            }
+        }
+    }
+
+    return $Value
+}
+
+function Get-EvidenceObjectProperty {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Name)) {
+            return $Object[$Name]
+        }
+
+        return $null
+    }
+
+    return Get-OptionalPropertyObject -Object $Object -Name $Name
+}
+
+function Set-EvidenceObjectProperty {
+    param(
+        $Object,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -eq $Object) {
+        return
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        $Object[$Name] = $Value
+        return
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value
+        return
+    }
+
+    $property.Value = $Value
+}
+
+function Convert-EvidenceEntrypointsToPublicDisplay {
+    param(
+        $Contract,
+        $SourceContract = $null,
+        [string]$RepoRoot
+    )
+
+    if ($null -eq $Contract) {
+        return
+    }
+
+    $source = if ($null -ne $SourceContract) { $SourceContract } else { $Contract }
+    $sourceEntrypoints = @(Get-EvidenceObjectProperty -Object $source -Name "entrypoints")
+    $targetEntrypoints = @(Get-EvidenceObjectProperty -Object $Contract -Name "entrypoints")
+    $targetById = @{}
+    foreach ($targetEntrypoint in $targetEntrypoints) {
+        $targetId = [string](Get-EvidenceObjectProperty -Object $targetEntrypoint -Name "id")
+        if (-not [string]::IsNullOrWhiteSpace($targetId)) {
+            $targetById[$targetId] = $targetEntrypoint
+        }
+    }
+
+    $convertedEntrypoints = New-Object 'System.Collections.Generic.List[object]'
+    $index = 0
+    foreach ($sourceEntrypoint in $sourceEntrypoints) {
+        if ($null -eq $sourceEntrypoint) {
+            $index++
+            continue
+        }
+
+        $sourceId = [string](Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name "id")
+        $targetEntrypoint = if (-not [string]::IsNullOrWhiteSpace($sourceId) -and $targetById.ContainsKey($sourceId)) {
+            $targetById[$sourceId]
+        } elseif ($index -lt $targetEntrypoints.Count) {
+            $targetEntrypoints[$index]
+        } else {
+            $null
+        }
+
+        if ($null -eq $targetEntrypoint) {
+            $targetEntrypoint = $sourceEntrypoint
+        }
+
+        $publicEntrypoint = [ordered]@{}
+
+        foreach ($fieldName in @("id", "required")) {
+            $fieldValue = Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name $fieldName
+            if ($null -eq $fieldValue) {
+                $fieldValue = Get-EvidenceObjectProperty -Object $targetEntrypoint -Name $fieldName
+            }
+            if ($null -ne $fieldValue) {
+                $publicEntrypoint[$fieldName] = $fieldValue
+            }
+        }
+
+        $path = [string](Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name "path")
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            $path = [string](Get-EvidenceObjectProperty -Object $targetEntrypoint -Name "path")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+            $publicEntrypoint["path"] = Convert-EvidencePathToPublicDisplay -Value $path -RepoRoot $RepoRoot
+        }
+
+        $pathDisplay = [string](Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name "path_display")
+        if ([string]::IsNullOrWhiteSpace($pathDisplay)) {
+            $pathDisplay = [string](Get-EvidenceObjectProperty -Object $targetEntrypoint -Name "path_display")
+        }
+        if ([string]::IsNullOrWhiteSpace($pathDisplay)) {
+            $pathDisplay = [string](Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name "path")
+        }
+        if ([string]::IsNullOrWhiteSpace($pathDisplay)) {
+            $pathDisplay = [string](Get-EvidenceObjectProperty -Object $targetEntrypoint -Name "path")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($pathDisplay)) {
+            $publicEntrypoint["path_display"] = Convert-EvidencePathToPublicDisplay -Value $pathDisplay -RepoRoot $RepoRoot -PreferEvidenceAnchor
+        }
+
+        $convertedEntrypoints.Add($publicEntrypoint) | Out-Null
+        $index++
+    }
+
+    if ($convertedEntrypoints.Count -gt 0) {
+        Set-EvidenceObjectProperty -Object $Contract -Name "entrypoints" -Value @($convertedEntrypoints.ToArray())
+    }
+}
+
 function Convert-ReleaseTextToPublic {
     param(
         [string]$Value,
@@ -718,6 +975,10 @@ function Convert-StructuredValueToPublic {
     if ($Value -is [string]) {
         $relativeValue = Convert-RepoPathToRelative -Value $Value -RepoRoot $RepoRoot
         return Convert-ReleaseTextToPublic -Value $relativeValue -RepoRoot $RepoRoot
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
     }
 
     if ($Value -is [System.Collections.IDictionary]) {
@@ -795,7 +1056,10 @@ $pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 $pdfBoundedCtestStatus = Get-OptionalPropertyValue -Object $pdfBoundedCtestEvidence -Name "status"
 $hasPdfBoundedCtestEvidence = $pdfBoundedCtestStatus -ne "not_available"
 $pdfBoundedCtestManifestEvidence = Convert-StructuredValueToPublic -Value $pdfBoundedCtestEvidence -RepoRoot $repoRoot
+$wordVisualStandardReviewMetadata = @(Get-WordVisualStandardReviewMetadata -RepoRoot $repoRoot -Summary $summary)
 $governanceMetrics = @(Get-GovernanceMetrics -Summary $summary)
+$releaseGovernanceHandoff = Get-OptionalPropertyObject -Object $summary -Name "release_governance_handoff"
+$releaseGovernanceHandoffStatus = Get-OptionalPropertyValue -Object $releaseGovernanceHandoff -Name "status"
 $numberingCatalogRealCorpusConfidence = Get-NumberingCatalogRealCorpusConfidence -GovernanceMetrics $governanceMetrics
 $tableLayoutDeliveryQuality = Get-TableLayoutDeliveryQuality -GovernanceMetrics $governanceMetrics
 $contentControlRepairContracts = @(Get-ContentControlRepairContracts -RepoRoot $repoRoot -Summary $summary)
@@ -811,6 +1075,10 @@ $governanceMetricCount = if (-not [string]::IsNullOrWhiteSpace($summaryGovernanc
 } else {
     $governanceMetrics.Count
 }
+$allowIncompleteCiPreview = $AllowIncomplete -and
+    $visualGateStatus -eq "skipped" -and
+    $releaseGovernanceHandoffStatus -eq "not_requested"
+$runStrictReleaseMaterialAudit = -not $allowIncompleteCiPreview
 
 if (-not $AllowIncomplete) {
     if ($executionStatus -ne "pass") {
@@ -944,17 +1212,32 @@ if ($hasPdfVisualGateEvidence) {
 Write-Step "Sanitizing staged release materials"
 Sanitize-StagedReleaseMaterials -RepoRoot $repoRoot -RootPaths $releaseMaterialRoots
 
-Write-Step "Checking staged project-template checklist handoff evidence"
-Assert-StagedProjectTemplateChecklistHandoffEvidence -ReleaseCandidateRoot $stageReleaseCandidateRoot
+if ($runStrictReleaseMaterialAudit) {
+    Write-Step "Checking staged project-template checklist handoff evidence"
+    Assert-StagedProjectTemplateChecklistHandoffEvidence -ReleaseCandidateRoot $stageReleaseCandidateRoot
+} else {
+    Write-Step "Skipping staged project-template checklist handoff evidence check for incomplete CI preview"
+}
 
-Write-Step "Auditing staged release materials"
-& $releaseMaterialAuditScript -Path $releaseMaterialRoots
+if ($wordVisualStandardReviewMetadata.Count -gt 0) {
+    Write-Step "Checking staged Word visual metadata handoff evidence"
+    Assert-StagedWordVisualStandardReviewMetadataHandoffEvidence `
+        -ReleaseCandidateRoot $stageReleaseCandidateRoot `
+        -ExpectedMetadataCount $wordVisualStandardReviewMetadata.Count
+}
+
+if ($runStrictReleaseMaterialAudit) {
+    Write-Step "Auditing staged release materials"
+    & $releaseMaterialAuditScript -Path $releaseMaterialRoots
+} else {
+    Write-Step "Skipping staged release material safety audit for incomplete CI preview"
+}
 
 $releaseEntryProjectTemplateChecklistMaterialSafetyAudit = [ordered]@{
-    status = "passed"
+    status = if ($runStrictReleaseMaterialAudit) { "passed" } else { "skipped_allow_incomplete" }
     audit_script = ".\scripts\assert_release_material_safety.ps1"
-    audited_entrypoint_count = 3
-    audited_entrypoints = @("start_here", "artifact_guide", "reviewer_checklist")
+    audited_entrypoint_count = if ($runStrictReleaseMaterialAudit) { 3 } else { 0 }
+    audited_entrypoints = if ($runStrictReleaseMaterialAudit) { @("start_here", "artifact_guide", "reviewer_checklist") } else { @() }
     compact_evidence_label = "Project-template readiness checklist handoff evidence"
     compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
     compact_evidence_source_schema = "featherdoc.release_candidate_summary"
@@ -1057,6 +1340,21 @@ if (-not [string]::IsNullOrWhiteSpace($UploadReleaseTag)) {
 }
 
 $manifestPath = Join-Path $versionOutputDir "release_assets_manifest.json"
+if ($null -ne $manifestSignoffEntrypointsPublic) {
+    $manifestSignoffEntrypointsPublic["release_assets_manifest"] = Convert-EvidencePathToPublicDisplay `
+        -Value $manifestPath `
+        -RepoRoot $repoRoot
+    Convert-EvidenceEntrypointsToPublicDisplay `
+        -Contract $manifestSignoffEntrypointsPublic `
+        -SourceContract $manifestSignoffEntrypoints `
+        -RepoRoot $repoRoot
+}
+if ($null -ne $projectTemplateReadinessChecklistEntrypointsPublic) {
+    Convert-EvidenceEntrypointsToPublicDisplay `
+        -Contract $projectTemplateReadinessChecklistEntrypointsPublic `
+        -SourceContract $projectTemplateReadinessChecklistEntrypoints `
+        -RepoRoot $repoRoot
+}
 $manifest = [ordered]@{
     generated_at = Get-Date -Format s
     workspace = $repoRoot
@@ -1077,6 +1375,8 @@ $manifest = [ordered]@{
     pdf_visual_gate_evidence = $pdfVisualGateManifestEvidence
     pdf_bounded_ctest_evidence_included = $hasPdfBoundedCtestEvidence
     pdf_bounded_ctest_evidence = $pdfBoundedCtestManifestEvidence
+    word_visual_standard_review_metadata_count = $wordVisualStandardReviewMetadata.Count
+    word_visual_standard_review_metadata = $wordVisualStandardReviewMetadata
     governance_metric_count = $governanceMetricCount
     governance_metrics = $governanceMetrics
     numbering_catalog_real_corpus_confidence = $numberingCatalogRealCorpusConfidence
@@ -1120,8 +1420,12 @@ if ($null -ne $releaseView) {
 $publicManifest = Convert-StructuredValueToPublic -Value $manifest -RepoRoot $repoRoot
 ($publicManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $manifestPath -Encoding UTF8
 
-Write-Step "Auditing release asset manifest"
-& $releaseMaterialAuditScript -Path $manifestPath
+if ($runStrictReleaseMaterialAudit) {
+    Write-Step "Auditing release asset manifest"
+    & $releaseMaterialAuditScript -Path $manifestPath
+} else {
+    Write-Step "Skipping release asset manifest safety audit for incomplete CI preview"
+}
 
 if (-not $KeepStaging) {
     Remove-Item -LiteralPath $stagingRoot -Recurse -Force

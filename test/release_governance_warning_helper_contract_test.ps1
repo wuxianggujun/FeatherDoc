@@ -41,6 +41,19 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-DoesNotContainText {
+    param(
+        [string]$Text,
+        [string]$UnexpectedText,
+        [string]$Message
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($UnexpectedText) -and
+        $Text -match [regex]::Escape($UnexpectedText)) {
+        throw $Message
+    }
+}
+
 function Assert-ScriptParses {
     param([string]$Path)
 
@@ -581,6 +594,62 @@ Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_report_dis
 Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_json_display: .\output\numbering-catalog-governance\coverage.json' `
     -Message "Rollup metric Markdown should render source JSON display paths."
 
+$wordVisualStandardReviewMetadataSourceReport = [pscustomobject]@{
+    schema = "featherdoc.release_candidate_summary"
+    path_display = ".\output\release-candidate-checks\summary.json"
+    word_visual_standard_review_metadata_count = 4
+    word_visual_standard_review_task_keys = @("smoke", "fixed_grid", "section_page_setup", "page_number_fields")
+    word_visual_standard_review_status_summary = "reviewed=4"
+    word_visual_standard_review_verdict_summary = "pass=4"
+    word_visual_standard_review_metadata = @(
+        [pscustomobject]@{
+            task_key = "smoke"
+            review_task_key = "document"
+            label = "Word visual smoke"
+            verdict = "pass"
+            review_status = "reviewed"
+            reviewed_at = "2026-04-12T12:10:00"
+            review_method = "operator_supplied"
+            review_result_path = ".\output\word-visual-release-gate\review-tasks\document\report\review_result.json"
+            final_review_path = ".\output\word-visual-release-gate\review-tasks\document\report\final_review.md"
+            review_note = "Private operator note"
+        },
+        [pscustomobject]@{
+            task_key = "fixed_grid"
+            review_task_key = "fixed_grid"
+            label = "Fixed-grid merge/unmerge"
+            verdict = "pass"
+            review_status = "reviewed"
+            reviewed_at = "2026-04-12T12:20:00"
+            review_method = "operator_supplied"
+            review_result_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\review_result.json"
+            final_review_path = ".\output\word-visual-release-gate\review-tasks\fixed-grid\report\final_review.md"
+        },
+        [pscustomobject]@{
+            task_key = "section_page_setup"
+            review_task_key = "section_page_setup"
+            label = "Section page setup"
+            verdict = "pass"
+            review_status = "reviewed"
+            reviewed_at = "2026-04-12T12:30:00"
+            review_method = "operator_supplied"
+            review_result_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\review_result.json"
+            final_review_path = ".\output\word-visual-release-gate\review-tasks\section-page-setup\report\final_review.md"
+        },
+        [pscustomobject]@{
+            task_key = "page_number_fields"
+            review_task_key = "page_number_fields"
+            label = "Page number fields"
+            verdict = "pass"
+            review_status = "reviewed"
+            reviewed_at = "2026-04-12T12:40:00"
+            review_method = "operator_supplied"
+            review_result_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\review_result.json"
+            final_review_path = ".\output\word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md"
+        }
+    )
+}
+
 $handoffDetailLines = New-Object 'System.Collections.Generic.List[string]'
 Add-ReleaseGovernanceHandoffMarkdownSection `
     -Lines $handoffDetailLines `
@@ -667,6 +736,8 @@ Add-ReleaseGovernanceHandoffMarkdownSection `
                     release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
                 }
             )
+            word_visual_standard_review_metadata_source_report_count = 1
+            word_visual_standard_review_metadata_source_reports = @($wordVisualStandardReviewMetadataSourceReport)
         }
     }) `
     -RepoRoot $resolvedRepoRoot
@@ -723,6 +794,26 @@ Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "release_entry_pr
     -Message "Handoff detail Markdown should render release-entry checklist material-safety compact evidence source schema."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
     -Message "Handoff detail Markdown should render release-entry checklist material-safety marker."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "Word visual standard review metadata source reports: 1" `
+    -Message "Handoff detail Markdown should render Word visual metadata evidence count."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "word_visual_standard_review_metadata_count: 4" `
+    -Message "Handoff detail Markdown should render Word visual metadata count."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "word_visual_standard_review_task_keys: smoke, fixed_grid, section_page_setup, page_number_fields" `
+    -Message "Handoff detail Markdown should render Word visual standard task keys."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "word_visual_standard_review_status_summary: reviewed=4" `
+    -Message "Handoff detail Markdown should render Word visual review status summary."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "word_visual_standard_review_verdict_summary: pass=4" `
+    -Message "Handoff detail Markdown should render Word visual review verdict summary."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "smoke: review_task_key=document label=Word visual smoke verdict=pass review_status=reviewed review_method=operator_supplied" `
+    -Message "Handoff detail Markdown should render Word visual smoke review metadata."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "fixed_grid: review_task_key=fixed_grid label=Fixed-grid merge/unmerge verdict=pass review_status=reviewed review_method=operator_supplied" `
+    -Message "Handoff detail Markdown should render fixed-grid review metadata."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "review_result.json" `
+    -Message "Handoff detail Markdown should render Word visual review result paths."
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "final_review.md" `
+    -Message "Handoff detail Markdown should render Word visual final review paths."
+Assert-DoesNotContainText -Text $handoffDetailMarkdown -UnexpectedText "review_note" `
+    -Message "Handoff detail Markdown should not expose Word visual review notes."
 
 $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary ([pscustomobject]@{
         release_governance_handoff = [pscustomobject]@{
@@ -810,6 +901,35 @@ foreach ($expectedText in @(
     Assert-ContainsText -Text $projectTemplateChecklistMaterialSafetyAuditEvidenceLine -ExpectedText $expectedText `
         -Message "Compact project-template checklist packaged audit evidence line should include '$expectedText'."
 }
+
+$wordVisualMetadataEvidenceLine = Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary ([pscustomobject]@{
+        release_governance_handoff = [pscustomobject]@{
+            word_visual_standard_review_metadata_source_report_count = 1
+            word_visual_standard_review_metadata_source_reports = @($wordVisualStandardReviewMetadataSourceReport)
+        }
+    })
+foreach ($expectedText in @(
+        "Word visual standard review metadata evidence",
+        "word_visual_standard_review_metadata_source_reports=1",
+        "metadata_count=4",
+        "task_keys=smoke, fixed_grid, section_page_setup, page_number_fields",
+        "status_summary=reviewed=4",
+        "verdict_summary=pass=4",
+        "task_reviews=",
+        "smoke:review_task_key=document:verdict=pass:review_status=reviewed:review_method=operator_supplied",
+        "fixed_grid:review_task_key=fixed_grid:verdict=pass:review_status=reviewed:review_method=operator_supplied",
+        "section_page_setup:review_task_key=section_page_setup:verdict=pass:review_status=reviewed:review_method=operator_supplied",
+        "page_number_fields:review_task_key=page_number_fields:verdict=pass:review_status=reviewed:review_method=operator_supplied",
+        "review_result_path=.\output\word-visual-release-gate\review-tasks\document\report\review_result.json",
+        "final_review_path=.\output\word-visual-release-gate\review-tasks\document\report\final_review.md",
+        "source_schema=featherdoc.release_candidate_summary",
+        "source_report=.\output\release-candidate-checks\summary.json"
+    )) {
+    Assert-ContainsText -Text $wordVisualMetadataEvidenceLine -ExpectedText $expectedText `
+        -Message "Compact Word visual standard review metadata evidence line should include '$expectedText'."
+}
+Assert-DoesNotContainText -Text $wordVisualMetadataEvidenceLine -UnexpectedText "review_note" `
+    -Message "Compact Word visual standard review metadata evidence line should not expose review notes."
 
 $actionChecklistItems = @(Get-ReleaseGovernanceActionItemChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{

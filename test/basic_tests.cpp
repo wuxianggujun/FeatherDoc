@@ -18321,8 +18321,10 @@ TEST_CASE("tables can set and clear floating position") {
     auto position = featherdoc::table_position{};
     position.horizontal_reference = featherdoc::table_position_horizontal_reference::page;
     position.horizontal_offset_twips = 720;
+    position.horizontal_spec = featherdoc::table_position_horizontal_spec::center;
     position.vertical_reference = featherdoc::table_position_vertical_reference::paragraph;
     position.vertical_offset_twips = -120;
+    position.vertical_spec = featherdoc::table_position_vertical_spec::bottom;
     position.left_from_text_twips = 144U;
     position.right_from_text_twips = 288U;
     position.top_from_text_twips = 72U;
@@ -18334,9 +18336,15 @@ TEST_CASE("tables can set and clear floating position") {
     CHECK_EQ(table.position()->horizontal_reference,
              featherdoc::table_position_horizontal_reference::page);
     CHECK_EQ(table.position()->horizontal_offset_twips, 720);
+    REQUIRE(table.position()->horizontal_spec.has_value());
+    CHECK_EQ(*table.position()->horizontal_spec,
+             featherdoc::table_position_horizontal_spec::center);
     CHECK_EQ(table.position()->vertical_reference,
              featherdoc::table_position_vertical_reference::paragraph);
     CHECK_EQ(table.position()->vertical_offset_twips, -120);
+    REQUIRE(table.position()->vertical_spec.has_value());
+    CHECK_EQ(*table.position()->vertical_spec,
+             featherdoc::table_position_vertical_spec::bottom);
     REQUIRE(table.position()->left_from_text_twips.has_value());
     CHECK_EQ(*table.position()->left_from_text_twips, 144U);
     REQUIRE(table.position()->right_from_text_twips.has_value());
@@ -18359,8 +18367,10 @@ TEST_CASE("tables can set and clear floating position") {
     REQUIRE(position_node != pugi::xml_node{});
     CHECK_EQ(std::string_view{position_node.attribute("w:horzAnchor").value()}, "page");
     CHECK_EQ(std::string_view{position_node.attribute("w:tblpX").value()}, "720");
+    CHECK_EQ(std::string_view{position_node.attribute("w:tblpXSpec").value()}, "center");
     CHECK_EQ(std::string_view{position_node.attribute("w:vertAnchor").value()}, "text");
     CHECK_EQ(std::string_view{position_node.attribute("w:tblpY").value()}, "-120");
+    CHECK_EQ(std::string_view{position_node.attribute("w:tblpYSpec").value()}, "bottom");
     CHECK_EQ(std::string_view{position_node.attribute("w:leftFromText").value()}, "144");
     CHECK_EQ(std::string_view{position_node.attribute("w:rightFromText").value()}, "288");
     CHECK_EQ(std::string_view{position_node.attribute("w:topFromText").value()}, "72");
@@ -18375,9 +18385,15 @@ TEST_CASE("tables can set and clear floating position") {
     CHECK_EQ(reopened_table.position()->horizontal_reference,
              featherdoc::table_position_horizontal_reference::page);
     CHECK_EQ(reopened_table.position()->horizontal_offset_twips, 720);
+    REQUIRE(reopened_table.position()->horizontal_spec.has_value());
+    CHECK_EQ(*reopened_table.position()->horizontal_spec,
+             featherdoc::table_position_horizontal_spec::center);
     CHECK_EQ(reopened_table.position()->vertical_reference,
              featherdoc::table_position_vertical_reference::paragraph);
     CHECK_EQ(reopened_table.position()->vertical_offset_twips, -120);
+    REQUIRE(reopened_table.position()->vertical_spec.has_value());
+    CHECK_EQ(*reopened_table.position()->vertical_spec,
+             featherdoc::table_position_vertical_spec::bottom);
     REQUIRE(reopened_table.position()->left_from_text_twips.has_value());
     CHECK_EQ(*reopened_table.position()->left_from_text_twips, 144U);
     REQUIRE(reopened_table.position()->right_from_text_twips.has_value());

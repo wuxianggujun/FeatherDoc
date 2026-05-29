@@ -106,6 +106,19 @@ void emit_rotated_cell_lines(PdfPageLayout &page, const TableCellLayout &cell,
     return height;
 }
 
+[[nodiscard]] double table_block_height(
+    const std::vector<TableRowLayout> &rows,
+    double cell_spacing_points) noexcept {
+    auto height = 0.0;
+    for (const auto &row : rows) {
+        height += row.height_points;
+    }
+    if (rows.size() > 1U) {
+        height += cell_spacing_points * static_cast<double>(rows.size() - 1U);
+    }
+    return height;
+}
+
 [[nodiscard]] bool repeated_headers_fit_with_row(
     const std::vector<TableRowLayout> &rows, std::size_t header_row_count,
     std::size_t row_index, double header_block_height,
@@ -237,6 +250,12 @@ void emit_table(featherdoc::Document &document, PdfPageLayout *&page,
                           line_height_points, cell_padding_points, context);
 
     const auto cell_spacing_points = table_cell_spacing_points(table);
+    const auto table_height_points =
+        table_block_height(rows, cell_spacing_points);
+    const auto bottom_from_text_points =
+        table.position && table.position->bottom_from_text_twips
+            ? twips_to_points(*table.position->bottom_from_text_twips)
+            : 0.0;
     const auto header_row_count = repeated_header_row_count(rows);
     const auto header_block_height = repeated_header_block_height(
         rows, header_row_count, cell_spacing_points);
@@ -245,7 +264,8 @@ void emit_table(featherdoc::Document &document, PdfPageLayout *&page,
         auto row_top = anchor_top;
         const auto positioned_row_top =
             row_index == 0U ? positioned_table_row_top_points(
-                                  table, anchor_top, options)
+                                  table, anchor_top, options,
+                                  table_height_points)
                             : std::optional<double>{};
         if (positioned_row_top.has_value()) {
             row_top = *positioned_row_top;
@@ -276,6 +296,7 @@ void emit_table(featherdoc::Document &document, PdfPageLayout *&page,
         current_y = row_bottom - options.font_size_points - cell_spacing_points;
     }
 
+    current_y -= bottom_from_text_points;
     current_y -= options.paragraph_spacing_after_points;
 }
 

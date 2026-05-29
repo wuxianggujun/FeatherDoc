@@ -18,6 +18,10 @@ under output/word-visual-smoke.
 Root directory searched for a matching release-candidate report/summary.json
 when ReleaseCandidateSummaryJson is not provided explicitly.
 
+.PARAMETER GateSummaryJson
+Optional explicit Word visual gate report/gate_summary.json path. When provided,
+it must match the gate summary inferred from the latest task pointers.
+
 .PARAMETER ReleaseCandidateSummaryJson
 Optional explicit release-candidate report/summary.json path.
 
@@ -33,6 +37,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.p
 param(
     [string]$TaskOutputRoot = "",
     [string]$OutputSearchRoot = "output",
+    [string]$GateSummaryJson = "",
     [string]$ReleaseCandidateSummaryJson = "",
     [switch]$SkipReleaseBundle,
     [switch]$SkipSupersededReviewTaskAudit
@@ -556,7 +561,19 @@ function Invoke-ChildPowerShell {
         [string]$FailureMessage
     )
 
-    $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $ScriptPath @Arguments 2>&1)
+    $powerShellPath = (Get-Process -Id $PID).Path
+    if ([string]::IsNullOrWhiteSpace($powerShellPath)) {
+        $powerShellCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+        if ($null -eq $powerShellCommand) {
+            $powerShellCommand = Get-Command powershell.exe -ErrorAction SilentlyContinue
+        }
+        if ($null -eq $powerShellCommand) {
+            throw "Unable to resolve a PowerShell executable for child script invocation."
+        }
+        $powerShellPath = $powerShellCommand.Source
+    }
+
+    $commandOutput = @(& $powerShellPath -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $ScriptPath @Arguments 2>&1)
     $exitCode = $LASTEXITCODE
 
     foreach ($line in $commandOutput) {
@@ -610,8 +627,20 @@ if ($gateOutputCandidates.Count -gt 1) {
 }
 
 $resolvedGateOutputDir = $gateOutputCandidates[0]
-$resolvedGateSummaryPath = Join-Path $resolvedGateOutputDir "report\gate_summary.json"
-Assert-PathExists -Path $resolvedGateSummaryPath -Label "inferred gate summary"
+$inferredGateSummaryPath = Join-Path $resolvedGateOutputDir "report\gate_summary.json"
+$resolvedGateSummaryPath = if ([string]::IsNullOrWhiteSpace($GateSummaryJson)) {
+    $inferredGateSummaryPath
+} else {
+    $explicitGateSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $GateSummaryJson
+    if (-not [System.StringComparer]::OrdinalIgnoreCase.Equals(
+            [System.IO.Path]::GetFullPath($explicitGateSummaryPath),
+            [System.IO.Path]::GetFullPath($inferredGateSummaryPath))) {
+        throw "Explicit gate summary does not match latest task pointers. Explicit: $explicitGateSummaryPath. Inferred: $inferredGateSummaryPath"
+    }
+
+    $explicitGateSummaryPath
+}
+Assert-PathExists -Path $resolvedGateSummaryPath -Label "gate summary"
 Write-Step "Resolved gate summary: $resolvedGateSummaryPath"
 
 $resolvedReleaseSummaryPath = ""

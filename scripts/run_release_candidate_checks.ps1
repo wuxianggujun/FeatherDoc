@@ -168,8 +168,13 @@ function Get-RepoRelativePath {
         return "(not available)"
     }
 
+    $candidate = if ([System.IO.Path]::IsPathRooted($Path)) {
+        $Path
+    } else {
+        Join-Path $RepoRoot $Path
+    }
     $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
-    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    $resolvedPath = [System.IO.Path]::GetFullPath($candidate)
     if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
         $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
         if ([string]::IsNullOrWhiteSpace($relative)) {
@@ -2497,6 +2502,8 @@ $summary = [ordered]@{
         project_template_readiness_checklist_entrypoints_source_reports = @()
         release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = 0
         release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @()
+        word_visual_standard_review_metadata_source_report_count = 0
+        word_visual_standard_review_metadata_source_reports = @()
         error = ""
     }
     template_schema = [ordered]@{
@@ -2630,6 +2637,8 @@ $summary = [ordered]@{
             project_template_readiness_checklist_entrypoints_source_reports = @()
             release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = 0
             release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @()
+            word_visual_standard_review_metadata_source_report_count = 0
+            word_visual_standard_review_metadata_source_reports = @()
             error = ""
         }
         pdf_visual_gate = $pdfVisualGateSummaryInfo
@@ -3452,6 +3461,8 @@ try {
             $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_reports") }
             $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count") }
             $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports") }
+            $summary.release_governance_handoff.word_visual_standard_review_metadata_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "word_visual_standard_review_metadata_source_report_count") }
+            $summary.release_governance_handoff.word_visual_standard_review_metadata_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "word_visual_standard_review_metadata_source_reports") }
             $summary.release_governance_handoff.error = ""
             $summary.steps.release_governance_handoff.status = $summary.release_governance_handoff.status
             $summary.steps.release_governance_handoff.expected_report_count = $summary.release_governance_handoff.expected_report_count
@@ -3477,6 +3488,8 @@ try {
             $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = @($summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports)
             $summary.steps.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count
             $summary.steps.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @($summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports)
+            $summary.steps.release_governance_handoff.word_visual_standard_review_metadata_source_report_count = $summary.release_governance_handoff.word_visual_standard_review_metadata_source_report_count
+            $summary.steps.release_governance_handoff.word_visual_standard_review_metadata_source_reports = @($summary.release_governance_handoff.word_visual_standard_review_metadata_source_reports)
             $summary.steps.release_governance_handoff.error = ""
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
         } catch {
@@ -3511,6 +3524,8 @@ try {
             $summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "project_template_readiness_checklist_entrypoints_source_reports") }
             $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count") }
             $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports") }
+            $summary.release_governance_handoff.word_visual_standard_review_metadata_source_report_count = if ($null -eq $handoffRollup) { 0 } else { [int](Get-OptionalIntegerProperty -Object $handoffRollup -Name "word_visual_standard_review_metadata_source_report_count") }
+            $summary.release_governance_handoff.word_visual_standard_review_metadata_source_reports = if ($null -eq $handoffRollup) { @() } else { @(Get-OptionalObjectArrayProperty -Object $handoffRollup -Name "word_visual_standard_review_metadata_source_reports") }
             $summary.release_governance_handoff.error = $handoffError
             $summary.steps.release_governance_handoff.status = "failed"
             $summary.steps.release_governance_handoff.expected_report_count = $summary.release_governance_handoff.expected_report_count
@@ -3536,6 +3551,8 @@ try {
             $summary.steps.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports = @($summary.release_governance_handoff.project_template_readiness_checklist_entrypoints_source_reports)
             $summary.steps.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = $summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count
             $summary.steps.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @($summary.release_governance_handoff.release_entry_project_template_readiness_checklist_material_safety_audit_source_reports)
+            $summary.steps.release_governance_handoff.word_visual_standard_review_metadata_source_report_count = $summary.release_governance_handoff.word_visual_standard_review_metadata_source_report_count
+            $summary.steps.release_governance_handoff.word_visual_standard_review_metadata_source_reports = @($summary.release_governance_handoff.word_visual_standard_review_metadata_source_reports)
             $summary.steps.release_governance_handoff.error = $handoffError
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
             Write-Step "Release governance handoff failed: $handoffError"
@@ -3641,6 +3658,7 @@ try {
     }
     $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
     $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
+    $wordVisualStandardReviewMetadataEvidenceLine = Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary $summary
     $projectTemplateChecklistEvidenceLines = New-Object 'System.Collections.Generic.List[string]'
     foreach ($evidenceLine in @(
             $projectTemplateChecklistHandoffEvidenceLine,
@@ -3654,6 +3672,14 @@ try {
         "## Project-template release entry evidence" + [Environment]::NewLine +
         [Environment]::NewLine +
         ($projectTemplateChecklistEvidenceLines.ToArray() -join [Environment]::NewLine) +
+        [Environment]::NewLine
+    } else {
+        ""
+    }
+    $wordVisualStandardReviewMetadataEvidenceMarkdown = if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceLine)) {
+        "## Word visual standard review metadata evidence" + [Environment]::NewLine +
+        [Environment]::NewLine +
+        "- $wordVisualStandardReviewMetadataEvidenceLine" +
         [Environment]::NewLine
     } else {
         ""
@@ -3715,6 +3741,7 @@ $visualGateReviewSummary
 $releaseGovernanceRollupMarkdown
 $releaseGovernanceHandoffMarkdown
 $projectTemplateChecklistEvidenceMarkdown
+$wordVisualStandardReviewMetadataEvidenceMarkdown
 ## Key outputs
 
 - Build directory: $buildDirDisplay

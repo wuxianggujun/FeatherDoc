@@ -1275,6 +1275,96 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvi
     }
 }
 
+function Add-ReleaseEntryWordVisualStandardReviewMetadataEvidenceTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -notin @("start_here.md", "artifact_guide.md", "reviewer_checklist.md", "final_review.md", "release_handoff.md")) {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "Word visual standard review metadata evidence",
+        "word_visual_standard_review_metadata_source_reports="
+    ))) {
+        return
+    }
+
+    $label = "release entry Word visual standard review metadata evidence trace"
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @(
+        "Word visual standard review metadata evidence",
+        "word_visual_standard_review_metadata_source_reports=",
+        "metadata_count=4",
+        "task_keys=smoke, fixed_grid, section_page_setup, page_number_fields",
+        "status_summary=reviewed=4",
+        "verdict_summary=pass=4",
+        "task_reviews=",
+        "smoke:review_task_key=document",
+        "fixed_grid:review_task_key=fixed_grid",
+        "section_page_setup:review_task_key=section_page_setup",
+        "page_number_fields:review_task_key=page_number_fields",
+        "review_result_path=",
+        "final_review_path=",
+        "source_schema=featherdoc.release_candidate_summary",
+        "source_report="
+    ))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry must keep Word visual standard review metadata count, task keys, status and verdict summaries, task review mapping, review/final paths, source schema, and source report on the same compact evidence line."
+    }
+
+    $evidenceLine = Get-TextLineContainingAll -Text $Content -Needles @(
+        "Word visual standard review metadata evidence",
+        "word_visual_standard_review_metadata_source_reports="
+    )
+    if ($null -ne $evidenceLine -and $evidenceLine.Contains("review_note")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry Word visual standard review metadata compact evidence must not expose review_note."
+    }
+
+    if ($Content.Contains("Word visual standard review metadata evidence") -and
+        $Content.Contains("review_note")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry Word visual standard review metadata evidence must keep review_note out of release entry documents."
+    }
+
+    if (-not (Test-ReleaseNoteProjectTemplateTraceFieldValueInSet `
+                -Text $Content `
+                -Anchor "Word visual standard review metadata evidence" `
+                -FieldName "source_schema" `
+                -AllowedValues @("featherdoc.release_candidate_summary"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry Word visual standard review metadata evidence must keep source_schema as featherdoc.release_candidate_summary."
+    }
+
+    if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
+                -Text $Content `
+                -Anchor "Word visual standard review metadata evidence" `
+                -FieldName "source_report" `
+                -Needles @("release-candidate-checks", "release_candidate_summary"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry Word visual standard review metadata source_report must identify the release-candidate summary evidence source."
+    }
+}
+
 function Add-ReleaseMetadataProjectTemplateReadinessChecklistEntrypointsTraceViolations {
     param(
         [string]$File,
@@ -4603,6 +4693,92 @@ function Add-PdfVisualGateManifestContractViolations {
     }
 }
 
+function Add-WordVisualStandardReviewManifestContractViolations {
+    param(
+        [string]$File,
+        $Json,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_assets_manifest.json") {
+        return
+    }
+
+    $label = "Word visual standard review manifest contract"
+    $includedValue = Get-JsonPropertyValue -Object $Json -Name "visual_gate_evidence_included"
+    $included = $false
+    if ($includedValue -is [bool]) {
+        $included = $includedValue
+    } elseif ($null -ne $includedValue) {
+        $included = ([string]$includedValue).Trim().ToLowerInvariant() -eq "true"
+    }
+
+    if (-not $included) {
+        return
+    }
+
+    $metadataValue = Get-JsonPropertyValue -Object $Json -Name "word_visual_standard_review_metadata"
+    if ($null -eq $metadataValue) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata is missing."
+        return
+    }
+
+    $metadata = @($metadataValue)
+    $countValue = Get-JsonPropertyValue -Object $Json -Name "word_visual_standard_review_metadata_count"
+    if ($null -eq $countValue) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata_count is missing."
+    } else {
+        try {
+            $declaredCount = [int]$countValue
+            if ($declaredCount -ne 4 -or $declaredCount -ne $metadata.Count) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata_count must match four standard review metadata entries."
+            }
+        } catch {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata_count must be an integer."
+        }
+    }
+
+    $metadataByTask = @{}
+    foreach ($entry in $metadata) {
+        $taskKey = [string](Get-JsonPropertyValue -Object $entry -Name "task_key")
+        if (-not [string]::IsNullOrWhiteSpace($taskKey)) {
+            $metadataByTask[$taskKey] = $entry
+        }
+    }
+
+    foreach ($taskContract in @(
+            @{ TaskKey = "smoke"; ReviewTaskKey = "document" },
+            @{ TaskKey = "fixed_grid"; ReviewTaskKey = "fixed_grid" },
+            @{ TaskKey = "section_page_setup"; ReviewTaskKey = "section_page_setup" },
+            @{ TaskKey = "page_number_fields"; ReviewTaskKey = "page_number_fields" }
+        )) {
+        $taskKey = [string]$taskContract.TaskKey
+        if (-not $metadataByTask.ContainsKey($taskKey)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata is missing task '$taskKey'."
+            continue
+        }
+
+        $entry = $metadataByTask[$taskKey]
+        $reviewTaskKey = [string](Get-JsonPropertyValue -Object $entry -Name "review_task_key")
+        if ($reviewTaskKey -ne [string]$taskContract.ReviewTaskKey) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata.$taskKey.review_task_key is invalid."
+        }
+
+        foreach ($fieldName in @("label", "verdict", "review_status", "reviewed_at", "review_method", "review_result_path", "final_review_path")) {
+            $fieldValue = [string](Get-JsonPropertyValue -Object $entry -Name $fieldName)
+            if ([string]::IsNullOrWhiteSpace($fieldValue)) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata.$taskKey.$fieldName is missing."
+            }
+        }
+
+        $reviewNote = Get-JsonPropertyValue -Object $entry -Name "review_note"
+        if ($null -ne $reviewNote) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata.$taskKey must not expose review_note."
+        }
+    }
+}
+
 $repoRoot = Resolve-RepoRoot
 $scanFiles = @(Get-ScanFiles -RepoRoot $repoRoot -InputPaths $Path)
 if ($scanFiles.Count -eq 0) {
@@ -4644,6 +4820,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseEntryWordVisualStandardReviewMetadataEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseMetadataProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseMetadataProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
@@ -4686,6 +4863,7 @@ foreach ($file in $scanFiles) {
             Add-ProjectTemplateReadinessChecklistEntrypointsContractViolations -File $file -Json $json -Violations $violations
             Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditContractViolations -File $file -Json $json -Violations $violations
             Add-PdfVisualGateManifestContractViolations -File $file -Json $json -Violations $violations
+            Add-WordVisualStandardReviewManifestContractViolations -File $file -Json $json -Violations $violations
         } catch {
             if ($leafName -eq "summary.json" -or $leafName -eq "release_assets_manifest.json") {
                 Add-AuditViolation `

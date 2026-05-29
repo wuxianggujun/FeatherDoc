@@ -168,8 +168,7 @@ function(featherdoc_get_imported_runtime_file out_var target_name)
         return()
     endif()
 
-    set(runtime_location "")
-    foreach(property_name IN ITEMS
+    set(runtime_property_names
         IMPORTED_LOCATION_RELEASE
         IMPORTED_LOCATION_RELWITHDEBINFO
         IMPORTED_LOCATION_MINSIZEREL
@@ -181,8 +180,25 @@ function(featherdoc_get_imported_runtime_file out_var target_name)
         IMPORTED_IMPLIB_MINSIZEREL
         IMPORTED_IMPLIB_DEBUG
         IMPORTED_IMPLIB_NOCONFIG
-        IMPORTED_IMPLIB
-    )
+        IMPORTED_IMPLIB)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(runtime_property_names
+            IMPORTED_LOCATION_DEBUG
+            IMPORTED_IMPLIB_DEBUG
+            IMPORTED_LOCATION_RELEASE
+            IMPORTED_LOCATION_RELWITHDEBINFO
+            IMPORTED_LOCATION_MINSIZEREL
+            IMPORTED_LOCATION_NOCONFIG
+            IMPORTED_LOCATION
+            IMPORTED_IMPLIB_RELEASE
+            IMPORTED_IMPLIB_RELWITHDEBINFO
+            IMPORTED_IMPLIB_MINSIZEREL
+            IMPORTED_IMPLIB_NOCONFIG
+            IMPORTED_IMPLIB)
+    endif()
+
+    set(runtime_location "")
+    foreach(property_name IN LISTS runtime_property_names)
         if(runtime_location STREQUAL "")
             get_target_property(runtime_location ${target_name} ${property_name})
             if(runtime_location STREQUAL "runtime_location-NOTFOUND")
@@ -193,7 +209,11 @@ function(featherdoc_get_imported_runtime_file out_var target_name)
 
     if(runtime_location STREQUAL "")
         if(target_name STREQUAL "PNG::PNG")
-            foreach(variable_name IN ITEMS PNG_LIBRARY_RELEASE PNG_LIBRARY_DEBUG PNG_LIBRARY)
+            set(runtime_variable_names PNG_LIBRARY_RELEASE PNG_LIBRARY_DEBUG PNG_LIBRARY)
+            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+                set(runtime_variable_names PNG_LIBRARY_DEBUG PNG_LIBRARY_RELEASE PNG_LIBRARY)
+            endif()
+            foreach(variable_name IN LISTS runtime_variable_names)
                 if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
                     set(runtime_location "${${variable_name}}")
                     if(runtime_location MATCHES "-NOTFOUND$")
@@ -202,13 +222,21 @@ function(featherdoc_get_imported_runtime_file out_var target_name)
                 endif()
             endforeach()
         elseif(target_name STREQUAL "Freetype::Freetype")
-            foreach(variable_name IN ITEMS
+            set(runtime_variable_names
                 FREETYPE_LIBRARY_RELEASE
                 FREETYPE_LIBRARY_DEBUG
                 FEATHERDOC_FREETYPE_LIBRARY_RELEASE
                 FEATHERDOC_FREETYPE_LIBRARY_DEBUG
-                FREETYPE_LIBRARY
-            )
+                FREETYPE_LIBRARY)
+            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+                set(runtime_variable_names
+                    FREETYPE_LIBRARY_DEBUG
+                    FEATHERDOC_FREETYPE_LIBRARY_DEBUG
+                    FREETYPE_LIBRARY_RELEASE
+                    FEATHERDOC_FREETYPE_LIBRARY_RELEASE
+                    FREETYPE_LIBRARY)
+            endif()
+            foreach(variable_name IN LISTS runtime_variable_names)
                 if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
                     set(runtime_location "${${variable_name}}")
                     if(runtime_location MATCHES "-NOTFOUND$")
@@ -217,11 +245,17 @@ function(featherdoc_get_imported_runtime_file out_var target_name)
                 endif()
             endforeach()
         elseif(target_name STREQUAL "harfbuzz::harfbuzz-subset")
-            foreach(variable_name IN ITEMS
+            set(runtime_variable_names
                 HARFBUZZ_SUBSET_LIBRARY_RELEASE
                 HARFBUZZ_SUBSET_LIBRARY_DEBUG
-                HARFBUZZ_SUBSET_LIBRARY
-            )
+                HARFBUZZ_SUBSET_LIBRARY)
+            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+                set(runtime_variable_names
+                    HARFBUZZ_SUBSET_LIBRARY_DEBUG
+                    HARFBUZZ_SUBSET_LIBRARY_RELEASE
+                    HARFBUZZ_SUBSET_LIBRARY)
+            endif()
+            foreach(variable_name IN LISTS runtime_variable_names)
                 if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
                     set(runtime_location "${${variable_name}}")
                     if(runtime_location MATCHES "-NOTFOUND$")
@@ -230,11 +264,17 @@ function(featherdoc_get_imported_runtime_file out_var target_name)
                 endif()
             endforeach()
         elseif(target_name STREQUAL "harfbuzz::harfbuzz")
-            foreach(variable_name IN ITEMS
+            set(runtime_variable_names
                 HARFBUZZ_LIBRARY_RELEASE
                 HARFBUZZ_LIBRARY_DEBUG
-                HARFBUZZ_LIBRARY
-            )
+                HARFBUZZ_LIBRARY)
+            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+                set(runtime_variable_names
+                    HARFBUZZ_LIBRARY_DEBUG
+                    HARFBUZZ_LIBRARY_RELEASE
+                    HARFBUZZ_LIBRARY)
+            endif()
+            foreach(variable_name IN LISTS runtime_variable_names)
                 if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
                     set(runtime_location "${${variable_name}}")
                     if(runtime_location MATCHES "-NOTFOUND$")
@@ -1287,6 +1327,7 @@ install(
 
 install(
     FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_export.rst"
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import.rst"
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import_json_diagnostics.rst"
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import_scope.rst"

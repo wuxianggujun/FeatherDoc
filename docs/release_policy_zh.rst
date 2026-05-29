@@ -84,6 +84,18 @@
 
     pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
 
+正式发版前推荐启用严格 warning gate，把 release blocker rollup 与 governance
+handoff 中的 warning 当作阻断项处理：
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 `
+        -ReleaseBlockerRollupAutoDiscover `
+        -ReleaseBlockerRollupFailOnWarning `
+        -ReleaseGovernanceHandoff `
+        -ReleaseGovernanceHandoffIncludeRollup `
+        -ReleaseGovernanceHandoffFailOnWarning
+
 如果只是复用已有 ``build-msvc-nmake`` 构建目录，可改为：
 
 .. code-block:: powershell
@@ -212,6 +224,14 @@ verdict；``release_handoff.md``、``ARTIFACT_GUIDE.md`` 和
 完成对应证据更新、metadata 同步和 release note bundle 再生成后才能继续发布。未知
 ``action`` 不会掩盖 blocker，也不会阻断 bundle 生成；checklist 会标记未登记 runbook，
 要求维护者补标准指引。
+发布前还必须确认 Word visual standard review metadata 证据链完整：
+``release_governance_handoff.md`` 保留
+``word_visual_standard_review_metadata_source_reports`` detailed source reports，
+``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、
+``final_review.md`` 与 ``release_handoff.md`` 都展示
+``Word visual standard review metadata evidence`` compact evidence line。该行必须保留
+``task_reviews=``、``source_schema=featherdoc.release_candidate_summary`` 和指向
+``release-candidate-checks`` 的 ``source_report``，并继续禁止 ``review_note`` 进入任何发布入口或公开材料。
 如果只想单独复跑 fixed-grid merge/unmerge 四件套，并生成可截图签收的
 review task，可另外执行：
 

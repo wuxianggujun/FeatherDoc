@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 60) {
-        throw "Expected JSON summary to count 60 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 127) {
+        throw "Expected JSON summary to count 127 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -272,7 +272,25 @@ $defaultPipelineText = @(
     '- run_word_visual_release_gate.ps1',
     '- run_release_candidate_checks.ps1',
     '- sync_visual_review_verdict.ps1',
+    '- sync_latest_visual_review_verdict.ps1',
+    '- -GateSummaryJson',
+    '- readme_gallery',
+    '- assets_dir',
+    '- refresh_readme_visual_assets.ps1',
     '- write_release_note_bundle.ps1',
+    '- check_word_visual_release_gate_preflight.ps1',
+    '- ``featherdoc.word_visual_release_gate_preflight.v1``',
+    '- ``word_visual_release_gate_preflight_static_contract_only``',
+    '- ``preflight_ready``',
+    '- ``release_ready``',
+    '- docx_functional_smoke_readiness',
+    '- ``featherdoc.docx_functional_smoke_readiness.v1``',
+    '- docx_functional_smoke_readiness_trace',
+    '- persisted_docx_functional_smoke_evidence_only',
+    '- summary_json_display',
+    '- report_markdown_display',
+    '- word_visual_smoke.pending_manual_review',
+    '- release_blocker_count',
     '- review_task_summary',
     '- assert_release_material_safety.ps1',
     '- -SkipMaterialSafetyAudit',
@@ -281,6 +299,14 @@ $defaultPipelineText = @(
     '- release_blocker_rollup.md',
     '- release_governance_handoff.md',
     '- release_governance_pipeline.md',
+    '- rerun_pdf_controlled_visual_smoke_check',
+    '- check_pdf_controlled_visual_smoke.ps1',
+    '- controlled_visual_smoke_json_display',
+    '- restore_docx_functional_smoke_evidence',
+    '- Word visual standard review metadata evidence',
+    '- word_visual_standard_review_metadata_source_reports',
+    '- task_reviews=',
+    '- release-candidate-checks',
     '- ``id``',
     '- ``action``',
     '- ``message``',
@@ -298,6 +324,8 @@ $defaultPipelineText = @(
     '- ``sync_bound_content_control``',
     '- ``numbering_catalog_governance.real_corpus_alignment_gap``',
     '- ``delivery_quality``',
+    '- ReleaseBlockerRollupFailOnWarning',
+    '- ReleaseGovernanceHandoffFailOnWarning',
     ''
 ) -join "`n"
 
@@ -307,9 +335,27 @@ $defaultChecklistText = @(
     '',
     '- :doc:`release_metadata_pipeline_zh`',
     '- word_visual_release_gate_smoke_verdict',
+    '- check_word_visual_release_gate_preflight.ps1',
+    '- check_word_visual_release_gate_preflight_test.ps1',
+    '- word_visual_release_gate_preflight_route_docs_contract',
+    '- word_visual_release_gate_preflight_route_docs_contract_test.ps1',
+    '- ``featherdoc.word_visual_release_gate_preflight.v1``',
+    '- ``word_visual_release_gate_preflight_static_contract_only``',
+    '- ``preflight_ready``',
+    '- ``release_ready``',
     '- release_candidate_visual_verdict',
+    '- sync_latest_visual_review_verdict_table_style_quality',
+    '- sync_latest_visual_review_verdict_cmake_contract',
     '- sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle)',
+    '- open_latest_word_review_task_curated_source_kind_test.ps1',
+    '- open_latest_word_review_task.ps1 -SourceKind table-style-quality-visual-regression-bundle',
+    '- latest_table-style-quality-visual-regression-bundle_task.json',
     '- release_note_bundle_visual_verdict_metadata',
+    '- Word visual standard review metadata evidence',
+    '- word_visual_standard_review_metadata_source_reports',
+    '- task_reviews=',
+    '- source_schema=featherdoc.release_candidate_summary',
+    '- release-candidate-checks',
     '- public_release_wording_regression_test.ps1',
     '- git diff --check',
     '- release governance warning contract',
@@ -321,6 +367,20 @@ $defaultChecklistText = @(
     '- source_report_display',
     '- source_json_display',
     '- style_merge_suggestion_count',
+    '- check_docx_functional_smoke_readiness.ps1',
+    '- docx_functional_smoke_readiness_test.ps1',
+    '- docx_functional_smoke_readiness_route_docs_contract',
+    '- docx_functional_smoke_readiness_route_docs_contract_test.ps1',
+    '- docx_functional_smoke_readiness',
+    '- ``featherdoc.docx_functional_smoke_readiness.v1``',
+    '- docx_functional_smoke_readiness_trace',
+    '- persisted_docx_functional_smoke_evidence_only',
+    '- summary_json_display',
+    '- report_markdown_display',
+    '- word_visual_smoke.pending_manual_review',
+    '- release_blocker_count',
+    '- ReleaseBlockerRollupFailOnWarning',
+    '- ReleaseGovernanceHandoffFailOnWarning',
     '- :doc:`document_governance_acceptance_zh`',
     '- build_project_template_delivery_readiness_report_test.ps1',
     '- build_content_control_data_binding_governance_report_test.ps1',
@@ -351,6 +411,13 @@ $defaultPolicyText = @(
     '==============',
     '',
     'See :doc:`release_metadata_pipeline_zh`.',
+    '- ReleaseBlockerRollupFailOnWarning',
+    '- ReleaseGovernanceHandoffFailOnWarning',
+    '- Word visual standard review metadata evidence',
+    '- word_visual_standard_review_metadata_source_reports',
+    '- task_reviews=',
+    '- source_schema=featherdoc.release_candidate_summary',
+    '- release-candidate-checks',
     ''
 ) -join "`n"
 
@@ -380,20 +447,20 @@ Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 4) {
     throw "Expected JSON summary checked document count 4, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 28) {
-    throw "Expected JSON summary pipeline marker count 28, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 56) {
+    throw "Expected JSON summary pipeline marker count 56, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 21) {
-    throw "Expected JSON summary checklist marker count 21, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 53) {
+    throw "Expected JSON summary checklist marker count 53, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 10) {
     throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
 }
-if ($summary.required_policy_marker_count -ne 1) {
-    throw "Expected JSON summary policy marker count 1, got: $($summary.required_policy_marker_count)"
+if ($summary.required_policy_marker_count -ne 8) {
+    throw "Expected JSON summary policy marker count 8, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 60) {
-    throw "Expected JSON summary total marker count 60, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 127) {
+    throw "Expected JSON summary total marker count 127, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 4) {
     throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
@@ -411,6 +478,26 @@ Assert-ArrayContains `
     -ExpectedValue "release_note_bundle_visual_verdict_metadata" `
     -Message "JSON summary should list required checklist markers."
 Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "Word visual standard review metadata evidence" `
+    -Message "JSON summary checklist should list Word visual metadata compact evidence marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "word_visual_standard_review_metadata_source_reports" `
+    -Message "JSON summary checklist should list Word visual metadata source reports marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "task_reviews=" `
+    -Message "JSON summary checklist should list Word visual metadata task review compact marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "source_schema=featherdoc.release_candidate_summary" `
+    -Message "JSON summary checklist should list Word visual metadata source schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "release-candidate-checks" `
+    -Message "JSON summary checklist should list release-candidate summary source marker."
+Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue '``output_gap_count``' `
     -Message "JSON summary should list PDF preflight output gap count marker."
@@ -418,6 +505,90 @@ Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue '``missing outputs``' `
     -Message "JSON summary should list PDF preflight missing outputs marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue '``featherdoc.word_visual_release_gate_preflight.v1``' `
+    -Message "JSON summary should list Word visual release gate preflight schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "docx_functional_smoke_readiness" `
+    -Message "JSON summary should list DOCX functional smoke readiness marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue '``featherdoc.docx_functional_smoke_readiness.v1``' `
+    -Message "JSON summary should list DOCX functional smoke readiness schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "restore_docx_functional_smoke_evidence" `
+    -Message "JSON summary should list DOCX functional smoke readiness blocker action marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "Word visual standard review metadata evidence" `
+    -Message "JSON summary should list Word visual metadata compact evidence marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "word_visual_standard_review_metadata_source_reports" `
+    -Message "JSON summary should list Word visual metadata source reports marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "task_reviews=" `
+    -Message "JSON summary should list Word visual metadata task review compact marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "release-candidate-checks" `
+    -Message "JSON summary should list release-candidate summary source marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "Word visual standard review metadata evidence" `
+    -Message "JSON summary policy should list Word visual metadata compact evidence marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "word_visual_standard_review_metadata_source_reports" `
+    -Message "JSON summary policy should list Word visual metadata source reports marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "task_reviews=" `
+    -Message "JSON summary policy should list Word visual metadata task review compact marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "source_schema=featherdoc.release_candidate_summary" `
+    -Message "JSON summary policy should list Word visual metadata source schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "release-candidate-checks" `
+    -Message "JSON summary policy should list release-candidate summary source marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "readme_gallery" `
+    -Message "JSON summary should list README gallery metadata marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "refresh_readme_visual_assets.ps1" `
+    -Message "JSON summary should list README gallery refresh marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "check_word_visual_release_gate_preflight_test.ps1" `
+    -Message "JSON summary should list Word visual preflight test marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "word_visual_release_gate_preflight_route_docs_contract_test.ps1" `
+    -Message "JSON summary should list Word visual preflight route docs contract test marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "check_docx_functional_smoke_readiness.ps1" `
+    -Message "JSON summary should list DOCX functional smoke readiness checklist marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "docx_functional_smoke_readiness_test.ps1" `
+    -Message "JSON summary should list DOCX functional smoke readiness regression marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "docx_functional_smoke_readiness_route_docs_contract_test.ps1" `
+    -Message "JSON summary should list DOCX functional smoke readiness route docs contract marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "open_latest_word_review_task_curated_source_kind_test.ps1" `
+    -Message "JSON summary should list curated open-latest test marker."
 Assert-ArrayContains `
     -Values @($summary.required_document_governance_markers) `
     -ExpectedValue "sync_bound_content_control" `
@@ -455,6 +626,66 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "missing_file" `
     -ExpectedFailureRelativePath 'docs\release_policy_zh.rst'
 
+$missingPolicyWordVisualMetadataText = $defaultPolicyText.Replace(
+    "Word visual standard review metadata evidence",
+    "Word visual metadata evidence removed"
+)
+$missingPolicyWordVisualMetadataCaseRoot = New-DocsCase `
+    -Name "missing-policy-word-visual-metadata" `
+    -PolicyText $missingPolicyWordVisualMetadataText
+$missingPolicyWordVisualMetadataSummaryJsonPath = Join-Path $missingPolicyWordVisualMetadataCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingPolicyWordVisualMetadataCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release policy doc is missing expected text: Word visual standard review metadata evidence" `
+    -SummaryJson $missingPolicyWordVisualMetadataSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingPolicyWordVisualMetadataSummaryJsonPath `
+    -ExpectedMessage "release policy doc is missing expected text: Word visual standard review metadata evidence" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs\release_policy_zh.rst' `
+    -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
+
+$missingPipelineWordVisualMetadataText = $defaultPipelineText.Replace(
+    "Word visual standard review metadata evidence",
+    "Word visual metadata evidence removed"
+)
+$missingPipelineWordVisualMetadataCaseRoot = New-DocsCase `
+    -Name "missing-pipeline-word-visual-metadata" `
+    -PipelineText $missingPipelineWordVisualMetadataText
+$missingPipelineWordVisualMetadataSummaryJsonPath = Join-Path $missingPipelineWordVisualMetadataCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingPipelineWordVisualMetadataCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release metadata pipeline doc is missing expected text: Word visual standard review metadata evidence" `
+    -SummaryJson $missingPipelineWordVisualMetadataSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingPipelineWordVisualMetadataSummaryJsonPath `
+    -ExpectedMessage "release metadata pipeline doc is missing expected text: Word visual standard review metadata evidence" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs\release_metadata_pipeline_zh.rst' `
+    -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
+
+$missingChecklistWordVisualMetadataText = $defaultChecklistText.Replace(
+    "Word visual standard review metadata evidence",
+    "Word visual metadata evidence removed"
+)
+$missingChecklistWordVisualMetadataCaseRoot = New-DocsCase `
+    -Name "missing-checklist-word-visual-metadata" `
+    -ChecklistText $missingChecklistWordVisualMetadataText
+$missingChecklistWordVisualMetadataSummaryJsonPath = Join-Path $missingChecklistWordVisualMetadataCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingChecklistWordVisualMetadataCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: Word visual standard review metadata evidence" `
+    -SummaryJson $missingChecklistWordVisualMetadataSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingChecklistWordVisualMetadataSummaryJsonPath `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: Word visual standard review metadata evidence" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
+    -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
+
 $trailingWhitespacePipelineText = $defaultPipelineText.Replace(
     "- review_task_summary",
     "- review_task_summary "
@@ -473,7 +704,7 @@ Assert-SummaryFailure `
     -ExpectedMessage "Trailing whitespace" `
     -ExpectedFailureKind "trailing_whitespace" `
     -ExpectedFailureRelativePath 'docs\release_metadata_pipeline_zh.rst' `
-    -ExpectedFailureLineNumber 8 `
+    -ExpectedFailureLineNumber 26 `
     -ExpectedFailureColumnNumber 22 `
     -ExpectedFailureExcerpt "- review_task_summary "
 
@@ -493,7 +724,7 @@ Assert-SummaryFailure `
     -ExpectedMessage "Tab character found" `
     -ExpectedFailureKind "tab_character" `
     -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
-    -ExpectedFailureLineNumber 10 `
+    -ExpectedFailureLineNumber 28 `
     -ExpectedFailureColumnNumber 6 `
     -ExpectedFailureExcerpt "- git`t diff --check"
 

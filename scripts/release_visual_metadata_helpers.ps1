@@ -43,6 +43,10 @@ function Get-OptionalPropertyValue {
         return ""
     }
 
+    if ($value -is [datetime]) {
+        return Convert-VisualReviewTimestamp -Value $value
+    }
+
     return [string]$value
 }
 
@@ -53,6 +57,23 @@ function Get-OptionalPropertyObject {
     )
 
     return Get-OptionalPropertyRawValue -Object $Object -Name $Name
+}
+
+function Resolve-VisualMetadataEvidencePath {
+    param(
+        [string]$RepoRoot = "",
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return ""
+    }
+
+    if ([System.IO.Path]::IsPathRooted($Path) -or [string]::IsNullOrWhiteSpace($RepoRoot)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $Path))
 }
 
 function Get-SupersededReviewTasksReportPath {
@@ -172,6 +193,110 @@ function Get-VisualTaskReviewMethod {
     return Get-OptionalPropertyValue -Object $gateFlow -Name "review_method"
 }
 
+function Get-VisualTaskReviewTaskKey {
+    param([string]$TaskKey)
+
+    if ($TaskKey -eq "smoke") {
+        return "document"
+    }
+
+    return $TaskKey
+}
+
+function Get-VisualTaskEvidencePath {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey,
+        [string]$PathPropertyName,
+        [string]$DefaultRelativePath,
+        [string]$GateFlowPathPropertyName = ""
+    )
+
+    $reviewTaskKey = Get-VisualTaskReviewTaskKey -TaskKey $TaskKey
+
+    foreach ($pathProperty in @(("{0}_{1}" -f $TaskKey, $PathPropertyName), ("{0}_{1}" -f $reviewTaskKey, $PathPropertyName))) {
+        $summaryPath = Get-OptionalPropertyValue -Object $VisualGateSummary -Name $pathProperty
+        if (-not [string]::IsNullOrWhiteSpace($summaryPath)) {
+            return $summaryPath
+        }
+    }
+
+    $taskDirs = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($taskDirProperty in @(("{0}_task_dir" -f $TaskKey), ("{0}_task_dir" -f $reviewTaskKey))) {
+        $summaryTaskDir = Get-OptionalPropertyValue -Object $VisualGateSummary -Name $taskDirProperty
+        if (-not [string]::IsNullOrWhiteSpace($summaryTaskDir)) {
+            [void]$taskDirs.Add($summaryTaskDir)
+        }
+    }
+
+    $reviewTasks = Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks"
+    $reviewTask = Get-OptionalPropertyObject -Object $reviewTasks -Name $reviewTaskKey
+    $reviewTaskPath = Get-OptionalPropertyValue -Object $reviewTask -Name $PathPropertyName
+    if (-not [string]::IsNullOrWhiteSpace($reviewTaskPath)) {
+        return $reviewTaskPath
+    }
+    $reviewTaskDir = Get-OptionalPropertyValue -Object $reviewTask -Name "task_dir"
+    if (-not [string]::IsNullOrWhiteSpace($reviewTaskDir)) {
+        [void]$taskDirs.Add($reviewTaskDir)
+    }
+
+    $gateFlow = Get-OptionalPropertyObject -Object $GateSummary -Name $TaskKey
+    $flowTask = Get-OptionalPropertyObject -Object $gateFlow -Name "task"
+    $flowTaskPath = Get-OptionalPropertyValue -Object $flowTask -Name $PathPropertyName
+    if (-not [string]::IsNullOrWhiteSpace($flowTaskPath)) {
+        return $flowTaskPath
+    }
+    $flowTaskDir = Get-OptionalPropertyValue -Object $flowTask -Name "task_dir"
+    if (-not [string]::IsNullOrWhiteSpace($flowTaskDir)) {
+        [void]$taskDirs.Add($flowTaskDir)
+    }
+
+    foreach ($taskDir in $taskDirs) {
+        if (-not [string]::IsNullOrWhiteSpace($taskDir)) {
+            return Join-Path $taskDir $DefaultRelativePath
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($GateFlowPathPropertyName)) {
+        return Get-OptionalPropertyValue -Object $gateFlow -Name $GateFlowPathPropertyName
+    }
+
+    return ""
+}
+
+function Get-VisualTaskReviewResultPath {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    return Get-VisualTaskEvidencePath `
+        -VisualGateSummary $VisualGateSummary `
+        -GateSummary $GateSummary `
+        -TaskKey $TaskKey `
+        -PathPropertyName "review_result_path" `
+        -DefaultRelativePath "report\review_result.json" `
+        -GateFlowPathPropertyName "review_result"
+}
+
+function Get-VisualTaskFinalReviewPath {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    return Get-VisualTaskEvidencePath `
+        -VisualGateSummary $VisualGateSummary `
+        -GateSummary $GateSummary `
+        -TaskKey $TaskKey `
+        -PathPropertyName "final_review_path" `
+        -DefaultRelativePath "report\final_review.md" `
+        -GateFlowPathPropertyName "final_review"
+}
+
 function Get-CompleteVisualReviewTaskSummary {
     param($Summary)
 
@@ -240,7 +365,10 @@ function Get-PdfVisualGateSummaryPath {
 }
 
 function Get-PdfVisualGateEvidence {
-    param([string]$SummaryPath)
+    param(
+        [string]$SummaryPath,
+        [string]$RepoRoot = ""
+    )
 
     $evidence = [ordered]@{
         summary_json = $SummaryPath
@@ -264,12 +392,13 @@ function Get-PdfVisualGateEvidence {
         return [pscustomobject]$evidence
     }
 
-    if (-not (Test-Path -LiteralPath $SummaryPath)) {
+    $resolvedSummaryPath = Resolve-VisualMetadataEvidencePath -RepoRoot $RepoRoot -Path $SummaryPath
+    if (-not (Test-Path -LiteralPath $resolvedSummaryPath)) {
         return [pscustomobject]$evidence
     }
 
     try {
-        $summary = Get-Content -Raw -LiteralPath $SummaryPath | ConvertFrom-Json
+        $summary = Get-Content -Raw -LiteralPath $resolvedSummaryPath | ConvertFrom-Json
     } catch {
         $evidence.status = "unreadable"
         $evidence.error = $_.Exception.Message
@@ -530,11 +659,23 @@ function Merge-CuratedVisualReviewEntry {
     }
 
     $reviewResultPath = Get-OptionalPropertyValue -Object $taskInfo -Name "review_result_path"
+    if ([string]::IsNullOrWhiteSpace($reviewResultPath)) {
+        $reviewResultPath = Get-OptionalPropertyValue -Object $Source -Name "review_result_path"
+    }
+    if ([string]::IsNullOrWhiteSpace($reviewResultPath) -and -not [string]::IsNullOrWhiteSpace($taskDir)) {
+        $reviewResultPath = Join-Path $taskDir "report\review_result.json"
+    }
     if (-not [string]::IsNullOrWhiteSpace($reviewResultPath)) {
         $Entry.review_result_path = $reviewResultPath
     }
 
     $finalReviewPath = Get-OptionalPropertyValue -Object $taskInfo -Name "final_review_path"
+    if ([string]::IsNullOrWhiteSpace($finalReviewPath)) {
+        $finalReviewPath = Get-OptionalPropertyValue -Object $Source -Name "final_review_path"
+    }
+    if ([string]::IsNullOrWhiteSpace($finalReviewPath) -and -not [string]::IsNullOrWhiteSpace($taskDir)) {
+        $finalReviewPath = Join-Path $taskDir "report\final_review.md"
+    }
     if (-not [string]::IsNullOrWhiteSpace($finalReviewPath)) {
         $Entry.final_review_path = $finalReviewPath
     }

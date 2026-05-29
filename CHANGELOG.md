@@ -8,6 +8,46 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- Added `featherdoc_cli export-pdf --expand-header-footer-page-placeholders`
+  so header and footer `{{page}}` / `{{total_pages}}` placeholders can be
+  expanded during PDF export, with the effective export switches reported in
+  both `--json` and `--summary-json` output.
+- Added `docs/pdf_export.rst` and README links for the experimental PDF export
+  CLI entry point, supported options, JSON summary shape, and current scope
+  limits.
+- Documented the `export-pdf --json` failure result contract, including parse,
+  open, export, and summary failure stages.
+- Added a stable schema marker to the raw PDF visual release-gate preflight
+  summary so downstream governance and readiness evidence can identify it
+  without relying on path conventions.
+- Added PDF floating table regression coverage for preservation-only wrapping
+  metadata so `leftFromText`, `rightFromText`, non-paragraph `topFromText`, and
+  `tblOverlap` stay layout-neutral until full Word-compatible table wrapping is
+  implemented.
+- Added PDF floating table support-boundary evidence to the table layout
+  delivery report, rollup, and governance summaries so release reviewers can
+  distinguish the stable PDF geometry subset from metadata-only wrapping scope.
+- Added stable public evidence-path display handling for packaged release
+  manifests so project-template and manifest-signoff evidence keeps source
+  identity even when packaging runs from an out-of-repository working directory.
+
+### Fixed
+
+- Fixed `export-pdf --json` and `--summary-json` success output so the outer
+  JSON result object is closed after the nested `options` object.
+- Fixed PDF table layout so floating table horizontal specs and reliable
+  page/margin vertical specs affect rendered table placement instead of being
+  preserved only in DOCX metadata.
+- Fixed PDF table layout so paragraph-anchored floating tables honor
+  `topFromText` as spacing above the table.
+- Fixed Debug PDF CTest runtime-path resolution so `pdf_cli_export` uses Debug
+  vcpkg DLL directories instead of release-only runtime paths.
+- Clarified historical PDF visual validation changelog wording so old
+  reusable-build and baseline-output blocker notes do not read as current
+  release status.
+
 ## [1.12.0] - 2026-05-28
 
 ### Added
@@ -143,9 +183,9 @@ performance.
 - Documented the stricter PDF preflight reusable-build selection in the stale
   branch inventory so old `auto:build` evidence does not drive branch cleanup
   decisions.
-- Documented the current PDF visual validation boundary, including the
-  free-memory preflight check, governance passthrough, and why the gate is
-  still blocked by missing reusable build and baseline outputs.
+- Documented the then-current PDF visual validation boundary, including the
+  free-memory preflight check, governance passthrough, and the reusable-build
+  and baseline-output blockers that were active before later full-gate closure.
 
 ### Fixed
 

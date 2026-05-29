@@ -22,6 +22,39 @@ function Convert-TestPathToRepoRelativeDisplay {
     return $normalizedPath
 }
 
+function Convert-TestEvidencePathToPublicDisplay {
+    param(
+        [string]$Path,
+        [string]$RepoRoot
+    )
+
+    $repoDisplay = Convert-TestPathToRepoRelativeDisplay -Path $Path -RepoRoot $RepoRoot
+    $normalizedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($repoDisplay -ne $normalizedPath) {
+        return $repoDisplay
+    }
+
+    $normalizedDisplay = $normalizedPath -replace '/', '\'
+    foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
+        $index = $normalizedDisplay.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+        if ($index -ge 0) {
+            return ".\" + $normalizedDisplay.Substring($index + 1)
+        }
+    }
+
+    return $normalizedPath
+}
+
+function Convert-TestComparablePathValue {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    return ([string]$Value) -replace '/', '\'
+}
+
 function Assert-NotContains {
     param(
         [string]$Path,
@@ -476,6 +509,8 @@ $manifestPath = Join-Path $outputRoot "v1.6.4\release_assets_manifest.json"
 $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
 
 Assert-NotContains -Path $manifestPath -UnexpectedText $resolvedRepoRoot -Label 'release_assets_manifest.json'
+Assert-NotContains -Path $manifestPath -UnexpectedText '<windows-absolute-path>' -Label 'release_assets_manifest.json'
+Assert-NotContains -Path $manifestPath -UnexpectedText '<unix-absolute-path>' -Label 'release_assets_manifest.json'
 
 if (-not (Test-Path -LiteralPath $placeholderPath)) {
     throw "Expected incomplete visual-gate placeholder note was not created."
@@ -508,7 +543,7 @@ if ([string]$manifestSignoffEntrypoints.status -ne "declared") {
 if ([int]$manifestSignoffEntrypoints.required_entrypoint_count -ne 3) {
     throw "Release assets manifest lost manifest signoff required entrypoint count in AllowIncomplete mode."
 }
-$expectedManifestDisplay = Convert-TestPathToRepoRelativeDisplay `
+$expectedManifestDisplay = Convert-TestEvidencePathToPublicDisplay `
     -Path $manifestPath `
     -RepoRoot $resolvedRepoRoot
 if ([string]$manifestSignoffEntrypoints.release_assets_manifest -ne $expectedManifestDisplay) {
@@ -589,9 +624,9 @@ foreach ($entrypoint in @($manifestSignoffEntrypoints.entrypoints)) {
     $manifestSignoffEntrypointsById[[string]$entrypoint.id] = $entrypoint
 }
 foreach ($entrypointExpectation in @(
-        [ordered]@{ id = "start_here"; path = $startHerePath },
-        [ordered]@{ id = "artifact_guide"; path = $artifactGuidePath },
-        [ordered]@{ id = "reviewer_checklist"; path = $reviewerChecklistPath }
+        [ordered]@{ id = "start_here"; path = $startHerePath; path_display = ".\output\release-candidate-checks-ci\START_HERE.md" },
+        [ordered]@{ id = "artifact_guide"; path = $artifactGuidePath; path_display = ".\output\release-candidate-checks-ci\report\ARTIFACT_GUIDE.md" },
+        [ordered]@{ id = "reviewer_checklist"; path = $reviewerChecklistPath; path_display = ".\output\release-candidate-checks-ci\report\REVIEWER_CHECKLIST.md" }
     )) {
     $entrypointId = [string]$entrypointExpectation.id
     if (-not $manifestSignoffEntrypointsById.ContainsKey($entrypointId)) {
@@ -603,14 +638,16 @@ foreach ($entrypointExpectation in @(
         throw "Release assets manifest lost required=true for manifest signoff entrypoint '$entrypointId' in AllowIncomplete mode."
     }
 
-    $expectedEntrypointDisplay = Convert-TestPathToRepoRelativeDisplay `
+    $expectedEntrypointDisplay = Convert-TestEvidencePathToPublicDisplay `
         -Path ([string]$entrypointExpectation.path) `
         -RepoRoot $resolvedRepoRoot
     if ([string]$entrypoint.path -ne $expectedEntrypointDisplay) {
         throw "Release assets manifest did not public-sanitize manifest signoff entrypoint '$entrypointId' path in AllowIncomplete mode."
     }
-    if ([string]$entrypoint.path_display -ne $expectedEntrypointDisplay) {
-        throw "Release assets manifest lost manifest signoff entrypoint '$entrypointId' path_display in AllowIncomplete mode."
+
+    $expectedEntrypointPathDisplay = [string]$entrypointExpectation.path_display
+    if ((Convert-TestComparablePathValue -Value $entrypoint.path_display) -ne (Convert-TestComparablePathValue -Value $expectedEntrypointPathDisplay)) {
+        throw "Release assets manifest lost manifest signoff entrypoint '$entrypointId' path_display in AllowIncomplete mode. Expected='$expectedEntrypointPathDisplay' Actual='$($entrypoint.path_display)'."
     }
 }
 
@@ -619,9 +656,9 @@ foreach ($entrypoint in @($manifestProjectTemplateChecklistEntrypoints.entrypoin
     $manifestProjectTemplateChecklistEntrypointsById[[string]$entrypoint.id] = $entrypoint
 }
 foreach ($entrypointExpectation in @(
-        [ordered]@{ id = "start_here"; path = $startHerePath },
-        [ordered]@{ id = "artifact_guide"; path = $artifactGuidePath },
-        [ordered]@{ id = "reviewer_checklist"; path = $reviewerChecklistPath }
+        [ordered]@{ id = "start_here"; path = $startHerePath; path_display = ".\output\release-candidate-checks-ci\START_HERE.md" },
+        [ordered]@{ id = "artifact_guide"; path = $artifactGuidePath; path_display = ".\output\release-candidate-checks-ci\report\ARTIFACT_GUIDE.md" },
+        [ordered]@{ id = "reviewer_checklist"; path = $reviewerChecklistPath; path_display = ".\output\release-candidate-checks-ci\report\REVIEWER_CHECKLIST.md" }
     )) {
     $entrypointId = [string]$entrypointExpectation.id
     if (-not $manifestProjectTemplateChecklistEntrypointsById.ContainsKey($entrypointId)) {
@@ -633,14 +670,16 @@ foreach ($entrypointExpectation in @(
         throw "Release assets manifest lost required=true for project-template readiness checklist entrypoint '$entrypointId' in AllowIncomplete mode."
     }
 
-    $expectedEntrypointDisplay = Convert-TestPathToRepoRelativeDisplay `
+    $expectedEntrypointDisplay = Convert-TestEvidencePathToPublicDisplay `
         -Path ([string]$entrypointExpectation.path) `
         -RepoRoot $resolvedRepoRoot
     if ([string]$entrypoint.path -ne $expectedEntrypointDisplay) {
         throw "Release assets manifest did not public-sanitize project-template readiness checklist entrypoint '$entrypointId' path in AllowIncomplete mode."
     }
-    if ([string]$entrypoint.path_display -ne $expectedEntrypointDisplay) {
-        throw "Release assets manifest lost project-template readiness checklist entrypoint '$entrypointId' path_display in AllowIncomplete mode."
+
+    $expectedEntrypointPathDisplay = [string]$entrypointExpectation.path_display
+    if ((Convert-TestComparablePathValue -Value $entrypoint.path_display) -ne (Convert-TestComparablePathValue -Value $expectedEntrypointPathDisplay)) {
+        throw "Release assets manifest lost project-template readiness checklist entrypoint '$entrypointId' path_display in AllowIncomplete mode. Expected='$expectedEntrypointPathDisplay' Actual='$($entrypoint.path_display)'."
     }
 }
 
@@ -748,13 +787,9 @@ if ($null -eq $contentControlContract) {
 if ([string]$contentControlContract.source_schema -ne "featherdoc.content_control_data_binding_governance_report.v1") {
     throw "Release assets manifest lost content-control repair contract source_schema in AllowIncomplete mode."
 }
-$normalizedRepoRoot = [System.IO.Path]::GetFullPath($resolvedRepoRoot).TrimEnd('\', '/')
-$normalizedContentControlSummaryPath = [System.IO.Path]::GetFullPath($contentControlSummaryPath)
-$expectedContentControlSummaryDisplay = $normalizedContentControlSummaryPath
-if ($normalizedContentControlSummaryPath.StartsWith($normalizedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-    $relativeContentControlSummaryPath = $normalizedContentControlSummaryPath.Substring($normalizedRepoRoot.Length).TrimStart('\', '/')
-    $expectedContentControlSummaryDisplay = ".\" + ($relativeContentControlSummaryPath -replace '/', '\')
-}
+$expectedContentControlSummaryDisplay = Convert-TestEvidencePathToPublicDisplay `
+    -Path $contentControlSummaryPath `
+    -RepoRoot $resolvedRepoRoot
 if ([string]$contentControlContract.source_json_display -ne $expectedContentControlSummaryDisplay) {
     throw "Release assets manifest lost content-control repair contract source_json_display in AllowIncomplete mode."
 }
@@ -787,7 +822,7 @@ $projectTemplateDeliveryReadinessContract = $manifest.project_template_delivery_
 if ($null -eq $projectTemplateDeliveryReadinessContract) {
     throw "Release assets manifest lost project_template_delivery_readiness_contract in AllowIncomplete mode."
 }
-$expectedProjectTemplateDeliveryReadinessDisplay = Convert-TestPathToRepoRelativeDisplay `
+$expectedProjectTemplateDeliveryReadinessDisplay = Convert-TestEvidencePathToPublicDisplay `
     -Path $projectTemplateDeliveryReadinessSummaryPath `
     -RepoRoot $resolvedRepoRoot
 if ([string]$projectTemplateDeliveryReadinessContract.schema -ne "featherdoc.project_template_delivery_readiness_report.v1") {
@@ -813,7 +848,7 @@ $projectTemplateOnboardingGovernanceContract = $manifest.project_template_onboar
 if ($null -eq $projectTemplateOnboardingGovernanceContract) {
     throw "Release assets manifest lost project_template_onboarding_governance_contract in AllowIncomplete mode."
 }
-$expectedProjectTemplateOnboardingGovernanceDisplay = Convert-TestPathToRepoRelativeDisplay `
+$expectedProjectTemplateOnboardingGovernanceDisplay = Convert-TestEvidencePathToPublicDisplay `
     -Path $projectTemplateOnboardingGovernanceSummaryPath `
     -RepoRoot $resolvedRepoRoot
 if ([string]$projectTemplateOnboardingGovernanceContract.schema -ne "featherdoc.project_template_onboarding_governance_report.v1") {

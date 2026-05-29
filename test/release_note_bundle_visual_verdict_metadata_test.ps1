@@ -631,11 +631,38 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields reviewed at: 2026-04-28T12:34:00" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields review method: operator_supplied" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields review note: page number fields awaiting reviewer" -Label $assertion.Label
+    foreach ($reviewPathAssertion in @(
+            @{ Label = "Smoke"; Task = "smoke" },
+            @{ Label = "Fixed-grid"; Task = "fixed-grid" },
+            @{ Label = "Section page setup"; Task = "section-page-setup" },
+            @{ Label = "Page number fields"; Task = "page-number-fields" }
+        )) {
+        Assert-LineContainsAll -Path $assertion.Path -Fragments @(
+            "$($reviewPathAssertion.Label) review result",
+            $reviewPathAssertion.Task,
+            "report\review_result.json"
+        ) -Label $assertion.Label
+        Assert-LineContainsAll -Path $assertion.Path -Fragments @(
+            "$($reviewPathAssertion.Label) final review",
+            $reviewPathAssertion.Task,
+            "report\final_review.md"
+        ) -Label $assertion.Label
+    }
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata verdict: pass" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata review status: reviewed" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata reviewed at: 2026-04-28T12:35:00" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata review method: operator_supplied" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata review note: curated visual evidence checked" -Label $assertion.Label
+    Assert-LineContainsAll -Path $assertion.Path -Fragments @(
+        "Curated review verdict metadata review result",
+        "curated-review-verdict-metadata",
+        "report\review_result.json"
+    ) -Label $assertion.Label
+    Assert-LineContainsAll -Path $assertion.Path -Fragments @(
+        "Curated review verdict metadata final review",
+        "curated-review-verdict-metadata",
+        "report\final_review.md"
+    ) -Label $assertion.Label
 }
 
 foreach ($fragments in @(
@@ -673,7 +700,10 @@ foreach ($unexpectedProvenance in @(
         "2026-04-28T12:34:00",
         "2026-04-28T12:35:00",
         "release_summary_override",
-        "operator_supplied"
+        "operator_supplied",
+        "review_result_path",
+        "review_result.json",
+        "review result"
     )) {
     if ($bodyContent -match [regex]::Escape($unexpectedProvenance)) {
         throw "release_body.zh-CN.md unexpectedly rendered review provenance '$unexpectedProvenance'."

@@ -90,6 +90,46 @@ foreach ($marker in @(
         -Message "Docs index should expose the project-template release readiness entry."
 }
 
+$indexReleasePreflightStart = $indexDoc.IndexOf(
+    "For a one-shot local release-preflight entry on Windows",
+    [System.StringComparison]::Ordinal)
+if ($indexReleasePreflightStart -lt 0) {
+    throw "Docs index should keep the local release-preflight entry guidance."
+}
+
+$indexReleasePreflightEnd = $indexDoc.IndexOf(
+    "When top-level ",
+    $indexReleasePreflightStart,
+    [System.StringComparison]::Ordinal)
+if ($indexReleasePreflightEnd -lt 0) {
+    throw "Docs index should keep blocker guidance after release-preflight output guidance."
+}
+
+$indexReleasePreflightGuidance = $indexDoc.Substring(
+    $indexReleasePreflightStart,
+    $indexReleasePreflightEnd - $indexReleasePreflightStart)
+
+foreach ($marker in @(
+    "output/release-candidate-checks/START_HERE.md",
+    "release_governance_handoff.md",
+    "word_visual_standard_review_metadata_source_reports",
+    "START_HERE.md",
+    "ARTIFACT_GUIDE.md",
+    "REVIEWER_CHECKLIST.md",
+    "final_review.md",
+    "release_handoff.md",
+    "Word visual standard review metadata evidence"
+)) {
+    Assert-ContainsText -Text $indexReleasePreflightGuidance -ExpectedText $marker `
+        -Message "Docs index release-preflight guidance should keep Word visual metadata marker '$marker'."
+}
+
+Assert-TextOrder -Text $indexReleasePreflightGuidance -ExpectedTexts @(
+    "release_governance_handoff.md",
+    "word_visual_standard_review_metadata_source_reports",
+    "Word visual standard review metadata evidence"
+) -Message "Docs index release-preflight guidance should describe detailed handoff evidence before compact release reviewer evidence."
+
 foreach ($marker in @(
     "project-template governance",
     "onboard_project_template.ps1",
@@ -180,7 +220,10 @@ foreach ($marker in @(
     "manifest_signoff_entrypoints_release_trace",
     "manifest_signoff_entrypoints_rollup_material_safety_trace",
     "manifest_signoff_entrypoints_handoff_material_safety_trace",
-    "manifest_signoff_entrypoints_manifest_trace"
+    "manifest_signoff_entrypoints_manifest_trace",
+    "-CasePattern",
+    "final-review-pdf-visual",
+    "release-material-safety-final-review-pdf-check"
 )) {
     Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `
         -Message "Project-template release readiness checklist should preserve marker '$marker'."
@@ -305,6 +348,67 @@ Assert-TextOrder -Text $onboardingGuidance -ExpectedTexts @(
     "schema approval"
 ) -Message "Release metadata pipeline onboarding guidance should tell reviewers to open report, then source JSON, then command."
 
+$wordVisualMetadataEvidenceIndex = $releasePipelineDoc.IndexOf(
+    "Word visual standard review metadata evidence",
+    [System.StringComparison]::Ordinal)
+if ($wordVisualMetadataEvidenceIndex -lt 0) {
+    throw "Release metadata pipeline docs should describe the Word visual metadata compact evidence line."
+}
+
+$wordVisualMetadataGuidanceStart = $releasePipelineDoc.LastIndexOf(
+    "START_HERE.md",
+    $wordVisualMetadataEvidenceIndex,
+    [System.StringComparison]::Ordinal)
+if ($wordVisualMetadataGuidanceStart -lt 0) {
+    throw "Release metadata pipeline docs should list release materials before the Word visual metadata compact evidence line."
+}
+
+$wordVisualMetadataGuidanceEnd = $releasePipelineDoc.IndexOf(
+    "package_release_assets.ps1",
+    $wordVisualMetadataEvidenceIndex,
+    [System.StringComparison]::Ordinal)
+if ($wordVisualMetadataGuidanceEnd -lt 0) {
+    throw "Release metadata pipeline docs should keep package_release_assets guidance after Word visual metadata compact evidence."
+}
+
+$wordVisualMetadataGuidance = $releasePipelineDoc.Substring(
+    $wordVisualMetadataGuidanceStart,
+    $wordVisualMetadataGuidanceEnd - $wordVisualMetadataGuidanceStart)
+
+foreach ($marker in @(
+    "START_HERE.md",
+    "ARTIFACT_GUIDE.md",
+    "REVIEWER_CHECKLIST.md",
+    "final_review.md",
+    "release_handoff.md",
+    "release_governance_handoff.md",
+    "word_visual_standard_review_metadata_source_reports",
+    "task_reviews=",
+    "final_review_path=",
+    "source_schema=featherdoc.release_candidate_summary",
+    "source_report",
+    "release-candidate-checks",
+    "review_note",
+    "detailed"
+)) {
+    Assert-ContainsText -Text $wordVisualMetadataGuidance -ExpectedText $marker `
+        -Message "Release metadata pipeline docs should keep Word visual metadata guidance '$marker'."
+}
+
+Assert-TextOrder -Text $wordVisualMetadataGuidance -ExpectedTexts @(
+    "START_HERE.md",
+    "ARTIFACT_GUIDE.md",
+    "REVIEWER_CHECKLIST.md",
+    "final_review.md",
+    "release_handoff.md",
+    "release_governance_handoff.md",
+    "detailed",
+    "source_schema=featherdoc.release_candidate_summary",
+    "source_report",
+    "release-candidate-checks",
+    "review_note"
+) -Message "Release metadata pipeline Word visual metadata guidance should separate compact release materials from detailed governance handoff source reports."
+
 Assert-ContainsText -Text $releasePolicyDoc -ExpectedText "schema_patch_approval_gate_status" `
     -Message "Release policy should keep project-template schema approval as a release criterion."
 
@@ -410,8 +514,8 @@ foreach ($scriptInfo in @(
 )) {
     Assert-ContainsText -Text $scriptInfo.Text -ExpectedText 'Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary' `
         -Message "$($scriptInfo.Name) should gate project-template signoff text on explicit manifest contracts."
-    Assert-ContainsText -Text $scriptInfo.Text -ExpectedText 'if ($requiresProjectTemplateGovernanceSignoff)' `
-        -Message "$($scriptInfo.Name) should skip project-template signoff placeholders for PDF-only releases."
+    Assert-ContainsText -Text $scriptInfo.Text -ExpectedText 'if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence)' `
+        -Message "$($scriptInfo.Name) should skip PDF-only placeholders while preserving materialized project-template release-entry evidence."
 }
 
 foreach ($marker in @(
