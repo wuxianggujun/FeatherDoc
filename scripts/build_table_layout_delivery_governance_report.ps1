@@ -234,6 +234,10 @@ function New-DeliveryQuality {
     $level = Get-DeliveryQualityLevel -Score $score -DocumentCount $DocumentCount -UnresolvedItemCount $unresolvedItemCount
 
     return [ordered]@{
+        id = "table_layout_delivery_governance.delivery_quality"
+        metric = "delivery_quality"
+        report_id = "table_layout_delivery_governance"
+        source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
         score = $score
         level = $level
         document_count = $DocumentCount
@@ -458,6 +462,10 @@ function New-ReportMarkdown {
     $lines.Add("## Delivery Quality") | Out-Null
     $lines.Add("") | Out-Null
     $quality = $Summary.delivery_quality
+    $lines.Add("- Metric id: ``$($quality.id)``") | Out-Null
+    $lines.Add("- Metric: ``$($quality.metric)``") | Out-Null
+    $lines.Add("- Report id: ``$($quality.report_id)``") | Out-Null
+    $lines.Add("- Source schema: ``$($quality.source_schema)``") | Out-Null
     $lines.Add("- Level: ``$($quality.level)``") | Out-Null
     $lines.Add("- Score: ``$($quality.score)``") | Out-Null
     $lines.Add("- Ready documents: ``$($quality.ready_document_percent)%``") | Out-Null

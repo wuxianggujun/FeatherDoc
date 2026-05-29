@@ -336,6 +336,14 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Unresolved table layout delivery work should reduce quality score."
     Assert-Equal -Actual ([string]$summary.delivery_quality_level) -Expected "blocked" `
         -Message "Unresolved table layout delivery work should produce blocked quality."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.id) -Expected "table_layout_delivery_governance.delivery_quality" `
+        -Message "Delivery quality details should expose a stable governance metric id."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.metric) -Expected "delivery_quality" `
+        -Message "Delivery quality details should expose the metric name."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.report_id) -Expected "table_layout_delivery_governance" `
+        -Message "Delivery quality details should expose the report id."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.source_schema) -Expected "featherdoc.table_layout_delivery_governance_report.v1" `
+        -Message "Delivery quality details should expose the source schema."
     Assert-Equal -Actual ([int]$summary.delivery_quality.ready_document_percent) -Expected 50 `
         -Message "Summary should expose ready document percentage."
     Assert-Equal -Actual ([int]$summary.delivery_quality.table_style_issue_count) -Expected 3 `
@@ -512,6 +520,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include delivery actions."
     Assert-ContainsText -Text $markdown -ExpectedText "Delivery Quality" `
         -Message "Markdown should include delivery quality section."
+    Assert-ContainsText -Text $markdown -ExpectedText "table_layout_delivery_governance.delivery_quality" `
+        -Message "Markdown should include the stable delivery quality metric id."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF floating table capability" `
         -Message "Markdown should include PDF floating table capability in delivery quality."
     Assert-ContainsText -Text $markdown -ExpectedText "safe_tblLook_fixes_pending" `

@@ -2615,8 +2615,19 @@ Current Limitations
   document; ``scripts/build_table_layout_delivery_rollup_report.ps1`` then
   aggregates multiple layout summaries into
   ``featherdoc.table_layout_delivery_rollup_report.v1`` before release blocker
-  rollups consume the results. Advanced table-style coverage and the remaining
-  ``w:tblpPr`` wrapping/overlap details are still active extension areas.
+  rollups consume the results.
+  ``scripts/build_table_layout_delivery_governance_report.ps1`` promotes the
+  rollup into ``output/table-layout-delivery-governance/summary.json`` using
+  ``featherdoc.table_layout_delivery_governance_report.v1``. That governance
+  summary exposes ``table_layout_delivery_governance.delivery_quality``,
+  ``delivery_quality`` score details, ``safe_tblLook_fixes_pending`` and
+  ``floating_table_plans_pending`` penalties, ``pdf_floating_table_support``,
+  and release-facing ``source_schema``, ``source_report_display``,
+  ``source_json_display``, and ``open_command`` fields so release handoff can
+  trace table-style, ``tblLook``, floating-table, and PDF support evidence
+  without re-reading the original DOCX. Advanced table-style coverage and the
+  remaining ``w:tblpPr`` wrapping/overlap details are still active extension
+  areas.
 - Paragraphs can now be attached to managed bullet and decimal lists and can
   restart managed list sequences, and custom numbering definitions can now be
   created through ``ensure_numbering_definition(...)`` /
