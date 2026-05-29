@@ -185,6 +185,11 @@ PDF visual release gate 预检治理报告产生的
 最后重新生成 release blocker rollup 与 release note bundle。``-PreflightOnly`` 和
 预检 summary 只证明前置条件，不是 release-ready evidence；只有完整 PDF visual gate
 基于当前 ``dev`` 通过后，才能作为发布就绪证据。
+如果 controlled PDF visual smoke 证据存在但未通过，治理报告会发出
+``rerun_pdf_controlled_visual_smoke_check`` warning runbook，要求先复核
+``controlled_visual_smoke_json_display``，再用
+``check_pdf_controlled_visual_smoke.ps1`` 只读重跑已有 PNG/text 证据，随后重新生成
+PDF preflight governance report、release blocker rollup 与 release note bundle。
 这些 runbook 还会直接展示 ``output gap checks`` 和 ``missing outputs``，与
 preflight summary 的顶层 ``output_gap_count`` / ``missing_output_count`` 保持一致，
 避免 reviewer 需要手动合计 CLI baseline、visual baseline 和 CJK text-layer 缺口。

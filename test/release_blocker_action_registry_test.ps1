@@ -303,6 +303,54 @@ Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "provide_
 Assert-ContainsText -Text $pdfPreflightChecklistGuidance -ExpectedText "not release-ready evidence" `
     -Message "PDF preflight checklist guidance should state that preflight-only is not release-ready evidence."
 
+$controlledVisualSmokeWarning = [pscustomobject]@{
+    id = "pdf_controlled_visual_smoke.unavailable_or_failed"
+    source = "pdf_controlled_visual_smoke"
+    severity = "warning"
+    status = "fail"
+    action = "rerun_pdf_controlled_visual_smoke_check"
+    message = "Controlled PDF visual smoke evidence was provided but is not passing."
+    source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
+    source_report_display = ".\output\pdf-visual-release-gate-preflight-governance\summary.json"
+    source_json_display = ".\output\pdf-visual-release-gate-preflight-governance\controlled-visual-smoke-failed.json"
+    error_message = "Controlled smoke page was blank."
+}
+$controlledVisualSmokeGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $controlledVisualSmokeWarning `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $controlledVisualSmokeGuidance -ExpectedText "rerun_pdf_controlled_visual_smoke_check" `
+    -Message "Controlled PDF visual smoke warning should render its fixed action runbook."
+Assert-ContainsText -Text $controlledVisualSmokeGuidance -ExpectedText "check_pdf_controlled_visual_smoke.ps1" `
+    -Message "Controlled PDF visual smoke runbook should point at the smoke check wrapper."
+Assert-ContainsText -Text $controlledVisualSmokeGuidance -ExpectedText "controlled-visual-smoke-failed.json" `
+    -Message "Controlled PDF visual smoke runbook should keep source JSON evidence visible."
+Assert-ContainsText -Text $controlledVisualSmokeGuidance -ExpectedText "read-only" `
+    -Message "Controlled PDF visual smoke runbook should state the check is read-only."
+Assert-ContainsText -Text $controlledVisualSmokeGuidance -ExpectedText "does not run CMake, CTest, Word" `
+    -Message "Controlled PDF visual smoke runbook should keep heavyweight runtime boundaries explicit."
+Assert-ContainsText -Text $controlledVisualSmokeGuidance -ExpectedText "not release-ready evidence" `
+    -Message "Controlled PDF visual smoke runbook should state the evidence boundary."
+Assert-ContainsText -Text $controlledVisualSmokeGuidance -ExpectedText "write_pdf_visual_release_gate_preflight_governance_report.ps1" `
+    -Message "Controlled PDF visual smoke runbook should tell reviewers to rebuild governance evidence."
+Assert-ContainsText -Text $controlledVisualSmokeGuidance -ExpectedText "release note bundle" `
+    -Message "Controlled PDF visual smoke runbook should tell reviewers to refresh release materials."
+Assert-True -Condition ($controlledVisualSmokeGuidance -notmatch [regex]::Escape("Unregistered release blocker action")) `
+    -Message "Controlled PDF visual smoke registered action should not use the unregistered fallback."
+
+$controlledVisualSmokeChecklistGuidance = @(Get-ReleaseGovernanceWarningActionGuidanceLines `
+        -Warning $controlledVisualSmokeWarning `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $controlledVisualSmokeChecklistGuidance -ExpectedText "release governance warning" `
+    -Message "Controlled PDF visual smoke checklist guidance should identify warning context."
+Assert-ContainsText -Text $controlledVisualSmokeChecklistGuidance -ExpectedText "check_pdf_controlled_visual_smoke.ps1" `
+    -Message "Controlled PDF visual smoke checklist guidance should point at the smoke check wrapper."
+Assert-ContainsText -Text $controlledVisualSmokeChecklistGuidance -ExpectedText "controlled-visual-smoke-failed.json" `
+    -Message "Controlled PDF visual smoke checklist guidance should keep source JSON visible."
+Assert-ContainsText -Text $controlledVisualSmokeChecklistGuidance -ExpectedText "not release-ready evidence" `
+    -Message "Controlled PDF visual smoke checklist guidance should state the evidence boundary."
+
 $pdfPreflightUnavailableBlocker = [pscustomobject]@{
     id = "pdf_visual_release_gate_preflight.summary_unavailable"
     source = "pdf_visual_release_gate_preflight"

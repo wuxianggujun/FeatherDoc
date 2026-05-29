@@ -801,6 +801,7 @@ function Get-ReleaseBlockerRegisteredActions {
         "complete_visual_manual_review",
         "fix_schema_patch_approval_result",
         "prepare_pdf_visual_release_gate_build_outputs",
+        "rerun_pdf_controlled_visual_smoke_check",
         "rerun_pdf_visual_release_gate_preflight"
     )
 }
@@ -819,6 +820,63 @@ function Test-ReleaseBlockerActionRegistered {
     }
 
     return $false
+}
+
+function Add-PdfControlledVisualSmokeCheckGuidanceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item,
+        [string]$RepoRoot = "",
+        [string]$ReleaseSummaryJson = "",
+        [string]$ContextText = ""
+    )
+
+    $contextSuffix = if ([string]::IsNullOrWhiteSpace($ContextText)) { "" } else { " $ContextText" }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `rerun_pdf_controlled_visual_smoke_check`{0}: rerun the controlled PDF visual smoke check against existing PNG/text evidence, then rebuild the PDF preflight governance report.' -f $contextSuffix)
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Item -Name "status"
+    $errorMessage = Get-ReleaseBlockerPropertyValue -Object $Item -Name "error_message"
+    if (-not [string]::IsNullOrWhiteSpace($status) -or -not [string]::IsNullOrWhiteSpace($errorMessage)) {
+        $statusLine = "Controlled PDF visual smoke status"
+        if (-not [string]::IsNullOrWhiteSpace($status)) {
+            $statusLine += ": $status"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($errorMessage)) {
+            $statusLine += "; error: $errorMessage"
+        }
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text $statusLine
+    }
+
+    $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Inspect the controlled PDF visual smoke JSON before rerunning: {0}" -f $sourceJsonDisplay)
+    }
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Open the PDF preflight governance report that emitted the smoke warning: {0}" -f $sourceReportDisplay)
+    }
+
+    $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        $commandTemplate = 'powershell -ExecutionPolicy Bypass -File .\scripts\check_pdf_controlled_visual_smoke.ps1 -Root .\output\pdf-controlled-visual-smoke-20260520 -OutputJson .\output\pdf-controlled-visual-smoke-20260520\controlled-visual-smoke-check-latest.json'
+    }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Run the controlled smoke check command: `{0}`' -f $commandTemplate)
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'The controlled smoke check is read-only: it validates existing PNG/text evidence and does not run CMake, CTest, Word, LibreOffice, browser automation, PDF rendering, virtual environment creation, or dependency installation.'
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'A passing controlled smoke check refreshes only low-resource evidence; it is not release-ready evidence until the full PDF visual release gate and release governance checks pass.'
+
+    $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    if ([string]::IsNullOrWhiteSpace($releaseSummaryDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'After the controlled smoke JSON is passing, rerun `write_pdf_visual_release_gate_preflight_governance_report.ps1`, rebuild the release blocker rollup, and regenerate the release note bundle before publishing.'
+    } else {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('After the controlled smoke JSON is passing, rerun `write_pdf_visual_release_gate_preflight_governance_report.ps1`, rerun release governance checks, and regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)
+    }
 }
 
 function Get-ReleaseBlockerActionGuidanceLines {
@@ -892,6 +950,14 @@ function Get-ReleaseBlockerActionGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'The `-PreflightOnly` command only verifies PDF visual gate prerequisites; it is not release-ready evidence until the full PDF visual release gate passes.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Only after preflight is ready and workstation resources allow it, run the full PDF visual release gate, rebuild the release blocker rollup, and regenerate the release note bundle.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'After each PDF preflight or gate attempt, clean up only task-owned PDF gate processes and transient outputs after capturing the required evidence; do not terminate unrelated external build, Office, browser, node, or PowerShell processes.'
+            break
+        }
+        "rerun_pdf_controlled_visual_smoke_check" {
+            Add-PdfControlledVisualSmokeCheckGuidanceLines `
+                -Lines $guidanceLines `
+                -Item $Blocker `
+                -RepoRoot $RepoRoot `
+                -ReleaseSummaryJson $ReleaseSummaryJson
             break
         }
         "rerun_pdf_visual_release_gate_preflight" {
@@ -2514,6 +2580,13 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text 'After each PDF preflight or gate attempt, clean up only task-owned PDF gate processes and transient outputs after capturing the required evidence; do not terminate unrelated external build, Office, browser, node, or PowerShell processes.'
+    } elseif ([string]::Equals($action, "rerun_pdf_controlled_visual_smoke_check", [System.StringComparison]::OrdinalIgnoreCase)) {
+        Add-PdfControlledVisualSmokeCheckGuidanceLines `
+            -Lines $guidanceLines `
+            -Item $Item `
+            -RepoRoot $RepoRoot `
+            -ReleaseSummaryJson $ReleaseSummaryJson `
+            -ContextText ('for release governance {0} `{1}`' -f $ItemKind, $id)
     } elseif ([string]::Equals($action, "rerun_pdf_visual_release_gate_preflight", [System.StringComparison]::OrdinalIgnoreCase)) {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
