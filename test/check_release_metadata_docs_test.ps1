@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 122) {
-        throw "Expected JSON summary to count 122 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 127) {
+        throw "Expected JSON summary to count 127 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -413,6 +413,11 @@ $defaultPolicyText = @(
     'See :doc:`release_metadata_pipeline_zh`.',
     '- ReleaseBlockerRollupFailOnWarning',
     '- ReleaseGovernanceHandoffFailOnWarning',
+    '- Word visual standard review metadata evidence',
+    '- word_visual_standard_review_metadata_source_reports',
+    '- task_reviews=',
+    '- source_schema=featherdoc.release_candidate_summary',
+    '- release-candidate-checks',
     ''
 ) -join "`n"
 
@@ -451,11 +456,11 @@ if ($summary.required_checklist_marker_count -ne 53) {
 if ($summary.required_document_governance_marker_count -ne 10) {
     throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
 }
-if ($summary.required_policy_marker_count -ne 3) {
-    throw "Expected JSON summary policy marker count 3, got: $($summary.required_policy_marker_count)"
+if ($summary.required_policy_marker_count -ne 8) {
+    throw "Expected JSON summary policy marker count 8, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 122) {
-    throw "Expected JSON summary total marker count 122, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 127) {
+    throw "Expected JSON summary total marker count 127, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 4) {
     throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
@@ -532,6 +537,26 @@ Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "release-candidate-checks" `
     -Message "JSON summary should list release-candidate summary source marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "Word visual standard review metadata evidence" `
+    -Message "JSON summary policy should list Word visual metadata compact evidence marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "word_visual_standard_review_metadata_source_reports" `
+    -Message "JSON summary policy should list Word visual metadata source reports marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "task_reviews=" `
+    -Message "JSON summary policy should list Word visual metadata task review compact marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "source_schema=featherdoc.release_candidate_summary" `
+    -Message "JSON summary policy should list Word visual metadata source schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "release-candidate-checks" `
+    -Message "JSON summary policy should list release-candidate summary source marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "readme_gallery" `

@@ -429,7 +429,12 @@ $documentGovernanceExpectedMarkers = @(
 $policyExpectedMarkers = @(
     ':doc:`release_metadata_pipeline_zh`',
     "ReleaseBlockerRollupFailOnWarning",
-    "ReleaseGovernanceHandoffFailOnWarning"
+    "ReleaseGovernanceHandoffFailOnWarning",
+    "Word visual standard review metadata evidence",
+    "word_visual_standard_review_metadata_source_reports",
+    "task_reviews=",
+    "source_schema=featherdoc.release_candidate_summary",
+    "release-candidate-checks"
 )
 $resolvedRepoRoot = ""
 $summaryJsonPath = ""
