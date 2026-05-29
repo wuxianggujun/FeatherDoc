@@ -84,14 +84,51 @@ $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMake
 foreach ($marker in @(
     "project_template_release_readiness_checklist_zh",
     "template_schema_mutation_zh",
-    "release_metadata_pipeline_zh",
-    "release_governance_handoff.md",
-    "word_visual_standard_review_metadata_source_reports",
-    "Word visual standard review metadata evidence"
+    "release_metadata_pipeline_zh"
 )) {
     Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
         -Message "Docs index should expose the project-template release readiness entry."
 }
+
+$indexReleasePreflightStart = $indexDoc.IndexOf(
+    "For a one-shot local release-preflight entry on Windows",
+    [System.StringComparison]::Ordinal)
+if ($indexReleasePreflightStart -lt 0) {
+    throw "Docs index should keep the local release-preflight entry guidance."
+}
+
+$indexReleasePreflightEnd = $indexDoc.IndexOf(
+    "When top-level ",
+    $indexReleasePreflightStart,
+    [System.StringComparison]::Ordinal)
+if ($indexReleasePreflightEnd -lt 0) {
+    throw "Docs index should keep blocker guidance after release-preflight output guidance."
+}
+
+$indexReleasePreflightGuidance = $indexDoc.Substring(
+    $indexReleasePreflightStart,
+    $indexReleasePreflightEnd - $indexReleasePreflightStart)
+
+foreach ($marker in @(
+    "output/release-candidate-checks/START_HERE.md",
+    "release_governance_handoff.md",
+    "word_visual_standard_review_metadata_source_reports",
+    "START_HERE.md",
+    "ARTIFACT_GUIDE.md",
+    "REVIEWER_CHECKLIST.md",
+    "final_review.md",
+    "release_handoff.md",
+    "Word visual standard review metadata evidence"
+)) {
+    Assert-ContainsText -Text $indexReleasePreflightGuidance -ExpectedText $marker `
+        -Message "Docs index release-preflight guidance should keep Word visual metadata marker '$marker'."
+}
+
+Assert-TextOrder -Text $indexReleasePreflightGuidance -ExpectedTexts @(
+    "release_governance_handoff.md",
+    "word_visual_standard_review_metadata_source_reports",
+    "Word visual standard review metadata evidence"
+) -Message "Docs index release-preflight guidance should describe detailed handoff evidence before compact release reviewer evidence."
 
 foreach ($marker in @(
     "project-template governance",
