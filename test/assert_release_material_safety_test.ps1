@@ -1116,6 +1116,101 @@ if (-not $badEntryProjectTemplateChecklistPackagedAuditEvidenceWrongSourceFailed
     throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with packaged checklist audit source_report pointing at the wrong evidence source."
 }
 
+$passEntryWordVisualStandardReviewMetadataEvidenceDir = Join-Path $passDir "entry-word-visual-standard-review-metadata-evidence"
+$passEntryWordVisualStandardReviewMetadataEvidencePath = Join-Path $passEntryWordVisualStandardReviewMetadataEvidenceDir "START_HERE.md"
+New-Item -ItemType Directory -Path $passEntryWordVisualStandardReviewMetadataEvidenceDir -Force | Out-Null
+Set-Content -LiteralPath $passEntryWordVisualStandardReviewMetadataEvidencePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Word visual standard review metadata evidence: word_visual_standard_review_metadata_source_reports=1, metadata_count=4, task_keys=smoke, fixed_grid, section_page_setup, page_number_fields, status_summary=reviewed=4, verdict_summary=pass=4, task_reviews=smoke:review_task_key=document:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\document\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\document\report\final_review.md; fixed_grid:review_task_key=fixed_grid:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\fixed-grid\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\fixed-grid\report\final_review.md; section_page_setup:review_task_key=section_page_setup:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\section-page-setup\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\section-page-setup\report\final_review.md; page_number_fields:review_task_key=page_number_fields:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\page-number-fields\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
+"@
+
+& $auditScript -Path $passEntryWordVisualStandardReviewMetadataEvidencePath
+
+$badEntryWordVisualStandardReviewMetadataEvidenceMissingSourceSchemaDir = Join-Path $failDir "entry-word-visual-standard-review-metadata-evidence-missing-source-schema"
+$badEntryWordVisualStandardReviewMetadataEvidenceMissingSourceSchemaPath = Join-Path $badEntryWordVisualStandardReviewMetadataEvidenceMissingSourceSchemaDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryWordVisualStandardReviewMetadataEvidenceMissingSourceSchemaDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryWordVisualStandardReviewMetadataEvidenceMissingSourceSchemaPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Word visual standard review metadata evidence: word_visual_standard_review_metadata_source_reports=1, metadata_count=4, task_keys=smoke, fixed_grid, section_page_setup, page_number_fields, status_summary=reviewed=4, verdict_summary=pass=4, task_reviews=smoke:review_task_key=document:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\document\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\document\report\final_review.md; fixed_grid:review_task_key=fixed_grid:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\fixed-grid\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\fixed-grid\report\final_review.md; section_page_setup:review_task_key=section_page_setup:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\section-page-setup\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\section-page-setup\report\final_review.md; page_number_fields:review_task_key=page_number_fields:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\page-number-fields\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md, source_report=.\output\release-candidate-checks\summary.json
+"@
+
+$badEntryWordVisualStandardReviewMetadataEvidenceMissingSourceSchemaFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryWordVisualStandardReviewMetadataEvidenceMissingSourceSchemaPath
+} catch {
+    $badEntryWordVisualStandardReviewMetadataEvidenceMissingSourceSchemaFailedAsExpected = $true
+}
+
+if (-not $badEntryWordVisualStandardReviewMetadataEvidenceMissingSourceSchemaFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with Word visual metadata evidence missing source_schema."
+}
+
+$badEntryWordVisualStandardReviewMetadataEvidenceWrongSourceDir = Join-Path $failDir "entry-word-visual-standard-review-metadata-evidence-wrong-source"
+$badEntryWordVisualStandardReviewMetadataEvidenceWrongSourcePath = Join-Path $badEntryWordVisualStandardReviewMetadataEvidenceWrongSourceDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryWordVisualStandardReviewMetadataEvidenceWrongSourceDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryWordVisualStandardReviewMetadataEvidenceWrongSourcePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Word visual standard review metadata evidence: word_visual_standard_review_metadata_source_reports=1, metadata_count=4, task_keys=smoke, fixed_grid, section_page_setup, page_number_fields, status_summary=reviewed=4, verdict_summary=pass=4, task_reviews=smoke:review_task_key=document:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\document\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\document\report\final_review.md; fixed_grid:review_task_key=fixed_grid:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\fixed-grid\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\fixed-grid\report\final_review.md; section_page_setup:review_task_key=section_page_setup:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\section-page-setup\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\section-page-setup\report\final_review.md; page_number_fields:review_task_key=page_number_fields:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\page-number-fields\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-blocker-rollup\summary.json
+"@
+
+$badEntryWordVisualStandardReviewMetadataEvidenceWrongSourceFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryWordVisualStandardReviewMetadataEvidenceWrongSourcePath
+} catch {
+    $badEntryWordVisualStandardReviewMetadataEvidenceWrongSourceFailedAsExpected = $true
+}
+
+if (-not $badEntryWordVisualStandardReviewMetadataEvidenceWrongSourceFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with Word visual metadata source_report pointing at the wrong evidence source."
+}
+
+$badEntryWordVisualStandardReviewMetadataEvidenceMissingTaskDir = Join-Path $failDir "entry-word-visual-standard-review-metadata-evidence-missing-task"
+$badEntryWordVisualStandardReviewMetadataEvidenceMissingTaskPath = Join-Path $badEntryWordVisualStandardReviewMetadataEvidenceMissingTaskDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryWordVisualStandardReviewMetadataEvidenceMissingTaskDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryWordVisualStandardReviewMetadataEvidenceMissingTaskPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Word visual standard review metadata evidence: word_visual_standard_review_metadata_source_reports=1, metadata_count=4, task_keys=smoke, fixed_grid, section_page_setup, page_number_fields, status_summary=reviewed=4, verdict_summary=pass=4, task_reviews=smoke:review_task_key=document:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\document\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\document\report\final_review.md; fixed_grid:review_task_key=fixed_grid:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\fixed-grid\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\fixed-grid\report\final_review.md; section_page_setup:review_task_key=section_page_setup:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\section-page-setup\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\section-page-setup\report\final_review.md, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
+"@
+
+$badEntryWordVisualStandardReviewMetadataEvidenceMissingTaskFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryWordVisualStandardReviewMetadataEvidenceMissingTaskPath
+} catch {
+    $badEntryWordVisualStandardReviewMetadataEvidenceMissingTaskFailedAsExpected = $true
+}
+
+if (-not $badEntryWordVisualStandardReviewMetadataEvidenceMissingTaskFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with Word visual metadata evidence missing page_number_fields task review."
+}
+
+$badEntryWordVisualStandardReviewMetadataEvidenceReviewNoteDir = Join-Path $failDir "entry-word-visual-standard-review-metadata-evidence-review-note"
+$badEntryWordVisualStandardReviewMetadataEvidenceReviewNotePath = Join-Path $badEntryWordVisualStandardReviewMetadataEvidenceReviewNoteDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryWordVisualStandardReviewMetadataEvidenceReviewNoteDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryWordVisualStandardReviewMetadataEvidenceReviewNotePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Word visual standard review metadata evidence: word_visual_standard_review_metadata_source_reports=1, metadata_count=4, task_keys=smoke, fixed_grid, section_page_setup, page_number_fields, status_summary=reviewed=4, verdict_summary=pass=4, task_reviews=smoke:review_task_key=document:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\document\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\document\report\final_review.md; fixed_grid:review_task_key=fixed_grid:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\fixed-grid\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\fixed-grid\report\final_review.md; section_page_setup:review_task_key=section_page_setup:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\section-page-setup\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\section-page-setup\report\final_review.md; page_number_fields:review_task_key=page_number_fields:verdict=pass:review_status=reviewed:review_method=operator_supplied:review_result_path=.\output\word-visual-release-gate\review-tasks\page-number-fields\report\review_result.json:final_review_path=.\output\word-visual-release-gate\review-tasks\page-number-fields\report\final_review.md, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
+
+## Detached private notes
+
+- review_note: do not publish this operator note
+"@
+
+$badEntryWordVisualStandardReviewMetadataEvidenceReviewNoteFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryWordVisualStandardReviewMetadataEvidenceReviewNotePath
+} catch {
+    $badEntryWordVisualStandardReviewMetadataEvidenceReviewNoteFailedAsExpected = $true
+}
+
+if (-not $badEntryWordVisualStandardReviewMetadataEvidenceReviewNoteFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with Word visual metadata review_note."
+}
+
 $badStartHereProjectTemplateMissingChecklistDir = Join-Path $failDir "start-here-project-template-readiness-checklist-missing"
 $badStartHereProjectTemplateMissingChecklistPath = Join-Path $badStartHereProjectTemplateMissingChecklistDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badStartHereProjectTemplateMissingChecklistDir -Force | Out-Null

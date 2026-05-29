@@ -1609,6 +1609,10 @@ function Add-ReleaseGovernanceSourceReportContractLines {
             -Lines $Lines `
             -Report $report `
             -Indent "  "
+        Add-ReleaseGovernanceWordVisualStandardReviewMetadataSourceReportLines `
+            -Lines $Lines `
+            -Report $report `
+            -Indent "  "
 
         foreach ($fieldName in @(
                 "preflight_ready",
@@ -1843,6 +1847,59 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditSou
     }
 }
 
+function Add-ReleaseGovernanceWordVisualStandardReviewMetadataSourceReportLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Report,
+        [string]$Indent = "  "
+    )
+
+    $metadataCount = Get-ReleaseBlockerPropertyValue -Object $Report -Name "word_visual_standard_review_metadata_count"
+    $metadata = @(Get-ReleaseBlockerArrayProperty -Object $Report -Name "word_visual_standard_review_metadata")
+    if ([string]::IsNullOrWhiteSpace($metadataCount) -and $metadata.Count -eq 0) {
+        return
+    }
+
+    foreach ($fieldName in @(
+            "word_visual_standard_review_metadata_count",
+            "word_visual_standard_review_status_summary",
+            "word_visual_standard_review_verdict_summary"
+        )) {
+        $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Report -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+            [void]$Lines.Add("${Indent}- ${fieldName}: $fieldValue")
+        }
+    }
+
+    $taskKeys = @(
+        Get-ReleaseBlockerArrayProperty -Object $Report -Name "word_visual_standard_review_task_keys" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($taskKeys.Count -gt 0) {
+        [void]$Lines.Add("${Indent}- word_visual_standard_review_task_keys: $($taskKeys -join ', ')")
+    }
+
+    if ($metadata.Count -eq 0) {
+        return
+    }
+
+    [void]$Lines.Add("${Indent}- word_visual_standard_review_metadata:")
+    $entryIndent = "${Indent}  "
+    foreach ($entry in $metadata) {
+        $taskKey = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "task_key") -Fallback "(unknown task)"
+        $reviewTaskKey = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "review_task_key")
+        $label = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "label")
+        $verdict = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "verdict")
+        $reviewStatus = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "review_status")
+        $reviewMethod = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "review_method")
+        $reviewResultPath = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "review_result_path")
+        $finalReviewPath = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entry -Name "final_review_path")
+
+        [void]$Lines.Add("${entryIndent}- ${taskKey}: review_task_key=$reviewTaskKey label=$label verdict=$verdict review_status=$reviewStatus review_method=$reviewMethod review_result_path=$reviewResultPath final_review_path=$finalReviewPath")
+    }
+}
+
 function Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine {
     param([AllowNull()]$Summary)
 
@@ -1925,6 +1982,59 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAud
     )
 
     return "Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=$count, status=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_status")), audit_script=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_script")), audited_entrypoint_count=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count")), audited_entrypoints=$(Get-ReleaseBlockerDisplayValue -Value ($auditedEntrypoints -join ', ')), compact_evidence_label=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label")), compact_evidence_field=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field")), compact_evidence_source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema")), checklist_path=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path")), checklist_marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker")), material_safety_marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker")), source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")), source_report=$(Get-ReleaseBlockerDisplayValue -Value $sourceReport)"
+}
+
+function Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine {
+    param([AllowNull()]$Summary)
+
+    $handoff = Get-ReleaseGovernanceHandoff -Summary $Summary
+    $reports = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "word_visual_standard_review_metadata_source_reports")
+    $count = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "word_visual_standard_review_metadata_source_report_count"
+    if ([string]::IsNullOrWhiteSpace($count)) {
+        $count = [string]$reports.Count
+    }
+
+    if ($reports.Count -eq 0 -and $count -eq "0") {
+        return ""
+    }
+
+    $report = $reports |
+        Where-Object {
+            $schema = Get-ReleaseBlockerPropertyValue -Object $_ -Name "schema"
+            $pathDisplay = Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display"
+
+            $schema -eq "featherdoc.release_candidate_summary" -and
+                $pathDisplay -match "release-candidate-checks|release_candidate_summary|report[\\/]+summary\.json"
+        } |
+        Select-Object -First 1
+    if ($null -eq $report) {
+        $report = $reports | Select-Object -First 1
+    }
+
+    $taskKeys = @(
+        Get-ReleaseBlockerArrayProperty -Object $report -Name "word_visual_standard_review_task_keys" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    $taskReviewParts = @(
+        Get-ReleaseBlockerArrayProperty -Object $report -Name "word_visual_standard_review_metadata" |
+            ForEach-Object {
+                $taskKey = Get-ReleaseBlockerPropertyValue -Object $_ -Name "task_key"
+                if (-not [string]::IsNullOrWhiteSpace($taskKey)) {
+                    $reviewTaskKey = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "review_task_key")
+                    $verdict = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "verdict")
+                    $reviewStatus = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "review_status")
+                    $reviewMethod = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "review_method")
+                    $reviewResultPath = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "review_result_path")
+                    $finalReviewPath = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "final_review_path")
+
+                    "${taskKey}:review_task_key=${reviewTaskKey}:verdict=${verdict}:review_status=${reviewStatus}:review_method=${reviewMethod}:review_result_path=${reviewResultPath}:final_review_path=${finalReviewPath}"
+                }
+            } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+
+    return "Word visual standard review metadata evidence: word_visual_standard_review_metadata_source_reports=$count, metadata_count=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "word_visual_standard_review_metadata_count")), task_keys=$(Get-ReleaseBlockerDisplayValue -Value ($taskKeys -join ', ')), status_summary=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "word_visual_standard_review_status_summary")), verdict_summary=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "word_visual_standard_review_verdict_summary")), task_reviews=$(Get-ReleaseBlockerDisplayValue -Value ($taskReviewParts -join '; ')), source_schema=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")), source_report=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display"))"
 }
 
 function Get-ReleaseGovernanceChecklistSections {
@@ -3104,6 +3214,23 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
             $schema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")
             [void]$Lines.Add("  - source_report: $sourceReportDisplay schema=$schema")
             Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditSourceReportLines `
+                -Lines $Lines `
+                -Report $report `
+                -Indent "    "
+        }
+    }
+    $wordVisualMetadataReports = @(Get-ReleaseBlockerArrayProperty -Object $handoff -Name "word_visual_standard_review_metadata_source_reports")
+    $wordVisualMetadataCount = Get-ReleaseBlockerPropertyValue -Object $handoff -Name "word_visual_standard_review_metadata_source_report_count"
+    if ([string]::IsNullOrWhiteSpace($wordVisualMetadataCount)) {
+        $wordVisualMetadataCount = [string]$wordVisualMetadataReports.Count
+    }
+    if ($wordVisualMetadataReports.Count -gt 0 -or $wordVisualMetadataCount -ne "0") {
+        [void]$Lines.Add("- Word visual standard review metadata source reports: $wordVisualMetadataCount")
+        foreach ($report in $wordVisualMetadataReports) {
+            $sourceReportDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "path_display")
+            $schema = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $report -Name "schema")
+            [void]$Lines.Add("  - source_report: $sourceReportDisplay schema=$schema")
+            Add-ReleaseGovernanceWordVisualStandardReviewMetadataSourceReportLines `
                 -Lines $Lines `
                 -Report $report `
                 -Indent "    "

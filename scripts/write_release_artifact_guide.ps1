@@ -114,6 +114,7 @@ $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
 $requiresProjectTemplateGovernanceSignoff = Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary
 $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
 $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
+$wordVisualStandardReviewMetadataEvidenceLine = Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary $summary
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $finalReviewPath = Join-Path $reportDir "final_review.md"
 $releaseHandoffPath = Get-OptionalPropertyValue -Object $summary -Name "release_handoff"
@@ -452,6 +453,9 @@ if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLi
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
     [void]$lines.Add("- $projectTemplateChecklistMaterialSafetyAuditEvidenceLine")
 }
+if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceLine)) {
+    [void]$lines.Add("- $wordVisualStandardReviewMetadataEvidenceLine")
+}
 [void]$lines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$lines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
 [void]$lines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")
@@ -509,6 +513,9 @@ if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLi
 }
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
     [void]$lines.Add("- Project-template readiness checklist packaged audit signoff: $projectTemplateChecklistMaterialSafetyAuditEvidenceLine.")
+}
+if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceLine)) {
+    [void]$lines.Add("- Word visual standard review metadata signoff: $wordVisualStandardReviewMetadataEvidenceLine.")
 }
 [void]$lines.Add('```powershell')
 [void]$lines.Add($packageAssetsCommand)

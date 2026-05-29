@@ -123,6 +123,7 @@ $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
 $requiresProjectTemplateGovernanceSignoff = Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary
 $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
 $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
+$wordVisualStandardReviewMetadataEvidenceLine = Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary $summary
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $artifactGuidePath = Get-OptionalPropertyValue -Object $summary -Name "artifact_guide"
 if ([string]::IsNullOrWhiteSpace($artifactGuidePath)) {
@@ -673,6 +674,9 @@ if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLi
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm release governance handoff carries packaged project-template readiness checklist material-safety audit evidence: {0}.' -f $projectTemplateChecklistMaterialSafetyAuditEvidenceLine)
 }
+if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceLine)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm release governance handoff carries Word visual standard review metadata evidence: {0}.' -f $wordVisualStandardReviewMetadataEvidenceLine)
+}
 Add-CheckboxLine -Lines $lines -Text 'For PDF/CJK-facing releases, manually verify a generated Chinese PDF can be copied and searched in at least one common reader, and record the reader/version in the release notes or final review.'
 
 if (-not [string]::IsNullOrWhiteSpace($consumerDocument)) {
@@ -718,6 +722,9 @@ if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLi
 }
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm the packaged checklist material-safety audit source-report evidence remains ready for publishing: {0}.' -f $projectTemplateChecklistMaterialSafetyAuditEvidenceLine)
+}
+if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceLine)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the Word visual standard review metadata evidence remains ready for publishing: {0}.' -f $wordVisualStandardReviewMetadataEvidenceLine)
 }
 Add-CheckboxLine -Lines $lines -Text ('Sync the audited full release body into the GitHub Release notes: `{0}`' -f $syncReleaseNotesCommand)
 Add-CheckboxLine -Lines $lines -Text ('When all gates pass and the GitHub Release is ready to go live, publish it with: `{0}`' -f $publishReleaseCommand)

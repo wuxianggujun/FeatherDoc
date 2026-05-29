@@ -1275,6 +1275,96 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvi
     }
 }
 
+function Add-ReleaseEntryWordVisualStandardReviewMetadataEvidenceTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -notin @("start_here.md", "artifact_guide.md", "reviewer_checklist.md")) {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "Word visual standard review metadata evidence",
+        "word_visual_standard_review_metadata_source_reports="
+    ))) {
+        return
+    }
+
+    $label = "release entry Word visual standard review metadata evidence trace"
+    if (-not (Test-TextLineContainsAll -Text $Content -Needles @(
+        "Word visual standard review metadata evidence",
+        "word_visual_standard_review_metadata_source_reports=",
+        "metadata_count=4",
+        "task_keys=smoke, fixed_grid, section_page_setup, page_number_fields",
+        "status_summary=reviewed=4",
+        "verdict_summary=pass=4",
+        "task_reviews=",
+        "smoke:review_task_key=document",
+        "fixed_grid:review_task_key=fixed_grid",
+        "section_page_setup:review_task_key=section_page_setup",
+        "page_number_fields:review_task_key=page_number_fields",
+        "review_result_path=",
+        "final_review_path=",
+        "source_schema=featherdoc.release_candidate_summary",
+        "source_report="
+    ))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry must keep Word visual standard review metadata count, task keys, status and verdict summaries, task review mapping, review/final paths, source schema, and source report on the same compact evidence line."
+    }
+
+    $evidenceLine = Get-TextLineContainingAll -Text $Content -Needles @(
+        "Word visual standard review metadata evidence",
+        "word_visual_standard_review_metadata_source_reports="
+    )
+    if ($null -ne $evidenceLine -and $evidenceLine.Contains("review_note")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry Word visual standard review metadata compact evidence must not expose review_note."
+    }
+
+    if ($Content.Contains("Word visual standard review metadata evidence") -and
+        $Content.Contains("review_note")) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry Word visual standard review metadata evidence must keep review_note out of release entry documents."
+    }
+
+    if (-not (Test-ReleaseNoteProjectTemplateTraceFieldValueInSet `
+                -Text $Content `
+                -Anchor "Word visual standard review metadata evidence" `
+                -FieldName "source_schema" `
+                -AllowedValues @("featherdoc.release_candidate_summary"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry Word visual standard review metadata evidence must keep source_schema as featherdoc.release_candidate_summary."
+    }
+
+    if (-not (Test-ReleaseNoteProjectTemplateTraceFieldIdentifies `
+                -Text $Content `
+                -Anchor "Word visual standard review metadata evidence" `
+                -FieldName "source_report" `
+                -Needles @("release-candidate-checks", "release_candidate_summary"))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry Word visual standard review metadata source_report must identify the release-candidate summary evidence source."
+    }
+}
+
 function Add-ReleaseMetadataProjectTemplateReadinessChecklistEntrypointsTraceViolations {
     param(
         [string]$File,
@@ -4730,6 +4820,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseEntryWordVisualStandardReviewMetadataEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseMetadataProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseMetadataProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations

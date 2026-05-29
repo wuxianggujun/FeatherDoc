@@ -128,6 +128,7 @@ $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
 $requiresProjectTemplateGovernanceSignoff = Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary
 $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
 $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
+$wordVisualStandardReviewMetadataEvidenceLine = Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary $summary
 $releaseVersion = Get-OptionalPropertyValue -Object $summary -Name "release_version"
 $installDir = Get-OptionalPropertyValue -Object $summary -Name "install_dir"
 $templateSchemaSummary = Get-OptionalPropertyObject -Object $summary -Name "template_schema"
@@ -422,6 +423,9 @@ if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLi
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
     [void]$lines.Add("- $projectTemplateChecklistMaterialSafetyAuditEvidenceLine")
 }
+if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceLine)) {
+    [void]$lines.Add("- $wordVisualStandardReviewMetadataEvidenceLine")
+}
 [void]$lines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
     [void]$lines.Add("- $visualReviewTaskSummaryLine")
@@ -561,6 +565,9 @@ if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLi
 }
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)) {
     [void]$lines.Add("- Confirm release governance handoff carries packaged project-template readiness checklist material-safety audit evidence: $projectTemplateChecklistMaterialSafetyAuditEvidenceLine.")
+}
+if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceLine)) {
+    [void]$lines.Add("- Confirm release governance handoff carries Word visual standard review metadata evidence: $wordVisualStandardReviewMetadataEvidenceLine.")
 }
 [void]$lines.Add("- Run the local packaging command first; it regenerates ZIP files and does not contact GitHub.")
 if ($requiresProjectTemplateGovernanceSignoff) {

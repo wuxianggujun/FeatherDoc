@@ -422,6 +422,15 @@ summary schema 身份，``source_report`` 还必须能识别 release-candidate s
 ``project_template_readiness_checklist_entrypoints_release_entry_path_display_trace``、
 ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``、
 ``project_template_readiness_checklist_entrypoints_release_entry_source_report_identity_trace``。
+
+``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 也会渲染
+``Word visual standard review metadata evidence`` compact line，用同一条 release
+governance handoff evidence 暴露四个标准 Word 视觉审阅任务的 task/review key、verdict、
+review status、review method、review result path 与 final review path。
+``assert_release_material_safety.ps1`` 会审计该行仍来自
+``featherdoc.release_candidate_summary`` source report，并继续禁止 ``review_note`` 进入
+任何发布入口。
+
 ``package_release_assets.ps1`` 在 staged release materials 审计前还会直接检查
 ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与 ``REVIEWER_CHECKLIST.md`` 中的同一条
 compact evidence 行，并把通过后的
