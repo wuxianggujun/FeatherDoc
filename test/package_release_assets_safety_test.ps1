@@ -101,6 +101,8 @@ $gateSummaryPath = Join-Path $gateReportDir "gate_summary.json"
 $gateFinalReviewPath = Join-Path $gateReportDir "gate_final_review.md"
 $pdfGateSummaryPath = Join-Path $pdfGateReportDir "summary.json"
 $pdfGateAggregateContactSheetPath = Join-Path $pdfGateReportDir "aggregate-contact-sheet.png"
+$pdfGateSummaryPathDisplay = ".\output\pdf-visual-release-gate\report\summary.json"
+$pdfGateAggregateContactSheetPathDisplay = ".\output\pdf-visual-release-gate\report\aggregate-contact-sheet.png"
 $pdfGateCliExportLogPath = Join-Path $pdfGateReportDir "pdf-cli-export-test.log"
 $pdfGateRegressionLogPath = Join-Path $pdfGateReportDir "pdf-regression-test.log"
 $pdfGateUnicodeLogPath = Join-Path $pdfGateReportDir "unicode-font.log"
@@ -141,12 +143,12 @@ Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 - Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
-- PDF visual gate summary: $pdfGateSummaryPath
+- PDF visual gate summary: $pdfGateSummaryPathDisplay
 - PDF CJK manifest samples: 43
 - PDF CJK copy/search samples: 2
 - PDF visual baseline manifest samples: 42
 - PDF visual baselines: 3
-- PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPath
+- PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPathDisplay
 - PDF release readiness checklist: docs/pdf_release_readiness_checklist_zh.rst
 "@
 
@@ -214,8 +216,8 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
     - full_visual_gate_status: ``pass``
     - pdf_visual_gate_verdict: ``pass``
     - pdf_visual_gate_finalizable: ``True``
-    - pdf_visual_gate_summary_json_display: ``$pdfGateSummaryPath``
-    - pdf_visual_gate_aggregate_contact_sheet_display: ``$pdfGateAggregateContactSheetPath``
+    - pdf_visual_gate_summary_json_display: ``$pdfGateSummaryPathDisplay``
+    - pdf_visual_gate_aggregate_contact_sheet_display: ``$pdfGateAggregateContactSheetPathDisplay``
     - pdf_visual_gate_cjk_manifest_count: ``43``
     - pdf_visual_gate_cjk_copy_search_count: ``2``
     - pdf_visual_gate_visual_baseline_manifest_count: ``42``
@@ -276,8 +278,8 @@ Set-Content -LiteralPath $finalReviewPath -Encoding UTF8 -Value @"
 
 ## Key outputs
 
-- PDF visual gate summary: $pdfGateSummaryPath
-- PDF visual gate contact sheet: $pdfGateAggregateContactSheetPath
+- PDF visual gate summary: $pdfGateSummaryPathDisplay
+- PDF visual gate contact sheet: $pdfGateAggregateContactSheetPathDisplay
 "@
 
 Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
@@ -293,12 +295,12 @@ Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 - Content-control provenance: input_docx=samples/invoice.docx input_docx_display=.\samples\invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
-- PDF visual gate summary: $pdfGateSummaryPath
+- PDF visual gate summary: $pdfGateSummaryPathDisplay
 - PDF CJK manifest samples: 43
 - PDF CJK copy/search samples: 2
 - PDF visual baseline manifest samples: 42
 - PDF visual baselines: 3
-- PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPath
+- PDF visual gate aggregate contact sheet: $pdfGateAggregateContactSheetPathDisplay
 - PDF release readiness checklist: docs/pdf_release_readiness_checklist_zh.rst
 "@
 
@@ -315,8 +317,8 @@ Set-Content -LiteralPath $reviewerChecklistPath -Encoding UTF8 -Value @"
 - Confirm Project template release readiness checklist docs/project_template_release_readiness_checklist_zh.rst before release.
 - Confirm release governance handoff carries project-template readiness checklist entrypoint evidence: Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json.
 - Confirm table_layout_delivery_governance.delivery_quality table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0) before release.
-- Confirm PDF visual gate summary $pdfGateSummaryPath with 2 CJK copy/search samples and 3 visual baselines before release.
-- Confirm PDF visual gate aggregate contact sheet $pdfGateAggregateContactSheetPath before release.
+- Confirm PDF visual gate summary $pdfGateSummaryPathDisplay with 2 CJK copy/search samples and 3 visual baselines before release.
+- Confirm PDF visual gate aggregate contact sheet $pdfGateAggregateContactSheetPathDisplay before release.
 - Confirm PDF release readiness checklist docs/pdf_release_readiness_checklist_zh.rst before release.
 "@
 
