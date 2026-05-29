@@ -2150,6 +2150,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict
         )
+        set_tests_properties(sync_latest_visual_review_verdict
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2165,6 +2169,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_uses_latest_release_summary_candidate
         )
+        set_tests_properties(sync_latest_visual_review_verdict_uses_latest_release_summary_candidate
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2180,6 +2188,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_tiebreaks_release_summary_candidate
         )
+        set_tests_properties(sync_latest_visual_review_verdict_tiebreaks_release_summary_candidate
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2195,6 +2207,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_curated_visual_bundle
         )
+        set_tests_properties(sync_latest_visual_review_verdict_curated_visual_bundle
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2210,6 +2226,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_table_style_quality
         )
+        set_tests_properties(sync_latest_visual_review_verdict_table_style_quality
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2225,6 +2245,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_no_release_summary
         )
+        set_tests_properties(sync_latest_visual_review_verdict_no_release_summary
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2240,6 +2264,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_malformed_release_summary_candidate_only
         )
+        set_tests_properties(sync_latest_visual_review_verdict_malformed_release_summary_candidate_only
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2255,6 +2283,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_conflicting_gates
         )
+        set_tests_properties(sync_latest_visual_review_verdict_conflicting_gates
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2270,6 +2302,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_missing_source_path
         )
+        set_tests_properties(sync_latest_visual_review_verdict_missing_source_path
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2285,6 +2321,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_unsupported_source_kind
         )
+        set_tests_properties(sync_latest_visual_review_verdict_unsupported_source_kind
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2300,6 +2340,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_malformed_pointer_json
         )
+        set_tests_properties(sync_latest_visual_review_verdict_malformed_pointer_json
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2315,6 +2359,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_malformed_release_summary
         )
+        set_tests_properties(sync_latest_visual_review_verdict_malformed_release_summary
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2330,6 +2378,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_skips_malformed_release_summary_candidate
         )
+        set_tests_properties(sync_latest_visual_review_verdict_skips_malformed_release_summary_candidate
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME
@@ -2345,6 +2397,46 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_missing_release_summary
         )
+        set_tests_properties(sync_latest_visual_review_verdict_missing_release_summary
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
+
+        add_test(
+            NAME
+            sync_latest_visual_review_verdict_explicit_gate_mismatch
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_latest_visual_review_verdict_explicit_gate_mismatch_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_explicit_gate_mismatch
+        )
+        set_tests_properties(sync_latest_visual_review_verdict_explicit_gate_mismatch
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
+
+        add_test(
+            NAME
+            sync_latest_visual_review_verdict_cmake_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_latest_visual_review_verdict_cmake_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(sync_latest_visual_review_verdict_cmake_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-verdict;smoke")
 
         add_test(
             NAME

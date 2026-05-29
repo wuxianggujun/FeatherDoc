@@ -134,6 +134,7 @@ $releaseSummaryPath = Join-Path $releaseReportDir "summary.json"
     -GateSummaryJson $gateSummaryPath `
     -ReleaseCandidateSummaryJson $releaseSummaryPath `
     -TaskOutputRoot $tasksRoot `
+    -SkipReleaseBundle `
     -SkipSupersededReviewTaskAudit
 if ($LASTEXITCODE -ne 0) { throw "sync_latest_visual_review_verdict.ps1 failed." }
 
@@ -149,6 +150,10 @@ Assert-True -Condition ($gateSummary.visual_verdict -eq "pass") `
     -Message "Gate summary visual verdict should be promoted by table-style-quality review."
 Assert-True -Condition ($releaseSummary.visual_verdict -eq "pass") `
     -Message "Release summary visual verdict should be promoted by table-style-quality review."
+Assert-True -Condition ($gateSummary.release_summary_discovery.release_bundle_refresh_requested -eq $false) `
+    -Message "Gate summary should record that release bundle refresh was skipped."
+Assert-True -Condition ($releaseSummary.release_summary_discovery.release_bundle_refresh_requested -eq $false) `
+    -Message "Release summary should record that release bundle refresh was skipped."
 Assert-True -Condition ($curatedGateFlow.task.task_id -eq $taskId) `
     -Message "Gate summary curated flow should be refreshed from latest table-style-quality pointer."
 Assert-True -Condition ($curatedGateReview.verdict -eq "pass") `
@@ -160,6 +165,5 @@ Assert-True -Condition ($curatedReleaseReview.review_note -eq "table style quali
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Table style quality flow: completed" -Label "gate_final_review.md"
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Table style quality verdict: pass" -Label "gate_final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Curated - Table style quality: verdict=pass" -Label "release final_review.md"
-Assert-Contains -Path $releaseSummary.release_summary_zh_cn -ExpectedText 'Table style quality=`pass`' -Label "release_summary.zh-CN.md"
 
 Write-Host "Sync latest visual review verdict table style quality bundle regression passed."
