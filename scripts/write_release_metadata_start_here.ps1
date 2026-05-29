@@ -429,7 +429,7 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add("- Project template smoke pending visual reviews: $(Get-DisplayValue -Value $projectTemplateSmokePendingReviewCount)")
 [void]$lines.Add("- Project template smoke full coverage required: $(Get-DisplayValue -Value $projectTemplateSmokeRequireFullCoverage)")
 [void]$lines.Add("- Project template smoke candidates registered / unregistered / excluded: $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount))")
-if ($requiresProjectTemplateGovernanceSignoff) {
+if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence) {
     [void]$lines.Add('- Project template release readiness checklist: `docs/project_template_release_readiness_checklist_zh.rst`')
 }
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
@@ -525,7 +525,7 @@ Add-ReleaseGovernanceHandoffMarkdownSection -Lines $lines -Summary $summary -Rep
 [void]$lines.Add("- Project template smoke summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryJson)")
 [void]$lines.Add("- Project template smoke output dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeOutputDir)")
 [void]$lines.Add("- Project template smoke candidate discovery: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson)")
-if ($requiresProjectTemplateGovernanceSignoff) {
+if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence) {
     [void]$lines.Add('- Project template release readiness checklist: `docs/project_template_release_readiness_checklist_zh.rst`')
 }
 
@@ -580,7 +580,7 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add("")
 [void]$lines.Add('- Confirm `Execution status`, `Visual verdict`, and project-template visual verdict are all `pass`.')
 [void]$lines.Add('- Confirm the fixed PDF release readiness checklist has been reviewed: `docs/pdf_release_readiness_checklist_zh.rst`.')
-if ($requiresProjectTemplateGovernanceSignoff) {
+if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence) {
     [void]$lines.Add('- Confirm the fixed Project template release readiness checklist has been reviewed: `docs/project_template_release_readiness_checklist_zh.rst`.')
 }
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {

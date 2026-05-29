@@ -1435,7 +1435,7 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve the smoke Word visual review verdict."
     Assert-Equal -Actual ([string]$smokeWordVisualMetadata.review_status) -Expected "reviewed" `
         -Message "Rollup should preserve the smoke Word visual review status."
-    Assert-Equal -Actual ([string]$smokeWordVisualMetadata.reviewed_at) -Expected "2026-04-12T12:10:00" `
+    Assert-Equal -Actual $smokeWordVisualMetadata.reviewed_at -Expected "2026-04-12T12:10:00" `
         -Message "Rollup should preserve the smoke Word visual reviewed timestamp."
     Assert-Equal -Actual ([string]$smokeWordVisualMetadata.review_method) -Expected "operator_supplied" `
         -Message "Rollup should preserve the smoke Word visual review method."

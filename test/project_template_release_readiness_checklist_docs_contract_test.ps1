@@ -514,8 +514,8 @@ foreach ($scriptInfo in @(
 )) {
     Assert-ContainsText -Text $scriptInfo.Text -ExpectedText 'Test-ReleaseManifestSignoffRequiresProjectTemplateGovernance -Summary $summary' `
         -Message "$($scriptInfo.Name) should gate project-template signoff text on explicit manifest contracts."
-    Assert-ContainsText -Text $scriptInfo.Text -ExpectedText 'if ($requiresProjectTemplateGovernanceSignoff)' `
-        -Message "$($scriptInfo.Name) should skip project-template signoff placeholders for PDF-only releases."
+    Assert-ContainsText -Text $scriptInfo.Text -ExpectedText 'if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence)' `
+        -Message "$($scriptInfo.Name) should skip PDF-only placeholders while preserving materialized project-template release-entry evidence."
 }
 
 foreach ($marker in @(

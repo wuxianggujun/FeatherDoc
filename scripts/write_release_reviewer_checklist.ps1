@@ -680,7 +680,7 @@ if ($pdfBoundedCtestEvidence.status -ne "not_available") {
     Add-CheckboxLine -Lines $lines -Text ('Open the bounded CTest summary list when you need to verify the auxiliary evidence source set: {0}' -f (Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', ')))
 }
 Add-CheckboxLine -Lines $lines -Text 'Confirm the fixed PDF release readiness checklist has been reviewed before publishing: `docs/pdf_release_readiness_checklist_zh.rst`.'
-if ($requiresProjectTemplateGovernanceSignoff) {
+if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence) {
     Add-CheckboxLine -Lines $lines -Text 'Confirm the fixed Project template release readiness checklist has been reviewed before publishing: `docs/project_template_release_readiness_checklist_zh.rst`.'
 }
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {

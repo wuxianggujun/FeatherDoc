@@ -828,6 +828,7 @@ function Convert-EvidenceEntrypointsToPublicDisplay {
     }
 
     $source = if ($null -ne $SourceContract) { $SourceContract } else { $Contract }
+    $sourceEntrypoints = @(Get-EvidenceObjectProperty -Object $source -Name "entrypoints")
     $targetEntrypoints = @(Get-EvidenceObjectProperty -Object $Contract -Name "entrypoints")
     $targetById = @{}
     foreach ($targetEntrypoint in $targetEntrypoints) {
@@ -837,8 +838,9 @@ function Convert-EvidenceEntrypointsToPublicDisplay {
         }
     }
 
+    $convertedEntrypoints = New-Object 'System.Collections.Generic.List[object]'
     $index = 0
-    foreach ($sourceEntrypoint in @(Get-EvidenceObjectProperty -Object $source -Name "entrypoints")) {
+    foreach ($sourceEntrypoint in $sourceEntrypoints) {
         if ($null -eq $sourceEntrypoint) {
             $index++
             continue
@@ -854,16 +856,27 @@ function Convert-EvidenceEntrypointsToPublicDisplay {
         }
 
         if ($null -eq $targetEntrypoint) {
-            $index++
-            continue
+            $targetEntrypoint = $sourceEntrypoint
+        }
+
+        $publicEntrypoint = [ordered]@{}
+
+        foreach ($fieldName in @("id", "required")) {
+            $fieldValue = Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name $fieldName
+            if ($null -eq $fieldValue) {
+                $fieldValue = Get-EvidenceObjectProperty -Object $targetEntrypoint -Name $fieldName
+            }
+            if ($null -ne $fieldValue) {
+                $publicEntrypoint[$fieldName] = $fieldValue
+            }
         }
 
         $path = [string](Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name "path")
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            $path = [string](Get-EvidenceObjectProperty -Object $targetEntrypoint -Name "path")
+        }
         if (-not [string]::IsNullOrWhiteSpace($path)) {
-            Set-EvidenceObjectProperty `
-                -Object $targetEntrypoint `
-                -Name "path" `
-                -Value (Convert-EvidencePathToPublicDisplay -Value $path -RepoRoot $RepoRoot)
+            $publicEntrypoint["path"] = Convert-EvidencePathToPublicDisplay -Value $path -RepoRoot $RepoRoot
         }
 
         $pathDisplay = [string](Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name "path_display")
@@ -877,13 +890,15 @@ function Convert-EvidenceEntrypointsToPublicDisplay {
             $pathDisplay = [string](Get-EvidenceObjectProperty -Object $targetEntrypoint -Name "path")
         }
         if (-not [string]::IsNullOrWhiteSpace($pathDisplay)) {
-            Set-EvidenceObjectProperty `
-                -Object $targetEntrypoint `
-                -Name "path_display" `
-                -Value (Convert-EvidencePathToPublicDisplay -Value $pathDisplay -RepoRoot $RepoRoot)
+            $publicEntrypoint["path_display"] = Convert-EvidencePathToPublicDisplay -Value $pathDisplay -RepoRoot $RepoRoot
         }
 
+        $convertedEntrypoints.Add($publicEntrypoint) | Out-Null
         $index++
+    }
+
+    if ($convertedEntrypoints.Count -gt 0) {
+        Set-EvidenceObjectProperty -Object $Contract -Name "entrypoints" -Value @($convertedEntrypoints.ToArray())
     }
 }
 
