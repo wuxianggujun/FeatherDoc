@@ -1694,7 +1694,7 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Proje
     "release_entry_project_template_readiness_checklist_trace",
     "source_schema=featherdoc.release_candidate_summary",
     "source_report=",
-    "report\summary.json",
+    "summary.json",
     "Project-template readiness checklist packaged audit evidence",
     "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=2",
     "assert_release_material_safety.ps1",

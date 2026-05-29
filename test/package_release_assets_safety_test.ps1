@@ -1600,9 +1600,7 @@ foreach ($entrypointExpectation in @(
         throw "release_assets_manifest.json did not public-sanitize manifest signoff entrypoint '$entrypointId' path."
     }
 
-    $expectedEntrypointPathDisplay = Convert-TestEvidencePathToPublicDisplay `
-        -Path ([string]$entrypointExpectation.path_display) `
-        -RepoRoot $resolvedRepoRoot
+    $expectedEntrypointPathDisplay = [string]$entrypointExpectation.path_display
     if ((Convert-TestComparablePathValue -Value $entrypoint.path_display) -ne (Convert-TestComparablePathValue -Value $expectedEntrypointPathDisplay)) {
         throw "release_assets_manifest.json lost manifest signoff entrypoint '$entrypointId' path_display. Expected='$expectedEntrypointPathDisplay' Actual='$($entrypoint.path_display)'."
     }
@@ -1634,11 +1632,9 @@ foreach ($entrypointExpectation in @(
         throw "release_assets_manifest.json did not public-sanitize project-template readiness checklist entrypoint '$entrypointId' path."
     }
 
-    $expectedEntrypointPathDisplay = Convert-TestEvidencePathToPublicDisplay `
-        -Path ([string]$entrypointExpectation.path_display) `
-        -RepoRoot $resolvedRepoRoot
-    if ([string]$entrypoint.path_display -ne $expectedEntrypointPathDisplay) {
-        throw "release_assets_manifest.json lost project-template readiness checklist entrypoint '$entrypointId' path_display."
+    $expectedEntrypointPathDisplay = [string]$entrypointExpectation.path_display
+    if ((Convert-TestComparablePathValue -Value $entrypoint.path_display) -ne (Convert-TestComparablePathValue -Value $expectedEntrypointPathDisplay)) {
+        throw "release_assets_manifest.json lost project-template readiness checklist entrypoint '$entrypointId' path_display. Expected='$expectedEntrypointPathDisplay' Actual='$($entrypoint.path_display)'."
     }
 }
 
