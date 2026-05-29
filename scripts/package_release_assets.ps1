@@ -484,7 +484,7 @@ function Get-ContentControlRepairContracts {
         [void]$contracts.Add([ordered]@{
             id = $blockerId
             source_schema = $schema
-            source_json_display = Convert-RepoPathToRelative -Value $resolvedContentControlSummaryPath -RepoRoot $RepoRoot
+            source_json_display = Convert-EvidencePathToPublicDisplay -Value $resolvedContentControlSummaryPath -RepoRoot $RepoRoot
             input_docx = Get-OptionalPropertyValue -Object $blocker -Name "input_docx"
             input_docx_display = Get-OptionalPropertyValue -Object $blocker -Name "input_docx_display"
             template_name = Get-OptionalPropertyValue -Object $blocker -Name "template_name"
@@ -514,7 +514,7 @@ function Get-ProjectTemplateDeliveryReadinessContract {
     Assert-PathExists -Path $resolvedReadinessSummaryPath -Label "project template delivery readiness summary"
 
     $readinessSummary = Get-Content -Raw -LiteralPath $resolvedReadinessSummaryPath | ConvertFrom-Json
-    $readinessSummaryDisplay = Convert-RepoPathToRelative -Value $resolvedReadinessSummaryPath -RepoRoot $RepoRoot
+    $readinessSummaryDisplay = Convert-EvidencePathToPublicDisplay -Value $resolvedReadinessSummaryPath -RepoRoot $RepoRoot
     return [ordered]@{
         schema = Get-OptionalPropertyValue -Object $readinessSummary -Name "schema"
         source_schema = Get-OptionalPropertyValue -Object $readinessSummary -Name "schema"
@@ -551,7 +551,7 @@ function Get-ProjectTemplateOnboardingGovernanceContract {
     Assert-PathExists -Path $resolvedOnboardingSummaryPath -Label "project template onboarding governance summary"
 
     $onboardingSummary = Get-Content -Raw -LiteralPath $resolvedOnboardingSummaryPath | ConvertFrom-Json
-    $onboardingSummaryDisplay = Convert-RepoPathToRelative -Value $resolvedOnboardingSummaryPath -RepoRoot $RepoRoot
+    $onboardingSummaryDisplay = Convert-EvidencePathToPublicDisplay -Value $resolvedOnboardingSummaryPath -RepoRoot $RepoRoot
     return [ordered]@{
         schema = Get-OptionalPropertyValue -Object $onboardingSummary -Name "schema"
         source_schema = Get-OptionalPropertyValue -Object $onboardingSummary -Name "schema"
@@ -656,6 +656,143 @@ function Convert-RepoPathToRelative {
     }
 
     return ".\" + ($relative -replace '/', '\')
+}
+
+function Convert-EvidencePathToPublicDisplay {
+    param(
+        [string]$Value,
+        [string]$RepoRoot
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $Value
+    }
+
+    $repoDisplay = Convert-RepoPathToRelative -Value $Value -RepoRoot $RepoRoot
+    if ($repoDisplay -ne $Value) {
+        return $repoDisplay
+    }
+
+    $normalized = $Value -replace '/', '\'
+    foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
+        $index = $normalized.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+        if ($index -ge 0) {
+            $relative = $normalized.Substring($index + 1)
+            if (-not [string]::IsNullOrWhiteSpace($relative)) {
+                return ".\" + $relative
+            }
+        }
+    }
+
+    return $Value
+}
+
+function Get-EvidenceObjectProperty {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Name)) {
+            return $Object[$Name]
+        }
+
+        return $null
+    }
+
+    return Get-OptionalPropertyObject -Object $Object -Name $Name
+}
+
+function Set-EvidenceObjectProperty {
+    param(
+        $Object,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -eq $Object) {
+        return
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        $Object[$Name] = $Value
+        return
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value
+        return
+    }
+
+    $property.Value = $Value
+}
+
+function Convert-EvidenceEntrypointsToPublicDisplay {
+    param(
+        $Contract,
+        $SourceContract = $null,
+        [string]$RepoRoot
+    )
+
+    if ($null -eq $Contract) {
+        return
+    }
+
+    $source = if ($null -ne $SourceContract) { $SourceContract } else { $Contract }
+    $targetEntrypoints = @(Get-EvidenceObjectProperty -Object $Contract -Name "entrypoints")
+    $targetById = @{}
+    foreach ($targetEntrypoint in $targetEntrypoints) {
+        $targetId = [string](Get-EvidenceObjectProperty -Object $targetEntrypoint -Name "id")
+        if (-not [string]::IsNullOrWhiteSpace($targetId)) {
+            $targetById[$targetId] = $targetEntrypoint
+        }
+    }
+
+    $index = 0
+    foreach ($sourceEntrypoint in @(Get-EvidenceObjectProperty -Object $source -Name "entrypoints")) {
+        if ($null -eq $sourceEntrypoint) {
+            $index++
+            continue
+        }
+
+        $sourceId = [string](Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name "id")
+        $targetEntrypoint = if (-not [string]::IsNullOrWhiteSpace($sourceId) -and $targetById.ContainsKey($sourceId)) {
+            $targetById[$sourceId]
+        } elseif ($index -lt $targetEntrypoints.Count) {
+            $targetEntrypoints[$index]
+        } else {
+            $null
+        }
+
+        if ($null -eq $targetEntrypoint) {
+            $index++
+            continue
+        }
+
+        $path = [string](Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name "path")
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+            Set-EvidenceObjectProperty `
+                -Object $targetEntrypoint `
+                -Name "path" `
+                -Value (Convert-EvidencePathToPublicDisplay -Value $path -RepoRoot $RepoRoot)
+        }
+
+        $pathDisplay = [string](Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name "path_display")
+        if (-not [string]::IsNullOrWhiteSpace($pathDisplay)) {
+            Set-EvidenceObjectProperty `
+                -Object $targetEntrypoint `
+                -Name "path_display" `
+                -Value (Convert-EvidencePathToPublicDisplay -Value $pathDisplay -RepoRoot $RepoRoot)
+        }
+
+        $index++
+    }
 }
 
 function Convert-ReleaseTextToPublic {
@@ -1057,6 +1194,21 @@ if (-not [string]::IsNullOrWhiteSpace($UploadReleaseTag)) {
 }
 
 $manifestPath = Join-Path $versionOutputDir "release_assets_manifest.json"
+if ($null -ne $manifestSignoffEntrypointsPublic) {
+    $manifestSignoffEntrypointsPublic["release_assets_manifest"] = Convert-EvidencePathToPublicDisplay `
+        -Value $manifestPath `
+        -RepoRoot $repoRoot
+    Convert-EvidenceEntrypointsToPublicDisplay `
+        -Contract $manifestSignoffEntrypointsPublic `
+        -SourceContract $manifestSignoffEntrypoints `
+        -RepoRoot $repoRoot
+}
+if ($null -ne $projectTemplateReadinessChecklistEntrypointsPublic) {
+    Convert-EvidenceEntrypointsToPublicDisplay `
+        -Contract $projectTemplateReadinessChecklistEntrypointsPublic `
+        -SourceContract $projectTemplateReadinessChecklistEntrypoints `
+        -RepoRoot $repoRoot
+}
 $manifest = [ordered]@{
     generated_at = Get-Date -Format s
     workspace = $repoRoot

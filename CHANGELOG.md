@@ -29,6 +29,9 @@ performance.
 - Added PDF floating table support-boundary evidence to the table layout
   delivery report, rollup, and governance summaries so release reviewers can
   distinguish the stable PDF geometry subset from metadata-only wrapping scope.
+- Added stable public evidence-path display handling for packaged release
+  manifests so project-template and manifest-signoff evidence keeps source
+  identity even when packaging runs from an out-of-repository working directory.
 
 ### Fixed
 

@@ -51,6 +51,29 @@ function Convert-TestPathToRepoRelativeDisplay {
     return $normalizedPath
 }
 
+function Convert-TestEvidencePathToPublicDisplay {
+    param(
+        [string]$Path,
+        [string]$RepoRoot
+    )
+
+    $repoDisplay = Convert-TestPathToRepoRelativeDisplay -Path $Path -RepoRoot $RepoRoot
+    $normalizedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($repoDisplay -ne $normalizedPath) {
+        return $repoDisplay
+    }
+
+    $normalizedDisplay = $normalizedPath -replace '/', '\'
+    foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
+        $index = $normalizedDisplay.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+        if ($index -ge 0) {
+            return ".\" + $normalizedDisplay.Substring($index + 1)
+        }
+    }
+
+    return $normalizedPath
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $workingDirParent = Split-Path -Parent $resolvedWorkingDir
@@ -753,6 +776,8 @@ Assert-NotContains -Path $stagedSummaryPath -UnexpectedText $resolvedRepoRoot -L
 Assert-NotContains -Path $stagedGateSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged gate_summary.json'
 Assert-NotContains -Path $stagedPdfGateSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged PDF visual gate summary.json'
 Assert-NotContains -Path $manifestPath -UnexpectedText $resolvedRepoRoot -Label 'release_assets_manifest.json'
+Assert-NotContains -Path $manifestPath -UnexpectedText '<windows-absolute-path>' -Label 'release_assets_manifest.json'
+Assert-NotContains -Path $manifestPath -UnexpectedText '<unix-absolute-path>' -Label 'release_assets_manifest.json'
 Assert-NotContains -Path $stagedHandoffPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_handoff.md'
 Assert-NotContains -Path $stagedGovernanceHandoffPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_governance_handoff.md'
 Assert-NotContains -Path $stagedReleaseBodyPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_body.zh-CN.md'
@@ -1256,7 +1281,7 @@ if ([int]$manifestProjectTemplateReadiness.ready_template_count -ne 4) {
 if ([int]$manifestProjectTemplateReadiness.release_blocker_count -ne 0) {
     throw "release_assets_manifest.json lost project template delivery readiness release_blocker_count."
 }
-$expectedProjectTemplateDeliveryReadinessDisplay = Convert-TestPathToRepoRelativeDisplay `
+$expectedProjectTemplateDeliveryReadinessDisplay = Convert-TestEvidencePathToPublicDisplay `
     -Path $projectTemplateDeliveryReadinessSummaryPath `
     -RepoRoot $resolvedRepoRoot
 if ([string]$manifestProjectTemplateReadiness.source_report_display -ne $expectedProjectTemplateDeliveryReadinessDisplay) {
@@ -1299,7 +1324,7 @@ if ([int]$manifestProjectTemplateOnboarding.release_blocker_count -ne 0) {
 if (@($manifestProjectTemplateOnboarding.schema_approval_status_summary).Count -ne 2) {
     throw "release_assets_manifest.json lost project template onboarding governance schema_approval_status_summary."
 }
-$expectedProjectTemplateOnboardingGovernanceDisplay = Convert-TestPathToRepoRelativeDisplay `
+$expectedProjectTemplateOnboardingGovernanceDisplay = Convert-TestEvidencePathToPublicDisplay `
     -Path $projectTemplateOnboardingGovernanceSummaryPath `
     -RepoRoot $resolvedRepoRoot
 if ([string]$manifestProjectTemplateOnboarding.source_report_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
@@ -1316,7 +1341,7 @@ if ($null -eq $manifestSignoffEntrypoints) {
 if ([string]$manifestSignoffEntrypoints.status -ne "declared") {
     throw "release_assets_manifest.json lost manifest signoff status."
 }
-$expectedManifestDisplay = Convert-TestPathToRepoRelativeDisplay `
+$expectedManifestDisplay = Convert-TestEvidencePathToPublicDisplay `
     -Path $manifestPath `
     -RepoRoot $resolvedRepoRoot
 if ([string]$manifestSignoffEntrypoints.release_assets_manifest -ne $expectedManifestDisplay) {
@@ -1403,14 +1428,17 @@ foreach ($entrypointExpectation in @(
         [ordered]@{
             id = "start_here"
             path = $startHerePath
+            path_display = ".\output\release-candidate-checks\START_HERE.md"
         },
         [ordered]@{
             id = "artifact_guide"
             path = $artifactGuidePath
+            path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
         },
         [ordered]@{
             id = "reviewer_checklist"
             path = $reviewerChecklistPath
+            path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
         }
     )) {
     $entrypointId = [string]$entrypointExpectation.id
@@ -1423,13 +1451,17 @@ foreach ($entrypointExpectation in @(
         throw "release_assets_manifest.json lost required=true for manifest signoff entrypoint '$entrypointId'."
     }
 
-    $expectedEntrypointDisplay = Convert-TestPathToRepoRelativeDisplay `
+    $expectedEntrypointDisplay = Convert-TestEvidencePathToPublicDisplay `
         -Path ([string]$entrypointExpectation.path) `
         -RepoRoot $resolvedRepoRoot
     if ([string]$entrypoint.path -ne $expectedEntrypointDisplay) {
         throw "release_assets_manifest.json did not public-sanitize manifest signoff entrypoint '$entrypointId' path."
     }
-    if ([string]$entrypoint.path_display -ne $expectedEntrypointDisplay) {
+
+    $expectedEntrypointPathDisplay = Convert-TestEvidencePathToPublicDisplay `
+        -Path ([string]$entrypointExpectation.path_display) `
+        -RepoRoot $resolvedRepoRoot
+    if ([string]$entrypoint.path_display -ne $expectedEntrypointPathDisplay) {
         throw "release_assets_manifest.json lost manifest signoff entrypoint '$entrypointId' path_display."
     }
 }
@@ -1439,9 +1471,9 @@ foreach ($entrypoint in @($manifestProjectTemplateChecklistEntrypoints.entrypoin
     $manifestProjectTemplateChecklistEntrypointsById[[string]$entrypoint.id] = $entrypoint
 }
 foreach ($entrypointExpectation in @(
-        [ordered]@{ id = "start_here"; path = $startHerePath },
-        [ordered]@{ id = "artifact_guide"; path = $artifactGuidePath },
-        [ordered]@{ id = "reviewer_checklist"; path = $reviewerChecklistPath }
+        [ordered]@{ id = "start_here"; path = $startHerePath; path_display = ".\output\release-candidate-checks\START_HERE.md" },
+        [ordered]@{ id = "artifact_guide"; path = $artifactGuidePath; path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md" },
+        [ordered]@{ id = "reviewer_checklist"; path = $reviewerChecklistPath; path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md" }
     )) {
     $entrypointId = [string]$entrypointExpectation.id
     if (-not $manifestProjectTemplateChecklistEntrypointsById.ContainsKey($entrypointId)) {
@@ -1453,13 +1485,17 @@ foreach ($entrypointExpectation in @(
         throw "release_assets_manifest.json lost required=true for project-template readiness checklist entrypoint '$entrypointId'."
     }
 
-    $expectedEntrypointDisplay = Convert-TestPathToRepoRelativeDisplay `
+    $expectedEntrypointDisplay = Convert-TestEvidencePathToPublicDisplay `
         -Path ([string]$entrypointExpectation.path) `
         -RepoRoot $resolvedRepoRoot
     if ([string]$entrypoint.path -ne $expectedEntrypointDisplay) {
         throw "release_assets_manifest.json did not public-sanitize project-template readiness checklist entrypoint '$entrypointId' path."
     }
-    if ([string]$entrypoint.path_display -ne $expectedEntrypointDisplay) {
+
+    $expectedEntrypointPathDisplay = Convert-TestEvidencePathToPublicDisplay `
+        -Path ([string]$entrypointExpectation.path_display) `
+        -RepoRoot $resolvedRepoRoot
+    if ([string]$entrypoint.path_display -ne $expectedEntrypointPathDisplay) {
         throw "release_assets_manifest.json lost project-template readiness checklist entrypoint '$entrypointId' path_display."
     }
 }
