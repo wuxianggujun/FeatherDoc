@@ -221,6 +221,34 @@ function Assert-StagedProjectTemplateChecklistHandoffEvidence {
         -Label "staged REVIEWER_CHECKLIST.md project-template checklist handoff evidence"
 }
 
+function Assert-StagedWordVisualStandardReviewMetadataHandoffEvidence {
+    param(
+        [string]$ReleaseCandidateRoot,
+        [int]$ExpectedMetadataCount
+    )
+
+    $path = Join-Path $ReleaseCandidateRoot "report\release_governance_handoff.md"
+    $label = "staged release_governance_handoff.md Word visual standard review metadata evidence"
+    Assert-PathExists -Path $path -Label $label
+
+    $content = Get-Content -Raw -LiteralPath $path
+    $requiredFragments = @(
+        "Word visual standard review metadata source reports",
+        "word_visual_standard_review_metadata_count: ``$ExpectedMetadataCount``",
+        "word_visual_standard_review_task_keys",
+        "word_visual_standard_review_status_summary",
+        "word_visual_standard_review_verdict_summary",
+        "review_result_path",
+        "final_review_path"
+    )
+
+    foreach ($fragment in $requiredFragments) {
+        if ($content.IndexOf($fragment, [System.StringComparison]::Ordinal) -lt 0) {
+            throw "$label must keep detailed Word visual standard review metadata source reports, including '$fragment'."
+        }
+    }
+}
+
 function New-ZipArchive {
     param(
         [string[]]$SourcePaths,
@@ -1139,6 +1167,13 @@ Sanitize-StagedReleaseMaterials -RepoRoot $repoRoot -RootPaths $releaseMaterialR
 
 Write-Step "Checking staged project-template checklist handoff evidence"
 Assert-StagedProjectTemplateChecklistHandoffEvidence -ReleaseCandidateRoot $stageReleaseCandidateRoot
+
+if ($wordVisualStandardReviewMetadata.Count -gt 0) {
+    Write-Step "Checking staged Word visual metadata handoff evidence"
+    Assert-StagedWordVisualStandardReviewMetadataHandoffEvidence `
+        -ReleaseCandidateRoot $stageReleaseCandidateRoot `
+        -ExpectedMetadataCount $wordVisualStandardReviewMetadata.Count
+}
 
 Write-Step "Auditing staged release materials"
 & $releaseMaterialAuditScript -Path $releaseMaterialRoots

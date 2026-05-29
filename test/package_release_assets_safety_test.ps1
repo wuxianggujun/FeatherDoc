@@ -260,6 +260,20 @@ Set-Content -LiteralPath $releaseGovernanceHandoffPath -Encoding UTF8 -Value @"
     - pdf_bounded_ctest_selected_test_count: ``70``
     - pdf_bounded_ctest_subsets: ``$pdfBoundedCtestSubsetsText``
     - pdf_bounded_ctest_summary_json_display: ``$pdfBoundedCtestSummaryJsonDisplayText``
+- Word visual standard review metadata source reports: ``1``
+  - source_report: ``.\output\release-candidate-checks\summary.json`` schema=``featherdoc.release_candidate_summary``
+    - word_visual_standard_review_metadata_count: ``4``
+    - word_visual_standard_review_task_keys: ``smoke, fixed_grid, section_page_setup, page_number_fields``
+    - word_visual_standard_review_status_summary: ``reviewed=4``
+    - word_visual_standard_review_verdict_summary: ``pass=4``
+    - ``smoke``: review_task_key=``document`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``
+      - label: ``Word visual smoke``
+      - reviewed_at: ``2026-04-12T12:10:00``
+      - review_result_path: ``.\output\word-visual-release-gate\review-tasks\document\report\review_result.json``
+      - final_review_path: ``.\output\word-visual-release-gate\review-tasks\document\report\final_review.md``
+    - ``fixed_grid``: review_task_key=``fixed_grid`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``
+    - ``section_page_setup``: review_task_key=``section_page_setup`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``
+    - ``page_number_fields``: review_task_key=``page_number_fields`` verdict=``pass`` review_status=``reviewed`` review_method=``operator_supplied``
 "@
 
 Set-Content -LiteralPath $releaseBodyPath -Encoding UTF8 -Value @"
@@ -816,6 +830,12 @@ $expectedRelativeHandoff = ".\$relativeWorkingDir\output\release-candidate-check
 $expectedRelativeGateReport = ".\$relativeWorkingDir\output\word-visual-release-gate\report"
 $expectedRelativePdfGateSummary = ".\$relativeWorkingDir\output\pdf-visual-release-gate\report\summary.json"
 $expectedRelativePdfGateRoot = ".\$relativeWorkingDir\output\pdf-visual-release-gate"
+$expectedSmokeReviewResultPath = Convert-TestEvidencePathToPublicDisplay `
+    -Path (Join-Path $smokeTaskDir "report\review_result.json") `
+    -RepoRoot $resolvedRepoRoot
+$expectedSmokeFinalReviewPath = Convert-TestEvidencePathToPublicDisplay `
+    -Path (Join-Path $smokeTaskDir "report\final_review.md") `
+    -RepoRoot $resolvedRepoRoot
 $stagedSummary = Get-Content -Raw -LiteralPath $stagedSummaryPath | ConvertFrom-Json
 $stagedGateSummary = Get-Content -Raw -LiteralPath $stagedGateSummaryPath | ConvertFrom-Json
 $stagedPdfGateSummary = Get-Content -Raw -LiteralPath $stagedPdfGateSummaryPath | ConvertFrom-Json
@@ -879,6 +899,15 @@ Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_bounded_ct
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'pdf_bounded_ctest_selected_test_count: `70`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText "pdf_bounded_ctest_subsets: ``$pdfBoundedCtestSubsetsText``" -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText "pdf_bounded_ctest_summary_json_display: ``$pdfBoundedCtestSummaryJsonDisplayText``" -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'Word visual standard review metadata source reports: `1`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'word_visual_standard_review_metadata_count: `4`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'word_visual_standard_review_task_keys: `smoke, fixed_grid, section_page_setup, page_number_fields`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'word_visual_standard_review_status_summary: `reviewed=4`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'word_visual_standard_review_verdict_summary: `pass=4`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText '`smoke`: review_task_key=`document` verdict=`pass` review_status=`reviewed` review_method=`operator_supplied`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'reviewed_at: `2026-04-12T12:10:00`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'review_result_path: `.\output\word-visual-release-gate\review-tasks\document\report\review_result.json`' -Label 'staged release_governance_handoff.md'
+Assert-Contains -Path $stagedGovernanceHandoffPath -ExpectedText 'final_review_path: `.\output\word-visual-release-gate\review-tasks\document\report\final_review.md`' -Label 'staged release_governance_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness: status=ready ready=True source_failures=0 schema=featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'project_template_delivery_readiness_contract:' -Label 'staged release_handoff.md'
 Assert-Contains -Path $stagedHandoffPath -ExpectedText 'source_schema: featherdoc.project_template_delivery_readiness_report.v1' -Label 'staged release_handoff.md'
@@ -1184,12 +1213,6 @@ if ([string]$manifestSmokeReviewMetadata.verdict -ne "pass" -or
     [string]$manifestSmokeReviewMetadata.review_method -ne "operator_supplied") {
     throw "release_assets_manifest.json lost the smoke standard Word visual review status metadata."
 }
-$expectedSmokeReviewResultPath = Convert-TestEvidencePathToPublicDisplay `
-    -Path (Join-Path $smokeTaskDir "report\review_result.json") `
-    -RepoRoot $resolvedRepoRoot
-$expectedSmokeFinalReviewPath = Convert-TestEvidencePathToPublicDisplay `
-    -Path (Join-Path $smokeTaskDir "report\final_review.md") `
-    -RepoRoot $resolvedRepoRoot
 if ([string]$manifestSmokeReviewMetadata.review_result_path -ne $expectedSmokeReviewResultPath) {
     throw "release_assets_manifest.json lost the smoke standard Word visual review result path."
 }
