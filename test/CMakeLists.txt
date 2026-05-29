@@ -2328,6 +2328,23 @@ if(WIN32)
 
         add_test(
             NAME
+            render_data_mapping_route_docs_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/render_data_mapping_route_docs_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(render_data_mapping_route_docs_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;template")
+
+        add_test(
+            NAME
             new_project_template_smoke_onboarding_plan
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

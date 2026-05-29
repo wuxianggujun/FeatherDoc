@@ -1955,7 +1955,8 @@ patch onto the draft so missing mappings, invalid ``source`` paths, duplicate
 targets, or leftover placeholders can fail before the final ``.docx`` step.
 Pass ``-ExportTargetMode resolved-section-targets`` when the mapping targets
 effective section header/footer references; workspace validation infers that
-same mode from workspace metadata and records it in JSON / Markdown summaries.
+same mode from workspace metadata and records it as ``export_target_mode`` in
+JSON / Markdown summaries.
 Prepared workspace summaries also carry that mode into their recommended
 validation and render commands.
 
