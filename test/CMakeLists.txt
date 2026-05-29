@@ -3400,6 +3400,25 @@ if(WIN32)
 
             add_test(
                 NAME
+                check_release_metadata_docs
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/check_release_metadata_docs_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/check_release_metadata_docs
+            )
+            set_tests_properties(check_release_metadata_docs
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;release-metadata")
+
+            add_test(
+                NAME
                 current_direction_docs_contract
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
