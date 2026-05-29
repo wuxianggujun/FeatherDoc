@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 90) {
-        throw "Expected JSON summary to count 90 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 98) {
+        throw "Expected JSON summary to count 98 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -283,6 +283,14 @@ $defaultPipelineText = @(
     '- ``word_visual_release_gate_preflight_static_contract_only``',
     '- ``preflight_ready``',
     '- ``release_ready``',
+    '- docx_functional_smoke_readiness',
+    '- ``featherdoc.docx_functional_smoke_readiness.v1``',
+    '- docx_functional_smoke_readiness_trace',
+    '- persisted_docx_functional_smoke_evidence_only',
+    '- summary_json_display',
+    '- report_markdown_display',
+    '- word_visual_smoke.pending_manual_review',
+    '- release_blocker_count',
     '- review_task_summary',
     '- assert_release_material_safety.ps1',
     '- -SkipMaterialSafetyAudit',
@@ -410,8 +418,8 @@ Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 4) {
     throw "Expected JSON summary checked document count 4, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 43) {
-    throw "Expected JSON summary pipeline marker count 43, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 51) {
+    throw "Expected JSON summary pipeline marker count 51, got: $($summary.required_pipeline_marker_count)"
 }
 if ($summary.required_checklist_marker_count -ne 34) {
     throw "Expected JSON summary checklist marker count 34, got: $($summary.required_checklist_marker_count)"
@@ -422,8 +430,8 @@ if ($summary.required_document_governance_marker_count -ne 10) {
 if ($summary.required_policy_marker_count -ne 3) {
     throw "Expected JSON summary policy marker count 3, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 90) {
-    throw "Expected JSON summary total marker count 90, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 98) {
+    throw "Expected JSON summary total marker count 98, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 4) {
     throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
@@ -452,6 +460,14 @@ Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue '``featherdoc.word_visual_release_gate_preflight.v1``' `
     -Message "JSON summary should list Word visual release gate preflight schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "docx_functional_smoke_readiness" `
+    -Message "JSON summary should list DOCX functional smoke readiness marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue '``featherdoc.docx_functional_smoke_readiness.v1``' `
+    -Message "JSON summary should list DOCX functional smoke readiness schema marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "readme_gallery" `
@@ -523,7 +539,7 @@ Assert-SummaryFailure `
     -ExpectedMessage "Trailing whitespace" `
     -ExpectedFailureKind "trailing_whitespace" `
     -ExpectedFailureRelativePath 'docs\release_metadata_pipeline_zh.rst' `
-    -ExpectedFailureLineNumber 18 `
+    -ExpectedFailureLineNumber 26 `
     -ExpectedFailureColumnNumber 22 `
     -ExpectedFailureExcerpt "- review_task_summary "
 
