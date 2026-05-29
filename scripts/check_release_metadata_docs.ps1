@@ -334,6 +334,7 @@ $pipelineExpectedMarkers = @(
     "rerun_pdf_controlled_visual_smoke_check",
     "check_pdf_controlled_visual_smoke.ps1",
     "controlled_visual_smoke_json_display",
+    "restore_docx_functional_smoke_evidence",
     '``id``',
     '``action``',
     '``message``',

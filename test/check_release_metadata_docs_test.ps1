@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 108) {
-        throw "Expected JSON summary to count 108 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 109) {
+        throw "Expected JSON summary to count 109 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -302,6 +302,7 @@ $defaultPipelineText = @(
     '- rerun_pdf_controlled_visual_smoke_check',
     '- check_pdf_controlled_visual_smoke.ps1',
     '- controlled_visual_smoke_json_display',
+    '- restore_docx_functional_smoke_evidence',
     '- ``id``',
     '- ``action``',
     '- ``message``',
@@ -428,8 +429,8 @@ Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 4) {
     throw "Expected JSON summary checked document count 4, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 51) {
-    throw "Expected JSON summary pipeline marker count 51, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 52) {
+    throw "Expected JSON summary pipeline marker count 52, got: $($summary.required_pipeline_marker_count)"
 }
 if ($summary.required_checklist_marker_count -ne 44) {
     throw "Expected JSON summary checklist marker count 44, got: $($summary.required_checklist_marker_count)"
@@ -440,8 +441,8 @@ if ($summary.required_document_governance_marker_count -ne 10) {
 if ($summary.required_policy_marker_count -ne 3) {
     throw "Expected JSON summary policy marker count 3, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 108) {
-    throw "Expected JSON summary total marker count 108, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 109) {
+    throw "Expected JSON summary total marker count 109, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 4) {
     throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
@@ -478,6 +479,10 @@ Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue '``featherdoc.docx_functional_smoke_readiness.v1``' `
     -Message "JSON summary should list DOCX functional smoke readiness schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "restore_docx_functional_smoke_evidence" `
+    -Message "JSON summary should list DOCX functional smoke readiness blocker action marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "readme_gallery" `

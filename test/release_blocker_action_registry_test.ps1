@@ -351,6 +351,51 @@ Assert-ContainsText -Text $controlledVisualSmokeChecklistGuidance -ExpectedText 
 Assert-ContainsText -Text $controlledVisualSmokeChecklistGuidance -ExpectedText "not release-ready evidence" `
     -Message "Controlled PDF visual smoke checklist guidance should state the evidence boundary."
 
+$docxFunctionalSmokeBlocker = [pscustomobject]@{
+    id = "docx_functional_smoke.word_visual_smoke_reused_evidence"
+    source = "docx_functional_smoke_readiness"
+    severity = "error"
+    status = "open"
+    action = "restore_docx_functional_smoke_evidence"
+    message = "Persisted Word visual smoke contact sheets and page PNGs must exist and be non-empty."
+    source_schema = "featherdoc.docx_functional_smoke_readiness.v1"
+    source_report_display = ".\output\docx-functional-smoke-readiness-current\summary.json"
+    source_json_display = ".\output\docx-functional-smoke-readiness-current\summary.json"
+}
+$docxFunctionalSmokeGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $docxFunctionalSmokeBlocker `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $docxFunctionalSmokeGuidance -ExpectedText "restore_docx_functional_smoke_evidence" `
+    -Message "DOCX functional smoke blocker should render its fixed action runbook."
+Assert-ContainsText -Text $docxFunctionalSmokeGuidance -ExpectedText "check_docx_functional_smoke_readiness.ps1" `
+    -Message "DOCX functional smoke runbook should point at the readiness check wrapper."
+Assert-ContainsText -Text $docxFunctionalSmokeGuidance -ExpectedText "docx-functional-smoke-readiness-current\summary.json" `
+    -Message "DOCX functional smoke runbook should keep source JSON evidence visible."
+Assert-ContainsText -Text $docxFunctionalSmokeGuidance -ExpectedText "read-only" `
+    -Message "DOCX functional smoke runbook should state the check is read-only."
+Assert-ContainsText -Text $docxFunctionalSmokeGuidance -ExpectedText "does not run CMake, CTest, Word" `
+    -Message "DOCX functional smoke runbook should keep heavyweight runtime boundaries explicit."
+Assert-ContainsText -Text $docxFunctionalSmokeGuidance -ExpectedText "not a fresh Word COM render" `
+    -Message "DOCX functional smoke runbook should state the reused-evidence boundary."
+Assert-ContainsText -Text $docxFunctionalSmokeGuidance -ExpectedText "release governance pipeline and handoff evidence" `
+    -Message "DOCX functional smoke runbook should tell reviewers to rebuild governance evidence."
+Assert-ContainsText -Text $docxFunctionalSmokeGuidance -ExpectedText "release note bundle" `
+    -Message "DOCX functional smoke runbook should tell reviewers to refresh release materials."
+Assert-True -Condition ($docxFunctionalSmokeGuidance -notmatch [regex]::Escape("Unregistered release blocker action")) `
+    -Message "DOCX functional smoke registered action should not use the unregistered fallback."
+
+$docxFunctionalSmokeChecklistGuidance = @(Get-ReleaseGovernanceBlockerActionGuidanceLines `
+        -Blocker $docxFunctionalSmokeBlocker `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $docxFunctionalSmokeChecklistGuidance -ExpectedText "release governance blocker" `
+    -Message "DOCX functional smoke checklist guidance should identify blocker context."
+Assert-ContainsText -Text $docxFunctionalSmokeChecklistGuidance -ExpectedText "check_docx_functional_smoke_readiness.ps1" `
+    -Message "DOCX functional smoke checklist guidance should point at the readiness check wrapper."
+Assert-ContainsText -Text $docxFunctionalSmokeChecklistGuidance -ExpectedText "not a fresh Word COM render" `
+    -Message "DOCX functional smoke checklist guidance should state the reused-evidence boundary."
+
 $pdfPreflightUnavailableBlocker = [pscustomobject]@{
     id = "pdf_visual_release_gate_preflight.summary_unavailable"
     source = "pdf_visual_release_gate_preflight"

@@ -112,6 +112,9 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``persisted_docx_functional_smoke_evidence_only``、
      ``word_visual_smoke.pending_manual_review``、``summary_json_display`` 和
      ``report_markdown_display``，以便 handoff 按固定报告类型消费并展示低资源证据边界。
+     如果该 stage 产生 ``restore_docx_functional_smoke_evidence`` blocker action，
+     reviewer 必须先恢复缺失的持久化 DOCX 功能或 Word visual smoke 证据，再只读重跑
+     ``check_docx_functional_smoke_readiness.ps1``，不能把它当作新鲜 Word COM 渲染。
    * ``scripts/build_release_governance_handoff_report.ps1`` 必须把同一批
      blocker / warning / action item 明细继续写入 handoff。
    * ``scripts/run_release_candidate_checks.ps1`` 生成的 summary / final review

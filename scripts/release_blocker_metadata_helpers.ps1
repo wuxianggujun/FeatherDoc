@@ -802,7 +802,8 @@ function Get-ReleaseBlockerRegisteredActions {
         "fix_schema_patch_approval_result",
         "prepare_pdf_visual_release_gate_build_outputs",
         "rerun_pdf_controlled_visual_smoke_check",
-        "rerun_pdf_visual_release_gate_preflight"
+        "rerun_pdf_visual_release_gate_preflight",
+        "restore_docx_functional_smoke_evidence"
     )
 }
 
@@ -876,6 +877,63 @@ function Add-PdfControlledVisualSmokeCheckGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'After the controlled smoke JSON is passing, rerun `write_pdf_visual_release_gate_preflight_governance_report.ps1`, rebuild the release blocker rollup, and regenerate the release note bundle before publishing.'
     } else {
         Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('After the controlled smoke JSON is passing, rerun `write_pdf_visual_release_gate_preflight_governance_report.ps1`, rerun release governance checks, and regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)
+    }
+}
+
+function Add-DocxFunctionalSmokeEvidenceGuidanceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item,
+        [string]$RepoRoot = "",
+        [string]$ReleaseSummaryJson = "",
+        [string]$ContextText = ""
+    )
+
+    $contextSuffix = if ([string]::IsNullOrWhiteSpace($ContextText)) { "" } else { " $ContextText" }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `restore_docx_functional_smoke_evidence`{0}: restore the missing persisted DOCX functional smoke evidence, then rerun the low-resource DOCX readiness check.' -f $contextSuffix)
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Item -Name "status"
+    $message = Get-ReleaseBlockerPropertyValue -Object $Item -Name "message"
+    if (-not [string]::IsNullOrWhiteSpace($status) -or -not [string]::IsNullOrWhiteSpace($message)) {
+        $statusLine = "DOCX functional smoke blocker"
+        if (-not [string]::IsNullOrWhiteSpace($status)) {
+            $statusLine += ": $status"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($message)) {
+            $statusLine += "; message: $message"
+        }
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text $statusLine
+    }
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Open the DOCX functional smoke readiness report first: {0}" -f $sourceReportDisplay)
+    }
+
+    $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Inspect the DOCX readiness source JSON before changing evidence: {0}" -f $sourceJsonDisplay)
+    }
+
+    $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_docx_functional_smoke_readiness.ps1 -RepoRoot . -OutputDir .\output\docx-functional-smoke-readiness-current'
+    }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Run the low-resource DOCX readiness command: `{0}`' -f $commandTemplate)
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'The DOCX functional smoke readiness check is read-only: it validates persisted package, feature, and Word visual smoke PNG evidence and does not run CMake, CTest, Word, LibreOffice, browser automation, document rendering, virtual environment creation, or dependency installation.'
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'A passing DOCX readiness check refreshes only persisted DOCX functional smoke evidence; it is not a fresh Word COM render and is not release-ready visual evidence until the required visual review or release gate also passes.'
+
+    $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    if ([string]::IsNullOrWhiteSpace($releaseSummaryDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'After DOCX readiness is passing, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle before publishing.'
+    } else {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('After DOCX readiness is passing, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)
     }
 }
 
@@ -983,6 +1041,14 @@ function Get-ReleaseBlockerActionGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'A regenerated PDF preflight summary only refreshes prerequisite evidence; it is not release-ready evidence until the full PDF visual release gate passes.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'After the preflight summary is readable, rerun `write_pdf_visual_release_gate_preflight_governance_report.ps1`, rebuild the release blocker rollup, and regenerate the release note bundle.'
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'After each PDF preflight or gate attempt, clean up only task-owned PDF gate processes and transient outputs after capturing the required evidence; do not terminate unrelated external build, Office, browser, node, or PowerShell processes.'
+            break
+        }
+        "restore_docx_functional_smoke_evidence" {
+            Add-DocxFunctionalSmokeEvidenceGuidanceLines `
+                -Lines $guidanceLines `
+                -Item $Blocker `
+                -RepoRoot $RepoRoot `
+                -ReleaseSummaryJson $ReleaseSummaryJson
             break
         }
         default {
@@ -2619,6 +2685,13 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `
             -Text 'After each PDF preflight or gate attempt, clean up only task-owned PDF gate processes and transient outputs after capturing the required evidence; do not terminate unrelated external build, Office, browser, node, or PowerShell processes.'
+    } elseif ([string]::Equals($action, "restore_docx_functional_smoke_evidence", [System.StringComparison]::OrdinalIgnoreCase)) {
+        Add-DocxFunctionalSmokeEvidenceGuidanceLines `
+            -Lines $guidanceLines `
+            -Item $Item `
+            -RepoRoot $RepoRoot `
+            -ReleaseSummaryJson $ReleaseSummaryJson `
+            -ContextText ('for release governance {0} `{1}`' -f $ItemKind, $id)
     }
 
     $hadCommand = $false

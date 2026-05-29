@@ -193,6 +193,12 @@ PDF preflight governance report、release blocker rollup 与 release note bundle
 这些 runbook 还会直接展示 ``output gap checks`` 和 ``missing outputs``，与
 preflight summary 的顶层 ``output_gap_count`` / ``missing_output_count`` 保持一致，
 避免 reviewer 需要手动合计 CLI baseline、visual baseline 和 CJK text-layer 缺口。
+DOCX 功能 smoke 的 ``restore_docx_functional_smoke_evidence`` blocker action 也
+映射到固定 runbook：reviewer 先打开 ``source_report_display`` /
+``source_json_display`` 指向的 ``docx-functional-smoke-readiness`` 证据，恢复缺失的
+DOCX package、功能样例或 Word visual smoke PNG 证据，再只读运行
+``check_docx_functional_smoke_readiness.ps1``，最后重建 release governance pipeline /
+handoff 与 release note bundle。该 runbook 必须继续声明它不是新鲜 Word COM 渲染。
 无论是预检还是完整 gate，运行完成后都只清理本任务启动的 PDF gate 临时输出和相关进程；
 不要结束与 FeatherDoc 无关的 Office、浏览器、node 或其它外部构建进程。
 

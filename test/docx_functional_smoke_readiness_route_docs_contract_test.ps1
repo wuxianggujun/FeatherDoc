@@ -87,6 +87,7 @@ foreach ($marker in @(
         "featherdoc.docx_functional_smoke_readiness.v1",
         "docx_functional_smoke_readiness_trace",
         "word_visual_smoke.pending_manual_review",
+        "restore_docx_functional_smoke_evidence",
         "-OutputDir",
         "-SummaryJson",
         "-ReportMarkdown",
@@ -104,6 +105,7 @@ foreach ($marker in @(
         "docx_functional_smoke_readiness_trace",
         "persisted_docx_functional_smoke_evidence_only",
         "word_visual_smoke.pending_manual_review",
+        "restore_docx_functional_smoke_evidence",
         "summary_json_display",
         "report_markdown_display"
     )) {
@@ -133,6 +135,7 @@ foreach ($assertion in @(
                 '$FailOnWarning',
                 "docx_functional_smoke_readiness.md",
                 "release_blocker_count",
+                "restore_docx_functional_smoke_evidence",
                 "report_markdown_display"
             )
         },
