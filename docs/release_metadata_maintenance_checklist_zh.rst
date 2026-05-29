@@ -25,6 +25,7 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 1. 这次改动属于哪一层？
 
    - visual gate
+   - Word visual release gate preflight
    - release candidate preflight
    - verdict sync
    - release note bundle
@@ -85,6 +86,15 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 .. code-block:: powershell
 
     pwsh -NoProfile -ExecutionPolicy Bypass -File `
+        .\scripts\check_word_visual_release_gate_preflight.ps1 `
+        -RepoRoot .
+
+    pwsh -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\check_word_visual_release_gate_preflight_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir output\codex-word-visual-release-gate-preflight-check
+
+    pwsh -NoProfile -ExecutionPolicy Bypass -File `
         .\test\word_visual_release_gate_smoke_verdict_test.ps1 `
         -RepoRoot . `
         -WorkingDir output\codex-word-visual-release-gate-check
@@ -93,6 +103,12 @@ release 流水线的详细设计文档；详细字段流向请先阅读
         -R "^word_visual_release_gate_smoke_verdict$" `
         --output-on-failure `
         --timeout 60
+
+``check_word_visual_release_gate_preflight.ps1`` 只证明静态 gate 契约可进入下一步。
+它输出 ``featherdoc.word_visual_release_gate_preflight.v1``，证据边界是
+``word_visual_release_gate_preflight_static_contract_only``；``preflight_ready``
+为 true 时也不能把 ``release_ready`` 当作 true。只有完整 Word 视觉 gate 的
+截图证据和 review verdict 才能作为 release-ready evidence。
 
 修改 release candidate preflight：
 
@@ -182,7 +198,11 @@ CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制
 ``warning_count``、``release_blocker_rollup``、
 ``release_governance_handoff``、``release_governance_pipeline``、
 ``source_schema``、``source_report_display``、``source_json_display``、
-``style_merge_suggestion_count``、``ReleaseBlockerRollupFailOnWarning`` 和
+``style_merge_suggestion_count``、``check_word_visual_release_gate_preflight.ps1``、
+``check_word_visual_release_gate_preflight_test.ps1``、
+``featherdoc.word_visual_release_gate_preflight.v1``、
+``word_visual_release_gate_preflight_static_contract_only``、``preflight_ready``、
+``release_ready``、``ReleaseBlockerRollupFailOnWarning`` 和
 ``ReleaseGovernanceHandoffFailOnWarning``。其中 ``source_report_display`` 用于让
 reviewer 先打开治理源报告，``source_json_display`` 用于继续追溯到原始证据 JSON。
 

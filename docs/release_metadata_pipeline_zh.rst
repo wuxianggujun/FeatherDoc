@@ -63,6 +63,15 @@ regression bundles。
 - ``review_tasks``：按标准任务和 curated bundle 分类的 review task 入口。
 - ``review_task_summary``：本次需要评审的任务数量。
 
+进入完整 Word 视觉 gate 前，可以先运行
+``check_word_visual_release_gate_preflight.ps1`` 做只读静态前置检查。该脚本输出
+``featherdoc.word_visual_release_gate_preflight.v1``，证据边界固定为
+``word_visual_release_gate_preflight_static_contract_only``；其中 ``preflight_ready``
+只表示 gate 脚本、helper、CMake 轻量测试注册和文档入口仍然一致，``release_ready``
+必须保持为 ``false``。该 preflight 不启动 Word、CMake、CTest、浏览器、
+LibreOffice 或任何视觉渲染流程，不能替代截图级 ``gate_summary.json`` 和人工
+review verdict。
+
 ``review_task_summary`` 必须同时包含下面三个字段才算完整：
 
 - ``total_count``
