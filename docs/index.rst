@@ -23,6 +23,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    document_governance_acceptance_zh
    docx_functional_smoke_readiness_zh
    documentation_maintenance_zh
+   script_task_index_zh
    project_score_assessment_zh
    release_policy_zh
    release_metadata_pipeline_zh

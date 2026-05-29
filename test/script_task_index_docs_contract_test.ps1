@@ -1,0 +1,152 @@
+param(
+    [string]$RepoRoot
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+function Assert-ContainsText {
+    param(
+        [string]$Text,
+        [string]$ExpectedText,
+        [string]$Message
+    )
+
+    if ($Text -notmatch [regex]::Escape($ExpectedText)) {
+        throw "$Message Missing='$ExpectedText'."
+    }
+}
+
+function Assert-RepoPathExists {
+    param(
+        [string]$Root,
+        [string]$RelativePath,
+        [string]$Message
+    )
+
+    $path = Join-Path $Root $RelativePath
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "$Message MissingPath='$RelativePath'."
+    }
+}
+
+function Get-RepoFileText {
+    param(
+        [string]$Root,
+        [string]$RelativePath
+    )
+
+    $path = Join-Path $Root $RelativePath
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "Expected contract file was not found: $RelativePath"
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $path
+}
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    throw "RepoRoot is required."
+}
+
+$resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+
+$indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
+$maintenanceDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\documentation_maintenance_zh.rst"
+$scoreDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\project_score_assessment_zh.rst"
+$scriptIndexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\script_task_index_zh.rst"
+$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+
+foreach ($marker in @(
+        "script_task_index_zh",
+        "documentation_maintenance_zh",
+        "project_score_assessment_zh"
+    )) {
+    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
+        -Message "Sphinx index should keep script task index and maintenance docs reachable."
+}
+
+foreach ($marker in @(
+        "docs/script_task_index_zh.rst",
+        "check_word_visual_release_gate_preflight.ps1"
+    )) {
+    Assert-ContainsText -Text $maintenanceDoc -ExpectedText $marker `
+        -Message "Documentation maintenance guide should point to the script task index marker '$marker'."
+}
+
+foreach ($marker in @(
+        "docs/script_task_index_zh.rst",
+        "scripts"
+    )) {
+    Assert-ContainsText -Text $scoreDoc -ExpectedText $marker `
+        -Message "Project score assessment should route script governance improvements to the script index."
+}
+
+foreach ($marker in @(
+        "check_template_schema_baseline.ps1",
+        "export_template_render_plan.ps1",
+        "check_docx_functional_smoke_readiness.ps1",
+        "build_numbering_catalog_governance_report.ps1",
+        "build_table_layout_delivery_report.ps1",
+        "check_word_visual_release_gate_preflight.ps1",
+        "build_release_governance_pipeline_report.ps1",
+        "check_pdf_release_readiness.ps1",
+        "TIMEOUT 60",
+        "-SkipBuild",
+        "schema_version"
+    )) {
+    Assert-ContainsText -Text $scriptIndexDoc -ExpectedText $marker `
+        -Message "Script task index should preserve category or maintenance marker '$marker'."
+}
+
+$requiredScriptPaths = @(
+    "scripts\check_template_schema_baseline.ps1",
+    "scripts\check_template_schema_manifest.ps1",
+    "scripts\run_project_template_smoke.ps1",
+    "scripts\build_project_template_onboarding_governance_report.ps1",
+    "scripts\export_template_render_plan.ps1",
+    "scripts\prepare_template_render_data_workspace.ps1",
+    "scripts\render_template_document_from_workspace.ps1",
+    "scripts\edit_document_from_plan.ps1",
+    "scripts\build_content_control_data_binding_governance_report.ps1",
+    "scripts\check_docx_functional_smoke_readiness.ps1",
+    "scripts\check_numbering_catalog_baseline.ps1",
+    "scripts\build_numbering_catalog_governance_report.ps1",
+    "scripts\build_document_skeleton_governance_report.ps1",
+    "scripts\build_document_skeleton_governance_rollup_report.ps1",
+    "scripts\write_schema_patch_confidence_calibration_report.ps1",
+    "scripts\write_style_merge_suggestion_review.ps1",
+    "scripts\build_table_layout_delivery_report.ps1",
+    "scripts\build_table_layout_delivery_rollup_report.ps1",
+    "scripts\build_table_layout_delivery_governance_report.ps1",
+    "scripts\run_word_visual_release_gate.ps1",
+    "scripts\check_word_visual_release_gate_preflight.ps1",
+    "scripts\sync_latest_visual_review_verdict.ps1",
+    "scripts\run_release_candidate_checks.ps1",
+    "scripts\build_release_blocker_rollup_report.ps1",
+    "scripts\build_release_governance_pipeline_report.ps1",
+    "scripts\build_release_governance_handoff_report.ps1",
+    "scripts\assert_release_material_safety.ps1",
+    "scripts\package_release_assets.ps1",
+    "scripts\check_pdf_release_readiness.ps1",
+    "scripts\check_pdf_visual_release_gate_preflight.ps1",
+    "scripts\run_pdf_ctest_bounded_subset.ps1"
+)
+
+foreach ($relativePath in $requiredScriptPaths) {
+    Assert-RepoPathExists -Root $resolvedRepoRoot -RelativePath $relativePath `
+        -Message "Script task index should only list maintained scripts that exist."
+    Assert-ContainsText -Text $scriptIndexDoc -ExpectedText ($relativePath -replace "\\", "/") `
+        -Message "Script task index should mention maintained script '$relativePath'."
+}
+
+foreach ($marker in @(
+        "script_task_index_docs_contract",
+        "script_task_index_docs_contract_test.ps1",
+        "TIMEOUT 60",
+        'LABELS "docs;smoke;governance;scripts"'
+    )) {
+    Assert-ContainsText -Text $cmakeLists -ExpectedText $marker `
+        -Message "CMake test registration should keep script task index docs contract wired."
+}
+
+Write-Host "Script task index docs contract passed."
