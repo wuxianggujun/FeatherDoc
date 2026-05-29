@@ -229,7 +229,10 @@ schema confidence calibration 会写出
 ``featherdoc.schema_patch_confidence_calibration_report.v1``。当 calibration 里仍有
 pending approval outcome 时，报告会把
 ``schema_patch_confidence_calibration.pending_schema_approvals`` 写入
-``release_blockers``；未打分 candidate 或无效审批记录会进入 ``warnings``；所有
+``release_blockers``；未打分 candidate 会以
+``schema_patch_confidence_calibration.unscored_candidates`` 进入 ``warnings``；
+无效审批记录会以 ``schema_patch_confidence_calibration.invalid_approval_records``
+进入 ``release_blockers``。所有
 recommendation 会同步成 ``action_items`` 并携带重建校准报告的 ``open_command``。
 默认 auto-discovery、release governance pipeline 和 handoff 都会读取
 ``schema-patch-confidence-calibration/summary.json``，因此 reviewer 可以在发布面板

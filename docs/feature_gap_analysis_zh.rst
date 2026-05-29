@@ -177,6 +177,9 @@ blocker / warning / action item 的 ``id``、``action``、``message``、``open_c
 document skeleton rollup 的 blocker / action item 明细，便于发布面板在 final rollup 之前
 按 stage 展开骨架治理证据；release governance handoff 也会把同一批骨架治理明细继续
 透传到 handoff summary、final review、release bundle 和 reviewer checklist。
+真实语料对齐结果会作为 ``numbering_catalog_governance.real_corpus_confidence`` /
+``real_corpus_confidence`` 指标进入发布安全材料，用来区分 catalog 覆盖率、baseline
+覆盖率、匹配文档数和 penalty summary，而不是只展示骨架治理项数量。
 后续对既有文档里的复杂 numbering catalog，仍可继续强化冲突审计和 catalog
 patch 衔接。
 
