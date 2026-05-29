@@ -797,7 +797,7 @@ Write-JsonFile -Path $pdfPreflightGovernancePath -Value ([ordered]@{
     warnings = @(
         [ordered]@{
             id = "pdf_controlled_visual_smoke.unavailable_or_failed"
-            action = "review_pdf_controlled_visual_smoke"
+            action = "rerun_pdf_controlled_visual_smoke_check"
             status = "fail"
             message = "Controlled PDF visual smoke evidence was provided but is not passing."
             source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
@@ -1381,7 +1381,7 @@ if (Test-Scenario -Name "passing") {
     $pdfPreflightWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "pdf_controlled_visual_smoke.unavailable_or_failed" } |
         Select-Object -First 1)
-    Assert-Equal -Actual ([string]$pdfPreflightWarning.action) -Expected "review_pdf_controlled_visual_smoke" `
+    Assert-Equal -Actual ([string]$pdfPreflightWarning.action) -Expected "rerun_pdf_controlled_visual_smoke_check" `
         -Message "Rollup should preserve PDF preflight warning action."
     Assert-Equal -Actual ([string]$pdfPreflightWarning.source_schema) -Expected "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" `
         -Message "Rollup should preserve PDF preflight warning source schema."

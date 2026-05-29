@@ -537,7 +537,7 @@ function New-PdfPreflightGovernance {
         warnings = @(
             [ordered]@{
                 id = "pdf_controlled_visual_smoke.unavailable_or_failed"
-                action = "review_pdf_controlled_visual_smoke"
+                action = "rerun_pdf_controlled_visual_smoke_check"
                 status = "fail"
                 message = "Controlled PDF visual smoke evidence was provided but is not passing."
                 source_schema = "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1"
