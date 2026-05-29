@@ -867,6 +867,15 @@ function Convert-EvidenceEntrypointsToPublicDisplay {
         }
 
         $pathDisplay = [string](Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name "path_display")
+        if ([string]::IsNullOrWhiteSpace($pathDisplay)) {
+            $pathDisplay = [string](Get-EvidenceObjectProperty -Object $targetEntrypoint -Name "path_display")
+        }
+        if ([string]::IsNullOrWhiteSpace($pathDisplay)) {
+            $pathDisplay = [string](Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name "path")
+        }
+        if ([string]::IsNullOrWhiteSpace($pathDisplay)) {
+            $pathDisplay = [string](Get-EvidenceObjectProperty -Object $targetEntrypoint -Name "path")
+        }
         if (-not [string]::IsNullOrWhiteSpace($pathDisplay)) {
             Set-EvidenceObjectProperty `
                 -Object $targetEntrypoint `
@@ -938,6 +947,10 @@ function Convert-StructuredValueToPublic {
     if ($Value -is [string]) {
         $relativeValue = Convert-RepoPathToRelative -Value $Value -RepoRoot $RepoRoot
         return Convert-ReleaseTextToPublic -Value $relativeValue -RepoRoot $RepoRoot
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
     }
 
     if ($Value -is [System.Collections.IDictionary]) {

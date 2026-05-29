@@ -384,7 +384,9 @@ $visualSmokeSummaries = @(
         if ($reviewVerdict -ne "pass") {
             [void]$warnings.Add([ordered]@{
                     id = "word_visual_smoke.pending_manual_review"
+                    action = "complete_word_visual_smoke_review"
                     message = "Persisted Word visual smoke evidence is non-empty, but the review verdict is not pass."
+                    source_schema = "featherdoc.docx_functional_smoke_readiness.v1"
                     root = $resolvedRoot
                     root_display = Get-DisplayPath -Root $repoRootPath -Path $resolvedRoot
                     review_status = $reviewStatus

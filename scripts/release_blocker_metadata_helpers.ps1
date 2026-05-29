@@ -35,6 +35,10 @@ function Get-ReleaseBlockerPropertyValue {
         return ""
     }
 
+    if ($value -is [datetime]) {
+        return $value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
     return [string]$value
 }
 
@@ -339,11 +343,20 @@ function Get-ReleaseBlockerDisplayValue {
         [string]$Fallback = "(not available)"
     )
 
-    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {
+    if ($null -eq $Value) {
         return $Fallback
     }
 
-    return [string]$Value
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $Fallback
+    }
+
+    return $text
 }
 
 function Get-ReleaseBlockerDisplayPath {
@@ -1962,7 +1975,18 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAud
         return ""
     }
 
-    $report = $reports | Select-Object -First 1
+    $report = $reports |
+        Where-Object {
+            $schema = Get-ReleaseBlockerPropertyValue -Object $_ -Name "schema"
+            $pathDisplay = Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display"
+
+            $schema -eq "featherdoc.release_candidate_summary" -and
+                $pathDisplay -match "release-candidate-checks|release_candidate_summary|report[\\/]+summary\.json"
+        } |
+        Select-Object -First 1
+    if ($null -eq $report) {
+        $report = $reports | Select-Object -First 1
+    }
     $rollup = Get-ReleaseBlockerPropertyObject -Object $handoff -Name "release_blocker_rollup"
     $sourceReport = ""
     foreach ($fieldName in @("report_markdown_display", "report_markdown", "summary_json_display", "summary_json")) {

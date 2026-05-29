@@ -26,13 +26,22 @@ function Resolve-FullPath {
 }
 
 function Get-DisplayValue {
-    param([string]$Value)
+    param($Value)
 
-    if ([string]::IsNullOrWhiteSpace($Value)) {
+    if ($null -eq $Value) {
         return "(not available)"
     }
 
-    return $Value
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return "(not available)"
+    }
+
+    return $text
 }
 
 function Get-DisplayPath {
@@ -124,6 +133,10 @@ $requiresProjectTemplateGovernanceSignoff = Test-ReleaseManifestSignoffRequiresP
 $projectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary $summary
 $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary $summary
 $wordVisualStandardReviewMetadataEvidenceLine = Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary $summary
+$hasProjectTemplateReleaseEntryEvidence = (
+    -not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine) -or
+    -not [string]::IsNullOrWhiteSpace($projectTemplateChecklistMaterialSafetyAuditEvidenceLine)
+)
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $artifactGuidePath = Get-OptionalPropertyValue -Object $summary -Name "artifact_guide"
 if ([string]::IsNullOrWhiteSpace($artifactGuidePath)) {
@@ -714,7 +727,7 @@ if ($readmeGalleryStatus -eq "completed") {
 Add-CheckboxLine -Lines $lines -Text 'Use `release_summary.zh-CN.md` for the GitHub Release first-screen bullets.'
 Add-CheckboxLine -Lines $lines -Text 'Use `release_body.zh-CN.md` for the full release notes or translated handoff notes.'
 Add-CheckboxLine -Lines $lines -Text ('Generate or refresh the local public release ZIP files before publishing: `{0}`' -f $packageAssetsCommand)
-if ($requiresProjectTemplateGovernanceSignoff) {
+if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm the packaged release manifest preserves project-template governance contracts before publishing: {0} must include `project_template_delivery_readiness_contract` and `project_template_onboarding_governance_contract` with `status`, `release_ready`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display`.' -f $releaseAssetsManifestDisplayPath)
 }
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {

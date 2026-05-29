@@ -135,14 +135,29 @@ function Get-JsonProperty {
     return $property.Value
 }
 
+function Convert-JsonScalarToString {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    return [string]$Value
+}
+
 function Get-JsonString {
     param($Object, [string]$Name, [string]$DefaultValue = "")
 
     $value = Get-JsonProperty -Object $Object -Name $Name
-    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+    $text = Convert-JsonScalarToString -Value $value
+    if ([string]::IsNullOrWhiteSpace($text)) {
         return $DefaultValue
     }
-    return [string]$value
+    return $text
 }
 
 function Get-JsonBool {

@@ -41,7 +41,7 @@ function Get-WarningBlocks {
         $line = $lines[$index]
 
         if (-not $capturing) {
-            if ($line -match '^\s*\$warnings\.Add\(\[ordered\]@\{\s*$') {
+            if ($line -match '^\s*(?:\[void\])?\$warnings\.Add\(\[ordered\]@\{\s*$') {
                 $capturing = $true
                 $startLine = $index + 1
                 $currentLines = New-Object 'System.Collections.Generic.List[string]'
@@ -51,7 +51,7 @@ function Get-WarningBlocks {
         }
 
         $currentLines.Add($line) | Out-Null
-        if ($line -match '^\s*\}\)\s*\|\s*Out-Null\s*$') {
+        if ($line -match '^\s*\}\)(?:\s*\|\s*Out-Null)?\s*$') {
             $bodyLines = @()
             if ($currentLines.Count -gt 2) {
                 $bodyLines = $currentLines[1..($currentLines.Count - 2)]

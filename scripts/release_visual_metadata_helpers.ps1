@@ -43,6 +43,10 @@ function Get-OptionalPropertyValue {
         return ""
     }
 
+    if ($value -is [datetime]) {
+        return Convert-VisualReviewTimestamp -Value $value
+    }
+
     return [string]$value
 }
 

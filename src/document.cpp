@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <string>
@@ -143,7 +144,7 @@ struct zip_entry_copy_context {
     bool failed{false};
 };
 
-auto copy_zip_entry_chunk(void *arg, unsigned long long /*offset*/, const void *data,
+auto copy_zip_entry_chunk(void *arg, std::uint64_t /*offset*/, const void *data,
                           size_t size) -> size_t {
     auto *context = static_cast<zip_entry_copy_context *>(arg);
     if (context == nullptr || context->failed || size == 0) {

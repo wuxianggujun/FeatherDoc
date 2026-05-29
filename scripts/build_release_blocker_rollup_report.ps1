@@ -151,14 +151,29 @@ function Get-JsonProperty {
     return $property.Value
 }
 
+function Convert-JsonScalarToString {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    return [string]$Value
+}
+
 function Get-JsonString {
     param($Object, [string]$Name, [string]$DefaultValue = "")
 
     $value = Get-JsonProperty -Object $Object -Name $Name
-    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+    $text = Convert-JsonScalarToString -Value $value
+    if ([string]::IsNullOrWhiteSpace($text)) {
         return $DefaultValue
     }
-    return [string]$value
+    return $text
 }
 
 function Get-FirstJsonString {
@@ -209,6 +224,33 @@ function Get-JsonBool {
     $parsed = $false
     if ([bool]::TryParse([string]$value, [ref]$parsed)) { return $parsed }
     return $DefaultValue
+}
+
+function Get-SourcePayloadPreview {
+    param(
+        [string]$Path,
+        [int]$MaxLength = 2048
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return ""
+    }
+
+    try {
+        $payload = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path
+        if ($null -eq $payload) {
+            return ""
+        }
+
+        $normalized = ([string]$payload).Trim()
+        if ($normalized.Length -le $MaxLength) {
+            return $normalized
+        }
+
+        return $normalized.Substring(0, $MaxLength)
+    } catch {
+        return ""
+    }
 }
 
 function Test-InformationalActionItem {
@@ -1547,6 +1589,10 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$report.error)) {
                 $lines.Add("  - error: ``$($report.error)``") | Out-Null
             }
+            $payloadPreview = Get-JsonString -Object $report -Name "payload_preview"
+            if (-not [string]::IsNullOrWhiteSpace($payloadPreview)) {
+                $lines.Add("  - payload_preview: ``$payloadPreview``") | Out-Null
+            }
             $fullVisualGateRequired = Get-JsonProperty -Object $report -Name "full_visual_gate_required"
             if ($null -ne $fullVisualGateRequired) {
                 $lines.Add("  - full_visual_gate_required: ``$fullVisualGateRequired``") | Out-Null
@@ -1852,6 +1898,7 @@ foreach ($path in @($inputPaths)) {
     $kind = "unknown"
     $status = "loaded"
     $errorMessage = ""
+    $payloadPreview = ""
     $sourceMetrics = @()
     $releaseReady = $false
     $sourceReportStatus = ""
@@ -2153,6 +2200,7 @@ foreach ($path in @($inputPaths)) {
     } catch {
         $status = "failed"
         $errorMessage = $_.Exception.Message
+        $payloadPreview = Get-SourcePayloadPreview -Path $path
         $warnings.Add([ordered]@{
             id = "source_report_read_failed"
             project_id = ""
@@ -2175,6 +2223,7 @@ foreach ($path in @($inputPaths)) {
         status = $status
         release_ready = $releaseReady
         error = $errorMessage
+        payload_preview = $payloadPreview
         latest_schema_approval_gate_status = $latestSchemaApprovalGateStatus
         schema_approval_status_summary = @($schemaApprovalStatusSummary)
         governance_metric_count = @($sourceMetrics).Count

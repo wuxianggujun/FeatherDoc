@@ -785,7 +785,19 @@ function Invoke-ChildPowerShell {
         [string]$FailureMessage
     )
 
-    $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $ScriptPath @Arguments 2>&1)
+    $powerShellPath = (Get-Process -Id $PID).Path
+    if ([string]::IsNullOrWhiteSpace($powerShellPath)) {
+        $powerShellCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+        if ($null -eq $powerShellCommand) {
+            $powerShellCommand = Get-Command powershell.exe -ErrorAction SilentlyContinue
+        }
+        if ($null -eq $powerShellCommand) {
+            throw "Unable to resolve a PowerShell executable for child script invocation."
+        }
+        $powerShellPath = $powerShellCommand.Source
+    }
+
+    $commandOutput = @(& $powerShellPath -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $ScriptPath @Arguments 2>&1)
     $exitCode = $LASTEXITCODE
 
     foreach ($line in $commandOutput) {

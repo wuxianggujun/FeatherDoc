@@ -35,6 +35,20 @@ function Assert-NotContains {
     }
 }
 
+function Convert-TestComparableValue {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    return [string]$Value
+}
+
 function Convert-TestPathToRepoRelativeDisplay {
     param(
         [string]$Path,
@@ -1207,10 +1221,10 @@ $manifestSmokeReviewMetadata = $wordVisualStandardReviewMetadataByTask["smoke"]
 if ([string]$manifestSmokeReviewMetadata.review_task_key -ne "document") {
     throw "release_assets_manifest.json did not preserve the smoke review task key alias."
 }
-if ([string]$manifestSmokeReviewMetadata.verdict -ne "pass" -or
-    [string]$manifestSmokeReviewMetadata.review_status -ne "reviewed" -or
-    [string]$manifestSmokeReviewMetadata.reviewed_at -ne "2026-04-12T12:10:00" -or
-    [string]$manifestSmokeReviewMetadata.review_method -ne "operator_supplied") {
+if ((Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.verdict) -ne "pass" -or
+    (Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.review_status) -ne "reviewed" -or
+    (Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.reviewed_at) -ne "2026-04-12T12:10:00" -or
+    (Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.review_method) -ne "operator_supplied") {
     throw "release_assets_manifest.json lost the smoke standard Word visual review status metadata."
 }
 if ([string]$manifestSmokeReviewMetadata.review_result_path -ne $expectedSmokeReviewResultPath) {

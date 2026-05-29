@@ -21,9 +21,25 @@ function Assert-True {
     if (-not $Condition) { throw $Message }
 }
 
+function Convert-TestComparableValue {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    return [string]$Value
+}
+
 function Assert-Equal {
     param($Actual, $Expected, [string]$Message)
-    if ($Actual -ne $Expected) { throw "$Message Expected='$Expected' Actual='$Actual'." }
+    $actualText = Convert-TestComparableValue -Value $Actual
+    $expectedText = Convert-TestComparableValue -Value $Expected
+    if ($actualText -ne $expectedText) { throw "$Message Expected='$expectedText' Actual='$actualText'." }
 }
 
 function Assert-ContainsText {

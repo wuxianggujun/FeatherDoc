@@ -41842,9 +41842,14 @@ int featherdoc_cli_main(int argc, char **argv) {
         return 0;
 #else
         featherdoc::document_error_info error_info{};
-        error_info.code = std::make_error_code(std::errc::not_supported);
         error_info.detail =
             "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON";
+        if (options.json_output) {
+            write_json_command_error(std::cerr, command, "export",
+                                     "Operation not supported", &error_info);
+            return 1;
+        }
+        error_info.code = std::make_error_code(std::errc::not_supported);
         report_operation_failure(command, "export",
                                  "PDF export is not enabled in this build",
                                  error_info, options.json_output);
