@@ -234,6 +234,8 @@ CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制
 ``source_schema``、``source_report_display``、``source_json_display``、
 ``style_merge_suggestion_count``、``check_word_visual_release_gate_preflight.ps1``、
 ``check_word_visual_release_gate_preflight_test.ps1``、
+``word_visual_release_gate_preflight_route_docs_contract``、
+``word_visual_release_gate_preflight_route_docs_contract_test.ps1``、
 ``featherdoc.word_visual_release_gate_preflight.v1``、
 ``word_visual_release_gate_preflight_static_contract_only``、``preflight_ready``、
 ``release_ready``、``check_docx_functional_smoke_readiness.ps1``、

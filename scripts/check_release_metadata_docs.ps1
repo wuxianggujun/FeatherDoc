@@ -360,6 +360,8 @@ $checklistExpectedMarkers = @(
     ':doc:`document_governance_acceptance_zh`',
     "check_word_visual_release_gate_preflight.ps1",
     "check_word_visual_release_gate_preflight_test.ps1",
+    "word_visual_release_gate_preflight_route_docs_contract",
+    "word_visual_release_gate_preflight_route_docs_contract_test.ps1",
     '``featherdoc.word_visual_release_gate_preflight.v1``',
     '``word_visual_release_gate_preflight_static_contract_only``',
     '``preflight_ready``',

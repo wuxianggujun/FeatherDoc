@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 109) {
-        throw "Expected JSON summary to count 109 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 111) {
+        throw "Expected JSON summary to count 111 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -333,6 +333,8 @@ $defaultChecklistText = @(
     '- word_visual_release_gate_smoke_verdict',
     '- check_word_visual_release_gate_preflight.ps1',
     '- check_word_visual_release_gate_preflight_test.ps1',
+    '- word_visual_release_gate_preflight_route_docs_contract',
+    '- word_visual_release_gate_preflight_route_docs_contract_test.ps1',
     '- ``featherdoc.word_visual_release_gate_preflight.v1``',
     '- ``word_visual_release_gate_preflight_static_contract_only``',
     '- ``preflight_ready``',
@@ -432,8 +434,8 @@ if ($summary.checked_document_count -ne 4) {
 if ($summary.required_pipeline_marker_count -ne 52) {
     throw "Expected JSON summary pipeline marker count 52, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 44) {
-    throw "Expected JSON summary checklist marker count 44, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 46) {
+    throw "Expected JSON summary checklist marker count 46, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 10) {
     throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
@@ -441,8 +443,8 @@ if ($summary.required_document_governance_marker_count -ne 10) {
 if ($summary.required_policy_marker_count -ne 3) {
     throw "Expected JSON summary policy marker count 3, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 109) {
-    throw "Expected JSON summary total marker count 109, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 111) {
+    throw "Expected JSON summary total marker count 111, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 4) {
     throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
@@ -495,6 +497,10 @@ Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "check_word_visual_release_gate_preflight_test.ps1" `
     -Message "JSON summary should list Word visual preflight test marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "word_visual_release_gate_preflight_route_docs_contract_test.ps1" `
+    -Message "JSON summary should list Word visual preflight route docs contract test marker."
 Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "check_docx_functional_smoke_readiness.ps1" `
@@ -582,7 +588,7 @@ Assert-SummaryFailure `
     -ExpectedMessage "Tab character found" `
     -ExpectedFailureKind "tab_character" `
     -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
-    -ExpectedFailureLineNumber 21 `
+    -ExpectedFailureLineNumber 23 `
     -ExpectedFailureColumnNumber 6 `
     -ExpectedFailureExcerpt "- git`t diff --check"
 
