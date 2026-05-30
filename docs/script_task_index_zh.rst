@@ -176,10 +176,15 @@ Release governance 与发布材料
   pipeline summary。
 - ``scripts/build_release_governance_handoff_report.ps1``：生成 release governance
   handoff summary。
+- ``scripts/check_release_metadata_docs.ps1``：检查发布元数据文档的固定契约与
+  reviewer-facing 入口。
 - ``scripts/assert_release_material_safety.ps1``：检查发布材料安全边界。
 - ``scripts/package_release_assets.ps1``：打包发布资产。
 - ``scripts/publish_github_release.ps1``：发布 GitHub release。
 - ``scripts/sync_github_release_notes.ps1``：同步 GitHub release notes。
+- ``scripts/write_release_metadata_start_here.ps1``：生成发布材料入口
+  ``START_HERE.md``。
+- ``scripts/write_release_body_zh.ps1``：生成中文 release body 与短摘要。
 - ``scripts/write_release_artifact_guide.ps1``：生成 artifact guide。
 - ``scripts/write_release_artifact_handoff.ps1``：生成 release handoff 文档。
 - ``scripts/write_release_reviewer_checklist.ps1``：生成 reviewer checklist。

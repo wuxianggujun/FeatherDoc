@@ -137,8 +137,11 @@ $requiredScriptPaths = @(
     "scripts\build_release_blocker_rollup_report.ps1",
     "scripts\build_release_governance_pipeline_report.ps1",
     "scripts\build_release_governance_handoff_report.ps1",
+    "scripts\check_release_metadata_docs.ps1",
     "scripts\assert_release_material_safety.ps1",
     "scripts\package_release_assets.ps1",
+    "scripts\write_release_metadata_start_here.ps1",
+    "scripts\write_release_body_zh.ps1",
     "scripts\check_pdf_release_readiness.ps1",
     "scripts\check_pdf_visual_release_gate_preflight.ps1",
     "scripts\run_pdf_ctest_bounded_subset.ps1"
