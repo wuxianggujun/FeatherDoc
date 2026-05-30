@@ -41,6 +41,21 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-FileHasNoBom {
+    param(
+        [string]$Path,
+        [string]$Message
+    )
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 3 -and
+        $bytes[0] -eq 0xEF -and
+        $bytes[1] -eq 0xBB -and
+        $bytes[2] -eq 0xBF) {
+        throw "$Message Path='$Path'."
+    }
+}
+
 function Get-CheckByName {
     param(
         [object]$Summary,
@@ -82,6 +97,10 @@ Assert-True -Condition (Test-Path -LiteralPath $summaryPath -PathType Leaf) `
     -Message "Preflight should write a JSON summary."
 Assert-True -Condition (Test-Path -LiteralPath $reportPath -PathType Leaf) `
     -Message "Preflight should write a Markdown report."
+Assert-FileHasNoBom -Path $summaryPath `
+    -Message "Preflight JSON summary should be UTF-8 without BOM."
+Assert-FileHasNoBom -Path $reportPath `
+    -Message "Preflight Markdown report should be UTF-8 without BOM."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.word_visual_release_gate_preflight.v1" `
@@ -160,6 +179,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $missingSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingSummaryPath | ConvertFrom-Json
+Assert-FileHasNoBom -Path $missingSummaryPath `
+    -Message "Missing fixture JSON summary should be UTF-8 without BOM."
+Assert-FileHasNoBom -Path $missingReportPath `
+    -Message "Missing fixture Markdown report should be UTF-8 without BOM."
 Assert-Equal -Actual ([string]$missingSummary.status) -Expected "not_ready" `
     -Message "Missing fixture preflight should be not_ready."
 Assert-True -Condition ((@($missingSummary.blocking_checks) | ForEach-Object { [string]$_ }) -contains "word_visual_gate_scripts_exist") `
@@ -189,5 +212,9 @@ Assert-True -Condition ($strictExitCode -ne 0) `
     -Message "Strict preflight should fail when static contract blockers remain."
 Assert-True -Condition (Test-Path -LiteralPath $strictSummaryPath -PathType Leaf) `
     -Message "Strict failure should still write the summary JSON."
+Assert-FileHasNoBom -Path $strictSummaryPath `
+    -Message "Strict failure JSON summary should be UTF-8 without BOM."
+Assert-FileHasNoBom -Path $strictReportPath `
+    -Message "Strict failure Markdown report should be UTF-8 without BOM."
 
 Write-Host "Word visual release gate preflight contract passed."

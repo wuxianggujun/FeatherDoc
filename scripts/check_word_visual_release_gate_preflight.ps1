@@ -69,6 +69,17 @@ function Ensure-ParentDirectory {
     }
 }
 
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [string]$Text
+    )
+
+    Ensure-ParentDirectory -Path $Path
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Text, $encoding)
+}
+
 function Get-RepoFileText {
     param(
         [string]$Root,
@@ -333,11 +344,9 @@ $summary = [ordered]@{
     boundary = $boundary
 }
 
-Ensure-ParentDirectory -Path $resolvedOutputJson
-($summary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $resolvedOutputJson -Encoding UTF8
+Write-Utf8NoBomFile -Path $resolvedOutputJson -Text (($summary | ConvertTo-Json -Depth 12) + [Environment]::NewLine)
 
 if (-not [string]::IsNullOrWhiteSpace($resolvedReportMarkdown)) {
-    Ensure-ParentDirectory -Path $resolvedReportMarkdown
     $markdownLines = New-Object 'System.Collections.Generic.List[string]'
     $markdownLines.Add("# Word Visual Release Gate Preflight") | Out-Null
     $markdownLines.Add("") | Out-Null
@@ -359,7 +368,7 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReportMarkdown)) {
     foreach ($check in @($checks)) {
         $markdownLines.Add("- ``$($check.name)``: ``$($check.status)`` - $($check.message)") | Out-Null
     }
-    $markdownLines -join [Environment]::NewLine | Set-Content -LiteralPath $resolvedReportMarkdown -Encoding UTF8
+    Write-Utf8NoBomFile -Path $resolvedReportMarkdown -Text (($markdownLines -join [Environment]::NewLine) + [Environment]::NewLine)
 }
 
 $summary | ConvertTo-Json -Depth 12
