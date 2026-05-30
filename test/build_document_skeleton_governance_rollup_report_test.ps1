@@ -268,6 +268,8 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text ([string]$summary.release_blockers[0].source_json_display) `
         -ExpectedText "style-numbering-audit.json" `
         -Message "Release blockers should preserve the original source evidence JSON display."
+    Assert-Equal -Actual ([string]$summary.release_blockers[0].origin_source_schema) -Expected "featherdoc.document_skeleton_governance_report.v1" `
+        -Message "Release blockers should preserve the original single-document source schema."
     Assert-ContainsText -Text ([string]$summary.release_blockers[0].origin_source_report_display) `
         -ExpectedText "contract\summary.json" `
         -Message "Release blockers should preserve the original single-document source report display."
@@ -286,6 +288,8 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text ([string]$previewRepairAction.source_json_display) `
         -ExpectedText "contract\summary.json" `
         -Message "Action items should preserve the source summary as source_json_display when no narrower evidence exists."
+    Assert-Equal -Actual ([string]$previewRepairAction.origin_source_schema) -Expected "featherdoc.document_skeleton_governance_report.v1" `
+        -Message "Action items should preserve the original single-document source schema."
     Assert-ContainsText -Text ([string]$previewRepairAction.origin_source_report_display) `
         -ExpectedText "contract\summary.json" `
         -Message "Action items should preserve the original single-document source report display."
@@ -306,6 +310,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should include per-document style merge suggestion counts."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display:" `
         -Message "Markdown report should expose source_json_display for reviewer traceability."
+    Assert-ContainsText -Text $markdown -ExpectedText "origin_source_schema:" `
+        -Message "Markdown report should expose origin source schema for reviewer traceability."
     Assert-ContainsText -Text $markdown -ExpectedText "origin_source_report_display:" `
         -Message "Markdown report should expose origin source report display for reviewer traceability."
     Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `

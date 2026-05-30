@@ -310,6 +310,9 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
             }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.origin_source_schema)) {
+                $lines.Add("  - origin_source_schema: ``$($blocker.origin_source_schema)``") | Out-Null
+            }
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.origin_source_report_display)) {
                 $lines.Add("  - origin_source_report_display: ``$($blocker.origin_source_report_display)``") | Out-Null
             }
@@ -339,6 +342,9 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
             }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.origin_source_schema)) {
+                $lines.Add("  - origin_source_schema: ``$($item.origin_source_schema)``") | Out-Null
+            }
             if (-not [string]::IsNullOrWhiteSpace([string]$item.origin_source_report_display)) {
                 $lines.Add("  - origin_source_report_display: ``$($item.origin_source_report_display)``") | Out-Null
             }
@@ -360,6 +366,9 @@ function New-ReportMarkdown {
                 $warning.message)) | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$warning.origin_source_schema)) {
+                $lines.Add("  - origin_source_schema: ``$($warning.origin_source_schema)``") | Out-Null
             }
         }
     }
