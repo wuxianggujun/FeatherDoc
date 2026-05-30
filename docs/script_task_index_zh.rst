@@ -28,7 +28,9 @@
   ``summary.json`` 和 ``script_task_index_check.md``，让 CI / release 面板消费
   稳定 JSON，也让人工复核直接阅读 Markdown 摘要；可用 ``-SummaryJson`` /
   ``-ReportMarkdown`` 显式指定输出路径；同一个脚本路径被重复列出时也会失败，
-  并在 JSON / Markdown 中写出 ``duplicate_script_reference_count``。
+  并在 JSON / Markdown 中写出 ``duplicate_script_reference_count``；报告还会
+  通过 ``script_reference_group_count`` 和 ``script_reference_groups`` 按本页
+  小节汇总脚本覆盖量，方便维护者快速发现某个分组入口异常变化。
 
 
 模板契约与项目模板

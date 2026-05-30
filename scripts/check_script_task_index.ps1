@@ -136,6 +136,54 @@ function Get-DuplicateScriptReferences {
     )
 }
 
+function Get-ScriptReferenceGroups {
+    param([string]$Text)
+
+    $lines = [regex]::Split($Text, "\r?\n")
+    $currentGroup = "unsectioned"
+    $groupMap = [ordered]@{}
+    $scriptPattern = 'scripts/[A-Za-z0-9_.-]+\.(ps1|py)'
+
+    for ($index = 0; $index -lt $lines.Count; $index++) {
+        $line = [string]$lines[$index]
+        if ($index + 1 -lt $lines.Count) {
+            $nextLine = ([string]$lines[$index + 1]).Trim()
+            if (-not [string]::IsNullOrWhiteSpace($line) -and
+                $nextLine.Length -ge 3 -and
+                $nextLine -match '^[=\-]+$') {
+                $currentGroup = $line.Trim()
+            }
+        }
+
+        $matches = [regex]::Matches($line, $scriptPattern)
+        foreach ($match in $matches) {
+            if (-not $groupMap.Contains($currentGroup)) {
+                $groupMap[$currentGroup] = New-Object 'System.Collections.Generic.List[string]'
+            }
+
+            $relativePath = $match.Value.Replace("/", [System.IO.Path]::DirectorySeparatorChar)
+            $groupMap[$currentGroup].Add($relativePath)
+        }
+    }
+
+    $groups = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($groupName in $groupMap.Keys) {
+        $references = @($groupMap[$groupName].ToArray())
+        $uniqueReferences = @(Get-UniqueScriptReferences -References $references)
+        $duplicateReferences = @(Get-DuplicateScriptReferences -References $references)
+        $groups.Add([pscustomobject]@{
+            group_name = $groupName
+            total_script_reference_count = $references.Count
+            script_reference_count = $uniqueReferences.Count
+            duplicate_script_reference_count = $duplicateReferences.Count
+            script_references = $uniqueReferences
+            duplicate_script_references = $duplicateReferences
+        })
+    }
+
+    return @($groups.ToArray())
+}
+
 function Get-MissingMarkers {
     param(
         [string]$Text,
@@ -168,6 +216,7 @@ function New-MarkdownReport {
         [object[]]$CheckedScripts,
         [string[]]$MissingScripts,
         [object[]]$DuplicateScriptReferences,
+        [object[]]$ScriptReferenceGroups,
         [object[]]$MissingMarkers
     )
 
@@ -181,6 +230,7 @@ function New-MarkdownReport {
     $lines.Add("- script_index: ``$($Summary.script_index_relative_path)``")
     $lines.Add("- total_script_reference_count: ``$($Summary.total_script_reference_count)``")
     $lines.Add("- script_reference_count: ``$($Summary.script_reference_count)``")
+    $lines.Add("- script_reference_group_count: ``$($Summary.script_reference_group_count)``")
     $lines.Add("- duplicate_script_reference_count: ``$($Summary.duplicate_script_reference_count)``")
     $lines.Add("- missing_script_count: ``$($Summary.missing_script_count)``")
     $lines.Add("- required_marker_count: ``$($Summary.required_marker_count)``")
@@ -194,6 +244,13 @@ function New-MarkdownReport {
     foreach ($script in $CheckedScripts) {
         $scriptStatus = if ([bool]$script.exists) { "ok" } else { "missing" }
         $lines.Add("- [$scriptStatus] ``$($script.relative_path)``")
+    }
+
+    $lines.Add("")
+    $lines.Add("## Script Reference Groups")
+    $lines.Add("")
+    foreach ($group in $ScriptReferenceGroups) {
+        $lines.Add("- ``$($group.group_name)``: $($group.script_reference_count) unique / $($group.total_script_reference_count) total")
     }
 
     $lines.Add("")
@@ -267,6 +324,7 @@ if ($scriptReferences.Count -eq 0) {
 }
 
 $duplicateScriptReferences = @(Get-DuplicateScriptReferences -References $allScriptReferences)
+$scriptReferenceGroups = @(Get-ScriptReferenceGroups -Text $scriptIndexText)
 
 $checkedScripts = @(
     $scriptReferences | ForEach-Object {
@@ -336,6 +394,7 @@ $reportMarkdownRelativePath = Get-RepoRelativePath -BaseRoot $resolvedRepoRoot -
 $requiredMarkerCount = [int](($requiredMarkerGroups | ForEach-Object { $_.markers.Count } | Measure-Object -Sum).Sum)
 $missingMarkerEntries = @($missingMarkers.ToArray())
 $duplicateScriptReferenceEntries = @($duplicateScriptReferences)
+$scriptReferenceGroupEntries = @($scriptReferenceGroups)
 
 $summary = [ordered]@{
     summary_schema_version = 1
@@ -352,6 +411,8 @@ $summary = [ordered]@{
     script_index_relative_path = $scriptIndexRelativePath
     total_script_reference_count = $allScriptReferences.Count
     script_reference_count = $scriptReferences.Count
+    script_reference_group_count = $scriptReferenceGroups.Count
+    script_reference_groups = $scriptReferenceGroupEntries
     checked_scripts = @($checkedScripts)
     duplicate_script_reference_count = $duplicateScriptReferences.Count
     duplicate_script_references = $duplicateScriptReferenceEntries
@@ -368,6 +429,7 @@ Write-Utf8NoBomFile -Path $reportMarkdownPath -Text (New-MarkdownReport `
         -CheckedScripts $checkedScripts `
         -MissingScripts $missingScripts `
         -DuplicateScriptReferences $duplicateScriptReferenceEntries `
+        -ScriptReferenceGroups $scriptReferenceGroupEntries `
         -MissingMarkers $missingMarkerEntries)
 
 if ($status -ne "passed") {

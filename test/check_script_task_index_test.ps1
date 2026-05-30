@@ -158,6 +158,29 @@ if ($passingSummary.script_reference_count -lt 20) {
 if ($passingSummary.total_script_reference_count -ne $passingSummary.script_reference_count) {
     throw "Expected no duplicate script references in the maintained index."
 }
+if ($passingSummary.script_reference_group_count -lt 8) {
+    throw "Expected at least 8 script reference groups, got: $($passingSummary.script_reference_group_count)"
+}
+$passingGroupUniqueCount = [int](($passingSummary.script_reference_groups |
+            ForEach-Object { $_.script_reference_count } |
+            Measure-Object -Sum).Sum)
+$passingGroupTotalCount = [int](($passingSummary.script_reference_groups |
+            ForEach-Object { $_.total_script_reference_count } |
+            Measure-Object -Sum).Sum)
+if ($passingGroupUniqueCount -ne $passingSummary.script_reference_count) {
+    throw "Script reference group unique total does not match summary count."
+}
+if ($passingGroupTotalCount -ne $passingSummary.total_script_reference_count) {
+    throw "Script reference group total does not match summary count."
+}
+Assert-ArrayContains `
+    -Values @($passingSummary.script_reference_groups | ForEach-Object { $_.script_references } | ForEach-Object { $_ }) `
+    -ExpectedValue "scripts\check_script_task_index.ps1" `
+    -Message "Script reference groups should include the script index checker."
+Assert-ArrayContains `
+    -Values @($passingSummary.script_reference_groups | ForEach-Object { $_.script_references } | ForEach-Object { $_ }) `
+    -ExpectedValue "scripts\run_release_candidate_checks.ps1" `
+    -Message "Script reference groups should include release candidate checks."
 if ($passingSummary.duplicate_script_reference_count -ne 0) {
     throw "Expected no duplicate script references, got: $($passingSummary.duplicate_script_reference_count)"
 }
@@ -184,10 +207,13 @@ foreach ($marker in @(
         '- schema: `featherdoc.script_task_index_check.v1`',
         '- status: `passed`',
         '- total_script_reference_count:',
+        '- script_reference_group_count:',
         '- duplicate_script_reference_count: `0`',
         '- missing_script_count: `0`',
         '- missing_marker_count: `0`',
         '## Checked Scripts',
+        '## Script Reference Groups',
+        'unique /',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'
@@ -288,6 +314,19 @@ if ($failingSummary.missing_script_count -ne 1) {
 if ($failingSummary.duplicate_script_reference_count -ne 1) {
     throw "Expected one duplicate script reference, got: $($failingSummary.duplicate_script_reference_count)"
 }
+if ($failingSummary.script_reference_group_count -ne 1) {
+    throw "Expected one script reference group in failing fixture, got: $($failingSummary.script_reference_group_count)"
+}
+$failingGroup = @($failingSummary.script_reference_groups)[0]
+if ($failingGroup.total_script_reference_count -ne 4) {
+    throw "Expected four total script references in failing fixture group, got: $($failingGroup.total_script_reference_count)"
+}
+if ($failingGroup.script_reference_count -ne 3) {
+    throw "Expected three unique script references in failing fixture group, got: $($failingGroup.script_reference_count)"
+}
+if ($failingGroup.duplicate_script_reference_count -ne 1) {
+    throw "Expected one duplicate script reference in failing fixture group, got: $($failingGroup.duplicate_script_reference_count)"
+}
 Assert-ArrayContains `
     -Values @($failingSummary.missing_scripts) `
     -ExpectedValue "scripts\missing_tool.ps1" `
@@ -298,9 +337,12 @@ Assert-ArrayContains `
     -Message "Failing summary should list the duplicate script reference."
 foreach ($marker in @(
         '- status: `failed`',
+        '- script_reference_group_count: `1`',
         '- duplicate_script_reference_count: `1`',
         '- missing_script_count: `1`',
         '[missing] `scripts\missing_tool.ps1`',
+        '## Script Reference Groups',
+        '`Script task index`: 3 unique / 4 total',
         '## Duplicate Script References',
         '`scripts\existing_tool.ps1` x2',
         '## Missing Scripts',
