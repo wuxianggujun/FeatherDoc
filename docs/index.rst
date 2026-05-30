@@ -27,6 +27,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    project_score_assessment_zh
    release_policy_zh
    release_metadata_pipeline_zh
+   release_metadata_maintenance_checklist_zh
    pdf_release_readiness_checklist_zh
    pdf_export
    pdf_import

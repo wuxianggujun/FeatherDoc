@@ -3670,6 +3670,8 @@ reason about and extend independently.
 - Project identity guide: `docs/project_identity_zh.rst`
 - Current direction guide (Chinese): `docs/current_direction_zh.rst`
 - Release policy guide: `docs/release_policy_zh.rst`
+- Release metadata pipeline guide: `docs/release_metadata_pipeline_zh.rst`
+- Release metadata maintenance checklist: `docs/release_metadata_maintenance_checklist_zh.rst`
 - Chinese license guide: `docs/licensing_zh.rst`
 - Repository legal notes: `LEGAL.md`
 - Distribution notice summary: `NOTICE`

@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 152) {
-        throw "Expected JSON summary to count 152 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 154) {
+        throw "Expected JSON summary to count 154 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -191,7 +191,10 @@ function New-DocsCase {
         [string]$PipelineText = $defaultPipelineText,
         [string]$ChecklistText = $defaultChecklistText,
         [string]$DocumentGovernanceText = $defaultDocumentGovernanceText,
-        [string]$PolicyText = $defaultPolicyText
+        [string]$PolicyText = $defaultPolicyText,
+        [string]$IndexText = $defaultIndexText,
+        [string]$ReadmeText = $defaultReadmeText,
+        [string]$ReadmeZhText = $defaultReadmeZhText
     )
 
     $caseRoot = Join-Path $resolvedWorkingDir ("{0}-{1}" -f $Name, [System.Guid]::NewGuid().ToString("N"))
@@ -201,6 +204,9 @@ function New-DocsCase {
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_metadata_maintenance_checklist_zh.rst") -Text $ChecklistText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "document_governance_acceptance_zh.rst") -Text $DocumentGovernanceText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_policy_zh.rst") -Text $PolicyText
+    Write-Utf8NoBomFile -Path (Join-Path $docsDir "index.rst") -Text $IndexText
+    Write-Utf8NoBomFile -Path (Join-Path $caseRoot "README.md") -Text $ReadmeText
+    Write-Utf8NoBomFile -Path (Join-Path $caseRoot "README.zh-CN.md") -Text $ReadmeZhText
 
     return $caseRoot
 }
@@ -446,6 +452,33 @@ $defaultPolicyText = @(
     ''
 ) -join "`n"
 
+$defaultIndexText = @(
+    'FeatherDoc',
+    '==========',
+    '',
+    '.. toctree::',
+    '',
+    '   release_metadata_pipeline_zh',
+    '   release_metadata_maintenance_checklist_zh',
+    ''
+) -join "`n"
+
+$defaultReadmeText = @(
+    '# FeatherDoc',
+    '',
+    '- Release metadata pipeline guide: `docs/release_metadata_pipeline_zh.rst`',
+    '- Release metadata maintenance checklist: `docs/release_metadata_maintenance_checklist_zh.rst`',
+    ''
+) -join "`n"
+
+$defaultReadmeZhText = @(
+    '# FeatherDoc',
+    '',
+    '- Release metadata 流水线：`docs/release_metadata_pipeline_zh.rst`',
+    '- Release metadata 维护清单：`docs/release_metadata_maintenance_checklist_zh.rst`',
+    ''
+) -join "`n"
+
 $passingCaseRoot = New-DocsCase -Name "passing"
 $summaryJsonPath = Join-Path $passingCaseRoot "docs-check-summary.json"
 Invoke-DocsCheck -CaseRoot $passingCaseRoot -SummaryJson $summaryJsonPath
@@ -469,8 +502,8 @@ if ($summary.summary_schema_version -ne 1) {
     throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
 }
 Assert-SummaryAuditFields -Summary $summary
-if ($summary.checked_document_count -ne 4) {
-    throw "Expected JSON summary checked document count 4, got: $($summary.checked_document_count)"
+if ($summary.checked_document_count -ne 7) {
+    throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
 }
 if ($summary.required_pipeline_marker_count -ne 70) {
     throw "Expected JSON summary pipeline marker count 70, got: $($summary.required_pipeline_marker_count)"
@@ -484,11 +517,14 @@ if ($summary.required_document_governance_marker_count -ne 10) {
 if ($summary.required_policy_marker_count -ne 8) {
     throw "Expected JSON summary policy marker count 8, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 152) {
-    throw "Expected JSON summary total marker count 152, got: $($summary.required_marker_count)"
+if ($summary.required_entrypoint_marker_count -ne 2) {
+    throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.checked_documents.Count -ne 4) {
-    throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
+if ($summary.required_marker_count -ne 154) {
+    throw "Expected JSON summary total marker count 154, got: $($summary.required_marker_count)"
+}
+if ($summary.checked_documents.Count -ne 7) {
+    throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
 }
 Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
@@ -498,6 +534,26 @@ Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
     -ExpectedValue 'docs\document_governance_acceptance_zh.rst' `
     -Message "JSON summary should list the document governance acceptance doc."
+Assert-ArrayContains `
+    -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue 'docs\index.rst' `
+    -Message "JSON summary should list the Sphinx index doc."
+Assert-ArrayContains `
+    -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue 'README.md' `
+    -Message "JSON summary should list the English README."
+Assert-ArrayContains `
+    -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue 'README.zh-CN.md' `
+    -Message "JSON summary should list the Chinese README."
+Assert-ArrayContains `
+    -Values @($summary.required_entrypoint_markers) `
+    -ExpectedValue "release_metadata_pipeline_zh" `
+    -Message "JSON summary should list release metadata pipeline entrypoint marker."
+Assert-ArrayContains `
+    -Values @($summary.required_entrypoint_markers) `
+    -ExpectedValue "release_metadata_maintenance_checklist_zh" `
+    -Message "JSON summary should list release metadata maintenance checklist entrypoint marker."
 Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "release_note_bundle_visual_verdict_metadata" `
@@ -715,6 +771,15 @@ Write-Utf8NoBomFile `
 Write-Utf8NoBomFile `
     -Path (Join-Path $missingPolicyDocsDir "document_governance_acceptance_zh.rst") `
     -Text $defaultDocumentGovernanceText
+Write-Utf8NoBomFile `
+    -Path (Join-Path $missingPolicyDocsDir "index.rst") `
+    -Text $defaultIndexText
+Write-Utf8NoBomFile `
+    -Path (Join-Path $missingPolicyCaseRoot "README.md") `
+    -Text $defaultReadmeText
+Write-Utf8NoBomFile `
+    -Path (Join-Path $missingPolicyCaseRoot "README.zh-CN.md") `
+    -Text $defaultReadmeZhText
 $missingPolicySummaryJsonPath = Join-Path $missingPolicyCaseRoot "docs-check-summary.json"
 Invoke-DocsCheck `
     -CaseRoot $missingPolicyCaseRoot `
@@ -726,6 +791,26 @@ Assert-SummaryFailure `
     -ExpectedMessage "Missing release policy doc" `
     -ExpectedFailureKind "missing_file" `
     -ExpectedFailureRelativePath 'docs\release_policy_zh.rst'
+
+$missingIndexEntrypointText = $defaultIndexText.Replace(
+    "release_metadata_maintenance_checklist_zh",
+    "release_metadata_maintenance_checklist_removed"
+)
+$missingIndexEntrypointCaseRoot = New-DocsCase `
+    -Name "missing-index-entrypoint" `
+    -IndexText $missingIndexEntrypointText
+$missingIndexEntrypointSummaryJsonPath = Join-Path $missingIndexEntrypointCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingIndexEntrypointCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "Sphinx index doc is missing expected text: release_metadata_maintenance_checklist_zh" `
+    -SummaryJson $missingIndexEntrypointSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingIndexEntrypointSummaryJsonPath `
+    -ExpectedMessage "Sphinx index doc is missing expected text: release_metadata_maintenance_checklist_zh" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs\index.rst' `
+    -ExpectedFailureExpectedText "release_metadata_maintenance_checklist_zh"
 
 $missingPolicyWordVisualMetadataText = $defaultPolicyText.Replace(
     "Word visual standard review metadata evidence",

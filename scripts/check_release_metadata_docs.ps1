@@ -165,6 +165,7 @@ function Write-SummaryJson {
         [string[]]$ChecklistMarkers,
         [string[]]$DocumentGovernanceMarkers,
         [string[]]$PolicyMarkers,
+        [string[]]$EntrypointMarkers,
         [string]$ErrorMessage = ""
     )
 
@@ -203,16 +204,18 @@ function Write-SummaryJson {
         repo_root = $RepoRoot
         checked_document_count = $CheckedDocuments.Count
         required_marker_count = $PipelineMarkers.Count + $ChecklistMarkers.Count + `
-            $DocumentGovernanceMarkers.Count + $PolicyMarkers.Count
+            $DocumentGovernanceMarkers.Count + $PolicyMarkers.Count + $EntrypointMarkers.Count
         required_pipeline_marker_count = $PipelineMarkers.Count
         required_checklist_marker_count = $ChecklistMarkers.Count
         required_document_governance_marker_count = $DocumentGovernanceMarkers.Count
         required_policy_marker_count = $PolicyMarkers.Count
+        required_entrypoint_marker_count = $EntrypointMarkers.Count
         checked_documents = $CheckedDocuments
         required_pipeline_markers = $PipelineMarkers
         required_checklist_markers = $ChecklistMarkers
         required_document_governance_markers = $DocumentGovernanceMarkers
         required_policy_markers = $PolicyMarkers
+        required_entrypoint_markers = $EntrypointMarkers
     }
 
     $json = $summary | ConvertTo-Json -Depth 6
@@ -461,6 +464,10 @@ $policyExpectedMarkers = @(
     "source_schema=featherdoc.release_candidate_summary",
     "release-candidate-checks"
 )
+$entrypointExpectedMarkers = @(
+    "release_metadata_pipeline_zh",
+    "release_metadata_maintenance_checklist_zh"
+)
 $resolvedRepoRoot = ""
 $summaryJsonPath = ""
 $checkedDocuments = @()
@@ -488,28 +495,55 @@ try {
             label = "release policy doc"
             relative_path = "docs\release_policy_zh.rst"
             path = Join-Path $resolvedRepoRoot "docs\release_policy_zh.rst"
+        },
+        [pscustomobject]@{
+            label = "Sphinx index doc"
+            relative_path = "docs\index.rst"
+            path = Join-Path $resolvedRepoRoot "docs\index.rst"
+        },
+        [pscustomobject]@{
+            label = "English README"
+            relative_path = "README.md"
+            path = Join-Path $resolvedRepoRoot "README.md"
+        },
+        [pscustomobject]@{
+            label = "Chinese README"
+            relative_path = "README.zh-CN.md"
+            path = Join-Path $resolvedRepoRoot "README.zh-CN.md"
         }
     )
     $pipelinePath = $checkedDocuments[0].path
     $checklistPath = $checkedDocuments[1].path
     $documentGovernancePath = $checkedDocuments[2].path
     $policyPath = $checkedDocuments[3].path
+    $indexPath = $checkedDocuments[4].path
+    $readmePath = $checkedDocuments[5].path
+    $readmeZhPath = $checkedDocuments[6].path
 
     Assert-FileExists -Path $pipelinePath -Label "release metadata pipeline doc"
     Assert-FileExists -Path $checklistPath -Label "release metadata maintenance checklist doc"
     Assert-FileExists -Path $documentGovernancePath -Label "document governance acceptance doc"
     Assert-FileExists -Path $policyPath -Label "release policy doc"
+    Assert-FileExists -Path $indexPath -Label "Sphinx index doc"
+    Assert-FileExists -Path $readmePath -Label "English README"
+    Assert-FileExists -Path $readmeZhPath -Label "Chinese README"
 
     $pipelineText = Read-Utf8Text -Path $pipelinePath
     $checklistText = Read-Utf8Text -Path $checklistPath
     $documentGovernanceText = Read-Utf8Text -Path $documentGovernancePath
     $policyText = Read-Utf8Text -Path $policyPath
+    $indexText = Read-Utf8Text -Path $indexPath
+    $readmeText = Read-Utf8Text -Path $readmePath
+    $readmeZhText = Read-Utf8Text -Path $readmeZhPath
 
     foreach ($doc in @(
             @{ Path = $pipelinePath; Text = $pipelineText },
             @{ Path = $checklistPath; Text = $checklistText },
             @{ Path = $documentGovernancePath; Text = $documentGovernanceText },
-            @{ Path = $policyPath; Text = $policyText }
+            @{ Path = $policyPath; Text = $policyText },
+            @{ Path = $indexPath; Text = $indexText },
+            @{ Path = $readmePath; Text = $readmeText },
+            @{ Path = $readmeZhPath; Text = $readmeZhText }
         )) {
         Assert-NoTrailingWhitespace -Text $doc.Text -Path $doc.Path
         Assert-NoTabs -Text $doc.Text -Path $doc.Path
@@ -547,6 +581,20 @@ try {
             -Path $policyPath
     }
 
+    foreach ($expected in $entrypointExpectedMarkers) {
+        foreach ($entrypoint in @(
+                @{ Label = "Sphinx index doc"; Text = $indexText; Path = $indexPath },
+                @{ Label = "English README"; Text = $readmeText; Path = $readmePath },
+                @{ Label = "Chinese README"; Text = $readmeZhText; Path = $readmeZhPath }
+            )) {
+            Assert-ContainsText `
+                -Text $entrypoint.Text `
+                -ExpectedText $expected `
+                -Label $entrypoint.Label `
+                -Path $entrypoint.Path
+        }
+    }
+
     Write-SummaryJson `
         -Path $summaryJsonPath `
         -Status "passed" `
@@ -555,7 +603,8 @@ try {
         -PipelineMarkers $pipelineExpectedMarkers `
         -ChecklistMarkers $checklistExpectedMarkers `
         -DocumentGovernanceMarkers $documentGovernanceExpectedMarkers `
-        -PolicyMarkers $policyExpectedMarkers
+        -PolicyMarkers $policyExpectedMarkers `
+        -EntrypointMarkers $entrypointExpectedMarkers
 
     if (-not $Quiet) {
         Write-Host "Release metadata docs check passed."
@@ -578,6 +627,7 @@ try {
                 -ChecklistMarkers $checklistExpectedMarkers `
                 -DocumentGovernanceMarkers $documentGovernanceExpectedMarkers `
                 -PolicyMarkers $policyExpectedMarkers `
+                -EntrypointMarkers $entrypointExpectedMarkers `
                 -ErrorMessage $errorMessage
         } catch {
             Write-Warning "Unable to write release metadata docs failure summary: $($_.Exception.Message)"
