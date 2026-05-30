@@ -857,6 +857,11 @@ visual automation. If those four final governance summaries are already
 available under the input root, pass `-UseExistingGovernanceReports` to reuse
 them directly and only rebuild the handoff, final blocker rollup, and pipeline
 summary.
+The pipeline summary also exposes `local_governance_closure`, including
+`local_governance_closure.closed`, `docx_functional_smoke_readiness`,
+`release_governance_handoff`, and `release_blocker_rollup`, so reviewers can
+confirm the local closure state before opening the detailed JSON or Markdown
+reports.
 The same read-only pipeline also runs
 `scripts/check_docx_functional_smoke_readiness.ps1` as
 `docx_functional_smoke_readiness`, producing

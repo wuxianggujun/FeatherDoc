@@ -207,6 +207,10 @@ governance、content-control data-binding governance、project-template delivery
 release governance handoff 和最终 release blocker rollup；总览会落到
 `output/release-governance-pipeline/summary.json` 和 Markdown。该脚本只读输入 summary，
 不重跑 CLI、CMake、Word 或视觉自动化。
+这份 pipeline summary 也会暴露 `local_governance_closure`，包括
+`local_governance_closure.closed`、`docx_functional_smoke_readiness`、
+`release_governance_handoff` 和 `release_blocker_rollup`，让 reviewer 在打开详细
+JSON 或 Markdown 前先确认本地治理闭环是否已经完成。
 Linux/macOS CI 的 `release_smoke` 步骤也会把 release candidate blocker rollup、
 release governance handoff、release governance pipeline 等 smoke 输出上传为 Actions
 artifact，便于从远端构建直接下载审查证据。
