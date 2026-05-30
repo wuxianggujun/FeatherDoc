@@ -420,6 +420,16 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include real corpus confidence section."
     Assert-ContainsText -Text $markdown -ExpectedText "Matched documents" `
         -Message "Markdown should include real corpus alignment details."
+    Assert-ContainsText -Text $markdown -ExpectedText "Catalog document keys" `
+        -Message "Markdown should include real corpus catalog document keys."
+    Assert-ContainsText -Text $markdown -ExpectedText "Baseline document keys" `
+        -Message "Markdown should include real corpus baseline document keys."
+    Assert-ContainsText -Text $markdown -ExpectedText "Matched document keys" `
+        -Message "Markdown should include real corpus matched document keys."
+    Assert-ContainsText -Text $markdown -ExpectedText '`contract`' `
+        -Message "Markdown should include the contract document key."
+    Assert-ContainsText -Text $markdown -ExpectedText '`invoice`' `
+        -Message "Markdown should include the invoice document key."
     Assert-ContainsText -Text $markdown -ExpectedText "style_numbering_issues" `
         -Message "Markdown should include real corpus confidence penalty details."
     Assert-ContainsText -Text $markdown -ExpectedText "missing_numbering_definition" `
@@ -558,6 +568,14 @@ if (Test-Scenario -Name "alignment_gap") {
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Matched documents" `
         -Message "Markdown should include real corpus alignment details."
+    Assert-ContainsText -Text $markdown -ExpectedText "Unmatched catalog keys" `
+        -Message "Markdown should include unmatched catalog key details."
+    Assert-ContainsText -Text $markdown -ExpectedText "Unmatched baseline keys" `
+        -Message "Markdown should include unmatched baseline key details."
+    Assert-ContainsText -Text $markdown -ExpectedText '`contract`' `
+        -Message "Markdown should include the unmatched catalog document key."
+    Assert-ContainsText -Text $markdown -ExpectedText '`obsolete`' `
+        -Message "Markdown should include the unmatched baseline document key."
     Assert-ContainsText -Text $markdown -ExpectedText "real_corpus_alignment_gap" `
         -Message "Markdown should include alignment gap blocker."
 }

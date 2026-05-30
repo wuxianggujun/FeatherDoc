@@ -487,6 +487,20 @@ function New-ActionForBaselineBlocker {
         -Title ([string]$Blocker.message)
 }
 
+function Format-MarkdownCodeList {
+    param([object[]]$Values)
+
+    $items = @(
+        $Values |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+    )
+    if ($items.Count -eq 0) { return "none" }
+
+    return (($items | ForEach-Object { "``$_``" }) -join ", ")
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -518,6 +532,16 @@ function New-ReportMarkdown {
     $lines.Add("- Unmatched baseline entries: ``$($confidence.unmatched_baseline_document_count)``") | Out-Null
     $lines.Add("- Catalog coverage: ``$($confidence.catalog_coverage_percent)%``") | Out-Null
     $lines.Add("- Baseline coverage: ``$($confidence.baseline_coverage_percent)%``") | Out-Null
+    $catalogDocumentKeys = @($confidence.catalog_document_keys)
+    $baselineDocumentKeys = @($confidence.baseline_document_keys)
+    $matchedDocumentKeys = @($confidence.matched_document_keys)
+    $unmatchedCatalogKeys = @($catalogDocumentKeys | Where-Object { $matchedDocumentKeys -notcontains $_ })
+    $unmatchedBaselineKeys = @($baselineDocumentKeys | Where-Object { $matchedDocumentKeys -notcontains $_ })
+    $lines.Add("- Catalog document keys: $(Format-MarkdownCodeList -Values $catalogDocumentKeys)") | Out-Null
+    $lines.Add("- Baseline document keys: $(Format-MarkdownCodeList -Values $baselineDocumentKeys)") | Out-Null
+    $lines.Add("- Matched document keys: $(Format-MarkdownCodeList -Values $matchedDocumentKeys)") | Out-Null
+    $lines.Add("- Unmatched catalog keys: $(Format-MarkdownCodeList -Values $unmatchedCatalogKeys)") | Out-Null
+    $lines.Add("- Unmatched baseline keys: $(Format-MarkdownCodeList -Values $unmatchedBaselineKeys)") | Out-Null
     if (@($confidence.penalty_summary).Count -eq 0) {
         $lines.Add("- Penalties: none") | Out-Null
     } else {
