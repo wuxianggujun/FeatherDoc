@@ -328,6 +328,16 @@ summary、bundle 和 reviewer checklist 继续展示。reviewer 若在 pipeline 
 阻断项，应优先打开 ``source_json_display`` 对应证据，再按 ``open_command`` 重建或复核
 该治理报告，最后重新运行 release blocker rollup / bundle 生成链路。
 
+pipeline summary 还会写出 ``local_governance_closure``（schema:
+``featherdoc.release_governance_local_closure.v1``），把本地发布治理闭环从隐式
+stage 列表提升为可审计字段。该对象必须保留 ``pipeline_summary_json_display``、
+``pipeline_report_markdown_display``、``final_governance_report_count``、
+``required_stage_count`` 与 ``completed_required_stage_count``；其中 required stages
+固定覆盖 ``docx_functional_smoke_readiness``、``release_governance_handoff`` 与
+``release_blocker_rollup``。reviewer 可以先看 ``local_governance_closure.closed``，
+再打开 pipeline summary / Markdown 确认 DOCX readiness、handoff 和 final rollup 是否
+都已在本地完成并进入最终治理证据。
+
 当 ``summary.json`` 中存在 ``release_governance_handoff`` 节点时，release summary、
 ``final_review.md`` 和 reviewer-facing bundle 也会展示 handoff 归一化后的三类明细：
 

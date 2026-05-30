@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 127) {
-        throw "Expected JSON summary to count 127 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 134) {
+        throw "Expected JSON summary to count 134 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -299,6 +299,13 @@ $defaultPipelineText = @(
     '- release_blocker_rollup.md',
     '- release_governance_handoff.md',
     '- release_governance_pipeline.md',
+    '- ``featherdoc.release_governance_local_closure.v1``',
+    '- local_governance_closure',
+    '- pipeline_summary_json_display',
+    '- pipeline_report_markdown_display',
+    '- final_governance_report_count',
+    '- required_stage_count',
+    '- completed_required_stage_count',
     '- rerun_pdf_controlled_visual_smoke_check',
     '- check_pdf_controlled_visual_smoke.ps1',
     '- controlled_visual_smoke_json_display',
@@ -447,8 +454,8 @@ Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 4) {
     throw "Expected JSON summary checked document count 4, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 56) {
-    throw "Expected JSON summary pipeline marker count 56, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 63) {
+    throw "Expected JSON summary pipeline marker count 63, got: $($summary.required_pipeline_marker_count)"
 }
 if ($summary.required_checklist_marker_count -ne 53) {
     throw "Expected JSON summary checklist marker count 53, got: $($summary.required_checklist_marker_count)"
@@ -459,8 +466,8 @@ if ($summary.required_document_governance_marker_count -ne 10) {
 if ($summary.required_policy_marker_count -ne 8) {
     throw "Expected JSON summary policy marker count 8, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 127) {
-    throw "Expected JSON summary total marker count 127, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 134) {
+    throw "Expected JSON summary total marker count 134, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 4) {
     throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
@@ -517,6 +524,30 @@ Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue '``featherdoc.docx_functional_smoke_readiness.v1``' `
     -Message "JSON summary should list DOCX functional smoke readiness schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue '``featherdoc.release_governance_local_closure.v1``' `
+    -Message "JSON summary should list release governance local closure schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "local_governance_closure" `
+    -Message "JSON summary should list release governance local closure marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "pipeline_summary_json_display" `
+    -Message "JSON summary should list local closure pipeline summary display marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "pipeline_report_markdown_display" `
+    -Message "JSON summary should list local closure pipeline Markdown display marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "final_governance_report_count" `
+    -Message "JSON summary should list local closure final governance report count marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "completed_required_stage_count" `
+    -Message "JSON summary should list local closure completed required stage count marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "restore_docx_functional_smoke_evidence" `
