@@ -142,6 +142,7 @@ $requiredScriptPaths = @(
     "scripts\package_release_assets.ps1",
     "scripts\write_release_metadata_start_here.ps1",
     "scripts\write_release_body_zh.ps1",
+    "scripts\check_pdf_dependency_inputs.ps1",
     "scripts\check_pdf_release_readiness.ps1",
     "scripts\check_pdf_visual_release_gate_preflight.ps1",
     "scripts\run_pdf_ctest_bounded_subset.ps1"

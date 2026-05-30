@@ -196,6 +196,8 @@ PDF 保守维护入口
 
 当前 PDF 不是主线扩展方向。这组脚本只用于保守维护、受控 smoke 和最终验证。
 
+- ``scripts/check_pdf_dependency_inputs.ps1``：只读检查 PDFio / PDFium 本地输入
+  是否满足受控 PDF 构建前置条件。
 - ``scripts/check_pdf_release_readiness.ps1``：检查 PDF release readiness。
 - ``scripts/check_pdf_visual_release_gate_preflight.ps1``：只读检查 PDF visual gate
   前置条件。
