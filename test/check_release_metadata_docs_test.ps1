@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 141) {
-        throw "Expected JSON summary to count 141 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 152) {
+        throw "Expected JSON summary to count 152 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -377,6 +377,17 @@ $defaultChecklistText = @(
     '- release_blocker_rollup',
     '- release_governance_handoff',
     '- release_governance_pipeline',
+    '- local_governance_closure',
+    '- local_governance_closure.status',
+    '- local_governance_closure.closed',
+    '- governance_detail_source',
+    '- pipeline_summary_json_display',
+    '- pipeline_report_markdown_display',
+    '- final_governance_report_count',
+    '- final_governance_reports',
+    '- required_stage_count',
+    '- completed_required_stage_count',
+    '- required_stages',
     '- source_schema',
     '- source_report_display',
     '- source_json_display',
@@ -464,8 +475,8 @@ if ($summary.checked_document_count -ne 4) {
 if ($summary.required_pipeline_marker_count -ne 70) {
     throw "Expected JSON summary pipeline marker count 70, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 53) {
-    throw "Expected JSON summary checklist marker count 53, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 64) {
+    throw "Expected JSON summary checklist marker count 64, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 10) {
     throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
@@ -473,8 +484,8 @@ if ($summary.required_document_governance_marker_count -ne 10) {
 if ($summary.required_policy_marker_count -ne 8) {
     throw "Expected JSON summary policy marker count 8, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 141) {
-    throw "Expected JSON summary total marker count 141, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 152) {
+    throw "Expected JSON summary total marker count 152, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 4) {
     throw "Expected JSON summary to list 4 checked documents, got: $($summary.checked_documents.Count)"
@@ -655,6 +666,26 @@ Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "docx_functional_smoke_readiness_route_docs_contract_test.ps1" `
     -Message "JSON summary should list DOCX functional smoke readiness route docs contract marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "local_governance_closure" `
+    -Message "JSON summary checklist should list local governance closure marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "local_governance_closure.status" `
+    -Message "JSON summary checklist should list local closure status marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "local_governance_closure.closed" `
+    -Message "JSON summary checklist should list local closure closed marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "final_governance_reports" `
+    -Message "JSON summary checklist should list local closure final governance reports marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "required_stages" `
+    -Message "JSON summary checklist should list local closure required stages marker."
 Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "open_latest_word_review_task_curated_source_kind_test.ps1" `

@@ -247,6 +247,11 @@ CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制
 为了保持发布面板兼容，维护文档还要继续提到 ``release governance warning``、
 ``warning_count``、``release_blocker_rollup``、
 ``release_governance_handoff``、``release_governance_pipeline``、
+``local_governance_closure``、``local_governance_closure.status``、
+``local_governance_closure.closed``、``governance_detail_source``、
+``pipeline_summary_json_display``、``pipeline_report_markdown_display``、
+``final_governance_report_count``、``final_governance_reports``、
+``required_stage_count``、``completed_required_stage_count``、``required_stages``、
 ``source_schema``、``source_report_display``、``source_json_display``、
 ``style_merge_suggestion_count``、``check_word_visual_release_gate_preflight.ps1``、
 ``check_word_visual_release_gate_preflight_test.ps1``、
