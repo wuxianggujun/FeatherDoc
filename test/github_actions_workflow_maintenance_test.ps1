@@ -121,4 +121,15 @@ foreach ($marker in @(
         -Message "Windows workflow should keep the inline MSVC setup marker '$marker'."
 }
 
+foreach ($marker in @(
+        "output/release-assets-ci/v*/release_assets_manifest.json",
+        "output/release-assets-ci/v*/FeatherDoc-*-msvc-install.zip",
+        "output/release-assets-ci/v*/FeatherDoc-*-visual-validation-gallery.zip",
+        "output/release-assets-ci/v*/FeatherDoc-*-release-evidence.zip",
+        "compression-level: 0"
+    )) {
+    Assert-ContainsText -Text $windowsWorkflow -ExpectedText $marker `
+        -Message "Windows workflow should keep the release asset preview upload marker '$marker'."
+}
+
 Write-Host "GitHub Actions workflow maintenance contract passed."

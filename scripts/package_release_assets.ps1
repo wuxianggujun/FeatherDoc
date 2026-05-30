@@ -755,7 +755,7 @@ function Convert-EvidencePathToPublicDisplay {
     $normalized = $Value -replace '/', '\'
     if ($PreferEvidenceAnchor) {
         foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
-            $index = $normalized.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+            $index = $normalized.LastIndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
             if ($index -ge 0) {
                 $relative = $normalized.Substring($index + 1)
                 if (-not [string]::IsNullOrWhiteSpace($relative)) {
@@ -771,7 +771,7 @@ function Convert-EvidencePathToPublicDisplay {
     }
 
     foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
-        $index = $normalized.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+        $index = $normalized.LastIndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
         if ($index -ge 0) {
             $relative = $normalized.Substring($index + 1)
             if (-not [string]::IsNullOrWhiteSpace($relative)) {

@@ -250,5 +250,9 @@ jobs:
         with:
           name: windows-msvc-release-assets-preview
           path: |
-            output/release-assets-ci/**
+            output/release-assets-ci/v*/release_assets_manifest.json
+            output/release-assets-ci/v*/FeatherDoc-*-msvc-install.zip
+            output/release-assets-ci/v*/FeatherDoc-*-visual-validation-gallery.zip
+            output/release-assets-ci/v*/FeatherDoc-*-release-evidence.zip
           if-no-files-found: warn
+          compression-level: 0
