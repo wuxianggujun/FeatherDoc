@@ -566,9 +566,10 @@ It only checks the static gate contract, helper scripts, CMake test
 registration, and docs; it does not run Word, CMake, CTest, browsers,
 LibreOffice, or visual rendering.
 Its JSON and Markdown reports also include `minimum_risk_next_action_command`,
-`strict_preflight_command_template`, and `full_gate_command_template` so a
-reviewer or automation can copy the correct next command without treating the
-static preflight as release-ready evidence.
+`strict_preflight_command_template`, `full_gate_command_template`, and
+`output_encoding` (`UTF-8 without BOM`) so a reviewer or automation can copy the
+correct next command and consume stable artifacts without treating the static
+preflight as release-ready evidence.
 
 If the standard smoke contact sheet is reviewed during the same gate run, add
 `-SmokeReviewVerdict pass` (or `fail` / `undetermined`) and `-SmokeReviewNote`

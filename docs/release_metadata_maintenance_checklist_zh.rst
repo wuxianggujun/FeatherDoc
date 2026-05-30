@@ -124,7 +124,8 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 维护者还应检查 ``minimum_risk_next_action_command`` 是否符合当前状态：ready
 时指向 ``run_word_visual_release_gate.ps1``，not_ready 时指向 strict preflight
 复查命令；``strict_preflight_command_template`` 与 ``full_gate_command_template``
-应保持可复制、可审阅，避免 release 面板只能展示自然语言下一步。
+应保持可复制、可审阅，``output_encoding`` 应保持为 ``UTF-8 without BOM``，
+避免 release 面板只能展示自然语言下一步或重新猜测产物编码。
 
 修改 DOCX 功能 smoke 准入或 release governance 接入：
 
