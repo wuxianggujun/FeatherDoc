@@ -950,6 +950,16 @@ function Add-NormalizedBlockers {
             repair_strategy = Get-JsonString -Object $blocker -Name "repair_strategy"
             repair_hint = Get-JsonString -Object $blocker -Name "repair_hint"
             command_template = Get-JsonString -Object $blocker -Name "command_template"
+            matched_document_count = Get-JsonProperty -Object $blocker -Name "matched_document_count"
+            unmatched_catalog_document_count = Get-JsonProperty -Object $blocker -Name "unmatched_catalog_document_count"
+            unmatched_baseline_document_count = Get-JsonProperty -Object $blocker -Name "unmatched_baseline_document_count"
+            alignment_gap_count = Get-JsonProperty -Object $blocker -Name "alignment_gap_count"
+            catalog_coverage_percent = Get-JsonProperty -Object $blocker -Name "catalog_coverage_percent"
+            baseline_coverage_percent = Get-JsonProperty -Object $blocker -Name "baseline_coverage_percent"
+            coverage_score = Get-JsonProperty -Object $blocker -Name "coverage_score"
+            catalog_document_keys = @(Get-JsonArray -Object $blocker -Name "catalog_document_keys")
+            baseline_document_keys = @(Get-JsonArray -Object $blocker -Name "baseline_document_keys")
+            matched_document_keys = @(Get-JsonArray -Object $blocker -Name "matched_document_keys")
         }) | Out-Null
     }
 }
@@ -1250,6 +1260,7 @@ function New-ReportMarkdown {
         $lines.Add("- Action items: ``$($rollup.action_item_count)``") | Out-Null
         $lines.Add("- Informational action items: ``$($rollup.informational_action_item_count)``") | Out-Null
         $lines.Add("- Warnings: ``$($rollup.warning_count)``") | Out-Null
+        $lines.Add("- Governance metrics: ``$($rollup.governance_metric_count)``") | Out-Null
         $lines.Add("- DOCX functional smoke readiness evidence source reports: ``$($rollup.docx_functional_smoke_readiness_evidence_source_report_count)``") | Out-Null
         foreach ($evidence in @($rollup.docx_functional_smoke_readiness_evidence_source_reports)) {
             $lines.Add("  - source_report: ``$($evidence.path_display)`` schema=``$($evidence.schema)``") | Out-Null
@@ -1901,6 +1912,8 @@ $summary = [ordered]@{
         action_item_count = 0
         informational_action_item_count = 0
         warning_count = 0
+        governance_metric_count = 0
+        governance_metrics = @()
         docx_functional_smoke_readiness_evidence_source_report_count = 0
         docx_functional_smoke_readiness_evidence_source_reports = @()
         pdf_visual_gate_evidence_source_report_count = 0
@@ -1961,6 +1974,9 @@ if ($IncludeReleaseBlockerRollup) {
     }
 
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseBlockerRollupSummaryPath | ConvertFrom-Json
+    $rollupGovernanceMetrics = @(Get-JsonArray -Object $rollupSummary -Name "governance_metrics")
+    $rollupGovernanceMetricCount = [int](@($rollupGovernanceMetrics).Count)
+    $rollupGovernanceMetricCount = Get-JsonInt -Object $rollupSummary -Name "governance_metric_count" -DefaultValue $rollupGovernanceMetricCount
     $docxFunctionalSmokeReadinessEvidence = @(Get-DocxFunctionalSmokeReadinessRollupEvidence -RollupSummary $rollupSummary)
     $summary.release_blocker_rollup.docx_functional_smoke_readiness_evidence_source_report_count = @($docxFunctionalSmokeReadinessEvidence).Count
     $summary.release_blocker_rollup.docx_functional_smoke_readiness_evidence_source_reports = @($docxFunctionalSmokeReadinessEvidence)
@@ -1972,6 +1988,8 @@ if ($IncludeReleaseBlockerRollup) {
     $summary.release_blocker_rollup.action_item_count = [int]$rollupSummary.action_item_count
     $summary.release_blocker_rollup.informational_action_item_count = [int](Get-JsonInt -Object $rollupSummary -Name "informational_action_item_count")
     $summary.release_blocker_rollup.warning_count = [int]$rollupSummary.warning_count
+    $summary.release_blocker_rollup.governance_metric_count = [int]$rollupGovernanceMetricCount
+    $summary.release_blocker_rollup.governance_metrics = @($rollupGovernanceMetrics)
     $summary.release_blocker_rollup.pdf_visual_gate_evidence_source_report_count = @($pdfVisualGateEvidence).Count
     $summary.release_blocker_rollup.pdf_visual_gate_evidence_source_reports = @($pdfVisualGateEvidence)
     $manifestSignoffEvidence = @(Get-ManifestSignoffEntrypointsRollupEvidence -RollupSummary $rollupSummary)

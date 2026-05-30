@@ -2462,6 +2462,8 @@ $summary = [ordered]@{
         action_items = @()
         warning_count = 0
         warnings = @()
+        governance_metric_count = 0
+        governance_metrics = @()
         manifest_signoff_entrypoints_source_report_count = 0
         manifest_signoff_entrypoints_source_reports = @()
         error = ""
@@ -2605,6 +2607,8 @@ $summary = [ordered]@{
             action_items = @()
             warning_count = 0
             warnings = @()
+            governance_metric_count = 0
+            governance_metrics = @()
             manifest_signoff_entrypoints_source_report_count = 0
             manifest_signoff_entrypoints_source_reports = @()
             error = ""
@@ -3364,6 +3368,7 @@ try {
                 -FailOnBlocker ([bool]$ReleaseBlockerRollupFailOnBlocker) `
                 -FailOnWarning ([bool]$ReleaseBlockerRollupFailOnWarning)
             $rollupSummary = Read-ReleaseBlockerRollupSummary -Path $releaseBlockerRollupSummaryPath
+            [object[]]$rollupGovernanceMetrics = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "governance_metrics") }
             $summary.release_blocker_rollup.status = if ($null -eq $rollupSummary) { "missing_summary" } else { [string]$rollupSummary.status }
             $summary.release_blocker_rollup.source_report_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_report_count }
             $summary.release_blocker_rollup.source_failure_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_failure_count }
@@ -3373,6 +3378,8 @@ try {
             $summary.release_blocker_rollup.action_items = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "action_items") }
             $summary.release_blocker_rollup.warning_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.warning_count }
             $summary.release_blocker_rollup.warnings = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "warnings") }
+            $summary.release_blocker_rollup.governance_metric_count = if ($null -eq $rollupSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $rollupSummary -Name "governance_metric_count" -DefaultValue @($rollupGovernanceMetrics).Count) }
+            $summary.release_blocker_rollup.governance_metrics = @($rollupGovernanceMetrics)
             $summary.release_blocker_rollup.error = ""
             $summary.steps.release_blocker_rollup.status = $summary.release_blocker_rollup.status
             $summary.steps.release_blocker_rollup.source_report_count = $summary.release_blocker_rollup.source_report_count
@@ -3383,11 +3390,14 @@ try {
             $summary.steps.release_blocker_rollup.action_items = @($summary.release_blocker_rollup.action_items)
             $summary.steps.release_blocker_rollup.warning_count = $summary.release_blocker_rollup.warning_count
             $summary.steps.release_blocker_rollup.warnings = @($summary.release_blocker_rollup.warnings)
+            $summary.steps.release_blocker_rollup.governance_metric_count = $summary.release_blocker_rollup.governance_metric_count
+            $summary.steps.release_blocker_rollup.governance_metrics = @($summary.release_blocker_rollup.governance_metrics)
             $summary.steps.release_blocker_rollup.error = ""
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
         } catch {
             $rollupError = $_.Exception.Message
             $rollupSummary = Read-ReleaseBlockerRollupSummary -Path $releaseBlockerRollupSummaryPath
+            [object[]]$rollupGovernanceMetrics = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "governance_metrics") }
             $summary.release_blocker_rollup.status = "failed"
             $summary.release_blocker_rollup.source_report_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_report_count }
             $summary.release_blocker_rollup.source_failure_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_failure_count }
@@ -3397,6 +3407,8 @@ try {
             $summary.release_blocker_rollup.action_items = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "action_items") }
             $summary.release_blocker_rollup.warning_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.warning_count }
             $summary.release_blocker_rollup.warnings = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "warnings") }
+            $summary.release_blocker_rollup.governance_metric_count = if ($null -eq $rollupSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $rollupSummary -Name "governance_metric_count" -DefaultValue @($rollupGovernanceMetrics).Count) }
+            $summary.release_blocker_rollup.governance_metrics = @($rollupGovernanceMetrics)
             $summary.release_blocker_rollup.error = $rollupError
             $summary.steps.release_blocker_rollup.status = "failed"
             $summary.steps.release_blocker_rollup.source_report_count = $summary.release_blocker_rollup.source_report_count
@@ -3407,6 +3419,8 @@ try {
             $summary.steps.release_blocker_rollup.action_items = @($summary.release_blocker_rollup.action_items)
             $summary.steps.release_blocker_rollup.warning_count = $summary.release_blocker_rollup.warning_count
             $summary.steps.release_blocker_rollup.warnings = @($summary.release_blocker_rollup.warnings)
+            $summary.steps.release_blocker_rollup.governance_metric_count = $summary.release_blocker_rollup.governance_metric_count
+            $summary.steps.release_blocker_rollup.governance_metrics = @($summary.release_blocker_rollup.governance_metrics)
             $summary.steps.release_blocker_rollup.error = $rollupError
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
             Write-Step "Release blocker rollup failed: $rollupError"

@@ -2105,6 +2105,16 @@ function Get-NormalizedReleaseGovernanceBlockers {
                 source_json = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_json")
                 source_json_display = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_json_display")
                 message = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "message")
+                matched_document_count = Get-ReleaseBlockerPropertyObject -Object $blocker -Name "matched_document_count"
+                unmatched_catalog_document_count = Get-ReleaseBlockerPropertyObject -Object $blocker -Name "unmatched_catalog_document_count"
+                unmatched_baseline_document_count = Get-ReleaseBlockerPropertyObject -Object $blocker -Name "unmatched_baseline_document_count"
+                alignment_gap_count = Get-ReleaseBlockerPropertyObject -Object $blocker -Name "alignment_gap_count"
+                catalog_coverage_percent = Get-ReleaseBlockerPropertyObject -Object $blocker -Name "catalog_coverage_percent"
+                baseline_coverage_percent = Get-ReleaseBlockerPropertyObject -Object $blocker -Name "baseline_coverage_percent"
+                coverage_score = Get-ReleaseBlockerPropertyObject -Object $blocker -Name "coverage_score"
+                catalog_document_keys = @(Get-ReleaseBlockerArrayProperty -Object $blocker -Name "catalog_document_keys")
+                baseline_document_keys = @(Get-ReleaseBlockerArrayProperty -Object $blocker -Name "baseline_document_keys")
+                matched_document_keys = @(Get-ReleaseBlockerArrayProperty -Object $blocker -Name "matched_document_keys")
             })
     }
 
@@ -2347,6 +2357,32 @@ function Get-ReleaseGovernanceBlockerSummaryText {
     $message = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "message"
     if (-not [string]::IsNullOrWhiteSpace($message)) {
         $summaryText += ('; message: {0}' -f $message)
+    }
+
+    foreach ($field in @(
+            "matched_document_count",
+            "unmatched_catalog_document_count",
+            "unmatched_baseline_document_count",
+            "alignment_gap_count",
+            "catalog_coverage_percent",
+            "baseline_coverage_percent",
+            "coverage_score"
+        )) {
+        $value = Get-ReleaseBlockerPropertyObject -Object $Blocker -Name $field
+        if ($null -ne $value -and -not [string]::IsNullOrWhiteSpace([string]$value)) {
+            $summaryText += ('; {0}: `{1}`' -f $field, $value)
+        }
+    }
+
+    foreach ($field in @("catalog_document_keys", "baseline_document_keys", "matched_document_keys")) {
+        $values = @(
+            Get-ReleaseBlockerArrayProperty -Object $Blocker -Name $field |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        if ($values.Count -gt 0) {
+            $summaryText += ('; {0}: `{1}`' -f $field, ($values -join ","))
+        }
     }
 
     return $summaryText

@@ -1340,6 +1340,26 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should consume nested rollup action item count."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 3 `
         -Message "Handoff summary should consume nested rollup warning count."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.governance_metric_count) -Expected 2 `
+        -Message "Handoff summary should consume nested rollup governance metric count."
+    Assert-ContainsText -Text (($summary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
+        -ExpectedText "real_corpus_confidence:low:56" `
+        -Message "Handoff summary should consume nested numbering confidence metric."
+    Assert-ContainsText -Text (($summary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
+        -ExpectedText "delivery_quality:release_ready:100" `
+        -Message "Handoff summary should consume nested table delivery metric."
+    $summaryNestedNumberingMetric = ($summary.release_blocker_rollup.governance_metrics |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_confidence" } |
+        Select-Object -First 1)
+    Assert-ContainsText -Text (($summaryNestedNumberingMetric.details.catalog_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "contract.docx" `
+        -Message "Handoff summary should preserve nested numbering catalog document keys."
+    Assert-ContainsText -Text (($summaryNestedNumberingMetric.details.baseline_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "invoice.docx" `
+        -Message "Handoff summary should preserve nested numbering baseline document keys."
+    Assert-ContainsText -Text (($summaryNestedNumberingMetric.details.matched_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "contract.docx" `
+        -Message "Handoff summary should preserve nested numbering matched document keys."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.docx_functional_smoke_readiness_evidence_source_report_count) -Expected 1 `
         -Message "Handoff summary should consume nested DOCX functional smoke readiness evidence count."
     $docxRollupEvidence = $summary.release_blocker_rollup.docx_functional_smoke_readiness_evidence_source_reports | Select-Object -First 1
@@ -1636,6 +1656,18 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (($rollupSummary.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
         -ExpectedText "delivery_quality:release_ready:100" `
         -Message "Nested rollup should preserve table delivery quality metric."
+    $rollupNumberingMetric = ($rollupSummary.governance_metrics |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_confidence" } |
+        Select-Object -First 1)
+    Assert-ContainsText -Text (($rollupNumberingMetric.details.catalog_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "contract.docx" `
+        -Message "Nested rollup should preserve numbering catalog document keys."
+    Assert-ContainsText -Text (($rollupNumberingMetric.details.baseline_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "invoice.docx" `
+        -Message "Nested rollup should preserve numbering baseline document keys."
+    Assert-ContainsText -Text (($rollupNumberingMetric.details.matched_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "contract.docx" `
+        -Message "Nested rollup should preserve numbering matched document keys."
     Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
         -Message "Nested rollup should preserve calibration source schema."

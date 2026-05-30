@@ -127,6 +127,16 @@ $styleNumberingBlocker = [pscustomobject]@{
     source_json = "output/numbering-catalog-governance/style-numbering-audit.json"
     source_json_display = ".\output\numbering-catalog-governance\style-numbering-audit.json"
     message = "Style numbering audit reported unresolved issues."
+    matched_document_count = 1
+    unmatched_catalog_document_count = 1
+    unmatched_baseline_document_count = 1
+    alignment_gap_count = 2
+    catalog_coverage_percent = 50
+    baseline_coverage_percent = 50
+    coverage_score = 50
+    catalog_document_keys = @("contract", "invoice")
+    baseline_document_keys = @("invoice", "obsolete")
+    matched_document_keys = @("invoice")
 }
 
 $styleMergeBlocker = [pscustomobject]@{
@@ -151,6 +161,18 @@ $numberingGovernanceMetric = [pscustomobject]@{
     source_report_display = ".\output\numbering-catalog-governance\summary.json"
     source_json = "output/numbering-catalog-governance/coverage.json"
     source_json_display = ".\output\numbering-catalog-governance\coverage.json"
+    details = [pscustomobject]@{
+        matched_document_count = 1
+        unmatched_catalog_document_count = 1
+        unmatched_baseline_document_count = 1
+        alignment_gap_count = 2
+        catalog_coverage_percent = 50
+        baseline_coverage_percent = 50
+        coverage_score = 50
+        catalog_document_keys = @("contract", "invoice")
+        baseline_document_keys = @("invoice", "obsolete")
+        matched_document_keys = @("invoice")
+    }
 }
 
 $normalizedBlockers = @(Get-NormalizedReleaseGovernanceBlockers -Blockers @($styleNumberingBlocker, $styleMergeBlocker))
@@ -170,6 +192,19 @@ Assert-Equal -Actual ([string]$normalizedBlockers[0].source_report_display) -Exp
     -Message "Normalized governance blocker should preserve source report display."
 Assert-Equal -Actual ([string]$normalizedBlockers[0].source_json_display) -Expected ".\output\numbering-catalog-governance\style-numbering-audit.json" `
     -Message "Normalized governance blocker should preserve source JSON display."
+Assert-Equal -Actual ([int]$normalizedBlockers[0].alignment_gap_count) -Expected 2 `
+    -Message "Normalized governance blocker should preserve real-corpus alignment gap count."
+Assert-Equal -Actual ([int]$normalizedBlockers[0].catalog_coverage_percent) -Expected 50 `
+    -Message "Normalized governance blocker should preserve catalog coverage percent."
+Assert-ContainsText -Text (($normalizedBlockers[0].catalog_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "contract" `
+    -Message "Normalized governance blocker should preserve catalog document keys."
+Assert-ContainsText -Text (($normalizedBlockers[0].baseline_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "obsolete" `
+    -Message "Normalized governance blocker should preserve baseline document keys."
+Assert-ContainsText -Text (($normalizedBlockers[0].matched_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "invoice" `
+    -Message "Normalized governance blocker should preserve matched document keys."
 Assert-Equal -Actual (Get-ReleaseGovernanceBlockerCount -SummaryObject ([pscustomobject]@{ release_blocker_count = 5; release_blockers = @($styleNumberingBlocker) })) -Expected 5 `
     -Message "Declared release_blocker_count should win over materialized governance blockers."
 
@@ -224,6 +259,18 @@ Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'source_json_display
     -Message "Governance blocker summary should include source JSON display."
 Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'message: Style numbering audit reported unresolved issues.' `
     -Message "Governance blocker summary should include message."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'matched_document_count: `1`' `
+    -Message "Governance blocker summary should include matched document count."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'alignment_gap_count: `2`' `
+    -Message "Governance blocker summary should include alignment gap count."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'catalog_coverage_percent: `50`' `
+    -Message "Governance blocker summary should include catalog coverage percent."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'catalog_document_keys: `contract,invoice`' `
+    -Message "Governance blocker summary should include catalog document keys."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'baseline_document_keys: `invoice,obsolete`' `
+    -Message "Governance blocker summary should include baseline document keys."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'matched_document_keys: `invoice`' `
+    -Message "Governance blocker summary should include matched document keys."
 
 $declaredCountSummary = [pscustomobject]@{
     warning_count = 5
@@ -593,6 +640,14 @@ Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_report_dis
     -Message "Rollup metric Markdown should render source report display paths."
 Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_json_display: .\output\numbering-catalog-governance\coverage.json' `
     -Message "Rollup metric Markdown should render source JSON display paths."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'details: matched_document_count=1' `
+    -Message "Rollup metric Markdown should render alignment detail counts."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'catalog_document_keys: contract,invoice' `
+    -Message "Rollup metric Markdown should render catalog document keys."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'baseline_document_keys: invoice,obsolete' `
+    -Message "Rollup metric Markdown should render baseline document keys."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'matched_document_keys: invoice' `
+    -Message "Rollup metric Markdown should render matched document keys."
 
 $wordVisualStandardReviewMetadataSourceReport = [pscustomobject]@{
     schema = "featherdoc.release_candidate_summary"

@@ -2034,7 +2034,17 @@ foreach ($path in @($inputPaths)) {
                     "build_dir_auto_candidates",
                     "pdf_dependency_inputs",
                     "readiness_action_evidence_count",
-                    "readiness_action_evidence"
+                    "readiness_action_evidence",
+                    "matched_document_count",
+                    "unmatched_catalog_document_count",
+                    "unmatched_baseline_document_count",
+                    "alignment_gap_count",
+                    "catalog_coverage_percent",
+                    "baseline_coverage_percent",
+                    "coverage_score",
+                    "catalog_document_keys",
+                    "baseline_document_keys",
+                    "matched_document_keys"
                 )
             Normalize-ReadinessActionEvidence `
                 -Items (Get-JsonArray -Object $rollupBlocker -Name "readiness_action_evidence") `

@@ -134,6 +134,24 @@ Write-JsonFile -Path $documentSkeletonRollupPath -Value ([ordered]@{
 
 Write-JsonFile -Path $numberingSummaryPath -Value ([ordered]@{
     schema = "featherdoc.numbering_catalog_governance_report.v1"
+    status = "needs_review"
+    release_ready = $false
+    real_corpus_confidence_score = 56
+    real_corpus_confidence_level = "low"
+    real_corpus_confidence = [ordered]@{
+        score = 56
+        level = "low"
+        matched_document_count = 2
+        unmatched_catalog_document_count = 0
+        unmatched_baseline_document_count = 0
+        alignment_gap_count = 0
+        catalog_coverage_percent = 100
+        baseline_coverage_percent = 100
+        coverage_score = 100
+        catalog_document_keys = @("contract.docx", "invoice.docx")
+        baseline_document_keys = @("contract.docx", "invoice.docx")
+        matched_document_keys = @("contract.docx", "invoice.docx")
+    }
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -155,6 +173,17 @@ Write-JsonFile -Path $numberingSummaryPath -Value ([ordered]@{
 
 Write-JsonFile -Path $tableSummaryPath -Value ([ordered]@{
     schema = "featherdoc.table_layout_delivery_governance_report.v1"
+    status = "needs_review"
+    release_ready = $false
+    delivery_quality_score = 42
+    delivery_quality_level = "blocked"
+    delivery_quality = [ordered]@{
+        score = 42
+        level = "blocked"
+        unresolved_item_count = 2
+        table_position_automatic_count = 1
+        table_position_review_count = 1
+    }
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -215,6 +244,24 @@ Write-JsonFile -Path $autoDiscoverDocumentSkeletonRollupPath -Value `
 
 Write-JsonFile -Path $autoDiscoverNumberingSummaryPath -Value ([ordered]@{
     schema = "featherdoc.numbering_catalog_governance_report.v1"
+    status = "needs_review"
+    release_ready = $false
+    real_corpus_confidence_score = 56
+    real_corpus_confidence_level = "low"
+    real_corpus_confidence = [ordered]@{
+        score = 56
+        level = "low"
+        matched_document_count = 2
+        unmatched_catalog_document_count = 0
+        unmatched_baseline_document_count = 0
+        alignment_gap_count = 0
+        catalog_coverage_percent = 100
+        baseline_coverage_percent = 100
+        coverage_score = 100
+        catalog_document_keys = @("contract.docx", "invoice.docx")
+        baseline_document_keys = @("contract.docx", "invoice.docx")
+        matched_document_keys = @("contract.docx", "invoice.docx")
+    }
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -236,6 +283,17 @@ Write-JsonFile -Path $autoDiscoverNumberingSummaryPath -Value ([ordered]@{
 
 Write-JsonFile -Path $autoDiscoverTableSummaryPath -Value ([ordered]@{
     schema = "featherdoc.table_layout_delivery_governance_report.v1"
+    status = "needs_review"
+    release_ready = $false
+    delivery_quality_score = 42
+    delivery_quality_level = "blocked"
+    delivery_quality = [ordered]@{
+        score = 42
+        level = "blocked"
+        unresolved_item_count = 2
+        table_position_automatic_count = 1
+        table_position_review_count = 1
+    }
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
@@ -674,10 +732,23 @@ Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -E
     -Message "Release candidate summary should surface action item count."
 Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 1 `
     -Message "Release candidate summary should surface warning count."
+Assert-Equal -Actual ([int]$summary.release_blocker_rollup.governance_metric_count) -Expected 2 `
+    -Message "Release candidate summary should surface rollup governance metric count."
+Assert-ContainsText -Text (($summary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
+    -ExpectedText "real_corpus_confidence:low:56" `
+    -Message "Release candidate summary should preserve numbering confidence metrics."
+Assert-ContainsText -Text (($summary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
+    -ExpectedText "delivery_quality:blocked:42" `
+    -Message "Release candidate summary should preserve table delivery metrics."
 Assert-Equal -Actual ([string]$summary.steps.release_blocker_rollup.status) -Expected "blocked" `
     -Message "Release candidate step status should mirror rollup status."
 Assert-Equal -Actual ([int]$summary.steps.release_blocker_rollup.source_failure_count) -Expected 0 `
     -Message "Release candidate step summary should mirror rollup source failure count."
+Assert-Equal -Actual ([int]$summary.steps.release_blocker_rollup.governance_metric_count) -Expected 2 `
+    -Message "Release candidate step summary should mirror rollup governance metric count."
+Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
+    -ExpectedText "real_corpus_confidence:low:56" `
+    -Message "Release candidate step summary should mirror rollup governance metrics."
 Assert-ContainsText -Text (($summary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1" `
     -Message "Release candidate summary should carry rollup blocker source schema."
@@ -738,6 +809,13 @@ Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.action_item_count
     -Message "Fail-on-blocker summary should preserve rollup action count."
 Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.warning_count) -Expected 1 `
     -Message "Fail-on-blocker summary should preserve rollup warning count."
+Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.governance_metric_count) -Expected 2 `
+    -Message "Fail-on-blocker summary should preserve rollup governance metric count."
+Assert-ContainsText -Text (($gateSummary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
+    -ExpectedText "real_corpus_confidence:low:56" `
+    -Message "Fail-on-blocker summary should preserve rollup governance metrics written before the child failure."
+Assert-Equal -Actual ([int]$gateSummary.steps.release_blocker_rollup.governance_metric_count) -Expected 2 `
+    -Message "Fail-on-blocker step summary should preserve rollup governance metric count."
 Assert-ContainsText -Text (($gateSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "document_skeleton.style_numbering_issues" `
     -Message "Fail-on-blocker summary should keep rollup blockers written before the child failure."
@@ -770,11 +848,18 @@ Assert-Equal -Actual ([string]$warningGateSummary.release_blocker_rollup.status)
     -Message "Fail-on-warning run should mark rollup as failed in release summary."
 Assert-Equal -Actual ([int]$warningGateSummary.release_blocker_rollup.warning_count) -Expected 1 `
     -Message "Fail-on-warning summary should preserve rollup warning count."
+Assert-Equal -Actual ([int]$warningGateSummary.release_blocker_rollup.governance_metric_count) -Expected 2 `
+    -Message "Fail-on-warning summary should preserve rollup governance metric count."
+Assert-ContainsText -Text (($warningGateSummary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
+    -ExpectedText "delivery_quality:blocked:42" `
+    -Message "Fail-on-warning summary should preserve rollup governance metrics written before the child failure."
 Assert-ContainsText -Text (($warningGateSummary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "document_skeleton.exemplar_catalog_missing" `
     -Message "Fail-on-warning summary should keep rollup warnings written before the child failure."
 Assert-Equal -Actual ([int]$warningGateSummary.steps.release_blocker_rollup.warning_count) -Expected 1 `
     -Message "Fail-on-warning step summary should mirror rollup warning count."
+Assert-Equal -Actual ([int]$warningGateSummary.steps.release_blocker_rollup.governance_metric_count) -Expected 2 `
+    -Message "Fail-on-warning step summary should mirror rollup governance metric count."
 
 $autoDiscoverOutputDir = Join-Path $resolvedWorkingDir "release-candidate-auto-discover"
 $autoDiscoverArguments = @(
@@ -825,6 +910,26 @@ Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_it
     -Message "Auto-discovered rollup should surface action count from default governance reports."
 Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.warning_count) -Expected 3 `
     -Message "Auto-discovered rollup should surface warning count from default governance reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.governance_metric_count) -Expected 2 `
+    -Message "Auto-discovered rollup should surface governance metric count from default governance reports."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.id):$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
+    -ExpectedText "numbering_catalog_governance.real_corpus_confidence:real_corpus_confidence:low:56" `
+    -Message "Auto-discovered rollup should preserve numbering confidence metrics."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.id):$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
+    -ExpectedText "table_layout_delivery_governance.delivery_quality:delivery_quality:blocked:42" `
+    -Message "Auto-discovered rollup should preserve table delivery metrics."
+$autoDiscoverNumberingMetric = ($autoDiscoverSummary.release_blocker_rollup.governance_metrics |
+    Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_confidence" } |
+    Select-Object -First 1)
+Assert-ContainsText -Text (($autoDiscoverNumberingMetric.details.catalog_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "contract.docx" `
+    -Message "Auto-discovered rollup should preserve numbering catalog document keys in metric details."
+Assert-ContainsText -Text (($autoDiscoverNumberingMetric.details.baseline_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "invoice.docx" `
+    -Message "Auto-discovered rollup should preserve numbering baseline document keys in metric details."
+Assert-ContainsText -Text (($autoDiscoverNumberingMetric.details.matched_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "contract.docx" `
+    -Message "Auto-discovered rollup should preserve numbering matched document keys in metric details."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "document_skeleton.exemplar_catalog_missing" `
     -Message "Auto-discovered rollup should surface document skeleton warnings."

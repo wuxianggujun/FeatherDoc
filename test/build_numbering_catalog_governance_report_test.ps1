@@ -564,6 +564,21 @@ if (Test-Scenario -Name "alignment_gap") {
         -Message "Alignment blocker should expose unmatched catalog document count."
     Assert-Equal -Actual ([int]$alignmentBlocker.unmatched_baseline_document_count) -Expected 1 `
         -Message "Alignment blocker should expose unmatched baseline document count."
+    Assert-Equal -Actual (@($alignmentBlocker.catalog_document_keys).Count) -Expected 2 `
+        -Message "Alignment blocker should expose catalog document keys."
+    Assert-ContainsText -Text (($alignmentBlocker.catalog_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "contract" `
+        -Message "Alignment blocker should expose the unmatched catalog document key."
+    Assert-Equal -Actual (@($alignmentBlocker.baseline_document_keys).Count) -Expected 2 `
+        -Message "Alignment blocker should expose baseline document keys."
+    Assert-ContainsText -Text (($alignmentBlocker.baseline_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "obsolete" `
+        -Message "Alignment blocker should expose the unmatched baseline document key."
+    Assert-Equal -Actual (@($alignmentBlocker.matched_document_keys).Count) -Expected 1 `
+        -Message "Alignment blocker should expose matched document keys."
+    Assert-ContainsText -Text (($alignmentBlocker.matched_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "invoice" `
+        -Message "Alignment blocker should expose the matched document key."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Matched documents" `

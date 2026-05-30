@@ -967,6 +967,9 @@ if ($realCorpusConfidence.alignment_gap_count -gt 0) {
     $alignmentBlocker["matched_document_count"] = $realCorpusConfidence.matched_document_count
     $alignmentBlocker["unmatched_catalog_document_count"] = $realCorpusConfidence.unmatched_catalog_document_count
     $alignmentBlocker["unmatched_baseline_document_count"] = $realCorpusConfidence.unmatched_baseline_document_count
+    $alignmentBlocker["catalog_document_keys"] = @($realCorpusConfidence.catalog_document_keys)
+    $alignmentBlocker["baseline_document_keys"] = @($realCorpusConfidence.baseline_document_keys)
+    $alignmentBlocker["matched_document_keys"] = @($realCorpusConfidence.matched_document_keys)
     $alignmentBlocker["catalog_coverage_percent"] = $realCorpusConfidence.catalog_coverage_percent
     $alignmentBlocker["baseline_coverage_percent"] = $realCorpusConfidence.baseline_coverage_percent
     $alignmentBlocker["coverage_score"] = $realCorpusConfidence.coverage_score
