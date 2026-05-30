@@ -30,7 +30,9 @@
   ``-ReportMarkdown`` 显式指定输出路径；同一个脚本路径被重复列出时也会失败，
   并在 JSON / Markdown 中写出 ``duplicate_script_reference_count``；报告还会
   通过 ``script_reference_group_count`` 和 ``script_reference_groups`` 按本页
-  小节汇总脚本覆盖量，方便维护者快速发现某个分组入口异常变化。
+  小节汇总脚本覆盖量，并通过 ``script_reference_extension_count`` 和
+  ``script_reference_extensions`` 汇总 ``.ps1`` / ``.py`` 入口分布，方便维护者
+  快速发现某个分组或脚本类型的异常变化。
 
 
 模板契约与项目模板

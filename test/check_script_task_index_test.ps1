@@ -173,6 +173,29 @@ if ($passingGroupUniqueCount -ne $passingSummary.script_reference_count) {
 if ($passingGroupTotalCount -ne $passingSummary.total_script_reference_count) {
     throw "Script reference group total does not match summary count."
 }
+if ($passingSummary.script_reference_extension_count -lt 1) {
+    throw "Expected at least one script reference extension, got: $($passingSummary.script_reference_extension_count)"
+}
+$passingExtensionUniqueCount = [int](($passingSummary.script_reference_extensions |
+            ForEach-Object { $_.script_reference_count } |
+            Measure-Object -Sum).Sum)
+$passingExtensionTotalCount = [int](($passingSummary.script_reference_extensions |
+            ForEach-Object { $_.total_script_reference_count } |
+            Measure-Object -Sum).Sum)
+if ($passingExtensionUniqueCount -ne $passingSummary.script_reference_count) {
+    throw "Script reference extension unique total does not match summary count."
+}
+if ($passingExtensionTotalCount -ne $passingSummary.total_script_reference_count) {
+    throw "Script reference extension total does not match summary count."
+}
+Assert-ArrayContains `
+    -Values @($passingSummary.script_reference_extensions | ForEach-Object { $_.extension }) `
+    -ExpectedValue ".ps1" `
+    -Message "Script reference extensions should include PowerShell scripts."
+Assert-ArrayContains `
+    -Values @($passingSummary.script_reference_extensions | ForEach-Object { $_.script_references } | ForEach-Object { $_ }) `
+    -ExpectedValue "scripts\check_script_task_index.ps1" `
+    -Message "Script reference extensions should include the script index checker."
 Assert-ArrayContains `
     -Values @($passingSummary.script_reference_groups | ForEach-Object { $_.script_references } | ForEach-Object { $_ }) `
     -ExpectedValue "scripts\check_script_task_index.ps1" `
@@ -208,11 +231,14 @@ foreach ($marker in @(
         '- status: `passed`',
         '- total_script_reference_count:',
         '- script_reference_group_count:',
+        '- script_reference_extension_count:',
         '- duplicate_script_reference_count: `0`',
         '- missing_script_count: `0`',
         '- missing_marker_count: `0`',
         '## Checked Scripts',
         '## Script Reference Groups',
+        '## Script Reference Extensions',
+        '`.ps1`:',
         'unique /',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
@@ -317,6 +343,9 @@ if ($failingSummary.duplicate_script_reference_count -ne 1) {
 if ($failingSummary.script_reference_group_count -ne 1) {
     throw "Expected one script reference group in failing fixture, got: $($failingSummary.script_reference_group_count)"
 }
+if ($failingSummary.script_reference_extension_count -ne 1) {
+    throw "Expected one script reference extension in failing fixture, got: $($failingSummary.script_reference_extension_count)"
+}
 $failingGroup = @($failingSummary.script_reference_groups)[0]
 if ($failingGroup.total_script_reference_count -ne 4) {
     throw "Expected four total script references in failing fixture group, got: $($failingGroup.total_script_reference_count)"
@@ -326,6 +355,19 @@ if ($failingGroup.script_reference_count -ne 3) {
 }
 if ($failingGroup.duplicate_script_reference_count -ne 1) {
     throw "Expected one duplicate script reference in failing fixture group, got: $($failingGroup.duplicate_script_reference_count)"
+}
+$failingExtension = @($failingSummary.script_reference_extensions)[0]
+if ($failingExtension.extension -ne ".ps1") {
+    throw "Expected .ps1 extension in failing fixture, got: $($failingExtension.extension)"
+}
+if ($failingExtension.total_script_reference_count -ne 4) {
+    throw "Expected four total script references in failing fixture extension, got: $($failingExtension.total_script_reference_count)"
+}
+if ($failingExtension.script_reference_count -ne 3) {
+    throw "Expected three unique script references in failing fixture extension, got: $($failingExtension.script_reference_count)"
+}
+if ($failingExtension.duplicate_script_reference_count -ne 1) {
+    throw "Expected one duplicate script reference in failing fixture extension, got: $($failingExtension.duplicate_script_reference_count)"
 }
 Assert-ArrayContains `
     -Values @($failingSummary.missing_scripts) `
@@ -338,11 +380,14 @@ Assert-ArrayContains `
 foreach ($marker in @(
         '- status: `failed`',
         '- script_reference_group_count: `1`',
+        '- script_reference_extension_count: `1`',
         '- duplicate_script_reference_count: `1`',
         '- missing_script_count: `1`',
         '[missing] `scripts\missing_tool.ps1`',
         '## Script Reference Groups',
         '`Script task index`: 3 unique / 4 total',
+        '## Script Reference Extensions',
+        '`.ps1`: 3 unique / 4 total',
         '## Duplicate Script References',
         '`scripts\existing_tool.ps1` x2',
         '## Missing Scripts',

@@ -91,6 +91,8 @@ foreach ($marker in @(
         "duplicate_script_reference_count",
         "script_reference_group_count",
         "script_reference_groups",
+        "script_reference_extension_count",
+        "script_reference_extensions",
         "build_numbering_catalog_governance_report.ps1",
         "build_table_layout_delivery_report.ps1",
         "check_word_visual_release_gate_preflight.ps1",
