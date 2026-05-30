@@ -51,10 +51,18 @@
 - ``scripts/run_project_template_smoke.ps1``：运行项目模板 smoke manifest。
 - ``scripts/check_project_template_smoke_manifest.ps1``：校验项目模板 smoke
   manifest 结构。
+- ``scripts/describe_project_template_smoke_manifest.ps1``：只读描述项目模板
+  smoke manifest 状态与维护入口。
 - ``scripts/discover_project_template_smoke_candidates.ps1``：发现尚未纳入
   manifest 的 ``.docx`` / ``.dotx`` 候选。
+- ``scripts/new_project_template_smoke_onboarding_plan.ps1``：生成项目模板
+  smoke 候选接入计划，不直接修改 manifest。
 - ``scripts/register_project_template_smoke_manifest_entry.ps1``：注册真实模板
   smoke 条目。
+- ``scripts/sync_project_template_schema_approval.ps1``：同步项目模板 schema
+  approval 的 reviewer 决策与发布摘要。
+- ``scripts/write_project_template_schema_approval_history.ps1``：汇总多次
+  smoke / release summary 的 schema approval 历史。
 - ``scripts/build_project_template_onboarding_governance_report.ps1``：生成
   onboarding governance 报告。
 - ``scripts/build_project_template_delivery_readiness_report.ps1``：生成项目模板
