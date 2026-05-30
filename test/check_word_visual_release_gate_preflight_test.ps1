@@ -113,6 +113,8 @@ Assert-True -Condition (-not [bool]$summary.release_ready) `
     -Message "Static preflight should never claim release readiness."
 Assert-Equal -Actual ([string]$summary.evidence_scope) -Expected "word_visual_release_gate_preflight_static_contract_only" `
     -Message "Evidence scope mismatch."
+Assert-Equal -Actual ([string]$summary.output_encoding) -Expected "UTF-8 without BOM" `
+    -Message "Output encoding summary mismatch."
 Assert-ContainsText -Text ([string]$summary.boundary) -ExpectedText "does not run Word, CMake, CTest" `
     -Message "Boundary should explicitly stay read-only."
 Assert-Equal -Actual ([string]$summary.minimum_risk_next_action_command) `
@@ -144,6 +146,7 @@ foreach ($marker in @(
         "Word Visual Release Gate Preflight",
         "## Next Action",
         "featherdoc.word_visual_release_gate_preflight.v1",
+        'Output encoding: `UTF-8 without BOM`',
         "word_visual_release_gate_preflight_static_contract_only",
         'powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1',
         'powershell -ExecutionPolicy Bypass -File .\scripts\check_word_visual_release_gate_preflight.ps1 -RepoRoot . -Strict',
@@ -183,6 +186,8 @@ Assert-FileHasNoBom -Path $missingSummaryPath `
     -Message "Missing fixture JSON summary should be UTF-8 without BOM."
 Assert-FileHasNoBom -Path $missingReportPath `
     -Message "Missing fixture Markdown report should be UTF-8 without BOM."
+Assert-Equal -Actual ([string]$missingSummary.output_encoding) -Expected "UTF-8 without BOM" `
+    -Message "Missing fixture output encoding summary mismatch."
 Assert-Equal -Actual ([string]$missingSummary.status) -Expected "not_ready" `
     -Message "Missing fixture preflight should be not_ready."
 Assert-True -Condition ((@($missingSummary.blocking_checks) | ForEach-Object { [string]$_ }) -contains "word_visual_gate_scripts_exist") `

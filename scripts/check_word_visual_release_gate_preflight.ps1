@@ -327,6 +327,7 @@ $summary = [ordered]@{
     output_json_display = Get-DisplayPath -Root $repoRoot -Path $resolvedOutputJson
     report_markdown = $resolvedReportMarkdown
     report_markdown_display = Get-DisplayPath -Root $repoRoot -Path $resolvedReportMarkdown
+    output_encoding = "UTF-8 without BOM"
     evidence_scope = "word_visual_release_gate_preflight_static_contract_only"
     evidence_scope_note = "This read-only preflight checks static scripts, docs, and test registration only."
     check_count = $checks.Count
@@ -352,6 +353,7 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReportMarkdown)) {
     $markdownLines.Add("") | Out-Null
     $markdownLines.Add("- Schema: ``$($summary.schema)``") | Out-Null
     $markdownLines.Add("- Status: ``$($summary.status)``") | Out-Null
+    $markdownLines.Add("- Output encoding: ``$($summary.output_encoding)``") | Out-Null
     $markdownLines.Add("- Evidence scope: ``$($summary.evidence_scope)``") | Out-Null
     $markdownLines.Add("- Blocking checks: ``$($summary.blocking_check_count)``") | Out-Null
     $markdownLines.Add("- Boundary: $boundary") | Out-Null
