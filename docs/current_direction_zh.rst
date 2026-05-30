@@ -269,6 +269,27 @@ table style quality、安全 ``tblLook`` 修复、floating table preset plan 和
 只有当这三条主线已经明显稳定之后，再考虑更重、更宽的能力面。
 
 
+路线维护守护点
+--------------
+
+本节也作为 ``current_direction_guardrails`` 契约锚点，约束后续维护时不要把
+``template_contract_project_template_workflow``、
+``style_numbering_governance_workflow`` 和
+``table_layout_delivery_workflow`` 三条主线打散。
+
+后续新增能力、脚本或发布治理入口时，应先把它归入本文三条能力线之一：
+模板契约与项目模板工作流、样式与编号治理、表格与版式交付能力。
+如果暂时无法归类，需要在变更说明中写清功能准入依据、验证证据，以及
+为什么它不属于“当前明确不优先的事项”。
+
+每次调整本文时，至少同步检查下面三件事：
+
+1. 三条能力线标题仍保留，并能对应 ``docs/script_task_index_zh.rst`` 的脚本分类
+2. 功能准入标准、当前明确不优先事项和维护节奏建议仍被契约测试覆盖
+3. 影响版式或发布治理的变更必须说明 ``reopen-save``、``Word`` visual validation
+   或轻量只读 gate 的验证入口
+
+
 建议的对外表述
 --------------
 

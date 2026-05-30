@@ -76,6 +76,13 @@ foreach ($marker in @(
         "featherdoc.document_skeleton_governance_rollup_report.v1",
         "build_table_layout_delivery_rollup_report.ps1",
         "featherdoc.table_layout_delivery_rollup_report.v1",
+        "current_direction_guardrails",
+        "template_contract_project_template_workflow",
+        "style_numbering_governance_workflow",
+        "table_layout_delivery_workflow",
+        "docs/script_task_index_zh.rst",
+        "reopen-save",
+        "gate",
         "OMML"
     )) {
     Assert-ContainsText -Text $currentDirectionDoc -ExpectedText $marker `
