@@ -3671,6 +3671,11 @@ reason about and extend independently.
 - Current direction guide (Chinese): `docs/current_direction_zh.rst`
 - Documentation maintenance guide: `docs/documentation_maintenance_zh.rst`
 - Script task index: `docs/script_task_index_zh.rst`
+- Script task index checker: `scripts/check_script_task_index.ps1` writes
+  `output/script-task-index-check/summary.json` and
+  `output/script-task-index-check/script_task_index_check.md`, then surfaces
+  `script_reference_group_count`, `script_reference_extension_count`,
+  `duplicate_script_reference_count`, and `missing_marker_count` for review.
 - Release policy guide: `docs/release_policy_zh.rst`
 - Release metadata pipeline guide: `docs/release_metadata_pipeline_zh.rst`
 - Release metadata maintenance checklist: `docs/release_metadata_maintenance_checklist_zh.rst`

@@ -61,7 +61,14 @@ $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMake
 foreach ($marker in @(
         "script_task_index_zh",
         "documentation_maintenance_zh",
-        "project_score_assessment_zh"
+        "project_score_assessment_zh",
+        "scripts/check_script_task_index.ps1",
+        "output/script-task-index-check/summary.json",
+        "output/script-task-index-check/script_task_index_check.md",
+        "script_reference_group_count",
+        "script_reference_extension_count",
+        "duplicate_script_reference_count",
+        "missing_marker_count"
     )) {
     Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
         -Message "Sphinx index should keep script task index and maintenance docs reachable."
@@ -73,7 +80,14 @@ foreach ($entrypoint in @(
     )) {
     foreach ($marker in @(
             "docs/documentation_maintenance_zh.rst",
-            "docs/script_task_index_zh.rst"
+            "docs/script_task_index_zh.rst",
+            "scripts/check_script_task_index.ps1",
+            "output/script-task-index-check/summary.json",
+            "output/script-task-index-check/script_task_index_check.md",
+            "script_reference_group_count",
+            "script_reference_extension_count",
+            "duplicate_script_reference_count",
+            "missing_marker_count"
         )) {
         Assert-ContainsText -Text $entrypoint.Text -ExpectedText $marker `
             -Message "$($entrypoint.Label) should keep documentation maintenance entrypoint '$marker' reachable."

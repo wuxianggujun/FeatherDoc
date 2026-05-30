@@ -10,6 +10,13 @@ Release v\ |version|
 Repository-level README entry points are available at ``README.md`` (English)
 and ``README.zh-CN.md`` (Simplified Chinese).
 
+The script task index checker, ``scripts/check_script_task_index.ps1``, writes
+``output/script-task-index-check/summary.json`` and
+``output/script-task-index-check/script_task_index_check.md``. Its summary keeps
+the key review counters visible, including
+``script_reference_group_count``, ``script_reference_extension_count``,
+``duplicate_script_reference_count``, and ``missing_marker_count``.
+
 .. toctree::
    :maxdepth: 2
    :hidden:
