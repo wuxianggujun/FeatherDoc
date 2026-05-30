@@ -337,24 +337,32 @@ $resolvedRepoRoot = Resolve-RepoRoot -InputRoot $RepoRoot
 $summaryJsonPath = Resolve-RepoPath -Root $resolvedRepoRoot -InputPath $SummaryJson
 $reportMarkdownPath = Resolve-RepoPath -Root $resolvedRepoRoot -InputPath $ReportMarkdown
 
+$readmeRelativePath = "README.md"
+$readmeZhRelativePath = "README.zh-CN.md"
 $scriptIndexRelativePath = "docs\script_task_index_zh.rst"
 $indexRelativePath = "docs\index.rst"
 $maintenanceRelativePath = "docs\documentation_maintenance_zh.rst"
 $scoreRelativePath = "docs\project_score_assessment_zh.rst"
 $cmakeRelativePath = "test\CMakeLists.txt"
 
+$readmePath = Join-Path $resolvedRepoRoot $readmeRelativePath
+$readmeZhPath = Join-Path $resolvedRepoRoot $readmeZhRelativePath
 $scriptIndexPath = Join-Path $resolvedRepoRoot $scriptIndexRelativePath
 $indexPath = Join-Path $resolvedRepoRoot $indexRelativePath
 $maintenancePath = Join-Path $resolvedRepoRoot $maintenanceRelativePath
 $scorePath = Join-Path $resolvedRepoRoot $scoreRelativePath
 $cmakePath = Join-Path $resolvedRepoRoot $cmakeRelativePath
 
+Assert-FileExists -Path $readmePath -Label "english README"
+Assert-FileExists -Path $readmeZhPath -Label "chinese README"
 Assert-FileExists -Path $scriptIndexPath -Label "script task index doc"
 Assert-FileExists -Path $indexPath -Label "sphinx index doc"
 Assert-FileExists -Path $maintenancePath -Label "documentation maintenance doc"
 Assert-FileExists -Path $scorePath -Label "project score assessment doc"
 Assert-FileExists -Path $cmakePath -Label "test CMakeLists"
 
+$readmeText = Read-Utf8Text -Path $readmePath
+$readmeZhText = Read-Utf8Text -Path $readmeZhPath
 $scriptIndexText = Read-Utf8Text -Path $scriptIndexPath
 $indexText = Read-Utf8Text -Path $indexPath
 $maintenanceText = Read-Utf8Text -Path $maintenancePath
@@ -385,6 +393,16 @@ $missingScripts = @(
 )
 
 $requiredMarkerGroups = @(
+    [pscustomobject]@{
+        document = $readmeRelativePath
+        markers = @("docs/documentation_maintenance_zh.rst", "docs/script_task_index_zh.rst")
+        text = $readmeText
+    },
+    [pscustomobject]@{
+        document = $readmeZhRelativePath
+        markers = @("docs/documentation_maintenance_zh.rst", "docs/script_task_index_zh.rst")
+        text = $readmeZhText
+    },
     [pscustomobject]@{
         document = $indexRelativePath
         markers = @("script_task_index_zh")
@@ -454,6 +472,7 @@ $summary = [ordered]@{
     summary_json_relative_path = $summaryJsonRelativePath
     report_markdown_path = $reportMarkdownPath
     report_markdown_relative_path = $reportMarkdownRelativePath
+    documentation_entrypoint_count = 2
     script_index_relative_path = $scriptIndexRelativePath
     total_script_reference_count = $allScriptReferences.Count
     script_reference_count = $scriptReferences.Count

@@ -285,6 +285,12 @@ Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "docs\project_score_assessment_zh.rst") `
     -Text "docs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
 Write-Utf8NoBomFile `
+    -Path (Join-Path $failingRoot "README.md") `
+    -Text "docs/documentation_maintenance_zh.rst`ndocs/script_task_index_zh.rst"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $failingRoot "README.zh-CN.md") `
+    -Text "docs/documentation_maintenance_zh.rst`ndocs/script_task_index_zh.rst"
+Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "test\CMakeLists.txt") `
     -Text (@(
         "check_script_task_index",
