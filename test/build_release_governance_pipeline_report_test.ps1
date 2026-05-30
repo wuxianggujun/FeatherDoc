@@ -661,6 +661,46 @@ Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
     -Message "Pipeline should be blocked by fixture governance reports."
 Assert-Equal -Actual ([string]$summary.governance_detail_source) -Expected "release_blocker_rollup" `
     -Message "Pipeline should expose final rollup as the top-level governance detail source."
+Assert-Equal -Actual ([string]$summary.local_governance_closure.schema) -Expected "featherdoc.release_governance_local_closure.v1" `
+    -Message "Pipeline should expose the local governance closure schema."
+Assert-Equal -Actual ([string]$summary.local_governance_closure.status) -Expected "closed" `
+    -Message "Pipeline should mark the local governance closure closed when DOCX readiness, handoff, and rollup all complete."
+Assert-Equal -Actual ([bool]$summary.local_governance_closure.closed) -Expected $true `
+    -Message "Pipeline should expose a machine-readable local governance closure flag."
+Assert-Equal -Actual ([int]$summary.local_governance_closure.required_stage_count) -Expected 3 `
+    -Message "Pipeline should track the three required local closure stages."
+Assert-Equal -Actual ([int]$summary.local_governance_closure.completed_required_stage_count) -Expected 3 `
+    -Message "Pipeline should count all completed local closure stages."
+Assert-Equal -Actual ([string]$summary.local_governance_closure.governance_detail_source) -Expected "release_blocker_rollup" `
+    -Message "Local governance closure should mirror the final governance detail source."
+Assert-ContainsText -Text ([string]$summary.local_governance_closure.pipeline_summary_json_display) `
+    -ExpectedText "pipeline\summary.json" `
+    -Message "Local governance closure should point reviewers at the pipeline summary."
+Assert-ContainsText -Text ([string]$summary.local_governance_closure.pipeline_report_markdown_display) `
+    -ExpectedText "release_governance_pipeline.md" `
+    -Message "Local governance closure should point reviewers at the pipeline Markdown."
+Assert-ContainsText -Text (($summary.local_governance_closure.final_governance_reports | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "docx-functional-smoke-readiness\summary.json" `
+    -Message "Local governance closure should include DOCX readiness as final governance evidence."
+Assert-ContainsText -Text (($summary.local_governance_closure.final_governance_reports | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "pdf-visual-release-gate-preflight-governance\summary.json" `
+    -Message "Local governance closure should preserve optional PDF preflight evidence when present."
+$closureStageIds = @($summary.local_governance_closure.required_stages | ForEach-Object { [string]$_.id })
+foreach ($expectedClosureStage in @(
+        "docx_functional_smoke_readiness",
+        "release_governance_handoff",
+        "release_blocker_rollup"
+    )) {
+    Assert-ContainsText -Text ($closureStageIds -join "`n") -ExpectedText $expectedClosureStage `
+        -Message "Local governance closure should include required stage $expectedClosureStage."
+}
+foreach ($closureStage in @($summary.local_governance_closure.required_stages)) {
+    Assert-Equal -Actual ([bool]$closureStage.closed) -Expected $true `
+        -Message "Local governance closure stage $($closureStage.id) should be marked closed."
+    Assert-ContainsText -Text ([string]$closureStage.summary_json_display) `
+        -ExpectedText "summary.json" `
+        -Message "Local governance closure stage $($closureStage.id) should keep a summary display path."
+}
 Assert-Equal -Actual ([int]$summary.stage_count) -Expected 8 `
     -Message "Pipeline should run eight read-only stages."
 Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 8 `
@@ -899,6 +939,16 @@ Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline
     -Message "Pipeline Markdown should include title."
 Assert-ContainsText -Text $markdown -ExpectedText 'Governance detail source: `release_blocker_rollup`' `
     -Message "Pipeline Markdown should include the governance detail source."
+Assert-ContainsText -Text $markdown -ExpectedText "Local governance closure: ``closed`` (3/3 required stages)" `
+    -Message "Pipeline Markdown should expose the local closure state."
+Assert-ContainsText -Text $markdown -ExpectedText "## Local Governance Closure" `
+    -Message "Pipeline Markdown should include a local closure section."
+Assert-ContainsText -Text $markdown -ExpectedText '`docx_functional_smoke_readiness`: status=`pass` closed=`True`' `
+    -Message "Pipeline Markdown should expose the DOCX readiness closure stage."
+Assert-ContainsText -Text $markdown -ExpectedText '`release_governance_handoff`: status=`blocked` closed=`True`' `
+    -Message "Pipeline Markdown should expose the handoff closure stage."
+Assert-ContainsText -Text $markdown -ExpectedText '`release_blocker_rollup`: status=`blocked` closed=`True`' `
+    -Message "Pipeline Markdown should expose the final rollup closure stage."
 Assert-ContainsText -Text $markdown -ExpectedText "release_blocker_rollup" `
     -Message "Pipeline Markdown should include final rollup stage."
 Assert-ContainsText -Text $markdown -ExpectedText "Failed stages: ``0``" `

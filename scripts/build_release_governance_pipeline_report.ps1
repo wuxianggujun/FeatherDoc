@@ -557,14 +557,105 @@ function Add-StageGovernanceMarkdown {
     }
 }
 
+function Test-StageCompletedSuccessfully {
+    param($Stage)
+
+    if ($null -eq $Stage) { return $false }
+    $stageStatus = Get-JsonString -Object $Stage -Name "status"
+    $stageExitCode = Get-JsonInt -Object $Stage -Name "exit_code" -DefaultValue 1
+    return ($stageStatus -notin @("failed", "missing_summary") -and $stageExitCode -eq 0)
+}
+
+function Get-StageByIdOrNull {
+    param(
+        [object[]]$Stages,
+        [string]$Id
+    )
+
+    $matches = @($Stages | Where-Object { (Get-JsonString -Object $_ -Name "id") -eq $Id } | Select-Object -First 1)
+    if ($matches.Count -eq 0) { return $null }
+    return $matches[0]
+}
+
+function New-LocalClosureStageEntry {
+    param(
+        [object[]]$Stages,
+        [string]$Id,
+        [string]$Title
+    )
+
+    $stage = Get-StageByIdOrNull -Stages $Stages -Id $Id
+    if ($null -eq $stage) {
+        return [ordered]@{
+            id = $Id
+            title = $Title
+            status = "missing_stage"
+            closed = $false
+            summary_json_display = ""
+            report_markdown_display = ""
+        }
+    }
+
+    return [ordered]@{
+        id = $Id
+        title = Get-JsonString -Object $stage -Name "title" -DefaultValue $Title
+        status = Get-JsonString -Object $stage -Name "status"
+        closed = (Test-StageCompletedSuccessfully -Stage $stage)
+        summary_json_display = Get-JsonString -Object $stage -Name "summary_json_display"
+        report_markdown_display = Get-JsonString -Object $stage -Name "report_markdown_display"
+    }
+}
+
+function New-LocalGovernanceClosureSummary {
+    param(
+        [string]$RepoRoot,
+        [object[]]$Stages,
+        [string]$SummaryPath,
+        [string]$MarkdownPath,
+        [string]$GovernanceDetailSource,
+        [string[]]$FinalGovernanceReports
+    )
+
+    $requiredStages = @(
+        New-LocalClosureStageEntry -Stages $Stages -Id "docx_functional_smoke_readiness" -Title "DOCX Functional Smoke Readiness"
+        New-LocalClosureStageEntry -Stages $Stages -Id "release_governance_handoff" -Title "Release Governance Handoff"
+        New-LocalClosureStageEntry -Stages $Stages -Id "release_blocker_rollup" -Title "Release Blocker Rollup"
+    )
+    $completedRequiredStageCount = @($requiredStages | Where-Object { [bool]$_.closed }).Count
+    $closed = ($completedRequiredStageCount -eq $requiredStages.Count)
+
+    return [ordered]@{
+        schema = "featherdoc.release_governance_local_closure.v1"
+        status = if ($closed) { "closed" } else { "incomplete" }
+        closed = $closed
+        required_stage_count = $requiredStages.Count
+        completed_required_stage_count = $completedRequiredStageCount
+        governance_detail_source = $GovernanceDetailSource
+        pipeline_summary_json = $SummaryPath
+        pipeline_summary_json_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $SummaryPath
+        pipeline_report_markdown = $MarkdownPath
+        pipeline_report_markdown_display = Get-DisplayPath -RepoRoot $RepoRoot -Path $MarkdownPath
+        final_governance_report_count = @($FinalGovernanceReports).Count
+        final_governance_reports = @($FinalGovernanceReports | ForEach-Object { Get-DisplayPath -RepoRoot $RepoRoot -Path $_ })
+        required_stages = @($requiredStages)
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
     $lines = New-Object 'System.Collections.Generic.List[string]'
+    $closure = Get-JsonProperty -Object $Summary -Name "local_governance_closure"
     $lines.Add("# Release Governance Pipeline") | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("- Status: ``$($Summary.status)``") | Out-Null
     $lines.Add("- Governance detail source: ``$($Summary.governance_detail_source)``") | Out-Null
+    if ($null -ne $closure) {
+        $lines.Add("- Local governance closure: ``$($closure.status)`` ($($closure.completed_required_stage_count)/$($closure.required_stage_count) required stages)") | Out-Null
+        $lines.Add("- Local closure pipeline summary: ``$($closure.pipeline_summary_json_display)``") | Out-Null
+        $lines.Add("- Local closure pipeline report: ``$($closure.pipeline_report_markdown_display)``") | Out-Null
+        $lines.Add("- Local closure final governance reports: ``$($closure.final_governance_report_count)``") | Out-Null
+    }
     $lines.Add("- Stages: ``$($Summary.completed_stage_count)`` completed / ``$($Summary.stage_count)`` total") | Out-Null
     $lines.Add("- Failed stages: ``$($Summary.failed_stage_count)``") | Out-Null
     $lines.Add("- Missing reports: ``$($Summary.missing_report_count)``") | Out-Null
@@ -573,6 +664,14 @@ function New-ReportMarkdown {
     $lines.Add("- Informational action items: ``$($Summary.informational_action_item_count)``") | Out-Null
     $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null
     $lines.Add("") | Out-Null
+    if ($null -ne $closure) {
+        $lines.Add("## Local Governance Closure") | Out-Null
+        $lines.Add("") | Out-Null
+        foreach ($stage in @($closure.required_stages)) {
+            $lines.Add("- ``$($stage.id)``: status=``$($stage.status)`` closed=``$($stage.closed)`` summary=``$($stage.summary_json_display)`` report=``$($stage.report_markdown_display)``") | Out-Null
+        }
+        $lines.Add("") | Out-Null
+    }
     $lines.Add("## Stages") | Out-Null
     $lines.Add("") | Out-Null
     foreach ($stage in @($Summary.stages)) {
@@ -792,6 +891,14 @@ $status = if ($failedStageCount -gt 0) {
     "ready"
 }
 
+$localGovernanceClosure = New-LocalGovernanceClosureSummary `
+    -RepoRoot $repoRoot `
+    -Stages $stageItems `
+    -SummaryPath $summaryPath `
+    -MarkdownPath $markdownPath `
+    -GovernanceDetailSource $governanceDetailSource `
+    -FinalGovernanceReports $handoffInputs
+
 $summary = [ordered]@{
     schema = "featherdoc.release_governance_pipeline_report.v1"
     generated_at = (Get-Date).ToString("s")
@@ -811,6 +918,7 @@ $summary = [ordered]@{
     failed_stage_count = $failedStageCount
     missing_report_count = $missingReportCount
     governance_detail_source = $governanceDetailSource
+    local_governance_closure = $localGovernanceClosure
     release_blocker_count = $releaseBlockerCount
     release_blockers = $releaseBlockers
     action_item_count = $actionItemCount

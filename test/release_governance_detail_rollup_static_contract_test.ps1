@@ -172,6 +172,9 @@ foreach ($marker in @(
     "New-StageBlockerItems",
     "New-StageActionItems",
     "New-StageWarningItems",
+    "New-LocalGovernanceClosureSummary",
+    "featherdoc.release_governance_local_closure.v1",
+    "local_governance_closure",
     "Add-StageGovernanceMarkdown",
     "release_governance_handoff",
     "release_blocker_rollup"
