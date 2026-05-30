@@ -161,6 +161,23 @@ if ($passingSummary.total_script_reference_count -ne $passingSummary.script_refe
 if ($passingSummary.script_reference_group_count -lt 8) {
     throw "Expected at least 8 script reference groups, got: $($passingSummary.script_reference_group_count)"
 }
+if ($passingSummary.documentation_entrypoint_count -ne 2) {
+    throw "Expected two documentation entrypoints, got: $($passingSummary.documentation_entrypoint_count)"
+}
+Assert-ArrayContains `
+    -Values @($passingSummary.documentation_entrypoints | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue "README.md" `
+    -Message "Summary should list the English README documentation entrypoint."
+Assert-ArrayContains `
+    -Values @($passingSummary.documentation_entrypoints | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue "README.zh-CN.md" `
+    -Message "Summary should list the Chinese README documentation entrypoint."
+$passingEntryPointMarkerCount = [int](($passingSummary.documentation_entrypoints |
+            ForEach-Object { $_.marker_count } |
+            Measure-Object -Sum).Sum)
+if ($passingEntryPointMarkerCount -ne 4) {
+    throw "Expected four total documentation entrypoint markers, got: $passingEntryPointMarkerCount"
+}
 $passingGroupUniqueCount = [int](($passingSummary.script_reference_groups |
             ForEach-Object { $_.script_reference_count } |
             Measure-Object -Sum).Sum)
@@ -229,6 +246,7 @@ foreach ($marker in @(
         '# Script Task Index Check',
         '- schema: `featherdoc.script_task_index_check.v1`',
         '- status: `passed`',
+        '- documentation_entrypoint_count: `2`',
         '- total_script_reference_count:',
         '- script_reference_group_count:',
         '- script_reference_extension_count:',
@@ -236,6 +254,9 @@ foreach ($marker in @(
         '- missing_script_count: `0`',
         '- missing_marker_count: `0`',
         '## Checked Scripts',
+        '## Documentation Entry Points',
+        '`README.md`: 2 markers',
+        '`README.zh-CN.md`: 2 markers',
         '## Script Reference Groups',
         '## Script Reference Extensions',
         '`.ps1`:',
@@ -349,6 +370,9 @@ if ($failingSummary.duplicate_script_reference_count -ne 1) {
 if ($failingSummary.script_reference_group_count -ne 1) {
     throw "Expected one script reference group in failing fixture, got: $($failingSummary.script_reference_group_count)"
 }
+if ($failingSummary.documentation_entrypoint_count -ne 2) {
+    throw "Expected two documentation entrypoints in failing fixture, got: $($failingSummary.documentation_entrypoint_count)"
+}
 if ($failingSummary.script_reference_extension_count -ne 1) {
     throw "Expected one script reference extension in failing fixture, got: $($failingSummary.script_reference_extension_count)"
 }
@@ -385,11 +409,14 @@ Assert-ArrayContains `
     -Message "Failing summary should list the duplicate script reference."
 foreach ($marker in @(
         '- status: `failed`',
+        '- documentation_entrypoint_count: `2`',
         '- script_reference_group_count: `1`',
         '- script_reference_extension_count: `1`',
         '- duplicate_script_reference_count: `1`',
         '- missing_script_count: `1`',
         '[missing] `scripts\missing_tool.ps1`',
+        '## Documentation Entry Points',
+        '`README.md`: 2 markers',
         '## Script Reference Groups',
         '`Script task index`: 3 unique / 4 total',
         '## Script Reference Extensions',

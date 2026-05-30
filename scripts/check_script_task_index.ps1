@@ -249,6 +249,7 @@ function New-MarkdownReport {
     param(
         [object]$Summary,
         [object[]]$CheckedScripts,
+        [object[]]$DocumentationEntryPoints,
         [string[]]$MissingScripts,
         [object[]]$DuplicateScriptReferences,
         [object[]]$ScriptReferenceGroups,
@@ -264,6 +265,7 @@ function New-MarkdownReport {
     $lines.Add("- checked_at_utc: ``$($Summary.checked_at_utc)``")
     $lines.Add("- checker: ``$($Summary.checker_name)``")
     $lines.Add("- script_index: ``$($Summary.script_index_relative_path)``")
+    $lines.Add("- documentation_entrypoint_count: ``$($Summary.documentation_entrypoint_count)``")
     $lines.Add("- total_script_reference_count: ``$($Summary.total_script_reference_count)``")
     $lines.Add("- script_reference_count: ``$($Summary.script_reference_count)``")
     $lines.Add("- script_reference_group_count: ``$($Summary.script_reference_group_count)``")
@@ -281,6 +283,17 @@ function New-MarkdownReport {
     foreach ($script in $CheckedScripts) {
         $scriptStatus = if ([bool]$script.exists) { "ok" } else { "missing" }
         $lines.Add("- [$scriptStatus] ``$($script.relative_path)``")
+    }
+
+    $lines.Add("")
+    $lines.Add("## Documentation Entry Points")
+    $lines.Add("")
+    if ($DocumentationEntryPoints.Count -eq 0) {
+        $lines.Add("- none")
+    } else {
+        foreach ($entryPoint in $DocumentationEntryPoints) {
+            $lines.Add("- ``$($entryPoint.relative_path)``: $($entryPoint.marker_count) markers")
+        }
     }
 
     $lines.Add("")
@@ -352,6 +365,7 @@ $indexPath = Join-Path $resolvedRepoRoot $indexRelativePath
 $maintenancePath = Join-Path $resolvedRepoRoot $maintenanceRelativePath
 $scorePath = Join-Path $resolvedRepoRoot $scoreRelativePath
 $cmakePath = Join-Path $resolvedRepoRoot $cmakeRelativePath
+$documentationEntryPointMarkers = @("docs/documentation_maintenance_zh.rst", "docs/script_task_index_zh.rst")
 
 Assert-FileExists -Path $readmePath -Label "english README"
 Assert-FileExists -Path $readmeZhPath -Label "chinese README"
@@ -384,6 +398,18 @@ $checkedScripts = @(
         New-ScriptCheckEntry -Root $resolvedRepoRoot -RelativePath $_
     }
 )
+$documentationEntryPoints = @(
+    [pscustomobject]@{
+        relative_path = $readmeRelativePath
+        marker_count = $documentationEntryPointMarkers.Count
+        markers = @($documentationEntryPointMarkers)
+    },
+    [pscustomobject]@{
+        relative_path = $readmeZhRelativePath
+        marker_count = $documentationEntryPointMarkers.Count
+        markers = @($documentationEntryPointMarkers)
+    }
+)
 $missingScripts = @(
     $checkedScripts | Where-Object {
         -not [bool]$_.exists
@@ -395,12 +421,12 @@ $missingScripts = @(
 $requiredMarkerGroups = @(
     [pscustomobject]@{
         document = $readmeRelativePath
-        markers = @("docs/documentation_maintenance_zh.rst", "docs/script_task_index_zh.rst")
+        markers = $documentationEntryPointMarkers
         text = $readmeText
     },
     [pscustomobject]@{
         document = $readmeZhRelativePath
-        markers = @("docs/documentation_maintenance_zh.rst", "docs/script_task_index_zh.rst")
+        markers = $documentationEntryPointMarkers
         text = $readmeZhText
     },
     [pscustomobject]@{
@@ -459,6 +485,7 @@ $missingMarkerEntries = @($missingMarkers.ToArray())
 $duplicateScriptReferenceEntries = @($duplicateScriptReferences)
 $scriptReferenceGroupEntries = @($scriptReferenceGroups)
 $scriptReferenceExtensionEntries = @($scriptReferenceExtensions)
+$documentationEntryPointEntries = @($documentationEntryPoints)
 
 $summary = [ordered]@{
     summary_schema_version = 1
@@ -472,7 +499,8 @@ $summary = [ordered]@{
     summary_json_relative_path = $summaryJsonRelativePath
     report_markdown_path = $reportMarkdownPath
     report_markdown_relative_path = $reportMarkdownRelativePath
-    documentation_entrypoint_count = 2
+    documentation_entrypoint_count = $documentationEntryPoints.Count
+    documentation_entrypoints = $documentationEntryPointEntries
     script_index_relative_path = $scriptIndexRelativePath
     total_script_reference_count = $allScriptReferences.Count
     script_reference_count = $scriptReferences.Count
@@ -494,6 +522,7 @@ Write-Utf8NoBomFile -Path $summaryJsonPath -Text (($summary | ConvertTo-Json -De
 Write-Utf8NoBomFile -Path $reportMarkdownPath -Text (New-MarkdownReport `
         -Summary ([pscustomobject]$summary) `
         -CheckedScripts $checkedScripts `
+        -DocumentationEntryPoints $documentationEntryPointEntries `
         -MissingScripts $missingScripts `
         -DuplicateScriptReferences $duplicateScriptReferenceEntries `
         -ScriptReferenceGroups $scriptReferenceGroupEntries `
