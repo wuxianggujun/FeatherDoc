@@ -330,9 +330,13 @@ summary、bundle 和 reviewer checklist 继续展示。reviewer 若在 pipeline 
 
 pipeline summary 还会写出 ``local_governance_closure``（schema:
 ``featherdoc.release_governance_local_closure.v1``），把本地发布治理闭环从隐式
-stage 列表提升为可审计字段。该对象必须保留 ``pipeline_summary_json_display``、
+stage 列表提升为可审计字段。该对象必须保留
+``local_governance_closure.status``、``local_governance_closure.closed``、
+``governance_detail_source``、``pipeline_summary_json`` /
+``pipeline_summary_json_display``、``pipeline_report_markdown`` /
 ``pipeline_report_markdown_display``、``final_governance_report_count``、
-``required_stage_count`` 与 ``completed_required_stage_count``；其中 required stages
+``final_governance_reports``、``required_stage_count``、
+``completed_required_stage_count`` 与 ``required_stages``；其中 ``required_stages``
 固定覆盖 ``docx_functional_smoke_readiness``、``release_governance_handoff`` 与
 ``release_blocker_rollup``。reviewer 可以先看 ``local_governance_closure.closed``，
 再打开 pipeline summary / Markdown 确认 DOCX readiness、handoff 和 final rollup 是否
