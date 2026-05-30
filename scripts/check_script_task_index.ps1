@@ -94,18 +94,46 @@ function Assert-FileExists {
 }
 
 function Get-UniqueScriptReferences {
+    param([string[]]$References)
+
+    $uniqueReferences = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($relativePath in $References) {
+        if (-not $uniqueReferences.Contains($relativePath)) {
+            $uniqueReferences.Add($relativePath)
+        }
+    }
+
+    return @($uniqueReferences | Sort-Object)
+}
+
+function Get-ScriptReferences {
     param([string]$Text)
 
     $references = New-Object 'System.Collections.Generic.List[string]'
     $matches = [regex]::Matches($Text, 'scripts/[A-Za-z0-9_.-]+\.(ps1|py)')
     foreach ($match in $matches) {
         $relativePath = $match.Value.Replace("/", [System.IO.Path]::DirectorySeparatorChar)
-        if (-not $references.Contains($relativePath)) {
-            $references.Add($relativePath)
-        }
+        $references.Add($relativePath)
     }
 
-    return @($references | Sort-Object)
+    return @($references.ToArray())
+}
+
+function Get-DuplicateScriptReferences {
+    param([string[]]$References)
+
+    return @(
+        $References |
+            Group-Object |
+            Where-Object { $_.Count -gt 1 } |
+            Sort-Object Name |
+            ForEach-Object {
+                [pscustomobject]@{
+                    relative_path = $_.Name
+                    occurrence_count = $_.Count
+                }
+            }
+    )
 }
 
 function Get-MissingMarkers {
@@ -139,6 +167,7 @@ function New-MarkdownReport {
         [object]$Summary,
         [object[]]$CheckedScripts,
         [string[]]$MissingScripts,
+        [object[]]$DuplicateScriptReferences,
         [object[]]$MissingMarkers
     )
 
@@ -150,7 +179,9 @@ function New-MarkdownReport {
     $lines.Add("- checked_at_utc: ``$($Summary.checked_at_utc)``")
     $lines.Add("- checker: ``$($Summary.checker_name)``")
     $lines.Add("- script_index: ``$($Summary.script_index_relative_path)``")
+    $lines.Add("- total_script_reference_count: ``$($Summary.total_script_reference_count)``")
     $lines.Add("- script_reference_count: ``$($Summary.script_reference_count)``")
+    $lines.Add("- duplicate_script_reference_count: ``$($Summary.duplicate_script_reference_count)``")
     $lines.Add("- missing_script_count: ``$($Summary.missing_script_count)``")
     $lines.Add("- required_marker_count: ``$($Summary.required_marker_count)``")
     $lines.Add("- missing_marker_count: ``$($Summary.missing_marker_count)``")
@@ -163,6 +194,17 @@ function New-MarkdownReport {
     foreach ($script in $CheckedScripts) {
         $scriptStatus = if ([bool]$script.exists) { "ok" } else { "missing" }
         $lines.Add("- [$scriptStatus] ``$($script.relative_path)``")
+    }
+
+    $lines.Add("")
+    $lines.Add("## Duplicate Script References")
+    $lines.Add("")
+    if ($DuplicateScriptReferences.Count -eq 0) {
+        $lines.Add("- none")
+    } else {
+        foreach ($script in $DuplicateScriptReferences) {
+            $lines.Add("- ``$($script.relative_path)`` x$($script.occurrence_count)")
+        }
     }
 
     $lines.Add("")
@@ -218,10 +260,13 @@ $maintenanceText = Read-Utf8Text -Path $maintenancePath
 $scoreText = Read-Utf8Text -Path $scorePath
 $cmakeText = Read-Utf8Text -Path $cmakePath
 
-$scriptReferences = Get-UniqueScriptReferences -Text $scriptIndexText
+$allScriptReferences = @(Get-ScriptReferences -Text $scriptIndexText)
+$scriptReferences = @(Get-UniqueScriptReferences -References $allScriptReferences)
 if ($scriptReferences.Count -eq 0) {
     throw "Script task index does not contain any scripts/*.ps1 or scripts/*.py references."
 }
+
+$duplicateScriptReferences = @(Get-DuplicateScriptReferences -References $allScriptReferences)
 
 $checkedScripts = @(
     $scriptReferences | ForEach-Object {
@@ -274,7 +319,9 @@ foreach ($group in $requiredMarkerGroups) {
     }
 }
 
-$status = if ($missingScripts.Count -eq 0 -and $missingMarkers.Count -eq 0) {
+$status = if ($missingScripts.Count -eq 0 -and
+    $duplicateScriptReferences.Count -eq 0 -and
+    $missingMarkers.Count -eq 0) {
     "passed"
 } else {
     "failed"
@@ -288,6 +335,7 @@ $summaryJsonRelativePath = Get-RepoRelativePath -BaseRoot $resolvedRepoRoot -Pat
 $reportMarkdownRelativePath = Get-RepoRelativePath -BaseRoot $resolvedRepoRoot -Path $reportMarkdownPath
 $requiredMarkerCount = [int](($requiredMarkerGroups | ForEach-Object { $_.markers.Count } | Measure-Object -Sum).Sum)
 $missingMarkerEntries = @($missingMarkers.ToArray())
+$duplicateScriptReferenceEntries = @($duplicateScriptReferences)
 
 $summary = [ordered]@{
     summary_schema_version = 1
@@ -302,8 +350,11 @@ $summary = [ordered]@{
     report_markdown_path = $reportMarkdownPath
     report_markdown_relative_path = $reportMarkdownRelativePath
     script_index_relative_path = $scriptIndexRelativePath
+    total_script_reference_count = $allScriptReferences.Count
     script_reference_count = $scriptReferences.Count
     checked_scripts = @($checkedScripts)
+    duplicate_script_reference_count = $duplicateScriptReferences.Count
+    duplicate_script_references = $duplicateScriptReferenceEntries
     missing_script_count = $missingScripts.Count
     missing_scripts = @($missingScripts)
     required_marker_count = $requiredMarkerCount
@@ -316,10 +367,11 @@ Write-Utf8NoBomFile -Path $reportMarkdownPath -Text (New-MarkdownReport `
         -Summary ([pscustomobject]$summary) `
         -CheckedScripts $checkedScripts `
         -MissingScripts $missingScripts `
+        -DuplicateScriptReferences $duplicateScriptReferenceEntries `
         -MissingMarkers $missingMarkerEntries)
 
 if ($status -ne "passed") {
-    throw "Script task index check failed. MissingScripts=$($missingScripts.Count); MissingMarkers=$($missingMarkers.Count)."
+    throw "Script task index check failed. MissingScripts=$($missingScripts.Count); DuplicateScriptReferences=$($duplicateScriptReferences.Count); MissingMarkers=$($missingMarkers.Count)."
 }
 
 if (-not $Quiet) {

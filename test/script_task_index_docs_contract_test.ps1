@@ -88,6 +88,7 @@ foreach ($marker in @(
         "check_script_task_index.ps1",
         "summary.json",
         "script_task_index_check.md",
+        "duplicate_script_reference_count",
         "build_numbering_catalog_governance_report.ps1",
         "build_table_layout_delivery_report.ps1",
         "check_word_visual_release_gate_preflight.ps1",

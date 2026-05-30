@@ -155,6 +155,12 @@ if ($passingSummary.report_markdown_relative_path -notmatch [regex]::Escape("pas
 if ($passingSummary.script_reference_count -lt 20) {
     throw "Expected at least 20 indexed scripts, got: $($passingSummary.script_reference_count)"
 }
+if ($passingSummary.total_script_reference_count -ne $passingSummary.script_reference_count) {
+    throw "Expected no duplicate script references in the maintained index."
+}
+if ($passingSummary.duplicate_script_reference_count -ne 0) {
+    throw "Expected no duplicate script references, got: $($passingSummary.duplicate_script_reference_count)"
+}
 if ($passingSummary.missing_script_count -ne 0) {
     throw "Expected no missing scripts, got: $($passingSummary.missing_script_count)"
 }
@@ -177,9 +183,12 @@ foreach ($marker in @(
         '# Script Task Index Check',
         '- schema: `featherdoc.script_task_index_check.v1`',
         '- status: `passed`',
+        '- total_script_reference_count:',
+        '- duplicate_script_reference_count: `0`',
         '- missing_script_count: `0`',
         '- missing_marker_count: `0`',
         '## Checked Scripts',
+        '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'
     )) {
@@ -211,7 +220,8 @@ Write-Utf8NoBomFile `
         "",
         "- ``scripts/check_script_task_index.ps1``",
         "- ``scripts/existing_tool.ps1``",
-        "- ``scripts/missing_tool.ps1``"
+        "- ``scripts/missing_tool.ps1``",
+        "- ``scripts/existing_tool.ps1``"
     ) -join "`n")
 Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "docs\index.rst") `
@@ -257,6 +267,9 @@ $joinedFailureOutput = ($failureOutput | ForEach-Object { $_.ToString() }) -join
 if ($joinedFailureOutput -notmatch [regex]::Escape("MissingScripts=1")) {
     throw "Expected missing script count in failure output, got: $joinedFailureOutput"
 }
+if ($joinedFailureOutput -notmatch [regex]::Escape("DuplicateScriptReferences=1")) {
+    throw "Expected duplicate script reference count in failure output, got: $joinedFailureOutput"
+}
 if (-not (Test-Path -LiteralPath $failingSummaryJson -PathType Leaf)) {
     throw "check_script_task_index.ps1 did not write a failing summary."
 }
@@ -272,14 +285,24 @@ if ($failingSummary.status -ne "failed") {
 if ($failingSummary.missing_script_count -ne 1) {
     throw "Expected one missing script, got: $($failingSummary.missing_script_count)"
 }
+if ($failingSummary.duplicate_script_reference_count -ne 1) {
+    throw "Expected one duplicate script reference, got: $($failingSummary.duplicate_script_reference_count)"
+}
 Assert-ArrayContains `
     -Values @($failingSummary.missing_scripts) `
     -ExpectedValue "scripts\missing_tool.ps1" `
     -Message "Failing summary should list the missing script."
+Assert-ArrayContains `
+    -Values @($failingSummary.duplicate_script_references | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue "scripts\existing_tool.ps1" `
+    -Message "Failing summary should list the duplicate script reference."
 foreach ($marker in @(
         '- status: `failed`',
+        '- duplicate_script_reference_count: `1`',
         '- missing_script_count: `1`',
         '[missing] `scripts\missing_tool.ps1`',
+        '## Duplicate Script References',
+        '`scripts\existing_tool.ps1` x2',
         '## Missing Scripts',
         '`scripts\missing_tool.ps1`'
     )) {

@@ -27,7 +27,8 @@
   文档维护计划、项目评分建议和 CMake 轻量测试注册；默认同时写出
   ``summary.json`` 和 ``script_task_index_check.md``，让 CI / release 面板消费
   稳定 JSON，也让人工复核直接阅读 Markdown 摘要；可用 ``-SummaryJson`` /
-  ``-ReportMarkdown`` 显式指定输出路径。
+  ``-ReportMarkdown`` 显式指定输出路径；同一个脚本路径被重复列出时也会失败，
+  并在 JSON / Markdown 中写出 ``duplicate_script_reference_count``。
 
 
 模板契约与项目模板
