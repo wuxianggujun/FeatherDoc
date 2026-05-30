@@ -188,6 +188,9 @@ function Write-GovernanceFixtures {
             alignment_gap_count = 0
             catalog_coverage_percent = 100
             baseline_coverage_percent = 100
+            catalog_document_keys = @("contract.docx", "invoice.docx")
+            baseline_document_keys = @("contract.docx", "invoice.docx")
+            matched_document_keys = @("contract.docx", "invoice.docx")
             penalty_summary = @(
                 [ordered]@{ factor = "style_numbering_issues"; count = 3; penalty = 15 }
             )
@@ -577,6 +580,15 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve numbering confidence detail fields."
     Assert-Equal -Actual ([int]$numberingMetric.details.matched_document_count) -Expected 2 `
         -Message "Aggregate handoff should preserve numbering real-corpus alignment detail fields."
+    Assert-ContainsText -Text (($numberingMetric.details.catalog_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "contract.docx" `
+        -Message "Aggregate handoff should preserve numbering catalog document keys."
+    Assert-ContainsText -Text (($numberingMetric.details.baseline_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "invoice.docx" `
+        -Message "Aggregate handoff should preserve numbering baseline document keys."
+    Assert-ContainsText -Text (($numberingMetric.details.matched_document_keys | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "contract.docx" `
+        -Message "Aggregate handoff should preserve numbering matched document keys."
     Assert-ContainsText -Text (($numberingMetric.details.penalty_summary | ForEach-Object { [string]$_.factor }) -join "`n") `
         -ExpectedText "style_numbering_issues" `
         -Message "Aggregate handoff should preserve numbering confidence penalty summary."
@@ -828,6 +840,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include numbering confidence detail fields."
     Assert-ContainsText -Text $markdown -ExpectedText "matched_document_count=2" `
         -Message "Markdown should include numbering real-corpus alignment detail fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "catalog_document_keys=contract.docx,invoice.docx" `
+        -Message "Markdown should include numbering catalog document keys."
+    Assert-ContainsText -Text $markdown -ExpectedText "baseline_document_keys=contract.docx,invoice.docx" `
+        -Message "Markdown should include numbering baseline document keys."
+    Assert-ContainsText -Text $markdown -ExpectedText "matched_document_keys=contract.docx,invoice.docx" `
+        -Message "Markdown should include numbering matched document keys."
     Assert-ContainsText -Text $markdown -ExpectedText "style_numbering_issues(count=3, penalty=15)" `
         -Message "Markdown should include numbering confidence penalty summary."
     Assert-ContainsText -Text $markdown -ExpectedText "unresolved_item_count=0" `

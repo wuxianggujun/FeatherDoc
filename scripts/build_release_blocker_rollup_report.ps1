@@ -508,6 +508,12 @@ function Add-GovernanceMetricDetailLines {
             $detailParts.Add("$fieldName=$value") | Out-Null
         }
     }
+    foreach ($fieldName in @("catalog_document_keys", "baseline_document_keys", "matched_document_keys")) {
+        $values = @(Get-JsonArray -Object $details -Name $fieldName)
+        if ($values.Count -gt 0) {
+            $detailParts.Add("$fieldName=$($values -join ',')") | Out-Null
+        }
+    }
     if ($detailParts.Count -gt 0) {
         $Lines.Add("  - details: ``$($detailParts -join ', ')``") | Out-Null
     }
