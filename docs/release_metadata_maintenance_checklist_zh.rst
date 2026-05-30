@@ -228,10 +228,13 @@ policy 之间的关键引用、字段名和测试入口没有断开。
         -SummaryJson .\output\release-metadata-docs-summary.json
 
 CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制台输出成功提示。
+``-SummaryJson`` 产物固定为 ``UTF-8 without BOM``；成功和失败摘要都应遵守
+同一编码，避免 CI、release 面板或 reviewer 工具读取中文字段、路径和
+failure diagnostics 时重新猜测编码。
 
 检查通过时 JSON 的 ``status`` 为 ``passed``，并包含 ``summary_schema_version``、
 ``checker_name``、``checked_at_utc``、PowerShell 运行环境、``summary_json_path``、
-``summary_json_relative_path``、文档数量和 marker 数量字段；其中
+``summary_json_relative_path``、``output_encoding``、文档数量和 marker 数量字段；其中
 ``required_document_governance_marker_count`` 会单独记录文档治理验收页的 marker
 数量，确保模板契约、content-control 修复、编号真实语料治理和表格版式交付质量
 仍然被发布材料引用。检查失败时也会
@@ -259,8 +262,9 @@ CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制
 ``word_visual_release_gate_preflight_route_docs_contract``、
 ``word_visual_release_gate_preflight_route_docs_contract_test.ps1``、
 ``featherdoc.word_visual_release_gate_preflight.v1``、
-``word_visual_release_gate_preflight_static_contract_only``、``preflight_ready``、
-``release_ready``、``check_docx_functional_smoke_readiness.ps1``、
+``word_visual_release_gate_preflight_static_contract_only``、``output_encoding``、
+``UTF-8 without BOM``、``preflight_ready``、``release_ready``、
+``check_docx_functional_smoke_readiness.ps1``、
 ``docx_functional_smoke_readiness_test.ps1``、
 ``docx_functional_smoke_readiness_route_docs_contract``、
 ``docx_functional_smoke_readiness_route_docs_contract_test.ps1``、

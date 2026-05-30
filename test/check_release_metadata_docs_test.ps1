@@ -113,6 +113,9 @@ function Assert-SummaryAuditFields {
     if ($Summary.powershell_version -notmatch '^\d+\.\d+') {
         throw "Expected JSON powershell_version to start with a version number, got: $($Summary.powershell_version)"
     }
+    if ($Summary.output_encoding -ne "UTF-8 without BOM") {
+        throw "Expected JSON output_encoding UTF-8 without BOM, got: $($Summary.output_encoding)"
+    }
 }
 
 function Assert-SummaryFailure {
@@ -180,8 +183,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 154) {
-        throw "Expected JSON summary to count 154 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 158) {
+        throw "Expected JSON summary to count 158 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -287,6 +290,8 @@ $defaultPipelineText = @(
     '- check_word_visual_release_gate_preflight.ps1',
     '- ``featherdoc.word_visual_release_gate_preflight.v1``',
     '- ``word_visual_release_gate_preflight_static_contract_only``',
+    '- ``output_encoding``',
+    '- UTF-8 without BOM',
     '- ``preflight_ready``',
     '- ``release_ready``',
     '- docx_functional_smoke_readiness',
@@ -361,6 +366,8 @@ $defaultChecklistText = @(
     '- word_visual_release_gate_preflight_route_docs_contract_test.ps1',
     '- ``featherdoc.word_visual_release_gate_preflight.v1``',
     '- ``word_visual_release_gate_preflight_static_contract_only``',
+    '- ``output_encoding``',
+    '- UTF-8 without BOM',
     '- ``preflight_ready``',
     '- ``release_ready``',
     '- release_candidate_visual_verdict',
@@ -505,11 +512,11 @@ Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 7) {
     throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 70) {
-    throw "Expected JSON summary pipeline marker count 70, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 72) {
+    throw "Expected JSON summary pipeline marker count 72, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 64) {
-    throw "Expected JSON summary checklist marker count 64, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 66) {
+    throw "Expected JSON summary checklist marker count 66, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 10) {
     throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
@@ -520,8 +527,8 @@ if ($summary.required_policy_marker_count -ne 8) {
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 154) {
-    throw "Expected JSON summary total marker count 154, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 158) {
+    throw "Expected JSON summary total marker count 158, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 7) {
     throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
@@ -590,6 +597,14 @@ Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue '``featherdoc.word_visual_release_gate_preflight.v1``' `
     -Message "JSON summary should list Word visual release gate preflight schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue '``output_encoding``' `
+    -Message "JSON summary should list Word visual preflight output encoding field marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue 'UTF-8 without BOM' `
+    -Message "JSON summary should list Word visual preflight output encoding value marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "docx_functional_smoke_readiness" `
@@ -706,6 +721,14 @@ Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "check_word_visual_release_gate_preflight_test.ps1" `
     -Message "JSON summary should list Word visual preflight test marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue '``output_encoding``' `
+    -Message "JSON summary checklist should list Word visual preflight output encoding field marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue 'UTF-8 without BOM' `
+    -Message "JSON summary checklist should list Word visual preflight output encoding value marker."
 Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "word_visual_release_gate_preflight_route_docs_contract_test.ps1" `
@@ -890,7 +913,7 @@ Assert-SummaryFailure `
     -ExpectedMessage "Trailing whitespace" `
     -ExpectedFailureKind "trailing_whitespace" `
     -ExpectedFailureRelativePath 'docs/release_metadata_pipeline_zh.rst' `
-    -ExpectedFailureLineNumber 26 `
+    -ExpectedFailureLineNumber 28 `
     -ExpectedFailureColumnNumber 22 `
     -ExpectedFailureExcerpt "- review_task_summary "
 
@@ -910,7 +933,7 @@ Assert-SummaryFailure `
     -ExpectedMessage "Tab character found" `
     -ExpectedFailureKind "tab_character" `
     -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
-    -ExpectedFailureLineNumber 28 `
+    -ExpectedFailureLineNumber 30 `
     -ExpectedFailureColumnNumber 6 `
     -ExpectedFailureExcerpt "- git`t diff --check"
 

@@ -188,6 +188,7 @@ function Write-SummaryJson {
         checked_at_utc = $checkedAtUtc
         powershell_edition = $powershellEdition
         powershell_version = $PSVersionTable.PSVersion.ToString()
+        output_encoding = "UTF-8 without BOM"
         status = $Status
         error_message = $ErrorMessage
         failure_kind = $script:FailureKind
@@ -317,6 +318,8 @@ $pipelineExpectedMarkers = @(
     "check_word_visual_release_gate_preflight.ps1",
     '``featherdoc.word_visual_release_gate_preflight.v1``',
     '``word_visual_release_gate_preflight_static_contract_only``',
+    '``output_encoding``',
+    "UTF-8 without BOM",
     '``preflight_ready``',
     '``release_ready``',
     "docx_functional_smoke_readiness",
@@ -385,6 +388,8 @@ $checklistExpectedMarkers = @(
     "word_visual_release_gate_preflight_route_docs_contract_test.ps1",
     '``featherdoc.word_visual_release_gate_preflight.v1``',
     '``word_visual_release_gate_preflight_static_contract_only``',
+    '``output_encoding``',
+    "UTF-8 without BOM",
     '``preflight_ready``',
     '``release_ready``',
     "word_visual_release_gate_smoke_verdict",
