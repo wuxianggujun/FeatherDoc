@@ -528,15 +528,15 @@ if ($summary.checked_documents.Count -ne 7) {
 }
 Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
-    -ExpectedValue 'docs\release_metadata_pipeline_zh.rst' `
+    -ExpectedValue 'docs/release_metadata_pipeline_zh.rst' `
     -Message "JSON summary should list the release metadata pipeline doc."
 Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
-    -ExpectedValue 'docs\document_governance_acceptance_zh.rst' `
+    -ExpectedValue 'docs/document_governance_acceptance_zh.rst' `
     -Message "JSON summary should list the document governance acceptance doc."
 Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
-    -ExpectedValue 'docs\index.rst' `
+    -ExpectedValue 'docs/index.rst' `
     -Message "JSON summary should list the Sphinx index doc."
 Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
@@ -790,7 +790,7 @@ Assert-SummaryFailure `
     -Path $missingPolicySummaryJsonPath `
     -ExpectedMessage "Missing release policy doc" `
     -ExpectedFailureKind "missing_file" `
-    -ExpectedFailureRelativePath 'docs\release_policy_zh.rst'
+    -ExpectedFailureRelativePath 'docs/release_policy_zh.rst'
 
 $missingIndexEntrypointText = $defaultIndexText.Replace(
     "release_metadata_maintenance_checklist_zh",
@@ -809,7 +809,7 @@ Assert-SummaryFailure `
     -Path $missingIndexEntrypointSummaryJsonPath `
     -ExpectedMessage "Sphinx index doc is missing expected text: release_metadata_maintenance_checklist_zh" `
     -ExpectedFailureKind "missing_text" `
-    -ExpectedFailureRelativePath 'docs\index.rst' `
+    -ExpectedFailureRelativePath 'docs/index.rst' `
     -ExpectedFailureExpectedText "release_metadata_maintenance_checklist_zh"
 
 $missingPolicyWordVisualMetadataText = $defaultPolicyText.Replace(
@@ -829,7 +829,7 @@ Assert-SummaryFailure `
     -Path $missingPolicyWordVisualMetadataSummaryJsonPath `
     -ExpectedMessage "release policy doc is missing expected text: Word visual standard review metadata evidence" `
     -ExpectedFailureKind "missing_text" `
-    -ExpectedFailureRelativePath 'docs\release_policy_zh.rst' `
+    -ExpectedFailureRelativePath 'docs/release_policy_zh.rst' `
     -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
 
 $missingPipelineWordVisualMetadataText = $defaultPipelineText.Replace(
@@ -849,7 +849,7 @@ Assert-SummaryFailure `
     -Path $missingPipelineWordVisualMetadataSummaryJsonPath `
     -ExpectedMessage "release metadata pipeline doc is missing expected text: Word visual standard review metadata evidence" `
     -ExpectedFailureKind "missing_text" `
-    -ExpectedFailureRelativePath 'docs\release_metadata_pipeline_zh.rst' `
+    -ExpectedFailureRelativePath 'docs/release_metadata_pipeline_zh.rst' `
     -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
 
 $missingChecklistWordVisualMetadataText = $defaultChecklistText.Replace(
@@ -869,7 +869,7 @@ Assert-SummaryFailure `
     -Path $missingChecklistWordVisualMetadataSummaryJsonPath `
     -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: Word visual standard review metadata evidence" `
     -ExpectedFailureKind "missing_text" `
-    -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
+    -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
     -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
 
 $trailingWhitespacePipelineText = $defaultPipelineText.Replace(
@@ -889,7 +889,7 @@ Assert-SummaryFailure `
     -Path $trailingWhitespaceSummaryJsonPath `
     -ExpectedMessage "Trailing whitespace" `
     -ExpectedFailureKind "trailing_whitespace" `
-    -ExpectedFailureRelativePath 'docs\release_metadata_pipeline_zh.rst' `
+    -ExpectedFailureRelativePath 'docs/release_metadata_pipeline_zh.rst' `
     -ExpectedFailureLineNumber 26 `
     -ExpectedFailureColumnNumber 22 `
     -ExpectedFailureExcerpt "- review_task_summary "
@@ -909,7 +909,7 @@ Assert-SummaryFailure `
     -Path $tabSummaryJsonPath `
     -ExpectedMessage "Tab character found" `
     -ExpectedFailureKind "tab_character" `
-    -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
+    -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
     -ExpectedFailureLineNumber 28 `
     -ExpectedFailureColumnNumber 6 `
     -ExpectedFailureExcerpt "- git`t diff --check"
@@ -929,7 +929,7 @@ Assert-SummaryFailure `
     -Path $missingChecklistSummaryJsonPath `
     -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: release_note_bundle_visual_verdict_metadata" `
     -ExpectedFailureKind "missing_text" `
-    -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
+    -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
     -ExpectedFailureExpectedText "release_note_bundle_visual_verdict_metadata"
 
 $missingDocumentGovernanceEntry = $defaultDocumentGovernanceText.Replace(
@@ -949,12 +949,12 @@ Assert-SummaryFailure `
     -Path $missingDocumentGovernanceSummaryJsonPath `
     -ExpectedMessage "document governance acceptance doc is missing expected text: sync_bound_content_control" `
     -ExpectedFailureKind "missing_text" `
-    -ExpectedFailureRelativePath 'docs\document_governance_acceptance_zh.rst' `
+    -ExpectedFailureRelativePath 'docs/document_governance_acceptance_zh.rst' `
     -ExpectedFailureExpectedText "sync_bound_content_control"
 
 $bomCaseRoot = New-DocsCase -Name "bom-pipeline"
 Write-Utf8BomFile `
-    -Path (Join-Path $bomCaseRoot "docs\release_metadata_pipeline_zh.rst") `
+    -Path (Join-Path $bomCaseRoot "docs/release_metadata_pipeline_zh.rst") `
     -Text $defaultPipelineText
 $bomSummaryJsonPath = Join-Path $bomCaseRoot "docs-check-summary.json"
 Invoke-DocsCheck `
@@ -966,6 +966,6 @@ Assert-SummaryFailure `
     -Path $bomSummaryJsonPath `
     -ExpectedMessage "File must be UTF-8 without BOM" `
     -ExpectedFailureKind "utf8_bom" `
-    -ExpectedFailureRelativePath 'docs\release_metadata_pipeline_zh.rst'
+    -ExpectedFailureRelativePath 'docs/release_metadata_pipeline_zh.rst'
 
 Write-Host "Release metadata docs checker regression passed."

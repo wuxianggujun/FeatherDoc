@@ -147,12 +147,12 @@ function Get-RepoRelativePath {
         return ""
     }
 
-    $relativePath = [System.Uri]::UnescapeDataString($relativeUri.ToString())
+    $relativePath = [System.Uri]::UnescapeDataString($relativeUri.ToString()).Replace('\', '/')
     if ($relativePath -match '^\.\./') {
         return ""
     }
 
-    return $relativePath.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+    return $relativePath
 }
 
 function Write-SummaryJson {
@@ -478,28 +478,28 @@ try {
     $checkedDocuments = @(
         [pscustomobject]@{
             label = "release metadata pipeline doc"
-            relative_path = "docs\release_metadata_pipeline_zh.rst"
-            path = Join-Path $resolvedRepoRoot "docs\release_metadata_pipeline_zh.rst"
+            relative_path = "docs/release_metadata_pipeline_zh.rst"
+            path = Join-Path (Join-Path $resolvedRepoRoot "docs") "release_metadata_pipeline_zh.rst"
         },
         [pscustomobject]@{
             label = "release metadata maintenance checklist doc"
-            relative_path = "docs\release_metadata_maintenance_checklist_zh.rst"
-            path = Join-Path $resolvedRepoRoot "docs\release_metadata_maintenance_checklist_zh.rst"
+            relative_path = "docs/release_metadata_maintenance_checklist_zh.rst"
+            path = Join-Path (Join-Path $resolvedRepoRoot "docs") "release_metadata_maintenance_checklist_zh.rst"
         },
         [pscustomobject]@{
             label = "document governance acceptance doc"
-            relative_path = "docs\document_governance_acceptance_zh.rst"
-            path = Join-Path $resolvedRepoRoot "docs\document_governance_acceptance_zh.rst"
+            relative_path = "docs/document_governance_acceptance_zh.rst"
+            path = Join-Path (Join-Path $resolvedRepoRoot "docs") "document_governance_acceptance_zh.rst"
         },
         [pscustomobject]@{
             label = "release policy doc"
-            relative_path = "docs\release_policy_zh.rst"
-            path = Join-Path $resolvedRepoRoot "docs\release_policy_zh.rst"
+            relative_path = "docs/release_policy_zh.rst"
+            path = Join-Path (Join-Path $resolvedRepoRoot "docs") "release_policy_zh.rst"
         },
         [pscustomobject]@{
             label = "Sphinx index doc"
-            relative_path = "docs\index.rst"
-            path = Join-Path $resolvedRepoRoot "docs\index.rst"
+            relative_path = "docs/index.rst"
+            path = Join-Path (Join-Path $resolvedRepoRoot "docs") "index.rst"
         },
         [pscustomobject]@{
             label = "English README"
