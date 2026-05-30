@@ -3669,6 +3669,8 @@ reason about and extend independently.
 - Sphinx docs entry: `docs/index.rst`
 - Project identity guide: `docs/project_identity_zh.rst`
 - Current direction guide (Chinese): `docs/current_direction_zh.rst`
+- Documentation maintenance guide: `docs/documentation_maintenance_zh.rst`
+- Script task index: `docs/script_task_index_zh.rst`
 - Release policy guide: `docs/release_policy_zh.rst`
 - Release metadata pipeline guide: `docs/release_metadata_pipeline_zh.rst`
 - Release metadata maintenance checklist: `docs/release_metadata_maintenance_checklist_zh.rst`

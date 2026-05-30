@@ -50,6 +50,8 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
+$readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
+$readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $maintenanceDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\documentation_maintenance_zh.rst"
 $scoreDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\project_score_assessment_zh.rst"
@@ -63,6 +65,19 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
         -Message "Sphinx index should keep script task index and maintenance docs reachable."
+}
+
+foreach ($entrypoint in @(
+        @{ Label = "English README"; Text = $readme },
+        @{ Label = "Chinese README"; Text = $readmeZh }
+    )) {
+    foreach ($marker in @(
+            "docs/documentation_maintenance_zh.rst",
+            "docs/script_task_index_zh.rst"
+        )) {
+        Assert-ContainsText -Text $entrypoint.Text -ExpectedText $marker `
+            -Message "$($entrypoint.Label) should keep documentation maintenance entrypoint '$marker' reachable."
+    }
 }
 
 foreach ($marker in @(

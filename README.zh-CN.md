@@ -1982,6 +1982,8 @@ repair 候选文件。
 - Sphinx 文档首页：`docs/index.rst`
 - 项目定位：`docs/project_identity_zh.rst`
 - 当前推进方向：`docs/current_direction_zh.rst`
+- 文档维护总览：`docs/documentation_maintenance_zh.rst`
+- 脚本任务索引：`docs/script_task_index_zh.rst`
 - 版本与发布策略：`docs/release_policy_zh.rst`
 - Release metadata 流水线：`docs/release_metadata_pipeline_zh.rst`
 - Release metadata 维护清单：`docs/release_metadata_maintenance_checklist_zh.rst`
