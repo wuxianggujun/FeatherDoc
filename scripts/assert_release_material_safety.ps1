@@ -3992,6 +3992,24 @@ function Add-GovernanceMetricContractViolations {
             }
         }
 
+        foreach ($fieldName in @("source_report", "source_report_display", "source_json", "source_json_display")) {
+            $manifestValue = Get-JsonPropertyValue -Object $manifestMetric -Name $fieldName
+            $metricValue = Get-JsonPropertyValue -Object $sourceMetric -Name $fieldName
+            if ([string]::IsNullOrWhiteSpace([string]$metricValue)) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "$metricName governance metric is missing $fieldName."
+                continue
+            }
+
+            if ([string]::IsNullOrWhiteSpace([string]$manifestValue)) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "$propertyName is missing $fieldName."
+                continue
+            }
+
+            if ([string]$manifestValue -ne [string]$metricValue) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "$propertyName.$fieldName does not match $metricName governance metric."
+            }
+        }
+
         if ($metricName -eq "real_corpus_confidence") {
             Add-GovernanceMetricDetailsViolations `
                 -File $File `

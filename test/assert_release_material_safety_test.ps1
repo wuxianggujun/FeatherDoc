@@ -211,6 +211,10 @@ $governanceMetrics = @(
         metric = "real_corpus_confidence"
         report_id = "numbering_catalog_governance"
         source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+        source_report = ".\output\numbering-catalog-governance\summary.json"
+        source_report_display = ".\output\numbering-catalog-governance\summary.json"
+        source_json = ".\output\numbering-catalog-governance\summary.json"
+        source_json_display = ".\output\numbering-catalog-governance\summary.json"
         score = 56
         level = "low"
         details = [ordered]@{
@@ -241,6 +245,10 @@ $governanceMetrics = @(
         metric = "delivery_quality"
         report_id = "table_layout_delivery_governance"
         source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
+        source_report = ".\output\table-layout-delivery-governance\summary.json"
+        source_report_display = ".\output\table-layout-delivery-governance\summary.json"
+        source_json = ".\output\table-layout-delivery-governance\summary.json"
+        source_json_display = ".\output\table-layout-delivery-governance\summary.json"
         score = 100
         level = "release_ready"
         details = [ordered]@{
@@ -462,6 +470,10 @@ function New-NumberingCatalogRealCorpusConfidenceMirror {
         metric = "real_corpus_confidence"
         report_id = "numbering_catalog_governance"
         source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+        source_report = $GovernanceMetrics[1].source_report
+        source_report_display = $GovernanceMetrics[1].source_report_display
+        source_json = $GovernanceMetrics[1].source_json
+        source_json_display = $GovernanceMetrics[1].source_json_display
         score = 56
         level = "low"
         details = $GovernanceMetrics[1].details
@@ -476,6 +488,10 @@ function New-TableLayoutDeliveryQualityMirror {
         metric = "delivery_quality"
         report_id = "table_layout_delivery_governance"
         source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
+        source_report = $GovernanceMetrics[2].source_report
+        source_report_display = $GovernanceMetrics[2].source_report_display
+        source_json = $GovernanceMetrics[2].source_json
+        source_json_display = $GovernanceMetrics[2].source_json_display
         score = 100
         level = "release_ready"
         details = $GovernanceMetrics[2].details
@@ -844,6 +860,10 @@ $badManifestMissingMetricDetails.numbering_catalog_real_corpus_confidence = [ord
     metric = "real_corpus_confidence"
     report_id = "numbering_catalog_governance"
     source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+    source_report = $governanceMetrics[1].source_report
+    source_report_display = $governanceMetrics[1].source_report_display
+    source_json = $governanceMetrics[1].source_json
+    source_json_display = $governanceMetrics[1].source_json_display
     score = 56
     level = "low"
 }
@@ -869,6 +889,10 @@ $badManifestMismatchedMetricDetails.table_layout_delivery_quality = [ordered]@{
     metric = "delivery_quality"
     report_id = "table_layout_delivery_governance"
     source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
+    source_report = $governanceMetrics[2].source_report
+    source_report_display = $governanceMetrics[2].source_report_display
+    source_json = $governanceMetrics[2].source_json
+    source_json_display = $governanceMetrics[2].source_json_display
     score = 100
     level = "release_ready"
     details = [ordered]@{
@@ -903,6 +927,42 @@ try {
 
 if (-not $mismatchedManifestMetricDetailsFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with mismatched table layout delivery details."
+}
+
+$badManifestMissingNumberingConfidenceSourceJsonDisplayDir = Join-Path $failDir "manifest-missing-numbering-confidence-source-json-display"
+$badManifestMissingNumberingConfidenceSourceJsonDisplayPath = Join-Path $badManifestMissingNumberingConfidenceSourceJsonDisplayDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingNumberingConfidenceSourceJsonDisplayDir -Force | Out-Null
+$badManifestMissingNumberingConfidenceSourceJsonDisplay = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingNumberingConfidenceSourceJsonDisplay.numbering_catalog_real_corpus_confidence.PSObject.Properties.Remove("source_json_display")
+($badManifestMissingNumberingConfidenceSourceJsonDisplay | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingNumberingConfidenceSourceJsonDisplayPath -Encoding UTF8
+
+$missingManifestNumberingConfidenceSourceJsonDisplayFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingNumberingConfidenceSourceJsonDisplayPath
+} catch {
+    $missingManifestNumberingConfidenceSourceJsonDisplayFailedAsExpected = $true
+}
+
+if (-not $missingManifestNumberingConfidenceSourceJsonDisplayFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest without numbering_catalog_real_corpus_confidence.source_json_display."
+}
+
+$badManifestTableLayoutQualitySourceReportDisplayMismatchDir = Join-Path $failDir "manifest-bad-table-layout-quality-source-report-display"
+$badManifestTableLayoutQualitySourceReportDisplayMismatchPath = Join-Path $badManifestTableLayoutQualitySourceReportDisplayMismatchDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestTableLayoutQualitySourceReportDisplayMismatchDir -Force | Out-Null
+$badManifestTableLayoutQualitySourceReportDisplayMismatch = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestTableLayoutQualitySourceReportDisplayMismatch.table_layout_delivery_quality.source_report_display = ".\output\numbering-catalog-governance\summary.json"
+($badManifestTableLayoutQualitySourceReportDisplayMismatch | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestTableLayoutQualitySourceReportDisplayMismatchPath -Encoding UTF8
+
+$badManifestTableLayoutQualitySourceReportDisplayMismatchFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestTableLayoutQualitySourceReportDisplayMismatchPath
+} catch {
+    $badManifestTableLayoutQualitySourceReportDisplayMismatchFailedAsExpected = $true
+}
+
+if (-not $badManifestTableLayoutQualitySourceReportDisplayMismatchFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with mismatched table_layout_delivery_quality.source_report_display."
 }
 
 $passContentControlSummaryPath = Join-Path $passDir "content_control_data_binding_governance_summary.json"
@@ -3586,6 +3646,10 @@ $badManifestNumberingConfidenceMismatch = [ordered]@{
         metric = "real_corpus_confidence"
         report_id = "numbering_catalog_governance"
         source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+        source_report = $governanceMetrics[1].source_report
+        source_report_display = $governanceMetrics[1].source_report_display
+        source_json = $governanceMetrics[1].source_json
+        source_json_display = $governanceMetrics[1].source_json_display
         score = 55
         level = "low"
         details = $governanceMetrics[1].details
@@ -3630,6 +3694,10 @@ $badManifestStyleAsNumberingConfidence = [ordered]@{
         metric = "real_corpus_confidence"
         report_id = "style_catalog_governance"
         source_schema = "featherdoc.style_catalog_governance_report.v1"
+        source_report = $governanceMetrics[1].source_report
+        source_report_display = $governanceMetrics[1].source_report_display
+        source_json = $governanceMetrics[1].source_json
+        source_json_display = $governanceMetrics[1].source_json_display
         score = 12
         level = "experimental"
         details = $governanceMetrics[1].details
@@ -3711,6 +3779,10 @@ $badManifestTableLayoutQualityMismatch = [ordered]@{
         metric = "delivery_quality"
         report_id = "table_layout_delivery_governance"
         source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
+        source_report = $governanceMetrics[2].source_report
+        source_report_display = $governanceMetrics[2].source_report_display
+        source_json = $governanceMetrics[2].source_json
+        source_json_display = $governanceMetrics[2].source_json_display
         score = 90
         level = "release_ready"
         details = $governanceMetrics[2].details
@@ -3844,24 +3916,8 @@ $badManifestMissingProjectTemplateOnboarding = [ordered]@{
     execution_status = "pass"
     governance_metric_count = $governanceMetricCount
     governance_metrics = $governanceMetrics
-    numbering_catalog_real_corpus_confidence = [ordered]@{
-        id = "numbering_catalog_governance.real_corpus_confidence"
-        metric = "real_corpus_confidence"
-        report_id = "numbering_catalog_governance"
-        source_schema = "featherdoc.numbering_catalog_governance_report.v1"
-        score = 56
-        level = "low"
-        details = $governanceMetrics[1].details
-    }
-    table_layout_delivery_quality = [ordered]@{
-        id = "table_layout_delivery_governance.delivery_quality"
-        metric = "delivery_quality"
-        report_id = "table_layout_delivery_governance"
-        source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
-        score = 100
-        level = "release_ready"
-        details = $governanceMetrics[2].details
-    }
+    numbering_catalog_real_corpus_confidence = (New-NumberingCatalogRealCorpusConfidenceMirror -GovernanceMetrics $governanceMetrics)
+    table_layout_delivery_quality = (New-TableLayoutDeliveryQualityMirror -GovernanceMetrics $governanceMetrics)
     content_control_repair_contract_count = 1
     content_control_repair_contracts = @(
         [ordered]@{
@@ -3896,24 +3952,8 @@ $badManifestProjectTemplateOnboardingCount = [ordered]@{
     execution_status = "pass"
     governance_metric_count = $governanceMetricCount
     governance_metrics = $governanceMetrics
-    numbering_catalog_real_corpus_confidence = [ordered]@{
-        id = "numbering_catalog_governance.real_corpus_confidence"
-        metric = "real_corpus_confidence"
-        report_id = "numbering_catalog_governance"
-        source_schema = "featherdoc.numbering_catalog_governance_report.v1"
-        score = 56
-        level = "low"
-        details = $governanceMetrics[1].details
-    }
-    table_layout_delivery_quality = [ordered]@{
-        id = "table_layout_delivery_governance.delivery_quality"
-        metric = "delivery_quality"
-        report_id = "table_layout_delivery_governance"
-        source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
-        score = 100
-        level = "release_ready"
-        details = $governanceMetrics[2].details
-    }
+    numbering_catalog_real_corpus_confidence = (New-NumberingCatalogRealCorpusConfidenceMirror -GovernanceMetrics $governanceMetrics)
+    table_layout_delivery_quality = (New-TableLayoutDeliveryQualityMirror -GovernanceMetrics $governanceMetrics)
     content_control_repair_contract_count = 1
     content_control_repair_contracts = @(
         [ordered]@{

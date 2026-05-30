@@ -345,6 +345,10 @@ $summary = [ordered]@{
             metric = "real_corpus_confidence"
             report_id = "numbering_catalog_governance"
             source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+            source_report = ".\output\numbering-catalog-governance\summary.json"
+            source_report_display = ".\output\numbering-catalog-governance\summary.json"
+            source_json = ".\output\numbering-catalog-governance\summary.json"
+            source_json_display = ".\output\numbering-catalog-governance\summary.json"
             score = 56
             level = "low"
             details = [ordered]@{
@@ -375,6 +379,10 @@ $summary = [ordered]@{
             metric = "delivery_quality"
             report_id = "table_layout_delivery_governance"
             source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
+            source_report = ".\output\table-layout-delivery-governance\summary.json"
+            source_report_display = ".\output\table-layout-delivery-governance\summary.json"
+            source_json = ".\output\table-layout-delivery-governance\summary.json"
+            source_json_display = ".\output\table-layout-delivery-governance\summary.json"
             score = 100
             level = "release_ready"
             details = [ordered]@{
@@ -718,6 +726,18 @@ if ([string]$manifestNumberingConfidence.report_id -ne "numbering_catalog_govern
 if ([string]$manifestNumberingConfidence.source_schema -ne "featherdoc.numbering_catalog_governance_report.v1") {
     throw "Release assets manifest used the wrong real corpus confidence source_schema for numbering."
 }
+if ([string]$manifestNumberingConfidence.source_report -ne ".\output\numbering-catalog-governance\summary.json") {
+    throw "Release assets manifest lost numbering real corpus confidence source_report in AllowIncomplete mode."
+}
+if ([string]$manifestNumberingConfidence.source_report_display -ne ".\output\numbering-catalog-governance\summary.json") {
+    throw "Release assets manifest lost numbering real corpus confidence source_report_display in AllowIncomplete mode."
+}
+if ([string]$manifestNumberingConfidence.source_json -ne ".\output\numbering-catalog-governance\summary.json") {
+    throw "Release assets manifest lost numbering real corpus confidence source_json in AllowIncomplete mode."
+}
+if ([string]$manifestNumberingConfidence.source_json_display -ne ".\output\numbering-catalog-governance\summary.json") {
+    throw "Release assets manifest lost numbering real corpus confidence source_json_display in AllowIncomplete mode."
+}
 if ([int]$manifestNumberingConfidence.score -ne 56) {
     throw "Release assets manifest lost numbering real corpus confidence score."
 }
@@ -755,8 +775,32 @@ if ($null -eq $manifestTableLayoutDeliveryQuality) {
 if ([string]$manifestTableLayoutDeliveryQuality.id -ne "table_layout_delivery_governance.delivery_quality") {
     throw "Release assets manifest used the wrong table layout delivery quality id in AllowIncomplete mode."
 }
+if ([string]$manifestTableLayoutDeliveryQuality.metric -ne "delivery_quality") {
+    throw "Release assets manifest lost table layout delivery quality metric in AllowIncomplete mode."
+}
+if ([string]$manifestTableLayoutDeliveryQuality.report_id -ne "table_layout_delivery_governance") {
+    throw "Release assets manifest lost table layout delivery quality report_id in AllowIncomplete mode."
+}
 if ([string]$manifestTableLayoutDeliveryQuality.source_schema -ne "featherdoc.table_layout_delivery_governance_report.v1") {
     throw "Release assets manifest used the wrong table layout delivery quality source_schema in AllowIncomplete mode."
+}
+if ([string]$manifestTableLayoutDeliveryQuality.source_report -ne ".\output\table-layout-delivery-governance\summary.json") {
+    throw "Release assets manifest lost table layout delivery quality source_report in AllowIncomplete mode."
+}
+if ([string]$manifestTableLayoutDeliveryQuality.source_report_display -ne ".\output\table-layout-delivery-governance\summary.json") {
+    throw "Release assets manifest lost table layout delivery quality source_report_display in AllowIncomplete mode."
+}
+if ([string]$manifestTableLayoutDeliveryQuality.source_json -ne ".\output\table-layout-delivery-governance\summary.json") {
+    throw "Release assets manifest lost table layout delivery quality source_json in AllowIncomplete mode."
+}
+if ([string]$manifestTableLayoutDeliveryQuality.source_json_display -ne ".\output\table-layout-delivery-governance\summary.json") {
+    throw "Release assets manifest lost table layout delivery quality source_json_display in AllowIncomplete mode."
+}
+if ([int]$manifestTableLayoutDeliveryQuality.score -ne 100) {
+    throw "Release assets manifest lost table layout delivery quality score in AllowIncomplete mode."
+}
+if ([string]$manifestTableLayoutDeliveryQuality.level -ne "release_ready") {
+    throw "Release assets manifest lost table layout delivery quality level in AllowIncomplete mode."
 }
 if ($null -eq $manifestTableLayoutDeliveryQuality.details) {
     throw "Release assets manifest lost table layout delivery quality details in AllowIncomplete mode."

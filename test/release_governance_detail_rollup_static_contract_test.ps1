@@ -247,10 +247,12 @@ foreach ($marker in @(
     "release_governance_warning_helper_contract",
     "release_governance_metrics_contract",
     "release_governance_detail_rollup_static_contract",
+    "build_release_governance_pipeline_report_markdown_counts",
     "release_governance_warning_contract_test.ps1",
     "release_governance_warning_helper_contract_test.ps1",
     "release_governance_metrics_contract_test.ps1",
     "release_governance_detail_rollup_static_contract_test.ps1",
+    "markdown_counts",
     "TIMEOUT 60",
     'LABELS "release;governance;smoke"'
 )) {

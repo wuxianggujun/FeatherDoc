@@ -642,6 +642,10 @@ $summary = [ordered]@{
             metric = "real_corpus_confidence"
             report_id = "numbering_catalog_governance"
             source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+            source_report = ".\output\numbering-catalog-governance\summary.json"
+            source_report_display = ".\output\numbering-catalog-governance\summary.json"
+            source_json = ".\output\numbering-catalog-governance\summary.json"
+            source_json_display = ".\output\numbering-catalog-governance\summary.json"
             score = 56
             level = "low"
             details = [ordered]@{
@@ -672,6 +676,10 @@ $summary = [ordered]@{
             metric = "delivery_quality"
             report_id = "table_layout_delivery_governance"
             source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
+            source_report = ".\output\table-layout-delivery-governance\summary.json"
+            source_report_display = ".\output\table-layout-delivery-governance\summary.json"
+            source_json = ".\output\table-layout-delivery-governance\summary.json"
+            source_json_display = ".\output\table-layout-delivery-governance\summary.json"
             score = 100
             level = "release_ready"
             details = [ordered]@{
@@ -1279,6 +1287,18 @@ if ([string]$manifestNumberingConfidence.report_id -ne "numbering_catalog_govern
 if ([string]$manifestNumberingConfidence.source_schema -ne "featherdoc.numbering_catalog_governance_report.v1") {
     throw "release_assets_manifest.json lost numbering real corpus confidence source_schema."
 }
+if ([string]$manifestNumberingConfidence.source_report -ne ".\output\numbering-catalog-governance\summary.json") {
+    throw "release_assets_manifest.json lost numbering real corpus confidence source_report."
+}
+if ([string]$manifestNumberingConfidence.source_report_display -ne ".\output\numbering-catalog-governance\summary.json") {
+    throw "release_assets_manifest.json lost numbering real corpus confidence source_report_display."
+}
+if ([string]$manifestNumberingConfidence.source_json -ne ".\output\numbering-catalog-governance\summary.json") {
+    throw "release_assets_manifest.json lost numbering real corpus confidence source_json."
+}
+if ([string]$manifestNumberingConfidence.source_json_display -ne ".\output\numbering-catalog-governance\summary.json") {
+    throw "release_assets_manifest.json lost numbering real corpus confidence source_json_display."
+}
 if ([int]$manifestNumberingConfidence.score -ne 56) {
     throw "release_assets_manifest.json lost numbering real corpus confidence score."
 }
@@ -1326,6 +1346,18 @@ if ([string]$manifestTableLayoutDeliveryQuality.report_id -ne "table_layout_deli
 }
 if ([string]$manifestTableLayoutDeliveryQuality.source_schema -ne "featherdoc.table_layout_delivery_governance_report.v1") {
     throw "release_assets_manifest.json lost table layout delivery quality source_schema."
+}
+if ([string]$manifestTableLayoutDeliveryQuality.source_report -ne ".\output\table-layout-delivery-governance\summary.json") {
+    throw "release_assets_manifest.json lost table layout delivery quality source_report."
+}
+if ([string]$manifestTableLayoutDeliveryQuality.source_report_display -ne ".\output\table-layout-delivery-governance\summary.json") {
+    throw "release_assets_manifest.json lost table layout delivery quality source_report_display."
+}
+if ([string]$manifestTableLayoutDeliveryQuality.source_json -ne ".\output\table-layout-delivery-governance\summary.json") {
+    throw "release_assets_manifest.json lost table layout delivery quality source_json."
+}
+if ([string]$manifestTableLayoutDeliveryQuality.source_json_display -ne ".\output\table-layout-delivery-governance\summary.json") {
+    throw "release_assets_manifest.json lost table layout delivery quality source_json_display."
 }
 if ([int]$manifestTableLayoutDeliveryQuality.score -ne 100) {
     throw "release_assets_manifest.json lost table layout delivery quality score."
