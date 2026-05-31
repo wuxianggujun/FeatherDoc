@@ -271,6 +271,8 @@ Word 视觉验证与人工复核
 - ``scripts/record_word_visual_review_result.ps1``：记录人工复核 verdict。
 - ``scripts/sync_latest_visual_review_verdict.ps1``：同步最新视觉复核 verdict。
 - ``scripts/sync_visual_review_verdict.ps1``：按显式路径同步视觉复核 verdict。
+- ``scripts/find_superseded_review_tasks.ps1``：只读扫描复核任务目录，报告已被
+  更新任务取代的旧任务。
 - ``scripts/refresh_readme_visual_assets.ps1``：刷新 README 视觉资产。
 - ``scripts/word_visual_review_report.ps1``：生成 Word visual review 报告。
 
@@ -290,6 +292,10 @@ Release governance 与发布材料
   handoff summary。
 - ``scripts/check_release_metadata_docs.ps1``：检查发布元数据文档的固定契约与
   reviewer-facing 入口。
+- ``scripts/release_blocker_metadata_helpers.ps1``：提供 release blocker 元数据、
+  action 指引和质量检查 helper。
+- ``scripts/release_visual_metadata_helpers.ps1``：提供 release 视觉复核 metadata
+  汇总、路径解析和任务 verdict helper。
 - ``scripts/assert_release_material_safety.ps1``：检查发布材料安全边界。
 - ``scripts/package_release_assets.ps1``：打包发布资产。
 - ``scripts/publish_github_release.ps1``：发布 GitHub release。
