@@ -388,6 +388,68 @@ Assert-ContainsText -Text $projectTemplateChecklistGuidance -ExpectedText "sync_
     -Message "Project-template checklist guidance should point at schema approval sync."
 Assert-ContainsText -Text $projectTemplateChecklistGuidance -ExpectedText "build_project_template_onboarding_governance_report.ps1" `
     -Message "Project-template checklist guidance should tell reviewers when to rebuild onboarding governance."
+
+$numberingGovernanceBlocker = [pscustomobject]@{
+    id = "numbering_catalog_governance.real_corpus_alignment_gap"
+    source = "numbering_catalog_governance"
+    severity = "error"
+    status = "real_corpus_alignment_gap"
+    action = "review_numbering_catalog_real_corpus_alignment"
+    message = "Numbering catalog exemplars and baseline entries do not align on document identity."
+    source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+    source_report_display = ".\output\numbering-catalog-governance\summary.json"
+    source_json_display = ".\output\numbering-catalog-governance\summary.json"
+    scope = "numbering_catalog_governance"
+    matched_document_count = 1
+    unmatched_catalog_document_count = 1
+    unmatched_baseline_document_count = 1
+    catalog_coverage_percent = 50
+    baseline_coverage_percent = 50
+    coverage_score = 50
+    catalog_document_keys = @("contract", "invoice")
+    baseline_document_keys = @("invoice", "obsolete")
+    matched_document_keys = @("invoice")
+}
+$numberingGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $numberingGovernanceBlocker `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $numberingGuidance -ExpectedText "review_numbering_catalog_real_corpus_alignment" `
+    -Message "Numbering catalog alignment blocker should render its fixed action runbook."
+Assert-ContainsText -Text $numberingGuidance -ExpectedText "numbering governance" `
+    -Message "Numbering catalog runbook should identify the governance domain."
+Assert-ContainsText -Text $numberingGuidance -ExpectedText ".\output\numbering-catalog-governance\summary.json" `
+    -Message "Numbering catalog runbook should point at source evidence."
+Assert-ContainsText -Text $numberingGuidance -ExpectedText "scope=numbering_catalog_governance" `
+    -Message "Numbering catalog runbook should keep scope provenance."
+Assert-ContainsText -Text $numberingGuidance -ExpectedText "matched_document_count=1" `
+    -Message "Numbering catalog runbook should keep matched document metrics."
+Assert-ContainsText -Text $numberingGuidance -ExpectedText "unmatched_catalog_document_count=1" `
+    -Message "Numbering catalog runbook should keep unmatched catalog metrics."
+Assert-ContainsText -Text $numberingGuidance -ExpectedText "catalog document keys: contract,invoice" `
+    -Message "Numbering catalog runbook should list catalog document keys."
+Assert-ContainsText -Text $numberingGuidance -ExpectedText "baseline document keys: invoice,obsolete" `
+    -Message "Numbering catalog runbook should list baseline document keys."
+Assert-ContainsText -Text $numberingGuidance -ExpectedText "build_numbering_catalog_governance_report.ps1" `
+    -Message "Numbering catalog runbook should tell reviewers to rebuild governance evidence."
+Assert-ContainsText -Text $numberingGuidance -ExpectedText "release note bundle" `
+    -Message "Numbering catalog runbook should tell reviewers to refresh release materials."
+Assert-True -Condition ($numberingGuidance -notmatch [regex]::Escape("Registered release blocker action")) `
+    -Message "Numbering catalog registered action should not use the missing-runbook fallback."
+
+$numberingChecklistGuidance = @(Get-ReleaseGovernanceChecklistGuidanceLines `
+        -Item $numberingGovernanceBlocker `
+        -ItemKind "blocker" `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $numberingChecklistGuidance -ExpectedText "release governance blocker" `
+    -Message "Numbering catalog checklist guidance should identify blocker context."
+Assert-ContainsText -Text $numberingChecklistGuidance -ExpectedText "review_numbering_catalog_real_corpus_alignment" `
+    -Message "Numbering catalog checklist guidance should render its fixed action runbook."
+Assert-ContainsText -Text $numberingChecklistGuidance -ExpectedText "matched_document_count=1" `
+    -Message "Numbering catalog checklist guidance should keep real-corpus metrics."
+Assert-ContainsText -Text $numberingChecklistGuidance -ExpectedText "build_document_skeleton_governance_rollup_report.ps1" `
+    -Message "Numbering catalog checklist guidance should mention skeleton rollup refresh."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "output gap checks=3" `
     -Message "PDF preflight build-output blocker should include the output gap group count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing outputs=87" `

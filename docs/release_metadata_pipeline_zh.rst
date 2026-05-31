@@ -343,6 +343,24 @@ governance / release note bundle。
 score / level、``catalog_coverage_percent``、``baseline_coverage_percent``、
 ``matched_document_count`` 与 ``penalty_summary``，release metadata 文档检查会
 要求这些路径继续出现在发布说明材料中，防止样式/编号治理退回到只看数量的弱检查。
+其中 ``review_numbering_catalog_real_corpus_alignment``、
+``fix_numbering_catalog_baseline_lint``、
+``refresh_numbering_catalog_baseline_or_repair_docx``、
+``review_numbering_catalog_check_issues``、
+``rebuild_document_skeleton_governance_rollup``、
+``rebuild_numbering_catalog_manifest_summary``、
+``review_numbering_catalog_governance_sources``、
+``review_style_numbering_audit``、``preview_style_numbering_repair``、
+``promote_numbering_catalog_exemplar``、``register_numbering_catalog_baseline`` 与
+``rerun_document_skeleton_governance_report`` 都映射到固定 reviewer runbook：
+先打开 ``source_report_display`` / ``source_json_display``，确认 scope、document key
+对齐、catalog/baseline 覆盖率与 style-numbering issue，再按
+``build_document_skeleton_governance_report.ps1``、
+``build_document_skeleton_governance_rollup_report.ps1``、
+``check_numbering_catalog_baseline.ps1``、
+``check_numbering_catalog_manifest.ps1`` 或
+``build_numbering_catalog_governance_report.ps1`` 重建证据，最后刷新 release
+governance / release note bundle。
 
 表格与版式交付治理会写出
 ``featherdoc.table_layout_delivery_governance_report.v1``。它的 ``delivery_quality``

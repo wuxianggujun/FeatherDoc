@@ -111,7 +111,24 @@ foreach ($marker in @(
         "source_schema",
         "source_report_display",
         "source_json_display",
-        "open_command"
+        "open_command",
+        "review_numbering_catalog_real_corpus_alignment",
+        "fix_numbering_catalog_baseline_lint",
+        "refresh_numbering_catalog_baseline_or_repair_docx",
+        "review_numbering_catalog_check_issues",
+        "rebuild_document_skeleton_governance_rollup",
+        "rebuild_numbering_catalog_manifest_summary",
+        "review_numbering_catalog_governance_sources",
+        "review_style_numbering_audit",
+        "preview_style_numbering_repair",
+        "promote_numbering_catalog_exemplar",
+        "register_numbering_catalog_baseline",
+        "rerun_document_skeleton_governance_report",
+        "reviewer runbook",
+        "build_document_skeleton_governance_report.ps1",
+        "build_document_skeleton_governance_rollup_report.ps1",
+        "check_numbering_catalog_baseline.ps1",
+        "check_numbering_catalog_manifest.ps1"
     )) {
     Assert-ContainsText -Text $releaseMetadataDoc -ExpectedText $marker `
         -Message "Release metadata document should preserve numbering governance marker '$marker'."
@@ -144,7 +161,13 @@ foreach ($assertion in @(
                 "source_report_display",
                 "source_json_display",
                 "open_command",
-                "review_numbering_catalog_real_corpus_alignment"
+                "review_numbering_catalog_real_corpus_alignment",
+                "fix_numbering_catalog_baseline_lint",
+                "refresh_numbering_catalog_baseline_or_repair_docx",
+                "review_numbering_catalog_check_issues",
+                "rebuild_document_skeleton_governance_rollup",
+                "rebuild_numbering_catalog_manifest_summary",
+                "review_numbering_catalog_governance_sources"
             )
         },
         [ordered]@{

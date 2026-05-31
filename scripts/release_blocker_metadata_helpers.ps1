@@ -819,14 +819,25 @@ function Get-ReleaseBlockerRegisteredActions {
         "fix_schema_patch_approval_result",
         "fix_custom_xml_data_binding_source",
         "fix_invalid_approval_records",
+        "fix_numbering_catalog_baseline_lint",
         "freeze_schema_baseline",
         "promote_schema_update_candidate",
+        "promote_numbering_catalog_exemplar",
+        "preview_style_numbering_repair",
         "prepare_pdf_visual_release_gate_build_outputs",
+        "rebuild_document_skeleton_governance_rollup",
+        "rebuild_numbering_catalog_manifest_summary",
         "rerun_pdf_controlled_visual_smoke_check",
         "rerun_pdf_visual_release_gate_preflight",
+        "rerun_document_skeleton_governance_report",
         "review_content_control_data_binding_evidence",
         "review_content_control_lock_strategy",
         "review_duplicate_content_control_binding",
+        "refresh_numbering_catalog_baseline_or_repair_docx",
+        "register_numbering_catalog_baseline",
+        "review_numbering_catalog_check_issues",
+        "review_numbering_catalog_governance_sources",
+        "review_numbering_catalog_real_corpus_alignment",
         "review_project_template_delivery_readiness_evidence",
         "review_project_template_smoke_failure",
         "review_schema_approval_history",
@@ -835,6 +846,7 @@ function Get-ReleaseBlockerRegisteredActions {
         "resolve_pending_schema_approvals",
         "review_schema_patch_confidence_calibration_evidence",
         "review_schema_update_candidate",
+        "review_style_numbering_audit",
         "run_content_control_custom_xml_sync",
         "run_project_template_smoke_for_registered_manifest",
         "run_project_template_smoke_then_review_schema_patch_approval",
@@ -1364,6 +1376,203 @@ function Add-ProjectTemplateGovernanceGuidanceLines {
     }
 }
 
+function Add-NumberingCatalogGovernanceGuidanceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item,
+        [string]$RepoRoot = "",
+        [string]$ReleaseSummaryJson = "",
+        [string]$ContextText = ""
+    )
+
+    $action = Get-ReleaseBlockerPropertyValue -Object $Item -Name "action"
+    $contextSuffix = if ([string]::IsNullOrWhiteSpace($ContextText)) { "" } else { " $ContextText" }
+
+    switch ($action) {
+        "review_numbering_catalog_real_corpus_alignment" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_numbering_catalog_real_corpus_alignment`{0}: compare catalog exemplar document keys with baseline manifest document keys, then repair missing or stale real-corpus evidence before release.' -f $contextSuffix)
+            break
+        }
+        "fix_numbering_catalog_baseline_lint" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `fix_numbering_catalog_baseline_lint`{0}: lint and repair the committed numbering catalog baseline before rebuilding manifest evidence.' -f $contextSuffix)
+            break
+        }
+        "refresh_numbering_catalog_baseline_or_repair_docx" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `refresh_numbering_catalog_baseline_or_repair_docx`{0}: compare generated numbering catalog output with the committed baseline, then either refresh the baseline or repair the source DOCX.' -f $contextSuffix)
+            break
+        }
+        "review_numbering_catalog_check_issues" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_numbering_catalog_check_issues`{0}: review numbering catalog check issues, repair the DOCX or catalog JSON, and rerun the baseline check.' -f $contextSuffix)
+            break
+        }
+        "rebuild_document_skeleton_governance_rollup" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `rebuild_document_skeleton_governance_rollup`{0}: regenerate document skeleton governance rollup evidence before rebuilding numbering catalog governance.' -f $contextSuffix)
+            break
+        }
+        "rebuild_numbering_catalog_manifest_summary" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `rebuild_numbering_catalog_manifest_summary`{0}: rerun the numbering catalog manifest check and keep its summary as release evidence.' -f $contextSuffix)
+            break
+        }
+        "review_numbering_catalog_governance_sources" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_numbering_catalog_governance_sources`{0}: inspect numbering governance input JSON kind and rebuild the owning source report when evidence is skipped or unreadable.' -f $contextSuffix)
+            break
+        }
+        "review_style_numbering_audit" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_style_numbering_audit`{0}: review style numbering audit issues, then decide whether to repair style numbering or update the numbering catalog baseline.' -f $contextSuffix)
+            break
+        }
+        "preview_style_numbering_repair" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `preview_style_numbering_repair`{0}: generate a repair-style-numbering plan against the exported catalog before applying any DOCX mutation.' -f $contextSuffix)
+            break
+        }
+        "promote_numbering_catalog_exemplar" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `promote_numbering_catalog_exemplar`{0}: review the generated exemplar numbering catalog before promoting it into the baseline flow.' -f $contextSuffix)
+            break
+        }
+        "register_numbering_catalog_baseline" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `register_numbering_catalog_baseline`{0}: register the reviewed exemplar catalog in the numbering catalog baseline manifest.' -f $contextSuffix)
+            break
+        }
+        default {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `rerun_document_skeleton_governance_report`{0}: rerun the document skeleton governance report, then rebuild rollup and numbering catalog governance evidence.' -f $contextSuffix)
+        }
+    }
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Item -Name "status"
+    $message = Get-ReleaseBlockerPropertyValue -Object $Item -Name "message"
+    if (-not [string]::IsNullOrWhiteSpace($status) -or -not [string]::IsNullOrWhiteSpace($message)) {
+        $statusLine = "Numbering governance item"
+        if (-not [string]::IsNullOrWhiteSpace($status)) {
+            $statusLine += ": $status"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($message)) {
+            $statusLine += "; message: $message"
+        }
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text $statusLine
+    }
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Open the numbering governance report first: {0}" -f $sourceReportDisplay)
+    }
+
+    $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Inspect the numbering governance source JSON before changing evidence: {0}" -f $sourceJsonDisplay)
+    }
+
+    $provenanceParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($fieldName in @("scope", "document_name", "input_docx_display", "input_docx", "catalog_file_display", "catalog_file", "generated_output_path", "exemplar_catalog_display", "exemplar_catalog_path", "source_kind", "category")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            [void]$provenanceParts.Add("$fieldName=$value")
+        }
+    }
+    if ($provenanceParts.Count -gt 0) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Numbering governance provenance: {0}" -f ($provenanceParts.ToArray() -join ", "))
+    }
+
+    $metricParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($fieldName in @(
+            "matched_document_count",
+            "unmatched_catalog_document_count",
+            "unmatched_baseline_document_count",
+            "catalog_coverage_percent",
+            "baseline_coverage_percent",
+            "coverage_score",
+            "alignment_gap_count",
+            "real_corpus_confidence_score",
+            "real_corpus_confidence_level",
+            "total_style_numbering_issue_count",
+            "drift_count",
+            "dirty_baseline_count",
+            "issue_entry_count"
+        )) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            [void]$metricParts.Add("$fieldName=$value")
+        }
+    }
+    if ($metricParts.Count -gt 0) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Numbering governance metrics: {0}" -f ($metricParts.ToArray() -join ", "))
+    }
+
+    foreach ($arrayInfo in @(
+            [ordered]@{ Name = "catalog_document_keys"; Label = "catalog document keys" },
+            [ordered]@{ Name = "baseline_document_keys"; Label = "baseline document keys" },
+            [ordered]@{ Name = "matched_document_keys"; Label = "matched document keys" }
+        )) {
+        $values = @(Get-ReleaseBlockerArrayProperty -Object $Item -Name $arrayInfo.Name | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($values.Count -gt 0) {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Numbering governance {0}: {1}" -f $arrayInfo.Label, ($values -join ","))
+        }
+    }
+
+    $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        foreach ($commandName in @("open_command", "command", "audit_command", "review_command")) {
+            $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name $commandName
+            if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
+                break
+            }
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        switch ($action) {
+            { $_ -in @(
+                    "fix_numbering_catalog_baseline_lint",
+                    "refresh_numbering_catalog_baseline_or_repair_docx",
+                    "review_numbering_catalog_check_issues",
+                    "register_numbering_catalog_baseline"
+                ) } {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx <input.docx> -CatalogFile <catalog.json> -BuildDir <build-dir> -SkipBuild'
+                break
+            }
+            "rebuild_document_skeleton_governance_rollup" {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -OutputDir .\output\document-skeleton-governance-rollup'
+                break
+            }
+            "rebuild_numbering_catalog_manifest_summary" {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir <build-dir> -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild'
+                break
+            }
+            "review_style_numbering_audit" {
+                $commandTemplate = 'featherdoc_cli audit-style-numbering <input.docx> --fail-on-issue --json'
+                break
+            }
+            "preview_style_numbering_repair" {
+                $commandTemplate = 'featherdoc_cli repair-style-numbering <input.docx> --catalog-file <numbering-catalog.json> --plan-only --json'
+                break
+            }
+            "promote_numbering_catalog_exemplar" {
+                $commandTemplate = 'featherdoc_cli check-numbering-catalog <input.docx> --catalog-file <numbering-catalog.json> --json'
+                break
+            }
+            "rerun_document_skeleton_governance_report" {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_report.ps1 -InputDocx <input.docx> -OutputDir .\output\document-skeleton-governance'
+                break
+            }
+            default {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_numbering_catalog_governance_report.ps1 -InputRoot .\output -OutputDir .\output\numbering-catalog-governance'
+            }
+        }
+    }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Run or inspect the numbering governance command: `{0}`' -f $commandTemplate)
+
+    $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    if ([string]::IsNullOrWhiteSpace($releaseSummaryDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'After numbering governance evidence is passing, rerun `build_document_skeleton_governance_rollup_report.ps1` when skeleton evidence changed, rerun `build_numbering_catalog_governance_report.ps1`, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle before publishing.'
+    } else {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('After numbering governance evidence is passing, rerun `build_document_skeleton_governance_rollup_report.ps1` when skeleton evidence changed, rerun `build_numbering_catalog_governance_report.ps1`, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)
+    }
+}
+
 function Get-ReleaseBlockerActionGuidanceLines {
     param(
         [AllowNull()]$Blocker,
@@ -1442,6 +1651,27 @@ function Get-ReleaseBlockerActionGuidanceLines {
                 "update_template_or_schema_before_retry"
             ) } {
             Add-ProjectTemplateGovernanceGuidanceLines `
+                -Lines $guidanceLines `
+                -Item $Blocker `
+                -RepoRoot $RepoRoot `
+                -ReleaseSummaryJson $ReleaseSummaryJson
+            break
+        }
+        { $_ -in @(
+                "fix_numbering_catalog_baseline_lint",
+                "promote_numbering_catalog_exemplar",
+                "preview_style_numbering_repair",
+                "rebuild_document_skeleton_governance_rollup",
+                "rebuild_numbering_catalog_manifest_summary",
+                "rerun_document_skeleton_governance_report",
+                "refresh_numbering_catalog_baseline_or_repair_docx",
+                "register_numbering_catalog_baseline",
+                "review_numbering_catalog_check_issues",
+                "review_numbering_catalog_governance_sources",
+                "review_numbering_catalog_real_corpus_alignment",
+                "review_style_numbering_audit"
+            ) } {
+            Add-NumberingCatalogGovernanceGuidanceLines `
                 -Lines $guidanceLines `
                 -Item $Blocker `
                 -RepoRoot $RepoRoot `
@@ -3370,6 +3600,26 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             "update_template_or_schema_before_retry"
         )) {
         Add-ProjectTemplateGovernanceGuidanceLines `
+            -Lines $guidanceLines `
+            -Item $Item `
+            -RepoRoot $RepoRoot `
+            -ReleaseSummaryJson $ReleaseSummaryJson `
+            -ContextText ('for release governance {0} `{1}`' -f $ItemKind, $id)
+    } elseif ($action -in @(
+            "fix_numbering_catalog_baseline_lint",
+            "promote_numbering_catalog_exemplar",
+            "preview_style_numbering_repair",
+            "rebuild_document_skeleton_governance_rollup",
+            "rebuild_numbering_catalog_manifest_summary",
+            "rerun_document_skeleton_governance_report",
+            "refresh_numbering_catalog_baseline_or_repair_docx",
+            "register_numbering_catalog_baseline",
+            "review_numbering_catalog_check_issues",
+            "review_numbering_catalog_governance_sources",
+            "review_numbering_catalog_real_corpus_alignment",
+            "review_style_numbering_audit"
+        )) {
+        Add-NumberingCatalogGovernanceGuidanceLines `
             -Lines $guidanceLines `
             -Item $Item `
             -RepoRoot $RepoRoot `
