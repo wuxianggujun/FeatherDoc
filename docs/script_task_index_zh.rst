@@ -209,6 +209,14 @@
   文字方向视觉回归。
 - ``scripts/run_fixed_grid_merge_unmerge_regression.ps1``：运行 fixed-grid
   merge / unmerge 回归 bundle。
+- ``scripts/run_section_page_setup_regression.ps1``：运行分节页设置回归 bundle。
+- ``scripts/run_section_page_setup_visual_regression.ps1``：运行分节页设置视觉
+  回归。
+- ``scripts/run_section_order_visual_regression.ps1``：运行分节顺序视觉回归。
+- ``scripts/run_section_part_refs_visual_regression.ps1``：运行分节 part
+  references 视觉回归。
+- ``scripts/run_section_text_multiline_visual_regression.ps1``：运行分节多行文本
+  视觉回归。
 
 
 Word 视觉验证与人工复核
