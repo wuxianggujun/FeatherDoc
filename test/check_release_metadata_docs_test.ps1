@@ -183,8 +183,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 212) {
-        throw "Expected JSON summary to count 212 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 214) {
+        throw "Expected JSON summary to count 214 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -407,6 +407,7 @@ $defaultChecklistText = @(
     '- task_reviews=',
     '- source_schema=featherdoc.release_candidate_summary',
     '- release-candidate-checks',
+    '- release-candidate-checks-source',
     '- public_release_wording_regression_test.ps1',
     '- git diff --check',
     '- release_note_bundle',
@@ -500,6 +501,7 @@ $defaultPolicyText = @(
     '- task_reviews=',
     '- source_schema=featherdoc.release_candidate_summary',
     '- release-candidate-checks',
+    '- release-candidate-checks-source',
     '- report/ARTIFACT_GUIDE.md',
     '- report/REVIEWER_CHECKLIST.md',
     '- report/release_handoff.md',
@@ -569,20 +571,20 @@ if ($summary.checked_document_count -ne 7) {
 if ($summary.required_pipeline_marker_count -ne 96) {
     throw "Expected JSON summary pipeline marker count 96, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 83) {
-    throw "Expected JSON summary checklist marker count 83, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 84) {
+    throw "Expected JSON summary checklist marker count 84, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 13) {
     throw "Expected JSON summary document governance marker count 13, got: $($summary.required_document_governance_marker_count)"
 }
-if ($summary.required_policy_marker_count -ne 18) {
-    throw "Expected JSON summary policy marker count 18, got: $($summary.required_policy_marker_count)"
+if ($summary.required_policy_marker_count -ne 19) {
+    throw "Expected JSON summary policy marker count 19, got: $($summary.required_policy_marker_count)"
 }
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 212) {
-    throw "Expected JSON summary total marker count 212, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 214) {
+    throw "Expected JSON summary total marker count 214, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 7) {
     throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
@@ -639,6 +641,10 @@ Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "release-candidate-checks" `
     -Message "JSON summary checklist should list release-candidate summary source marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "release-candidate-checks-source" `
+    -Message "JSON summary checklist should list source-only release candidate summary marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue '``output_gap_count``' `
@@ -783,6 +789,10 @@ Assert-ArrayContains `
     -Values @($summary.required_policy_markers) `
     -ExpectedValue "release-candidate-checks" `
     -Message "JSON summary policy should list release-candidate summary source marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "release-candidate-checks-source" `
+    -Message "JSON summary policy should list source-only release candidate summary marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "readme_gallery" `
@@ -1099,7 +1109,7 @@ Assert-SummaryFailure `
     -ExpectedMessage "Tab character found" `
     -ExpectedFailureKind "tab_character" `
     -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
-    -ExpectedFailureLineNumber 30 `
+    -ExpectedFailureLineNumber 31 `
     -ExpectedFailureColumnNumber 6 `
     -ExpectedFailureExcerpt "- git`t diff --check"
 

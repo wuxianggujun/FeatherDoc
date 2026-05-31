@@ -78,7 +78,9 @@ release 流水线的详细设计文档；详细字段流向请先阅读
   ``Word visual standard review metadata evidence`` compact evidence line。
 - compact evidence line 必须把 ``task_reviews=``、
   ``source_schema=featherdoc.release_candidate_summary`` 与 ``source_report`` 保持在同一行，
-  且 ``source_report`` 指向 ``release-candidate-checks`` 的 release-candidate summary。
+  且 ``source_report`` 优先指向 ``release-candidate-checks\report\summary.json``；
+  ``release-candidate-checks-source\summary.json`` 只能作为源材料，不能替代最终
+  release-candidate summary。
 - ``review_note`` 仍是 operator-only 字段，不能进入任何发布入口或公开发布材料。
 
 涉及公开 release 正文时，必须确认：

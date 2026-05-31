@@ -236,8 +236,10 @@ verdict；``report/release_handoff.md``、``report/ARTIFACT_GUIDE.md`` 和
 ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、
 ``final_review.md`` 与 ``release_handoff.md`` 都展示
 ``Word visual standard review metadata evidence`` compact evidence line。该行必须保留
-``task_reviews=``、``source_schema=featherdoc.release_candidate_summary`` 和指向
-``release-candidate-checks`` 的 ``source_report``，并继续禁止 ``review_note`` 进入任何发布入口或公开材料。
+``task_reviews=``、``source_schema=featherdoc.release_candidate_summary``，并让
+``source_report`` 优先指向 ``release-candidate-checks\report\summary.json``；
+``release-candidate-checks-source\summary.json`` 只能作为源材料，不能替代最终 release-candidate summary。
+同时继续禁止 ``review_note`` 进入任何发布入口或公开材料。
 如果只想单独复跑 fixed-grid merge/unmerge 四件套，并生成可截图签收的
 review task，可另外执行：
 
