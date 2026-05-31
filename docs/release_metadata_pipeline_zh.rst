@@ -37,11 +37,11 @@ Release 元数据流水线（中文）
               ↓
     [write_release_note_bundle.ps1]
       ├─ START_HERE.md
-      ├─ ARTIFACT_GUIDE.md
-      ├─ REVIEWER_CHECKLIST.md
-      ├─ release_handoff.md
-      ├─ release_body.zh-CN.md
-      └─ release_summary.zh-CN.md
+      ├─ report/ARTIFACT_GUIDE.md
+      ├─ report/REVIEWER_CHECKLIST.md
+      ├─ report/release_handoff.md
+      ├─ report/release_body.zh-CN.md
+      └─ report/release_summary.zh-CN.md
 
 如果只想把最新 review task 的结果回灌进去，通常优先使用
 ``sync_latest_visual_review_verdict.ps1``。它会先发现最新 task pointer，推断
@@ -179,15 +179,15 @@ Markdown 文件。
 默认会生成或刷新：
 
 - ``START_HERE.md``
-- ``ARTIFACT_GUIDE.md``
-- ``REVIEWER_CHECKLIST.md``
-- ``release_handoff.md``
-- ``release_body.zh-CN.md``
-- ``release_summary.zh-CN.md``
+- ``report/ARTIFACT_GUIDE.md``
+- ``report/REVIEWER_CHECKLIST.md``
+- ``report/release_handoff.md``
+- ``report/release_body.zh-CN.md``
+- ``report/release_summary.zh-CN.md``
 
 当 ``summary.json`` 顶层存在 ``release_blockers`` 时，bundle 会在
-``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、
-``release_handoff.md`` 与 ``release_body.zh-CN.md`` 中渲染 blocker count、
+``START_HERE.md``、``report/ARTIFACT_GUIDE.md``、``report/REVIEWER_CHECKLIST.md``、
+``report/release_handoff.md`` 与 ``report/release_body.zh-CN.md`` 中渲染 blocker count、
 稳定 blocker id、issue keys、阻断条目和修复动作。``REVIEWER_CHECKLIST.md``
 还会生成必须先清空 ``release_blockers`` 的 stop checklist，确保人工交接不会漏看
 机器字段里的发布阻断原因。bundle 生成前会校验 ``release_blocker_count`` 必须等于

@@ -359,6 +359,11 @@ $pipelineExpectedMarkers = @(
     "word_visual_standard_review_metadata_source_reports",
     "task_reviews=",
     "release-candidate-checks",
+    "report/ARTIFACT_GUIDE.md",
+    "report/REVIEWER_CHECKLIST.md",
+    "report/release_handoff.md",
+    "report/release_body.zh-CN.md",
+    "report/release_summary.zh-CN.md",
     '``id``',
     '``action``',
     '``message``',
@@ -467,7 +472,10 @@ $policyExpectedMarkers = @(
     "word_visual_standard_review_metadata_source_reports",
     "task_reviews=",
     "source_schema=featherdoc.release_candidate_summary",
-    "release-candidate-checks"
+    "release-candidate-checks",
+    "report/ARTIFACT_GUIDE.md",
+    "report/REVIEWER_CHECKLIST.md",
+    "report/release_handoff.md"
 )
 $entrypointExpectedMarkers = @(
     "release_metadata_pipeline_zh",

@@ -183,8 +183,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 158) {
-        throw "Expected JSON summary to count 158 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 166) {
+        throw "Expected JSON summary to count 166 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -332,6 +332,11 @@ $defaultPipelineText = @(
     '- word_visual_standard_review_metadata_source_reports',
     '- task_reviews=',
     '- release-candidate-checks',
+    '- report/ARTIFACT_GUIDE.md',
+    '- report/REVIEWER_CHECKLIST.md',
+    '- report/release_handoff.md',
+    '- report/release_body.zh-CN.md',
+    '- report/release_summary.zh-CN.md',
     '- ``id``',
     '- ``action``',
     '- ``message``',
@@ -456,6 +461,9 @@ $defaultPolicyText = @(
     '- task_reviews=',
     '- source_schema=featherdoc.release_candidate_summary',
     '- release-candidate-checks',
+    '- report/ARTIFACT_GUIDE.md',
+    '- report/REVIEWER_CHECKLIST.md',
+    '- report/release_handoff.md',
     ''
 ) -join "`n"
 
@@ -512,8 +520,8 @@ Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 7) {
     throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 72) {
-    throw "Expected JSON summary pipeline marker count 72, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 77) {
+    throw "Expected JSON summary pipeline marker count 77, got: $($summary.required_pipeline_marker_count)"
 }
 if ($summary.required_checklist_marker_count -ne 66) {
     throw "Expected JSON summary checklist marker count 66, got: $($summary.required_checklist_marker_count)"
@@ -521,14 +529,14 @@ if ($summary.required_checklist_marker_count -ne 66) {
 if ($summary.required_document_governance_marker_count -ne 10) {
     throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
 }
-if ($summary.required_policy_marker_count -ne 8) {
-    throw "Expected JSON summary policy marker count 8, got: $($summary.required_policy_marker_count)"
+if ($summary.required_policy_marker_count -ne 11) {
+    throw "Expected JSON summary policy marker count 11, got: $($summary.required_policy_marker_count)"
 }
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 158) {
-    throw "Expected JSON summary total marker count 158, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 166) {
+    throw "Expected JSON summary total marker count 166, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 7) {
     throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"

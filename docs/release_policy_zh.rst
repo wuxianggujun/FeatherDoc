@@ -175,9 +175,9 @@ handoff 中的 warning 当作阻断项处理：
 命令拼成一份对外发布说明骨架。
 
 当 ``run_release_candidate_checks.ps1`` 跑完后，输出根目录会自动写出
-``START_HERE.md``，``report`` 目录还会写出 ``ARTIFACT_GUIDE.md``、
-``REVIEWER_CHECKLIST.md``、``release_handoff.md``、``release_body.zh-CN.md``
-和 ``release_summary.zh-CN.md``。
+``START_HERE.md``，``report`` 目录还会写出 ``report/ARTIFACT_GUIDE.md``、
+``report/REVIEWER_CHECKLIST.md``、``report/release_handoff.md``、
+``report/release_body.zh-CN.md`` 和 ``report/release_summary.zh-CN.md``。
 如果你后来又把 visual verdict 从 ``pending_manual_review`` 回写成
 ``pass``，优先执行最短的一键同步命令，把最新 document task、
 fixed-grid task，以及同一 task root 下的 curated visual bundle task
@@ -198,16 +198,16 @@ report：
         -RefreshReleaseBundle
 
 其中 ``START_HERE.md`` 是本地 summary 输出的首个入口，
-``ARTIFACT_GUIDE.md`` 负责先导索引，``REVIEWER_CHECKLIST.md`` 负责评审
-步骤，``release_body.zh-CN.md`` 用于给 GitHub Release 或手工发布说明
-提供一份中文正文，``release_summary.zh-CN.md`` 则适合作为 GitHub Release
+``report/ARTIFACT_GUIDE.md`` 负责先导索引，``report/REVIEWER_CHECKLIST.md`` 负责评审
+步骤，``report/release_body.zh-CN.md`` 用于给 GitHub Release 或手工发布说明
+提供一份中文正文，``report/release_summary.zh-CN.md`` 则适合作为 GitHub Release
 首屏短摘要。后两者都会优先从 ``CHANGELOG.md`` 的 ``Unreleased`` 区块自动
 抽取“核心变化”要点。
 这些入口页现在也会同步展示 Word visual gate 的细粒度结论：除了总
 ``visual verdict`` 外，还会写出 ``section page setup``、
 ``page number fields`` 以及每个 curated visual regression bundle 的
-verdict；``release_handoff.md``、``ARTIFACT_GUIDE.md`` 和
-``REVIEWER_CHECKLIST.md`` 还会继续给出对应 review task 路径，以及
+verdict；``report/release_handoff.md``、``report/ARTIFACT_GUIDE.md`` 和
+``report/REVIEWER_CHECKLIST.md`` 还会继续给出对应 review task 路径，以及
 ``open_latest_word_review_task.ps1 -SourceKind <bundle-key>-visual-regression-bundle``
 这类 bundle-specific 打开命令。表格样式质量证据包的专名 source kind 是
 ``table-style-quality-visual-regression-bundle``，稳定指针是

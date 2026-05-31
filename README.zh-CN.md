@@ -243,8 +243,8 @@ drift 数量，以及 dirty baseline 数量一起写进 `report/summary.json`；
 `-ProjectTemplateSmokeManifestPath`。脚本会调用
 `run_project_template_smoke.ps1`，把 manifest 路径、summary 路径、entry /
 failed 计数，以及聚合后的 project-template `visual_verdict` 一起写进
-`report/summary.json`，并同步带到 `START_HERE.md`、`ARTIFACT_GUIDE.md`、
-`REVIEWER_CHECKLIST.md` 和 `release_handoff.md`。如果希望发布前强制确认
+`report/summary.json`，并同步带到 `START_HERE.md`、`report/ARTIFACT_GUIDE.md`、
+`report/REVIEWER_CHECKLIST.md` 和 `report/release_handoff.md`。如果希望发布前强制确认
 仓库里所有已跟踪 `.docx` / `.dotx` 都已纳入 smoke manifest，或已经明确写进
 `candidate_exclusions`，再加 `-ProjectTemplateSmokeRequireFullCoverage`。
 脚本会把完整扫描写到 `project-template-smoke/candidate_discovery.json`，并把

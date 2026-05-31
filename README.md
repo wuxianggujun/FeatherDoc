@@ -1822,10 +1822,10 @@ the first entry before you open `report/ARTIFACT_GUIDE.md` or
 `-CuratedVisualReviewVerdict` options, plus their matching `*ReviewNote`
 parameters, then records the seeded per-flow verdicts in `report/summary.json`
 and surfaces them in `report/final_review.md`. `START_HERE.md`,
-`ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`, `release_handoff.md`, the
-generated release body, and short summary also list smoke, fixed-grid,
-section/page-number, and curated visual verdicts when those seeded values are
-available.
+`report/ARTIFACT_GUIDE.md`, `report/REVIEWER_CHECKLIST.md`,
+`report/release_handoff.md`, `report/release_body.zh-CN.md`, and
+`report/release_summary.zh-CN.md` also list smoke, fixed-grid, section/page-number,
+and curated visual verdicts when those seeded values are available.
 When numbering catalog governance, table-layout delivery governance,
 content-control data-binding governance, or project-template delivery
 readiness summaries already exist, pass them through `-ReleaseBlockerRollupInputJson`
