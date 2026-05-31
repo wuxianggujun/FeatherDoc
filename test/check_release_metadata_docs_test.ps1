@@ -1075,6 +1075,16 @@ $trailingWhitespacePipelineText = $defaultPipelineText.Replace(
     "- review_task_summary",
     "- review_task_summary "
 )
+$trailingWhitespaceExpectedExcerpt = "- review_task_summary "
+$trailingWhitespaceExpectedLines = @($trailingWhitespacePipelineText -split "`r?`n")
+$trailingWhitespaceExpectedLineNumber = [array]::IndexOf(
+    $trailingWhitespaceExpectedLines,
+    $trailingWhitespaceExpectedExcerpt
+) + 1
+if ($trailingWhitespaceExpectedLineNumber -le 0) {
+    throw "Expected trailing whitespace fixture line was not found."
+}
+$trailingWhitespaceExpectedColumnNumber = $trailingWhitespaceExpectedExcerpt.Length
 $trailingWhitespaceCaseRoot = New-DocsCase `
     -Name "trailing-whitespace-pipeline" `
     -PipelineText $trailingWhitespacePipelineText
@@ -1089,14 +1099,21 @@ Assert-SummaryFailure `
     -ExpectedMessage "Trailing whitespace" `
     -ExpectedFailureKind "trailing_whitespace" `
     -ExpectedFailureRelativePath 'docs/release_metadata_pipeline_zh.rst' `
-    -ExpectedFailureLineNumber 28 `
-    -ExpectedFailureColumnNumber 22 `
-    -ExpectedFailureExcerpt "- review_task_summary "
+    -ExpectedFailureLineNumber $trailingWhitespaceExpectedLineNumber `
+    -ExpectedFailureColumnNumber $trailingWhitespaceExpectedColumnNumber `
+    -ExpectedFailureExcerpt $trailingWhitespaceExpectedExcerpt
 
 $tabChecklistText = $defaultChecklistText.Replace(
     "- git diff --check",
     "- git`t diff --check"
 )
+$tabExpectedExcerpt = "- git`t diff --check"
+$tabExpectedLines = @($tabChecklistText -split "`r?`n")
+$tabExpectedLineNumber = [array]::IndexOf($tabExpectedLines, $tabExpectedExcerpt) + 1
+if ($tabExpectedLineNumber -le 0) {
+    throw "Expected tab fixture line was not found."
+}
+$tabExpectedColumnNumber = $tabExpectedExcerpt.IndexOf("`t") + 1
 $tabCaseRoot = New-DocsCase -Name "tab-checklist" -ChecklistText $tabChecklistText
 $tabSummaryJsonPath = Join-Path $tabCaseRoot "docs-check-summary.json"
 Invoke-DocsCheck `
@@ -1109,9 +1126,9 @@ Assert-SummaryFailure `
     -ExpectedMessage "Tab character found" `
     -ExpectedFailureKind "tab_character" `
     -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
-    -ExpectedFailureLineNumber 31 `
-    -ExpectedFailureColumnNumber 6 `
-    -ExpectedFailureExcerpt "- git`t diff --check"
+    -ExpectedFailureLineNumber $tabExpectedLineNumber `
+    -ExpectedFailureColumnNumber $tabExpectedColumnNumber `
+    -ExpectedFailureExcerpt $tabExpectedExcerpt
 
 $missingChecklistEntry = $defaultChecklistText.Replace(
     "release_note_bundle_visual_verdict_metadata",
