@@ -33,6 +33,62 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-HasProperty {
+    param($Object, [string]$Name, [string]$Message)
+    if (-not ($Object.PSObject.Properties.Name -contains $Name)) {
+        throw "$Message Missing property '$Name'."
+    }
+}
+
+function Assert-NonEmptyString {
+    param($Value, [string]$Message)
+    if ([string]::IsNullOrWhiteSpace([string]$Value)) {
+        throw $Message
+    }
+}
+
+function Get-TraceItemLabel {
+    param($Item)
+
+    foreach ($property in @("id", "template_name", "action")) {
+        if ($Item.PSObject.Properties.Name -contains $property) {
+            $value = [string]$Item.$property
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                return $value
+            }
+        }
+    }
+
+    return "<missing-id>"
+}
+
+function Assert-GovernanceTraceMetadata {
+    param(
+        [object[]]$Items,
+        [string]$CollectionName,
+        [bool]$ExpectOpenCommandProperty = $false
+    )
+
+    foreach ($item in @($Items)) {
+        $itemLabel = Get-TraceItemLabel -Item $item
+        $context = "Project-template readiness $CollectionName item $itemLabel"
+
+        foreach ($property in @("source_schema", "source_report_display", "source_json_display")) {
+            Assert-HasProperty -Object $item -Name $property `
+                -Message "$context should expose $property."
+            Assert-NonEmptyString -Value $item.$property `
+                -Message "$context should keep non-empty $property."
+        }
+
+        if ($ExpectOpenCommandProperty) {
+            Assert-HasProperty -Object $item -Name "open_command" `
+                -Message "$context should expose reviewer open command metadata."
+            Assert-NonEmptyString -Value $item.open_command `
+                -Message "$context should keep a non-empty reviewer open command."
+        }
+    }
+}
+
 function Test-Scenario {
     param([string]$Name)
     return ($Scenario -eq "all" -or $Scenario -eq $Name)
@@ -331,6 +387,10 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "sync_project_template_schema_approval.ps1" `
         -Message "Action items should expose the reviewer open command."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
 
     $invoice = $summary.templates | Where-Object { $_.template_name -eq "invoice-template" } | Select-Object -First 1
     Assert-Equal -Actual ([bool]$invoice.schema_history_available) -Expected $true `
@@ -487,6 +547,7 @@ if (Test-Scenario -Name "missing_inputs") {
         -Message "Template warning should preserve the no-synthetic-evidence boundary."
     Assert-ContainsText -Text ([string]$warning.command_template) -ExpectedText "build_project_template_onboarding_governance_report.ps1" `
         -Message "Template warning should include the onboarding governance command template."
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
     Assert-ContainsText -Text $markdown -ExpectedText "command_template:" `
         -Message "Missing template Markdown should expose warning command templates."
 }
@@ -550,6 +611,7 @@ if (Test-Scenario -Name "manifest_description") {
         -Message "Manifest-only warning should include the smoke command template."
     Assert-ContainsText -Text ([string]$missingSmokeWarning.source_json_display) -ExpectedText "manifest-description\summary.json" `
         -Message "Manifest-only warning should point at the manifest description source JSON."
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_smoke_summary_missing" `
         -Message "Manifest-only Markdown should surface the specific smoke summary warning."
     Assert-ContainsText -Text $markdown -ExpectedText "run_project_template_smoke.ps1" `
