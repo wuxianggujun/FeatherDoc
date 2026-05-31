@@ -117,10 +117,11 @@ function Assert-MarkdownListBlockContainsAll {
             $blockLines += $lines[$next]
         }
 
-        $blockText = $blockLines -join "`n"
+        $blockText = ($blockLines -join "`n") -replace '/', '\'
         $hasAllFragments = $true
         foreach ($fragment in $ExpectedFragments) {
-            if ($blockText -notmatch [regex]::Escape($fragment)) {
+            $normalizedFragment = $fragment -replace '/', '\'
+            if ($blockText -notmatch [regex]::Escape($normalizedFragment)) {
                 $hasAllFragments = $false
                 break
             }
@@ -2068,8 +2069,14 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
         "schema=``featherdoc.release_candidate_summary``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_script: ``.\scripts\assert_release_material_safety.ps1``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count: ``3``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``start_here, artifact_guide, reviewer_checklist``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label: ``Project-template readiness checklist handoff evidence``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field: ``project_template_readiness_checklist_entrypoints_source_reports``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema: ``featherdoc.release_candidate_summary``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``"
     ) -Message "Handoff Markdown should keep release-entry checklist material-safety audit evidence in one source_report block."
 }
