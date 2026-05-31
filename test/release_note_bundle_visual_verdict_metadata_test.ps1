@@ -53,9 +53,11 @@ function Assert-LineContainsAll {
 
     $lines = Get-CachedFileLines -Path $Path
     foreach ($line in $lines) {
+        $normalizedLine = $line -replace '/', '\'
         $lineMatches = $true
         foreach ($fragment in $Fragments) {
-            if ($line -notmatch [regex]::Escape($fragment)) {
+            $normalizedFragment = $fragment -replace '/', '\'
+            if ($normalizedLine -notmatch [regex]::Escape($normalizedFragment)) {
                 $lineMatches = $false
                 break
             }
