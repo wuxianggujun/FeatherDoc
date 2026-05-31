@@ -71,6 +71,8 @@ foreach ($action in $registeredActions) {
         -Message "Registered release blocker action runbook should mention its action token: $action"
     Assert-True -Condition ($guidanceText -notmatch [regex]::Escape("Unregistered release blocker action")) `
         -Message "Registered release blocker action should not use the unregistered fallback: $action"
+    Assert-True -Condition ($guidanceText -notmatch [regex]::Escape("does not have a checklist runbook yet")) `
+        -Message "Registered release blocker action should not use the missing-runbook fallback: $action"
 }
 
 $unknownAction = "custom_unregistered_action"
