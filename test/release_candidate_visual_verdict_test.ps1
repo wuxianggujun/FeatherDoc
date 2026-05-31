@@ -1296,6 +1296,8 @@ $expectedPdfAttemptSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoo
 $expectedPdfSegmentedSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfSegmentedSummaryPath
 $expectedPdfReadinessSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfReadinessSummaryPath
 $expectedFullPdfCtestSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $fullPdfCtestSummaryPath
+$expectedReleaseEntryPackagedAuditSourceReport = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot `
+    -Path (Join-Path $releaseGovernanceHandoffOutputDir "release-blocker-rollup\release_blocker_rollup.md")
 if ($candidateSummary.execution_status -ne "pass") {
     throw "Release candidate dry run should pass when all heavy flows are skipped."
 }
@@ -1707,7 +1709,8 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Proje
     "audited_entrypoints=start_here, artifact_guide, reviewer_checklist",
     "compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports",
     "compact_evidence_source_schema=featherdoc.release_candidate_summary",
-    "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+    "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
+    ("source_report={0}" -f $expectedReleaseEntryPackagedAuditSourceReport)
 ) -Message "final_review.md should expose project-template checklist handoff and packaged audit evidence consumed from release governance handoff."
 Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Word visual standard review metadata evidence" -Fragments @(
     "Word visual standard review metadata evidence",
