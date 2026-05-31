@@ -1321,6 +1321,32 @@ foreach ($document in $checklistHandoffEntryDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_schema=featherdoc.release_candidate_summary' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report=.\output\release-blocker-rollup\summary.json' -Label $document.Label
+    Assert-LineContainsAll -Path $document.Path -ExpectedFragments @(
+        'Project-template readiness checklist handoff evidence',
+        'project_template_readiness_checklist_entrypoints_source_reports=1',
+        'docs/project_template_release_readiness_checklist_zh.rst',
+        'required_entrypoint_count=3',
+        'entrypoint_paths=',
+        'start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md',
+        'artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md',
+        'reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md',
+        'release_entry_project_template_readiness_checklist_trace',
+        'source_schema=featherdoc.release_candidate_summary',
+        'source_report=.\output\release-candidate-checks\summary.json'
+    ) -Label $document.Label
+    Assert-LineContainsAll -Path $document.Path -ExpectedFragments @(
+        'Project-template readiness checklist packaged audit evidence',
+        'release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1',
+        'audit_script=.\scripts\assert_release_material_safety.ps1',
+        'audited_entrypoints=start_here, artifact_guide, reviewer_checklist',
+        'compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports',
+        'compact_evidence_source_schema=featherdoc.release_candidate_summary',
+        'checklist_path=docs/project_template_release_readiness_checklist_zh.rst',
+        'checklist_marker=release_entry_project_template_readiness_checklist_trace',
+        'material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace',
+        'source_schema=featherdoc.release_candidate_summary',
+        'source_report=.\output\release-blocker-rollup\summary.json'
+    ) -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'Word visual standard review metadata evidence' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'word_visual_standard_review_metadata_source_reports=1' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'metadata_count=4' -Label $document.Label
