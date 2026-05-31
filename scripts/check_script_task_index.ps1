@@ -264,6 +264,7 @@ function New-MarkdownReport {
     $lines.Add("- status: ``$($Summary.status)``")
     $lines.Add("- checked_at_utc: ``$($Summary.checked_at_utc)``")
     $lines.Add("- checker: ``$($Summary.checker_name)``")
+    $lines.Add("- powershell_version: ``$($Summary.powershell_version)``")
     $lines.Add("- output_encoding: ``$($Summary.output_encoding)``")
     $lines.Add("- script_index: ``$($Summary.script_index_relative_path)``")
     $lines.Add("- documentation_entrypoint_count: ``$($Summary.documentation_entrypoint_count)``")

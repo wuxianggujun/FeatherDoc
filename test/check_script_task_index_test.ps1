@@ -146,6 +146,13 @@ if ($passingSummary.schema -ne "featherdoc.script_task_index_check.v1") {
 if ($passingSummary.checker_name -ne "check_script_task_index.ps1") {
     throw "Unexpected checker name: $($passingSummary.checker_name)"
 }
+$checkedAtUtc = [string]$passingSummary.checked_at_utc
+if ($checkedAtUtc -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$') {
+    throw "Expected checked_at_utc to use UTC timestamp format, got: $($passingSummary.checked_at_utc)"
+}
+if ($passingSummary.powershell_version -notmatch '^\d+\.\d+') {
+    throw "Expected powershell_version to start with a version number, got: $($passingSummary.powershell_version)"
+}
 if ($passingSummary.output_encoding -ne "UTF-8 without BOM") {
     throw "Unexpected script task index output encoding: $($passingSummary.output_encoding)"
 }
@@ -249,6 +256,8 @@ foreach ($marker in @(
         '# Script Task Index Check',
         '- schema: `featherdoc.script_task_index_check.v1`',
         '- status: `passed`',
+        '- checked_at_utc:',
+        '- powershell_version:',
         '- output_encoding: `UTF-8 without BOM`',
         '- documentation_entrypoint_count: `2`',
         '- total_script_reference_count:',

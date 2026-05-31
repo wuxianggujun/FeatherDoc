@@ -16,7 +16,9 @@ The script task index checker, ``scripts/check_script_task_index.ps1``, writes
 the key review counters visible, including
 ``script_reference_group_count``, ``script_reference_extension_count``,
 ``duplicate_script_reference_count``, ``missing_marker_count``, and
-``output_encoding`` = ``UTF-8 without BOM``.
+``output_encoding`` = ``UTF-8 without BOM``. The Markdown report also exposes
+``powershell_version`` alongside ``checked_at_utc`` so automation can preserve
+the runtime context used by the check.
 
 .. toctree::
    :maxdepth: 2
