@@ -25,6 +25,62 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-HasProperty {
+    param($Object, [string]$Name, [string]$Message)
+    if (-not ($Object.PSObject.Properties.Name -contains $Name)) {
+        throw "$Message Missing property '$Name'."
+    }
+}
+
+function Assert-NonEmptyString {
+    param($Value, [string]$Message)
+    if ([string]::IsNullOrWhiteSpace([string]$Value)) {
+        throw $Message
+    }
+}
+
+function Get-TraceItemLabel {
+    param($Item)
+
+    foreach ($property in @("id", "project_id", "template_name", "action")) {
+        if ($Item.PSObject.Properties.Name -contains $property) {
+            $value = [string]$Item.$property
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                return $value
+            }
+        }
+    }
+
+    return "<missing-id>"
+}
+
+function Assert-GovernanceTraceMetadata {
+    param(
+        [object[]]$Items,
+        [string]$CollectionName,
+        [bool]$ExpectOpenCommandProperty = $false
+    )
+
+    foreach ($item in @($Items)) {
+        $itemLabel = Get-TraceItemLabel -Item $item
+        $context = "Schema calibration $CollectionName item $itemLabel"
+
+        foreach ($property in @("source_schema", "source_report_display", "source_json_display")) {
+            Assert-HasProperty -Object $item -Name $property `
+                -Message "$context should expose $property."
+            Assert-NonEmptyString -Value $item.$property `
+                -Message "$context should keep non-empty $property."
+        }
+
+        if ($ExpectOpenCommandProperty) {
+            Assert-HasProperty -Object $item -Name "open_command" `
+                -Message "$context should expose reviewer open command metadata."
+            Assert-NonEmptyString -Value $item.open_command `
+                -Message "$context should keep a non-empty reviewer open command."
+        }
+    }
+}
+
 function Test-Scenario {
     param([string]$Name)
     return ($Scenario -eq "all" -or $Scenario -eq $Name)
@@ -452,6 +508,10 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Calibration action items should expose the reviewer open command."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Schema Patch Confidence Calibration Report" `
