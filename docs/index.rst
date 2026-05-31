@@ -2192,7 +2192,10 @@ render-data completeness validation, and
 writes ``plan.json``, ``plan.md``, and ``candidate_discovery.json`` under
 ``output/`` so schema baseline paths, editable data skeleton workspaces, visual
 smoke output directories, and the final strict-preflight command can be
-reviewed before the manifest is touched.
+reviewed before the manifest is touched. ``plan.json`` exposes
+``featherdoc.project_template_smoke_onboarding_plan.v1`` with
+``summary_schema_version = 1`` so governance consumers can identify it without
+guessing from the file name.
 You can also run
 ``discover_project_template_smoke_candidates.ps1`` to list tracked ``.docx`` /
 ``.dotx`` candidates that are not yet registered and emit ready-to-run register

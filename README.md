@@ -910,7 +910,9 @@ render-data completeness validation, and
 `plan.json`, `plan.md`, and `candidate_discovery.json` under `output/` so you
 can review schema baseline paths, editable data skeleton workspaces, visual
 smoke output directories, and final strict-preflight commands before touching
-the manifest. You can also run
+the manifest. `plan.json` uses
+`featherdoc.project_template_smoke_onboarding_plan.v1` with
+`summary_schema_version = 1` for stable downstream routing. You can also run
 `scripts/discover_project_template_smoke_candidates.ps1` to list tracked
 `.docx` / `.dotx` candidates that are not yet registered and print ready-to-run
 `register_project_template_smoke_manifest_entry.ps1` commands with unique

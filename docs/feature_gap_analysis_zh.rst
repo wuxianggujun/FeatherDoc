@@ -139,7 +139,9 @@ release governance handoff 现在也会把归一化后的 blocker、warning 与 
   会明确暴露 schema approval 状态、release blocker、action item 和人工复核建议
 - ``scripts/new_project_template_smoke_onboarding_plan.ps1`` 可在不改 manifest 的前提下，
   从候选发现、schema baseline、render data skeleton 和视觉 smoke 入口生成接入计划，
-  并把尚未运行 smoke 的候选标记为 ``schema_approval_state.status=not_evaluated``
+  输出固定 ``featherdoc.project_template_smoke_onboarding_plan.v1`` /
+  ``summary_schema_version = 1``，并把尚未运行 smoke 的候选标记为
+  ``schema_approval_state.status=not_evaluated``
 - project template smoke 已把 schema patch approval items、审批结果、compliance gate
   和 release blocker 同步进 ``summary.json`` / ``summary.md`` / release summary
 - ``scripts/build_project_template_onboarding_governance_report.ps1`` 可把多份

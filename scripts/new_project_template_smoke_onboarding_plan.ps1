@@ -556,6 +556,8 @@ foreach ($candidate in $unregisteredCandidates) {
 }
 
 $plan = [ordered]@{
+    summary_schema_version = 1
+    schema = "featherdoc.project_template_smoke_onboarding_plan.v1"
     generated_at = (Get-Date).ToString("s")
     manifest_path = $resolvedManifestPath
     manifest_path_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedManifestPath
@@ -591,6 +593,8 @@ $plan = [ordered]@{
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Project Template Smoke Onboarding Plan")
 [void]$lines.Add("")
+[void]$lines.Add("- Schema: $($plan.schema)")
+[void]$lines.Add("- Schema version: $($plan.summary_schema_version)")
 [void]$lines.Add("- Generated at: $($plan.generated_at)")
 [void]$lines.Add("- Manifest: $($plan.manifest_path_display)")
 [void]$lines.Add("- Search root: $($plan.search_root_display)")

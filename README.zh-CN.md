@@ -690,6 +690,8 @@ entry，而不是手改 JSON。常见场景直接传
 命令，以及最后的 smoke / strict preflight 命令统一写到 `plan.json`、
 `plan.md` 和 `candidate_discovery.json`，方便先审阅 schema baseline 路径、
 可填写的数据骨架工作区和 visual smoke 输出目录，再决定是否真正登记。计划里的
+`plan.json` 会固定 `featherdoc.project_template_smoke_onboarding_plan.v1`
+和 `summary_schema_version = 1`，方便后续治理脚本稳定识别。
 每个候选现在也会带 `schema_approval_state`、`release_blockers`、`action_items`
 和 `manual_review_recommendations`；尚未运行 smoke 的候选会明确标记为
 `status=not_evaluated`，提醒先生成并复核 `schema_patch_approval_items`。

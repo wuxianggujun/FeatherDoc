@@ -69,6 +69,11 @@ Assert-True -Condition (Test-Path -LiteralPath $planMarkdownPath) `
 $plan = Get-Content -Raw -Encoding UTF8 -LiteralPath $planJsonPath | ConvertFrom-Json
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $planMarkdownPath
 
+Assert-ContainsText -Text ([string]$plan.schema) `
+    -ExpectedText "featherdoc.project_template_smoke_onboarding_plan.v1" `
+    -Message "Plan JSON should expose a stable schema."
+Assert-True -Condition ([int]$plan.summary_schema_version -eq 1) `
+    -Message "Plan JSON should expose summary_schema_version=1."
 Assert-True -Condition ([int]$plan.onboarding_entry_count -gt 0) `
     -Message "Expected at least one unregistered sample template candidate."
 Assert-True -Condition (-not [string]::IsNullOrWhiteSpace([string]$plan.render_data_workspace_root)) `
@@ -119,6 +124,9 @@ Assert-ContainsText -Text ([string]$entry.commands.validate_render_data_workspac
     -ExpectedText "-ReportMarkdown" `
     -Message "Validate command should emit a readable report."
 
+Assert-ContainsText -Text $markdown `
+    -ExpectedText "featherdoc.project_template_smoke_onboarding_plan.v1" `
+    -Message "Markdown plan should expose the plan schema."
 Assert-ContainsText -Text $markdown `
     -ExpectedText "Render-data workspace root" `
     -Message "Markdown plan should summarize render-data workspace root."
