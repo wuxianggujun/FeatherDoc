@@ -295,6 +295,10 @@ function Write-GovernanceFixtures {
             manual_table_style_fix_count = 0
             table_position_automatic_count = 0
             table_position_review_count = 0
+            pdf_floating_table_supported_geometry_count = 4
+            pdf_floating_table_metadata_only_count = 5
+            pdf_floating_table_tracked_geometry_count = 9
+            pdf_floating_table_supported_geometry_percent = 44
             command_failure_count = 0
             unresolved_item_count = 0
             penalty_summary = @(
@@ -661,6 +665,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve automatic floating table delivery detail fields."
     Assert-Equal -Actual ([int]$tableMetric.details.table_position_review_count) -Expected 0 `
         -Message "Aggregate handoff should preserve review floating table delivery detail fields."
+    Assert-Equal -Actual ([int]$tableMetric.details.pdf_floating_table_tracked_geometry_count) -Expected 9 `
+        -Message "Aggregate handoff should preserve tracked PDF floating table geometry detail fields."
+    Assert-Equal -Actual ([int]$tableMetric.details.pdf_floating_table_supported_geometry_percent) -Expected 44 `
+        -Message "Aggregate handoff should preserve supported PDF floating table geometry percentage detail fields."
     Assert-ContainsText -Text (($tableMetric.details.penalty_summary | ForEach-Object { [string]$_.factor }) -join "`n") `
         -ExpectedText "safe_tblLook_fixes_pending" `
         -Message "Aggregate handoff should preserve table layout delivery penalty summary."
@@ -908,6 +916,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include numbering confidence penalty summary."
     Assert-ContainsText -Text $markdown -ExpectedText "unresolved_item_count=0" `
         -Message "Markdown should include table layout delivery detail fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_supported_geometry_percent=44" `
+        -Message "Markdown should include PDF floating table supported geometry percentage."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_tracked_geometry_count=9" `
+        -Message "Markdown should include PDF floating table tracked geometry count."
     Assert-ContainsText -Text $markdown -ExpectedText "safe_tblLook_fixes_pending(count=0, penalty=0)" `
         -Message "Markdown should include table layout delivery penalty summary."
     Assert-ContainsText -Text $markdown -ExpectedText "repair_strategy" `

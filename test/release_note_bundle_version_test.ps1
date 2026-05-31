@@ -199,6 +199,10 @@ function New-TableLayoutDeliveryMetricFixture {
             manual_table_style_fix_count = 0
             table_position_automatic_count = 0
             table_position_review_count = 0
+            pdf_floating_table_supported_geometry_count = 4
+            pdf_floating_table_metadata_only_count = 5
+            pdf_floating_table_tracked_geometry_count = 9
+            pdf_floating_table_supported_geometry_percent = 44
             command_failure_count = 0
             unresolved_item_count = 0
             penalty_summary = @(
@@ -1014,6 +1018,8 @@ Assert-Contains -Path $handoffPath -ExpectedText 'automatic_tblLook_fix_count=0'
 Assert-Contains -Path $handoffPath -ExpectedText 'manual_table_style_fix_count=0' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'table_position_automatic_count=0' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'table_position_review_count=0' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'pdf_floating_table_supported_geometry_percent=44' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'pdf_floating_table_tracked_geometry_count=9' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'command_failure_count=0' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'unresolved_item_count=0' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText "floating_table_plans_pending(count=0, penalty=0)" -Label 'release_handoff.md'
@@ -1375,6 +1381,8 @@ Assert-Contains -Path $guidePath -ExpectedText "style_numbering_issues(count=4, 
 Assert-Contains -Path $guidePath -ExpectedText 'ready_document_percent=100' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'table_position_automatic_count=0' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'table_position_review_count=0' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'pdf_floating_table_supported_geometry_percent=44' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'pdf_floating_table_tracked_geometry_count=9' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'unresolved_item_count=0' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText "floating_table_plans_pending(count=0, penalty=0)" -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'schema_patch_confidence_calibration.pending_schema_approvals' -Label 'ARTIFACT_GUIDE.md'
@@ -1403,6 +1411,8 @@ Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\outpu
 Assert-Contains -Path $checklistPath -ExpectedText 'ready_document_percent=100' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'table_position_automatic_count=0' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'table_position_review_count=0' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'pdf_floating_table_supported_geometry_percent=44' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'pdf_floating_table_tracked_geometry_count=9' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'unresolved_item_count=0' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText "floating_table_plans_pending(count=0, penalty=0)" -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'schema_patch_confidence_calibration.pending_schema_approvals' -Label 'REVIEWER_CHECKLIST.md'

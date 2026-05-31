@@ -338,6 +338,10 @@ Write-JsonFile -Path $tableLayoutPath -Value ([ordered]@{
         manual_table_style_fix_count = 1
         table_position_automatic_count = 2
         table_position_review_count = 1
+        pdf_floating_table_supported_geometry_count = 4
+        pdf_floating_table_metadata_only_count = 5
+        pdf_floating_table_tracked_geometry_count = 9
+        pdf_floating_table_supported_geometry_percent = 44
         command_failure_count = 0
         unresolved_item_count = 10
         penalty_summary = @(
@@ -1089,6 +1093,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve automatic floating table delivery detail fields."
     Assert-Equal -Actual ([int]$tableMetric.details.table_position_review_count) -Expected 1 `
         -Message "Rollup should preserve review floating table delivery detail fields."
+    Assert-Equal -Actual ([int]$tableMetric.details.pdf_floating_table_tracked_geometry_count) -Expected 9 `
+        -Message "Rollup should preserve tracked PDF floating table geometry detail fields."
+    Assert-Equal -Actual ([int]$tableMetric.details.pdf_floating_table_supported_geometry_percent) -Expected 44 `
+        -Message "Rollup should preserve supported PDF floating table geometry percentage detail fields."
     Assert-ContainsText -Text (($tableMetric.details.penalty_summary | ForEach-Object { [string]$_.factor }) -join "`n") `
         -ExpectedText "floating_table_plans_pending" `
         -Message "Rollup should preserve table layout delivery penalty summary."
@@ -1835,6 +1843,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include automatic floating table detail fields."
     Assert-ContainsText -Text $markdown -ExpectedText "table_position_review_count=1" `
         -Message "Markdown should include review floating table detail fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_supported_geometry_percent=44" `
+        -Message "Markdown should include PDF floating table supported geometry percentage."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_tracked_geometry_count=9" `
+        -Message "Markdown should include PDF floating table tracked geometry count."
     Assert-ContainsText -Text $markdown -ExpectedText "floating_table_plans_pending(count=3, penalty=14)" `
         -Message "Markdown should include table layout delivery penalty summary."
     Assert-ContainsText -Text $markdown -ExpectedText "review_source_table_position_plan" `

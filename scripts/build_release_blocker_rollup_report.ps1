@@ -498,6 +498,10 @@ function Add-GovernanceMetricDetailLines {
         "manual_table_style_fix_count",
         "table_position_automatic_count",
         "table_position_review_count",
+        "pdf_floating_table_supported_geometry_count",
+        "pdf_floating_table_metadata_only_count",
+        "pdf_floating_table_tracked_geometry_count",
+        "pdf_floating_table_supported_geometry_percent",
         "command_failure_count",
         "unresolved_item_count"
     )
