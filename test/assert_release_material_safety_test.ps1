@@ -1123,6 +1123,46 @@ Set-Content -LiteralPath $passEntryGovernanceTracePath -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passEntryGovernanceTracePath
 
+$badEntryTableLayoutPdfCoverageMissingDir = Join-Path $failDir "entry-table-layout-pdf-coverage-missing"
+$badEntryTableLayoutPdfCoverageMissingPath = Join-Path $badEntryTableLayoutPdfCoverageMissingDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryTableLayoutPdfCoverageMissingDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryTableLayoutPdfCoverageMissingPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+"@
+
+$badEntryTableLayoutPdfCoverageMissingFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryTableLayoutPdfCoverageMissingPath
+} catch {
+    $badEntryTableLayoutPdfCoverageMissingFailedAsExpected = $true
+}
+
+if (-not $badEntryTableLayoutPdfCoverageMissingFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document without PDF floating table support coverage guidance."
+}
+
+$badEntryTableLayoutPdfReviewerFocusMissingDir = Join-Path $failDir "entry-table-layout-pdf-reviewer-focus-missing"
+$badEntryTableLayoutPdfReviewerFocusMissingPath = Join-Path $badEntryTableLayoutPdfReviewerFocusMissingDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryTableLayoutPdfReviewerFocusMissingDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryTableLayoutPdfReviewerFocusMissingPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+"@
+
+$badEntryTableLayoutPdfReviewerFocusMissingFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryTableLayoutPdfReviewerFocusMissingPath
+} catch {
+    $badEntryTableLayoutPdfReviewerFocusMissingFailedAsExpected = $true
+}
+
+if (-not $badEntryTableLayoutPdfReviewerFocusMissingFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document without PDF floating table reviewer focus guidance."
+}
+
 $passEntryProjectTemplateChecklistHandoffEvidenceDir = Join-Path $passDir "entry-project-template-checklist-handoff-evidence"
 $passEntryProjectTemplateChecklistHandoffEvidencePath = Join-Path $passEntryProjectTemplateChecklistHandoffEvidenceDir "START_HERE.md"
 New-Item -ItemType Directory -Path $passEntryProjectTemplateChecklistHandoffEvidenceDir -Force | Out-Null
