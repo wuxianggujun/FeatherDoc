@@ -62,6 +62,15 @@
   样本注册进 manifest。
 - ``scripts/describe_template_schema_manifest.ps1``：只读描述 schema
   manifest 状态。
+- ``scripts/run_template_validation_regression.ps1``：运行模板校验视觉回归。
+- ``scripts/run_template_bookmark_multiline_visual_regression.ps1``：运行模板书签
+  多行文本视觉回归。
+- ``scripts/run_template_bookmark_paragraphs_visual_regression.ps1``：运行模板书签
+  段落替换视觉回归。
+- ``scripts/run_template_bookmark_paragraphs_pagination_visual_regression.ps1``：
+  运行模板书签段落分页视觉回归。
+- ``scripts/run_template_table_cli_bookmark_visual_regression.ps1``：运行 template
+  table CLI bookmark 路径视觉回归。
 - ``scripts/run_project_template_smoke.ps1``：运行项目模板 smoke manifest。
 - ``scripts/check_project_template_smoke_manifest.ps1``：校验项目模板 smoke
   manifest 结构。

@@ -339,6 +339,18 @@ foreach ($tableVisualScript in @(
         -ExpectedValue $tableVisualScript `
         -Message "Summary should list the table visual regression script $tableVisualScript."
 }
+foreach ($templateVisualScript in @(
+        "scripts\run_template_validation_regression.ps1",
+        "scripts\run_template_bookmark_multiline_visual_regression.ps1",
+        "scripts\run_template_bookmark_paragraphs_visual_regression.ps1",
+        "scripts\run_template_bookmark_paragraphs_pagination_visual_regression.ps1",
+        "scripts\run_template_table_cli_bookmark_visual_regression.ps1"
+    )) {
+    Assert-ArrayContains `
+        -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
+        -ExpectedValue $templateVisualScript `
+        -Message "Summary should list the template visual regression script $templateVisualScript."
+}
 Assert-ArrayContains `
     -Values $passingUnindexedScripts `
     -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
