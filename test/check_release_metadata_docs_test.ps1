@@ -279,8 +279,8 @@ function Assert-SummaryFailure {
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
     Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-    if ($summary.required_marker_count -ne 217) {
-        throw "Expected JSON summary to count 217 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 219) {
+        throw "Expected JSON summary to count 219 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -487,8 +487,10 @@ $defaultChecklistText = @(
     '- ``featherdoc.word_visual_release_gate_preflight.v1``',
     '- ``word_visual_release_gate_preflight_static_contract_only``',
     '- ``checked_documents[]``',
+    '- checked_document_count',
     '- checked_document_labels',
     '- checked_document_relative_paths',
+    '- required_marker_count',
     '- ``output_encoding``',
     '- UTF-8 without BOM',
     '- ``preflight_ready``',
@@ -672,8 +674,8 @@ if ($summary.checked_document_count -ne 7) {
 if ($summary.required_pipeline_marker_count -ne 96) {
     throw "Expected JSON summary pipeline marker count 96, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 87) {
-    throw "Expected JSON summary checklist marker count 87, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 89) {
+    throw "Expected JSON summary checklist marker count 89, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 13) {
     throw "Expected JSON summary document governance marker count 13, got: $($summary.required_document_governance_marker_count)"
@@ -684,8 +686,8 @@ if ($summary.required_policy_marker_count -ne 19) {
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 217) {
-    throw "Expected JSON summary total marker count 217, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 219) {
+    throw "Expected JSON summary total marker count 219, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 7) {
     throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"

@@ -33,9 +33,10 @@ performance.
   manifests so project-template and manifest-signoff evidence keeps source
   identity even when packaging runs from an out-of-repository working directory.
 - Documented and guarded the release metadata docs checker
-  `checked_documents[]`, `checked_document_labels`, and
-  `checked_document_relative_paths` summary contracts so automation can verify
-  document coverage without inferring it from marker counts.
+  `checked_documents[]`, `checked_document_count`, `checked_document_labels`,
+  `checked_document_relative_paths`, and `required_marker_count` summary
+  contracts so automation can verify document coverage without inferring it
+  from marker counts.
 
 ### Fixed
 
