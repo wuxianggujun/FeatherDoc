@@ -18,6 +18,10 @@
 5. 新增脚本时，应同时考虑 README / Sphinx 入口、CMake 轻量测试注册、
    输出 schema 版本和发布治理消费路径。
 
+当前三条主线在本文中也作为 ``template_contract_project_template_workflow``、
+``style_numbering_governance_workflow`` 和 ``table_layout_delivery_workflow``
+的脚本索引锚点，供 ``current_direction_guardrails`` 契约测试交叉检查。
+
 
 脚本索引自检
 ------------

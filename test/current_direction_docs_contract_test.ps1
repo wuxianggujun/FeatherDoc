@@ -40,6 +40,7 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $currentDirectionDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\current_direction_zh.rst"
 $maintenanceDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\documentation_maintenance_zh.rst"
+$scriptTaskIndexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\script_task_index_zh.rst"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 
 foreach ($marker in @(
@@ -80,6 +81,9 @@ foreach ($marker in @(
         "template_contract_project_template_workflow",
         "style_numbering_governance_workflow",
         "table_layout_delivery_workflow",
+        "current_non_priority_guardrails",
+        "current_feature_admission_criteria",
+        "current_maintenance_cadence",
         "docs/script_task_index_zh.rst",
         "reopen-save",
         "gate",
@@ -116,6 +120,19 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $maintenanceDoc -ExpectedText $marker `
         -Message "Documentation maintenance guide should preserve low-resource governance marker '$marker'."
+}
+
+foreach ($marker in @(
+        "template_contract_project_template_workflow",
+        "style_numbering_governance_workflow",
+        "table_layout_delivery_workflow",
+        "build_release_governance_pipeline_report.ps1",
+        "check_pdf_visual_release_gate_preflight.ps1",
+        "schema_version",
+        "TIMEOUT 60"
+    )) {
+    Assert-ContainsText -Text $scriptTaskIndexDoc -ExpectedText $marker `
+        -Message "Script task index should preserve current-direction guardrail marker '$marker'."
 }
 
 foreach ($marker in @(

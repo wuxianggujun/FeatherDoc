@@ -230,6 +230,9 @@ table style quality、安全 ``tblLook`` 修复、floating table preset plan 和
 当前明确不优先的事项
 --------------------
 
+本节作为 ``current_non_priority_guardrails`` 契约锚点，防止后续维护把低 ROI
+能力重新排到当前三条主线之前。
+
 至少在当前阶段，下面这些方向不该抢在前面：
 
 1. 加密或密码保护 ``.docx`` 的支持
@@ -245,6 +248,9 @@ table style quality、安全 ``tblLook`` 修复、floating table preset plan 和
 功能准入标准
 ------------
 
+本节作为 ``current_feature_admission_criteria`` 契约锚点，约束后续新增能力先说明
+适用场景、边界和验证入口。
+
 后续判断一个功能值不值得继续做，建议至少过下面六条检查。
 
 1. 它是否明显强化了“处理、编辑、修改、生成、验证”闭环中的某一环
@@ -259,6 +265,9 @@ table style quality、安全 ``tblLook`` 修复、floating table preset plan 和
 
 维护节奏建议
 ------------
+
+本节作为 ``current_maintenance_cadence`` 契约锚点，约束后续推进顺序继续先文档主线、
+再治理深度、最后收口版式交付。
 
 当前更合理的节奏不是“想到什么补什么”，而是：
 
