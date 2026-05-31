@@ -195,6 +195,8 @@
   视觉回归。
 - ``scripts/run_paragraph_run_style_visual_regression.ps1``：运行段落 run 样式视觉
   回归。
+- ``scripts/run_ensure_style_visual_regression.ps1``：运行 ensure-style 写入和样式
+  应用视觉回归。
 
 
 表格与版式交付质量
@@ -260,6 +262,26 @@ Word 视觉验证与人工复核
 - ``scripts/run_review_inspection_visual_regression.ps1``：运行审阅对象 inspection
   视觉回归。
 - ``scripts/run_review_mutation_visual_regression.ps1``：运行审阅对象 mutation
+  视觉回归。
+- ``scripts/run_append_image_visual_regression.ps1``：运行追加图片视觉回归。
+- ``scripts/run_replace_remove_image_visual_regression.ps1``：运行图片替换和移除
+  视觉回归。
+- ``scripts/run_extended_image_formats_visual_regression.ps1``：运行 SVG / WebP /
+  TIFF 等扩展图片格式视觉回归。
+- ``scripts/run_floating_image_z_order_visual_regression.ps1``：运行浮动图片层级顺序
+  视觉回归。
+- ``scripts/run_fill_bookmarks_visual_regression.ps1``：运行批量填充书签视觉回归。
+- ``scripts/run_remove_bookmark_block_visual_regression.ps1``：运行移除书签块视觉
+  回归。
+- ``scripts/run_generic_fields_visual_regression.ps1``：运行通用字段占位和更新设置
+  视觉回归。
+- ``scripts/run_hyperlinks_visual_regression.ps1``：运行超链接显示文本视觉回归。
+- ``scripts/run_omml_visual_regression.ps1``：运行 OMML 公式插入和替换视觉回归。
+- ``scripts/run_run_font_language_visual_regression.ps1``：运行 run 字体语言视觉
+  回归。
+- ``scripts/run_semantic_diff_visual_regression.ps1``：运行语义 diff 文档对视觉
+  回归。
+- ``scripts/run_edit_document_from_plan_visual_regression.ps1``：运行编辑计划回写文档
   视觉回归。
 - ``scripts/build_image_contact_sheet.py``：生成视觉回归 contact sheet。
 - ``scripts/prepare_word_review_task.ps1``：准备人工视觉复核任务。
@@ -333,6 +355,8 @@ PDF 保守维护入口
 - ``scripts/run_pdf_visual_release_gate.ps1``：运行 PDF visual release gate。
 - ``scripts/run_pdf_visual_full_gate_guarded.ps1``：受控运行完整 PDF visual gate。
 - ``scripts/run_pdf_visual_segmented_resume.ps1``：分段恢复 PDF visual gate。
+- ``scripts/run_pdf_unicode_font_roundtrip_visual_regression.ps1``：运行 PDF Unicode
+  字体 roundtrip 视觉回归。
 - ``scripts/write_pdf_visual_gate_attempt_summary.ps1``：写出 PDF visual gate
   attempt summary。
 - ``scripts/write_pdf_visual_release_gate_preflight_governance_report.ps1``：写出

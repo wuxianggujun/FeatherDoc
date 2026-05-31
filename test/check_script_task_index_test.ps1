@@ -398,7 +398,9 @@ foreach ($bookmarkVisualScript in @(
         "scripts\run_bookmark_block_visibility_visual_regression.ps1",
         "scripts\run_bookmark_image_visual_regression.ps1",
         "scripts\run_bookmark_floating_image_visual_regression.ps1",
-        "scripts\run_bookmark_table_replacement_visual_regression.ps1"
+        "scripts\run_bookmark_table_replacement_visual_regression.ps1",
+        "scripts\run_fill_bookmarks_visual_regression.ps1",
+        "scripts\run_remove_bookmark_block_visual_regression.ps1"
     )) {
     Assert-ArrayContains `
         -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
@@ -409,7 +411,8 @@ foreach ($paragraphVisualScript in @(
         "scripts\run_paragraph_list_visual_regression.ps1",
         "scripts\run_paragraph_numbering_visual_regression.ps1",
         "scripts\run_paragraph_style_numbering_visual_regression.ps1",
-        "scripts\run_paragraph_run_style_visual_regression.ps1"
+        "scripts\run_paragraph_run_style_visual_regression.ps1",
+        "scripts\run_ensure_style_visual_regression.ps1"
     )) {
     Assert-ArrayContains `
         -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
@@ -417,6 +420,7 @@ foreach ($paragraphVisualScript in @(
         -Message "Summary should list the paragraph visual regression script $paragraphVisualScript."
 }
 foreach ($pdfMaintenanceScript in @(
+        "scripts\run_pdf_unicode_font_roundtrip_visual_regression.ps1",
         "scripts\write_pdf_visual_gate_attempt_summary.ps1",
         "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1",
         "scripts\write_pdf_visual_segmented_gate_summary.ps1"
@@ -466,6 +470,23 @@ Assert-ArrayContains `
     -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
     -ExpectedValue "scripts\find_superseded_review_tasks.ps1" `
     -Message "Summary should list the superseded review task finder."
+foreach ($documentVisualScript in @(
+        "scripts\run_append_image_visual_regression.ps1",
+        "scripts\run_replace_remove_image_visual_regression.ps1",
+        "scripts\run_extended_image_formats_visual_regression.ps1",
+        "scripts\run_floating_image_z_order_visual_regression.ps1",
+        "scripts\run_generic_fields_visual_regression.ps1",
+        "scripts\run_hyperlinks_visual_regression.ps1",
+        "scripts\run_omml_visual_regression.ps1",
+        "scripts\run_run_font_language_visual_regression.ps1",
+        "scripts\run_semantic_diff_visual_regression.ps1",
+        "scripts\run_edit_document_from_plan_visual_regression.ps1"
+    )) {
+    Assert-ArrayContains `
+        -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
+        -ExpectedValue $documentVisualScript `
+        -Message "Summary should list the document visual regression script $documentVisualScript."
+}
 foreach ($visualHelperScript in @(
         "scripts\build_image_contact_sheet.py",
         "scripts\compare_pdf_reference_branch_manifest.ps1",
@@ -479,7 +500,7 @@ foreach ($visualHelperScript in @(
 }
 Assert-ArrayContains `
     -Values $passingUnindexedScripts `
-    -ExpectedValue (Join-Path "scripts" "run_append_image_visual_regression.ps1") `
+    -ExpectedValue (Join-Path "scripts" "run_install_find_package_smoke.ps1") `
     -Message "Summary should list unindexed scripts as informational inventory."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptPrefixes | ForEach-Object { $_.prefix }) `
@@ -487,15 +508,15 @@ Assert-ArrayContains `
     -Message "Unindexed script prefix summary should group run_* maintenance entries."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptPrefixes | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
-    -ExpectedValue (Join-Path "scripts" "run_append_image_visual_regression.ps1") `
+    -ExpectedValue (Join-Path "scripts" "run_install_find_package_smoke.ps1") `
     -Message "Unindexed script prefix summary should retain script paths."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.family }) `
-    -ExpectedValue "run_append" `
+    -ExpectedValue "run_install" `
     -Message "Unindexed script family summary should group remaining maintenance entries into families."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
-    -ExpectedValue (Join-Path "scripts" "run_append_image_visual_regression.ps1") `
+    -ExpectedValue (Join-Path "scripts" "run_install_find_package_smoke.ps1") `
     -Message "Unindexed script family summary should retain script paths."
 foreach ($marker in @(
         '# Script Task Index Check',
@@ -526,11 +547,11 @@ foreach ($marker in @(
         '`.ps1`:',
         'unique /',
         '## Unindexed Scripts',
-        'run_append_image_visual_regression.ps1',
+        'run_install_find_package_smoke.ps1',
         '## Unindexed Script Prefixes',
         '`run`:',
         '## Unindexed Script Families',
-        '`run_append`:',
+        '`run_install`:',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'
