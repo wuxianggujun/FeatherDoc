@@ -192,6 +192,9 @@ Markdown 文件。
 发布面板和后续同步脚本。``entrypoint_count`` 与 ``required_entrypoint_count``
 固定为 6，``entrypoints[]`` 中每项都保留 ``path_display`` 和 ``location``，
 避免下游再从散落的平铺字段推断 ``START_HERE.md`` 与 ``report`` 目录边界。
+``package_release_assets.ps1`` 会把同一结构带入 ``release_assets_manifest.json``，
+``assert_release_material_safety.ps1`` 则在 manifest 审计阶段校验六个入口的
+``required``、``location`` 与 ``path_display``，防止发布包丢失 bundle 路径契约。
 
 当 ``summary.json`` 顶层存在 ``release_blockers`` 时，bundle 会在
 ``START_HERE.md``、``report/ARTIFACT_GUIDE.md``、``report/REVIEWER_CHECKLIST.md``、

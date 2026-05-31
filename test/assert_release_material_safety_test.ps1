@@ -403,6 +403,65 @@ $projectTemplateReadinessChecklistEntrypoints = [ordered]@{
     )
     checklist_marker = "release_entry_project_template_readiness_checklist_trace"
 }
+$releaseNoteBundle = [ordered]@{
+    status = "declared"
+    output_root = ".\output\release-candidate-checks"
+    report_dir = ".\output\release-candidate-checks\report"
+    entrypoint_count = 6
+    required_entrypoint_count = 6
+    entrypoint_ids = @(
+        "start_here",
+        "artifact_guide",
+        "reviewer_checklist",
+        "release_handoff",
+        "release_body_zh_cn",
+        "release_summary_zh_cn"
+    )
+    entrypoints = @(
+        [ordered]@{
+            id = "start_here"
+            path = ".\output\release-candidate-checks\START_HERE.md"
+            path_display = ".\output\release-candidate-checks\START_HERE.md"
+            location = "summary_root"
+            required = $true
+        },
+        [ordered]@{
+            id = "artifact_guide"
+            path = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+            path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+            location = "report"
+            required = $true
+        },
+        [ordered]@{
+            id = "reviewer_checklist"
+            path = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+            path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+            location = "report"
+            required = $true
+        },
+        [ordered]@{
+            id = "release_handoff"
+            path = ".\output\release-candidate-checks\report\release_handoff.md"
+            path_display = ".\output\release-candidate-checks\report\release_handoff.md"
+            location = "report"
+            required = $true
+        },
+        [ordered]@{
+            id = "release_body_zh_cn"
+            path = ".\output\release-candidate-checks\report\release_body.zh-CN.md"
+            path_display = ".\output\release-candidate-checks\report\release_body.zh-CN.md"
+            location = "report"
+            required = $true
+        },
+        [ordered]@{
+            id = "release_summary_zh_cn"
+            path = ".\output\release-candidate-checks\report\release_summary.zh-CN.md"
+            path_display = ".\output\release-candidate-checks\report\release_summary.zh-CN.md"
+            location = "report"
+            required = $true
+        }
+    )
+}
 $releaseEntryProjectTemplateChecklistMaterialSafetyAudit = [ordered]@{
     status = "passed"
     audit_script = ".\scripts\assert_release_material_safety.ps1"
@@ -531,6 +590,7 @@ $passManifest = [ordered]@{
     project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
     manifest_signoff_entrypoints = $manifestSignoffEntrypoints
     project_template_readiness_checklist_entrypoints = $projectTemplateReadinessChecklistEntrypoints
+    release_note_bundle = $releaseNoteBundle
     release_entry_project_template_readiness_checklist_material_safety_audit = $releaseEntryProjectTemplateChecklistMaterialSafetyAudit
 }
 ($passManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $passManifestPath -Encoding UTF8
@@ -553,6 +613,64 @@ try {
 
 if (-not $missingProjectTemplateChecklistEntrypointsFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing project_template_readiness_checklist_entrypoints."
+}
+
+$badManifestMissingReleaseNoteBundleDir = Join-Path $failDir "manifest-missing-release-note-bundle"
+$badManifestMissingReleaseNoteBundlePath = Join-Path $badManifestMissingReleaseNoteBundleDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingReleaseNoteBundleDir -Force | Out-Null
+$badManifestMissingReleaseNoteBundle = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingReleaseNoteBundle.PSObject.Properties.Remove("release_note_bundle")
+($badManifestMissingReleaseNoteBundle | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingReleaseNoteBundlePath -Encoding UTF8
+
+$missingReleaseNoteBundleFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingReleaseNoteBundlePath
+} catch {
+    $missingReleaseNoteBundleFailedAsExpected = $true
+}
+
+if (-not $missingReleaseNoteBundleFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing release_note_bundle."
+}
+
+$badManifestWrongReleaseNoteBundleLocationDir = Join-Path $failDir "manifest-wrong-release-note-bundle-location"
+$badManifestWrongReleaseNoteBundleLocationPath = Join-Path $badManifestWrongReleaseNoteBundleLocationDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestWrongReleaseNoteBundleLocationDir -Force | Out-Null
+$badManifestWrongReleaseNoteBundleLocation = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestWrongReleaseNoteBundleLocation.release_note_bundle.entrypoints[0].location = "report"
+($badManifestWrongReleaseNoteBundleLocation | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestWrongReleaseNoteBundleLocationPath -Encoding UTF8
+
+$wrongReleaseNoteBundleLocationFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestWrongReleaseNoteBundleLocationPath
+} catch {
+    $wrongReleaseNoteBundleLocationFailedAsExpected = $true
+}
+
+if (-not $wrongReleaseNoteBundleLocationFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with release_note_bundle start_here outside summary_root."
+}
+
+$badManifestExtraReleaseNoteBundleEntrypointDir = Join-Path $failDir "manifest-extra-release-note-bundle-entrypoint"
+$badManifestExtraReleaseNoteBundleEntrypointPath = Join-Path $badManifestExtraReleaseNoteBundleEntrypointDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestExtraReleaseNoteBundleEntrypointDir -Force | Out-Null
+$badManifestExtraReleaseNoteBundleEntrypoint = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$extraReleaseNoteBundleEntrypoint = $badManifestExtraReleaseNoteBundleEntrypoint.release_note_bundle.entrypoints[0] | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$extraReleaseNoteBundleEntrypoint.id = "extra_release_note"
+$extraReleaseNoteBundleEntrypoint.location = "report"
+$badManifestExtraReleaseNoteBundleEntrypoint.release_note_bundle.entrypoint_ids += "extra_release_note"
+$badManifestExtraReleaseNoteBundleEntrypoint.release_note_bundle.entrypoints += $extraReleaseNoteBundleEntrypoint
+($badManifestExtraReleaseNoteBundleEntrypoint | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestExtraReleaseNoteBundleEntrypointPath -Encoding UTF8
+
+$extraReleaseNoteBundleEntrypointFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestExtraReleaseNoteBundleEntrypointPath
+} catch {
+    $extraReleaseNoteBundleEntrypointFailedAsExpected = $true
+}
+
+if (-not $extraReleaseNoteBundleEntrypointFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with extra release_note_bundle entrypoint."
 }
 
 $badManifestMissingProjectTemplateChecklistMaterialSafetyAuditDir = Join-Path $failDir "manifest-missing-project-template-checklist-material-safety-audit"

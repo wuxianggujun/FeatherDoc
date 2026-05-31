@@ -4528,6 +4528,112 @@ function Add-ProjectTemplateReadinessChecklistEntrypointsContractViolations {
     }
 }
 
+function Add-ReleaseNoteBundleContractViolations {
+    param(
+        [string]$File,
+        $Json,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_assets_manifest.json") {
+        return
+    }
+
+    $label = "release note bundle contract"
+    $bundle = Get-JsonPropertyValue -Object $Json -Name "release_note_bundle"
+    if ($null -eq $bundle) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "Missing release_note_bundle."
+        return
+    }
+
+    $status = Get-JsonPropertyValue -Object $bundle -Name "status"
+    if ([string]$status -ne "declared") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.status must be declared."
+    }
+
+    foreach ($pathField in @("output_root", "report_dir")) {
+        $pathValue = Get-JsonPropertyValue -Object $bundle -Name $pathField
+        if ([string]::IsNullOrWhiteSpace([string]$pathValue)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.$pathField is missing."
+        }
+    }
+
+    foreach ($countField in @("entrypoint_count", "required_entrypoint_count")) {
+        $countValue = Get-JsonPropertyValue -Object $bundle -Name $countField
+        try {
+            if ([int]$countValue -ne 6) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.$countField must be 6."
+            }
+        } catch {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.$countField must be an integer."
+        }
+    }
+
+    $requiredEntrypoints = @(
+        [ordered]@{ id = "start_here"; location = "summary_root"; path_fragment = "START_HERE.md" },
+        [ordered]@{ id = "artifact_guide"; location = "report"; path_fragment = "report\ARTIFACT_GUIDE.md" },
+        [ordered]@{ id = "reviewer_checklist"; location = "report"; path_fragment = "report\REVIEWER_CHECKLIST.md" },
+        [ordered]@{ id = "release_handoff"; location = "report"; path_fragment = "report\release_handoff.md" },
+        [ordered]@{ id = "release_body_zh_cn"; location = "report"; path_fragment = "report\release_body.zh-CN.md" },
+        [ordered]@{ id = "release_summary_zh_cn"; location = "report"; path_fragment = "report\release_summary.zh-CN.md" }
+    )
+
+    $entrypointIds = @(Get-JsonArray -Object $bundle -Name "entrypoint_ids" | ForEach-Object { [string]$_ })
+    if (@($entrypointIds).Count -ne 6) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.entrypoint_ids must contain exactly 6 entries."
+    }
+    foreach ($entrypointContract in $requiredEntrypoints) {
+        $requiredEntrypointId = [string]$entrypointContract.id
+        if (-not ($entrypointIds -contains $requiredEntrypointId)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.entrypoint_ids is missing $requiredEntrypointId."
+        }
+    }
+
+    $entrypoints = @(Get-JsonArray -Object $bundle -Name "entrypoints")
+    if (@($entrypoints).Count -ne 6) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.entrypoints must contain exactly 6 entries."
+    }
+    $entrypointsById = @{}
+    foreach ($entrypoint in $entrypoints) {
+        $entrypointId = [string](Get-JsonPropertyValue -Object $entrypoint -Name "id")
+        if (-not [string]::IsNullOrWhiteSpace($entrypointId)) {
+            $entrypointsById[$entrypointId] = $entrypoint
+        }
+    }
+
+    foreach ($entrypointContract in $requiredEntrypoints) {
+        $requiredEntrypointId = [string]$entrypointContract.id
+        if (-not $entrypointsById.ContainsKey($requiredEntrypointId)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.entrypoints is missing $requiredEntrypointId."
+            continue
+        }
+
+        $entrypoint = $entrypointsById[$requiredEntrypointId]
+        $entrypointRequired = Get-JsonPropertyValue -Object $entrypoint -Name "required"
+        if (-not (Test-StringValueInSet -Value $entrypointRequired -AllowedValues @("true"))) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.entrypoints.$requiredEntrypointId.required must be true."
+        }
+
+        $entrypointLocation = Get-JsonPropertyValue -Object $entrypoint -Name "location"
+        if ([string]$entrypointLocation -ne [string]$entrypointContract.location) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.entrypoints.$requiredEntrypointId.location is invalid."
+        }
+
+        $entrypointPath = Get-JsonPropertyValue -Object $entrypoint -Name "path"
+        if ([string]::IsNullOrWhiteSpace([string]$entrypointPath)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.entrypoints.$requiredEntrypointId.path is missing."
+        }
+
+        $entrypointPathDisplay = Get-JsonPropertyValue -Object $entrypoint -Name "path_display"
+        if ([string]::IsNullOrWhiteSpace([string]$entrypointPathDisplay)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.entrypoints.$requiredEntrypointId.path_display is missing."
+        } elseif (-not (([string]$entrypointPathDisplay -replace '/', '\').Contains([string]$entrypointContract.path_fragment))) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.entrypoints.$requiredEntrypointId.path_display does not identify $($entrypointContract.path_fragment)."
+        }
+    }
+}
+
 function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditContractViolations {
     param(
         [string]$File,
@@ -4879,6 +4985,7 @@ foreach ($file in $scanFiles) {
             Add-ProjectTemplateOnboardingGovernanceContractViolations -File $file -Json $json -Violations $violations
             Add-ManifestSignoffEntrypointsContractViolations -File $file -Json $json -Violations $violations
             Add-ProjectTemplateReadinessChecklistEntrypointsContractViolations -File $file -Json $json -Violations $violations
+            Add-ReleaseNoteBundleContractViolations -File $file -Json $json -Violations $violations
             Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditContractViolations -File $file -Json $json -Violations $violations
             Add-PdfVisualGateManifestContractViolations -File $file -Json $json -Violations $violations
             Add-WordVisualStandardReviewManifestContractViolations -File $file -Json $json -Violations $violations

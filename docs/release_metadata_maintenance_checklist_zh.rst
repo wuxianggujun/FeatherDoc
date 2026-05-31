@@ -14,6 +14,7 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 - 修改 ``sync_visual_review_verdict.ps1`` 或
   ``sync_latest_visual_review_verdict.ps1`` 的 verdict 回灌逻辑。
 - 修改 ``write_release_note_bundle.ps1`` 或 release bundle writer 的输出字段。
+- 修改 ``release_note_bundle``、``manifest_signoff_entrypoints`` 或发布入口路径契约。
 - 新增 visual flow 或 curated visual regression bundle。
 
 
@@ -37,6 +38,7 @@ release 流水线的详细设计文档；详细字段流向请先阅读
    - ``gate_final_review.md``
    - release ``summary.json``
    - release ``final_review.md``
+   - ``release_note_bundle`` / ``release_assets_manifest.json``
    - ``START_HERE.md`` / ``ARTIFACT_GUIDE.md`` / ``REVIEWER_CHECKLIST.md``
    - ``release_handoff.md`` / ``release_body.zh-CN.md`` /
      ``release_summary.zh-CN.md``

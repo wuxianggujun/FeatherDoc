@@ -45,6 +45,44 @@ function Convert-TestEvidencePathToPublicDisplay {
     return $normalizedPath
 }
 
+function New-TestReleaseNoteBundleContract {
+    param(
+        [string]$SummaryOutputDir,
+        [string]$ReportDir,
+        [string]$StartHerePath,
+        [string]$ArtifactGuidePath,
+        [string]$ReviewerChecklistPath,
+        [string]$ReleaseHandoffPath,
+        [string]$ReleaseBodyPath,
+        [string]$ReleaseSummaryPath,
+        [string]$RepoRoot
+    )
+
+    $entrypoints = @(
+        [ordered]@{ id = "start_here"; path = $StartHerePath; location = "summary_root" },
+        [ordered]@{ id = "artifact_guide"; path = $ArtifactGuidePath; location = "report" },
+        [ordered]@{ id = "reviewer_checklist"; path = $ReviewerChecklistPath; location = "report" },
+        [ordered]@{ id = "release_handoff"; path = $ReleaseHandoffPath; location = "report" },
+        [ordered]@{ id = "release_body_zh_cn"; path = $ReleaseBodyPath; location = "report" },
+        [ordered]@{ id = "release_summary_zh_cn"; path = $ReleaseSummaryPath; location = "report" }
+    )
+
+    foreach ($entrypoint in $entrypoints) {
+        $entrypoint["path_display"] = Convert-TestPathToRepoRelativeDisplay -Path ([string]$entrypoint.path) -RepoRoot $RepoRoot
+        $entrypoint["required"] = $true
+    }
+
+    return [ordered]@{
+        status = "declared"
+        output_root = $SummaryOutputDir
+        report_dir = $ReportDir
+        entrypoint_count = @($entrypoints).Count
+        required_entrypoint_count = @($entrypoints).Count
+        entrypoint_ids = @($entrypoints | ForEach-Object { [string]$_["id"] })
+        entrypoints = @($entrypoints)
+    }
+}
+
 function Convert-TestComparablePathValue {
     param($Value)
 
@@ -418,6 +456,16 @@ $summary = [ordered]@{
     final_review = $finalReviewPath
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
+    release_note_bundle = New-TestReleaseNoteBundleContract `
+        -SummaryOutputDir $summaryOutputDir `
+        -ReportDir $reportDir `
+        -StartHerePath $startHerePath `
+        -ArtifactGuidePath $artifactGuidePath `
+        -ReviewerChecklistPath $reviewerChecklistPath `
+        -ReleaseHandoffPath $releaseHandoffPath `
+        -ReleaseBodyPath $releaseBodyPath `
+        -ReleaseSummaryPath $releaseSummaryPath `
+        -RepoRoot $resolvedRepoRoot
     manifest_signoff_entrypoints = [ordered]@{
         status = "declared"
         release_assets_manifest = (Join-Path $outputRoot "v1.6.4\release_assets_manifest.json")
@@ -539,6 +587,60 @@ if ([bool]$manifest.visual_gate_evidence_included) {
 
 if ($manifest.governance_metric_count -ne 3) {
     throw "Release assets manifest did not preserve governance_metric_count=3."
+}
+
+$manifestReleaseNoteBundle = $manifest.release_note_bundle
+if ($null -eq $manifestReleaseNoteBundle) {
+    throw "Release assets manifest lost release_note_bundle in AllowIncomplete mode."
+}
+if ([string]$manifestReleaseNoteBundle.status -ne "declared") {
+    throw "Release assets manifest lost release_note_bundle status in AllowIncomplete mode."
+}
+if ([int]$manifestReleaseNoteBundle.entrypoint_count -ne 6) {
+    throw "Release assets manifest lost release_note_bundle entrypoint count in AllowIncomplete mode."
+}
+if ([int]$manifestReleaseNoteBundle.required_entrypoint_count -ne 6) {
+    throw "Release assets manifest lost release_note_bundle required entrypoint count in AllowIncomplete mode."
+}
+$manifestReleaseNoteBundleEntrypointsById = @{}
+foreach ($entrypoint in @($manifestReleaseNoteBundle.entrypoints)) {
+    $manifestReleaseNoteBundleEntrypointsById[[string]$entrypoint.id] = $entrypoint
+}
+foreach ($entrypointExpectation in @(
+        [ordered]@{ id = "start_here"; path = $startHerePath; path_display = ".\output\release-candidate-checks-ci\START_HERE.md"; location = "summary_root" },
+        [ordered]@{ id = "artifact_guide"; path = $artifactGuidePath; path_display = ".\output\release-candidate-checks-ci\report\ARTIFACT_GUIDE.md"; location = "report" },
+        [ordered]@{ id = "reviewer_checklist"; path = $reviewerChecklistPath; path_display = ".\output\release-candidate-checks-ci\report\REVIEWER_CHECKLIST.md"; location = "report" },
+        [ordered]@{ id = "release_handoff"; path = $releaseHandoffPath; path_display = ".\output\release-candidate-checks-ci\report\release_handoff.md"; location = "report" },
+        [ordered]@{ id = "release_body_zh_cn"; path = $releaseBodyPath; path_display = ".\output\release-candidate-checks-ci\report\release_body.zh-CN.md"; location = "report" },
+        [ordered]@{ id = "release_summary_zh_cn"; path = $releaseSummaryPath; path_display = ".\output\release-candidate-checks-ci\report\release_summary.zh-CN.md"; location = "report" }
+    )) {
+    $entrypointId = [string]$entrypointExpectation.id
+    if (-not (@($manifestReleaseNoteBundle.entrypoint_ids | ForEach-Object { [string]$_ }) -contains $entrypointId)) {
+        throw "Release assets manifest lost release_note_bundle entrypoint id '$entrypointId' in AllowIncomplete mode."
+    }
+    if (-not $manifestReleaseNoteBundleEntrypointsById.ContainsKey($entrypointId)) {
+        throw "Release assets manifest lost release_note_bundle entrypoint '$entrypointId' in AllowIncomplete mode."
+    }
+
+    $entrypoint = $manifestReleaseNoteBundleEntrypointsById[$entrypointId]
+    if (-not [bool]$entrypoint.required) {
+        throw "Release assets manifest lost required=true for release_note_bundle entrypoint '$entrypointId' in AllowIncomplete mode."
+    }
+    if ([string]$entrypoint.location -ne [string]$entrypointExpectation.location) {
+        throw "Release assets manifest lost release_note_bundle entrypoint '$entrypointId' location in AllowIncomplete mode."
+    }
+
+    $expectedEntrypointDisplay = Convert-TestEvidencePathToPublicDisplay `
+        -Path ([string]$entrypointExpectation.path) `
+        -RepoRoot $resolvedRepoRoot
+    if ([string]$entrypoint.path -ne $expectedEntrypointDisplay) {
+        throw "Release assets manifest did not public-sanitize release_note_bundle entrypoint '$entrypointId' path in AllowIncomplete mode."
+    }
+
+    $expectedEntrypointPathDisplay = [string]$entrypointExpectation.path_display
+    if ((Convert-TestComparablePathValue -Value $entrypoint.path_display) -ne (Convert-TestComparablePathValue -Value $expectedEntrypointPathDisplay)) {
+        throw "Release assets manifest lost release_note_bundle entrypoint '$entrypointId' path_display in AllowIncomplete mode. Expected='$expectedEntrypointPathDisplay' Actual='$($entrypoint.path_display)'."
+    }
 }
 
 $manifestSignoffEntrypoints = $manifest.manifest_signoff_entrypoints

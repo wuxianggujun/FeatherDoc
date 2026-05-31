@@ -882,7 +882,7 @@ function Convert-EvidenceEntrypointsToPublicDisplay {
 
         $publicEntrypoint = [ordered]@{}
 
-        foreach ($fieldName in @("id", "required")) {
+        foreach ($fieldName in @("id", "required", "location")) {
             $fieldValue = Get-EvidenceObjectProperty -Object $sourceEntrypoint -Name $fieldName
             if ($null -eq $fieldValue) {
                 $fieldValue = Get-EvidenceObjectProperty -Object $targetEntrypoint -Name $fieldName
@@ -1077,6 +1077,8 @@ $manifestSignoffEntrypoints = Get-OptionalPropertyObject -Object $summary -Name 
 $manifestSignoffEntrypointsPublic = Convert-StructuredValueToPublic -Value $manifestSignoffEntrypoints -RepoRoot $repoRoot
 $projectTemplateReadinessChecklistEntrypoints = Get-OptionalPropertyObject -Object $summary -Name "project_template_readiness_checklist_entrypoints"
 $projectTemplateReadinessChecklistEntrypointsPublic = Convert-StructuredValueToPublic -Value $projectTemplateReadinessChecklistEntrypoints -RepoRoot $repoRoot
+$releaseNoteBundle = Get-OptionalPropertyObject -Object $summary -Name "release_note_bundle"
+$releaseNoteBundlePublic = Convert-StructuredValueToPublic -Value $releaseNoteBundle -RepoRoot $repoRoot
 $summaryGovernanceMetricCount = Get-OptionalPropertyValue -Object $summary -Name "governance_metric_count"
 $governanceMetricCount = if (-not [string]::IsNullOrWhiteSpace($summaryGovernanceMetricCount)) {
     [int]$summaryGovernanceMetricCount
@@ -1363,6 +1365,12 @@ if ($null -ne $projectTemplateReadinessChecklistEntrypointsPublic) {
         -SourceContract $projectTemplateReadinessChecklistEntrypoints `
         -RepoRoot $repoRoot
 }
+if ($null -ne $releaseNoteBundlePublic) {
+    Convert-EvidenceEntrypointsToPublicDisplay `
+        -Contract $releaseNoteBundlePublic `
+        -SourceContract $releaseNoteBundle `
+        -RepoRoot $repoRoot
+}
 $manifest = [ordered]@{
     generated_at = Get-Date -Format s
     workspace = $repoRoot
@@ -1395,6 +1403,7 @@ $manifest = [ordered]@{
     project_template_onboarding_governance_contract = $projectTemplateOnboardingGovernanceContract
     manifest_signoff_entrypoints = $manifestSignoffEntrypointsPublic
     project_template_readiness_checklist_entrypoints = $projectTemplateReadinessChecklistEntrypointsPublic
+    release_note_bundle = $releaseNoteBundlePublic
     release_entry_project_template_readiness_checklist_material_safety_audit = $releaseEntryProjectTemplateChecklistMaterialSafetyAudit
     assets = @(
         (Get-AssetDescriptor -Path $installZipPath -Label "msvc_install")
