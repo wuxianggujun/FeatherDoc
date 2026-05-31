@@ -110,6 +110,55 @@ function Assert-MarkdownListRunContainsAll {
     throw $Message
 }
 
+function Assert-MarkdownListBlockContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$Fragments,
+        [string]$Message
+    )
+
+    $lines = $Text -split "\r?\n"
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if ($lines[$lineIndex] -notmatch [regex]::Escape($Anchor)) {
+            continue
+        }
+        if ($lines[$lineIndex] -notmatch '^(\s*)-\s*') {
+            continue
+        }
+
+        $anchorIndent = $Matches[1].Length
+        $blockEnd = $lineIndex
+        for ($nextLineIndex = $lineIndex + 1; $nextLineIndex -lt $lines.Count; $nextLineIndex++) {
+            $nextLine = $lines[$nextLineIndex]
+            if ($nextLine -match '^(#+)\s+') {
+                break
+            }
+            if ($nextLine -match '^(\s*)-\s*' -and $Matches[1].Length -le $anchorIndent) {
+                break
+            }
+
+            $blockEnd = $nextLineIndex
+        }
+
+        $block = (($lines[$lineIndex..$blockEnd]) -join "`n") -replace '/', '\'
+        $blockMatches = $true
+        foreach ($fragment in $Fragments) {
+            $normalizedFragment = $fragment -replace '/', '\'
+            if ($block -notmatch [regex]::Escape($normalizedFragment)) {
+                $blockMatches = $false
+                break
+            }
+        }
+
+        if ($blockMatches) {
+            return
+        }
+    }
+
+    throw $Message
+}
+
 function Assert-MarkdownSectionContainsAll {
     param(
         [string]$Text,
@@ -1298,6 +1347,8 @@ $expectedPdfReadinessSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoR
 $expectedFullPdfCtestSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $fullPdfCtestSummaryPath
 $expectedReleaseEntryChecklistSourceReport = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot `
     -Path $candidateSummaryPath
+$expectedReleaseEntryPackagedAuditSummaryReport = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot `
+    -Path $releaseGovernanceSourcePath
 $expectedReleaseEntryPackagedAuditSourceReport = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot `
     -Path (Join-Path $releaseGovernanceHandoffOutputDir "release-blocker-rollup\release_blocker_rollup.md")
 if ($candidateSummary.execution_status -ne "pass") {
@@ -1714,6 +1765,21 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Proje
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
     ("source_report={0}" -f $expectedReleaseEntryPackagedAuditSourceReport)
 ) -Message "final_review.md should expose project-template checklist handoff and packaged audit evidence consumed from release governance handoff."
+Assert-MarkdownListBlockContainsAll -Text $candidateFinalReview `
+    -Anchor "Release-entry project-template readiness checklist material-safety audit source reports: 2" `
+    -Fragments @(
+        ("source_report: {0} schema=featherdoc.release_candidate_summary" -f $expectedReleaseEntryChecklistSourceReport),
+        ("source_report: {0} schema=featherdoc.release_candidate_summary" -f $expectedReleaseEntryPackagedAuditSummaryReport),
+        "release_entry_project_template_readiness_checklist_material_safety_audit_status: passed",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_script: .\scripts\assert_release_material_safety.ps1",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count: 3",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: start_here, artifact_guide, reviewer_checklist",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field: project_template_readiness_checklist_entrypoints_source_reports",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema: featherdoc.release_candidate_summary",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path: docs/project_template_release_readiness_checklist_zh.rst",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker: release_entry_project_template_readiness_checklist_trace",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+    ) -Message "final_review.md should keep release-entry project-template packaged audit source report details in one markdown list block."
 Assert-LineContainsAll -Text $candidateFinalReview -Fragments @(
     "Project-template readiness checklist handoff evidence",
     "project_template_readiness_checklist_entrypoints_source_reports=2",
