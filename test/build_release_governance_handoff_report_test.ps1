@@ -40,6 +40,58 @@ function Assert-DoesNotContainText {
     }
 }
 
+function Assert-HasProperty {
+    param($Object, [string]$Name, [string]$Message)
+    if (-not ($Object.PSObject.Properties.Name -contains $Name)) {
+        throw "$Message Missing property '$Name'."
+    }
+}
+
+function Assert-NonEmptyString {
+    param($Value, [string]$Message)
+    if ([string]::IsNullOrWhiteSpace([string]$Value)) {
+        throw $Message
+    }
+}
+
+function Get-GovernanceTraceItemLabel {
+    param($Item, [string]$CollectionName, [int]$Index)
+
+    $itemId = [string]$Item.id
+    if ([string]::IsNullOrWhiteSpace($itemId)) {
+        $itemId = "item$Index"
+    }
+    return "$CollectionName $itemId"
+}
+
+function Assert-GovernanceTraceMetadata {
+    param(
+        [object[]]$Items,
+        [string]$CollectionName,
+        [bool]$ExpectOpenCommand = $false
+    )
+
+    $index = 0
+    foreach ($item in @($Items)) {
+        $index++
+        $context = Get-GovernanceTraceItemLabel -Item $item -CollectionName $CollectionName -Index $index
+
+        foreach ($property in @("source_schema", "source_report_display", "source_json_display")) {
+            Assert-HasProperty -Object $item -Name $property `
+                -Message "$context should expose $property."
+            Assert-NonEmptyString -Value $item.$property `
+                -Message "$context should keep a non-empty $property."
+        }
+
+        if ($ExpectOpenCommand) {
+            Assert-HasProperty -Object $item -Name "open_command" `
+                -Message "$context should expose reviewer open command metadata."
+            Assert-NonEmptyString -Value $item.open_command `
+                -Message "$context should keep a non-empty reviewer open command."
+        }
+    }
+}
+
 function Assert-MarkdownListBlockContainsAll {
     param(
         [string]$Text,
@@ -510,6 +562,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve warning counts."
     Assert-Equal -Actual ([int]$summary.governance_metric_count) -Expected 2 `
         -Message "Aggregate handoff should preserve governance metric count."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "handoff release blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "handoff warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "handoff action items" `
+        -ExpectOpenCommand $true
+    Assert-GovernanceTraceMetadata -Items @($summary.informational_action_items) -CollectionName "handoff informational action items" `
+        -ExpectOpenCommand $true
     $projectTemplateReport = ($summary.reports |
         Where-Object { [string]$_.id -eq "project_template_delivery_readiness" } |
         Select-Object -First 1)
