@@ -274,13 +274,27 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate layout rollup should expose per-document position plans."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_support_report_count) -Expected 2 `
         -Message "Aggregate layout rollup should count PDF floating table support reports."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_supported_geometry_count) -Expected 8 `
+        -Message "Aggregate layout rollup should sum supported PDF floating table geometry rows."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_metadata_only_count) -Expected 10 `
+        -Message "Aggregate layout rollup should sum metadata-only PDF floating table rows."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_tracked_geometry_count) -Expected 18 `
+        -Message "Aggregate layout rollup should expose tracked PDF floating table geometry rows."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_supported_geometry_percent) -Expected 44 `
+        -Message "Aggregate layout rollup should expose supported PDF floating table geometry percentage."
     Assert-ContainsText -Text (($summary.pdf_floating_table_support_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
         -ExpectedText "partial:2" `
         -Message "Aggregate layout rollup should group PDF floating table support statuses."
     Assert-Equal -Actual ([string]$summary.document_entries[0].pdf_floating_table_support_status) -Expected "partial" `
         -Message "Document entries should preserve PDF floating table support status."
+    Assert-Equal -Actual ([int]$summary.document_entries[0].pdf_floating_table_supported_geometry_percent) -Expected 44 `
+        -Message "Document entries should preserve PDF floating table support percentage."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_support[0].supported_geometry_count) -Expected 4 `
         -Message "Rollup should preserve supported PDF floating table geometry count."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_support[0].tracked_geometry_count) -Expected 9 `
+        -Message "Rollup should preserve tracked PDF floating table geometry count."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_support[0].supported_geometry_percent) -Expected 44 `
+        -Message "Rollup should preserve supported PDF floating table geometry percentage."
     Assert-ContainsText -Text (($summary.pdf_floating_table_support[0].metadata_only | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "tblOverlap" `
         -Message "Rollup should preserve metadata-only PDF floating table rows."

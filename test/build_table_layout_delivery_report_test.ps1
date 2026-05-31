@@ -178,6 +178,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Summary should count supported PDF floating table geometry rows."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_metadata_only_count) -Expected 5 `
         -Message "Summary should count metadata-only PDF floating table rows."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_tracked_geometry_count) -Expected 9 `
+        -Message "Summary should count tracked PDF floating table geometry rows."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_supported_geometry_percent) -Expected 44 `
+        -Message "Summary should expose supported PDF floating table geometry percentage."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_support.supported_geometry_percent) -Expected 44 `
+        -Message "PDF support evidence should expose supported geometry percentage."
     Assert-ContainsText -Text (($summary.pdf_floating_table_support.supported_geometry | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "topFromText" `
         -Message "PDF support evidence should mention topFromText support."
@@ -198,6 +204,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown report should include suggested actions."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF Floating Table Support" `
         -Message "Markdown report should include PDF floating table support evidence."
+    Assert-ContainsText -Text $markdown -ExpectedText "PDF floating table supported geometry" `
+        -Message "Markdown report should include supported geometry percentage."
     Assert-ContainsText -Text $markdown -ExpectedText "stable_pdf_geometry_subset_not_full_word_wrapping" `
         -Message "Markdown report should include the PDF floating table boundary."
     Assert-ContainsText -Text $markdown -ExpectedText "apply-table-position-plan" `

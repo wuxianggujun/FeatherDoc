@@ -234,6 +234,17 @@ function Add-IssueSummary {
             @{ Expression = { $_.issue }; Ascending = $true })
 }
 
+function Get-PdfFloatingTableSupportedGeometryPercent {
+    param([int]$SupportedGeometryCount, [int]$MetadataOnlyCount)
+
+    $trackedGeometryCount = $SupportedGeometryCount + $MetadataOnlyCount
+    if ($trackedGeometryCount -le 0) {
+        return 0
+    }
+
+    return [int][Math]::Round(($SupportedGeometryCount * 100.0) / $trackedGeometryCount)
+}
+
 function New-PdfFloatingTableSupportEntry {
     param(
         [string]$DocumentName,
@@ -248,6 +259,24 @@ function New-PdfFloatingTableSupportEntry {
     $supportedGeometry = @(Get-JsonArray -Object $Support -Name "supported_geometry")
     $metadataOnly = @(Get-JsonArray -Object $Support -Name "metadata_only")
     $reviewRequired = @(Get-JsonArray -Object $Support -Name "review_required")
+    $supportedGeometryCount = $supportedGeometry.Count
+    if ($supportedGeometryCount -eq 0) {
+        $supportedGeometryCount = Get-JsonInt -Object $Support -Name "supported_geometry_count"
+    }
+    $metadataOnlyCount = $metadataOnly.Count
+    if ($metadataOnlyCount -eq 0) {
+        $metadataOnlyCount = Get-JsonInt -Object $Support -Name "metadata_only_count"
+    }
+    $trackedGeometryCount = Get-JsonInt -Object $Support -Name "tracked_geometry_count"
+    if ($trackedGeometryCount -le 0) {
+        $trackedGeometryCount = $supportedGeometryCount + $metadataOnlyCount
+    }
+    $supportedGeometryPercent = Get-JsonInt -Object $Support -Name "supported_geometry_percent"
+    if ($supportedGeometryPercent -le 0 -and $trackedGeometryCount -gt 0) {
+        $supportedGeometryPercent = Get-PdfFloatingTableSupportedGeometryPercent `
+            -SupportedGeometryCount $supportedGeometryCount `
+            -MetadataOnlyCount $metadataOnlyCount
+    }
 
     return [ordered]@{
         document_name = $DocumentName
@@ -256,8 +285,10 @@ function New-PdfFloatingTableSupportEntry {
         source_report_display = $SourceReportDisplay
         status = $status
         boundary = $boundary
-        supported_geometry_count = $supportedGeometry.Count
-        metadata_only_count = $metadataOnly.Count
+        supported_geometry_count = $supportedGeometryCount
+        metadata_only_count = $metadataOnlyCount
+        tracked_geometry_count = $trackedGeometryCount
+        supported_geometry_percent = $supportedGeometryPercent
         review_required_count = $reviewRequired.Count
         supported_geometry = @($supportedGeometry)
         metadata_only = @($metadataOnly)
@@ -370,11 +401,13 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($support in @($Summary.pdf_floating_table_support)) {
-            $lines.Add(("- ``{0}``: status=``{1}`` boundary=``{2}`` supported=``{3}`` metadata_only=``{4}`` source=``{5}``" -f
+            $lines.Add(("- ``{0}``: status=``{1}`` boundary=``{2}`` supported=``{3}/{4}`` percent=``{5}%`` metadata_only=``{6}`` source=``{7}``" -f
                 $support.document_name,
                 $support.status,
                 $support.boundary,
                 $support.supported_geometry_count,
+                $support.tracked_geometry_count,
+                $support.supported_geometry_percent,
                 $support.metadata_only_count,
                 $support.source_report_display)) | Out-Null
         }
@@ -548,6 +581,8 @@ foreach ($path in @($inputPaths)) {
                 pdf_floating_table_layout_boundary = $pdfSupportEntry.boundary
                 pdf_floating_table_supported_geometry_count = $pdfSupportEntry.supported_geometry_count
                 pdf_floating_table_metadata_only_count = $pdfSupportEntry.metadata_only_count
+                pdf_floating_table_tracked_geometry_count = $pdfSupportEntry.tracked_geometry_count
+                pdf_floating_table_supported_geometry_percent = $pdfSupportEntry.supported_geometry_percent
                 command_failure_count = $commandFailureCount
                 release_blocker_count = $releaseBlockerCount
                 action_item_count = $sourceActions.Count
@@ -672,6 +707,19 @@ $needsReviewCount = @($documents.ToArray() | Where-Object { $_.status -eq "needs
 $pdfFloatingTableSupportReportCount = @($pdfFloatingTableSupport.ToArray() | Where-Object {
     [string]$_.status -ne "not_reported"
 }).Count
+$pdfFloatingTableSupportedGeometryTotal = 0
+$pdfFloatingTableMetadataOnlyTotal = 0
+foreach ($support in @($pdfFloatingTableSupport.ToArray())) {
+    if ([string]$support.status -eq "not_reported") {
+        continue
+    }
+    $pdfFloatingTableSupportedGeometryTotal += Get-JsonInt -Object $support -Name "supported_geometry_count"
+    $pdfFloatingTableMetadataOnlyTotal += Get-JsonInt -Object $support -Name "metadata_only_count"
+}
+$pdfFloatingTableTrackedGeometryTotal = $pdfFloatingTableSupportedGeometryTotal + $pdfFloatingTableMetadataOnlyTotal
+$pdfFloatingTableSupportedGeometryPercent = Get-PdfFloatingTableSupportedGeometryPercent `
+    -SupportedGeometryCount $pdfFloatingTableSupportedGeometryTotal `
+    -MetadataOnlyCount $pdfFloatingTableMetadataOnlyTotal
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($sourceReportFailureCount -gt 0 -or $totalCommandFailureCount -gt 0) {
@@ -714,6 +762,10 @@ $summary = [ordered]@{
     table_position_plan_count = $positionPlans.Count
     table_position_plans = @($positionPlans.ToArray())
     pdf_floating_table_support_report_count = $pdfFloatingTableSupportReportCount
+    pdf_floating_table_supported_geometry_count = $pdfFloatingTableSupportedGeometryTotal
+    pdf_floating_table_metadata_only_count = $pdfFloatingTableMetadataOnlyTotal
+    pdf_floating_table_tracked_geometry_count = $pdfFloatingTableTrackedGeometryTotal
+    pdf_floating_table_supported_geometry_percent = $pdfFloatingTableSupportedGeometryPercent
     pdf_floating_table_support_summary = @(Add-PdfFloatingTableSupportSummary -Items $pdfFloatingTableSupport.ToArray())
     pdf_floating_table_support = @($pdfFloatingTableSupport.ToArray())
     release_blocker_count = $blockers.Count

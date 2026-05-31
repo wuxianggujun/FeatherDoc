@@ -124,6 +124,8 @@ function New-PdfFloatingTableSupportEntry {
         boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
         supported_geometry_count = 4
         metadata_only_count = 5
+        tracked_geometry_count = 9
+        supported_geometry_percent = 44
         review_required_count = 3
         supported_geometry = @(
             "tblpXSpec left/inside/center/right/outside within page, margin, and column reference frames",
@@ -174,6 +176,8 @@ function New-LayoutRollup {
                     pdf_floating_table_layout_boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
                     pdf_floating_table_supported_geometry_count = 4
                     pdf_floating_table_metadata_only_count = 5
+                    pdf_floating_table_tracked_geometry_count = 9
+                    pdf_floating_table_supported_geometry_percent = 44
                     command_failure_count = 0
                     table_position_plan_path = "output/table-layout-delivery/invoice/table-position.plan.json"
                     table_position_plan_display = ".\output\table-layout-delivery\invoice\table-position.plan.json"
@@ -231,6 +235,8 @@ function New-LayoutRollup {
                 pdf_floating_table_layout_boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
                 pdf_floating_table_supported_geometry_count = 4
                 pdf_floating_table_metadata_only_count = 5
+                pdf_floating_table_tracked_geometry_count = 9
+                pdf_floating_table_supported_geometry_percent = 44
                 command_failure_count = 0
                 table_position_plan_path = "output/table-layout-delivery/invoice/table-position.plan.json"
                 table_position_plan_display = ".\output\table-layout-delivery\invoice\table-position.plan.json"
@@ -252,6 +258,8 @@ function New-LayoutRollup {
                 pdf_floating_table_layout_boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
                 pdf_floating_table_supported_geometry_count = 4
                 pdf_floating_table_metadata_only_count = 5
+                pdf_floating_table_tracked_geometry_count = 9
+                pdf_floating_table_supported_geometry_percent = 44
                 command_failure_count = 0
                 table_position_plan_path = "output/table-layout-delivery/contract/table-position.plan.json"
                 table_position_plan_display = ".\output\table-layout-delivery\contract\table-position.plan.json"
@@ -407,6 +415,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should expose supported PDF floating table geometry count in delivery quality details."
     Assert-Equal -Actual ([int]$summary.delivery_quality.pdf_floating_table_metadata_only_count) -Expected 5 `
         -Message "Summary should expose metadata-only PDF floating table count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.pdf_floating_table_tracked_geometry_count) -Expected 9 `
+        -Message "Summary should expose tracked PDF floating table geometry count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.pdf_floating_table_supported_geometry_percent) -Expected 44 `
+        -Message "Summary should expose supported PDF floating table geometry percentage in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.pdf_floating_table_supported_geometry_percent) -Expected 44 `
+        -Message "Summary should expose aggregate supported PDF floating table geometry percentage."
     Assert-Equal -Actual ([int]$summary.delivery_quality.command_failure_count) -Expected 0 `
         -Message "Summary should expose command failure count in delivery quality details."
     Assert-Equal -Actual ([int]$summary.delivery_quality.unresolved_item_count) -Expected 10 `
@@ -574,6 +588,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include the stable delivery quality metric id."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF floating table capability" `
         -Message "Markdown should include PDF floating table capability in delivery quality."
+    Assert-ContainsText -Text $markdown -ExpectedText "PDF floating table supported geometry" `
+        -Message "Markdown should include supported PDF floating table geometry percentage."
     Assert-ContainsText -Text $markdown -ExpectedText "safe_tblLook_fixes_pending" `
         -Message "Markdown should include delivery quality penalty details."
     Assert-ContainsText -Text $markdown -ExpectedText "source_schema" `

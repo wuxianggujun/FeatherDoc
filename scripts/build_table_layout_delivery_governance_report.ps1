@@ -215,7 +215,9 @@ function New-DeliveryQuality {
         [string]$PdfFloatingTableCapabilityStatus = "not_reported",
         [string]$PdfFloatingTableLayoutBoundary = "",
         [int]$PdfFloatingTableSupportedGeometryCount = 0,
-        [int]$PdfFloatingTableMetadataOnlyCount = 0
+        [int]$PdfFloatingTableMetadataOnlyCount = 0,
+        [int]$PdfFloatingTableTrackedGeometryCount = 0,
+        [int]$PdfFloatingTableSupportedGeometryPercent = 0
     )
 
     $readyDocumentPercent = Get-Percent -Numerator $ReadyDocumentCount -Denominator $DocumentCount
@@ -254,6 +256,8 @@ function New-DeliveryQuality {
         pdf_floating_table_layout_boundary = $PdfFloatingTableLayoutBoundary
         pdf_floating_table_supported_geometry_count = $PdfFloatingTableSupportedGeometryCount
         pdf_floating_table_metadata_only_count = $PdfFloatingTableMetadataOnlyCount
+        pdf_floating_table_tracked_geometry_count = $PdfFloatingTableTrackedGeometryCount
+        pdf_floating_table_supported_geometry_percent = $PdfFloatingTableSupportedGeometryPercent
         command_failure_count = $TotalCommandFailureCount
         unresolved_item_count = $unresolvedItemCount
         penalty_summary = @(
@@ -455,6 +459,7 @@ function New-ReportMarkdown {
     $lines.Add("- Floating table automatic plans: ``$($Summary.total_table_position_automatic_count)``") | Out-Null
     $lines.Add("- Floating table review plans: ``$($Summary.total_table_position_review_count)``") | Out-Null
     $lines.Add("- PDF floating table support reports: ``$($Summary.pdf_floating_table_support_report_count)``") | Out-Null
+    $lines.Add("- PDF floating table supported geometry: ``$($Summary.pdf_floating_table_supported_geometry_count)/$($Summary.pdf_floating_table_tracked_geometry_count)`` (``$($Summary.pdf_floating_table_supported_geometry_percent)%``)") | Out-Null
     $lines.Add("- Delivery quality: ``$($Summary.delivery_quality_level)`` (score=``$($Summary.delivery_quality_score)``)") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -476,6 +481,7 @@ function New-ReportMarkdown {
     $lines.Add("- Floating table review plans: ``$($quality.table_position_review_count)``") | Out-Null
     $lines.Add("- PDF floating table capability: ``$($quality.pdf_floating_table_capability_status)``") | Out-Null
     $lines.Add("- PDF floating table boundary: ``$($quality.pdf_floating_table_layout_boundary)``") | Out-Null
+    $lines.Add("- PDF floating table supported geometry: ``$($quality.pdf_floating_table_supported_geometry_count)/$($quality.pdf_floating_table_tracked_geometry_count)`` (``$($quality.pdf_floating_table_supported_geometry_percent)%``)") | Out-Null
     $lines.Add("- Command failures: ``$($quality.command_failure_count)``") | Out-Null
     $lines.Add("- Unresolved items: ``$($quality.unresolved_item_count)``") | Out-Null
     foreach ($penalty in @($quality.penalty_summary)) {
@@ -661,6 +667,8 @@ foreach ($path in @($inputPaths)) {
                         pdf_floating_table_layout_boundary = Get-JsonString -Object $document -Name "pdf_floating_table_layout_boundary"
                         pdf_floating_table_supported_geometry_count = Get-JsonInt -Object $document -Name "pdf_floating_table_supported_geometry_count"
                         pdf_floating_table_metadata_only_count = Get-JsonInt -Object $document -Name "pdf_floating_table_metadata_only_count"
+                        pdf_floating_table_tracked_geometry_count = Get-JsonInt -Object $document -Name "pdf_floating_table_tracked_geometry_count"
+                        pdf_floating_table_supported_geometry_percent = Get-JsonInt -Object $document -Name "pdf_floating_table_supported_geometry_percent"
                         command_failure_count = Get-JsonInt -Object $document -Name "command_failure_count"
                         table_position_plan_path = Get-JsonString -Object $document -Name "table_position_plan_path"
                         table_position_plan_display = Get-JsonString -Object $document -Name "table_position_plan_display"
@@ -678,6 +686,8 @@ foreach ($path in @($inputPaths)) {
                         boundary = Get-JsonString -Object $support -Name "boundary"
                         supported_geometry_count = Get-JsonInt -Object $support -Name "supported_geometry_count"
                         metadata_only_count = Get-JsonInt -Object $support -Name "metadata_only_count"
+                        tracked_geometry_count = Get-JsonInt -Object $support -Name "tracked_geometry_count"
+                        supported_geometry_percent = Get-JsonInt -Object $support -Name "supported_geometry_percent"
                         review_required_count = Get-JsonInt -Object $support -Name "review_required_count"
                         supported_geometry = @(Get-JsonArray -Object $support -Name "supported_geometry")
                         metadata_only = @(Get-JsonArray -Object $support -Name "metadata_only")
@@ -922,6 +932,23 @@ $pdfFloatingTableMetadataOnlyCount = if ($pdfFloatingTableSupportReportCount -gt
 } else {
     0
 }
+$pdfFloatingTableTrackedGeometryCount = if ($pdfFloatingTableSupportReportCount -gt 0) {
+    $maxCount = 0
+    foreach ($support in @($pdfFloatingTableSupport.ToArray())) {
+        $trackedCount = Get-JsonInt -Object $support -Name "tracked_geometry_count"
+        if ($trackedCount -le 0) {
+            $trackedCount = (Get-JsonInt -Object $support -Name "supported_geometry_count") +
+                (Get-JsonInt -Object $support -Name "metadata_only_count")
+        }
+        $maxCount = [Math]::Max($maxCount, $trackedCount)
+    }
+    $maxCount
+} else {
+    0
+}
+$pdfFloatingTableSupportedGeometryPercent = Get-Percent `
+    -Numerator $pdfFloatingTableSupportedGeometryCount `
+    -Denominator $pdfFloatingTableTrackedGeometryCount
 $deliveryQuality = New-DeliveryQuality `
     -DocumentCount $documents.Count `
     -ReadyDocumentCount $readyDocumentCount `
@@ -936,7 +963,9 @@ $deliveryQuality = New-DeliveryQuality `
     -PdfFloatingTableCapabilityStatus $pdfFloatingTableCapabilityStatus `
     -PdfFloatingTableLayoutBoundary $pdfFloatingTableLayoutBoundary `
     -PdfFloatingTableSupportedGeometryCount $pdfFloatingTableSupportedGeometryCount `
-    -PdfFloatingTableMetadataOnlyCount $pdfFloatingTableMetadataOnlyCount
+    -PdfFloatingTableMetadataOnlyCount $pdfFloatingTableMetadataOnlyCount `
+    -PdfFloatingTableTrackedGeometryCount $pdfFloatingTableTrackedGeometryCount `
+    -PdfFloatingTableSupportedGeometryPercent $pdfFloatingTableSupportedGeometryPercent
 $status = if ($sourceFailureCount -gt 0 -or $failedDocumentCount -gt 0 -or $totalCommandFailureCount -gt 0) {
     "failed"
 } elseif ($releaseBlockers.Count -gt 0 -or $warnings.Count -gt 0 -or $needsReviewDocumentCount -gt 0 -or
@@ -975,6 +1004,10 @@ $summary = [ordered]@{
     table_position_plan_count = $positionPlans.Count
     table_position_plans = @($positionPlans.ToArray())
     pdf_floating_table_support_report_count = $pdfFloatingTableSupportReportCount
+    pdf_floating_table_supported_geometry_count = $pdfFloatingTableSupportedGeometryCount
+    pdf_floating_table_metadata_only_count = $pdfFloatingTableMetadataOnlyCount
+    pdf_floating_table_tracked_geometry_count = $pdfFloatingTableTrackedGeometryCount
+    pdf_floating_table_supported_geometry_percent = $pdfFloatingTableSupportedGeometryPercent
     pdf_floating_table_support_summary = @(Add-PdfFloatingTableSupportSummary -Items $pdfFloatingTableSupport.ToArray())
     pdf_floating_table_support = @($pdfFloatingTableSupport.ToArray())
     total_table_style_issue_count = $totalIssueCount

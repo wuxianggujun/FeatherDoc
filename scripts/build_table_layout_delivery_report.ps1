@@ -100,29 +100,54 @@ function Invoke-CliJsonCommand {
     }
 }
 
+function Get-PdfFloatingTableSupportedGeometryPercent {
+    param([int]$SupportedGeometryCount, [int]$MetadataOnlyCount)
+
+    $trackedGeometryCount = $SupportedGeometryCount + $MetadataOnlyCount
+    if ($trackedGeometryCount -le 0) {
+        return 0
+    }
+
+    return [int][Math]::Round(($SupportedGeometryCount * 100.0) / $trackedGeometryCount)
+}
+
 function New-PdfFloatingTableSupport {
+    $supportedGeometry = @(
+        "tblpXSpec left/inside/center/right/outside within page, margin, and column reference frames",
+        "tblpYSpec top/center/bottom within page and margin reference frames",
+        "topFromText for paragraph-anchored positioned tables",
+        "bottomFromText as spacing before following body text"
+    )
+    $metadataOnly = @(
+        "leftFromText",
+        "rightFromText",
+        "topFromText outside paragraph anchoring",
+        "tblOverlap",
+        "vertical paragraph/inside/outside Word page-side context"
+    )
+    $reviewRequired = @(
+        "full Word-compatible floating table text wrapping",
+        "table overlap avoidance and collision resolution",
+        "inside/outside parity for page-side aware layout"
+    )
+    $supportedGeometryCount = $supportedGeometry.Count
+    $metadataOnlyCount = $metadataOnly.Count
+    $trackedGeometryCount = $supportedGeometryCount + $metadataOnlyCount
+    $supportedGeometryPercent = Get-PdfFloatingTableSupportedGeometryPercent `
+        -SupportedGeometryCount $supportedGeometryCount `
+        -MetadataOnlyCount $metadataOnlyCount
+
     return [ordered]@{
         schema = "featherdoc.pdf_floating_table_support.v1"
         status = "partial"
         boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
-        supported_geometry = @(
-            "tblpXSpec left/inside/center/right/outside within page, margin, and column reference frames",
-            "tblpYSpec top/center/bottom within page and margin reference frames",
-            "topFromText for paragraph-anchored positioned tables",
-            "bottomFromText as spacing before following body text"
-        )
-        metadata_only = @(
-            "leftFromText",
-            "rightFromText",
-            "topFromText outside paragraph anchoring",
-            "tblOverlap",
-            "vertical paragraph/inside/outside Word page-side context"
-        )
-        review_required = @(
-            "full Word-compatible floating table text wrapping",
-            "table overlap avoidance and collision resolution",
-            "inside/outside parity for page-side aware layout"
-        )
+        supported_geometry_count = $supportedGeometryCount
+        metadata_only_count = $metadataOnlyCount
+        tracked_geometry_count = $trackedGeometryCount
+        supported_geometry_percent = $supportedGeometryPercent
+        supported_geometry = @($supportedGeometry)
+        metadata_only = @($metadataOnly)
+        review_required = @($reviewRequired)
     }
 }
 
@@ -145,12 +170,14 @@ function New-ReportMarkdown {
     $lines.Add("- Command failures: ``$($Summary.command_failure_count)``") | Out-Null
     $lines.Add("- PDF floating table support: ``$($Summary.pdf_floating_table_support_status)``") | Out-Null
     $lines.Add("- PDF floating table boundary: ``$($Summary.pdf_floating_table_layout_boundary)``") | Out-Null
+    $lines.Add("- PDF floating table supported geometry: ``$($Summary.pdf_floating_table_supported_geometry_count)/$($Summary.pdf_floating_table_tracked_geometry_count)`` (``$($Summary.pdf_floating_table_supported_geometry_percent)%``)") | Out-Null
     $lines.Add("") | Out-Null
 
     $lines.Add("## PDF Floating Table Support") | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("- Status: ``$($pdfSupport.status)``") | Out-Null
     $lines.Add("- Boundary: ``$($pdfSupport.boundary)``") | Out-Null
+    $lines.Add("- Supported geometry percent: ``$($pdfSupport.supported_geometry_percent)%``") | Out-Null
     $lines.Add("- Supported geometry:") | Out-Null
     foreach ($item in @($pdfSupport.supported_geometry)) {
         $lines.Add("  - $item") | Out-Null
@@ -345,8 +372,10 @@ $summary = [ordered]@{
     pdf_floating_table_support = $pdfFloatingTableSupport
     pdf_floating_table_support_status = $pdfFloatingTableSupport.status
     pdf_floating_table_layout_boundary = $pdfFloatingTableSupport.boundary
-    pdf_floating_table_supported_geometry_count = @($pdfFloatingTableSupport.supported_geometry).Count
-    pdf_floating_table_metadata_only_count = @($pdfFloatingTableSupport.metadata_only).Count
+    pdf_floating_table_supported_geometry_count = $pdfFloatingTableSupport.supported_geometry_count
+    pdf_floating_table_metadata_only_count = $pdfFloatingTableSupport.metadata_only_count
+    pdf_floating_table_tracked_geometry_count = $pdfFloatingTableSupport.tracked_geometry_count
+    pdf_floating_table_supported_geometry_percent = $pdfFloatingTableSupport.supported_geometry_percent
     release_blockers = @($releaseBlockers)
     release_blocker_count = @($releaseBlockers).Count
     action_items = @($actionItems)

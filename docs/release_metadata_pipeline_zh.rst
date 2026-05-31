@@ -367,6 +367,9 @@ governance / release note bundle。
 明细会携带表格样式、自动修复、人工复核、浮动表格定位和命令失败计数；release
 summary、handoff 与 reviewer bundle 应保留这些字段，让 reviewer 能区分“可发布”、
 “需自动修复”和“需人工版式复核”。
+PDF 浮动表格能力还会固定输出 ``pdf_floating_table_supported_geometry_percent`` 和
+``pdf_floating_table_tracked_geometry_count``，把已支持的稳定几何子集和仍处于 metadata-only
+的 ``tblpPr`` 字段变成可比较的百分比，而不只展示 supported / metadata-only 数量。
 
 表格与版式 action 也应映射到固定 reviewer runbook：
 ``apply_safe_tblLook_fixes_then_visual_regression`` 和

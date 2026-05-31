@@ -149,7 +149,8 @@ foreach ($assertion in @(
                 "release_blockers",
                 "action_items",
                 "table_position_plans",
-                "pdf_floating_table_support"
+                "pdf_floating_table_support",
+                "pdf_floating_table_supported_geometry_percent"
             )
         },
         [ordered]@{
@@ -168,6 +169,8 @@ foreach ($assertion in @(
                 "safe_tblLook_fixes_pending",
                 "floating_table_plans_pending",
                 "pdf_floating_table_support",
+                "pdf_floating_table_supported_geometry_percent",
+                "pdf_floating_table_tracked_geometry_count",
                 "pdf_floating_table_layout_boundary",
                 "source_schema",
                 "source_report_display",
@@ -251,7 +254,8 @@ foreach ($assertion in @(
                 "release_blockers",
                 "action_items",
                 "table_position_plans",
-                "pdf_floating_table_support"
+                "pdf_floating_table_support",
+                "pdf_floating_table_supported_geometry_percent"
             )
         },
         [ordered]@{
@@ -265,6 +269,7 @@ foreach ($assertion in @(
                 "safe_tblLook_fixes_pending",
                 "floating_table_plans_pending",
                 "pdf_floating_table_support",
+                "pdf_floating_table_supported_geometry_percent",
                 "stable_pdf_geometry_subset_not_full_word_wrapping",
                 "source_schema",
                 "source_report_display",
