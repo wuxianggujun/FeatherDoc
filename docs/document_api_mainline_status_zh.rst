@@ -172,6 +172,9 @@ PDF 渲染或完整构建。
 1. ``test/build_content_control_data_binding_governance_report_test.ps1``。
 2. ``test/build_project_template_delivery_readiness_report_test.ps1``。
 3. ``test/build_table_layout_delivery_governance_report_test.ps1``。
+   该入口必须继续覆盖 ``pdf_floating_table_support_coverage``、
+   ``pdf_floating_table_reviewer_focus`` 和 ``metadata-only tblpPr``，
+   确保表格版式交付质量的 PDF 浮动表边界进入轻量验证清单。
 
 执行规则：
 
