@@ -377,6 +377,7 @@ $pipelineExpectedMarkers = @(
     "word_visual_standard_review_metadata_source_reports",
     "task_reviews=",
     "release-candidate-checks",
+    "release-candidate-checks-source",
     "report/ARTIFACT_GUIDE.md",
     "report/REVIEWER_CHECKLIST.md",
     "report/release_handoff.md",
