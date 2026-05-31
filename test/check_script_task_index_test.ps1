@@ -344,7 +344,18 @@ foreach ($templateVisualScript in @(
         "scripts\run_template_bookmark_multiline_visual_regression.ps1",
         "scripts\run_template_bookmark_paragraphs_visual_regression.ps1",
         "scripts\run_template_bookmark_paragraphs_pagination_visual_regression.ps1",
-        "scripts\run_template_table_cli_bookmark_visual_regression.ps1"
+        "scripts\run_template_table_cli_bookmark_visual_regression.ps1",
+        "scripts\run_template_table_cli_visual_regression.ps1",
+        "scripts\run_template_table_cli_selector_visual_regression.ps1",
+        "scripts\run_template_table_cli_column_visual_regression.ps1",
+        "scripts\run_template_table_cli_merge_unmerge_visual_regression.ps1",
+        "scripts\run_template_table_cli_direct_visual_regression.ps1",
+        "scripts\run_template_table_cli_direct_column_visual_regression.ps1",
+        "scripts\run_template_table_cli_direct_merge_unmerge_visual_regression.ps1",
+        "scripts\run_template_table_cli_section_kind_visual_regression.ps1",
+        "scripts\run_template_table_cli_section_kind_row_visual_regression.ps1",
+        "scripts\run_template_table_cli_section_kind_column_visual_regression.ps1",
+        "scripts\run_template_table_cli_section_kind_merge_unmerge_visual_regression.ps1"
     )) {
     Assert-ArrayContains `
         -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
@@ -365,7 +376,7 @@ Assert-ArrayContains `
     -Message "Unindexed script prefix summary should retain script paths."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.family }) `
-    -ExpectedValue "run_template" `
+    -ExpectedValue "run_section" `
     -Message "Unindexed script family summary should split run_* entries into families."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
@@ -404,7 +415,7 @@ foreach ($marker in @(
         '## Unindexed Script Prefixes',
         '`run`:',
         '## Unindexed Script Families',
-        '`run_template`:',
+        '`run_section`:',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'

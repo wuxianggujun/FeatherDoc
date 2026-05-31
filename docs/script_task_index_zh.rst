@@ -71,6 +71,28 @@
   运行模板书签段落分页视觉回归。
 - ``scripts/run_template_table_cli_bookmark_visual_regression.ps1``：运行 template
   table CLI bookmark 路径视觉回归。
+- ``scripts/run_template_table_cli_visual_regression.ps1``：运行 template table
+  CLI 基础视觉回归。
+- ``scripts/run_template_table_cli_selector_visual_regression.ps1``：运行
+  template table CLI selector 视觉回归。
+- ``scripts/run_template_table_cli_column_visual_regression.ps1``：运行 template
+  table CLI 列操作视觉回归。
+- ``scripts/run_template_table_cli_merge_unmerge_visual_regression.ps1``：运行
+  template table CLI 合并 / 拆分视觉回归。
+- ``scripts/run_template_table_cli_direct_visual_regression.ps1``：运行 template
+  table CLI direct 路径基础视觉回归。
+- ``scripts/run_template_table_cli_direct_column_visual_regression.ps1``：运行
+  template table CLI direct 列操作视觉回归。
+- ``scripts/run_template_table_cli_direct_merge_unmerge_visual_regression.ps1``：
+  运行 template table CLI direct 合并 / 拆分视觉回归。
+- ``scripts/run_template_table_cli_section_kind_visual_regression.ps1``：运行
+  template table CLI section-kind 基础视觉回归。
+- ``scripts/run_template_table_cli_section_kind_row_visual_regression.ps1``：运行
+  template table CLI section-kind 行操作视觉回归。
+- ``scripts/run_template_table_cli_section_kind_column_visual_regression.ps1``：
+  运行 template table CLI section-kind 列操作视觉回归。
+- ``scripts/run_template_table_cli_section_kind_merge_unmerge_visual_regression.ps1``：
+  运行 template table CLI section-kind 合并 / 拆分视觉回归。
 - ``scripts/run_project_template_smoke.ps1``：运行项目模板 smoke manifest。
 - ``scripts/check_project_template_smoke_manifest.ps1``：校验项目模板 smoke
   manifest 结构。
