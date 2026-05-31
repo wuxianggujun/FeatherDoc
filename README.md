@@ -3685,7 +3685,9 @@ reason about and extend independently.
   `output/script-task-index-check/script_task_index_check.md`, then surfaces
   `documentation_entrypoint_count`, `script_reference_group_count`,
   `script_reference_extension_count`, `duplicate_script_reference_count`, and
-  `missing_marker_count` for review. The JSON and Markdown outputs also expose
+  `missing_marker_count` for review. Duplicate script references also carry
+  `occurrence_lines` and `occurrence_groups`, so maintainers can jump straight
+  to the repeated entries. The JSON and Markdown outputs also expose
   `powershell_version` and `output_encoding` (`UTF-8 without BOM`) for stable
   automation consumption.
 - Release policy guide: `docs/release_policy_zh.rst`

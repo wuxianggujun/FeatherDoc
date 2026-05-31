@@ -37,6 +37,9 @@ performance.
   `checked_document_relative_paths`, and `required_marker_count` summary
   contracts so automation can verify document coverage without inferring it
   from marker counts.
+- Added duplicate-reference line diagnostics to the script task index checker
+  so repeated `scripts/*.ps1` or `scripts/*.py` entries point reviewers to the
+  exact source lines and groups.
 
 ### Fixed
 

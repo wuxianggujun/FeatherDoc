@@ -119,29 +119,12 @@ function Get-ScriptReferences {
     return @($references.ToArray())
 }
 
-function Get-DuplicateScriptReferences {
-    param([string[]]$References)
-
-    return @(
-        $References |
-            Group-Object |
-            Where-Object { $_.Count -gt 1 } |
-            Sort-Object Name |
-            ForEach-Object {
-                [pscustomobject]@{
-                    relative_path = $_.Name
-                    occurrence_count = $_.Count
-                }
-            }
-    )
-}
-
-function Get-ScriptReferenceGroups {
+function Get-ScriptReferenceLocations {
     param([string]$Text)
 
+    $locations = New-Object 'System.Collections.Generic.List[object]'
     $lines = [regex]::Split($Text, "\r?\n")
     $currentGroup = "unsectioned"
-    $groupMap = [ordered]@{}
     $scriptPattern = 'scripts/[A-Za-z0-9_.-]+\.(ps1|py)'
 
     for ($index = 0; $index -lt $lines.Count; $index++) {
@@ -157,20 +140,71 @@ function Get-ScriptReferenceGroups {
 
         $matches = [regex]::Matches($line, $scriptPattern)
         foreach ($match in $matches) {
-            if (-not $groupMap.Contains($currentGroup)) {
-                $groupMap[$currentGroup] = New-Object 'System.Collections.Generic.List[string]'
-            }
-
-            $relativePath = $match.Value.Replace("/", [System.IO.Path]::DirectorySeparatorChar)
-            $groupMap[$currentGroup].Add($relativePath)
+            $locations.Add([pscustomobject]@{
+                relative_path = $match.Value.Replace("/", [System.IO.Path]::DirectorySeparatorChar)
+                line_number = $index + 1
+                group_name = $currentGroup
+            })
         }
+    }
+
+    return @($locations.ToArray())
+}
+
+function Get-DuplicateScriptReferences {
+    param(
+        [string[]]$References,
+        [object[]]$Locations = @()
+    )
+
+    return @(
+        $References |
+            Group-Object |
+            Where-Object { $_.Count -gt 1 } |
+            Sort-Object Name |
+            ForEach-Object {
+                $relativePath = [string]$_.Name
+                $matchingLocations = @(
+                    $Locations | Where-Object {
+                        $_.relative_path -eq $relativePath
+                    }
+                )
+
+                [pscustomobject]@{
+                    relative_path = $relativePath
+                    occurrence_count = $_.Count
+                    occurrence_lines = @($matchingLocations | ForEach-Object { [int]$_.line_number })
+                    occurrence_groups = @(
+                        $matchingLocations |
+                            ForEach-Object { [string]$_.group_name } |
+                            Select-Object -Unique
+                    )
+                }
+            }
+    )
+}
+
+function Get-ScriptReferenceGroups {
+    param([string]$Text)
+
+    $locations = @(Get-ScriptReferenceLocations -Text $Text)
+    $groupMap = [ordered]@{}
+
+    foreach ($location in $locations) {
+        $groupName = [string]$location.group_name
+        if (-not $groupMap.Contains($groupName)) {
+            $groupMap[$groupName] = New-Object 'System.Collections.Generic.List[object]'
+        }
+
+        $groupMap[$groupName].Add($location)
     }
 
     $groups = New-Object 'System.Collections.Generic.List[object]'
     foreach ($groupName in $groupMap.Keys) {
-        $references = @($groupMap[$groupName].ToArray())
+        $groupLocations = @($groupMap[$groupName].ToArray())
+        $references = @($groupLocations | ForEach-Object { [string]$_.relative_path })
         $uniqueReferences = @(Get-UniqueScriptReferences -References $references)
-        $duplicateReferences = @(Get-DuplicateScriptReferences -References $references)
+        $duplicateReferences = @(Get-DuplicateScriptReferences -References $references -Locations $groupLocations)
         $groups.Add([pscustomobject]@{
             group_name = $groupName
             total_script_reference_count = $references.Count
@@ -185,7 +219,10 @@ function Get-ScriptReferenceGroups {
 }
 
 function Get-ScriptReferenceExtensionSummary {
-    param([string[]]$References)
+    param(
+        [string[]]$References,
+        [object[]]$Locations = @()
+    )
 
     $extensionMap = [ordered]@{}
     foreach ($relativePath in $References) {
@@ -205,7 +242,12 @@ function Get-ScriptReferenceExtensionSummary {
     foreach ($extension in @($extensionMap.Keys | Sort-Object)) {
         $references = @($extensionMap[$extension].ToArray())
         $uniqueReferences = @(Get-UniqueScriptReferences -References $references)
-        $duplicateReferences = @(Get-DuplicateScriptReferences -References $references)
+        $extensionLocations = @(
+            $Locations | Where-Object {
+                [System.IO.Path]::GetExtension([string]$_.relative_path).ToLowerInvariant() -eq $extension
+            }
+        )
+        $duplicateReferences = @(Get-DuplicateScriptReferences -References $references -Locations $extensionLocations)
         $extensionSummaries.Add([pscustomobject]@{
             extension = $extension
             total_script_reference_count = $references.Count
@@ -455,7 +497,15 @@ function New-MarkdownReport {
         $lines.Add("- none")
     } else {
         foreach ($script in $DuplicateScriptReferences) {
-            $lines.Add("- ``$($script.relative_path)`` x$($script.occurrence_count)")
+            $lineSuffix = ""
+            if ($script.PSObject.Properties.Name -contains "occurrence_lines") {
+                $occurrenceLines = @($script.occurrence_lines)
+                if ($occurrenceLines.Count -gt 0) {
+                    $lineSuffix = " (lines $($occurrenceLines -join ', '))"
+                }
+            }
+
+            $lines.Add("- ``$($script.relative_path)`` x$($script.occurrence_count)$lineSuffix")
         }
     }
 
@@ -521,15 +571,16 @@ $maintenanceText = Read-Utf8Text -Path $maintenancePath
 $scoreText = Read-Utf8Text -Path $scorePath
 $cmakeText = Read-Utf8Text -Path $cmakePath
 
-$allScriptReferences = @(Get-ScriptReferences -Text $scriptIndexText)
+$scriptReferenceLocations = @(Get-ScriptReferenceLocations -Text $scriptIndexText)
+$allScriptReferences = @($scriptReferenceLocations | ForEach-Object { [string]$_.relative_path })
 $scriptReferences = @(Get-UniqueScriptReferences -References $allScriptReferences)
 if ($scriptReferences.Count -eq 0) {
     throw "Script task index does not contain any scripts/*.ps1 or scripts/*.py references."
 }
 
-$duplicateScriptReferences = @(Get-DuplicateScriptReferences -References $allScriptReferences)
+$duplicateScriptReferences = @(Get-DuplicateScriptReferences -References $allScriptReferences -Locations $scriptReferenceLocations)
 $scriptReferenceGroups = @(Get-ScriptReferenceGroups -Text $scriptIndexText)
-$scriptReferenceExtensions = @(Get-ScriptReferenceExtensionSummary -References $allScriptReferences)
+$scriptReferenceExtensions = @(Get-ScriptReferenceExtensionSummary -References $allScriptReferences -Locations $scriptReferenceLocations)
 $repositoryScripts = @(Get-RepositoryScripts -Root $resolvedRepoRoot)
 $unindexedScripts = @(Get-UnindexedScripts -RepositoryScripts $repositoryScripts -IndexedScripts $scriptReferences)
 $unindexedScriptPrefixes = @(Get-ScriptNamePrefixSummary -Scripts $unindexedScripts)

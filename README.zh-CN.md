@@ -2013,7 +2013,9 @@ repair 候选文件。
   `output/script-task-index-check/script_task_index_check.md`，并暴露
   `documentation_entrypoint_count`、`script_reference_group_count`、
   `script_reference_extension_count`、`duplicate_script_reference_count`、
-  `missing_marker_count` 供复核。JSON 和 Markdown 产物还会暴露
+  `missing_marker_count` 供复核。重复脚本引用还会携带
+  `occurrence_lines` 与 `occurrence_groups`，方便维护者直接定位重复条目。
+  JSON 和 Markdown 产物还会暴露
   `powershell_version` 与 `output_encoding`（`UTF-8 without BOM`），便于
   自动化稳定消费。
 - 版本与发布策略：`docs/release_policy_zh.rst`

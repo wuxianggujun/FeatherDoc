@@ -720,6 +720,19 @@ Assert-ArrayContains `
     -Values @($failingSummary.duplicate_script_references | ForEach-Object { $_.relative_path }) `
     -ExpectedValue "scripts\existing_tool.ps1" `
     -Message "Failing summary should list the duplicate script reference."
+$failingDuplicateReference = @($failingSummary.duplicate_script_references |
+    Where-Object { $_.relative_path -eq "scripts\existing_tool.ps1" })[0]
+$failingDuplicateLines = @($failingDuplicateReference.occurrence_lines)
+if ($failingDuplicateLines.Count -ne 2 -or
+    $failingDuplicateLines[0] -ne 5 -or
+    $failingDuplicateLines[1] -ne 8) {
+    throw "Expected duplicate script reference line numbers 5 and 8, got: $($failingDuplicateLines -join ', ')"
+}
+$failingDuplicateGroups = @($failingDuplicateReference.occurrence_groups)
+Assert-ArrayContains `
+    -Values $failingDuplicateGroups `
+    -ExpectedValue "Script task index" `
+    -Message "Failing duplicate reference should preserve the source group name."
 Assert-ArrayContains `
     -Values @($failingSummary.missing_markers | ForEach-Object { "$($_.document)|$($_.marker)" }) `
     -ExpectedValue "README.zh-CN.md|docs/documentation_maintenance_zh.rst" `
@@ -743,7 +756,7 @@ foreach ($marker in @(
         '`.ps1`: 3 unique / 4 total',
         '`.py`: 1 unique / 1 total',
         '## Duplicate Script References',
-        '`scripts\existing_tool.ps1` x2',
+        '`scripts\existing_tool.ps1` x2 (lines 5, 8)',
         '## Missing Scripts',
         '`scripts\missing_tool.ps1`',
         '## Missing Markers',
