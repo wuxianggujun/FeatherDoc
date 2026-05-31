@@ -75,6 +75,17 @@ function Ensure-Directory {
     }
 }
 
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [string]$Text
+    )
+
+    Ensure-Directory -Path $Path
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Text, $encoding)
+}
+
 function Add-Check {
     param(
         [System.Collections.Generic.List[object]]$Checks,
@@ -523,6 +534,7 @@ $boundaryValue = if ($failedChecks.Count -gt 0) {
 $summaryObject = [ordered]@{
     schema = "featherdoc.docx_functional_smoke_readiness.v1"
     generated_at = (Get-Date).ToString("s")
+    output_encoding = "UTF-8 without BOM"
     status = $statusValue
     verdict = $verdictValue
     docx_functional_smoke_ready = ($failedChecks.Count -eq 0)
@@ -560,6 +572,7 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReportMarkdown)) {
     [void]$markdownLines.Add("")
     [void]$markdownLines.Add("- Status: ``$statusValue``")
     [void]$markdownLines.Add("- Verdict: ``$verdictValue``")
+    [void]$markdownLines.Add("- Output encoding: ``$($summaryObject.output_encoding)``")
     [void]$markdownLines.Add("- DOCX functional smoke ready: ``$($summaryObject.docx_functional_smoke_ready)``")
     [void]$markdownLines.Add("- Failed checks: ``$($summaryObject.failed_check_count)``")
     [void]$markdownLines.Add("- Warnings: ``$($summaryObject.warning_count)``")
@@ -583,10 +596,10 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReportMarkdown)) {
             [void]$markdownLines.Add("- ``$($warning.id)``: $($warning.message) root=``$($warning.root_display)`` review_verdict=``$($warning.review_verdict)``")
         }
     }
-    ($markdownLines -join [System.Environment]::NewLine) | Set-Content -LiteralPath $resolvedReportMarkdown -Encoding UTF8
+    Write-Utf8NoBomFile -Path $resolvedReportMarkdown -Text (($markdownLines -join [System.Environment]::NewLine) + [System.Environment]::NewLine)
 }
 
-($summaryObject | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $resolvedOutputJson -Encoding UTF8
+Write-Utf8NoBomFile -Path $resolvedOutputJson -Text (($summaryObject | ConvertTo-Json -Depth 32) + [System.Environment]::NewLine)
 $summaryObject | ConvertTo-Json -Depth 32
 
 if ($failedChecks.Count -gt 0) {

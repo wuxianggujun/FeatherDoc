@@ -30,6 +30,18 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-FileHasNoBom {
+    param([string]$Path, [string]$Message)
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 3 -and
+        $bytes[0] -eq 0xEF -and
+        $bytes[1] -eq 0xBB -and
+        $bytes[2] -eq 0xBF) {
+        throw "$Message Path='$Path'."
+    }
+}
+
 function Write-JsonFile {
     param([string]$Path, $Value)
 
@@ -116,6 +128,8 @@ foreach ($marker in @(
         '$ReportMarkdown',
         '$VisualSmokeRoots',
         '$FailOnWarning',
+        "output_encoding",
+        "UTF-8 without BOM",
         "docx_functional_smoke_readiness.md"
     )) {
     Assert-ContainsText -Text $scriptText -ExpectedText $marker `
@@ -130,6 +144,8 @@ foreach ($marker in @(
         "-ReportMarkdown",
         "-VisualSmokeRoots",
         "-FailOnWarning",
+        "output_encoding",
+        "UTF-8 without BOM",
         "docx_functional_smoke_readiness.md"
     )) {
     Assert-ContainsText -Text $docsText -ExpectedText $marker `
@@ -154,10 +170,16 @@ Assert-True -Condition (Test-Path -LiteralPath $summaryPath) `
     -Message "DOCX functional smoke readiness summary was not written."
 Assert-True -Condition (Test-Path -LiteralPath $reportMarkdownPath) `
     -Message "DOCX functional smoke readiness Markdown report was not written."
+Assert-FileHasNoBom -Path $summaryPath `
+    -Message "DOCX functional smoke readiness summary should be UTF-8 without BOM."
+Assert-FileHasNoBom -Path $reportMarkdownPath `
+    -Message "DOCX functional smoke readiness Markdown report should be UTF-8 without BOM."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.docx_functional_smoke_readiness.v1" `
     -Message "Summary schema mismatch."
+Assert-Equal -Actual ([string]$summary.output_encoding) -Expected "UTF-8 without BOM" `
+    -Message "Summary output encoding mismatch."
 Assert-Equal -Actual ([string]$summary.status) -Expected "pass" `
     -Message "Summary status should pass when persisted DOCX evidence is coherent."
 if ([int]$summary.warning_count -gt 0) {
@@ -183,6 +205,10 @@ Assert-True -Condition (@($summary.visual_smoke_reused_evidence).Count -ge 2) `
     -Message "Persisted Word visual smoke evidence should include minimal and rerun roots."
 Assert-ContainsText -Text ([string]$summary.report_markdown_display) -ExpectedText "docx_functional_smoke_readiness.md" `
     -Message "Summary should preserve the Markdown report display path."
+
+$markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $reportMarkdownPath
+Assert-ContainsText -Text $markdown -ExpectedText 'Output encoding: `UTF-8 without BOM`' `
+    -Message "Markdown report should preserve the output encoding marker."
 
 foreach ($visualEvidence in @($summary.visual_smoke_reused_evidence)) {
     Assert-Equal -Actual ([string]$visualEvidence.status) -Expected "pass" `
