@@ -21,6 +21,31 @@ function Assert-Contains {
     }
 }
 
+function Assert-LineContainsAll {
+    param(
+        [string]$Path,
+        [string[]]$ExpectedFragments,
+        [string]$Label
+    )
+
+    $lines = Get-Content -LiteralPath $Path
+    foreach ($line in $lines) {
+        $matchesAllFragments = $true
+        foreach ($fragment in $ExpectedFragments) {
+            if ($line -notmatch [regex]::Escape($fragment)) {
+                $matchesAllFragments = $false
+                break
+            }
+        }
+
+        if ($matchesAllFragments) {
+            return
+        }
+    }
+
+    throw ("{0} does not contain one line with all expected fragments: {1}" -f $Label, ($ExpectedFragments -join ", "))
+}
+
 function Assert-NotContains {
     param(
         [string]$Path,
@@ -220,6 +245,7 @@ $pdfBoundedCtestSummaryJsonDisplayText = $pdfBoundedCtestSummaryJsonDisplay -joi
 $summaryPath = Join-Path $reportDir "summary.json"
 $installedReadmePath = Join-Path $installPrefix "share\FeatherDoc\README.md"
 $installedChangelogPath = Join-Path $installPrefix "share\FeatherDoc\CHANGELOG.md"
+$projectTemplateChecklistPackagedAuditEvidenceLine = "Project-template readiness checklist packaged audit evidence: release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1, status=passed, audit_script=.\scripts\assert_release_material_safety.ps1, audited_entrypoint_count=3, audited_entrypoints=start_here, artifact_guide, reviewer_checklist, compact_evidence_label=Project-template readiness checklist handoff evidence, compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports, compact_evidence_source_schema=featherdoc.release_candidate_summary, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, checklist_marker=release_entry_project_template_readiness_checklist_trace, material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-blocker-rollup\summary.json"
 
 Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 # START_HERE
@@ -231,6 +257,7 @@ Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 - Project template release readiness checklist: docs/project_template_release_readiness_checklist_zh.rst
 - Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
+- $projectTemplateChecklistPackagedAuditEvidenceLine
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 - PDF visual gate summary: $pdfGateSummaryPathDisplay
@@ -396,6 +423,7 @@ Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
 - Project template onboarding governance: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 - Project template release readiness checklist: docs/project_template_release_readiness_checklist_zh.rst
 - Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
+- $projectTemplateChecklistPackagedAuditEvidenceLine
 - Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 - Content-control provenance: input_docx=samples/invoice.docx input_docx_display=.\samples\invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
@@ -420,6 +448,7 @@ Set-Content -LiteralPath $reviewerChecklistPath -Encoding UTF8 -Value @"
 - Check project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json before release.
 - Confirm Project template release readiness checklist docs/project_template_release_readiness_checklist_zh.rst before release.
 - Confirm release governance handoff carries project-template readiness checklist entrypoint evidence: Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json.
+- Confirm release governance handoff carries project-template readiness checklist packaged audit evidence: $projectTemplateChecklistPackagedAuditEvidenceLine.
 - Confirm table_layout_delivery_governance.delivery_quality table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0) before release.
 - Confirm PDF visual gate summary $pdfGateSummaryPathDisplay with 2 CJK copy/search samples and 3 visual baselines before release.
 - Confirm PDF visual gate aggregate contact sheet $pdfGateAggregateContactSheetPathDisplay before release.
@@ -1166,6 +1195,22 @@ foreach ($entrypointMaterial in @(
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'marker=release_entry_project_template_readiness_checklist_trace' -Label $entrypointMaterial.Label
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'source_schema=featherdoc.release_candidate_summary' -Label $entrypointMaterial.Label
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'source_report=.\output\release-candidate-checks\summary.json' -Label $entrypointMaterial.Label
+    Assert-LineContainsAll -Path $entrypointMaterial.Path -ExpectedFragments @(
+        'Project-template readiness checklist packaged audit evidence',
+        'release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=1',
+        'status=passed',
+        'audit_script=.\scripts\assert_release_material_safety.ps1',
+        'audited_entrypoint_count=3',
+        'audited_entrypoints=start_here, artifact_guide, reviewer_checklist',
+        'compact_evidence_label=Project-template readiness checklist handoff evidence',
+        'compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports',
+        'compact_evidence_source_schema=featherdoc.release_candidate_summary',
+        'checklist_path=docs/project_template_release_readiness_checklist_zh.rst',
+        'checklist_marker=release_entry_project_template_readiness_checklist_trace',
+        'material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace',
+        'source_schema=featherdoc.release_candidate_summary',
+        'source_report=.\output\release-blocker-rollup\summary.json'
+    ) -Label $entrypointMaterial.Label
 }
 Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'staged content-control summary'
 Assert-Contains -Path $stagedContentControlSummaryPath -ExpectedText 'sync_bound_content_control' -Label 'staged content-control summary'
