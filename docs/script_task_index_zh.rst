@@ -153,6 +153,10 @@
   smoke 证据和可复用 Word visual smoke PNG。
 - ``scripts/sync_project_template_smoke_visual_verdict.ps1``：同步项目模板 smoke
   的视觉 verdict 到发布材料。
+- ``scripts/run_content_control_rich_replacement_visual_regression.ps1``：运行
+  content-control 富文本替换视觉回归。
+- ``scripts/run_content_control_image_replacement_visual_regression.ps1``：运行
+  content-control 图片替换视觉回归。
 
 
 样式、编号与文档骨架治理
