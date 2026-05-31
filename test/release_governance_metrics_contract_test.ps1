@@ -188,6 +188,8 @@ foreach ($marker in @(
     "table_position_automatic_count",
     "table_position_review_count",
     "pdf_floating_table_supported_geometry_percent",
+    "pdf_floating_table_support_coverage",
+    "pdf_floating_table_reviewer_focus",
     "command_failure_count",
     "floating_table_plans_pending"
 )) {

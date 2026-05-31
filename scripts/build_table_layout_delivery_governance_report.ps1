@@ -234,6 +234,12 @@ function New-DeliveryQuality {
     $score = [int][Math]::Max(0, $readyDocumentPercent - $needsReviewPenalty - $failedDocumentPenalty -
         $styleIssuePenalty - $safeFixPenalty - $manualFixPenalty - $floatingPlanPenalty - $commandFailurePenalty)
     $level = Get-DeliveryQualityLevel -Score $score -DocumentCount $DocumentCount -UnresolvedItemCount $unresolvedItemCount
+    $pdfFloatingTableSupportCoverage = "{0}/{1} supported ({2} percent); metadata_only={3}" -f
+        $PdfFloatingTableSupportedGeometryCount,
+        $PdfFloatingTableTrackedGeometryCount,
+        $PdfFloatingTableSupportedGeometryPercent,
+        $PdfFloatingTableMetadataOnlyCount
+    $pdfFloatingTableReviewerFocus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
 
     return [ordered]@{
         id = "table_layout_delivery_governance.delivery_quality"
@@ -258,6 +264,8 @@ function New-DeliveryQuality {
         pdf_floating_table_metadata_only_count = $PdfFloatingTableMetadataOnlyCount
         pdf_floating_table_tracked_geometry_count = $PdfFloatingTableTrackedGeometryCount
         pdf_floating_table_supported_geometry_percent = $PdfFloatingTableSupportedGeometryPercent
+        pdf_floating_table_support_coverage = $pdfFloatingTableSupportCoverage
+        pdf_floating_table_reviewer_focus = $pdfFloatingTableReviewerFocus
         command_failure_count = $TotalCommandFailureCount
         unresolved_item_count = $unresolvedItemCount
         penalty_summary = @(
@@ -460,6 +468,8 @@ function New-ReportMarkdown {
     $lines.Add("- Floating table review plans: ``$($Summary.total_table_position_review_count)``") | Out-Null
     $lines.Add("- PDF floating table support reports: ``$($Summary.pdf_floating_table_support_report_count)``") | Out-Null
     $lines.Add("- PDF floating table supported geometry: ``$($Summary.pdf_floating_table_supported_geometry_count)/$($Summary.pdf_floating_table_tracked_geometry_count)`` (``$($Summary.pdf_floating_table_supported_geometry_percent)%``)") | Out-Null
+    $lines.Add("- pdf_floating_table_support_coverage: ``$($Summary.pdf_floating_table_support_coverage)``") | Out-Null
+    $lines.Add("- pdf_floating_table_reviewer_focus: ``$($Summary.pdf_floating_table_reviewer_focus)``") | Out-Null
     $lines.Add("- Delivery quality: ``$($Summary.delivery_quality_level)`` (score=``$($Summary.delivery_quality_score)``)") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -482,6 +492,8 @@ function New-ReportMarkdown {
     $lines.Add("- PDF floating table capability: ``$($quality.pdf_floating_table_capability_status)``") | Out-Null
     $lines.Add("- PDF floating table boundary: ``$($quality.pdf_floating_table_layout_boundary)``") | Out-Null
     $lines.Add("- PDF floating table supported geometry: ``$($quality.pdf_floating_table_supported_geometry_count)/$($quality.pdf_floating_table_tracked_geometry_count)`` (``$($quality.pdf_floating_table_supported_geometry_percent)%``)") | Out-Null
+    $lines.Add("- pdf_floating_table_support_coverage: ``$($quality.pdf_floating_table_support_coverage)``") | Out-Null
+    $lines.Add("- pdf_floating_table_reviewer_focus: ``$($quality.pdf_floating_table_reviewer_focus)``") | Out-Null
     $lines.Add("- Command failures: ``$($quality.command_failure_count)``") | Out-Null
     $lines.Add("- Unresolved items: ``$($quality.unresolved_item_count)``") | Out-Null
     foreach ($penalty in @($quality.penalty_summary)) {
@@ -1008,6 +1020,8 @@ $summary = [ordered]@{
     pdf_floating_table_metadata_only_count = $pdfFloatingTableMetadataOnlyCount
     pdf_floating_table_tracked_geometry_count = $pdfFloatingTableTrackedGeometryCount
     pdf_floating_table_supported_geometry_percent = $pdfFloatingTableSupportedGeometryPercent
+    pdf_floating_table_support_coverage = $deliveryQuality.pdf_floating_table_support_coverage
+    pdf_floating_table_reviewer_focus = $deliveryQuality.pdf_floating_table_reviewer_focus
     pdf_floating_table_support_summary = @(Add-PdfFloatingTableSupportSummary -Items $pdfFloatingTableSupport.ToArray())
     pdf_floating_table_support = @($pdfFloatingTableSupport.ToArray())
     total_table_style_issue_count = $totalIssueCount

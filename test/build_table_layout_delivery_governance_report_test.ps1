@@ -419,8 +419,20 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should expose tracked PDF floating table geometry count in delivery quality details."
     Assert-Equal -Actual ([int]$summary.delivery_quality.pdf_floating_table_supported_geometry_percent) -Expected 44 `
         -Message "Summary should expose supported PDF floating table geometry percentage in delivery quality details."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.pdf_floating_table_support_coverage) `
+        -Expected "4/9 supported (44 percent); metadata_only=5" `
+        -Message "Summary should expose PDF floating table support coverage in delivery quality details."
+    Assert-Equal -Actual ([string]$summary.delivery_quality.pdf_floating_table_reviewer_focus) `
+        -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
+        -Message "Summary should expose PDF floating table reviewer focus in delivery quality details."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_supported_geometry_percent) -Expected 44 `
         -Message "Summary should expose aggregate supported PDF floating table geometry percentage."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_support_coverage) `
+        -Expected "4/9 supported (44 percent); metadata_only=5" `
+        -Message "Summary should expose PDF floating table support coverage at top level."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_reviewer_focus) `
+        -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
+        -Message "Summary should expose PDF floating table reviewer focus at top level."
     Assert-Equal -Actual ([int]$summary.delivery_quality.command_failure_count) -Expected 0 `
         -Message "Summary should expose command failure count in delivery quality details."
     Assert-Equal -Actual ([int]$summary.delivery_quality.unresolved_item_count) -Expected 10 `
@@ -592,6 +604,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include supported PDF floating table geometry percentage."
     Assert-ContainsText -Text $markdown -ExpectedText "safe_tblLook_fixes_pending" `
         -Message "Markdown should include delivery quality penalty details."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_support_coverage" `
+        -Message "Markdown should include PDF floating table support coverage marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_reviewer_focus" `
+        -Message "Markdown should include PDF floating table reviewer focus marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "metadata-only tblpPr" `
+        -Message "Markdown should include metadata-only tblpPr reviewer guidance."
     Assert-ContainsText -Text $markdown -ExpectedText "source_schema" `
         -Message "Markdown should include traceable source schema fields for actions and blockers."
     Assert-ContainsText -Text $markdown -ExpectedText "source_report_display" `
