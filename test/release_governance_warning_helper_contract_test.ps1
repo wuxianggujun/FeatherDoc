@@ -920,6 +920,64 @@ foreach ($expectedText in @(
         -Message "Compact project-template checklist handoff evidence line should include '$expectedText'."
 }
 
+$sourceFirstProjectTemplateChecklistSourceReport = [pscustomobject]@{
+    schema = "featherdoc.release_candidate_summary"
+    path_display = ".\output\release-candidate-checks-source\summary.json"
+    project_template_readiness_checklist_entrypoints_status = "source-only"
+    project_template_readiness_checklist_entrypoints_required_entrypoint_count = 0
+}
+$sourceFirstProjectTemplateChecklistFinalReport = [pscustomobject]@{
+    schema = "featherdoc.release_candidate_summary"
+    path_display = ".\output\release-candidate-checks\report\summary.json"
+    project_template_readiness_checklist_entrypoints_status = "declared"
+    project_template_readiness_checklist_entrypoints_checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+    project_template_readiness_checklist_entrypoints_required_entrypoint_count = 3
+    project_template_readiness_checklist_entrypoints_entrypoint_ids = @("start_here", "artifact_guide", "reviewer_checklist")
+    project_template_readiness_checklist_entrypoints_entrypoints = @(
+        [pscustomobject]@{
+            id = "start_here"
+            required = $true
+            path_display = ".\output\release-candidate-checks\START_HERE.md"
+        },
+        [pscustomobject]@{
+            id = "artifact_guide"
+            required = $true
+            path_display = ".\output\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+        },
+        [pscustomobject]@{
+            id = "reviewer_checklist"
+            required = $true
+            path_display = ".\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+        }
+    )
+    project_template_readiness_checklist_entrypoints_checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+}
+$sourceFirstPreferredReleaseCandidateReport = Select-ReleaseGovernancePreferredReleaseCandidateSourceReport -Reports @(
+    $sourceFirstProjectTemplateChecklistSourceReport,
+    $sourceFirstProjectTemplateChecklistFinalReport
+)
+Assert-Equal -Actual ([string]$sourceFirstPreferredReleaseCandidateReport.path_display) `
+    -Expected ".\output\release-candidate-checks\report\summary.json" `
+    -Message "Preferred release candidate source report should skip source-only summaries when final report is present."
+
+$sourceFirstProjectTemplateChecklistHandoffEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine -Summary ([pscustomobject]@{
+        release_governance_handoff = [pscustomobject]@{
+            project_template_readiness_checklist_entrypoints_source_report_count = 2
+            project_template_readiness_checklist_entrypoints_source_reports = @(
+                $sourceFirstProjectTemplateChecklistSourceReport,
+                $sourceFirstProjectTemplateChecklistFinalReport
+            )
+        }
+    })
+Assert-ContainsText -Text $sourceFirstProjectTemplateChecklistHandoffEvidenceLine `
+    -ExpectedText "source_report=.\output\release-candidate-checks\report\summary.json" `
+    -Message "Compact project-template checklist handoff evidence line should prefer the final release candidate report."
+Assert-DoesNotContainText -Text $sourceFirstProjectTemplateChecklistHandoffEvidenceLine `
+    -UnexpectedText "source_report=.\output\release-candidate-checks-source\summary.json" `
+    -Message "Compact project-template checklist handoff evidence line should not select source-only report paths."
+Assert-ContainsText -Text $sourceFirstProjectTemplateChecklistHandoffEvidenceLine -ExpectedText "status=declared" `
+    -Message "Compact project-template checklist handoff evidence line should use metadata from the final report."
+
 $projectTemplateChecklistMaterialSafetyAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary ([pscustomobject]@{
         release_governance_handoff = [pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{

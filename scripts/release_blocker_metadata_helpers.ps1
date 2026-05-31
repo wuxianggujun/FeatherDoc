@@ -2798,6 +2798,32 @@ function Add-ReleaseGovernanceWordVisualStandardReviewMetadataSourceReportLines 
     }
 }
 
+function Select-ReleaseGovernancePreferredReleaseCandidateSourceReport {
+    param([AllowNull()]$Reports)
+
+    $reportItems = @($Reports | Where-Object { $null -ne $_ })
+    foreach ($pathPattern in @(
+            "release-candidate-checks[\\/]+report[\\/]+summary\.json$",
+            "release-candidate-checks[\\/]+summary\.json$",
+            "release_candidate_summary"
+        )) {
+        $report = $reportItems |
+            Where-Object {
+                $schema = Get-ReleaseBlockerPropertyValue -Object $_ -Name "schema"
+                $pathDisplay = Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display"
+
+                $schema -eq "featherdoc.release_candidate_summary" -and
+                    $pathDisplay -match $pathPattern
+            } |
+            Select-Object -First 1
+        if ($null -ne $report) {
+            return $report
+        }
+    }
+
+    return $reportItems | Select-Object -First 1
+}
+
 function Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine {
     param([AllowNull()]$Summary)
 
@@ -2812,18 +2838,7 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEviden
         return ""
     }
 
-    $report = $reports |
-        Where-Object {
-            $schema = Get-ReleaseBlockerPropertyValue -Object $_ -Name "schema"
-            $pathDisplay = Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display"
-
-            $schema -eq "featherdoc.release_candidate_summary" -and
-                $pathDisplay -match "release-candidate-checks|release_candidate_summary|report[\\/]+summary\.json"
-        } |
-        Select-Object -First 1
-    if ($null -eq $report) {
-        $report = $reports | Select-Object -First 1
-    }
+    $report = Select-ReleaseGovernancePreferredReleaseCandidateSourceReport -Reports $reports
     $entrypointIds = @(
         Get-ReleaseBlockerArrayProperty -Object $report -Name "project_template_readiness_checklist_entrypoints_entrypoint_ids" |
             ForEach-Object { [string]$_ } |
@@ -2860,18 +2875,7 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAud
         return ""
     }
 
-    $report = $reports |
-        Where-Object {
-            $schema = Get-ReleaseBlockerPropertyValue -Object $_ -Name "schema"
-            $pathDisplay = Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display"
-
-            $schema -eq "featherdoc.release_candidate_summary" -and
-                $pathDisplay -match "release-candidate-checks|release_candidate_summary|report[\\/]+summary\.json"
-        } |
-        Select-Object -First 1
-    if ($null -eq $report) {
-        $report = $reports | Select-Object -First 1
-    }
+    $report = Select-ReleaseGovernancePreferredReleaseCandidateSourceReport -Reports $reports
     $rollup = Get-ReleaseBlockerPropertyObject -Object $handoff -Name "release_blocker_rollup"
     $sourceReport = ""
     foreach ($fieldName in @("report_markdown_display", "report_markdown", "summary_json_display", "summary_json")) {
@@ -2907,18 +2911,7 @@ function Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine {
         return ""
     }
 
-    $report = $reports |
-        Where-Object {
-            $schema = Get-ReleaseBlockerPropertyValue -Object $_ -Name "schema"
-            $pathDisplay = Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display"
-
-            $schema -eq "featherdoc.release_candidate_summary" -and
-                $pathDisplay -match "release-candidate-checks|release_candidate_summary|report[\\/]+summary\.json"
-        } |
-        Select-Object -First 1
-    if ($null -eq $report) {
-        $report = $reports | Select-Object -First 1
-    }
+    $report = Select-ReleaseGovernancePreferredReleaseCandidateSourceReport -Reports $reports
 
     $taskKeys = @(
         Get-ReleaseBlockerArrayProperty -Object $report -Name "word_visual_standard_review_task_keys" |
