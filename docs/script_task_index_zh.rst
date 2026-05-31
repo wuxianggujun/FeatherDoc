@@ -300,6 +300,12 @@ PDF 保守维护入口
 - ``scripts/run_pdf_visual_release_gate.ps1``：运行 PDF visual release gate。
 - ``scripts/run_pdf_visual_full_gate_guarded.ps1``：受控运行完整 PDF visual gate。
 - ``scripts/run_pdf_visual_segmented_resume.ps1``：分段恢复 PDF visual gate。
+- ``scripts/write_pdf_visual_gate_attempt_summary.ps1``：写出 PDF visual gate
+  attempt summary。
+- ``scripts/write_pdf_visual_release_gate_preflight_governance_report.ps1``：写出
+  PDF visual release gate preflight governance 报告。
+- ``scripts/write_pdf_visual_segmented_gate_summary.ps1``：写出 PDF visual
+  segmented gate summary。
 
 
 维护检查清单

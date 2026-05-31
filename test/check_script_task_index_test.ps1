@@ -396,6 +396,16 @@ foreach ($paragraphVisualScript in @(
         -ExpectedValue $paragraphVisualScript `
         -Message "Summary should list the paragraph visual regression script $paragraphVisualScript."
 }
+foreach ($pdfMaintenanceScript in @(
+        "scripts\write_pdf_visual_gate_attempt_summary.ps1",
+        "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1",
+        "scripts\write_pdf_visual_segmented_gate_summary.ps1"
+    )) {
+    Assert-ArrayContains `
+        -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
+        -ExpectedValue $pdfMaintenanceScript `
+        -Message "Summary should list the PDF maintenance script $pdfMaintenanceScript."
+}
 Assert-ArrayContains `
     -Values $passingUnindexedScripts `
     -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
@@ -410,7 +420,7 @@ Assert-ArrayContains `
     -Message "Unindexed script prefix summary should retain script paths."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.family }) `
-    -ExpectedValue "write_pdf" `
+    -ExpectedValue "check_pdf" `
     -Message "Unindexed script family summary should group remaining maintenance entries into families."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
@@ -449,7 +459,7 @@ foreach ($marker in @(
         '## Unindexed Script Prefixes',
         '`run`:',
         '## Unindexed Script Families',
-        '`write_pdf`:',
+        '`check_pdf`:',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'
