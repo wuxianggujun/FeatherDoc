@@ -323,7 +323,7 @@ Write-Utf8NoBomFile `
     -Text "docs/documentation_maintenance_zh.rst`ndocs/script_task_index_zh.rst"
 Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "README.zh-CN.md") `
-    -Text "docs/documentation_maintenance_zh.rst`ndocs/script_task_index_zh.rst"
+    -Text "docs/script_task_index_zh.rst"
 Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "test\CMakeLists.txt") `
     -Text (@(
@@ -362,6 +362,9 @@ if ($joinedFailureOutput -notmatch [regex]::Escape("MissingScripts=1")) {
 if ($joinedFailureOutput -notmatch [regex]::Escape("DuplicateScriptReferences=1")) {
     throw "Expected duplicate script reference count in failure output, got: $joinedFailureOutput"
 }
+if ($joinedFailureOutput -notmatch [regex]::Escape("MissingMarkers=1")) {
+    throw "Expected missing marker count in failure output, got: $joinedFailureOutput"
+}
 if (-not (Test-Path -LiteralPath $failingSummaryJson -PathType Leaf)) {
     throw "check_script_task_index.ps1 did not write a failing summary."
 }
@@ -379,6 +382,9 @@ if ($failingSummary.missing_script_count -ne 1) {
 }
 if ($failingSummary.duplicate_script_reference_count -ne 1) {
     throw "Expected one duplicate script reference, got: $($failingSummary.duplicate_script_reference_count)"
+}
+if ($failingSummary.missing_marker_count -ne 1) {
+    throw "Expected one missing marker, got: $($failingSummary.missing_marker_count)"
 }
 if ($failingSummary.script_reference_group_count -ne 1) {
     throw "Expected one script reference group in failing fixture, got: $($failingSummary.script_reference_group_count)"
@@ -420,6 +426,10 @@ Assert-ArrayContains `
     -Values @($failingSummary.duplicate_script_references | ForEach-Object { $_.relative_path }) `
     -ExpectedValue "scripts\existing_tool.ps1" `
     -Message "Failing summary should list the duplicate script reference."
+Assert-ArrayContains `
+    -Values @($failingSummary.missing_markers | ForEach-Object { "$($_.document)|$($_.marker)" }) `
+    -ExpectedValue "README.zh-CN.md|docs/documentation_maintenance_zh.rst" `
+    -Message "Failing summary should list the missing README marker."
 foreach ($marker in @(
         '- status: `failed`',
         '- documentation_entrypoint_count: `2`',
@@ -427,9 +437,11 @@ foreach ($marker in @(
         '- script_reference_extension_count: `1`',
         '- duplicate_script_reference_count: `1`',
         '- missing_script_count: `1`',
+        '- missing_marker_count: `1`',
         '[missing] `scripts\missing_tool.ps1`',
         '## Documentation Entry Points',
         '`README.md`: 2 markers',
+        '`README.zh-CN.md`: 2 markers',
         '## Script Reference Groups',
         '`Script task index`: 3 unique / 4 total',
         '## Script Reference Extensions',
@@ -437,7 +449,9 @@ foreach ($marker in @(
         '## Duplicate Script References',
         '`scripts\existing_tool.ps1` x2',
         '## Missing Scripts',
-        '`scripts\missing_tool.ps1`'
+        '`scripts\missing_tool.ps1`',
+        '## Missing Markers',
+        '`README.zh-CN.md` missing `docs/documentation_maintenance_zh.rst`'
     )) {
     Assert-FileContainsText -Path $failingReportMarkdown -ExpectedText $marker `
         -Message "Failing Markdown report should include marker."
