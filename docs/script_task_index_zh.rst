@@ -331,6 +331,17 @@ Release governance 与发布材料
 - ``scripts/write_release_note_bundle.ps1``：生成 release note bundle。
 
 
+构建与安装 smoke
+----------------
+
+这组脚本用于本地复用构建、安装包和外部 consumer 的轻量验证。
+
+- ``scripts/run_reused_build_check.ps1``：复用 canonical 本地构建并带进程、
+  内存和 per-test timeout guard 运行构建 / 测试。
+- ``scripts/run_install_find_package_smoke.ps1``：安装 FeatherDoc 后验证外部
+  ``find_package`` consumer 能正常配置和构建。
+
+
 PDF 保守维护入口
 ----------------
 

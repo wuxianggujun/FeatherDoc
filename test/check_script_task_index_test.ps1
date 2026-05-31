@@ -191,15 +191,15 @@ $passingUnindexedScripts = @($passingSummary.unindexed_scripts)
 if ($passingSummary.unindexed_script_count -ne $passingUnindexedScripts.Count) {
     throw "Unindexed script count does not match unindexed_scripts length."
 }
-if ($passingSummary.unindexed_script_count -le 0) {
-    throw "Expected at least one unindexed script to be reported as informational inventory."
+if ($passingSummary.unindexed_script_count -ne 0) {
+    throw "Expected the maintained script task index to cover every script entry."
 }
 $passingUnindexedScriptPrefixes = @($passingSummary.unindexed_script_prefixes)
 if ($passingSummary.unindexed_script_prefix_count -ne $passingUnindexedScriptPrefixes.Count) {
     throw "Unindexed script prefix count does not match unindexed_script_prefixes length."
 }
-if ($passingSummary.unindexed_script_prefix_count -le 0) {
-    throw "Expected at least one unindexed script prefix to be reported as maintenance inventory."
+if ($passingSummary.unindexed_script_prefix_count -ne 0) {
+    throw "Expected no unindexed script prefixes when every script is indexed."
 }
 $passingUnindexedPrefixScriptCount = [int](($passingUnindexedScriptPrefixes |
             ForEach-Object { $_.script_count } |
@@ -211,8 +211,11 @@ $passingUnindexedScriptFamilies = @($passingSummary.unindexed_script_families)
 if ($passingSummary.unindexed_script_family_count -ne $passingUnindexedScriptFamilies.Count) {
     throw "Unindexed script family count does not match unindexed_script_families length."
 }
-if ($passingSummary.unindexed_script_family_count -le $passingSummary.unindexed_script_prefix_count) {
+if ($passingSummary.unindexed_script_family_count -lt $passingSummary.unindexed_script_prefix_count) {
     throw "Unindexed script family summary should refine the coarser prefix summary."
+}
+if ($passingSummary.unindexed_script_family_count -ne 0) {
+    throw "Expected no unindexed script families when every script is indexed."
 }
 $passingUnindexedFamilyScriptCount = [int](($passingUnindexedScriptFamilies |
             ForEach-Object { $_.script_count } |
@@ -319,6 +322,15 @@ Assert-ArrayContains `
     -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
     -ExpectedValue "scripts\check_pdf_release_readiness.ps1" `
     -Message "Summary should list the PDF release readiness script."
+foreach ($buildSmokeScript in @(
+        "scripts\run_reused_build_check.ps1",
+        "scripts\run_install_find_package_smoke.ps1"
+    )) {
+    Assert-ArrayContains `
+        -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
+        -ExpectedValue $buildSmokeScript `
+        -Message "Summary should list the build and install smoke script $buildSmokeScript."
+}
 foreach ($wrapperScript in @(
         "scripts\open_latest_fixed_grid_review_task.ps1",
         "scripts\open_latest_section_page_setup_review_task.ps1",
@@ -498,26 +510,6 @@ foreach ($visualHelperScript in @(
         -ExpectedValue $visualHelperScript `
         -Message "Summary should list the visual evidence helper script $visualHelperScript."
 }
-Assert-ArrayContains `
-    -Values $passingUnindexedScripts `
-    -ExpectedValue (Join-Path "scripts" "run_install_find_package_smoke.ps1") `
-    -Message "Summary should list unindexed scripts as informational inventory."
-Assert-ArrayContains `
-    -Values @($passingUnindexedScriptPrefixes | ForEach-Object { $_.prefix }) `
-    -ExpectedValue "run" `
-    -Message "Unindexed script prefix summary should group run_* maintenance entries."
-Assert-ArrayContains `
-    -Values @($passingUnindexedScriptPrefixes | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
-    -ExpectedValue (Join-Path "scripts" "run_install_find_package_smoke.ps1") `
-    -Message "Unindexed script prefix summary should retain script paths."
-Assert-ArrayContains `
-    -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.family }) `
-    -ExpectedValue "run_install" `
-    -Message "Unindexed script family summary should group remaining maintenance entries into families."
-Assert-ArrayContains `
-    -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
-    -ExpectedValue (Join-Path "scripts" "run_install_find_package_smoke.ps1") `
-    -Message "Unindexed script family summary should retain script paths."
 foreach ($marker in @(
         '# Script Task Index Check',
         '- schema: `featherdoc.script_task_index_check.v1`',
@@ -547,11 +539,8 @@ foreach ($marker in @(
         '`.ps1`:',
         'unique /',
         '## Unindexed Scripts',
-        'run_install_find_package_smoke.ps1',
         '## Unindexed Script Prefixes',
-        '`run`:',
         '## Unindexed Script Families',
-        '`run_install`:',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'
