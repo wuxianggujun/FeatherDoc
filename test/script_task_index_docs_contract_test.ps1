@@ -68,7 +68,9 @@ foreach ($marker in @(
         "script_reference_group_count",
         "script_reference_extension_count",
         "duplicate_script_reference_count",
-        "missing_marker_count"
+        "missing_marker_count",
+        "output_encoding",
+        "UTF-8 without BOM"
     )) {
     Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
         -Message "Sphinx index should keep script task index and maintenance docs reachable."
@@ -87,7 +89,9 @@ foreach ($entrypoint in @(
             "script_reference_group_count",
             "script_reference_extension_count",
             "duplicate_script_reference_count",
-            "missing_marker_count"
+            "missing_marker_count",
+            "output_encoding",
+            "UTF-8 without BOM"
         )) {
         Assert-ContainsText -Text $entrypoint.Text -ExpectedText $marker `
             -Message "$($entrypoint.Label) should keep documentation maintenance entrypoint '$marker' reachable."
@@ -117,6 +121,8 @@ foreach ($marker in @(
         "check_script_task_index.ps1",
         "summary.json",
         "script_task_index_check.md",
+        "output_encoding",
+        "UTF-8 without BOM",
         "duplicate_script_reference_count",
         "script_reference_group_count",
         "script_reference_groups",

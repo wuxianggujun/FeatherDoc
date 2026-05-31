@@ -146,6 +146,9 @@ if ($passingSummary.schema -ne "featherdoc.script_task_index_check.v1") {
 if ($passingSummary.checker_name -ne "check_script_task_index.ps1") {
     throw "Unexpected checker name: $($passingSummary.checker_name)"
 }
+if ($passingSummary.output_encoding -ne "UTF-8 without BOM") {
+    throw "Unexpected script task index output encoding: $($passingSummary.output_encoding)"
+}
 if ($passingSummary.report_markdown_path -ne $passingReportMarkdown) {
     throw "Unexpected Markdown report path: $($passingSummary.report_markdown_path)"
 }
@@ -246,6 +249,7 @@ foreach ($marker in @(
         '# Script Task Index Check',
         '- schema: `featherdoc.script_task_index_check.v1`',
         '- status: `passed`',
+        '- output_encoding: `UTF-8 without BOM`',
         '- documentation_entrypoint_count: `2`',
         '- total_script_reference_count:',
         '- script_reference_group_count:',

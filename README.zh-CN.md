@@ -1989,7 +1989,8 @@ repair 候选文件。
   `output/script-task-index-check/script_task_index_check.md`，并暴露
   `documentation_entrypoint_count`、`script_reference_group_count`、
   `script_reference_extension_count`、`duplicate_script_reference_count`、
-  `missing_marker_count` 供复核。
+  `missing_marker_count` 供复核。JSON 和 Markdown 产物还会暴露
+  `output_encoding`（`UTF-8 without BOM`），便于自动化稳定消费。
 - 版本与发布策略：`docs/release_policy_zh.rst`
 - Release metadata 流水线：`docs/release_metadata_pipeline_zh.rst`
 - Release metadata 维护清单：`docs/release_metadata_maintenance_checklist_zh.rst`

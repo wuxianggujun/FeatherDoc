@@ -28,8 +28,10 @@
   ``summary.json`` 和 ``script_task_index_check.md``，让 CI / release 面板消费
   稳定 JSON，也让人工复核直接阅读 Markdown 摘要；可用 ``-SummaryJson`` /
   ``-ReportMarkdown`` 显式指定输出路径；同一个脚本路径被重复列出时也会失败，
-  并在 JSON / Markdown 中写出 ``duplicate_script_reference_count``；报告还会
-  写出 ``documentation_entrypoint_count`` 和 ``documentation_entrypoints``，
+  并在 JSON / Markdown 中写出 ``duplicate_script_reference_count``；
+  报告同时写出 ``output_encoding`` = ``UTF-8 without BOM``，固定 JSON /
+  Markdown 产物的无 BOM 输出边界，避免自动化重新猜测编码；还会写出
+  ``documentation_entrypoint_count`` 和 ``documentation_entrypoints``，
   固定 README 入口必须同时指向文档维护总览与脚本任务索引；
   通过 ``script_reference_group_count`` 和 ``script_reference_groups`` 按本页
   小节汇总脚本覆盖量，并通过 ``script_reference_extension_count`` 和

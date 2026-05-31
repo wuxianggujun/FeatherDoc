@@ -15,7 +15,8 @@ The script task index checker, ``scripts/check_script_task_index.ps1``, writes
 ``output/script-task-index-check/script_task_index_check.md``. Its summary keeps
 the key review counters visible, including
 ``script_reference_group_count``, ``script_reference_extension_count``,
-``duplicate_script_reference_count``, and ``missing_marker_count``.
+``duplicate_script_reference_count``, ``missing_marker_count``, and
+``output_encoding`` = ``UTF-8 without BOM``.
 
 .. toctree::
    :maxdepth: 2

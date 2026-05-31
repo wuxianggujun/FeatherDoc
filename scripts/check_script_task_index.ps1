@@ -264,6 +264,7 @@ function New-MarkdownReport {
     $lines.Add("- status: ``$($Summary.status)``")
     $lines.Add("- checked_at_utc: ``$($Summary.checked_at_utc)``")
     $lines.Add("- checker: ``$($Summary.checker_name)``")
+    $lines.Add("- output_encoding: ``$($Summary.output_encoding)``")
     $lines.Add("- script_index: ``$($Summary.script_index_relative_path)``")
     $lines.Add("- documentation_entrypoint_count: ``$($Summary.documentation_entrypoint_count)``")
     $lines.Add("- total_script_reference_count: ``$($Summary.total_script_reference_count)``")
@@ -493,6 +494,7 @@ $summary = [ordered]@{
     checker_name = "check_script_task_index.ps1"
     checked_at_utc = $checkedAtUtc
     powershell_version = $PSVersionTable.PSVersion.ToString()
+    output_encoding = "UTF-8 without BOM"
     status = $status
     repo_root = $resolvedRepoRoot
     summary_json_path = $summaryJsonPath

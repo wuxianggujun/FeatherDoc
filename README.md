@@ -3677,7 +3677,8 @@ reason about and extend independently.
   `output/script-task-index-check/script_task_index_check.md`, then surfaces
   `documentation_entrypoint_count`, `script_reference_group_count`,
   `script_reference_extension_count`, `duplicate_script_reference_count`, and
-  `missing_marker_count` for review.
+  `missing_marker_count` for review. The JSON and Markdown outputs also expose
+  `output_encoding` (`UTF-8 without BOM`) for stable automation consumption.
 - Release policy guide: `docs/release_policy_zh.rst`
 - Release metadata pipeline guide: `docs/release_metadata_pipeline_zh.rst`
 - Release metadata maintenance checklist: `docs/release_metadata_maintenance_checklist_zh.rst`
