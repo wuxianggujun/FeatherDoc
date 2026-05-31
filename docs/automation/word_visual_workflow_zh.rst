@@ -95,7 +95,8 @@ fixed-grid 一键回归并生成 review task：
 ``CMake``、``CTest``、浏览器、``LibreOffice`` 或任何视觉渲染流程；即使
 preflight 为 ``ready``，也不等同于完整截图级 release gate 已通过，不能作为
 release-ready evidence。
-summary 和 Markdown 报告会同时给出 ``minimum_risk_next_action_command``：
+summary 和 Markdown 报告会同时给出 ``minimum_risk_next_action_command``、
+``strict_preflight_command_template`` 和 ``full_gate_command_template``：
 ready 时指向完整 ``run_word_visual_release_gate.ps1``，not_ready 时指向
 ``check_word_visual_release_gate_preflight.ps1 -Strict``；两份产物还会写出
 ``output_encoding`` = ``UTF-8 without BOM``，方便 reviewer 先按机器可读命令

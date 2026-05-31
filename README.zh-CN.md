@@ -330,6 +330,27 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\run_fixed_grid_merge_unmerge_regression.ps1
 ```
 
+如果你要跑一次本地 Word 可视化总 gate，并刷新 README 展示图，可先做只读
+preflight，再进入完整 gate：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_word_visual_release_gate_preflight.ps1
+
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
+    -RefreshReadmeAssets
+```
+
+`scripts\check_word_visual_release_gate_preflight.ps1` 会写出
+`featherdoc.word_visual_release_gate_preflight.v1`，证据边界固定为
+`word_visual_release_gate_preflight_static_contract_only`。它只检查静态 gate
+契约、helper 脚本、CMake 测试注册和文档入口，不启动 Word、CMake、CTest、
+浏览器、LibreOffice 或视觉渲染流程。
+JSON 和 Markdown 报告会同时写出 `minimum_risk_next_action_command`、
+`strict_preflight_command_template`、`full_gate_command_template` 和
+`output_encoding`（`UTF-8 without BOM`），方便 reviewer 或自动化复制正确的
+下一步命令，并稳定消费无 BOM 产物；这个静态 preflight 不能单独当作
+release-ready evidence。
+
 如果希望在证据生成后，立即打包成 AI 可消费的 review task：
 
 ```powershell
