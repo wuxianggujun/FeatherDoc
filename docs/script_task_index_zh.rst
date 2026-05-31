@@ -69,6 +69,13 @@
   段落替换视觉回归。
 - ``scripts/run_template_bookmark_paragraphs_pagination_visual_regression.ps1``：
   运行模板书签段落分页视觉回归。
+- ``scripts/run_bookmark_block_visibility_visual_regression.ps1``：运行书签块显示 /
+  隐藏视觉回归。
+- ``scripts/run_bookmark_image_visual_regression.ps1``：运行书签图片替换视觉回归。
+- ``scripts/run_bookmark_floating_image_visual_regression.ps1``：运行书签浮动图片
+  视觉回归。
+- ``scripts/run_bookmark_table_replacement_visual_regression.ps1``：运行书签表格
+  替换视觉回归。
 - ``scripts/run_template_table_cli_bookmark_visual_regression.ps1``：运行 template
   table CLI bookmark 路径视觉回归。
 - ``scripts/run_template_table_cli_visual_regression.ps1``：运行 template table
