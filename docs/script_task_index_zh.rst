@@ -177,6 +177,12 @@
 - ``scripts/apply_reviewed_style_merge_suggestions.ps1``：应用已复核的 style merge
   建议。
 - ``scripts/audit_style_merge_restore_plan.ps1``：审计 style merge restore plan。
+- ``scripts/run_paragraph_list_visual_regression.ps1``：运行段落列表视觉回归。
+- ``scripts/run_paragraph_numbering_visual_regression.ps1``：运行段落编号视觉回归。
+- ``scripts/run_paragraph_style_numbering_visual_regression.ps1``：运行段落样式编号
+  视觉回归。
+- ``scripts/run_paragraph_run_style_visual_regression.ps1``：运行段落 run 样式视觉
+  回归。
 
 
 表格与版式交付质量

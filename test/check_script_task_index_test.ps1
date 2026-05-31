@@ -385,6 +385,17 @@ foreach ($bookmarkVisualScript in @(
         -ExpectedValue $bookmarkVisualScript `
         -Message "Summary should list the bookmark visual regression script $bookmarkVisualScript."
 }
+foreach ($paragraphVisualScript in @(
+        "scripts\run_paragraph_list_visual_regression.ps1",
+        "scripts\run_paragraph_numbering_visual_regression.ps1",
+        "scripts\run_paragraph_style_numbering_visual_regression.ps1",
+        "scripts\run_paragraph_run_style_visual_regression.ps1"
+    )) {
+    Assert-ArrayContains `
+        -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
+        -ExpectedValue $paragraphVisualScript `
+        -Message "Summary should list the paragraph visual regression script $paragraphVisualScript."
+}
 Assert-ArrayContains `
     -Values $passingUnindexedScripts `
     -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
@@ -399,8 +410,8 @@ Assert-ArrayContains `
     -Message "Unindexed script prefix summary should retain script paths."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.family }) `
-    -ExpectedValue "run_paragraph" `
-    -Message "Unindexed script family summary should split run_* entries into families."
+    -ExpectedValue "write_pdf" `
+    -Message "Unindexed script family summary should group remaining maintenance entries into families."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
     -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
@@ -438,7 +449,7 @@ foreach ($marker in @(
         '## Unindexed Script Prefixes',
         '`run`:',
         '## Unindexed Script Families',
-        '`run_paragraph`:',
+        '`write_pdf`:',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'
