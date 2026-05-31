@@ -3487,6 +3487,25 @@ if(WIN32)
 
             add_test(
                 NAME
+                document_api_lightweight_parser_check
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/document_api_lightweight_parser_check_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/document_api_lightweight_parser_check
+            )
+            set_tests_properties(document_api_lightweight_parser_check
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance")
+
+            add_test(
+                NAME
                 script_task_index_docs_contract
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

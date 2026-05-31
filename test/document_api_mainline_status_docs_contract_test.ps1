@@ -48,6 +48,7 @@ foreach ($marker in @(
         "document_api_lightweight_validation_checklist",
         "git diff --check",
         "PowerShell parser",
+        "test/document_api_lightweight_parser_check_test.ps1",
         "test/check_release_metadata_docs_test.ps1",
         "test/release_governance_warning_helper_contract_test.ps1",
         "test/build_release_blocker_rollup_report_test.ps1 -Scenario passing",
@@ -74,6 +75,8 @@ foreach ($marker in @(
 foreach ($marker in @(
         "document_api_mainline_status_docs_contract",
         "document_api_mainline_status_docs_contract_test.ps1",
+        "document_api_lightweight_parser_check",
+        "document_api_lightweight_parser_check_test.ps1",
         "TIMEOUT 60",
         'LABELS "docs;smoke;governance"'
     )) {

@@ -157,7 +157,9 @@ PDF 渲染或完整构建。
 第一阶段固定入口：
 
 1. ``git diff --check``。
-2. PowerShell parser 检查关键脚本，确认语法层面没有破坏。
+2. PowerShell parser 检查关键脚本，确认语法层面没有破坏；该轻量入口已固化为
+   ``test/document_api_lightweight_parser_check_test.ps1``，只解析 release governance
+   与文档治理脚本 / 测试，不启动 CMake、Office、PDF 渲染或完整 CTest。
 3. ``test/check_release_metadata_docs_test.ps1``。
 4. ``test/release_governance_warning_helper_contract_test.ps1``。
 5. ``test/build_release_blocker_rollup_report_test.ps1 -Scenario passing``。
