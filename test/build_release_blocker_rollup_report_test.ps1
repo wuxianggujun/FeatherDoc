@@ -1847,6 +1847,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF floating table supported geometry percentage."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_tracked_geometry_count=9" `
         -Message "Markdown should include PDF floating table tracked geometry count."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_support_coverage" `
+        -Message "Markdown should include PDF floating table support coverage summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "review metadata-only ``tblpPr`` fields" `
+        -Message "Markdown should include PDF floating table reviewer focus guidance."
     Assert-ContainsText -Text $markdown -ExpectedText "floating_table_plans_pending(count=3, penalty=14)" `
         -Message "Markdown should include table layout delivery penalty summary."
     Assert-ContainsText -Text $markdown -ExpectedText "review_source_table_position_plan" `

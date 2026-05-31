@@ -4021,6 +4021,17 @@ function Add-ReleaseGovernanceMetricDetailLines {
         [void]$Lines.Add("  - details: $($detailParts -join ', ')")
     }
 
+    $pdfFloatingTableSupportedGeometryCount = Get-ReleaseBlockerIntPropertyValue -Object $details -Name "pdf_floating_table_supported_geometry_count"
+    $pdfFloatingTableMetadataOnlyCount = Get-ReleaseBlockerIntPropertyValue -Object $details -Name "pdf_floating_table_metadata_only_count"
+    $pdfFloatingTableTrackedGeometryCount = Get-ReleaseBlockerIntPropertyValue -Object $details -Name "pdf_floating_table_tracked_geometry_count"
+    $pdfFloatingTableSupportedGeometryPercent = Get-ReleaseBlockerIntPropertyValue -Object $details -Name "pdf_floating_table_supported_geometry_percent"
+    if ($pdfFloatingTableTrackedGeometryCount -gt 0) {
+        [void]$Lines.Add("  - pdf_floating_table_support_coverage: $pdfFloatingTableSupportedGeometryCount/$pdfFloatingTableTrackedGeometryCount supported ($pdfFloatingTableSupportedGeometryPercent%); metadata_only=$pdfFloatingTableMetadataOnlyCount")
+        if ($pdfFloatingTableSupportedGeometryPercent -lt 100) {
+            [void]$Lines.Add("  - pdf_floating_table_reviewer_focus: review metadata-only tblpPr fields before approving PDF-layout-sensitive release.")
+        }
+    }
+
     foreach ($fieldName in @("catalog_document_keys", "baseline_document_keys", "matched_document_keys")) {
         $values = @(
             Get-ReleaseBlockerArrayProperty -Object $details -Name $fieldName |
