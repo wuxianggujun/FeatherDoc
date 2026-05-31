@@ -143,6 +143,9 @@ if ($passingSummary.status -ne "passed") {
 if ($passingSummary.schema -ne "featherdoc.script_task_index_check.v1") {
     throw "Unexpected script task index summary schema: $($passingSummary.schema)"
 }
+if ($passingSummary.summary_schema_version -ne 1) {
+    throw "Unexpected script task index summary schema version: $($passingSummary.summary_schema_version)"
+}
 if ($passingSummary.checker_name -ne "check_script_task_index.ps1") {
     throw "Unexpected checker name: $($passingSummary.checker_name)"
 }
@@ -155,6 +158,12 @@ if ($passingSummary.powershell_version -notmatch '^\d+\.\d+') {
 }
 if ($passingSummary.output_encoding -ne "UTF-8 without BOM") {
     throw "Unexpected script task index output encoding: $($passingSummary.output_encoding)"
+}
+if ($passingSummary.summary_json_path -ne $passingSummaryJson) {
+    throw "Unexpected summary JSON path: $($passingSummary.summary_json_path)"
+}
+if ($passingSummary.summary_json_relative_path -notmatch [regex]::Escape("passing-summary.json")) {
+    throw "Unexpected summary JSON relative path: $($passingSummary.summary_json_relative_path)"
 }
 if ($passingSummary.report_markdown_path -ne $passingReportMarkdown) {
     throw "Unexpected Markdown report path: $($passingSummary.report_markdown_path)"
@@ -266,6 +275,8 @@ foreach ($marker in @(
         '- duplicate_script_reference_count: `0`',
         '- missing_script_count: `0`',
         '- missing_marker_count: `0`',
+        '- summary_json:',
+        '- report_markdown:',
         '## Checked Scripts',
         '## Documentation Entry Points',
         '`README.md`: 2 markers',
