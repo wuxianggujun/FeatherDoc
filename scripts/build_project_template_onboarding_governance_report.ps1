@@ -21,6 +21,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $onboardingGovernanceSchema = "featherdoc.project_template_onboarding_governance_report.v1"
+$onboardingPlanSchema = "featherdoc.project_template_smoke_onboarding_plan.v1"
+$onboardingSummarySchema = "featherdoc.project_template_onboarding_summary.v1"
 $onboardingGovernanceOpenCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1"
 
 function Write-Step {
@@ -245,6 +247,17 @@ function Get-EvidenceKind {
         $Json,
         [string]$Path
     )
+
+    $schema = Get-JsonString -Object $Json -Name "schema"
+    if ($schema -eq $onboardingPlanSchema) {
+        return "onboarding_plan"
+    }
+    if ($schema -eq $onboardingSummarySchema) {
+        return "onboarding_summary"
+    }
+    if ($schema -eq "featherdoc.project_template_smoke_summary.v1") {
+        return "project_template_smoke_summary"
+    }
 
     $leaf = [System.IO.Path]::GetFileName($Path)
     if ($null -ne (Get-JsonProperty -Object $Json -Name "onboarding_entry_count") -and

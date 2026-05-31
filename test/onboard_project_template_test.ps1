@@ -64,6 +64,10 @@ $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFr
 $startHere = Get-Content -Raw -Encoding UTF8 -LiteralPath $startHerePath
 $manualReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $manualReviewPath
 
+Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.project_template_onboarding_summary.v1" `
+    -Message "Onboarding summary should expose a stable schema."
+Assert-Equal -Actual ([int]$summary.summary_schema_version) -Expected 1 `
+    -Message "Onboarding summary should expose summary_schema_version=1."
 Assert-Equal -Actual $summary.status -Expected "planned" `
     -Message "Plan-only onboarding should report planned status."
 Assert-Equal -Actual $summary.plan_only -Expected $true `

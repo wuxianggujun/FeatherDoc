@@ -85,6 +85,8 @@ $onboardingPlanPath = Join-Path $evidenceRoot "plan\plan.json"
 $smokeSummaryPath = Join-Path $evidenceRoot "smoke\summary.json"
 
 Write-JsonFile -Path $onboardingSummaryPath -Value ([ordered]@{
+    schema = "featherdoc.project_template_onboarding_summary.v1"
+    summary_schema_version = 1
     template_name = "invoice-template"
     input_docx = "samples/invoice.docx"
     schema_approval_state = [ordered]@{
@@ -127,6 +129,8 @@ Write-JsonFile -Path $onboardingSummaryPath -Value ([ordered]@{
 })
 
 Write-JsonFile -Path $onboardingPlanPath -Value ([ordered]@{
+    schema = "featherdoc.project_template_smoke_onboarding_plan.v1"
+    summary_schema_version = 1
     onboarding_entry_count = 1
     entries = @(
         [ordered]@{

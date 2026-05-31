@@ -25,6 +25,8 @@ $ErrorActionPreference = "Stop"
 
 $deliveryReadinessSchema = "featherdoc.project_template_delivery_readiness_report.v1"
 $onboardingGovernanceSchema = "featherdoc.project_template_onboarding_governance_report.v1"
+$onboardingPlanSchema = "featherdoc.project_template_smoke_onboarding_plan.v1"
+$onboardingSummarySchema = "featherdoc.project_template_onboarding_summary.v1"
 $projectTemplateSmokeSummarySchema = "featherdoc.project_template_smoke_summary.v1"
 $deliveryReadinessOpenCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
 
@@ -188,6 +190,12 @@ function Get-EvidenceKind {
     }
     if ($schema -eq "featherdoc.project_template_smoke_manifest_description.v1") {
         return "project_template_smoke_manifest_description"
+    }
+    if ($schema -eq $onboardingPlanSchema) {
+        return "onboarding_plan"
+    }
+    if ($schema -eq $onboardingSummarySchema) {
+        return "onboarding_summary"
     }
     if ($schema -eq $projectTemplateSmokeSummarySchema) {
         return "project_template_smoke_summary"

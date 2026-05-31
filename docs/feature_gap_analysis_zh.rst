@@ -136,7 +136,9 @@ release governance handoff 现在也会把归一化后的 blocker、warning 与 
 - ``scripts/onboard_project_template.ps1`` 可为单个业务模板生成一站式 onboarding
   bundle，包含 schema candidate、临时 smoke manifest、可填写 data skeleton、
   smoke summary、人工复核文档和 ``repair/`` 工作区；``onboarding_summary.json``
-  会明确暴露 schema approval 状态、release blocker、action item 和人工复核建议
+  会固定 ``featherdoc.project_template_onboarding_summary.v1`` /
+  ``summary_schema_version = 1``，并明确暴露 schema approval 状态、release
+  blocker、action item 和人工复核建议
 - ``scripts/new_project_template_smoke_onboarding_plan.ps1`` 可在不改 manifest 的前提下，
   从候选发现、schema baseline、render data skeleton 和视觉 smoke 入口生成接入计划，
   输出固定 ``featherdoc.project_template_smoke_onboarding_plan.v1`` /

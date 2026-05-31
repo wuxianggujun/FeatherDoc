@@ -840,6 +840,8 @@ $manualReviewRecommendations = New-ManualReviewRecommendations `
     -SmokeSummaryPath $smokeSummaryPath `
     -ValidationReportPath $validationReportPath
 
+$summary["summary_schema_version"] = 1
+$summary["schema"] = "featherdoc.project_template_onboarding_summary.v1"
 $summary["generated_at"] = (Get-Date).ToString("s")
 $summary["status"] = $status
 $summary["plan_only"] = $PlanOnly.IsPresent

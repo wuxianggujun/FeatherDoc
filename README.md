@@ -900,8 +900,10 @@ from JSON files via `-TemplateValidationsFile` and
 review, run `scripts/onboard_project_template.ps1` to create a one-stop
 onboarding bundle with a schema candidate, temporary smoke manifest,
 render-data workspace, completeness report, `START_HERE.zh-CN.md`, and manual
-review checklist. It is non-mutating for committed manifests unless you pass
-`-RegisterManifest`. Before adding many real templates at once, run
+review checklist. Its `onboarding_summary.json` uses
+`featherdoc.project_template_onboarding_summary.v1` with
+`summary_schema_version = 1`, and it is non-mutating for committed manifests
+unless you pass `-RegisterManifest`. Before adding many real templates at once, run
 `scripts/new_project_template_smoke_onboarding_plan.ps1` for a non-mutating
 onboarding plan that combines candidate discovery with per-template
 `freeze_template_schema_baseline.ps1`, render-data workspace preparation,
