@@ -281,6 +281,41 @@ function Get-ScriptNamePrefixSummary {
     )
 }
 
+function Get-ScriptNameFamily {
+    param([string]$RelativePath)
+
+    $fileName = [System.IO.Path]::GetFileNameWithoutExtension($RelativePath)
+    if ([string]::IsNullOrWhiteSpace($fileName)) {
+        return "(unknown)"
+    }
+
+    $parts = @($fileName -split "_" | Where-Object {
+            -not [string]::IsNullOrWhiteSpace([string]$_)
+        })
+    if ($parts.Count -lt 2) {
+        return $fileName
+    }
+
+    return "$($parts[0])_$($parts[1])"
+}
+
+function Get-ScriptNameFamilySummary {
+    param([string[]]$Scripts)
+
+    return @(
+        $Scripts |
+            Group-Object -Property { Get-ScriptNameFamily -RelativePath ([string]$_) } |
+            Sort-Object Count, Name -Descending |
+            ForEach-Object {
+                [pscustomobject]@{
+                    family = $_.Name
+                    script_count = $_.Count
+                    scripts = @($_.Group | Sort-Object)
+                }
+            }
+    )
+}
+
 function Get-MissingMarkers {
     param(
         [string]$Text,
@@ -317,6 +352,7 @@ function New-MarkdownReport {
         [object[]]$ScriptReferenceGroups,
         [object[]]$ScriptReferenceExtensions,
         [object[]]$UnindexedScriptPrefixes,
+        [object[]]$UnindexedScriptFamilies,
         [object[]]$MissingMarkers
     )
 
@@ -338,6 +374,7 @@ function New-MarkdownReport {
     $lines.Add("- script_reference_extension_count: ``$($Summary.script_reference_extension_count)``")
     $lines.Add("- unindexed_script_count: ``$($Summary.unindexed_script_count)``")
     $lines.Add("- unindexed_script_prefix_count: ``$($Summary.unindexed_script_prefix_count)``")
+    $lines.Add("- unindexed_script_family_count: ``$($Summary.unindexed_script_family_count)``")
     $lines.Add("- duplicate_script_reference_count: ``$($Summary.duplicate_script_reference_count)``")
     $lines.Add("- missing_script_count: ``$($Summary.missing_script_count)``")
     $lines.Add("- required_marker_count: ``$($Summary.required_marker_count)``")
@@ -397,6 +434,17 @@ function New-MarkdownReport {
     } else {
         foreach ($prefix in $UnindexedScriptPrefixes) {
             $lines.Add("- ``$($prefix.prefix)``: $($prefix.script_count)")
+        }
+    }
+
+    $lines.Add("")
+    $lines.Add("## Unindexed Script Families")
+    $lines.Add("")
+    if ($UnindexedScriptFamilies.Count -eq 0) {
+        $lines.Add("- none")
+    } else {
+        foreach ($family in $UnindexedScriptFamilies) {
+            $lines.Add("- ``$($family.family)``: $($family.script_count)")
         }
     }
 
@@ -485,6 +533,7 @@ $scriptReferenceExtensions = @(Get-ScriptReferenceExtensionSummary -References $
 $repositoryScripts = @(Get-RepositoryScripts -Root $resolvedRepoRoot)
 $unindexedScripts = @(Get-UnindexedScripts -RepositoryScripts $repositoryScripts -IndexedScripts $scriptReferences)
 $unindexedScriptPrefixes = @(Get-ScriptNamePrefixSummary -Scripts $unindexedScripts)
+$unindexedScriptFamilies = @(Get-ScriptNameFamilySummary -Scripts $unindexedScripts)
 
 $checkedScripts = @(
     $scriptReferences | ForEach-Object {
@@ -579,6 +628,7 @@ $duplicateScriptReferenceEntries = @($duplicateScriptReferences)
 $scriptReferenceGroupEntries = @($scriptReferenceGroups)
 $scriptReferenceExtensionEntries = @($scriptReferenceExtensions)
 $unindexedScriptPrefixEntries = @($unindexedScriptPrefixes)
+$unindexedScriptFamilyEntries = @($unindexedScriptFamilies)
 $documentationEntryPointEntries = @($documentationEntryPoints)
 
 $summary = [ordered]@{
@@ -609,6 +659,8 @@ $summary = [ordered]@{
     unindexed_scripts = @($unindexedScripts)
     unindexed_script_prefix_count = $unindexedScriptPrefixes.Count
     unindexed_script_prefixes = $unindexedScriptPrefixEntries
+    unindexed_script_family_count = $unindexedScriptFamilies.Count
+    unindexed_script_families = $unindexedScriptFamilyEntries
     duplicate_script_reference_count = $duplicateScriptReferences.Count
     duplicate_script_references = $duplicateScriptReferenceEntries
     missing_script_count = $missingScripts.Count
@@ -628,6 +680,7 @@ Write-Utf8NoBomFile -Path $reportMarkdownPath -Text (New-MarkdownReport `
         -ScriptReferenceGroups $scriptReferenceGroupEntries `
         -ScriptReferenceExtensions $scriptReferenceExtensionEntries `
         -UnindexedScriptPrefixes $unindexedScriptPrefixEntries `
+        -UnindexedScriptFamilies $unindexedScriptFamilyEntries `
         -MissingMarkers $missingMarkerEntries)
 
 if ($status -ne "passed") {

@@ -207,6 +207,19 @@ $passingUnindexedPrefixScriptCount = [int](($passingUnindexedScriptPrefixes |
 if ($passingUnindexedPrefixScriptCount -ne $passingSummary.unindexed_script_count) {
     throw "Unindexed script prefix script total does not match unindexed script count."
 }
+$passingUnindexedScriptFamilies = @($passingSummary.unindexed_script_families)
+if ($passingSummary.unindexed_script_family_count -ne $passingUnindexedScriptFamilies.Count) {
+    throw "Unindexed script family count does not match unindexed_script_families length."
+}
+if ($passingSummary.unindexed_script_family_count -le $passingSummary.unindexed_script_prefix_count) {
+    throw "Unindexed script family summary should refine the coarser prefix summary."
+}
+$passingUnindexedFamilyScriptCount = [int](($passingUnindexedScriptFamilies |
+            ForEach-Object { $_.script_count } |
+            Measure-Object -Sum).Sum)
+if ($passingUnindexedFamilyScriptCount -ne $passingSummary.unindexed_script_count) {
+    throw "Unindexed script family script total does not match unindexed script count."
+}
 if ($passingSummary.repository_script_count -ne ($passingSummary.script_reference_count + $passingSummary.unindexed_script_count)) {
     throw "Repository script count should equal indexed plus unindexed scripts when no indexed scripts are missing."
 }
@@ -320,6 +333,18 @@ Assert-ArrayContains `
     -Values @($passingUnindexedScriptPrefixes | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
     -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
     -Message "Unindexed script prefix summary should retain script paths."
+Assert-ArrayContains `
+    -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.family }) `
+    -ExpectedValue "run_template" `
+    -Message "Unindexed script family summary should split run_* entries into families."
+Assert-ArrayContains `
+    -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.family }) `
+    -ExpectedValue "run_table" `
+    -Message "Unindexed script family summary should expose table visual regression pressure."
+Assert-ArrayContains `
+    -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
+    -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
+    -Message "Unindexed script family summary should retain script paths."
 foreach ($marker in @(
         '# Script Task Index Check',
         '- schema: `featherdoc.script_task_index_check.v1`',
@@ -334,6 +359,7 @@ foreach ($marker in @(
         '- script_reference_extension_count:',
         '- unindexed_script_count:',
         '- unindexed_script_prefix_count:',
+        '- unindexed_script_family_count:',
         '- duplicate_script_reference_count: `0`',
         '- missing_script_count: `0`',
         '- missing_marker_count: `0`',
@@ -351,6 +377,8 @@ foreach ($marker in @(
         'build_image_contact_sheet.py',
         '## Unindexed Script Prefixes',
         '`run`:',
+        '## Unindexed Script Families',
+        '`run_template`:',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'
