@@ -245,6 +245,8 @@ Word 视觉验证与人工复核
 - ``scripts/run_word_visual_release_gate.ps1``：运行完整 Word visual release gate。
 - ``scripts/check_word_visual_release_gate_preflight.ps1``：只读检查 release gate
   前置条件，不启动 Word。
+- ``scripts/run_page_number_fields_regression.ps1``：运行页码字段回归 bundle。
+- ``scripts/run_page_number_fields_visual_regression.ps1``：运行页码字段视觉回归。
 - ``scripts/prepare_word_review_task.ps1``：准备人工视觉复核任务。
 - ``scripts/open_latest_word_review_task.ps1``：打开最新复核任务。
 - ``scripts/open_latest_fixed_grid_review_task.ps1``：打开最新 fixed-grid 复核任务。
