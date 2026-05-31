@@ -218,6 +218,34 @@ Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing visual ba
     -Message "PDF preflight build-output blocker should include the missing visual baseline count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing CJK text-layer PDFs=43" `
     -Message "PDF preflight build-output blocker should include the missing CJK text-layer count."
+
+$schemaCalibrationBlocker = [pscustomobject]@{
+    id = "schema_patch_confidence_calibration.pending_schema_approvals"
+    source = "schema_patch_confidence_calibration"
+    severity = "error"
+    status = "blocked"
+    action = "resolve_pending_schema_approvals"
+    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+    source_report_display = ".\output\schema-patch-confidence-calibration\schema_patch_confidence_calibration.md"
+    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+    command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1 -ReportRoot .\output\schema-patch-confidence-calibration"
+}
+$schemaCalibrationGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $schemaCalibrationBlocker `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $schemaCalibrationGuidance -ExpectedText "resolve_pending_schema_approvals" `
+    -Message "Schema patch confidence calibration blocker should render its fixed action runbook."
+Assert-ContainsText -Text $schemaCalibrationGuidance -ExpectedText "schema patch approval outcome" `
+    -Message "Schema patch confidence calibration runbook should explain pending approval remediation."
+Assert-ContainsText -Text $schemaCalibrationGuidance -ExpectedText ".\output\schema-patch-confidence-calibration\schema_patch_confidence_calibration.md" `
+    -Message "Schema patch confidence calibration runbook should point at the report."
+Assert-ContainsText -Text $schemaCalibrationGuidance -ExpectedText ".\output\schema-patch-confidence-calibration\summary.json" `
+    -Message "Schema patch confidence calibration runbook should point at source JSON evidence."
+Assert-ContainsText -Text $schemaCalibrationGuidance -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+    -Message "Schema patch confidence calibration runbook should point at the calibration writer."
+Assert-ContainsText -Text $schemaCalibrationGuidance -ExpectedText "regenerate the release note bundle" `
+    -Message "Schema patch confidence calibration runbook should tell reviewers to refresh release materials."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "output gap checks=3" `
     -Message "PDF preflight build-output blocker should include the output gap group count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing outputs=87" `

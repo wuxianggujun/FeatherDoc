@@ -812,10 +812,14 @@ function Get-PdfVisualPreflightReadinessActionEvidenceLine {
 function Get-ReleaseBlockerRegisteredActions {
     return @(
         "complete_visual_manual_review",
+        "add_explicit_confidence_metadata",
         "fix_schema_patch_approval_result",
+        "fix_invalid_approval_records",
         "prepare_pdf_visual_release_gate_build_outputs",
         "rerun_pdf_controlled_visual_smoke_check",
         "rerun_pdf_visual_release_gate_preflight",
+        "resolve_pending_schema_approvals",
+        "review_schema_patch_confidence_calibration_evidence",
         "restore_docx_functional_smoke_evidence"
     )
 }
@@ -950,6 +954,69 @@ function Add-DocxFunctionalSmokeEvidenceGuidanceLines {
     }
 }
 
+function Add-SchemaPatchConfidenceCalibrationGuidanceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item,
+        [string]$RepoRoot = "",
+        [string]$ReleaseSummaryJson = "",
+        [string]$ContextText = ""
+    )
+
+    $action = Get-ReleaseBlockerPropertyValue -Object $Item -Name "action"
+    $contextSuffix = if ([string]::IsNullOrWhiteSpace($ContextText)) { "" } else { " $ContextText" }
+
+    switch ($action) {
+        "resolve_pending_schema_approvals" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `resolve_pending_schema_approvals`{0}: review pending schema patch approval outcome(s), write an explicit approval decision, reviewer, and reviewed_at, then rerun schema patch confidence calibration.' -f $contextSuffix)
+            break
+        }
+        "fix_invalid_approval_records" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `fix_invalid_approval_records`{0}: repair invalid schema patch approval record(s), including missing reviewer or reviewed_at for non-pending decisions, then rerun schema patch confidence calibration.' -f $contextSuffix)
+            break
+        }
+        "add_explicit_confidence_metadata" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `add_explicit_confidence_metadata`{0}: add explicit confidence metadata for unscored schema patch candidate(s), then rerun schema patch confidence calibration.' -f $contextSuffix)
+            break
+        }
+        default {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_schema_patch_confidence_calibration_evidence`{0}: review schema patch confidence calibration evidence, then rerun the calibration report.' -f $contextSuffix)
+        }
+    }
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Open the schema patch confidence calibration report first: {0}" -f $sourceReportDisplay)
+    }
+
+    $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Inspect the schema patch confidence calibration JSON before editing evidence: {0}" -f $sourceJsonDisplay)
+    }
+
+    $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "open_command"
+    }
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1'
+    }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Run the schema patch confidence calibration command after updating evidence: `{0}`' -f $commandTemplate)
+
+    $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    if ([string]::IsNullOrWhiteSpace($releaseSummaryDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'After calibration evidence is passing, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle before publishing.'
+    } else {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('After calibration evidence is passing, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)
+    }
+}
+
 function Get-ReleaseBlockerActionGuidanceLines {
     param(
         [AllowNull()]$Blocker,
@@ -981,6 +1048,19 @@ function Get-ReleaseBlockerActionGuidanceLines {
         }
         "complete_visual_manual_review" {
             Add-ReleaseBlockerActionGuidanceLine -Lines $guidanceLines -Text 'Use action `complete_visual_manual_review`: open the referenced visual review task, record the reviewer verdict and reviewed_at, then resync the visual verdict metadata before public release.'
+            break
+        }
+        { $_ -in @(
+                "resolve_pending_schema_approvals",
+                "fix_invalid_approval_records",
+                "add_explicit_confidence_metadata",
+                "review_schema_patch_confidence_calibration_evidence"
+            ) } {
+            Add-SchemaPatchConfidenceCalibrationGuidanceLines `
+                -Lines $guidanceLines `
+                -Item $Blocker `
+                -RepoRoot $RepoRoot `
+                -ReleaseSummaryJson $ReleaseSummaryJson
             break
         }
         "prepare_pdf_visual_release_gate_build_outputs" {
@@ -2857,6 +2937,18 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             -Text 'After each PDF preflight or gate attempt, clean up only task-owned PDF gate processes and transient outputs after capturing the required evidence; do not terminate unrelated external build, Office, browser, node, or PowerShell processes.'
     } elseif ([string]::Equals($action, "restore_docx_functional_smoke_evidence", [System.StringComparison]::OrdinalIgnoreCase)) {
         Add-DocxFunctionalSmokeEvidenceGuidanceLines `
+            -Lines $guidanceLines `
+            -Item $Item `
+            -RepoRoot $RepoRoot `
+            -ReleaseSummaryJson $ReleaseSummaryJson `
+            -ContextText ('for release governance {0} `{1}`' -f $ItemKind, $id)
+    } elseif ($action -in @(
+            "resolve_pending_schema_approvals",
+            "fix_invalid_approval_records",
+            "add_explicit_confidence_metadata",
+            "review_schema_patch_confidence_calibration_evidence"
+        )) {
+        Add-SchemaPatchConfidenceCalibrationGuidanceLines `
             -Lines $guidanceLines `
             -Item $Item `
             -RepoRoot $RepoRoot `

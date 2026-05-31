@@ -302,6 +302,12 @@ recommendation 会同步成 ``action_items`` 并携带重建校准报告的 ``op
 默认 auto-discovery、release governance pipeline 和 handoff 都会读取
 ``schema-patch-confidence-calibration/summary.json``，因此 reviewer 可以在发布面板
 中直接看到校准 blocker / warning / action item 的 ``source_schema`` 与证据 JSON。
+其中 ``resolve_pending_schema_approvals``、``fix_invalid_approval_records``、
+``add_explicit_confidence_metadata`` 和
+``review_schema_patch_confidence_calibration_evidence`` 都映射到固定 reviewer
+runbook：先打开 ``source_report_display`` 与 ``source_json_display``，修复审批或置信度
+证据，再重跑 ``write_schema_patch_confidence_calibration_report.ps1`` 并刷新 release
+governance / release note bundle。
 
 编号真实语料治理会写出 ``featherdoc.numbering_catalog_governance_report.v1``，
 默认产物为 ``output/numbering-catalog-governance/summary.json``。当 catalog
