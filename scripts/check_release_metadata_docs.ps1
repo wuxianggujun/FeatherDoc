@@ -212,6 +212,7 @@ function Write-SummaryJson {
         required_policy_marker_count = $PolicyMarkers.Count
         required_entrypoint_marker_count = $EntrypointMarkers.Count
         checked_documents = $CheckedDocuments
+        checked_document_labels = @($CheckedDocuments | ForEach-Object { $_.label })
         checked_document_relative_paths = @($CheckedDocuments | ForEach-Object { $_.relative_path })
         required_pipeline_markers = $PipelineMarkers
         required_checklist_markers = $ChecklistMarkers
@@ -414,6 +415,7 @@ $checklistExpectedMarkers = @(
     '``featherdoc.word_visual_release_gate_preflight.v1``',
     '``word_visual_release_gate_preflight_static_contract_only``',
     '``checked_documents[]``',
+    "checked_document_labels",
     "checked_document_relative_paths",
     '``output_encoding``',
     "UTF-8 without BOM",
