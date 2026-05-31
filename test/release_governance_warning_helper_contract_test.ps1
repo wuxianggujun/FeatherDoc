@@ -1015,6 +1015,44 @@ foreach ($expectedText in @(
         -Message "Compact project-template checklist packaged audit evidence line should include '$expectedText'."
 }
 
+$sourceFirstProjectTemplateChecklistMaterialAuditSourceReport = [pscustomobject]@{
+    schema = "featherdoc.release_candidate_summary"
+    path_display = ".\output\release-candidate-checks-source\summary.json"
+    release_entry_project_template_readiness_checklist_material_safety_audit_status = "source-only"
+    release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count = 0
+}
+$sourceFirstProjectTemplateChecklistMaterialAuditFinalReport = [pscustomobject]@{
+    schema = "featherdoc.release_candidate_summary"
+    path_display = ".\output\release-candidate-checks\report\summary.json"
+    release_entry_project_template_readiness_checklist_material_safety_audit_status = "passed"
+    release_entry_project_template_readiness_checklist_material_safety_audit_script = ".\scripts\assert_release_material_safety.ps1"
+    release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count = 3
+    release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints = @("start_here", "artifact_guide", "reviewer_checklist")
+    release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label = "Project-template readiness checklist handoff evidence"
+    release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field = "project_template_readiness_checklist_entrypoints_source_reports"
+    release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema = "featherdoc.release_candidate_summary"
+    release_entry_project_template_readiness_checklist_material_safety_audit_checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+    release_entry_project_template_readiness_checklist_material_safety_audit_checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+    release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker = "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+}
+$sourceFirstProjectTemplateChecklistMaterialAuditEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceLine -Summary ([pscustomobject]@{
+        release_governance_handoff = [pscustomobject]@{
+            release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count = 2
+            release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @(
+                $sourceFirstProjectTemplateChecklistMaterialAuditSourceReport,
+                $sourceFirstProjectTemplateChecklistMaterialAuditFinalReport
+            )
+        }
+    })
+Assert-ContainsText -Text $sourceFirstProjectTemplateChecklistMaterialAuditEvidenceLine `
+    -ExpectedText "source_report=.\output\release-candidate-checks\report\summary.json" `
+    -Message "Compact project-template checklist packaged audit evidence line should prefer the final release candidate report."
+Assert-DoesNotContainText -Text $sourceFirstProjectTemplateChecklistMaterialAuditEvidenceLine `
+    -UnexpectedText "source_report=.\output\release-candidate-checks-source\summary.json" `
+    -Message "Compact project-template checklist packaged audit evidence line should not select source-only report paths."
+Assert-ContainsText -Text $sourceFirstProjectTemplateChecklistMaterialAuditEvidenceLine -ExpectedText "status=passed" `
+    -Message "Compact project-template checklist packaged audit evidence line should use metadata from the final report."
+
 $wordVisualMetadataEvidenceLine = Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary ([pscustomobject]@{
         release_governance_handoff = [pscustomobject]@{
             word_visual_standard_review_metadata_source_report_count = 1
@@ -1043,6 +1081,41 @@ foreach ($expectedText in @(
 }
 Assert-DoesNotContainText -Text $wordVisualMetadataEvidenceLine -UnexpectedText "review_note" `
     -Message "Compact Word visual standard review metadata evidence line should not expose review notes."
+
+$sourceFirstWordVisualMetadataSourceReport = [pscustomobject]@{
+    schema = "featherdoc.release_candidate_summary"
+    path_display = ".\output\release-candidate-checks-source\summary.json"
+    word_visual_standard_review_metadata_count = 0
+    word_visual_standard_review_task_keys = @("source_only")
+    word_visual_standard_review_status_summary = "reviewed=0"
+    word_visual_standard_review_verdict_summary = "pass=0"
+}
+$sourceFirstWordVisualMetadataFinalReport = [pscustomobject]@{
+    schema = "featherdoc.release_candidate_summary"
+    path_display = ".\output\release-candidate-checks\report\summary.json"
+    word_visual_standard_review_metadata_count = 4
+    word_visual_standard_review_task_keys = @("smoke", "fixed_grid", "section_page_setup", "page_number_fields")
+    word_visual_standard_review_status_summary = "reviewed=4"
+    word_visual_standard_review_verdict_summary = "pass=4"
+    word_visual_standard_review_metadata = $wordVisualStandardReviewMetadataSourceReport.word_visual_standard_review_metadata
+}
+$sourceFirstWordVisualMetadataEvidenceLine = Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary ([pscustomobject]@{
+        release_governance_handoff = [pscustomobject]@{
+            word_visual_standard_review_metadata_source_report_count = 2
+            word_visual_standard_review_metadata_source_reports = @(
+                $sourceFirstWordVisualMetadataSourceReport,
+                $sourceFirstWordVisualMetadataFinalReport
+            )
+        }
+    })
+Assert-ContainsText -Text $sourceFirstWordVisualMetadataEvidenceLine `
+    -ExpectedText "source_report=.\output\release-candidate-checks\report\summary.json" `
+    -Message "Compact Word visual metadata evidence line should prefer the final release candidate report."
+Assert-DoesNotContainText -Text $sourceFirstWordVisualMetadataEvidenceLine `
+    -UnexpectedText "source_report=.\output\release-candidate-checks-source\summary.json" `
+    -Message "Compact Word visual metadata evidence line should not select source-only report paths."
+Assert-ContainsText -Text $sourceFirstWordVisualMetadataEvidenceLine -ExpectedText "metadata_count=4" `
+    -Message "Compact Word visual metadata evidence line should use metadata from the final report."
 
 $actionChecklistItems = @(Get-ReleaseGovernanceActionItemChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{
