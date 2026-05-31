@@ -2096,6 +2096,50 @@ $releaseAssetsManifestSignoffPath = if ([string]::IsNullOrWhiteSpace($projectVer
 } else {
     Join-Path (Join-Path "output\release-assets" ("v{0}" -f $projectVersion)) "release_assets_manifest.json"
 }
+$releaseNoteBundleEntrypoints = @(
+    [ordered]@{
+        id = "start_here"
+        path = $startHerePath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $startHerePath
+        location = "summary_root"
+        required = $true
+    },
+    [ordered]@{
+        id = "artifact_guide"
+        path = $artifactGuidePath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $artifactGuidePath
+        location = "report"
+        required = $true
+    },
+    [ordered]@{
+        id = "reviewer_checklist"
+        path = $reviewerChecklistPath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $reviewerChecklistPath
+        location = "report"
+        required = $true
+    },
+    [ordered]@{
+        id = "release_handoff"
+        path = $releaseHandoffPath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseHandoffPath
+        location = "report"
+        required = $true
+    },
+    [ordered]@{
+        id = "release_body_zh_cn"
+        path = $releaseBodyZhCnPath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseBodyZhCnPath
+        location = "report"
+        required = $true
+    },
+    [ordered]@{
+        id = "release_summary_zh_cn"
+        path = $releaseSummaryZhCnPath
+        path_display = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseSummaryZhCnPath
+        location = "report"
+        required = $true
+    }
+)
 $manifestSignoffEntrypoints = @(
     [ordered]@{
         id = "start_here"
@@ -2428,6 +2472,15 @@ $summary = [ordered]@{
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
+    release_note_bundle = [ordered]@{
+        status = "declared"
+        output_root = $resolvedSummaryOutputDir
+        report_dir = $reportDir
+        entrypoint_count = @($releaseNoteBundleEntrypoints).Count
+        required_entrypoint_count = @($releaseNoteBundleEntrypoints).Count
+        entrypoint_ids = @($releaseNoteBundleEntrypoints | ForEach-Object { [string]$_["id"] })
+        entrypoints = @($releaseNoteBundleEntrypoints)
+    }
     release_evidence_scope = $ReleaseEvidenceScope
     manifest_signoff_entrypoints = $releaseManifestSignoffEntrypoints
     project_template_readiness_checklist_entrypoints = $releaseProjectTemplateReadinessChecklistEntrypoints

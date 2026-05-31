@@ -1825,7 +1825,11 @@ and surfaces them in `report/final_review.md`. `START_HERE.md`,
 `report/ARTIFACT_GUIDE.md`, `report/REVIEWER_CHECKLIST.md`,
 `report/release_handoff.md`, `report/release_body.zh-CN.md`, and
 `report/release_summary.zh-CN.md` also list smoke, fixed-grid, section/page-number,
-and curated visual verdicts when those seeded values are available.
+and curated visual verdicts when those seeded values are available. The release
+summary also exposes these six files through `release_note_bundle.entrypoints`,
+including each stable id, repo-relative display path, output location, and
+required flag, so automation can distinguish the summary-root `START_HERE.md`
+from the `report/` bundle files without parsing Markdown.
 When numbering catalog governance, table-layout delivery governance,
 content-control data-binding governance, or project-template delivery
 readiness summaries already exist, pass them through `-ReleaseBlockerRollupInputJson`

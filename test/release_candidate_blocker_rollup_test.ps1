@@ -71,6 +71,22 @@ function Assert-MarkdownListBlockContainsAll {
     throw $Message
 }
 
+function Get-ItemById {
+    param(
+        [object[]]$Items,
+        [string]$Id,
+        [string]$Label
+    )
+
+    foreach ($item in @($Items)) {
+        if ([string]$item.id -eq $Id) {
+            return $item
+        }
+    }
+
+    throw "$Label should include item id '$Id'."
+}
+
 function Write-JsonFile {
     param([string]$Path, $Value)
 
@@ -507,6 +523,37 @@ if ($Scenario -eq "handoff") {
     $handoffReleaseSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffReleaseSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$handoffReleaseSummary.msvc_bootstrap_mode) -Expected "not_required" `
         -Message "Handoff-only release candidate run should not require MSVC discovery."
+    Assert-Equal -Actual ([string]$handoffReleaseSummary.release_note_bundle.status) -Expected "declared" `
+        -Message "Release candidate summary should declare the release note bundle path contract."
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_note_bundle.entrypoint_count) -Expected 6 `
+        -Message "Release note bundle summary should list all generated bundle entrypoints."
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_note_bundle.required_entrypoint_count) -Expected 6 `
+        -Message "Release note bundle summary should mark all bundle entrypoints required."
+    Assert-Equal -Actual ([int](@($handoffReleaseSummary.release_note_bundle.entrypoint_ids).Count)) -Expected 6 `
+        -Message "Release note bundle summary should expose stable entrypoint ids."
+    Assert-Equal -Actual ([int](@($handoffReleaseSummary.release_note_bundle.entrypoints).Count)) -Expected 6 `
+        -Message "Release note bundle summary should expose structured entrypoint metadata."
+
+    $releaseNoteBundleEntrypoints = @($handoffReleaseSummary.release_note_bundle.entrypoints)
+    foreach ($entrypointContract in @(
+        [ordered]@{ Id = "start_here"; Location = "summary_root"; PathFragment = "START_HERE.md" },
+        [ordered]@{ Id = "artifact_guide"; Location = "report"; PathFragment = "report\ARTIFACT_GUIDE.md" },
+        [ordered]@{ Id = "reviewer_checklist"; Location = "report"; PathFragment = "report\REVIEWER_CHECKLIST.md" },
+        [ordered]@{ Id = "release_handoff"; Location = "report"; PathFragment = "report\release_handoff.md" },
+        [ordered]@{ Id = "release_body_zh_cn"; Location = "report"; PathFragment = "report\release_body.zh-CN.md" },
+        [ordered]@{ Id = "release_summary_zh_cn"; Location = "report"; PathFragment = "report\release_summary.zh-CN.md" }
+    )) {
+        $entrypoint = Get-ItemById -Items $releaseNoteBundleEntrypoints `
+            -Id ([string]$entrypointContract.Id) `
+            -Label "release_note_bundle.entrypoints"
+        Assert-Equal -Actual ([string]$entrypoint.location) -Expected ([string]$entrypointContract.Location) `
+            -Message "Release note bundle entrypoint '$($entrypointContract.Id)' should record its output location."
+        Assert-Equal -Actual ([bool]$entrypoint.required) -Expected $true `
+            -Message "Release note bundle entrypoint '$($entrypointContract.Id)' should be required."
+        Assert-ContainsText -Text ([string]$entrypoint.path_display) -ExpectedText ([string]$entrypointContract.PathFragment) `
+            -Message "Release note bundle entrypoint '$($entrypointContract.Id)' should expose a repo-relative display path."
+    }
+
     Assert-Equal -Actual ([string]$handoffReleaseSummary.release_governance_handoff.status) -Expected "blocked" `
         -Message "Release candidate summary should surface governance handoff status."
     Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.expected_report_count) -Expected 6 `

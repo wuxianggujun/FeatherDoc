@@ -161,6 +161,9 @@ regression bundle 纳入 visual gate 和 release summary。生成的
 `START_HERE.md`、`ARTIFACT_GUIDE.md`、`REVIEWER_CHECKLIST.md`、
 `release_handoff.md`、`release_body.zh-CN.md` 和 `release_summary.zh-CN.md`
 也会同步列出 smoke、fixed-grid、section/page-number 和 curated visual verdict。
+release summary 还会通过 `release_note_bundle.entrypoints` 暴露这六个文件的
+稳定 id、repo 相对展示路径、输出位置和 required 标记，让自动化不用解析
+Markdown 就能区分 summary 根目录下的 `START_HERE.md` 和 `report/` 下的 bundle 文件。
 后续若人工补写了表格样式质量结论，`sync_latest_visual_review_verdict.ps1`
 会自动吸收 `latest_table-style-quality-visual-regression-bundle_task.json`。
 当 numbering catalog governance、table-layout delivery governance、

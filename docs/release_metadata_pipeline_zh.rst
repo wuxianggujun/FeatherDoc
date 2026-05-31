@@ -96,7 +96,9 @@ task 误算进 review scope。
 
 - ``report/summary.json``：release candidate 的机器可消费总摘要。
 - ``report/final_review.md``：release candidate 的人工审阅摘要。
-- ``report`` 下的一组 release note bundle 文件路径。
+- ``release_note_bundle``：结构化列出六个 release note bundle 产物的
+  ``id``、``path``、``path_display``、``location`` 与 ``required`` 标记，
+  其中 ``START_HERE.md`` 位于 summary 输出根目录，其余文件位于 ``report``。
 
 当视觉 gate 完成后，preflight 会把 ``gate_summary.json`` 中的
 ``visual_verdict``、各 flow 的 review verdict、review status、review note、
@@ -184,6 +186,12 @@ Markdown 文件。
 - ``report/release_handoff.md``
 - ``report/release_body.zh-CN.md``
 - ``report/release_summary.zh-CN.md``
+
+``run_release_candidate_checks.ps1`` 会在 ``summary.json`` 顶层同步写出
+``release_note_bundle``，把上述六个文件作为机器可消费的路径契约暴露给 CI、
+发布面板和后续同步脚本。``entrypoint_count`` 与 ``required_entrypoint_count``
+固定为 6，``entrypoints[]`` 中每项都保留 ``path_display`` 和 ``location``，
+避免下游再从散落的平铺字段推断 ``START_HERE.md`` 与 ``report`` 目录边界。
 
 当 ``summary.json`` 顶层存在 ``release_blockers`` 时，bundle 会在
 ``START_HERE.md``、``report/ARTIFACT_GUIDE.md``、``report/REVIEWER_CHECKLIST.md``、
