@@ -118,6 +118,53 @@ function Assert-SummaryAuditFields {
     }
 }
 
+function Assert-SummaryMarkerCountsConsistent {
+    param([object]$Summary)
+
+    $markerGroups = @(
+        [pscustomobject]@{
+            Label = "pipeline"
+            CountName = "required_pipeline_marker_count"
+            ValuesName = "required_pipeline_markers"
+        },
+        [pscustomobject]@{
+            Label = "checklist"
+            CountName = "required_checklist_marker_count"
+            ValuesName = "required_checklist_markers"
+        },
+        [pscustomobject]@{
+            Label = "document governance"
+            CountName = "required_document_governance_marker_count"
+            ValuesName = "required_document_governance_markers"
+        },
+        [pscustomobject]@{
+            Label = "policy"
+            CountName = "required_policy_marker_count"
+            ValuesName = "required_policy_markers"
+        },
+        [pscustomobject]@{
+            Label = "entrypoint"
+            CountName = "required_entrypoint_marker_count"
+            ValuesName = "required_entrypoint_markers"
+        }
+    )
+
+    $categoryTotal = 0
+    foreach ($group in $markerGroups) {
+        $expectedCount = [int]$Summary.PSObject.Properties[$group.CountName].Value
+        $actualCount = @($Summary.PSObject.Properties[$group.ValuesName].Value).Count
+        if ($actualCount -ne $expectedCount) {
+            throw "Expected $($group.Label) marker array count $expectedCount, got $actualCount."
+        }
+
+        $categoryTotal += $expectedCount
+    }
+
+    if ([int]$Summary.required_marker_count -ne $categoryTotal) {
+        throw "Expected total marker count $categoryTotal, got $($Summary.required_marker_count)."
+    }
+}
+
 function Assert-SummaryFailure {
     param(
         [string]$Path,
@@ -183,6 +230,7 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
+    Assert-SummaryMarkerCountsConsistent -Summary $summary
     if ($summary.required_marker_count -ne 214) {
         throw "Expected JSON summary to count 214 required markers, got: $($summary.required_marker_count)"
     }
@@ -565,6 +613,7 @@ if ($summary.summary_schema_version -ne 1) {
     throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
 }
 Assert-SummaryAuditFields -Summary $summary
+Assert-SummaryMarkerCountsConsistent -Summary $summary
 if ($summary.checked_document_count -ne 7) {
     throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
 }
