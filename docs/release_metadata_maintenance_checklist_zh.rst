@@ -89,6 +89,23 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 - ``release_summary.zh-CN.md`` 只保留适合首屏展示的 verdict 摘要。
 - 公开材料默认经过 ``assert_release_material_safety.ps1`` 审计。
 
+涉及 ``release_note_bundle`` 或 manifest ``entrypoint path contract`` 时，必须确认：
+
+- release summary 顶层 ``release_note_bundle`` 与 ``release_assets_manifest.json``
+  中的同名结构保持一致，不能只更新其中一端。
+- ``entrypoint_count``、``required_entrypoint_count``、``entrypoint_ids`` 与
+  ``entrypoints[]`` 必须继续表达 6 个入口，且不允许额外入口绕过审计。
+- ``START_HERE.md`` 的 ``location`` 必须保持 ``summary_root``；其余
+  ``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、``release_handoff.md``、
+  ``release_body.zh-CN.md`` 与 ``release_summary.zh-CN.md`` 必须保持
+  ``report``。
+- 每个入口都必须保留 ``required``、``location`` 与 ``path_display``，避免
+  下游从平铺字段重新推断路径边界。
+- 涉及打包链路时，同时覆盖 ``package_release_assets.ps1``、
+  ``package_release_assets_safety_test.ps1``、
+  ``package_release_assets_allow_incomplete_test.ps1`` 和
+  ``assert_release_material_safety.ps1``。
+
 
 推荐测试矩阵
 ------------

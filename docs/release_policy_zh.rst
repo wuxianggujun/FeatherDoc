@@ -203,6 +203,12 @@ report：
 提供一份中文正文，``report/release_summary.zh-CN.md`` 则适合作为 GitHub Release
 首屏短摘要。后两者都会优先从 ``CHANGELOG.md`` 的 ``Unreleased`` 区块自动
 抽取“核心变化”要点。
+
+这些入口也构成 ``release_note_bundle`` 的发布路径契约：
+``package_release_assets.ps1`` 必须把同一结构带入 ``release_assets_manifest.json``，
+``assert_release_material_safety.ps1`` 必须继续校验每个入口的 ``required``、
+``location`` 与 ``path_display``，避免公开发布包丢失 reviewer 可追溯入口。
+
 这些入口页现在也会同步展示 Word visual gate 的细粒度结论：除了总
 ``visual verdict`` 外，还会写出 ``section page setup``、
 ``page number fields`` 以及每个 curated visual regression bundle 的

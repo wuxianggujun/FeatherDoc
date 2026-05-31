@@ -183,8 +183,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 166) {
-        throw "Expected JSON summary to count 166 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 190) {
+        throw "Expected JSON summary to count 190 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -303,6 +303,15 @@ $defaultPipelineText = @(
     '- word_visual_smoke.pending_manual_review',
     '- release_blocker_count',
     '- review_task_summary',
+    '- release_note_bundle',
+    '- entrypoint_count',
+    '- required_entrypoint_count',
+    '- entrypoints[]',
+    '- ``path_display``',
+    '- ``location``',
+    '- release_assets_manifest.json',
+    '- package_release_assets.ps1',
+    '- ``required``',
     '- assert_release_material_safety.ps1',
     '- -SkipMaterialSafetyAudit',
     '- release governance warning contract',
@@ -390,6 +399,14 @@ $defaultChecklistText = @(
     '- release-candidate-checks',
     '- public_release_wording_regression_test.ps1',
     '- git diff --check',
+    '- release_note_bundle',
+    '- release_assets_manifest.json',
+    '- manifest_signoff_entrypoints',
+    '- entrypoint path contract',
+    '- package_release_assets.ps1',
+    '- package_release_assets_safety_test.ps1',
+    '- package_release_assets_allow_incomplete_test.ps1',
+    '- assert_release_material_safety.ps1',
     '- release governance warning contract',
     '- warning_count',
     '- release_blocker_rollup',
@@ -464,6 +481,13 @@ $defaultPolicyText = @(
     '- report/ARTIFACT_GUIDE.md',
     '- report/REVIEWER_CHECKLIST.md',
     '- report/release_handoff.md',
+    '- release_note_bundle',
+    '- release_assets_manifest.json',
+    '- package_release_assets.ps1',
+    '- assert_release_material_safety.ps1',
+    '- ``required``',
+    '- ``location``',
+    '- ``path_display``',
     ''
 ) -join "`n"
 
@@ -520,23 +544,23 @@ Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 7) {
     throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 77) {
-    throw "Expected JSON summary pipeline marker count 77, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 86) {
+    throw "Expected JSON summary pipeline marker count 86, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 66) {
-    throw "Expected JSON summary checklist marker count 66, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 74) {
+    throw "Expected JSON summary checklist marker count 74, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 10) {
     throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
 }
-if ($summary.required_policy_marker_count -ne 11) {
-    throw "Expected JSON summary policy marker count 11, got: $($summary.required_policy_marker_count)"
+if ($summary.required_policy_marker_count -ne 18) {
+    throw "Expected JSON summary policy marker count 18, got: $($summary.required_policy_marker_count)"
 }
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 166) {
-    throw "Expected JSON summary total marker count 166, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 190) {
+    throw "Expected JSON summary total marker count 190, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 7) {
     throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
@@ -882,6 +906,46 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs/release_metadata_pipeline_zh.rst' `
     -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
+
+$missingPipelineReleaseManifestText = $defaultPipelineText.Replace(
+    "release_assets_manifest.json",
+    "release_assets_manifest_removed.json"
+)
+$missingPipelineReleaseManifestCaseRoot = New-DocsCase `
+    -Name "missing-pipeline-release-manifest" `
+    -PipelineText $missingPipelineReleaseManifestText
+$missingPipelineReleaseManifestSummaryJsonPath = Join-Path $missingPipelineReleaseManifestCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingPipelineReleaseManifestCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release metadata pipeline doc is missing expected text: release_assets_manifest.json" `
+    -SummaryJson $missingPipelineReleaseManifestSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingPipelineReleaseManifestSummaryJsonPath `
+    -ExpectedMessage "release metadata pipeline doc is missing expected text: release_assets_manifest.json" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs/release_metadata_pipeline_zh.rst' `
+    -ExpectedFailureExpectedText "release_assets_manifest.json"
+
+$missingPolicyMaterialSafetyText = $defaultPolicyText.Replace(
+    "assert_release_material_safety.ps1",
+    "assert_release_material_removed.ps1"
+)
+$missingPolicyMaterialSafetyCaseRoot = New-DocsCase `
+    -Name "missing-policy-material-safety" `
+    -PolicyText $missingPolicyMaterialSafetyText
+$missingPolicyMaterialSafetySummaryJsonPath = Join-Path $missingPolicyMaterialSafetyCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingPolicyMaterialSafetyCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release policy doc is missing expected text: assert_release_material_safety.ps1" `
+    -SummaryJson $missingPolicyMaterialSafetySummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingPolicyMaterialSafetySummaryJsonPath `
+    -ExpectedMessage "release policy doc is missing expected text: assert_release_material_safety.ps1" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs/release_policy_zh.rst' `
+    -ExpectedFailureExpectedText "assert_release_material_safety.ps1"
 
 $missingChecklistWordVisualMetadataText = $defaultChecklistText.Replace(
     "Word visual standard review metadata evidence",
