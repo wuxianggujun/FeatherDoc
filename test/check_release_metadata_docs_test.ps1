@@ -980,6 +980,46 @@ Assert-SummaryFailure `
     -ExpectedFailureRelativePath 'docs/index.rst' `
     -ExpectedFailureExpectedText "release_metadata_maintenance_checklist_zh"
 
+$missingReadmePipelineEntrypointText = $defaultReadmeText.Replace(
+    "release_metadata_pipeline_zh",
+    "release_metadata_pipeline_removed"
+)
+$missingReadmePipelineEntrypointCaseRoot = New-DocsCase `
+    -Name "missing-readme-pipeline-entrypoint" `
+    -ReadmeText $missingReadmePipelineEntrypointText
+$missingReadmePipelineEntrypointSummaryJsonPath = Join-Path $missingReadmePipelineEntrypointCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingReadmePipelineEntrypointCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "English README is missing expected text: release_metadata_pipeline_zh" `
+    -SummaryJson $missingReadmePipelineEntrypointSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingReadmePipelineEntrypointSummaryJsonPath `
+    -ExpectedMessage "English README is missing expected text: release_metadata_pipeline_zh" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'README.md' `
+    -ExpectedFailureExpectedText "release_metadata_pipeline_zh"
+
+$missingReadmeZhChecklistEntrypointText = $defaultReadmeZhText.Replace(
+    "release_metadata_maintenance_checklist_zh",
+    "release_metadata_maintenance_checklist_removed"
+)
+$missingReadmeZhChecklistEntrypointCaseRoot = New-DocsCase `
+    -Name "missing-readme-zh-checklist-entrypoint" `
+    -ReadmeZhText $missingReadmeZhChecklistEntrypointText
+$missingReadmeZhChecklistEntrypointSummaryJsonPath = Join-Path $missingReadmeZhChecklistEntrypointCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingReadmeZhChecklistEntrypointCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "Chinese README is missing expected text: release_metadata_maintenance_checklist_zh" `
+    -SummaryJson $missingReadmeZhChecklistEntrypointSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingReadmeZhChecklistEntrypointSummaryJsonPath `
+    -ExpectedMessage "Chinese README is missing expected text: release_metadata_maintenance_checklist_zh" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'README.zh-CN.md' `
+    -ExpectedFailureExpectedText "release_metadata_maintenance_checklist_zh"
+
 $missingPolicyWordVisualMetadataText = $defaultPolicyText.Replace(
     "Word visual standard review metadata evidence",
     "Word visual metadata evidence removed"
