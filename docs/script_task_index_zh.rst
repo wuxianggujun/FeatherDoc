@@ -170,6 +170,10 @@ Word 视觉验证与人工复核
   前置条件，不启动 Word。
 - ``scripts/prepare_word_review_task.ps1``：准备人工视觉复核任务。
 - ``scripts/open_latest_word_review_task.ps1``：打开最新复核任务。
+- ``scripts/open_latest_fixed_grid_review_task.ps1``：打开最新 fixed-grid 复核任务。
+- ``scripts/open_latest_section_page_setup_review_task.ps1``：打开最新 section/page setup 复核任务。
+- ``scripts/open_latest_page_number_fields_review_task.ps1``：打开最新 page-number fields 复核任务。
+- ``scripts/print_latest_fixed_grid_review_prompt.ps1``：打印最新 fixed-grid 复核提示。
 - ``scripts/record_word_visual_review_result.ps1``：记录人工复核 verdict。
 - ``scripts/sync_latest_visual_review_verdict.ps1``：同步最新视觉复核 verdict。
 - ``scripts/sync_visual_review_verdict.ps1``：按显式路径同步视觉复核 verdict。

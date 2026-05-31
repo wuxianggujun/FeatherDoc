@@ -297,6 +297,17 @@ Assert-ArrayContains `
     -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
     -ExpectedValue "scripts\check_pdf_release_readiness.ps1" `
     -Message "Summary should list the PDF release readiness script."
+foreach ($wrapperScript in @(
+        "scripts\open_latest_fixed_grid_review_task.ps1",
+        "scripts\open_latest_section_page_setup_review_task.ps1",
+        "scripts\open_latest_page_number_fields_review_task.ps1",
+        "scripts\print_latest_fixed_grid_review_prompt.ps1"
+    )) {
+    Assert-ArrayContains `
+        -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
+        -ExpectedValue $wrapperScript `
+        -Message "Summary should list the latest review task wrapper $wrapperScript."
+}
 Assert-ArrayContains `
     -Values $passingUnindexedScripts `
     -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
