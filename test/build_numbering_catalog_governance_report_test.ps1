@@ -33,6 +33,62 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-HasProperty {
+    param($Object, [string]$Name, [string]$Message)
+    if (-not ($Object.PSObject.Properties.Name -contains $Name)) {
+        throw "$Message Missing property '$Name'."
+    }
+}
+
+function Assert-NonEmptyString {
+    param($Value, [string]$Message)
+    if ([string]::IsNullOrWhiteSpace([string]$Value)) {
+        throw $Message
+    }
+}
+
+function Get-TraceItemLabel {
+    param($Item)
+
+    foreach ($property in @("id", "name", "scope", "action")) {
+        if ($Item.PSObject.Properties.Name -contains $property) {
+            $value = [string]$Item.$property
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                return $value
+            }
+        }
+    }
+
+    return "<missing-id>"
+}
+
+function Assert-GovernanceTraceMetadata {
+    param(
+        [object[]]$Items,
+        [string]$CollectionName,
+        [bool]$ExpectOpenCommandProperty = $false
+    )
+
+    foreach ($item in @($Items)) {
+        $itemLabel = Get-TraceItemLabel -Item $item
+        $context = "Numbering catalog $CollectionName item $itemLabel"
+
+        foreach ($property in @("source_schema", "source_report_display", "source_json_display")) {
+            Assert-HasProperty -Object $item -Name $property `
+                -Message "$context should expose $property."
+            Assert-NonEmptyString -Value $item.$property `
+                -Message "$context should keep non-empty $property."
+        }
+
+        if ($ExpectOpenCommandProperty) {
+            Assert-HasProperty -Object $item -Name "open_command" `
+                -Message "$context should expose reviewer open command metadata."
+            Assert-NonEmptyString -Value $item.open_command `
+                -Message "$context should keep a non-empty reviewer open command."
+        }
+    }
+}
+
 function Test-Scenario {
     param([string]$Name)
     return ($Scenario -eq "all" -or $Scenario -eq $Name)
@@ -377,6 +433,15 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.review_command }) -join "`n") `
         -ExpectedText "build_document_skeleton_governance_rollup_report.ps1" `
         -Message "Summary should preserve upstream action review commands."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
+    Assert-GovernanceTraceMetadata -Items @($summary.informational_action_items) -CollectionName "informational_action_items" `
+        -ExpectOpenCommandProperty $true
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "check_numbering_catalog_baseline.ps1" `
+        -Message "Manifest-derived action items should expose a baseline review open command."
 
     $issueSummaryText = ($summary.style_issue_summary | ForEach-Object { "$($_.issue):$($_.count)" }) -join "`n"
     Assert-ContainsText -Text $issueSummaryText -ExpectedText "missing_numbering_definition:2" `
@@ -471,6 +536,7 @@ if (Test-Scenario -Name "missing_inputs") {
         -Message "Manifest warning should preserve the evidence-boundary repair hint."
     Assert-ContainsText -Text ([string]$manifestWarning.command_template) -ExpectedText "check_numbering_catalog_manifest.ps1" `
         -Message "Manifest warning should include the manifest-check command template."
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
     Assert-ContainsText -Text $markdown -ExpectedText "command_template:" `
         -Message "Missing input Markdown should expose warning command templates."
 }
@@ -510,6 +576,12 @@ if (Test-Scenario -Name "clean") {
         -Message "Promote exemplar checklist action should be non-blocking informational evidence."
     Assert-ContainsText -Text $informationalActionText -ExpectedText "register_numbering_catalog_baseline:release_checklist:False:True" `
         -Message "Register baseline checklist action should be non-blocking informational evidence."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
+    Assert-GovernanceTraceMetadata -Items @($summary.informational_action_items) -CollectionName "informational_action_items" `
+        -ExpectOpenCommandProperty $true
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
         -Message "Clean evidence should not warn."
 }
@@ -546,6 +618,12 @@ if (Test-Scenario -Name "alignment_gap") {
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "numbering_catalog_governance.real_corpus_alignment_gap" `
         -Message "Alignment gaps should create a release blocker."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
+    Assert-GovernanceTraceMetadata -Items @($summary.informational_action_items) -CollectionName "informational_action_items" `
+        -ExpectOpenCommandProperty $true
 
     $alignmentBlocker = @($summary.release_blockers |
         Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_alignment_gap" })[0]
@@ -613,6 +691,7 @@ if (Test-Scenario -Name "malformed") {
         -Message "Malformed input should produce failed status."
     Assert-Equal -Actual ([int]$summary.source_failure_count) -Expected 1 `
         -Message "Malformed input should count one source failure."
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
 }
 
 if (Test-Scenario -Name "fail_on_blocker") {
@@ -631,6 +710,12 @@ if (Test-Scenario -Name "fail_on_blocker") {
         -Message "Failing governance report should preserve needs_review status."
     Assert-True -Condition ([int]$summary.release_blocker_count -gt 0) `
         -Message "Failing governance report should write blockers."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
+    Assert-GovernanceTraceMetadata -Items @($summary.informational_action_items) -CollectionName "informational_action_items" `
+        -ExpectOpenCommandProperty $true
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "numbering_catalog_governance.md")
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
         -Message "Failing governance report Markdown should include the blocker section."

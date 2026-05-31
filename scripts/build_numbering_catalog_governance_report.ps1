@@ -479,12 +479,26 @@ function New-ActionForBaselineBlocker {
 
     if ($null -eq $Blocker) { return $null }
     $name = Get-JsonString -Object $Entry -Name "name" -DefaultValue "numbering-catalog-baseline"
+    $inputDocx = Get-JsonString -Object $Entry -Name "input_docx"
+    $catalogFile = Get-JsonString -Object $Entry -Name "catalog_file"
+    $generatedCatalogOutput = Get-JsonString -Object $Entry -Name "generated_output_path"
+    $command = "pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir <build-dir> -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild"
+    if (-not [string]::IsNullOrWhiteSpace($inputDocx) -and
+        -not [string]::IsNullOrWhiteSpace($catalogFile)) {
+        $command = "pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx $inputDocx -CatalogFile $catalogFile"
+        if (-not [string]::IsNullOrWhiteSpace($generatedCatalogOutput)) {
+            $command += " -GeneratedCatalogOutput $generatedCatalogOutput"
+        }
+        $command += " -BuildDir <build-dir> -SkipBuild"
+    }
+
     return New-ActionItem `
         -Id ([string]$Blocker.id) `
         -Scope $name `
         -SourceKind "numbering_catalog_manifest_summary" `
         -Action ([string]$Blocker.action) `
-        -Title ([string]$Blocker.message)
+        -Title ([string]$Blocker.message) `
+        -Command $command
 }
 
 function Format-MarkdownCodeList {
