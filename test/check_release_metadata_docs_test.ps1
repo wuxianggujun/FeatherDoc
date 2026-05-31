@@ -183,8 +183,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 190) {
-        throw "Expected JSON summary to count 190 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 205) {
+        throw "Expected JSON summary to count 205 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -328,6 +328,15 @@ $defaultPipelineText = @(
     '- pipeline_summary_json_display',
     '- pipeline_report_markdown',
     '- pipeline_report_markdown_display',
+    '- release_governance_handoff.release_blockers[]',
+    '- release_governance_handoff.warnings[]',
+    '- release_governance_handoff.action_items[]',
+    '- ``source_json_display``',
+    '- ``featherdoc.release_governance_pipeline_report.v1``',
+    '- ``stages[]``',
+    '- ``stage_id``',
+    '- ``stage_title``',
+    '- ``open_command``',
     '- final_governance_report_count',
     '- final_governance_reports',
     '- required_stage_count',
@@ -418,6 +427,12 @@ $defaultChecklistText = @(
     '- governance_detail_source',
     '- pipeline_summary_json_display',
     '- pipeline_report_markdown_display',
+    '- release_governance_handoff.release_blockers[]',
+    '- release_governance_handoff.warnings[]',
+    '- release_governance_handoff.action_items[]',
+    '- stages[]',
+    '- stage_id',
+    '- stage_title',
     '- final_governance_report_count',
     '- final_governance_reports',
     '- required_stage_count',
@@ -544,11 +559,11 @@ Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 7) {
     throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 86) {
-    throw "Expected JSON summary pipeline marker count 86, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 95) {
+    throw "Expected JSON summary pipeline marker count 95, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 74) {
-    throw "Expected JSON summary checklist marker count 74, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 80) {
+    throw "Expected JSON summary checklist marker count 80, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 10) {
     throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
@@ -559,8 +574,8 @@ if ($summary.required_policy_marker_count -ne 18) {
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 190) {
-    throw "Expected JSON summary total marker count 190, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 205) {
+    throw "Expected JSON summary total marker count 205, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 7) {
     throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
@@ -681,6 +696,22 @@ Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "pipeline_report_markdown_display" `
     -Message "JSON summary should list local closure pipeline Markdown display marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "release_governance_handoff.action_items[]" `
+    -Message "JSON summary should list release governance handoff action item detail marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue '``featherdoc.release_governance_pipeline_report.v1``' `
+    -Message "JSON summary should list release governance pipeline report schema marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue '``stages[]``' `
+    -Message "JSON summary should list release governance pipeline stages marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue '``source_json_display``' `
+    -Message "JSON summary should list release governance source JSON display marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "final_governance_report_count" `
@@ -926,6 +957,46 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs/release_metadata_pipeline_zh.rst' `
     -ExpectedFailureExpectedText "release_assets_manifest.json"
+
+$missingPipelineHandoffActionItemsText = $defaultPipelineText.Replace(
+    "release_governance_handoff.action_items[]",
+    "release_governance_handoff.action_items_removed[]"
+)
+$missingPipelineHandoffActionItemsCaseRoot = New-DocsCase `
+    -Name "missing-pipeline-handoff-action-items" `
+    -PipelineText $missingPipelineHandoffActionItemsText
+$missingPipelineHandoffActionItemsSummaryJsonPath = Join-Path $missingPipelineHandoffActionItemsCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingPipelineHandoffActionItemsCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release metadata pipeline doc is missing expected text: release_governance_handoff.action_items[]" `
+    -SummaryJson $missingPipelineHandoffActionItemsSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingPipelineHandoffActionItemsSummaryJsonPath `
+    -ExpectedMessage "release metadata pipeline doc is missing expected text: release_governance_handoff.action_items[]" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs/release_metadata_pipeline_zh.rst' `
+    -ExpectedFailureExpectedText "release_governance_handoff.action_items[]"
+
+$missingChecklistPipelineStagesText = $defaultChecklistText.Replace(
+    "stages[]",
+    "stages_removed[]"
+)
+$missingChecklistPipelineStagesCaseRoot = New-DocsCase `
+    -Name "missing-checklist-pipeline-stages" `
+    -ChecklistText $missingChecklistPipelineStagesText
+$missingChecklistPipelineStagesSummaryJsonPath = Join-Path $missingChecklistPipelineStagesCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingChecklistPipelineStagesCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: stages[]" `
+    -SummaryJson $missingChecklistPipelineStagesSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingChecklistPipelineStagesSummaryJsonPath `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: stages[]" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
+    -ExpectedFailureExpectedText "stages[]"
 
 $missingPolicyMaterialSafetyText = $defaultPolicyText.Replace(
     "assert_release_material_safety.ps1",

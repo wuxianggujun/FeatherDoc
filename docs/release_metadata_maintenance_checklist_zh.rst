@@ -273,6 +273,10 @@ failure diagnostics 时重新猜测编码。
 ``local_governance_closure``、``local_governance_closure.status``、
 ``local_governance_closure.closed``、``governance_detail_source``、
 ``pipeline_summary_json_display``、``pipeline_report_markdown_display``、
+``release_governance_handoff.release_blockers[]``、
+``release_governance_handoff.warnings[]``、
+``release_governance_handoff.action_items[]``、``stages[]``、``stage_id``、
+``stage_title``、
 ``final_governance_report_count``、``final_governance_reports``、
 ``required_stage_count``、``completed_required_stage_count``、``required_stages``、
 ``source_schema``、``source_report_display``、``source_json_display``、
@@ -294,7 +298,10 @@ failure diagnostics 时重新猜测编码。
 ``report_markdown_display``、``word_visual_smoke.pending_manual_review``、
 ``release_blocker_count``、``ReleaseBlockerRollupFailOnWarning`` 和
 ``ReleaseGovernanceHandoffFailOnWarning``。其中 ``source_report_display`` 用于让
-reviewer 先打开治理源报告，``source_json_display`` 用于继续追溯到原始证据 JSON。
+reviewer 先打开治理源报告，``source_json_display`` 用于继续追溯到原始证据 JSON；
+``release_governance_handoff.*[]`` 与 pipeline ``stages[]`` 则用于证明 reviewer
+既能从 handoff 视角读取 blocker / warning / action item 明细，也能从 stage 视角
+追溯 ``stage_id``、``stage_title`` 和对应 ``open_command``。
 
 如果改动检查脚本本身，额外运行独立回归测试：
 
