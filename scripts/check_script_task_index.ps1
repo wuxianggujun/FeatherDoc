@@ -248,6 +248,39 @@ function Get-UnindexedScripts {
     )
 }
 
+function Get-ScriptNamePrefix {
+    param([string]$RelativePath)
+
+    $fileName = [System.IO.Path]::GetFileNameWithoutExtension($RelativePath)
+    if ([string]::IsNullOrWhiteSpace($fileName)) {
+        return "(unknown)"
+    }
+
+    $separatorIndex = $fileName.IndexOf("_")
+    if ($separatorIndex -le 0) {
+        return $fileName
+    }
+
+    return $fileName.Substring(0, $separatorIndex)
+}
+
+function Get-ScriptNamePrefixSummary {
+    param([string[]]$Scripts)
+
+    return @(
+        $Scripts |
+            Group-Object -Property { Get-ScriptNamePrefix -RelativePath ([string]$_) } |
+            Sort-Object Count, Name -Descending |
+            ForEach-Object {
+                [pscustomobject]@{
+                    prefix = $_.Name
+                    script_count = $_.Count
+                    scripts = @($_.Group | Sort-Object)
+                }
+            }
+    )
+}
+
 function Get-MissingMarkers {
     param(
         [string]$Text,
@@ -283,6 +316,7 @@ function New-MarkdownReport {
         [object[]]$DuplicateScriptReferences,
         [object[]]$ScriptReferenceGroups,
         [object[]]$ScriptReferenceExtensions,
+        [object[]]$UnindexedScriptPrefixes,
         [object[]]$MissingMarkers
     )
 
@@ -303,6 +337,7 @@ function New-MarkdownReport {
     $lines.Add("- script_reference_group_count: ``$($Summary.script_reference_group_count)``")
     $lines.Add("- script_reference_extension_count: ``$($Summary.script_reference_extension_count)``")
     $lines.Add("- unindexed_script_count: ``$($Summary.unindexed_script_count)``")
+    $lines.Add("- unindexed_script_prefix_count: ``$($Summary.unindexed_script_prefix_count)``")
     $lines.Add("- duplicate_script_reference_count: ``$($Summary.duplicate_script_reference_count)``")
     $lines.Add("- missing_script_count: ``$($Summary.missing_script_count)``")
     $lines.Add("- required_marker_count: ``$($Summary.required_marker_count)``")
@@ -351,6 +386,17 @@ function New-MarkdownReport {
     } else {
         foreach ($script in @($Summary.unindexed_scripts)) {
             $lines.Add("- ``$script``")
+        }
+    }
+
+    $lines.Add("")
+    $lines.Add("## Unindexed Script Prefixes")
+    $lines.Add("")
+    if ($UnindexedScriptPrefixes.Count -eq 0) {
+        $lines.Add("- none")
+    } else {
+        foreach ($prefix in $UnindexedScriptPrefixes) {
+            $lines.Add("- ``$($prefix.prefix)``: $($prefix.script_count)")
         }
     }
 
@@ -438,6 +484,7 @@ $scriptReferenceGroups = @(Get-ScriptReferenceGroups -Text $scriptIndexText)
 $scriptReferenceExtensions = @(Get-ScriptReferenceExtensionSummary -References $allScriptReferences)
 $repositoryScripts = @(Get-RepositoryScripts -Root $resolvedRepoRoot)
 $unindexedScripts = @(Get-UnindexedScripts -RepositoryScripts $repositoryScripts -IndexedScripts $scriptReferences)
+$unindexedScriptPrefixes = @(Get-ScriptNamePrefixSummary -Scripts $unindexedScripts)
 
 $checkedScripts = @(
     $scriptReferences | ForEach-Object {
@@ -531,6 +578,7 @@ $missingMarkerEntries = @($missingMarkers.ToArray())
 $duplicateScriptReferenceEntries = @($duplicateScriptReferences)
 $scriptReferenceGroupEntries = @($scriptReferenceGroups)
 $scriptReferenceExtensionEntries = @($scriptReferenceExtensions)
+$unindexedScriptPrefixEntries = @($unindexedScriptPrefixes)
 $documentationEntryPointEntries = @($documentationEntryPoints)
 
 $summary = [ordered]@{
@@ -559,6 +607,8 @@ $summary = [ordered]@{
     checked_scripts = @($checkedScripts)
     unindexed_script_count = $unindexedScripts.Count
     unindexed_scripts = @($unindexedScripts)
+    unindexed_script_prefix_count = $unindexedScriptPrefixes.Count
+    unindexed_script_prefixes = $unindexedScriptPrefixEntries
     duplicate_script_reference_count = $duplicateScriptReferences.Count
     duplicate_script_references = $duplicateScriptReferenceEntries
     missing_script_count = $missingScripts.Count
@@ -577,6 +627,7 @@ Write-Utf8NoBomFile -Path $reportMarkdownPath -Text (New-MarkdownReport `
         -DuplicateScriptReferences $duplicateScriptReferenceEntries `
         -ScriptReferenceGroups $scriptReferenceGroupEntries `
         -ScriptReferenceExtensions $scriptReferenceExtensionEntries `
+        -UnindexedScriptPrefixes $unindexedScriptPrefixEntries `
         -MissingMarkers $missingMarkerEntries)
 
 if ($status -ne "passed") {

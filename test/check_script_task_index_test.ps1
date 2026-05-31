@@ -194,6 +194,19 @@ if ($passingSummary.unindexed_script_count -ne $passingUnindexedScripts.Count) {
 if ($passingSummary.unindexed_script_count -le 0) {
     throw "Expected at least one unindexed script to be reported as informational inventory."
 }
+$passingUnindexedScriptPrefixes = @($passingSummary.unindexed_script_prefixes)
+if ($passingSummary.unindexed_script_prefix_count -ne $passingUnindexedScriptPrefixes.Count) {
+    throw "Unindexed script prefix count does not match unindexed_script_prefixes length."
+}
+if ($passingSummary.unindexed_script_prefix_count -le 0) {
+    throw "Expected at least one unindexed script prefix to be reported as maintenance inventory."
+}
+$passingUnindexedPrefixScriptCount = [int](($passingUnindexedScriptPrefixes |
+            ForEach-Object { $_.script_count } |
+            Measure-Object -Sum).Sum)
+if ($passingUnindexedPrefixScriptCount -ne $passingSummary.unindexed_script_count) {
+    throw "Unindexed script prefix script total does not match unindexed script count."
+}
 if ($passingSummary.repository_script_count -ne ($passingSummary.script_reference_count + $passingSummary.unindexed_script_count)) {
     throw "Repository script count should equal indexed plus unindexed scripts when no indexed scripts are missing."
 }
@@ -288,6 +301,14 @@ Assert-ArrayContains `
     -Values $passingUnindexedScripts `
     -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
     -Message "Summary should list unindexed scripts as informational inventory."
+Assert-ArrayContains `
+    -Values @($passingUnindexedScriptPrefixes | ForEach-Object { $_.prefix }) `
+    -ExpectedValue "run" `
+    -Message "Unindexed script prefix summary should group run_* maintenance entries."
+Assert-ArrayContains `
+    -Values @($passingUnindexedScriptPrefixes | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
+    -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
+    -Message "Unindexed script prefix summary should retain script paths."
 foreach ($marker in @(
         '# Script Task Index Check',
         '- schema: `featherdoc.script_task_index_check.v1`',
@@ -301,6 +322,7 @@ foreach ($marker in @(
         '- script_reference_group_count:',
         '- script_reference_extension_count:',
         '- unindexed_script_count:',
+        '- unindexed_script_prefix_count:',
         '- duplicate_script_reference_count: `0`',
         '- missing_script_count: `0`',
         '- missing_marker_count: `0`',
@@ -316,6 +338,8 @@ foreach ($marker in @(
         'unique /',
         '## Unindexed Scripts',
         'build_image_contact_sheet.py',
+        '## Unindexed Script Prefixes',
+        '`run`:',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'
