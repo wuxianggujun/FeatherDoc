@@ -231,7 +231,10 @@ foreach ($marker in @(
     "document_governance_primary_track",
     "pdf_conservative_maintenance",
     "no_pdf_rendering_in_low_resource_stage",
-    "long_task_document_governance_closure"
+    "long_task_document_governance_closure",
+    "pdf_floating_table_support_coverage",
+    "pdf_floating_table_reviewer_focus",
+    "metadata-only tblpPr"
 )) {
     Assert-ContainsText -Text $acceptanceDoc -ExpectedText $marker `
         -Message "Document governance acceptance note should keep the PDF-conservative planning marker '$marker'."

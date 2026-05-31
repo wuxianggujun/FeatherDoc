@@ -497,7 +497,10 @@ $documentGovernanceExpectedMarkers = @(
     "featherdoc.numbering_catalog_governance_report.v1",
     "numbering_catalog_governance.real_corpus_alignment_gap",
     "featherdoc.table_layout_delivery_governance_report.v1",
-    "delivery_quality"
+    "delivery_quality",
+    "pdf_floating_table_support_coverage",
+    "pdf_floating_table_reviewer_focus",
+    "metadata-only tblpPr"
 )
 $policyExpectedMarkers = @(
     ':doc:`release_metadata_pipeline_zh`',

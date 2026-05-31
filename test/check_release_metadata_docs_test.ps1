@@ -183,8 +183,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 208) {
-        throw "Expected JSON summary to count 208 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 211) {
+        throw "Expected JSON summary to count 211 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -481,6 +481,9 @@ $defaultDocumentGovernanceText = @(
     '- numbering_catalog_governance.real_corpus_alignment_gap',
     '- featherdoc.table_layout_delivery_governance_report.v1',
     '- delivery_quality',
+    '- pdf_floating_table_support_coverage',
+    '- pdf_floating_table_reviewer_focus',
+    '- metadata-only tblpPr',
     ''
 ) -join "`n"
 
@@ -568,8 +571,8 @@ if ($summary.required_pipeline_marker_count -ne 95) {
 if ($summary.required_checklist_marker_count -ne 83) {
     throw "Expected JSON summary checklist marker count 83, got: $($summary.required_checklist_marker_count)"
 }
-if ($summary.required_document_governance_marker_count -ne 10) {
-    throw "Expected JSON summary document governance marker count 10, got: $($summary.required_document_governance_marker_count)"
+if ($summary.required_document_governance_marker_count -ne 13) {
+    throw "Expected JSON summary document governance marker count 13, got: $($summary.required_document_governance_marker_count)"
 }
 if ($summary.required_policy_marker_count -ne 18) {
     throw "Expected JSON summary policy marker count 18, got: $($summary.required_policy_marker_count)"
@@ -577,8 +580,8 @@ if ($summary.required_policy_marker_count -ne 18) {
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 208) {
-    throw "Expected JSON summary total marker count 208, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 211) {
+    throw "Expected JSON summary total marker count 211, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 7) {
     throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
@@ -847,6 +850,10 @@ Assert-ArrayContains `
     -Values @($summary.required_document_governance_markers) `
     -ExpectedValue "sync_bound_content_control" `
     -Message "JSON summary should list required document governance markers."
+Assert-ArrayContains `
+    -Values @($summary.required_document_governance_markers) `
+    -ExpectedValue "pdf_floating_table_support_coverage" `
+    -Message "JSON summary should list PDF floating table support coverage document governance marker."
 
 
 $quietCaseRoot = New-DocsCase -Name "quiet-passing"
