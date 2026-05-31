@@ -49,6 +49,18 @@ function Assert-FileHasNoBom {
     }
 }
 
+function Assert-RawJsonUtcTimestamp {
+    param(
+        [string]$JsonText,
+        [string]$FieldName
+    )
+
+    $fieldPattern = '"{0}"\s*:\s*"\d{{4}}-\d{{2}}-\d{{2}}T\d{{2}}:\d{{2}}:\d{{2}}Z"' -f [regex]::Escape($FieldName)
+    if ($JsonText -notmatch $fieldPattern) {
+        throw "Expected JSON field '$FieldName' to use UTC timestamp format."
+    }
+}
+
 function Assert-FileContainsText {
     param(
         [string]$Path,
@@ -136,7 +148,9 @@ if (-not (Test-Path -LiteralPath $passingReportMarkdown -PathType Leaf)) {
 }
 Assert-FileHasNoBom -Path $passingSummaryJson
 Assert-FileHasNoBom -Path $passingReportMarkdown
-$passingSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $passingSummaryJson | ConvertFrom-Json
+$passingSummaryText = Get-Content -Raw -Encoding UTF8 -LiteralPath $passingSummaryJson
+Assert-RawJsonUtcTimestamp -JsonText $passingSummaryText -FieldName "checked_at_utc"
+$passingSummary = $passingSummaryText | ConvertFrom-Json
 if ($passingSummary.status -ne "passed") {
     throw "Expected passing summary status, got: $($passingSummary.status)"
 }
@@ -148,10 +162,6 @@ if ($passingSummary.summary_schema_version -ne 1) {
 }
 if ($passingSummary.checker_name -ne "check_script_task_index.ps1") {
     throw "Unexpected checker name: $($passingSummary.checker_name)"
-}
-$checkedAtUtc = [string]$passingSummary.checked_at_utc
-if ($checkedAtUtc -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$') {
-    throw "Expected checked_at_utc to use UTC timestamp format, got: $($passingSummary.checked_at_utc)"
 }
 if ($passingSummary.powershell_version -notmatch '^\d+\.\d+') {
     throw "Expected powershell_version to start with a version number, got: $($passingSummary.powershell_version)"
@@ -388,7 +398,9 @@ if (-not (Test-Path -LiteralPath $failingReportMarkdown -PathType Leaf)) {
 }
 Assert-FileHasNoBom -Path $failingSummaryJson
 Assert-FileHasNoBom -Path $failingReportMarkdown
-$failingSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $failingSummaryJson | ConvertFrom-Json
+$failingSummaryText = Get-Content -Raw -Encoding UTF8 -LiteralPath $failingSummaryJson
+Assert-RawJsonUtcTimestamp -JsonText $failingSummaryText -FieldName "checked_at_utc"
+$failingSummary = $failingSummaryText | ConvertFrom-Json
 if ($failingSummary.status -ne "failed") {
     throw "Expected failing summary status, got: $($failingSummary.status)"
 }
