@@ -412,6 +412,7 @@ $checklistExpectedMarkers = @(
     "word_visual_release_gate_preflight_route_docs_contract_test.ps1",
     '``featherdoc.word_visual_release_gate_preflight.v1``',
     '``word_visual_release_gate_preflight_static_contract_only``',
+    '``checked_documents[]``',
     '``output_encoding``',
     "UTF-8 without BOM",
     '``preflight_ready``',

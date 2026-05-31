@@ -255,7 +255,8 @@ failure diagnostics 时重新猜测编码。
 
 检查通过时 JSON 的 ``status`` 为 ``passed``，并包含 ``summary_schema_version``、
 ``checker_name``、``checked_at_utc``、PowerShell 运行环境、``summary_json_path``、
-``summary_json_relative_path``、``output_encoding``、文档数量和 marker 数量字段；其中
+``summary_json_relative_path``、``output_encoding``、``checked_documents[]``、
+文档数量和 marker 数量字段；其中
 ``required_document_governance_marker_count`` 会单独记录文档治理验收页的 marker
 数量，确保模板契约、content-control 修复、编号真实语料治理和表格版式交付质量
 仍然被发布材料引用。检查失败时也会

@@ -32,6 +32,9 @@ performance.
 - Added stable public evidence-path display handling for packaged release
   manifests so project-template and manifest-signoff evidence keeps source
   identity even when packaging runs from an out-of-repository working directory.
+- Documented and guarded the release metadata docs checker
+  `checked_documents[]` summary contract so automation can verify document
+  coverage without inferring it from marker counts.
 
 ### Fixed
 
