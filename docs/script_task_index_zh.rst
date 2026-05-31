@@ -155,6 +155,27 @@
 - ``scripts/run_table_layout_delivery_report.ps1``：运行表格交付报告的本地入口。
 - ``scripts/run_table_style_quality_visual_regression.ps1``：运行 table style
   quality 视觉回归。
+- ``scripts/run_table_row_visual_regression.ps1``：运行表格行新增、插入和删除
+  视觉回归。
+- ``scripts/run_table_row_height_visual_regression.ps1``：运行表格行高度视觉回归。
+- ``scripts/run_table_row_repeat_header_visual_regression.ps1``：运行表格重复表头
+  视觉回归。
+- ``scripts/run_table_row_cant_split_visual_regression.ps1``：运行表格行禁止跨页
+  拆分视觉回归。
+- ``scripts/run_table_cell_width_visual_regression.ps1``：运行表格单元格宽度视觉
+  回归。
+- ``scripts/run_table_cell_margin_visual_regression.ps1``：运行表格单元格边距视觉
+  回归。
+- ``scripts/run_table_cell_fill_visual_regression.ps1``：运行表格单元格填充视觉
+  回归。
+- ``scripts/run_table_cell_border_visual_regression.ps1``：运行表格单元格边框视觉
+  回归。
+- ``scripts/run_table_cell_merge_visual_regression.ps1``：运行表格单元格合并视觉
+  回归。
+- ``scripts/run_table_cell_vertical_alignment_visual_regression.ps1``：运行表格
+  单元格垂直对齐视觉回归。
+- ``scripts/run_table_cell_text_direction_visual_regression.ps1``：运行表格单元格
+  文字方向视觉回归。
 - ``scripts/run_fixed_grid_merge_unmerge_regression.ps1``：运行 fixed-grid
   merge / unmerge 回归 bundle。
 

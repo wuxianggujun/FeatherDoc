@@ -321,6 +321,24 @@ foreach ($wrapperScript in @(
         -ExpectedValue $wrapperScript `
         -Message "Summary should list the latest review task wrapper $wrapperScript."
 }
+foreach ($tableVisualScript in @(
+        "scripts\run_table_row_visual_regression.ps1",
+        "scripts\run_table_row_height_visual_regression.ps1",
+        "scripts\run_table_row_repeat_header_visual_regression.ps1",
+        "scripts\run_table_row_cant_split_visual_regression.ps1",
+        "scripts\run_table_cell_width_visual_regression.ps1",
+        "scripts\run_table_cell_margin_visual_regression.ps1",
+        "scripts\run_table_cell_fill_visual_regression.ps1",
+        "scripts\run_table_cell_border_visual_regression.ps1",
+        "scripts\run_table_cell_merge_visual_regression.ps1",
+        "scripts\run_table_cell_vertical_alignment_visual_regression.ps1",
+        "scripts\run_table_cell_text_direction_visual_regression.ps1"
+    )) {
+    Assert-ArrayContains `
+        -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
+        -ExpectedValue $tableVisualScript `
+        -Message "Summary should list the table visual regression script $tableVisualScript."
+}
 Assert-ArrayContains `
     -Values $passingUnindexedScripts `
     -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
@@ -337,10 +355,6 @@ Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.family }) `
     -ExpectedValue "run_template" `
     -Message "Unindexed script family summary should split run_* entries into families."
-Assert-ArrayContains `
-    -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.family }) `
-    -ExpectedValue "run_table" `
-    -Message "Unindexed script family summary should expose table visual regression pressure."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
     -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
