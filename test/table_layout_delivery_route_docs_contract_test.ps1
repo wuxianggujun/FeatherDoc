@@ -112,7 +112,17 @@ foreach ($marker in @(
         "source_report_display",
         "source_json_display",
         "open_command",
-        "table_layout_delivery_governance"
+        "table_layout_delivery_governance",
+        "apply_safe_tblLook_fixes_then_visual_regression",
+        "apply_safe_tblLook_fixes",
+        "review_table_style_quality_plan",
+        "review_manual_table_style_definition_work",
+        "review_table_position_plan",
+        "review_floating_table_position_plans",
+        "dry_run_apply_table_position_plans",
+        "run_table_style_quality_visual_regression",
+        "review_table_layout_delivery_governance_sources",
+        "rebuild_table_layout_delivery_rollup"
     )) {
     Assert-ContainsText -Text $releaseMetadataDoc -ExpectedText $marker `
         -Message "Release metadata document should preserve table-layout governance marker '$marker'."

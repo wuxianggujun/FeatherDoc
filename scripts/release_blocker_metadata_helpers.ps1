@@ -811,11 +811,14 @@ function Get-PdfVisualPreflightReadinessActionEvidenceLine {
 
 function Get-ReleaseBlockerRegisteredActions {
     return @(
+        "apply_safe_tblLook_fixes",
+        "apply_safe_tblLook_fixes_then_visual_regression",
         "complete_visual_manual_review",
         "add_explicit_confidence_metadata",
         "collect_content_control_data_binding_evidence",
         "approve_project_template_schema",
         "collect_project_template_onboarding_governance_evidence",
+        "dry_run_apply_table_position_plans",
         "fix_schema_patch_approval_result",
         "fix_custom_xml_data_binding_source",
         "fix_invalid_approval_records",
@@ -825,6 +828,7 @@ function Get-ReleaseBlockerRegisteredActions {
         "promote_numbering_catalog_exemplar",
         "preview_style_numbering_repair",
         "prepare_pdf_visual_release_gate_build_outputs",
+        "rebuild_table_layout_delivery_rollup",
         "rebuild_document_skeleton_governance_rollup",
         "rebuild_numbering_catalog_manifest_summary",
         "rerun_pdf_controlled_visual_smoke_check",
@@ -833,6 +837,8 @@ function Get-ReleaseBlockerRegisteredActions {
         "review_content_control_data_binding_evidence",
         "review_content_control_lock_strategy",
         "review_duplicate_content_control_binding",
+        "review_floating_table_position_plans",
+        "review_manual_table_style_definition_work",
         "refresh_numbering_catalog_baseline_or_repair_docx",
         "register_numbering_catalog_baseline",
         "review_numbering_catalog_check_issues",
@@ -842,12 +848,16 @@ function Get-ReleaseBlockerRegisteredActions {
         "review_project_template_smoke_failure",
         "review_schema_approval_history",
         "review_schema_baseline",
+        "review_table_layout_delivery_governance_sources",
+        "review_table_position_plan",
+        "review_table_style_quality_plan",
         "review_unbound_form_content_control",
         "resolve_pending_schema_approvals",
         "review_schema_patch_confidence_calibration_evidence",
         "review_schema_update_candidate",
         "review_style_numbering_audit",
         "run_content_control_custom_xml_sync",
+        "run_table_style_quality_visual_regression",
         "run_project_template_smoke_for_registered_manifest",
         "run_project_template_smoke_then_review_schema_patch_approval",
         "sync_or_fill_bound_content_control",
@@ -1573,6 +1583,167 @@ function Add-NumberingCatalogGovernanceGuidanceLines {
     }
 }
 
+function Add-TableLayoutDeliveryGovernanceGuidanceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item,
+        [string]$RepoRoot = "",
+        [string]$ReleaseSummaryJson = "",
+        [string]$ContextText = ""
+    )
+
+    $action = Get-ReleaseBlockerPropertyValue -Object $Item -Name "action"
+    $contextSuffix = if ([string]::IsNullOrWhiteSpace($ContextText)) { "" } else { " $ContextText" }
+
+    switch ($action) {
+        { $_ -in @("apply_safe_tblLook_fixes", "apply_safe_tblLook_fixes_then_visual_regression") } {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `{0}`{1}: apply only safe tblLook fixes to a reviewed output DOCX, then regenerate table layout visual regression evidence before release.' -f $action, $contextSuffix)
+            break
+        }
+        { $_ -in @("review_table_style_quality_plan", "review_manual_table_style_definition_work") } {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `{0}`{1}: inspect table style quality findings, separate safe tblLook-only fixes from manual style-definition work, and keep manual edits auditable.' -f $action, $contextSuffix)
+            break
+        }
+        { $_ -in @("review_table_position_plan", "review_floating_table_position_plans") } {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `{0}`{1}: review floating table position plans with existing positions before applying presets, then run a fingerprint-checked dry-run.' -f $action, $contextSuffix)
+            break
+        }
+        "dry_run_apply_table_position_plans" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `dry_run_apply_table_position_plans`{0}: run apply-table-position-plan with `--dry-run` and confirm table fingerprints still match before writing DOCX output.' -f $contextSuffix)
+            break
+        }
+        "run_table_style_quality_visual_regression" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `run_table_style_quality_visual_regression`{0}: generate Word-rendered table style quality before/after evidence and keep the bundle linked from release materials.' -f $contextSuffix)
+            break
+        }
+        "review_table_layout_delivery_governance_sources" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_table_layout_delivery_governance_sources`{0}: inspect skipped or unreadable table layout governance input JSON, then rebuild the owning source report.' -f $contextSuffix)
+            break
+        }
+        "rebuild_table_layout_delivery_rollup" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `rebuild_table_layout_delivery_rollup`{0}: regenerate table layout delivery rollup evidence before rebuilding the governance report.' -f $contextSuffix)
+            break
+        }
+        default {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `{0}`{1}: review table layout delivery governance evidence, then rebuild rollup and governance reports before release.' -f $action, $contextSuffix)
+        }
+    }
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Item -Name "status"
+    $message = Get-ReleaseBlockerPropertyValue -Object $Item -Name "message"
+    if (-not [string]::IsNullOrWhiteSpace($status) -or -not [string]::IsNullOrWhiteSpace($message)) {
+        $statusLine = "Table layout delivery governance item"
+        if (-not [string]::IsNullOrWhiteSpace($status)) {
+            $statusLine += ": $status"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($message)) {
+            $statusLine += "; message: $message"
+        }
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text $statusLine
+    }
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Open the table layout delivery governance report first: {0}" -f $sourceReportDisplay)
+    }
+
+    $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Inspect the table layout delivery source JSON before changing evidence: {0}" -f $sourceJsonDisplay)
+    }
+
+    $provenanceParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($fieldName in @("scope", "document_name", "input_docx_display", "input_docx", "source_kind", "report_id", "source_schema")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            [void]$provenanceParts.Add("$fieldName=$value")
+        }
+    }
+    if ($provenanceParts.Count -gt 0) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Table layout delivery provenance: {0}" -f ($provenanceParts.ToArray() -join ", "))
+    }
+
+    $metricParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($fieldName in @(
+            "table_style_issue_count",
+            "automatic_tblLook_fix_count",
+            "manual_table_style_fix_count",
+            "total_table_style_issue_count",
+            "total_automatic_tblLook_fix_count",
+            "total_manual_table_style_fix_count",
+            "table_position_automatic_count",
+            "table_position_review_count",
+            "total_table_position_automatic_count",
+            "total_table_position_review_count",
+            "command_failure_count",
+            "ready_document_percent",
+            "unresolved_item_count",
+            "pdf_floating_table_capability_status",
+            "pdf_floating_table_layout_boundary",
+            "pdf_floating_table_supported_geometry_count",
+            "pdf_floating_table_metadata_only_count"
+        )) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            [void]$metricParts.Add("$fieldName=$value")
+        }
+    }
+    if ($metricParts.Count -gt 0) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Table layout delivery metrics: {0}" -f ($metricParts.ToArray() -join ", "))
+    }
+
+    $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        foreach ($commandName in @("open_command", "command", "audit_command", "review_command")) {
+            $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name $commandName
+            if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
+                break
+            }
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        switch ($action) {
+            { $_ -in @("apply_safe_tblLook_fixes", "apply_safe_tblLook_fixes_then_visual_regression") } {
+                $commandTemplate = 'featherdoc_cli apply-table-style-quality-fixes <input.docx> --look-only --output <reviewed.docx> --json'
+                break
+            }
+            { $_ -in @("review_table_style_quality_plan", "review_manual_table_style_definition_work") } {
+                $commandTemplate = 'featherdoc_cli inspect-table-style <input.docx> <style-id> --json'
+                break
+            }
+            { $_ -in @("review_table_position_plan", "review_floating_table_position_plans", "dry_run_apply_table_position_plans") } {
+                $commandTemplate = 'featherdoc_cli apply-table-position-plan <table-position.plan.json> --dry-run --json'
+                break
+            }
+            "run_table_style_quality_visual_regression" {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1'
+                break
+            }
+            "rebuild_table_layout_delivery_rollup" {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output -OutputDir .\output\table-layout-delivery-rollup'
+                break
+            }
+            default {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1 -InputRoot .\output -OutputDir .\output\table-layout-delivery-governance'
+            }
+        }
+    }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Run or inspect the table layout delivery command: `{0}`' -f $commandTemplate)
+
+    $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    if ([string]::IsNullOrWhiteSpace($releaseSummaryDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'After table layout delivery evidence is passing, rerun `build_table_layout_delivery_rollup_report.ps1` when source documents changed, rerun `build_table_layout_delivery_governance_report.ps1`, refresh `run_table_style_quality_visual_regression.ps1` evidence when layout or tblLook output changed, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle before publishing.'
+    } else {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('After table layout delivery evidence is passing, rerun `build_table_layout_delivery_rollup_report.ps1` when source documents changed, rerun `build_table_layout_delivery_governance_report.ps1`, refresh `run_table_style_quality_visual_regression.ps1` evidence when layout or tblLook output changed, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)
+    }
+}
+
 function Get-ReleaseBlockerActionGuidanceLines {
     param(
         [AllowNull()]$Blocker,
@@ -1672,6 +1843,25 @@ function Get-ReleaseBlockerActionGuidanceLines {
                 "review_style_numbering_audit"
             ) } {
             Add-NumberingCatalogGovernanceGuidanceLines `
+                -Lines $guidanceLines `
+                -Item $Blocker `
+                -RepoRoot $RepoRoot `
+                -ReleaseSummaryJson $ReleaseSummaryJson
+            break
+        }
+        { $_ -in @(
+                "apply_safe_tblLook_fixes",
+                "apply_safe_tblLook_fixes_then_visual_regression",
+                "dry_run_apply_table_position_plans",
+                "rebuild_table_layout_delivery_rollup",
+                "review_floating_table_position_plans",
+                "review_manual_table_style_definition_work",
+                "review_table_layout_delivery_governance_sources",
+                "review_table_position_plan",
+                "review_table_style_quality_plan",
+                "run_table_style_quality_visual_regression"
+            ) } {
+            Add-TableLayoutDeliveryGovernanceGuidanceLines `
                 -Lines $guidanceLines `
                 -Item $Blocker `
                 -RepoRoot $RepoRoot `
@@ -3620,6 +3810,24 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             "review_style_numbering_audit"
         )) {
         Add-NumberingCatalogGovernanceGuidanceLines `
+            -Lines $guidanceLines `
+            -Item $Item `
+            -RepoRoot $RepoRoot `
+            -ReleaseSummaryJson $ReleaseSummaryJson `
+            -ContextText ('for release governance {0} `{1}`' -f $ItemKind, $id)
+    } elseif ($action -in @(
+            "apply_safe_tblLook_fixes",
+            "apply_safe_tblLook_fixes_then_visual_regression",
+            "dry_run_apply_table_position_plans",
+            "rebuild_table_layout_delivery_rollup",
+            "review_floating_table_position_plans",
+            "review_manual_table_style_definition_work",
+            "review_table_layout_delivery_governance_sources",
+            "review_table_position_plan",
+            "review_table_style_quality_plan",
+            "run_table_style_quality_visual_regression"
+        )) {
+        Add-TableLayoutDeliveryGovernanceGuidanceLines `
             -Lines $guidanceLines `
             -Item $Item `
             -RepoRoot $RepoRoot `

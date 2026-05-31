@@ -450,6 +450,67 @@ Assert-ContainsText -Text $numberingChecklistGuidance -ExpectedText "matched_doc
     -Message "Numbering catalog checklist guidance should keep real-corpus metrics."
 Assert-ContainsText -Text $numberingChecklistGuidance -ExpectedText "build_document_skeleton_governance_rollup_report.ps1" `
     -Message "Numbering catalog checklist guidance should mention skeleton rollup refresh."
+
+$tableLayoutGovernanceBlocker = [pscustomobject]@{
+    id = "table_layout_delivery.safe_tblLook_fixes_pending"
+    source = "table_layout_delivery_governance"
+    severity = "error"
+    status = "needs_review"
+    action = "apply_safe_tblLook_fixes_then_visual_regression"
+    message = "Safe tblLook-only fixes are available and need visual evidence refresh."
+    source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
+    source_report_display = ".\output\table-layout-delivery-governance\summary.json"
+    source_json_display = ".\output\table-layout-delivery-governance\summary.json"
+    scope = "table_layout_delivery"
+    document_name = "contract.docx"
+    table_style_issue_count = 3
+    automatic_tblLook_fix_count = 2
+    manual_table_style_fix_count = 1
+    table_position_review_count = 1
+    unresolved_item_count = 10
+    pdf_floating_table_layout_boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
+    command_template = "featherdoc_cli apply-table-style-quality-fixes <input.docx> --look-only --output <reviewed.docx> --json"
+}
+$tableLayoutGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $tableLayoutGovernanceBlocker `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $tableLayoutGuidance -ExpectedText "apply_safe_tblLook_fixes_then_visual_regression" `
+    -Message "Table layout delivery blocker should render its fixed action runbook."
+Assert-ContainsText -Text $tableLayoutGuidance -ExpectedText "table layout delivery governance" `
+    -Message "Table layout delivery runbook should identify the governance domain."
+Assert-ContainsText -Text $tableLayoutGuidance -ExpectedText ".\output\table-layout-delivery-governance\summary.json" `
+    -Message "Table layout delivery runbook should point at source evidence."
+Assert-ContainsText -Text $tableLayoutGuidance -ExpectedText "scope=table_layout_delivery" `
+    -Message "Table layout delivery runbook should keep scope provenance."
+Assert-ContainsText -Text $tableLayoutGuidance -ExpectedText "document_name=contract.docx" `
+    -Message "Table layout delivery runbook should keep document provenance."
+Assert-ContainsText -Text $tableLayoutGuidance -ExpectedText "automatic_tblLook_fix_count=2" `
+    -Message "Table layout delivery runbook should keep safe tblLook fix metrics."
+Assert-ContainsText -Text $tableLayoutGuidance -ExpectedText "pdf_floating_table_layout_boundary=stable_pdf_geometry_subset_not_full_word_wrapping" `
+    -Message "Table layout delivery runbook should keep PDF floating table boundary."
+Assert-ContainsText -Text $tableLayoutGuidance -ExpectedText "apply-table-style-quality-fixes <input.docx> --look-only" `
+    -Message "Table layout delivery runbook should point at safe tblLook repair command."
+Assert-ContainsText -Text $tableLayoutGuidance -ExpectedText "run_table_style_quality_visual_regression.ps1" `
+    -Message "Table layout delivery runbook should require visual regression evidence refresh."
+Assert-ContainsText -Text $tableLayoutGuidance -ExpectedText "release note bundle" `
+    -Message "Table layout delivery runbook should tell reviewers to refresh release materials."
+Assert-True -Condition ($tableLayoutGuidance -notmatch [regex]::Escape("Registered release blocker action")) `
+    -Message "Table layout delivery registered action should not use the missing-runbook fallback."
+
+$tableLayoutChecklistGuidance = @(Get-ReleaseGovernanceChecklistGuidanceLines `
+        -Item $tableLayoutGovernanceBlocker `
+        -ItemKind "blocker" `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $tableLayoutChecklistGuidance -ExpectedText "release governance blocker" `
+    -Message "Table layout delivery checklist guidance should identify blocker context."
+Assert-ContainsText -Text $tableLayoutChecklistGuidance -ExpectedText "apply_safe_tblLook_fixes_then_visual_regression" `
+    -Message "Table layout delivery checklist guidance should render its fixed action runbook."
+Assert-ContainsText -Text $tableLayoutChecklistGuidance -ExpectedText "Table layout delivery metrics" `
+    -Message "Table layout delivery checklist guidance should keep quality metrics."
+Assert-ContainsText -Text $tableLayoutChecklistGuidance -ExpectedText "build_table_layout_delivery_governance_report.ps1" `
+    -Message "Table layout delivery checklist guidance should mention governance report rebuild."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "output gap checks=3" `
     -Message "PDF preflight build-output blocker should include the output gap group count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing outputs=87" `

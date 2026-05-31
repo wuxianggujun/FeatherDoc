@@ -368,6 +368,17 @@ governance / release note bundle。
 summary、handoff 与 reviewer bundle 应保留这些字段，让 reviewer 能区分“可发布”、
 “需自动修复”和“需人工版式复核”。
 
+表格与版式 action 也应映射到固定 reviewer runbook：
+``apply_safe_tblLook_fixes_then_visual_regression`` 和
+``apply_safe_tblLook_fixes`` 先应用 ``tblLook``-only 安全修复，再重跑
+``run_table_style_quality_visual_regression``；``review_table_style_quality_plan`` 与
+``review_manual_table_style_definition_work`` 用于人工复核表格样式定义；
+``review_table_position_plan``、``review_floating_table_position_plans`` 与
+``dry_run_apply_table_position_plans`` 用于浮动表格定位计划复核和指纹 dry-run；
+``review_table_layout_delivery_governance_sources`` 和
+``rebuild_table_layout_delivery_rollup`` 则固定回到 source JSON、rollup 与 governance
+报告重建路径，避免 reviewer 只看到 action token 而不知道该打开哪份证据。
+
 此外，``featherdoc.release_governance_pipeline_report.v1`` 的 ``stages[]`` 现在也会
 保留每个治理 stage 的 ``release_blockers``、``warnings`` 与 ``action_items`` 明细。
 这些 stage-level 明细会补齐 ``stage_id``、``stage_title``、``source_schema``、
