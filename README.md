@@ -789,7 +789,10 @@ When schema approval history has also been written with
 onboarding governance entries with the latest approval-history gate into
 `featherdoc.project_template_delivery_readiness_report.v1`. Use its
 `-FailOnBlocker` switch as the project-template delivery gate before feeding the
-result into the final release blocker rollup.
+result into the final release blocker rollup. Warning-only evidence gaps now
+produce `status=needs_review` with `release_ready=false`, and direct
+`onboarding_summary.json` / onboarding `plan.json` inputs keep their stable
+source schema on propagated blockers and action items.
 
 For schema patch threshold tuning, run
 `scripts/write_schema_patch_confidence_calibration_report.ps1`. It reads

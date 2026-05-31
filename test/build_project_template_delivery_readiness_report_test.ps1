@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "ready", "malformed", "fail_on_blocker", "missing_inputs", "manifest_description", "smoke_summary")]
+    [ValidateSet("all", "aggregate", "ready", "malformed", "fail_on_blocker", "missing_inputs", "manifest_description", "smoke_summary", "direct_onboarding_evidence")]
     [string]$Scenario = "all"
 )
 
@@ -523,6 +523,89 @@ function New-SmokeSummaryEvidence {
     }
 }
 
+function New-DirectOnboardingEvidence {
+    param([string]$Root)
+
+    $summaryPath = Join-Path $Root "invoice-onboarding\onboarding_summary.json"
+    $planPath = Join-Path $Root "smoke-onboarding-plan\plan.json"
+
+    Write-JsonFile -Path $summaryPath -Value ([ordered]@{
+        schema = "featherdoc.project_template_onboarding_summary.v1"
+        summary_schema_version = 1
+        template_name = "invoice-template"
+        input_docx = "samples/invoice.docx"
+        status = "blocked"
+        schema_approval_state = [ordered]@{
+            status = "pending_review"
+            gate_status = "pending"
+            release_blocked = $true
+            history_required = $false
+            action = "review_schema_update_candidate"
+        }
+        release_blockers = @(
+            [ordered]@{
+                id = "direct_summary_schema_review"
+                severity = "error"
+                status = "pending_review"
+                action = "review_schema_update_candidate"
+                message = "Direct onboarding summary requires schema approval review."
+            }
+        )
+        action_items = @(
+            [ordered]@{
+                id = "review_direct_summary_schema"
+                action = "review_schema_update_candidate"
+                title = "Review direct onboarding summary schema"
+                command = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
+            }
+        )
+        manual_review_recommendations = @()
+    })
+
+    Write-JsonFile -Path $planPath -Value ([ordered]@{
+        schema = "featherdoc.project_template_smoke_onboarding_plan.v1"
+        summary_schema_version = 1
+        onboarding_entry_count = 1
+        entries = @(
+            [ordered]@{
+                name = "statement-template"
+                input_docx = "samples/statement.docx"
+                status = "planned"
+                schema_approval_state = [ordered]@{
+                    status = "not_evaluated"
+                    gate_status = "not_evaluated"
+                    release_blocked = $true
+                    history_required = $false
+                    action = "run_project_template_smoke_then_review_schema_patch_approval"
+                }
+                release_blockers = @(
+                    [ordered]@{
+                        id = "direct_plan_schema_review"
+                        severity = "error"
+                        status = "not_evaluated"
+                        action = "run_project_template_smoke_then_review_schema_patch_approval"
+                        message = "Direct onboarding plan requires smoke evidence."
+                    }
+                )
+                action_items = @(
+                    [ordered]@{
+                        id = "run_direct_plan_smoke"
+                        action = "run_project_template_smoke"
+                        title = "Run direct onboarding plan smoke"
+                        command = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1"
+                    }
+                )
+                manual_review_recommendations = @()
+            }
+        )
+    })
+
+    return [pscustomobject]@{
+        Summary = $summaryPath
+        Plan = $planPath
+    }
+}
+
 if (Test-Scenario -Name "missing_inputs") {
     $missingInputRoot = Join-Path $resolvedWorkingDir "missing-inputs"
     $missingOutputDir = Join-Path $resolvedWorkingDir "missing-inputs-report"
@@ -538,6 +621,14 @@ if (Test-Scenario -Name "missing_inputs") {
     $markdownPath = Join-Path $missingOutputDir "project_template_delivery_readiness.md"
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
+        -Message "Missing template evidence should keep the readiness summary in needs_review."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $false `
+        -Message "Missing template evidence should not be release-ready."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 0 `
+        -Message "Missing template evidence should remain warning-only."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Missing template evidence should emit one warning."
     $warning = @($summary.warnings | Where-Object { [string]$_.id -eq "template_evidence_missing" })[0]
     Assert-True -Condition ($null -ne $warning) `
         -Message "Missing template evidence should emit template_evidence_missing."
@@ -595,6 +686,12 @@ if (Test-Scenario -Name "manifest_description") {
         -Message "Summary should count manifest description evidence."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
         -Message "Manifest-only readiness should emit one warning."
+    Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
+        -Message "Manifest-only readiness should keep the summary in needs_review."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $false `
+        -Message "Manifest-only readiness should not be release-ready."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 0 `
+        -Message "Manifest-only readiness should remain warning-only."
     Assert-Equal -Actual ([string]$summary.source_files[0].kind) -Expected "project_template_smoke_manifest_description" `
         -Message "Manifest description input should be loaded as a known evidence kind."
 
@@ -659,6 +756,48 @@ if (Test-Scenario -Name "smoke_summary") {
         -Message "Template readiness entry should point back to the smoke summary."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_smoke_summary" `
         -Message "Markdown should surface smoke summary provenance."
+}
+
+if (Test-Scenario -Name "direct_onboarding_evidence") {
+    $evidence = New-DirectOnboardingEvidence -Root (Join-Path $resolvedWorkingDir "direct-onboarding-evidence")
+    $outputDir = Join-Path $resolvedWorkingDir "direct-onboarding-report"
+    $result = Invoke-ReadinessScript -Arguments @(
+        "-InputJson", "$($evidence.Summary),$($evidence.Plan)",
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Direct onboarding evidence readiness run should pass without -FailOnBlocker. Output: $($result.Text)"
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
+        -Message "Direct onboarding blockers should keep readiness blocked."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 2 `
+        -Message "Direct onboarding summary and plan should both propagate blockers."
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 2 `
+        -Message "Direct onboarding summary and plan should both propagate action items."
+    Assert-ContainsText -Text (($summary.source_files | ForEach-Object { [string]$_.kind }) -join "`n") `
+        -ExpectedText "onboarding_summary" `
+        -Message "Direct onboarding summary input should be loaded as a known evidence kind."
+    Assert-ContainsText -Text (($summary.source_files | ForEach-Object { [string]$_.kind }) -join "`n") `
+        -ExpectedText "onboarding_plan" `
+        -Message "Direct onboarding plan input should be loaded as a known evidence kind."
+
+    $summaryBlocker = @($summary.release_blockers | Where-Object { [string]$_.id -eq "direct_summary_schema_review" })[0]
+    Assert-Equal -Actual ([string]$summaryBlocker.source_schema) -Expected "featherdoc.project_template_onboarding_summary.v1" `
+        -Message "Direct onboarding summary blockers should retain the onboarding summary schema."
+    $planBlocker = @($summary.release_blockers | Where-Object { [string]$_.id -eq "direct_plan_schema_review" })[0]
+    Assert-Equal -Actual ([string]$planBlocker.source_schema) -Expected "featherdoc.project_template_smoke_onboarding_plan.v1" `
+        -Message "Direct onboarding plan blockers should retain the onboarding plan schema."
+
+    $summaryAction = @($summary.action_items | Where-Object { [string]$_.id -eq "review_direct_summary_schema" })[0]
+    Assert-Equal -Actual ([string]$summaryAction.source_schema) -Expected "featherdoc.project_template_onboarding_summary.v1" `
+        -Message "Direct onboarding summary action items should retain the onboarding summary schema."
+    $planAction = @($summary.action_items | Where-Object { [string]$_.id -eq "run_direct_plan_smoke" })[0]
+    Assert-Equal -Actual ([string]$planAction.source_schema) -Expected "featherdoc.project_template_smoke_onboarding_plan.v1" `
+        -Message "Direct onboarding plan action items should retain the onboarding plan schema."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
 }
 
 if (Test-Scenario -Name "ready") {

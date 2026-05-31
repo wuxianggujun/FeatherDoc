@@ -60,6 +60,9 @@ performance.
 - Clarified historical PDF visual validation changelog wording so old
   reusable-build and baseline-output blocker notes do not read as current
   release status.
+- Fixed project-template delivery readiness so warning-only evidence gaps report
+  `needs_review` instead of `ready`, and direct onboarding summary/plan evidence
+  keeps its stable source schema in propagated blockers and action items.
 
 ## [1.12.0] - 2026-05-28
 

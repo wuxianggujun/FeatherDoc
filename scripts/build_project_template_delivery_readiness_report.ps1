@@ -324,6 +324,12 @@ function Get-DefaultSourceSchema {
     if ($SourceKind -eq "onboarding_governance_report") {
         return $onboardingGovernanceSchema
     }
+    if ($SourceKind -eq "onboarding_summary") {
+        return $onboardingSummarySchema
+    }
+    if ($SourceKind -eq "onboarding_plan") {
+        return $onboardingPlanSchema
+    }
     if ($SourceKind -eq "project_template_smoke_summary") {
         return $projectTemplateSmokeSummarySchema
     }
@@ -1076,6 +1082,8 @@ $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($releaseBlockers.Count -gt 0 -or $blockedTemplateCount -gt 0) {
     "blocked"
+} elseif ($warnings.Count -gt 0) {
+    "needs_review"
 } else {
     "ready"
 }

@@ -80,9 +80,11 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``ready_template_count``、``blocked_template_count``、
      ``release_blocker_count``、``latest_schema_approval_gate_status`` 和
      ``schema_approval_status_summary`` 必须明确。
-   * 若 ``release_ready = false``，``release_blocker_count`` 必须大于 ``0``，
-     且 blocker 必须携带稳定 ``id``、``action``、``message`` 和 source display
-     字段。
+   * 若 ``release_ready = false`` 且 ``status = blocked``，``release_blocker_count``
+     必须大于 ``0``，且 blocker 必须携带稳定 ``id``、``action``、``message``
+     和 source display 字段；若只有 manifest-only / missing-evidence 这类
+     warning，``status`` 必须保持 ``needs_review``，并通过 ``warning_count`` 与
+     ``warnings[]`` 暴露修复入口。
 
 4. Content-control data-binding 治理已接入：
 

@@ -630,8 +630,10 @@ approval history 后，可以继续运行
 `scripts/build_project_template_delivery_readiness_report.ps1`。它会把 onboarding
 governance 的模板条目和最新 schema approval history gate 拼成
 `featherdoc.project_template_delivery_readiness_report.v1`，并保留每个模板的
-release blocker、action item、人工复核建议和历史审批状态。`-FailOnBlocker`
-适合作为真实模板交付前的只读 gate。
+release blocker、action item、人工复核建议和历史审批状态。只有 warning 的证据缺口
+会进入 `status=needs_review` / `release_ready=false`，直接读取
+`onboarding_summary.json` 或 onboarding `plan.json` 时也会把各自稳定 schema
+保留到透传的 blocker/action item。`-FailOnBlocker` 适合作为真实模板交付前的只读 gate。
 
 如果需要从多次 smoke / approval history 里校准 schema patch 建议，可以运行
 `scripts/write_schema_patch_confidence_calibration_report.ps1`。它会聚合

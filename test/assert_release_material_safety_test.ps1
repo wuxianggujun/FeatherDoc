@@ -597,6 +597,17 @@ $passManifest = [ordered]@{
 
 & $auditScript -Path @($passSummaryPath, $passManifestPath)
 
+$passManifestWarningOnlyReadinessDir = Join-Path $passDir "manifest-project-template-readiness-warning-only"
+$passManifestWarningOnlyReadinessPath = Join-Path $passManifestWarningOnlyReadinessDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $passManifestWarningOnlyReadinessDir -Force | Out-Null
+$passManifestWarningOnlyReadiness = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$passManifestWarningOnlyReadiness.project_template_delivery_readiness_contract.status = "needs_review"
+$passManifestWarningOnlyReadiness.project_template_delivery_readiness_contract.release_ready = $false
+$passManifestWarningOnlyReadiness.project_template_delivery_readiness_contract.release_blocker_count = 0
+$passManifestWarningOnlyReadiness.project_template_delivery_readiness_contract.warning_count = 1
+($passManifestWarningOnlyReadiness | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $passManifestWarningOnlyReadinessPath -Encoding UTF8
+& $auditScript -Path $passManifestWarningOnlyReadinessPath
+
 $badManifestMissingProjectTemplateChecklistEntrypointsDir = Join-Path $failDir "manifest-missing-project-template-readiness-checklist-entrypoints"
 $badManifestMissingProjectTemplateChecklistEntrypointsPath = Join-Path $badManifestMissingProjectTemplateChecklistEntrypointsDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestMissingProjectTemplateChecklistEntrypointsDir -Force | Out-Null
@@ -4063,7 +4074,7 @@ try {
 }
 
 if (-not $badManifestBlockedProjectTemplateReadinessFailedAsExpected) {
-    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with release_ready=false and release_blocker_count=0."
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with release_ready=false and no blocker or warning."
 }
 
 $badManifestMissingProjectTemplateOnboardingDir = Join-Path $failDir "manifest-missing-project-template-onboarding"
