@@ -33,6 +33,20 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-HasProperty {
+    param($Object, [string]$Name, [string]$Message)
+    if (-not ($Object.PSObject.Properties.Name -contains $Name)) {
+        throw "$Message Missing property '$Name'."
+    }
+}
+
+function Assert-NonEmptyString {
+    param($Value, [string]$Message)
+    if ([string]::IsNullOrWhiteSpace([string]$Value)) {
+        throw $Message
+    }
+}
+
 function Assert-MatchesText {
     param([string]$Text, [string]$Pattern, [string]$Message)
     if ($Text -notmatch $Pattern) {
@@ -47,6 +61,38 @@ function Get-StageById {
     Assert-Equal -Actual $matches.Count -Expected 1 `
         -Message "Pipeline should include exactly one stage $Id."
     return $matches[0]
+}
+
+function Assert-StageGovernanceItemSourceTrace {
+    param(
+        $Stage,
+        [string]$PropertyName,
+        [bool]$ExpectOpenCommandProperty = $false
+    )
+
+    foreach ($item in @($Stage.$PropertyName)) {
+        $itemId = [string]$item.id
+        $context = "Pipeline stage $($Stage.id) $PropertyName item $itemId"
+
+        foreach ($property in @("stage_id", "stage_title", "source_report_display", "source_json_display")) {
+            Assert-HasProperty -Object $item -Name $property `
+                -Message "$context should expose $property."
+        }
+
+        Assert-Equal -Actual ([string]$item.stage_id) -Expected ([string]$Stage.id) `
+            -Message "$context should keep its parent stage id."
+        Assert-Equal -Actual ([string]$item.stage_title) -Expected ([string]$Stage.title) `
+            -Message "$context should keep its parent stage title."
+        Assert-NonEmptyString -Value $item.source_report_display `
+            -Message "$context should keep a source report display path."
+        Assert-NonEmptyString -Value $item.source_json_display `
+            -Message "$context should keep a source JSON display path."
+
+        if ($ExpectOpenCommandProperty) {
+            Assert-HasProperty -Object $item -Name "open_command" `
+                -Message "$context should expose reviewer open command metadata."
+        }
+    }
 }
 
 function Write-JsonFile {
@@ -740,6 +786,15 @@ foreach ($expectedStage in @(
     )) {
     Assert-ContainsText -Text ($stageIds -join "`n") -ExpectedText $expectedStage `
         -Message "Pipeline should include stage $expectedStage."
+}
+
+foreach ($stage in @($summary.stages)) {
+    Assert-StageGovernanceItemSourceTrace -Stage $stage -PropertyName "release_blockers"
+    Assert-StageGovernanceItemSourceTrace -Stage $stage -PropertyName "warnings"
+    Assert-StageGovernanceItemSourceTrace -Stage $stage -PropertyName "action_items" `
+        -ExpectOpenCommandProperty $true
+    Assert-StageGovernanceItemSourceTrace -Stage $stage -PropertyName "informational_action_items" `
+        -ExpectOpenCommandProperty $true
 }
 
 $numberingStage = Get-StageById -Summary $summary -Id "numbering_catalog_governance"
