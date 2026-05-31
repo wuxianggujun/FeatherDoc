@@ -56,6 +56,62 @@ function Assert-DoesNotContainText {
     }
 }
 
+function Assert-HasProperty {
+    param($Object, [string]$Name, [string]$Message)
+    if (-not ($Object.PSObject.Properties.Name -contains $Name)) {
+        throw "$Message Missing property '$Name'."
+    }
+}
+
+function Assert-NonEmptyString {
+    param($Value, [string]$Message)
+    if ([string]::IsNullOrWhiteSpace([string]$Value)) {
+        throw $Message
+    }
+}
+
+function Get-TraceItemLabel {
+    param($Item)
+
+    foreach ($property in @("composite_id", "id", "project_id", "template_name", "action")) {
+        if ($Item.PSObject.Properties.Name -contains $property) {
+            $value = [string]$Item.$property
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                return $value
+            }
+        }
+    }
+
+    return "<missing-id>"
+}
+
+function Assert-GovernanceTraceMetadata {
+    param(
+        [object[]]$Items,
+        [string]$CollectionName,
+        [bool]$ExpectOpenCommandProperty = $false
+    )
+
+    foreach ($item in @($Items)) {
+        $itemLabel = Get-TraceItemLabel -Item $item
+        $context = "Release blocker rollup $CollectionName item $itemLabel"
+
+        foreach ($property in @("source_schema", "source_report_display", "source_json_display")) {
+            Assert-HasProperty -Object $item -Name $property `
+                -Message "$context should expose $property."
+            Assert-NonEmptyString -Value $item.$property `
+                -Message "$context should keep non-empty $property."
+        }
+
+        if ($ExpectOpenCommandProperty) {
+            Assert-HasProperty -Object $item -Name "open_command" `
+                -Message "$context should expose reviewer open command metadata."
+            Assert-NonEmptyString -Value $item.open_command `
+                -Message "$context should keep a non-empty reviewer open command."
+        }
+    }
+}
+
 function Assert-MarkdownListBlockContainsAll {
     param(
         [string]$Text,
@@ -980,6 +1036,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should keep source report count."
     Assert-Equal -Actual ([int]$summary.governance_metric_count) -Expected 2 `
         -Message "Rollup should aggregate report-level governance metrics."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
+    Assert-GovernanceTraceMetadata -Items @($summary.informational_action_items) -CollectionName "informational_action_items" `
+        -ExpectOpenCommandProperty $true
     $metricText = ($summary.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n"
     Assert-ContainsText -Text $metricText -ExpectedText "real_corpus_confidence:low:56" `
         -Message "Rollup should preserve numbering real-corpus confidence metric."
@@ -1804,6 +1866,12 @@ if (Test-Scenario -Name "fail_on_warning") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
         -Message "Fail-on-warning rollup should preserve PDF preflight warnings in summary output."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
+    Assert-GovernanceTraceMetadata -Items @($summary.informational_action_items) -CollectionName "informational_action_items" `
+        -ExpectOpenCommandProperty $true
 }
 
 if (Test-Scenario -Name "empty") {
@@ -1836,6 +1904,10 @@ if (Test-Scenario -Name "comma_input") {
         -Message "Comma-separated input should keep all three source reports."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 4 `
         -Message "Comma-separated input should aggregate all blockers."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
     Assert-ContainsText -Text (($summary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
         -ExpectedText "release-candidate" `
         -Message "Comma-separated input should include the final source path."
@@ -1854,6 +1926,7 @@ if (Test-Scenario -Name "malformed") {
         -Message "Malformed count should produce one warning."
     Assert-ContainsText -Text ([string]$summary.warnings[0].message) -ExpectedText "release_blocker_count is 3" `
         -Message "Warning should explain count mismatch."
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_blocker_rollup.md")
     Assert-ContainsText -Text $markdown -ExpectedText "Source failures: ``0``" `
         -Message "Malformed-count Markdown should summarize source failure count separately from warnings."
@@ -1877,6 +1950,7 @@ if (Test-Scenario -Name "failed_source") {
         -Message "Unreadable source report should count one source failure."
     Assert-Equal -Actual ([string]$summary.source_reports[0].status) -Expected "failed" `
         -Message "Unreadable source report should be marked failed."
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_blocker_rollup.md")
     Assert-ContainsText -Text $markdown -ExpectedText "Source failures: ``1``" `
         -Message "Failed-source Markdown should summarize source failures."
@@ -1908,6 +1982,13 @@ if (Test-Scenario -Name "dedupe") {
         -Message "Duplicate blocker ids from different reports should both be retained."
     Assert-Equal -Actual ([int]$summary.blocker_id_summary[0].count) -Expected 2 `
         -Message "Blocker id summary should count duplicates."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "build_release_blocker_rollup_report.ps1" `
+        -Message "Action items without source commands should fall back to a rollup rebuild open command."
     Assert-True -Condition ([string]$summary.release_blockers[0].composite_id -ne [string]$summary.release_blockers[1].composite_id) `
         -Message "Composite ids should keep duplicate blockers distinct."
 }

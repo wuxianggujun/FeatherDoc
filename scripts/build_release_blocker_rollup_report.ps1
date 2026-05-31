@@ -2074,6 +2074,11 @@ foreach ($path in @($inputPaths)) {
             $sourceJsonDisplay = Get-JsonString -Object $item -Name "source_json_display"
             $originSourceReport = Get-JsonString -Object $item -Name "source_report"
             $originSourceReportDisplay = Get-JsonString -Object $item -Name "source_report_display"
+            $rollupSourceReportDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            $openCommand = Get-FirstJsonString -Object $item -Names @("open_command", "command")
+            if ([string]::IsNullOrWhiteSpace($openCommand)) {
+                $openCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson `"$rollupSourceReportDisplay`" -OutputDir .\output\release-blocker-rollup"
+            }
             $rollupActionItem = [ordered]@{
                 composite_id = ("source{0}.action{1}.{2}" -f $sourceIndex, $actionIndex, $id)
                 id = $id
@@ -2081,7 +2086,7 @@ foreach ($path in @($inputPaths)) {
                 template_name = Get-JsonString -Object $item -Name "template_name"
                 candidate_type = Get-JsonString -Object $item -Name "candidate_type"
                 source_report = $path
-                source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_report_display = $rollupSourceReportDisplay
                 origin_source_report = $originSourceReport
                 origin_source_report_display = $originSourceReportDisplay
                 source_json = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
@@ -2106,7 +2111,7 @@ foreach ($path in @($inputPaths)) {
                 action = Get-FirstJsonString -Object $item -Names @("action", "id") -DefaultValue "action_item"
                 title = Get-JsonString -Object $item -Name "title"
                 command = Get-JsonString -Object $item -Name "command"
-                open_command = Get-FirstJsonString -Object $item -Names @("open_command", "command")
+                open_command = $openCommand
                 category = Get-JsonString -Object $item -Name "category"
                 severity = Get-JsonString -Object $item -Name "severity"
                 release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
