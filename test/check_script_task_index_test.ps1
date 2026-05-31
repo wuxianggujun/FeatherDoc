@@ -317,6 +317,7 @@ Write-Utf8NoBomFile `
         "",
         "- ``scripts/check_script_task_index.ps1``",
         "- ``scripts/existing_tool.ps1``",
+        "- ``scripts/existing_helper.py``",
         "- ``scripts/missing_tool.ps1``",
         "- ``scripts/existing_tool.ps1``"
     ) -join "`n")
@@ -349,6 +350,9 @@ Write-Utf8NoBomFile `
 Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "scripts\existing_tool.ps1") `
     -Text "param()`n"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $failingRoot "scripts\existing_helper.py") `
+    -Text "print('ok')`n"
 
 $failingSummaryJson = Join-Path $failingRoot "summary.json"
 $failingReportMarkdown = Join-Path $failingRoot "script-task-index-report.md"
@@ -403,15 +407,15 @@ if ($failingSummary.script_reference_group_count -ne 1) {
 if ($failingSummary.documentation_entrypoint_count -ne 2) {
     throw "Expected two documentation entrypoints in failing fixture, got: $($failingSummary.documentation_entrypoint_count)"
 }
-if ($failingSummary.script_reference_extension_count -ne 1) {
-    throw "Expected one script reference extension in failing fixture, got: $($failingSummary.script_reference_extension_count)"
+if ($failingSummary.script_reference_extension_count -ne 2) {
+    throw "Expected two script reference extensions in failing fixture, got: $($failingSummary.script_reference_extension_count)"
 }
 $failingGroup = @($failingSummary.script_reference_groups)[0]
-if ($failingGroup.total_script_reference_count -ne 4) {
-    throw "Expected four total script references in failing fixture group, got: $($failingGroup.total_script_reference_count)"
+if ($failingGroup.total_script_reference_count -ne 5) {
+    throw "Expected five total script references in failing fixture group, got: $($failingGroup.total_script_reference_count)"
 }
-if ($failingGroup.script_reference_count -ne 3) {
-    throw "Expected three unique script references in failing fixture group, got: $($failingGroup.script_reference_count)"
+if ($failingGroup.script_reference_count -ne 4) {
+    throw "Expected four unique script references in failing fixture group, got: $($failingGroup.script_reference_count)"
 }
 if ($failingGroup.duplicate_script_reference_count -ne 1) {
     throw "Expected one duplicate script reference in failing fixture group, got: $($failingGroup.duplicate_script_reference_count)"
@@ -429,6 +433,21 @@ if ($failingExtension.script_reference_count -ne 3) {
 if ($failingExtension.duplicate_script_reference_count -ne 1) {
     throw "Expected one duplicate script reference in failing fixture extension, got: $($failingExtension.duplicate_script_reference_count)"
 }
+$failingPythonExtension = @($failingSummary.script_reference_extensions |
+    Where-Object { $_.extension -eq ".py" })[0]
+if ($failingPythonExtension.total_script_reference_count -ne 1) {
+    throw "Expected one total Python script reference in failing fixture extension, got: $($failingPythonExtension.total_script_reference_count)"
+}
+if ($failingPythonExtension.script_reference_count -ne 1) {
+    throw "Expected one unique Python script reference in failing fixture extension, got: $($failingPythonExtension.script_reference_count)"
+}
+if ($failingPythonExtension.duplicate_script_reference_count -ne 0) {
+    throw "Expected no duplicate Python script references in failing fixture extension, got: $($failingPythonExtension.duplicate_script_reference_count)"
+}
+Assert-ArrayContains `
+    -Values @($failingPythonExtension.script_references) `
+    -ExpectedValue "scripts\existing_helper.py" `
+    -Message "Failing summary should list the Python helper in extension metadata."
 Assert-ArrayContains `
     -Values @($failingSummary.missing_scripts) `
     -ExpectedValue "scripts\missing_tool.ps1" `
@@ -445,18 +464,20 @@ foreach ($marker in @(
         '- status: `failed`',
         '- documentation_entrypoint_count: `2`',
         '- script_reference_group_count: `1`',
-        '- script_reference_extension_count: `1`',
+        '- script_reference_extension_count: `2`',
         '- duplicate_script_reference_count: `1`',
         '- missing_script_count: `1`',
         '- missing_marker_count: `1`',
+        '[ok] `scripts\existing_helper.py`',
         '[missing] `scripts\missing_tool.ps1`',
         '## Documentation Entry Points',
         '`README.md`: 2 markers',
         '`README.zh-CN.md`: 2 markers',
         '## Script Reference Groups',
-        '`Script task index`: 3 unique / 4 total',
+        '`Script task index`: 4 unique / 5 total',
         '## Script Reference Extensions',
         '`.ps1`: 3 unique / 4 total',
+        '`.py`: 1 unique / 1 total',
         '## Duplicate Script References',
         '`scripts\existing_tool.ps1` x2',
         '## Missing Scripts',
