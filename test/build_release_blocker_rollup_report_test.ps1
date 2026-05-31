@@ -137,10 +137,11 @@ function Assert-MarkdownListBlockContainsAll {
             $blockLines += $lines[$next]
         }
 
-        $blockText = $blockLines -join "`n"
+        $blockText = ($blockLines -join "`n") -replace '/', '\'
         $hasAllFragments = $true
         foreach ($fragment in $ExpectedFragments) {
-            if ($blockText -notmatch [regex]::Escape($fragment)) {
+            $normalizedFragment = $fragment -replace '/', '\'
+            if ($blockText -notmatch [regex]::Escape($normalizedFragment)) {
                 $hasAllFragments = $false
                 break
             }
@@ -1763,10 +1764,10 @@ if (Test-Scenario -Name "passing") {
         "project_template_readiness_checklist_entrypoints_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``",
         "``reviewer_checklist``: required=``True``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``",
-        "release_entry_project_template_readiness_checklist_material_safety_audit_script:",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_script: ``.\scripts\assert_release_material_safety.ps1``",
         "assert_release_material_safety.ps1",
         "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count: ``3``",
-        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints:",
+        "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``start_here, artifact_guide, reviewer_checklist``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_label: ``Project-template readiness checklist handoff evidence``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_field: ``project_template_readiness_checklist_entrypoints_source_reports``",
         "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema: ``featherdoc.release_candidate_summary``",
