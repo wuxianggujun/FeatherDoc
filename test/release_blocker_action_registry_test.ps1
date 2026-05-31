@@ -91,6 +91,10 @@ $paddedRegisteredAction = " $canonicalRegisteredAction "
 Assert-True -Condition (-not (Test-ReleaseBlockerActionRegistered -Action $paddedRegisteredAction)) `
     -Message "Release blocker action registry lookup should not trim malformed action tokens."
 
+$paddedGuidance = @(Get-ReleaseBlockerActionGuidanceLines -Blocker ([pscustomobject]@{ action = $paddedRegisteredAction })) -join "`n"
+Assert-ContainsText -Text $paddedGuidance -ExpectedText ("Unregistered release blocker action ``{0}``" -f $paddedRegisteredAction) `
+    -Message "Malformed registered-looking action should render the unregistered fallback instead of being normalized."
+
 $unknownAction = "custom_unregistered_action"
 Assert-True -Condition (-not (Test-ReleaseBlockerActionRegistered -Action $unknownAction)) `
     -Message "Unknown release blocker action should not resolve as registered."
