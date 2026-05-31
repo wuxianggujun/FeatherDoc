@@ -312,6 +312,82 @@ Assert-ContainsText -Text $contentControlChecklistGuidance -ExpectedText "input_
     -Message "Content-control data-binding checklist guidance should keep input DOCX provenance."
 Assert-ContainsText -Text $contentControlChecklistGuidance -ExpectedText "sync-content-controls-from-custom-xml" `
     -Message "Content-control data-binding checklist guidance should point at the sync command."
+
+$projectTemplateBlocker = [pscustomobject]@{
+    id = "project_template_onboarding.schema_approval"
+    source = "project_template_onboarding_governance"
+    severity = "error"
+    status = "pending_review"
+    action = "review_schema_update_candidate"
+    message = "Project-template schema update candidate needs review before release."
+    source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+    source_report_display = ".\output\project-template-onboarding-governance\governance\report.md"
+    source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+    command_template = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1 -ProjectSummaryJson .\output\project-template-smoke\summary.json"
+    project_id = "starter-docs"
+    template_name = "starter-template"
+    input_docx = "samples/starter-template.docx"
+    input_docx_display = ".\samples\starter-template.docx"
+    schema_target = "schemas/starter-template.schema.json"
+    target_mode = "resolved-section-targets"
+    candidate_type = "schema_patch"
+    schema_approval_status = "pending_review"
+    gate_status = "pending"
+    onboarding_governance_status = "blocked"
+    onboarding_governance_release_ready = "false"
+    onboarding_governance_source_report_display = ".\output\project-template-onboarding-governance\governance\report.md"
+    onboarding_governance_source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+    onboarding_governance_schema_approval_status_summary = @(
+        [pscustomobject]@{
+            status = "pending_review"
+            count = 1
+        }
+    )
+}
+$projectTemplateGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $projectTemplateBlocker `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $projectTemplateGuidance -ExpectedText "review_schema_update_candidate" `
+    -Message "Project-template schema approval blocker should render its fixed action runbook."
+Assert-ContainsText -Text $projectTemplateGuidance -ExpectedText "project-template" `
+    -Message "Project-template schema approval runbook should identify the governance domain."
+Assert-ContainsText -Text $projectTemplateGuidance -ExpectedText ".\output\project-template-onboarding-governance\governance\report.md" `
+    -Message "Project-template schema approval runbook should point at source_report_display."
+Assert-ContainsText -Text $projectTemplateGuidance -ExpectedText ".\output\project-template-onboarding-governance\summary.json" `
+    -Message "Project-template schema approval runbook should point at source_json_display."
+Assert-ContainsText -Text $projectTemplateGuidance -ExpectedText "template_name=starter-template" `
+    -Message "Project-template schema approval runbook should keep template provenance."
+Assert-ContainsText -Text $projectTemplateGuidance -ExpectedText "input_docx_display=.\samples\starter-template.docx" `
+    -Message "Project-template schema approval runbook should keep input DOCX provenance."
+Assert-ContainsText -Text $projectTemplateGuidance -ExpectedText "schema_target=schemas/starter-template.schema.json" `
+    -Message "Project-template schema approval runbook should keep schema target provenance."
+Assert-ContainsText -Text $projectTemplateGuidance -ExpectedText "pending_review=1" `
+    -Message "Project-template schema approval runbook should summarize schema approval status."
+Assert-ContainsText -Text $projectTemplateGuidance -ExpectedText "sync_project_template_schema_approval.ps1" `
+    -Message "Project-template schema approval runbook should point at schema approval sync."
+Assert-ContainsText -Text $projectTemplateGuidance -ExpectedText "build_project_template_delivery_readiness_report.ps1" `
+    -Message "Project-template schema approval runbook should tell reviewers to rebuild delivery readiness."
+Assert-ContainsText -Text $projectTemplateGuidance -ExpectedText "release note bundle" `
+    -Message "Project-template schema approval runbook should tell reviewers to refresh release materials."
+Assert-True -Condition ($projectTemplateGuidance -notmatch [regex]::Escape("Registered release blocker action")) `
+    -Message "Project-template registered action should not use the missing-runbook fallback."
+
+$projectTemplateChecklistGuidance = @(Get-ReleaseGovernanceChecklistGuidanceLines `
+        -Item $projectTemplateBlocker `
+        -ItemKind "blocker" `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $projectTemplateChecklistGuidance -ExpectedText "release governance blocker" `
+    -Message "Project-template checklist guidance should identify blocker context."
+Assert-ContainsText -Text $projectTemplateChecklistGuidance -ExpectedText "review_schema_update_candidate" `
+    -Message "Project-template checklist guidance should render its fixed action runbook."
+Assert-ContainsText -Text $projectTemplateChecklistGuidance -ExpectedText "template_name=starter-template" `
+    -Message "Project-template checklist guidance should keep template provenance."
+Assert-ContainsText -Text $projectTemplateChecklistGuidance -ExpectedText "sync_project_template_schema_approval.ps1" `
+    -Message "Project-template checklist guidance should point at schema approval sync."
+Assert-ContainsText -Text $projectTemplateChecklistGuidance -ExpectedText "build_project_template_onboarding_governance_report.ps1" `
+    -Message "Project-template checklist guidance should tell reviewers when to rebuild onboarding governance."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "output gap checks=3" `
     -Message "PDF preflight build-output blocker should include the output gap group count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing outputs=87" `

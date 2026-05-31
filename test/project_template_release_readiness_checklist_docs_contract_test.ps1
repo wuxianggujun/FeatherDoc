@@ -289,7 +289,19 @@ foreach ($marker in @(
     "project_template_onboarding.schema_approval",
     "Markdown list block",
     "project-template-delivery-readiness",
-    "project-template-onboarding-governance"
+    "project-template-onboarding-governance",
+    "review_schema_update_candidate",
+    "approve_project_template_schema",
+    "promote_schema_update_candidate",
+    "update_template_or_schema_before_retry",
+    "freeze_schema_baseline",
+    "review_schema_baseline",
+    "review_schema_approval_history",
+    "run_project_template_smoke_for_registered_manifest",
+    "run_project_template_smoke_then_review_schema_patch_approval",
+    "review_project_template_smoke_failure",
+    "collect_project_template_onboarding_governance_evidence",
+    "review_project_template_delivery_readiness_evidence"
 )) {
     Assert-ContainsText -Text $releasePipelineDoc -ExpectedText $marker `
         -Message "Release metadata pipeline docs should keep governance marker '$marker'."
@@ -327,7 +339,14 @@ foreach ($marker in @(
     "project_template_onboarding.*",
     "governance/report",
     "onboarding governance",
-    "schema approval"
+    "schema approval",
+    "project-template provenance",
+    "run_project_template_smoke.ps1",
+    "sync_project_template_schema_approval.ps1",
+    "write_project_template_schema_approval_history.ps1",
+    "build_project_template_onboarding_governance_report.ps1",
+    "build_project_template_delivery_readiness_report.ps1",
+    "reviewer runbook"
 )) {
     Assert-ContainsText -Text $onboardingGuidance -ExpectedText $marker `
         -Message "Release metadata pipeline docs should keep project-template onboarding source evidence guidance '$marker'."

@@ -814,20 +814,32 @@ function Get-ReleaseBlockerRegisteredActions {
         "complete_visual_manual_review",
         "add_explicit_confidence_metadata",
         "collect_content_control_data_binding_evidence",
+        "approve_project_template_schema",
+        "collect_project_template_onboarding_governance_evidence",
         "fix_schema_patch_approval_result",
         "fix_custom_xml_data_binding_source",
         "fix_invalid_approval_records",
+        "freeze_schema_baseline",
+        "promote_schema_update_candidate",
         "prepare_pdf_visual_release_gate_build_outputs",
         "rerun_pdf_controlled_visual_smoke_check",
         "rerun_pdf_visual_release_gate_preflight",
         "review_content_control_data_binding_evidence",
         "review_content_control_lock_strategy",
         "review_duplicate_content_control_binding",
+        "review_project_template_delivery_readiness_evidence",
+        "review_project_template_smoke_failure",
+        "review_schema_approval_history",
+        "review_schema_baseline",
         "review_unbound_form_content_control",
         "resolve_pending_schema_approvals",
         "review_schema_patch_confidence_calibration_evidence",
+        "review_schema_update_candidate",
         "run_content_control_custom_xml_sync",
+        "run_project_template_smoke_for_registered_manifest",
+        "run_project_template_smoke_then_review_schema_patch_approval",
         "sync_or_fill_bound_content_control",
+        "update_template_or_schema_before_retry",
         "restore_docx_functional_smoke_evidence"
     )
 }
@@ -1157,6 +1169,201 @@ function Add-ContentControlDataBindingGovernanceGuidanceLines {
     }
 }
 
+function Add-ProjectTemplateGovernanceGuidanceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item,
+        [string]$RepoRoot = "",
+        [string]$ReleaseSummaryJson = "",
+        [string]$ContextText = ""
+    )
+
+    $action = Get-ReleaseBlockerPropertyValue -Object $Item -Name "action"
+    $contextSuffix = if ([string]::IsNullOrWhiteSpace($ContextText)) { "" } else { " $ContextText" }
+
+    switch ($action) {
+        "approve_project_template_schema" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `approve_project_template_schema`{0}: write an explicit project-template schema approval decision, reviewer, and reviewed_at, then sync schema approval metadata.' -f $contextSuffix)
+            break
+        }
+        "promote_schema_update_candidate" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `promote_schema_update_candidate`{0}: promote the approved schema update candidate only after smoke evidence and approval history agree.' -f $contextSuffix)
+            break
+        }
+        "review_schema_update_candidate" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_schema_update_candidate`{0}: review the schema patch candidate, record the approval result, then rerun project-template schema approval sync.' -f $contextSuffix)
+            break
+        }
+        "update_template_or_schema_before_retry" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `update_template_or_schema_before_retry`{0}: update the DOCX template or schema candidate, rerun smoke, and resync schema approval before retrying release readiness.' -f $contextSuffix)
+            break
+        }
+        "freeze_schema_baseline" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `freeze_schema_baseline`{0}: freeze the schema baseline candidate from the project template DOCX before smoke or release readiness review.' -f $contextSuffix)
+            break
+        }
+        "review_schema_baseline" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_schema_baseline`{0}: review the frozen baseline for unexpected, duplicate, or malformed fields before approving follow-up schema changes.' -f $contextSuffix)
+            break
+        }
+        "review_schema_approval_history" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_schema_approval_history`{0}: rebuild and review project-template schema approval history before treating delivery readiness as release-ready.' -f $contextSuffix)
+            break
+        }
+        "run_project_template_smoke_for_registered_manifest" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `run_project_template_smoke_for_registered_manifest`{0}: run project-template smoke for the registered manifest, then rebuild onboarding and delivery readiness evidence.' -f $contextSuffix)
+            break
+        }
+        "run_project_template_smoke_then_review_schema_patch_approval" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `run_project_template_smoke_then_review_schema_patch_approval`{0}: run project-template smoke, review generated schema patch approval items, and sync the approval result.' -f $contextSuffix)
+            break
+        }
+        "review_project_template_smoke_failure" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_project_template_smoke_failure`{0}: inspect the failing project-template smoke entry, repair the template/schema/data inputs, then rerun smoke.' -f $contextSuffix)
+            break
+        }
+        "collect_project_template_onboarding_governance_evidence" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `collect_project_template_onboarding_governance_evidence`{0}: rebuild project-template onboarding governance evidence before trusting delivery readiness.' -f $contextSuffix)
+            break
+        }
+        default {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_project_template_delivery_readiness_evidence`{0}: review project-template delivery readiness evidence, then rebuild the readiness report.' -f $contextSuffix)
+        }
+    }
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Item -Name "status"
+    $message = Get-ReleaseBlockerPropertyValue -Object $Item -Name "message"
+    if (-not [string]::IsNullOrWhiteSpace($status) -or -not [string]::IsNullOrWhiteSpace($message)) {
+        $statusLine = "Project-template governance item"
+        if (-not [string]::IsNullOrWhiteSpace($status)) {
+            $statusLine += ": $status"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($message)) {
+            $statusLine += "; message: $message"
+        }
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text $statusLine
+    }
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Open the project-template governance report first: {0}" -f $sourceReportDisplay)
+    }
+
+    $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Inspect the project-template source JSON before changing evidence: {0}" -f $sourceJsonDisplay)
+    }
+
+    $onboardingReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "onboarding_governance_source_report_display"
+    if (-not [string]::IsNullOrWhiteSpace($onboardingReportDisplay) -and
+        -not [string]::Equals($onboardingReportDisplay, $sourceReportDisplay, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Open onboarding governance source report: {0}" -f $onboardingReportDisplay)
+    }
+
+    $onboardingJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "onboarding_governance_source_json_display"
+    if (-not [string]::IsNullOrWhiteSpace($onboardingJsonDisplay) -and
+        -not [string]::Equals($onboardingJsonDisplay, $sourceJsonDisplay, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Inspect onboarding governance source JSON: {0}" -f $onboardingJsonDisplay)
+    }
+
+    $provenanceParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($fieldName in @("project_id", "template_name", "input_docx_display", "input_docx", "schema_target", "target_mode", "candidate_type", "manifest_path_display", "manifest_path", "source_kind", "scope")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            [void]$provenanceParts.Add("$fieldName=$value")
+        }
+    }
+    if ($provenanceParts.Count -gt 0) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Project-template provenance: {0}" -f ($provenanceParts.ToArray() -join ", "))
+    }
+
+    $schemaStatusParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($fieldName in @("schema_approval_status", "gate_status", "latest_schema_approval_gate_status", "onboarding_governance_status", "onboarding_governance_release_ready", "release_ready", "schema_approval_history_required", "schema_history_available")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            [void]$schemaStatusParts.Add("$fieldName=$value")
+        }
+    }
+    if ($schemaStatusParts.Count -gt 0) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Project-template schema approval state: {0}" -f ($schemaStatusParts.ToArray() -join ", "))
+    }
+
+    $schemaApprovalSummaryValue = Get-ReleaseBlockerPropertyObject -Object $Item -Name "onboarding_governance_schema_approval_status_summary"
+    if ($null -eq $schemaApprovalSummaryValue) {
+        $schemaApprovalSummaryValue = Get-ReleaseBlockerPropertyObject -Object $Item -Name "schema_approval_status_summary"
+    }
+    $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
+        -Value $schemaApprovalSummaryValue `
+        -Fallback (Get-ReleaseBlockerPropertyValue -Object $Item -Name "schema_approval_status")
+    if (-not [string]::IsNullOrWhiteSpace($schemaApprovalSummary)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Project-template schema approval summary: {0}" -f $schemaApprovalSummary)
+    }
+
+    $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        foreach ($commandName in @("open_command", "command", "review_command")) {
+            $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name $commandName
+            if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
+                break
+            }
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        switch ($action) {
+            "freeze_schema_baseline" {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx <template.docx> -SchemaOutput <schema.json>'
+                break
+            }
+            "review_schema_baseline" {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx <template.docx> -SchemaOutput <schema.json>'
+                break
+            }
+            { $_ -in @(
+                    "run_project_template_smoke_for_registered_manifest",
+                    "run_project_template_smoke_then_review_schema_patch_approval",
+                    "review_project_template_smoke_failure"
+                ) } {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -OutputDir .\output\project-template-smoke -SkipBuild'
+                break
+            }
+            { $_ -in @(
+                    "approve_project_template_schema",
+                    "promote_schema_update_candidate",
+                    "review_schema_update_candidate",
+                    "update_template_or_schema_before_retry"
+                ) } {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1'
+                break
+            }
+            "review_schema_approval_history" {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\write_project_template_schema_approval_history.ps1 -SummaryJsonDir .\output\project-template-smoke -OutputJson .\output\project-template-schema-approval-history\history.json'
+                break
+            }
+            "collect_project_template_onboarding_governance_evidence" {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\project-template-onboarding-governance'
+                break
+            }
+            default {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1'
+            }
+        }
+    }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Run or inspect the project-template governance command: `{0}`' -f $commandTemplate)
+
+    $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    if ([string]::IsNullOrWhiteSpace($releaseSummaryDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'After project-template governance evidence is passing, rerun `build_project_template_onboarding_governance_report.ps1` when onboarding evidence changed, rerun `build_project_template_delivery_readiness_report.ps1`, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle before publishing.'
+    } else {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('After project-template governance evidence is passing, rerun `build_project_template_onboarding_governance_report.ps1` when onboarding evidence changed, rerun `build_project_template_delivery_readiness_report.ps1`, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)
+    }
+}
+
 function Get-ReleaseBlockerActionGuidanceLines {
     param(
         [AllowNull()]$Blocker,
@@ -1214,6 +1421,27 @@ function Get-ReleaseBlockerActionGuidanceLines {
                 "run_content_control_custom_xml_sync"
             ) } {
             Add-ContentControlDataBindingGovernanceGuidanceLines `
+                -Lines $guidanceLines `
+                -Item $Blocker `
+                -RepoRoot $RepoRoot `
+                -ReleaseSummaryJson $ReleaseSummaryJson
+            break
+        }
+        { $_ -in @(
+                "approve_project_template_schema",
+                "collect_project_template_onboarding_governance_evidence",
+                "freeze_schema_baseline",
+                "promote_schema_update_candidate",
+                "review_project_template_delivery_readiness_evidence",
+                "review_project_template_smoke_failure",
+                "review_schema_approval_history",
+                "review_schema_baseline",
+                "review_schema_update_candidate",
+                "run_project_template_smoke_for_registered_manifest",
+                "run_project_template_smoke_then_review_schema_patch_approval",
+                "update_template_or_schema_before_retry"
+            ) } {
+            Add-ProjectTemplateGovernanceGuidanceLines `
                 -Lines $guidanceLines `
                 -Item $Blocker `
                 -RepoRoot $RepoRoot `
@@ -3122,6 +3350,26 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             "run_content_control_custom_xml_sync"
         )) {
         Add-ContentControlDataBindingGovernanceGuidanceLines `
+            -Lines $guidanceLines `
+            -Item $Item `
+            -RepoRoot $RepoRoot `
+            -ReleaseSummaryJson $ReleaseSummaryJson `
+            -ContextText ('for release governance {0} `{1}`' -f $ItemKind, $id)
+    } elseif ($action -in @(
+            "approve_project_template_schema",
+            "collect_project_template_onboarding_governance_evidence",
+            "freeze_schema_baseline",
+            "promote_schema_update_candidate",
+            "review_project_template_delivery_readiness_evidence",
+            "review_project_template_smoke_failure",
+            "review_schema_approval_history",
+            "review_schema_baseline",
+            "review_schema_update_candidate",
+            "run_project_template_smoke_for_registered_manifest",
+            "run_project_template_smoke_then_review_schema_patch_approval",
+            "update_template_or_schema_before_retry"
+        )) {
+        Add-ProjectTemplateGovernanceGuidanceLines `
             -Lines $guidanceLines `
             -Item $Item `
             -RepoRoot $RepoRoot `
