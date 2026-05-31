@@ -482,7 +482,10 @@ $checklistExpectedMarkers = @(
     "build_project_template_delivery_readiness_report_test.ps1",
     "build_content_control_data_binding_governance_report_test.ps1",
     "build_numbering_catalog_governance_report_test.ps1",
-    "build_table_layout_delivery_governance_report_test.ps1"
+    "build_table_layout_delivery_governance_report_test.ps1",
+    "pdf_floating_table_support_coverage",
+    "pdf_floating_table_reviewer_focus",
+    "metadata-only tblpPr"
 )
 $documentGovernanceExpectedMarkers = @(
     "document_governance_acceptance.v1",

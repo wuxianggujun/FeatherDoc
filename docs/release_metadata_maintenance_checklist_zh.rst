@@ -267,6 +267,11 @@ failure diagnostics 时重新猜测编码。
 ``build_content_control_data_binding_governance_report_test.ps1``、
 ``build_numbering_catalog_governance_report_test.ps1`` 和
 ``build_table_layout_delivery_governance_report_test.ps1``。
+其中表格版式交付入口还必须保留 ``pdf_floating_table_support_coverage``、
+``pdf_floating_table_reviewer_focus`` 和 metadata-only ``tblpPr`` 复核提示，
+并把固定 marker ``metadata-only tblpPr`` 留在同一维护材料里，确保 release
+metadata 维护者不会把 PDF 浮动表的支持边界、reviewer focus 和元数据级字段
+复核从公开入口材料中拆掉。
 为了保持发布面板兼容，维护文档还要继续提到 ``release governance warning``、
 ``warning_count``、``release_blocker_rollup``、
 ``release_governance_handoff``、``release_governance_pipeline``、
