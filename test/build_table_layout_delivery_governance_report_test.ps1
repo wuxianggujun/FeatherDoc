@@ -33,6 +33,48 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-HasProperty {
+    param($Object, [string]$Name, [string]$Message)
+    if (-not ($Object.PSObject.Properties.Name -contains $Name)) {
+        throw "$Message Missing property '$Name'."
+    }
+}
+
+function Assert-NonEmptyString {
+    param($Value, [string]$Message)
+    if ([string]::IsNullOrWhiteSpace([string]$Value)) {
+        throw $Message
+    }
+}
+
+function Assert-GovernanceTraceMetadata {
+    param(
+        [object[]]$Items,
+        [string]$CollectionName,
+        [bool]$ExpectOpenCommandProperty = $false
+    )
+
+    foreach ($item in @($Items)) {
+        $itemId = [string]$item.id
+        if ([string]::IsNullOrWhiteSpace($itemId)) { $itemId = "<missing-id>" }
+        $context = "Table layout governance $CollectionName item $itemId"
+
+        foreach ($property in @("source_schema", "source_report_display", "source_json_display")) {
+            Assert-HasProperty -Object $item -Name $property `
+                -Message "$context should expose $property."
+            Assert-NonEmptyString -Value $item.$property `
+                -Message "$context should keep non-empty $property."
+        }
+
+        if ($ExpectOpenCommandProperty) {
+            Assert-HasProperty -Object $item -Name "open_command" `
+                -Message "$context should expose reviewer open command metadata."
+            Assert-NonEmptyString -Value $item.open_command `
+                -Message "$context should keep a non-empty reviewer open command."
+        }
+    }
+}
+
 function Test-Scenario {
     param([string]$Name)
     return ($Scenario -eq "all" -or $Scenario -eq $Name)
@@ -401,6 +443,14 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should include source and governance blockers."
     Assert-True -Condition ([int]$summary.action_item_count -ge 5) `
         -Message "Summary should include source and governance action items."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.delivery_actions) -CollectionName "delivery_actions" `
+        -ExpectOpenCommandProperty $true
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
+    Assert-GovernanceTraceMetadata -Items @($summary.next_steps) -CollectionName "next_steps" `
+        -ExpectOpenCommandProperty $true
 
     $blockerText = ($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n"
     Assert-ContainsText -Text $blockerText -ExpectedText "table_layout_delivery.safe_tblLook_fixes_pending" `
