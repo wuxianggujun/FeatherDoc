@@ -7,7 +7,7 @@
 
 契约标记：``document_api_mainline_status.v1``、
 ``document_api_status_current_dev``、``codex_branch_reference_only``、
-``pdf_cjk_branch_deferred``。
+``pdf_cjk_branch_deferred``、``document_api_lightweight_validation_checklist``。
 
 本文用于回答两个容易混淆的问题：
 
