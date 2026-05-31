@@ -232,7 +232,7 @@ Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 - Project template release readiness checklist: docs/project_template_release_readiness_checklist_zh.rst
 - Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
-- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 - PDF visual gate summary: $pdfGateSummaryPathDisplay
 - PDF CJK manifest samples: 43
 - PDF CJK copy/search samples: 2
@@ -391,12 +391,12 @@ Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
 
 - Report root: $resolvedRepoRoot\output\release-candidate-checks\report
 - Governance metric: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
-- Governance metric: table_layout_delivery_governance.delivery_quality release_ready 100 source_schema=featherdoc.table_layout_delivery_governance_report.v1 table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- Governance metric: table_layout_delivery_governance.delivery_quality release_ready 100 source_schema=featherdoc.table_layout_delivery_governance_report.v1 table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status: ready release_ready: True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
 - Project template onboarding governance: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 - Project template release readiness checklist: docs/project_template_release_readiness_checklist_zh.rst
 - Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json
-- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 - Content-control provenance: input_docx=samples/invoice.docx input_docx_display=.\samples\invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control repair: content_control_data_binding.bound_placeholder source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
 - PDF visual gate summary: $pdfGateSummaryPathDisplay
@@ -420,7 +420,7 @@ Set-Content -LiteralPath $reviewerChecklistPath -Encoding UTF8 -Value @"
 - Check project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=ready release_ready=True schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json before release.
 - Confirm Project template release readiness checklist docs/project_template_release_readiness_checklist_zh.rst before release.
 - Confirm release governance handoff carries project-template readiness checklist entrypoint evidence: Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks\summary.json.
-- Confirm table_layout_delivery_governance.delivery_quality table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 penalty_summary=floating_table_plans_pending(count=0, penalty=0) before release.
+- Confirm table_layout_delivery_governance.delivery_quality table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0) before release.
 - Confirm PDF visual gate summary $pdfGateSummaryPathDisplay with 2 CJK copy/search samples and 3 visual baselines before release.
 - Confirm PDF visual gate aggregate contact sheet $pdfGateAggregateContactSheetPathDisplay before release.
 - Confirm PDF release readiness checklist docs/pdf_release_readiness_checklist_zh.rst before release.
@@ -735,6 +735,10 @@ $summary = [ordered]@{
                 table_position_review_count = 0
                 command_failure_count = 0
                 unresolved_item_count = 0
+                pdf_floating_table_supported_geometry_count = 4
+                pdf_floating_table_metadata_only_count = 5
+                pdf_floating_table_tracked_geometry_count = 9
+                pdf_floating_table_supported_geometry_percent = 44
                 penalty_summary = @(
                     [ordered]@{ factor = "needs_review_documents"; count = 0; penalty = 0 },
                     [ordered]@{ factor = "floating_table_plans_pending"; count = 0; penalty = 0 }
@@ -1141,6 +1145,15 @@ foreach ($entrypointMaterial in @(
         @{ Path = $stagedArtifactGuidePath; Label = 'staged ARTIFACT_GUIDE.md' },
         @{ Path = $stagedReviewerChecklistPath; Label = 'staged REVIEWER_CHECKLIST.md' }
     )) {
+    Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'pdf_floating_table_support_coverage' -Label $entrypointMaterial.Label
+    Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'pdf_floating_table_reviewer_focus' -Label $entrypointMaterial.Label
+    Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'metadata-only tblpPr' -Label $entrypointMaterial.Label
+}
+foreach ($entrypointMaterial in @(
+        @{ Path = $stagedStartHerePath; Label = 'staged START_HERE.md' },
+        @{ Path = $stagedArtifactGuidePath; Label = 'staged ARTIFACT_GUIDE.md' },
+        @{ Path = $stagedReviewerChecklistPath; Label = 'staged REVIEWER_CHECKLIST.md' }
+    )) {
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'Project-template readiness checklist handoff evidence' -Label $entrypointMaterial.Label
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'project_template_readiness_checklist_entrypoints_source_reports=1' -Label $entrypointMaterial.Label
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'checklist_path=docs/project_template_release_readiness_checklist_zh.rst' -Label $entrypointMaterial.Label
@@ -1476,6 +1489,12 @@ if ([int]$manifestTableLayoutDeliveryQuality.details.document_count -ne 3) {
 }
 if ([int]$manifestTableLayoutDeliveryQuality.details.unresolved_item_count -ne 0) {
     throw "release_assets_manifest.json lost table layout delivery quality unresolved_item_count."
+}
+if ([int]$manifestTableLayoutDeliveryQuality.details.pdf_floating_table_supported_geometry_percent -ne 44) {
+    throw "release_assets_manifest.json lost table layout delivery quality PDF floating table support percentage."
+}
+if ([int]$manifestTableLayoutDeliveryQuality.details.pdf_floating_table_tracked_geometry_count -ne 9) {
+    throw "release_assets_manifest.json lost table layout delivery quality PDF floating table tracked geometry count."
 }
 if ([int]$manifestTableLayoutDeliveryQuality.details.table_position_automatic_count -ne 0) {
     throw "release_assets_manifest.json lost table layout delivery quality table_position_automatic_count."
