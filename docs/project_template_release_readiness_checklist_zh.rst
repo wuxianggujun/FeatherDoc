@@ -152,7 +152,10 @@ approval、content-control 和 release governance 报告之间手工拼结论。
    * 入口材料里出现 ``numbering_catalog_governance.real_corpus_confidence`` 或
      ``table_layout_delivery_governance.delivery_quality`` 时，覆盖率、匹配文档、
      penalty summary、表格样式/定位计数和 ready/unresolved 详情必须和对应指标保持
-     在同一行或同一个 Markdown list block 内；不能让 detached notes 补齐当前指标。
+     在同一行或同一个 Markdown list block 内；PDF 浮动表还必须保留
+     ``pdf_floating_table_support_coverage``、``pdf_floating_table_reviewer_focus``
+     和 metadata-only ``tblpPr`` 复核提示，确保 reviewer 知道哪些几何能力已经
+     覆盖、哪些字段仍只是元数据级交付；不能让 detached notes 补齐当前指标。
      固定标记：``block_scoped_entry_governance_metric_trace``。
    * 入口材料里出现 ``project_template_delivery_readiness`` 或
      ``project_template_onboarding.schema_approval`` 时，``source_report_display``、
