@@ -51,6 +51,69 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-HasProperty {
+    param($Object, [string]$Name, [string]$Message)
+    if (-not ($Object.PSObject.Properties.Name -contains $Name)) {
+        throw "$Message Missing property '$Name'."
+    }
+}
+
+function Assert-NonEmptyString {
+    param($Value, [string]$Message)
+    if ([string]::IsNullOrWhiteSpace([string]$Value)) {
+        throw $Message
+    }
+}
+
+function Get-TraceItemLabel {
+    param($Item)
+
+    foreach ($property in @("composite_id", "id", "document_name", "action")) {
+        if ($Item.PSObject.Properties.Name -contains $property) {
+            $value = [string]$Item.$property
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                return $value
+            }
+        }
+    }
+
+    return "<missing-id>"
+}
+
+function Assert-GovernanceTraceMetadata {
+    param(
+        [object[]]$Items,
+        [string]$CollectionName,
+        [bool]$ExpectOpenCommandProperty = $false
+    )
+
+    foreach ($item in @($Items)) {
+        $itemLabel = Get-TraceItemLabel -Item $item
+        $context = "Document skeleton rollup $CollectionName item $itemLabel"
+
+        foreach ($property in @("source_schema", "source_report_display", "source_json_display")) {
+            Assert-HasProperty -Object $item -Name $property `
+                -Message "$context should expose $property."
+            Assert-NonEmptyString -Value $item.$property `
+                -Message "$context should keep non-empty $property."
+        }
+
+        foreach ($property in @("origin_source_schema", "origin_source_report_display")) {
+            Assert-HasProperty -Object $item -Name $property `
+                -Message "$context should expose $property."
+            Assert-NonEmptyString -Value $item.$property `
+                -Message "$context should keep non-empty $property."
+        }
+
+        if ($ExpectOpenCommandProperty) {
+            Assert-HasProperty -Object $item -Name "open_command" `
+                -Message "$context should expose reviewer open command metadata."
+            Assert-NonEmptyString -Value $item.open_command `
+                -Message "$context should keep a non-empty reviewer open command."
+        }
+    }
+}
+
 function Test-Scenario {
     param([string]$Name)
     return ($Scenario -eq "all" -or $Scenario -eq $Name)
@@ -239,6 +302,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate rollup should preserve action items."
     Assert-Equal -Actual ([int]$summary.catalog_exemplar_count) -Expected 2 `
         -Message "Aggregate rollup should expose per-document exemplar catalogs."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
     $invoiceEntry = @($summary.document_entries | Where-Object { $_.document_name -eq "invoice.docx" } | Select-Object -First 1)
     $contractEntry = @($summary.document_entries | Where-Object { $_.document_name -eq "contract.docx" } | Select-Object -First 1)
     Assert-True -Condition ($null -ne $invoiceEntry) `
@@ -346,6 +413,10 @@ if (Test-Scenario -Name "empty") {
         -Message "Clean rollup should not invent release blockers."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
         -Message "Clean rollup should not warn for a valid skeleton summary."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
 }
 
 if (Test-Scenario -Name "failed_source_report") {
@@ -378,6 +449,10 @@ if (Test-Scenario -Name "failed_source_report") {
         -Message "Rollup should keep source read failures separate from failed report statuses."
     Assert-Equal -Actual ([int]$summary.total_command_failure_count) -Expected 1 `
         -Message "Rollup should preserve command failure totals."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
 }
 
 if (Test-Scenario -Name "malformed") {
@@ -404,6 +479,7 @@ if (Test-Scenario -Name "malformed") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "source_report_read_failed" `
         -Message "Malformed rollup should include a source read warning."
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $malformedOutputDir "document_skeleton_governance_rollup.md")
     Assert-ContainsText -Text $markdown -ExpectedText "source_failure_count: ``1``" `
         -Message "Malformed rollup Markdown should expose a machine-readable source failure count."
@@ -432,6 +508,10 @@ if (Test-Scenario -Name "fail_on_issue") {
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $failOnIssueOutputDir "summary.json") | ConvertFrom-Json
     Assert-Equal -Actual ([int]$summary.total_style_numbering_issue_count) -Expected 1 `
         -Message "Fail-on-issue summary should still be written with issue counts."
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
 }
 
 Write-Host "Document skeleton governance rollup regression passed."
