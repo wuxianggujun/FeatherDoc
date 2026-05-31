@@ -278,6 +278,16 @@ reviewer 可先沿着 ``source_report_display`` 打开源报告，再用 ``sourc
 这些 release-facing 明细还必须保留 ``input_docx``、``template_name``、
 ``schema_target`` 与 ``target_mode`` provenance；否则 reviewer 只能看到修复命令，
 无法确认该 blocker 属于哪个模板、哪个输入 DOCX 和哪个 schema 目标。
+其中 ``fix_custom_xml_data_binding_source``、``sync_or_fill_bound_content_control``、
+``review_content_control_lock_strategy``、``review_unbound_form_content_control``、
+``review_duplicate_content_control_binding``、``collect_content_control_data_binding_evidence``、
+``review_content_control_data_binding_evidence`` 与
+``run_content_control_custom_xml_sync`` 都映射到固定 reviewer runbook：先打开
+``source_report_display`` 与 ``source_json_display``，确认 ``input_docx``、
+``template_name``、``schema_target``、``target_mode`` 和具体 content-control target，
+再按 ``command_template`` / ``open_command`` 收集 inspection、Custom XML sync 或修复
+证据，最后重跑 ``build_content_control_data_binding_governance_report.ps1`` 并刷新
+release governance / release note bundle。
 
 project-template onboarding governance 会先写出
 ``featherdoc.project_template_onboarding_governance_report.v1``，再由

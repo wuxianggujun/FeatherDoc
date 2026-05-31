@@ -813,13 +813,21 @@ function Get-ReleaseBlockerRegisteredActions {
     return @(
         "complete_visual_manual_review",
         "add_explicit_confidence_metadata",
+        "collect_content_control_data_binding_evidence",
         "fix_schema_patch_approval_result",
+        "fix_custom_xml_data_binding_source",
         "fix_invalid_approval_records",
         "prepare_pdf_visual_release_gate_build_outputs",
         "rerun_pdf_controlled_visual_smoke_check",
         "rerun_pdf_visual_release_gate_preflight",
+        "review_content_control_data_binding_evidence",
+        "review_content_control_lock_strategy",
+        "review_duplicate_content_control_binding",
+        "review_unbound_form_content_control",
         "resolve_pending_schema_approvals",
         "review_schema_patch_confidence_calibration_evidence",
+        "run_content_control_custom_xml_sync",
+        "sync_or_fill_bound_content_control",
         "restore_docx_functional_smoke_evidence"
     )
 }
@@ -1017,6 +1025,138 @@ function Add-SchemaPatchConfidenceCalibrationGuidanceLines {
     }
 }
 
+function Add-ContentControlDataBindingGovernanceGuidanceLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item,
+        [string]$RepoRoot = "",
+        [string]$ReleaseSummaryJson = "",
+        [string]$ContextText = ""
+    )
+
+    $action = Get-ReleaseBlockerPropertyValue -Object $Item -Name "action"
+    $contextSuffix = if ([string]::IsNullOrWhiteSpace($ContextText)) { "" } else { " $ContextText" }
+
+    switch ($action) {
+        "fix_custom_xml_data_binding_source" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `fix_custom_xml_data_binding_source`{0}: fix the Custom XML value or mapping that failed sync, rerun content-control Custom XML sync, then rebuild the data-binding governance report.' -f $contextSuffix)
+            break
+        }
+        "sync_or_fill_bound_content_control" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `sync_or_fill_bound_content_control`{0}: rerun Custom XML sync or explicitly fill the bound content control so it no longer shows placeholder text before release.' -f $contextSuffix)
+            break
+        }
+        "review_content_control_lock_strategy" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_content_control_lock_strategy`{0}: confirm whether the bound content control lock is intentional; clear it only when template data should overwrite the control.' -f $contextSuffix)
+            break
+        }
+        "review_unbound_form_content_control" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_unbound_form_content_control`{0}: bind the form content control to a Custom XML path or document why it is intentionally unbound.' -f $contextSuffix)
+            break
+        }
+        "review_duplicate_content_control_binding" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_duplicate_content_control_binding`{0}: review the shared binding group, then split controls across distinct Custom XML paths or confirm the repeated binding is intentional.' -f $contextSuffix)
+            break
+        }
+        "collect_content_control_data_binding_evidence" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `collect_content_control_data_binding_evidence`{0}: collect both `inspect-content-controls` and `sync-content-controls-from-custom-xml` JSON evidence before trusting the governance summary.' -f $contextSuffix)
+            break
+        }
+        "run_content_control_custom_xml_sync" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `run_content_control_custom_xml_sync`{0}: run Custom XML sync evidence for the inspected bound controls, then rebuild the data-binding governance report.' -f $contextSuffix)
+            break
+        }
+        default {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_content_control_data_binding_evidence`{0}: review content-control data-binding evidence, then rebuild the governance report.' -f $contextSuffix)
+        }
+    }
+
+    $status = Get-ReleaseBlockerPropertyValue -Object $Item -Name "status"
+    $message = Get-ReleaseBlockerPropertyValue -Object $Item -Name "message"
+    if (-not [string]::IsNullOrWhiteSpace($status) -or -not [string]::IsNullOrWhiteSpace($message)) {
+        $statusLine = "Content-control data-binding governance item"
+        if (-not [string]::IsNullOrWhiteSpace($status)) {
+            $statusLine += ": $status"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($message)) {
+            $statusLine += "; message: $message"
+        }
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text $statusLine
+    }
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_report")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Open the content-control data-binding governance report first: {0}" -f $sourceReportDisplay)
+    }
+
+    $sourceJsonDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json_display"
+    if ([string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $sourceJsonDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path (Get-ReleaseBlockerPropertyValue -Object $Item -Name "source_json")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Inspect the content-control data-binding source JSON before editing evidence: {0}" -f $sourceJsonDisplay)
+    }
+
+    $provenanceParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($fieldName in @("input_docx_display", "input_docx", "template_name", "schema_target", "target_mode")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            [void]$provenanceParts.Add("$fieldName=$value")
+        }
+    }
+    if ($provenanceParts.Count -gt 0) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Content-control provenance: {0}" -f ($provenanceParts.ToArray() -join ", "))
+    }
+
+    $controlParts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($fieldName in @("part_entry_name", "content_control_index", "tag", "alias", "store_item_id", "xpath")) {
+        $value = Get-ReleaseBlockerPropertyObject -Object $Item -Name $fieldName
+        if ($null -ne $value -and -not [string]::IsNullOrWhiteSpace([string]$value)) {
+            [void]$controlParts.Add("$fieldName=$value")
+        }
+    }
+    if ($controlParts.Count -gt 0) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Content-control target: {0}" -f ($controlParts.ToArray() -join ", "))
+    }
+
+    $duplicateBindingKey = Get-ReleaseBlockerPropertyValue -Object $Item -Name "duplicate_binding_key"
+    $duplicateMemberCount = Get-ReleaseBlockerPropertyObject -Object $Item -Name "duplicate_member_count"
+    if (-not [string]::IsNullOrWhiteSpace($duplicateBindingKey) -or ($null -ne $duplicateMemberCount -and -not [string]::IsNullOrWhiteSpace([string]$duplicateMemberCount))) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Duplicate binding summary: key={0}, members={1}" -f (Get-ReleaseBlockerDisplayValue -Value $duplicateBindingKey), (Get-ReleaseBlockerDisplayValue -Value $duplicateMemberCount -Fallback "0"))
+    }
+
+    $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "command_template"
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        $commandTemplate = Get-ReleaseBlockerPropertyValue -Object $Item -Name "open_command"
+    }
+    if ([string]::IsNullOrWhiteSpace($commandTemplate)) {
+        switch ($action) {
+            "collect_content_control_data_binding_evidence" {
+                $commandTemplate = "featherdoc_cli inspect-content-controls <input.docx> --json; featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+                break
+            }
+            "run_content_control_custom_xml_sync" {
+                $commandTemplate = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+                break
+            }
+            default {
+                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1'
+            }
+        }
+    }
+    Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Run or inspect the content-control data-binding command: `{0}`' -f $commandTemplate)
+
+    $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    if ([string]::IsNullOrWhiteSpace($releaseSummaryDisplay)) {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text 'After content-control data-binding evidence is passing, rerun `build_content_control_data_binding_governance_report.ps1`, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle before publishing.'
+    } else {
+        Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('After content-control data-binding evidence is passing, rerun `build_content_control_data_binding_governance_report.ps1`, rebuild release governance pipeline and handoff evidence, then regenerate the release note bundle from `{0}` before publishing.' -f $releaseSummaryDisplay)
+    }
+}
+
 function Get-ReleaseBlockerActionGuidanceLines {
     param(
         [AllowNull()]$Blocker,
@@ -1057,6 +1197,23 @@ function Get-ReleaseBlockerActionGuidanceLines {
                 "review_schema_patch_confidence_calibration_evidence"
             ) } {
             Add-SchemaPatchConfidenceCalibrationGuidanceLines `
+                -Lines $guidanceLines `
+                -Item $Blocker `
+                -RepoRoot $RepoRoot `
+                -ReleaseSummaryJson $ReleaseSummaryJson
+            break
+        }
+        { $_ -in @(
+                "fix_custom_xml_data_binding_source",
+                "sync_or_fill_bound_content_control",
+                "review_content_control_lock_strategy",
+                "review_unbound_form_content_control",
+                "review_duplicate_content_control_binding",
+                "collect_content_control_data_binding_evidence",
+                "review_content_control_data_binding_evidence",
+                "run_content_control_custom_xml_sync"
+            ) } {
+            Add-ContentControlDataBindingGovernanceGuidanceLines `
                 -Lines $guidanceLines `
                 -Item $Blocker `
                 -RepoRoot $RepoRoot `
@@ -2949,6 +3106,22 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             "review_schema_patch_confidence_calibration_evidence"
         )) {
         Add-SchemaPatchConfidenceCalibrationGuidanceLines `
+            -Lines $guidanceLines `
+            -Item $Item `
+            -RepoRoot $RepoRoot `
+            -ReleaseSummaryJson $ReleaseSummaryJson `
+            -ContextText ('for release governance {0} `{1}`' -f $ItemKind, $id)
+    } elseif ($action -in @(
+            "fix_custom_xml_data_binding_source",
+            "sync_or_fill_bound_content_control",
+            "review_content_control_lock_strategy",
+            "review_unbound_form_content_control",
+            "review_duplicate_content_control_binding",
+            "collect_content_control_data_binding_evidence",
+            "review_content_control_data_binding_evidence",
+            "run_content_control_custom_xml_sync"
+        )) {
+        Add-ContentControlDataBindingGovernanceGuidanceLines `
             -Lines $guidanceLines `
             -Item $Item `
             -RepoRoot $RepoRoot `

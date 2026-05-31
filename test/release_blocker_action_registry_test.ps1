@@ -246,6 +246,72 @@ Assert-ContainsText -Text $schemaCalibrationGuidance -ExpectedText "write_schema
     -Message "Schema patch confidence calibration runbook should point at the calibration writer."
 Assert-ContainsText -Text $schemaCalibrationGuidance -ExpectedText "regenerate the release note bundle" `
     -Message "Schema patch confidence calibration runbook should tell reviewers to refresh release materials."
+
+$contentControlBlocker = [pscustomobject]@{
+    id = "content_control_data_binding.bound_placeholder"
+    source = "content_control_data_binding_governance"
+    severity = "error"
+    status = "placeholder_visible"
+    action = "sync_or_fill_bound_content_control"
+    message = "A data-bound content control is still showing placeholder text."
+    source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+    source_report_display = ".\output\content-control-data-binding-governance\report\summary.json"
+    source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+    command_template = "featherdoc_cli sync-content-controls-from-custom-xml .\samples\invoice.docx --output .\output\invoice.synced.docx --json"
+    repair_strategy = "sync_bound_content_control"
+    repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
+    input_docx = "samples/invoice.docx"
+    input_docx_display = ".\samples\invoice.docx"
+    template_name = "invoice-template"
+    schema_target = "invoice"
+    target_mode = "resolved-section-targets"
+    part_entry_name = "word/document.xml"
+    content_control_index = 2
+    tag = "invoice.dueDate"
+    alias = "Due Date"
+    store_item_id = "{55555555-5555-5555-5555-555555555555}"
+    xpath = "/invoice/dueDate"
+}
+$contentControlGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $contentControlBlocker `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $contentControlGuidance -ExpectedText "sync_or_fill_bound_content_control" `
+    -Message "Content-control data-binding blocker should render its fixed action runbook."
+Assert-ContainsText -Text $contentControlGuidance -ExpectedText "placeholder text" `
+    -Message "Content-control data-binding runbook should explain placeholder remediation."
+Assert-ContainsText -Text $contentControlGuidance -ExpectedText ".\output\content-control-data-binding-governance\report\summary.json" `
+    -Message "Content-control data-binding runbook should point at the governance report."
+Assert-ContainsText -Text $contentControlGuidance -ExpectedText ".\output\content-control-data-binding\inspect-content-controls.json" `
+    -Message "Content-control data-binding runbook should point at source JSON evidence."
+Assert-ContainsText -Text $contentControlGuidance -ExpectedText "input_docx_display=.\samples\invoice.docx" `
+    -Message "Content-control data-binding runbook should keep input DOCX provenance."
+Assert-ContainsText -Text $contentControlGuidance -ExpectedText "template_name=invoice-template" `
+    -Message "Content-control data-binding runbook should keep template provenance."
+Assert-ContainsText -Text $contentControlGuidance -ExpectedText "schema_target=invoice" `
+    -Message "Content-control data-binding runbook should keep schema target provenance."
+Assert-ContainsText -Text $contentControlGuidance -ExpectedText "tag=invoice.dueDate" `
+    -Message "Content-control data-binding runbook should identify the content-control target."
+Assert-ContainsText -Text $contentControlGuidance -ExpectedText "sync-content-controls-from-custom-xml" `
+    -Message "Content-control data-binding runbook should point at the sync command."
+Assert-ContainsText -Text $contentControlGuidance -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
+    -Message "Content-control data-binding runbook should point at the governance report writer."
+Assert-ContainsText -Text $contentControlGuidance -ExpectedText "release note bundle" `
+    -Message "Content-control data-binding runbook should tell reviewers to refresh release materials."
+
+$contentControlChecklistGuidance = @(Get-ReleaseGovernanceChecklistGuidanceLines `
+        -Item $contentControlBlocker `
+        -ItemKind "blocker" `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $contentControlChecklistGuidance -ExpectedText "release governance blocker" `
+    -Message "Content-control data-binding checklist guidance should identify blocker context."
+Assert-ContainsText -Text $contentControlChecklistGuidance -ExpectedText "sync_or_fill_bound_content_control" `
+    -Message "Content-control data-binding checklist guidance should render its fixed action runbook."
+Assert-ContainsText -Text $contentControlChecklistGuidance -ExpectedText "input_docx_display=.\samples\invoice.docx" `
+    -Message "Content-control data-binding checklist guidance should keep input DOCX provenance."
+Assert-ContainsText -Text $contentControlChecklistGuidance -ExpectedText "sync-content-controls-from-custom-xml" `
+    -Message "Content-control data-binding checklist guidance should point at the sync command."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "output gap checks=3" `
     -Message "PDF preflight build-output blocker should include the output gap group count."
 Assert-ContainsText -Text $pdfPreflightGuidance -ExpectedText "missing outputs=87" `
