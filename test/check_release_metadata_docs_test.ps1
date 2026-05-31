@@ -165,6 +165,34 @@ function Assert-SummaryMarkerCountsConsistent {
     }
 }
 
+function Assert-SummaryCheckedDocumentsConsistent {
+    param([object]$Summary)
+
+    $checkedDocuments = @($Summary.checked_documents)
+    if ([int]$Summary.checked_document_count -ne $checkedDocuments.Count) {
+        throw "Expected checked document count $($Summary.checked_document_count), got $($checkedDocuments.Count)."
+    }
+
+    foreach ($document in $checkedDocuments) {
+        foreach ($propertyName in @("label", "relative_path", "path")) {
+            $property = $document.PSObject.Properties[$propertyName]
+            if ($null -eq $property) {
+                throw "Expected checked document $propertyName property to exist."
+            }
+
+            $propertyValue = [string]$property.Value
+            if ([string]::IsNullOrWhiteSpace($propertyValue)) {
+                throw "Expected checked document $propertyName to be populated."
+            }
+        }
+
+        $relativePath = [string]$document.relative_path
+        if ([System.IO.Path]::IsPathRooted($relativePath)) {
+            throw "Expected checked document relative_path to stay repository-relative, got: $relativePath"
+        }
+    }
+}
+
 function Assert-SummaryFailure {
     param(
         [string]$Path,
@@ -231,6 +259,7 @@ function Assert-SummaryFailure {
     }
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
+    Assert-SummaryCheckedDocumentsConsistent -Summary $summary
     if ($summary.required_marker_count -ne 214) {
         throw "Expected JSON summary to count 214 required markers, got: $($summary.required_marker_count)"
     }
@@ -614,6 +643,7 @@ if ($summary.summary_schema_version -ne 1) {
 }
 Assert-SummaryAuditFields -Summary $summary
 Assert-SummaryMarkerCountsConsistent -Summary $summary
+Assert-SummaryCheckedDocumentsConsistent -Summary $summary
 if ($summary.checked_document_count -ne 7) {
     throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
 }
