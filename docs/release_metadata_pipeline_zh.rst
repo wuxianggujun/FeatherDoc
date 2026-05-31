@@ -372,8 +372,9 @@ PDF 浮动表格能力还会固定输出 ``pdf_floating_table_supported_geometry
 的 ``tblpPr`` 字段变成可比较的百分比，而不只展示 supported / metadata-only 数量。
 release governance handoff、artifact guide 和 reviewer checklist 会继续展示这些字段，
 让发布复核能直接看到 PDF 浮动表格稳定几何覆盖率，而不用回到底层 layout JSON 手工换算。
-当覆盖率低于 100% 时，这些 release-facing 材料还应给出 metadata-only ``tblpPr``
-复核提示，避免 reviewer 只看到百分比却不知道下一步该检查什么。
+当覆盖率低于 100% 时，这些 release-facing 材料还应给出
+``pdf_floating_table_reviewer_focus``，明确提示 reviewer 复核 metadata-only
+``tblpPr`` 字段，避免 reviewer 只看到百分比却不知道下一步该检查什么。
 
 表格与版式 action 也应映射到固定 reviewer runbook：
 ``apply_safe_tblLook_fixes_then_visual_regression`` 和
