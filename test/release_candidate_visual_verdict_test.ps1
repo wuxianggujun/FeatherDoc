@@ -50,9 +50,11 @@ function Assert-LineContainsAll {
     )
 
     foreach ($line in ($Text -split "\r?\n")) {
+        $normalizedLine = $line -replace '/', '\'
         $lineMatches = $true
         foreach ($fragment in $Fragments) {
-            if ($line -notmatch [regex]::Escape($fragment)) {
+            $normalizedFragment = $fragment -replace '/', '\'
+            if ($normalizedLine -notmatch [regex]::Escape($normalizedFragment)) {
                 $lineMatches = $false
                 break
             }
