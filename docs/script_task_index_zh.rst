@@ -203,6 +203,8 @@
 - ``scripts/run_table_layout_delivery_report.ps1``：运行表格交付报告的本地入口。
 - ``scripts/run_table_style_quality_visual_regression.ps1``：运行 table style
   quality 视觉回归。
+- ``scripts/summarize_table_style_quality_pixels.py``：汇总 table style quality
+  像素证据。
 - ``scripts/run_table_row_visual_regression.ps1``：运行表格行新增、插入和删除
   视觉回归。
 - ``scripts/run_table_row_height_visual_regression.ps1``：运行表格行高度视觉回归。
@@ -251,6 +253,7 @@ Word 视觉验证与人工复核
   视觉回归。
 - ``scripts/run_review_mutation_visual_regression.ps1``：运行审阅对象 mutation
   视觉回归。
+- ``scripts/build_image_contact_sheet.py``：生成视觉回归 contact sheet。
 - ``scripts/prepare_word_review_task.ps1``：准备人工视觉复核任务。
 - ``scripts/open_latest_word_review_task.ps1``：打开最新复核任务。
 - ``scripts/open_latest_fixed_grid_review_task.ps1``：打开最新 fixed-grid 复核任务。
@@ -307,6 +310,9 @@ PDF 保守维护入口
 - ``scripts/check_pdf_controlled_visual_smoke.py``：执行受控 PDF visual smoke
   产物检查。
 - ``scripts/check_pdf_text_layer.py``：检查 PDF text layer 产物。
+- ``scripts/compare_pdf_reference_branch_manifest.ps1``：比较 PDF reference branch
+  manifest。
+- ``scripts/render_pdf_pages.py``：把 PDF 页面渲染成视觉证据图片。
 - ``scripts/run_pdf_ctest_bounded_subset.ps1``：运行受限 PDF CTest 子集。
 - ``scripts/run_pdf_ctest_remaining_guarded.ps1``：运行剩余 PDF CTest 的受控入口。
 - ``scripts/run_pdf_full_ctest_guarded.ps1``：完整 PDF CTest 的受控入口。

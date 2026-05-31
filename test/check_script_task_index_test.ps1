@@ -442,9 +442,20 @@ foreach ($reviewVisualScript in @(
         -ExpectedValue $reviewVisualScript `
         -Message "Summary should list the review visual regression script $reviewVisualScript."
 }
+foreach ($visualHelperScript in @(
+        "scripts\build_image_contact_sheet.py",
+        "scripts\compare_pdf_reference_branch_manifest.ps1",
+        "scripts\render_pdf_pages.py",
+        "scripts\summarize_table_style_quality_pixels.py"
+    )) {
+    Assert-ArrayContains `
+        -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
+        -ExpectedValue $visualHelperScript `
+        -Message "Summary should list the visual evidence helper script $visualHelperScript."
+}
 Assert-ArrayContains `
     -Values $passingUnindexedScripts `
-    -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
+    -ExpectedValue (Join-Path "scripts" "export_render_data_skeleton.ps1") `
     -Message "Summary should list unindexed scripts as informational inventory."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptPrefixes | ForEach-Object { $_.prefix }) `
@@ -452,15 +463,15 @@ Assert-ArrayContains `
     -Message "Unindexed script prefix summary should group run_* maintenance entries."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptPrefixes | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
-    -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
+    -ExpectedValue (Join-Path "scripts" "export_render_data_skeleton.ps1") `
     -Message "Unindexed script prefix summary should retain script paths."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.family }) `
-    -ExpectedValue "build_image" `
+    -ExpectedValue "export_render" `
     -Message "Unindexed script family summary should group remaining maintenance entries into families."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
-    -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
+    -ExpectedValue (Join-Path "scripts" "export_render_data_skeleton.ps1") `
     -Message "Unindexed script family summary should retain script paths."
 foreach ($marker in @(
         '# Script Task Index Check',
@@ -491,11 +502,11 @@ foreach ($marker in @(
         '`.ps1`:',
         'unique /',
         '## Unindexed Scripts',
-        'build_image_contact_sheet.py',
+        'export_render_data_skeleton.ps1',
         '## Unindexed Script Prefixes',
         '`run`:',
         '## Unindexed Script Families',
-        '`build_image`:',
+        '`export_render`:',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'
