@@ -1140,6 +1140,9 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "command_failure_count",
             "ready_document_percent",
             "unresolved_item_count",
+            "pdf_floating_table_support_coverage",
+            "pdf_floating_table_reviewer_focus",
+            "metadata-only tblpPr",
             "penalty_summary",
             "floating_table_plans_pending"
         )
