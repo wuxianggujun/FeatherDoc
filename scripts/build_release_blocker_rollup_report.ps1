@@ -502,6 +502,8 @@ function Add-GovernanceMetricDetailLines {
         "pdf_floating_table_metadata_only_count",
         "pdf_floating_table_tracked_geometry_count",
         "pdf_floating_table_supported_geometry_percent",
+        "pdf_floating_table_support_coverage",
+        "pdf_floating_table_reviewer_focus",
         "command_failure_count",
         "unresolved_item_count"
     )
@@ -526,9 +528,16 @@ function Add-GovernanceMetricDetailLines {
     $pdfFloatingTableMetadataOnlyCount = Get-JsonInt -Object $details -Name "pdf_floating_table_metadata_only_count"
     $pdfFloatingTableTrackedGeometryCount = Get-JsonInt -Object $details -Name "pdf_floating_table_tracked_geometry_count"
     $pdfFloatingTableSupportedGeometryPercent = Get-JsonInt -Object $details -Name "pdf_floating_table_supported_geometry_percent"
-    if ($pdfFloatingTableTrackedGeometryCount -gt 0) {
-        $Lines.Add("  - pdf_floating_table_support_coverage: ``$pdfFloatingTableSupportedGeometryCount/$pdfFloatingTableTrackedGeometryCount supported ($pdfFloatingTableSupportedGeometryPercent%)``; metadata_only=``$pdfFloatingTableMetadataOnlyCount``") | Out-Null
-        if ($pdfFloatingTableSupportedGeometryPercent -lt 100) {
+    $pdfFloatingTableSupportCoverage = Get-JsonString -Object $details -Name "pdf_floating_table_support_coverage"
+    $pdfFloatingTableReviewerFocus = Get-JsonString -Object $details -Name "pdf_floating_table_reviewer_focus"
+    if ($pdfFloatingTableTrackedGeometryCount -gt 0 -or -not [string]::IsNullOrWhiteSpace($pdfFloatingTableSupportCoverage)) {
+        if ([string]::IsNullOrWhiteSpace($pdfFloatingTableSupportCoverage)) {
+            $pdfFloatingTableSupportCoverage = "$pdfFloatingTableSupportedGeometryCount/$pdfFloatingTableTrackedGeometryCount supported ($pdfFloatingTableSupportedGeometryPercent%); metadata_only=$pdfFloatingTableMetadataOnlyCount"
+        }
+        $Lines.Add("  - pdf_floating_table_support_coverage: ``$pdfFloatingTableSupportCoverage``") | Out-Null
+        if (-not [string]::IsNullOrWhiteSpace($pdfFloatingTableReviewerFocus)) {
+            $Lines.Add("  - pdf_floating_table_reviewer_focus: ``$pdfFloatingTableReviewerFocus``") | Out-Null
+        } elseif ($pdfFloatingTableSupportedGeometryPercent -lt 100) {
             $Lines.Add("  - pdf_floating_table_reviewer_focus: review metadata-only ``tblpPr`` fields before approving PDF-layout-sensitive release.") | Out-Null
         }
     }

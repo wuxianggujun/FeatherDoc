@@ -342,6 +342,8 @@ Write-JsonFile -Path $tableLayoutPath -Value ([ordered]@{
         pdf_floating_table_metadata_only_count = 5
         pdf_floating_table_tracked_geometry_count = 9
         pdf_floating_table_supported_geometry_percent = 44
+        pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
+        pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
         command_failure_count = 0
         unresolved_item_count = 10
         penalty_summary = @(
@@ -1847,13 +1849,13 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF floating table supported geometry percentage."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_tracked_geometry_count=9" `
         -Message "Markdown should include PDF floating table tracked geometry count."
-    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_support_coverage" `
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_support_coverage: ``4/9 supported (44 percent); metadata_only=5``" `
         -Message "Markdown should include PDF floating table support coverage summary."
-    Assert-ContainsText -Text $markdown -ExpectedText "metadata_only=``5``" `
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_support_coverage=4/9 supported (44 percent); metadata_only=5" `
         -Message "Markdown should include PDF floating table metadata-only count."
-    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_reviewer_focus" `
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_reviewer_focus: ``review metadata-only tblpPr fields before approving PDF-layout-sensitive release.``" `
         -Message "Markdown should include PDF floating table reviewer focus marker."
-    Assert-ContainsText -Text $markdown -ExpectedText "review metadata-only ``tblpPr`` fields" `
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
         -Message "Markdown should include PDF floating table reviewer focus guidance."
     Assert-ContainsText -Text $markdown -ExpectedText "floating_table_plans_pending(count=3, penalty=14)" `
         -Message "Markdown should include table layout delivery penalty summary."

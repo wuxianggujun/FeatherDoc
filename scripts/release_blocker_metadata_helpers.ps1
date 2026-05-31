@@ -4007,6 +4007,8 @@ function Add-ReleaseGovernanceMetricDetailLines {
         "pdf_floating_table_metadata_only_count",
         "pdf_floating_table_tracked_geometry_count",
         "pdf_floating_table_supported_geometry_percent",
+        "pdf_floating_table_support_coverage",
+        "pdf_floating_table_reviewer_focus",
         "command_failure_count",
         "unresolved_item_count"
     )
@@ -4025,9 +4027,16 @@ function Add-ReleaseGovernanceMetricDetailLines {
     $pdfFloatingTableMetadataOnlyCount = Get-ReleaseBlockerIntPropertyValue -Object $details -Name "pdf_floating_table_metadata_only_count"
     $pdfFloatingTableTrackedGeometryCount = Get-ReleaseBlockerIntPropertyValue -Object $details -Name "pdf_floating_table_tracked_geometry_count"
     $pdfFloatingTableSupportedGeometryPercent = Get-ReleaseBlockerIntPropertyValue -Object $details -Name "pdf_floating_table_supported_geometry_percent"
-    if ($pdfFloatingTableTrackedGeometryCount -gt 0) {
-        [void]$Lines.Add("  - pdf_floating_table_support_coverage: $pdfFloatingTableSupportedGeometryCount/$pdfFloatingTableTrackedGeometryCount supported ($pdfFloatingTableSupportedGeometryPercent%); metadata_only=$pdfFloatingTableMetadataOnlyCount")
-        if ($pdfFloatingTableSupportedGeometryPercent -lt 100) {
+    $pdfFloatingTableSupportCoverage = Get-ReleaseBlockerPropertyValue -Object $details -Name "pdf_floating_table_support_coverage"
+    $pdfFloatingTableReviewerFocus = Get-ReleaseBlockerPropertyValue -Object $details -Name "pdf_floating_table_reviewer_focus"
+    if ($pdfFloatingTableTrackedGeometryCount -gt 0 -or -not [string]::IsNullOrWhiteSpace($pdfFloatingTableSupportCoverage)) {
+        if ([string]::IsNullOrWhiteSpace($pdfFloatingTableSupportCoverage)) {
+            $pdfFloatingTableSupportCoverage = "$pdfFloatingTableSupportedGeometryCount/$pdfFloatingTableTrackedGeometryCount supported ($pdfFloatingTableSupportedGeometryPercent%); metadata_only=$pdfFloatingTableMetadataOnlyCount"
+        }
+        [void]$Lines.Add("  - pdf_floating_table_support_coverage: $pdfFloatingTableSupportCoverage")
+        if (-not [string]::IsNullOrWhiteSpace($pdfFloatingTableReviewerFocus)) {
+            [void]$Lines.Add("  - pdf_floating_table_reviewer_focus: $pdfFloatingTableReviewerFocus")
+        } elseif ($pdfFloatingTableSupportedGeometryPercent -lt 100) {
             [void]$Lines.Add("  - pdf_floating_table_reviewer_focus: review metadata-only tblpPr fields before approving PDF-layout-sensitive release.")
         }
     }
