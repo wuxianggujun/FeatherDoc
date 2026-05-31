@@ -294,6 +294,9 @@ PDF 保守维护入口
   前置条件。
 - ``scripts/check_pdf_controlled_visual_smoke.ps1``：运行受控 PDF visual smoke
   检查。
+- ``scripts/check_pdf_controlled_visual_smoke.py``：执行受控 PDF visual smoke
+  产物检查。
+- ``scripts/check_pdf_text_layer.py``：检查 PDF text layer 产物。
 - ``scripts/run_pdf_ctest_bounded_subset.ps1``：运行受限 PDF CTest 子集。
 - ``scripts/run_pdf_ctest_remaining_guarded.ps1``：运行剩余 PDF CTest 的受控入口。
 - ``scripts/run_pdf_full_ctest_guarded.ps1``：完整 PDF CTest 的受控入口。
