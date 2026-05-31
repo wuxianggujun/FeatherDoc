@@ -30,9 +30,11 @@ function Assert-LineContainsAll {
 
     $lines = Get-Content -LiteralPath $Path
     foreach ($line in $lines) {
+        $normalizedLine = $line -replace '/', '\'
         $matchesAllFragments = $true
         foreach ($fragment in $ExpectedFragments) {
-            if ($line -notmatch [regex]::Escape($fragment)) {
+            $normalizedFragment = $fragment -replace '/', '\'
+            if ($normalizedLine -notmatch [regex]::Escape($normalizedFragment)) {
                 $matchesAllFragments = $false
                 break
             }
