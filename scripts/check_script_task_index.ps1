@@ -219,6 +219,35 @@ function Get-ScriptReferenceExtensionSummary {
     return @($extensionSummaries.ToArray())
 }
 
+function Get-RepositoryScripts {
+    param([string]$Root)
+
+    $scriptRoot = Join-Path $Root "scripts"
+    if (-not (Test-Path -LiteralPath $scriptRoot -PathType Container)) {
+        return @()
+    }
+
+    return @(
+        Get-ChildItem -LiteralPath $scriptRoot -File |
+            Where-Object { @(".ps1", ".py") -contains $_.Extension.ToLowerInvariant() } |
+            ForEach-Object { Get-RepoRelativePath -BaseRoot $Root -Path $_.FullName } |
+            Sort-Object
+    )
+}
+
+function Get-UnindexedScripts {
+    param(
+        [string[]]$RepositoryScripts,
+        [string[]]$IndexedScripts
+    )
+
+    return @(
+        $RepositoryScripts | Where-Object {
+            $IndexedScripts -notcontains $_
+        }
+    )
+}
+
 function Get-MissingMarkers {
     param(
         [string]$Text,
@@ -268,10 +297,12 @@ function New-MarkdownReport {
     $lines.Add("- output_encoding: ``$($Summary.output_encoding)``")
     $lines.Add("- script_index: ``$($Summary.script_index_relative_path)``")
     $lines.Add("- documentation_entrypoint_count: ``$($Summary.documentation_entrypoint_count)``")
+    $lines.Add("- repository_script_count: ``$($Summary.repository_script_count)``")
     $lines.Add("- total_script_reference_count: ``$($Summary.total_script_reference_count)``")
     $lines.Add("- script_reference_count: ``$($Summary.script_reference_count)``")
     $lines.Add("- script_reference_group_count: ``$($Summary.script_reference_group_count)``")
     $lines.Add("- script_reference_extension_count: ``$($Summary.script_reference_extension_count)``")
+    $lines.Add("- unindexed_script_count: ``$($Summary.unindexed_script_count)``")
     $lines.Add("- duplicate_script_reference_count: ``$($Summary.duplicate_script_reference_count)``")
     $lines.Add("- missing_script_count: ``$($Summary.missing_script_count)``")
     $lines.Add("- required_marker_count: ``$($Summary.required_marker_count)``")
@@ -310,6 +341,17 @@ function New-MarkdownReport {
     $lines.Add("")
     foreach ($extension in $ScriptReferenceExtensions) {
         $lines.Add("- ``$($extension.extension)``: $($extension.script_reference_count) unique / $($extension.total_script_reference_count) total")
+    }
+
+    $lines.Add("")
+    $lines.Add("## Unindexed Scripts")
+    $lines.Add("")
+    if ($Summary.unindexed_script_count -eq 0) {
+        $lines.Add("- none")
+    } else {
+        foreach ($script in @($Summary.unindexed_scripts)) {
+            $lines.Add("- ``$script``")
+        }
     }
 
     $lines.Add("")
@@ -394,6 +436,8 @@ if ($scriptReferences.Count -eq 0) {
 $duplicateScriptReferences = @(Get-DuplicateScriptReferences -References $allScriptReferences)
 $scriptReferenceGroups = @(Get-ScriptReferenceGroups -Text $scriptIndexText)
 $scriptReferenceExtensions = @(Get-ScriptReferenceExtensionSummary -References $allScriptReferences)
+$repositoryScripts = @(Get-RepositoryScripts -Root $resolvedRepoRoot)
+$unindexedScripts = @(Get-UnindexedScripts -RepositoryScripts $repositoryScripts -IndexedScripts $scriptReferences)
 
 $checkedScripts = @(
     $scriptReferences | ForEach-Object {
@@ -505,6 +549,7 @@ $summary = [ordered]@{
     documentation_entrypoint_count = $documentationEntryPoints.Count
     documentation_entrypoints = $documentationEntryPointEntries
     script_index_relative_path = $scriptIndexRelativePath
+    repository_script_count = $repositoryScripts.Count
     total_script_reference_count = $allScriptReferences.Count
     script_reference_count = $scriptReferences.Count
     script_reference_group_count = $scriptReferenceGroups.Count
@@ -512,6 +557,8 @@ $summary = [ordered]@{
     script_reference_extension_count = $scriptReferenceExtensions.Count
     script_reference_extensions = $scriptReferenceExtensionEntries
     checked_scripts = @($checkedScripts)
+    unindexed_script_count = $unindexedScripts.Count
+    unindexed_scripts = @($unindexedScripts)
     duplicate_script_reference_count = $duplicateScriptReferences.Count
     duplicate_script_references = $duplicateScriptReferenceEntries
     missing_script_count = $missingScripts.Count

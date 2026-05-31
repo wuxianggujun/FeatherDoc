@@ -184,6 +184,19 @@ if ($passingSummary.report_markdown_relative_path -notmatch [regex]::Escape("pas
 if ($passingSummary.script_reference_count -lt 20) {
     throw "Expected at least 20 indexed scripts, got: $($passingSummary.script_reference_count)"
 }
+if ($passingSummary.repository_script_count -lt $passingSummary.script_reference_count) {
+    throw "Repository script count should be at least the indexed script count."
+}
+$passingUnindexedScripts = @($passingSummary.unindexed_scripts)
+if ($passingSummary.unindexed_script_count -ne $passingUnindexedScripts.Count) {
+    throw "Unindexed script count does not match unindexed_scripts length."
+}
+if ($passingSummary.unindexed_script_count -le 0) {
+    throw "Expected at least one unindexed script to be reported as informational inventory."
+}
+if ($passingSummary.repository_script_count -ne ($passingSummary.script_reference_count + $passingSummary.unindexed_script_count)) {
+    throw "Repository script count should equal indexed plus unindexed scripts when no indexed scripts are missing."
+}
 if ($passingSummary.total_script_reference_count -ne $passingSummary.script_reference_count) {
     throw "Expected no duplicate script references in the maintained index."
 }
@@ -271,6 +284,10 @@ Assert-ArrayContains `
     -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
     -ExpectedValue "scripts\check_pdf_release_readiness.ps1" `
     -Message "Summary should list the PDF release readiness script."
+Assert-ArrayContains `
+    -Values $passingUnindexedScripts `
+    -ExpectedValue (Join-Path "scripts" "build_image_contact_sheet.py") `
+    -Message "Summary should list unindexed scripts as informational inventory."
 foreach ($marker in @(
         '# Script Task Index Check',
         '- schema: `featherdoc.script_task_index_check.v1`',
@@ -279,9 +296,11 @@ foreach ($marker in @(
         '- powershell_version:',
         '- output_encoding: `UTF-8 without BOM`',
         '- documentation_entrypoint_count: `2`',
+        '- repository_script_count:',
         '- total_script_reference_count:',
         '- script_reference_group_count:',
         '- script_reference_extension_count:',
+        '- unindexed_script_count:',
         '- duplicate_script_reference_count: `0`',
         '- missing_script_count: `0`',
         '- missing_marker_count: `0`',
@@ -295,6 +314,8 @@ foreach ($marker in @(
         '## Script Reference Extensions',
         '`.ps1`:',
         'unique /',
+        '## Unindexed Scripts',
+        'build_image_contact_sheet.py',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'
@@ -412,6 +433,12 @@ if ($failingSummary.duplicate_script_reference_count -ne 1) {
 }
 if ($failingSummary.missing_marker_count -ne 1) {
     throw "Expected one missing marker, got: $($failingSummary.missing_marker_count)"
+}
+if ($failingSummary.repository_script_count -ne 3) {
+    throw "Expected three repository scripts in failing fixture, got: $($failingSummary.repository_script_count)"
+}
+if ($failingSummary.unindexed_script_count -ne 0) {
+    throw "Expected no unindexed scripts in failing fixture, got: $($failingSummary.unindexed_script_count)"
 }
 if ($failingSummary.script_reference_group_count -ne 1) {
     throw "Expected one script reference group in failing fixture, got: $($failingSummary.script_reference_group_count)"

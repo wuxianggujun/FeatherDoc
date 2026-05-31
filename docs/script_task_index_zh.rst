@@ -37,7 +37,10 @@
   通过 ``script_reference_group_count`` 和 ``script_reference_groups`` 按本页
   小节汇总脚本覆盖量，并通过 ``script_reference_extension_count`` 和
   ``script_reference_extensions`` 汇总 ``.ps1`` / ``.py`` 入口分布，方便维护者
-  快速发现某个分组或脚本类型的异常变化。
+  快速发现某个分组或脚本类型的异常变化；同时写出
+  ``repository_script_count``、``unindexed_script_count`` 和
+  ``unindexed_scripts``，只读盘点 ``scripts`` 目录下尚未纳入本维护索引的入口，
+  但不把未索引脚本作为失败条件。
 
 
 模板契约与项目模板
