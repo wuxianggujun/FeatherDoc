@@ -2687,13 +2687,16 @@ Current Limitations
   ``featherdoc.table_layout_delivery_governance_report.v1``. That governance
   summary exposes ``table_layout_delivery_governance.delivery_quality``,
   ``delivery_quality`` score details, ``safe_tblLook_fixes_pending`` and
-  ``floating_table_plans_pending`` penalties, ``pdf_floating_table_support``,
-  and release-facing ``source_schema``, ``source_report_display``,
-  ``source_json_display``, and ``open_command`` fields so release handoff can
-  trace table-style, ``tblLook``, floating-table, and PDF support evidence
-  without re-reading the original DOCX. Advanced table-style coverage and the
-  remaining ``w:tblpPr`` wrapping/overlap details are still active extension
-  areas.
+  ``floating_table_plans_pending`` penalties, ``pdf_floating_table_support``
+  evidence with ``pdf_floating_table_supported_geometry_percent`` and
+  ``pdf_floating_table_tracked_geometry_count``, and release-facing
+  ``source_schema``, ``source_report_display``, ``source_json_display``, and
+  ``open_command`` fields so release handoff can trace table-style,
+  ``tblLook``, floating-table, and PDF support evidence without re-reading the
+  original DOCX. Release material reviewers also get
+  ``pdf_floating_table_reviewer_focus`` guidance for metadata-only ``tblpPr``
+  wrapping scope. Advanced table-style coverage and the remaining
+  ``w:tblpPr`` wrapping/overlap details are still active extension areas.
 - Paragraphs can now be attached to managed bullet and decimal lists and can
   restart managed list sequences, and custom numbering definitions can now be
   created through ``ensure_numbering_definition(...)`` /

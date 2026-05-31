@@ -69,6 +69,10 @@ foreach ($marker in @(
         "safe_tblLook_fixes_pending",
         "floating_table_plans_pending",
         "pdf_floating_table_support",
+        "pdf_floating_table_supported_geometry_percent",
+        "pdf_floating_table_tracked_geometry_count",
+        "pdf_floating_table_reviewer_focus",
+        "metadata-only",
         "source_schema",
         "source_report_display",
         "source_json_display",
@@ -85,6 +89,10 @@ foreach ($marker in @(
         "table-layout-delivery-governance",
         "tblLook",
         "floating table",
+        "pdf_floating_table_support",
+        "pdf_floating_table_supported_geometry_percent",
+        "pdf_floating_table_reviewer_focus",
+        "metadata-only",
         "release blockers",
         "action items"
     )) {
@@ -192,6 +200,9 @@ foreach ($assertion in @(
                 "manual_table_style_fix_count",
                 "table_position_automatic_count",
                 "table_position_review_count",
+                "pdf_floating_table_support_coverage",
+                "pdf_floating_table_reviewer_focus",
+                "metadata-only tblpPr",
                 "floating_table_plans_pending"
             )
         },
@@ -216,7 +227,9 @@ foreach ($assertion in @(
                 "source_schema",
                 "source_report_display",
                 "source_json_display",
-                "open_command"
+                "open_command",
+                "pdf_floating_table_support_coverage",
+                "pdf_floating_table_reviewer_focus"
             )
         }
     )) {
@@ -300,6 +313,9 @@ foreach ($assertion in @(
                 "manual_table_style_fix_count",
                 "table_position_automatic_count",
                 "table_position_review_count",
+                "pdf_floating_table_support_coverage",
+                "pdf_floating_table_reviewer_focus",
+                "metadata-only tblpPr",
                 "floating_table_plans_pending"
             )
         }
