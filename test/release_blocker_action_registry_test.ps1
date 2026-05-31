@@ -43,9 +43,16 @@ $uniqueActions = @($registeredActions | Sort-Object -Unique)
 Assert-True -Condition ($uniqueActions.Count -eq $registeredActions.Count) `
     -Message "Release blocker action registry should not contain duplicate actions."
 
+$ordinalIgnoreCaseActions = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
 foreach ($action in $registeredActions) {
     Assert-True -Condition (-not [string]::IsNullOrWhiteSpace($action)) `
         -Message "Release blocker action registry should not contain blank actions."
+    Assert-True -Condition ($action -eq $action.Trim()) `
+        -Message "Release blocker action registry should not contain leading or trailing whitespace: '$action'"
+    Assert-True -Condition ($action -match '^[A-Za-z0-9_]+$') `
+        -Message "Release blocker action registry should use stable ASCII token characters only: $action"
+    Assert-True -Condition ($ordinalIgnoreCaseActions.Add($action)) `
+        -Message "Release blocker action registry should not contain case-insensitive duplicate actions: $action"
     Assert-True -Condition (Test-ReleaseBlockerActionRegistered -Action $action) `
         -Message "Registered release blocker action should resolve as registered: $action"
 
@@ -74,6 +81,15 @@ foreach ($action in $registeredActions) {
     Assert-True -Condition ($guidanceText -notmatch [regex]::Escape("does not have a checklist runbook yet")) `
         -Message "Registered release blocker action should not use the missing-runbook fallback: $action"
 }
+
+$canonicalRegisteredAction = $registeredActions[0]
+$caseVariantAction = $canonicalRegisteredAction.ToUpperInvariant()
+Assert-True -Condition (Test-ReleaseBlockerActionRegistered -Action $caseVariantAction) `
+    -Message "Release blocker action registry lookup should be case-insensitive for registered actions."
+
+$paddedRegisteredAction = " $canonicalRegisteredAction "
+Assert-True -Condition (-not (Test-ReleaseBlockerActionRegistered -Action $paddedRegisteredAction)) `
+    -Message "Release blocker action registry lookup should not trim malformed action tokens."
 
 $unknownAction = "custom_unregistered_action"
 Assert-True -Condition (-not (Test-ReleaseBlockerActionRegistered -Action $unknownAction)) `
