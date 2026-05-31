@@ -1049,6 +1049,8 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "table-layout
             manual_table_style_fix_count = 0
             table_position_automatic_count = 0
             table_position_review_count = 0
+            pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
+            pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
             command_failure_count = 0
             unresolved_item_count = 0
             penalty_summary = @(
@@ -1518,6 +1520,10 @@ if ($null -eq $tableMetric -or [string]::IsNullOrWhiteSpace([string]$tableMetric
     [int]$tableMetric.details.unresolved_item_count -ne 0 -or
     [int]$tableMetric.details.floating_table_plans_pending -ne 0) {
     throw "Release candidate summary lost the table-layout delivery governance metric details."
+}
+if ([string]$tableMetric.details.pdf_floating_table_support_coverage -ne "4/9 supported (44 percent); metadata_only=5" -or
+    [string]$tableMetric.details.pdf_floating_table_reviewer_focus -ne "review metadata-only tblpPr fields before approving PDF-layout-sensitive release.") {
+    throw "Release candidate summary lost the PDF floating table reviewer focus details."
 }
 if ([int]$candidateSummary.release_governance_handoff.report_count -ne 6 -or
     @($candidateSummary.release_governance_handoff.reports).Count -ne 6) {

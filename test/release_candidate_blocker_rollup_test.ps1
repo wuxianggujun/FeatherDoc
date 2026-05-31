@@ -199,6 +199,8 @@ Write-JsonFile -Path $tableSummaryPath -Value ([ordered]@{
         unresolved_item_count = 2
         table_position_automatic_count = 1
         table_position_review_count = 1
+        pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
+        pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
     }
     release_blocker_count = 1
     release_blockers = @(
@@ -309,6 +311,8 @@ Write-JsonFile -Path $autoDiscoverTableSummaryPath -Value ([ordered]@{
         unresolved_item_count = 2
         table_position_automatic_count = 1
         table_position_review_count = 1
+        pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
+        pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
     }
     release_blocker_count = 1
     release_blockers = @(
@@ -787,6 +791,15 @@ Assert-ContainsText -Text (($summary.release_blocker_rollup.governance_metrics |
 Assert-ContainsText -Text (($summary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
     -ExpectedText "delivery_quality:blocked:42" `
     -Message "Release candidate summary should preserve table delivery metrics."
+$tableMetric = ($summary.release_blocker_rollup.governance_metrics |
+    Where-Object { [string]$_.id -eq "table_layout_delivery_governance.delivery_quality" } |
+    Select-Object -First 1)
+Assert-Equal -Actual ([string]$tableMetric.details.pdf_floating_table_support_coverage) `
+    -Expected "4/9 supported (44 percent); metadata_only=5" `
+    -Message "Release candidate summary should preserve PDF floating table support coverage details."
+Assert-Equal -Actual ([string]$tableMetric.details.pdf_floating_table_reviewer_focus) `
+    -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
+    -Message "Release candidate summary should preserve PDF floating table reviewer focus details."
 Assert-Equal -Actual ([string]$summary.steps.release_blocker_rollup.status) -Expected "blocked" `
     -Message "Release candidate step status should mirror rollup status."
 Assert-Equal -Actual ([int]$summary.steps.release_blocker_rollup.source_failure_count) -Expected 0 `
@@ -965,6 +978,15 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.governan
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.id):$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
     -ExpectedText "table_layout_delivery_governance.delivery_quality:delivery_quality:blocked:42" `
     -Message "Auto-discovered rollup should preserve table delivery metrics."
+$autoDiscoverTableMetric = ($autoDiscoverSummary.release_blocker_rollup.governance_metrics |
+    Where-Object { [string]$_.id -eq "table_layout_delivery_governance.delivery_quality" } |
+    Select-Object -First 1)
+Assert-Equal -Actual ([string]$autoDiscoverTableMetric.details.pdf_floating_table_support_coverage) `
+    -Expected "4/9 supported (44 percent); metadata_only=5" `
+    -Message "Auto-discovered rollup should preserve PDF floating table support coverage details."
+Assert-Equal -Actual ([string]$autoDiscoverTableMetric.details.pdf_floating_table_reviewer_focus) `
+    -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
+    -Message "Auto-discovered rollup should preserve PDF floating table reviewer focus details."
 $autoDiscoverNumberingMetric = ($autoDiscoverSummary.release_blocker_rollup.governance_metrics |
     Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_confidence" } |
     Select-Object -First 1)
