@@ -136,6 +136,12 @@ function New-PdfFloatingTableSupport {
     $supportedGeometryPercent = Get-PdfFloatingTableSupportedGeometryPercent `
         -SupportedGeometryCount $supportedGeometryCount `
         -MetadataOnlyCount $metadataOnlyCount
+    $supportCoverage = "{0}/{1} supported ({2} percent); metadata_only={3}" -f
+        $supportedGeometryCount,
+        $trackedGeometryCount,
+        $supportedGeometryPercent,
+        $metadataOnlyCount
+    $reviewerFocus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
 
     return [ordered]@{
         schema = "featherdoc.pdf_floating_table_support.v1"
@@ -145,6 +151,8 @@ function New-PdfFloatingTableSupport {
         metadata_only_count = $metadataOnlyCount
         tracked_geometry_count = $trackedGeometryCount
         supported_geometry_percent = $supportedGeometryPercent
+        support_coverage = $supportCoverage
+        reviewer_focus = $reviewerFocus
         supported_geometry = @($supportedGeometry)
         metadata_only = @($metadataOnly)
         review_required = @($reviewRequired)
@@ -171,6 +179,8 @@ function New-ReportMarkdown {
     $lines.Add("- PDF floating table support: ``$($Summary.pdf_floating_table_support_status)``") | Out-Null
     $lines.Add("- PDF floating table boundary: ``$($Summary.pdf_floating_table_layout_boundary)``") | Out-Null
     $lines.Add("- PDF floating table supported geometry: ``$($Summary.pdf_floating_table_supported_geometry_count)/$($Summary.pdf_floating_table_tracked_geometry_count)`` (``$($Summary.pdf_floating_table_supported_geometry_percent)%``)") | Out-Null
+    $lines.Add("- pdf_floating_table_support_coverage: ``$($Summary.pdf_floating_table_support_coverage)``") | Out-Null
+    $lines.Add("- pdf_floating_table_reviewer_focus: ``$($Summary.pdf_floating_table_reviewer_focus)``") | Out-Null
     $lines.Add("") | Out-Null
 
     $lines.Add("## PDF Floating Table Support") | Out-Null
@@ -178,6 +188,8 @@ function New-ReportMarkdown {
     $lines.Add("- Status: ``$($pdfSupport.status)``") | Out-Null
     $lines.Add("- Boundary: ``$($pdfSupport.boundary)``") | Out-Null
     $lines.Add("- Supported geometry percent: ``$($pdfSupport.supported_geometry_percent)%``") | Out-Null
+    $lines.Add("- Support coverage: ``$($pdfSupport.support_coverage)``") | Out-Null
+    $lines.Add("- Reviewer focus: ``$($pdfSupport.reviewer_focus)``") | Out-Null
     $lines.Add("- Supported geometry:") | Out-Null
     foreach ($item in @($pdfSupport.supported_geometry)) {
         $lines.Add("  - $item") | Out-Null
@@ -376,6 +388,8 @@ $summary = [ordered]@{
     pdf_floating_table_metadata_only_count = $pdfFloatingTableSupport.metadata_only_count
     pdf_floating_table_tracked_geometry_count = $pdfFloatingTableSupport.tracked_geometry_count
     pdf_floating_table_supported_geometry_percent = $pdfFloatingTableSupport.supported_geometry_percent
+    pdf_floating_table_support_coverage = $pdfFloatingTableSupport.support_coverage
+    pdf_floating_table_reviewer_focus = $pdfFloatingTableSupport.reviewer_focus
     release_blockers = @($releaseBlockers)
     release_blocker_count = @($releaseBlockers).Count
     action_items = @($actionItems)

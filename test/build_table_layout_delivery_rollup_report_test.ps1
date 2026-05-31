@@ -282,6 +282,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate layout rollup should expose tracked PDF floating table geometry rows."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_supported_geometry_percent) -Expected 44 `
         -Message "Aggregate layout rollup should expose supported PDF floating table geometry percentage."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_support_coverage) `
+        -Expected "8/18 supported (44 percent); metadata_only=10" `
+        -Message "Aggregate layout rollup should expose PDF floating table support coverage."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_reviewer_focus) `
+        -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
+        -Message "Aggregate layout rollup should expose PDF floating table reviewer focus."
     Assert-ContainsText -Text (($summary.pdf_floating_table_support_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
         -ExpectedText "partial:2" `
         -Message "Aggregate layout rollup should group PDF floating table support statuses."
@@ -295,6 +301,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Rollup should preserve tracked PDF floating table geometry count."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_support[0].supported_geometry_percent) -Expected 44 `
         -Message "Rollup should preserve supported PDF floating table geometry percentage."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_support[0].support_coverage) `
+        -Expected "4/9 supported (44 percent); metadata_only=5" `
+        -Message "Rollup should preserve PDF floating table support coverage."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_support[0].reviewer_focus) `
+        -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
+        -Message "Rollup should preserve PDF floating table reviewer focus."
     Assert-ContainsText -Text (($summary.pdf_floating_table_support[0].metadata_only | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "tblOverlap" `
         -Message "Rollup should preserve metadata-only PDF floating table rows."
@@ -315,6 +327,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should include floating table plan section."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF Floating Table Support" `
         -Message "Markdown report should include PDF floating table support section."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_support_coverage" `
+        -Message "Markdown report should include PDF floating table support coverage marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_reviewer_focus" `
+        -Message "Markdown report should include PDF floating table reviewer focus marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "metadata-only tblpPr" `
+        -Message "Markdown report should include metadata-only tblpPr reviewer guidance."
     Assert-ContainsText -Text $markdown -ExpectedText "stable_pdf_geometry_subset_not_full_word_wrapping" `
         -Message "Markdown report should include PDF floating table boundary."
     Assert-ContainsText -Text $markdown -ExpectedText "contract.docx" `

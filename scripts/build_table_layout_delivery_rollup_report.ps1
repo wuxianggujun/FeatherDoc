@@ -277,6 +277,16 @@ function New-PdfFloatingTableSupportEntry {
             -SupportedGeometryCount $supportedGeometryCount `
             -MetadataOnlyCount $metadataOnlyCount
     }
+    $supportCoverage = Get-JsonString -Object $Support -Name "support_coverage"
+    if ([string]::IsNullOrWhiteSpace($supportCoverage)) {
+        $supportCoverage = "{0}/{1} supported ({2} percent); metadata_only={3}" -f
+            $supportedGeometryCount,
+            $trackedGeometryCount,
+            $supportedGeometryPercent,
+            $metadataOnlyCount
+    }
+    $reviewerFocus = Get-JsonString -Object $Support -Name "reviewer_focus" `
+        -DefaultValue "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
 
     return [ordered]@{
         document_name = $DocumentName
@@ -289,6 +299,8 @@ function New-PdfFloatingTableSupportEntry {
         metadata_only_count = $metadataOnlyCount
         tracked_geometry_count = $trackedGeometryCount
         supported_geometry_percent = $supportedGeometryPercent
+        support_coverage = $supportCoverage
+        reviewer_focus = $reviewerFocus
         review_required_count = $reviewRequired.Count
         supported_geometry = @($supportedGeometry)
         metadata_only = @($metadataOnly)
@@ -336,6 +348,8 @@ function New-ReportMarkdown {
     $lines.Add("- Floating table automatic plans: ``$($Summary.total_table_position_automatic_count)``") | Out-Null
     $lines.Add("- Floating table review plans: ``$($Summary.total_table_position_review_count)``") | Out-Null
     $lines.Add("- PDF floating table support reports: ``$($Summary.pdf_floating_table_support_report_count)``") | Out-Null
+    $lines.Add("- pdf_floating_table_support_coverage: ``$($Summary.pdf_floating_table_support_coverage)``") | Out-Null
+    $lines.Add("- pdf_floating_table_reviewer_focus: ``$($Summary.pdf_floating_table_reviewer_focus)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("") | Out-Null
 
@@ -401,7 +415,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($support in @($Summary.pdf_floating_table_support)) {
-            $lines.Add(("- ``{0}``: status=``{1}`` boundary=``{2}`` supported=``{3}/{4}`` percent=``{5}%`` metadata_only=``{6}`` source=``{7}``" -f
+            $lines.Add(("- ``{0}``: status=``{1}`` boundary=``{2}`` supported=``{3}/{4}`` percent=``{5}%`` metadata_only=``{6}`` reviewer_focus=``{7}`` source=``{8}``" -f
                 $support.document_name,
                 $support.status,
                 $support.boundary,
@@ -409,6 +423,7 @@ function New-ReportMarkdown {
                 $support.tracked_geometry_count,
                 $support.supported_geometry_percent,
                 $support.metadata_only_count,
+                $support.reviewer_focus,
                 $support.source_report_display)) | Out-Null
         }
     }
@@ -720,6 +735,12 @@ $pdfFloatingTableTrackedGeometryTotal = $pdfFloatingTableSupportedGeometryTotal 
 $pdfFloatingTableSupportedGeometryPercent = Get-PdfFloatingTableSupportedGeometryPercent `
     -SupportedGeometryCount $pdfFloatingTableSupportedGeometryTotal `
     -MetadataOnlyCount $pdfFloatingTableMetadataOnlyTotal
+$pdfFloatingTableSupportCoverage = "{0}/{1} supported ({2} percent); metadata_only={3}" -f
+    $pdfFloatingTableSupportedGeometryTotal,
+    $pdfFloatingTableTrackedGeometryTotal,
+    $pdfFloatingTableSupportedGeometryPercent,
+    $pdfFloatingTableMetadataOnlyTotal
+$pdfFloatingTableReviewerFocus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($sourceReportFailureCount -gt 0 -or $totalCommandFailureCount -gt 0) {
@@ -766,6 +787,8 @@ $summary = [ordered]@{
     pdf_floating_table_metadata_only_count = $pdfFloatingTableMetadataOnlyTotal
     pdf_floating_table_tracked_geometry_count = $pdfFloatingTableTrackedGeometryTotal
     pdf_floating_table_supported_geometry_percent = $pdfFloatingTableSupportedGeometryPercent
+    pdf_floating_table_support_coverage = $pdfFloatingTableSupportCoverage
+    pdf_floating_table_reviewer_focus = $pdfFloatingTableReviewerFocus
     pdf_floating_table_support_summary = @(Add-PdfFloatingTableSupportSummary -Items $pdfFloatingTableSupport.ToArray())
     pdf_floating_table_support = @($pdfFloatingTableSupport.ToArray())
     release_blocker_count = $blockers.Count

@@ -151,7 +151,9 @@ foreach ($assertion in @(
                 "table_style_quality",
                 "table_position_plan",
                 "run_table_style_quality_visual_regression.ps1",
-                "pdf_floating_table_support"
+                "pdf_floating_table_support",
+                "pdf_floating_table_support_coverage",
+                "pdf_floating_table_reviewer_focus"
             )
         },
         [ordered]@{
@@ -163,7 +165,9 @@ foreach ($assertion in @(
                 "action_items",
                 "table_position_plans",
                 "pdf_floating_table_support",
-                "pdf_floating_table_supported_geometry_percent"
+                "pdf_floating_table_supported_geometry_percent",
+                "pdf_floating_table_support_coverage",
+                "pdf_floating_table_reviewer_focus"
             )
         },
         [ordered]@{

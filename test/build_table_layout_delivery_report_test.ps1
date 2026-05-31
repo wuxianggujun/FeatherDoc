@@ -182,8 +182,20 @@ if (Test-Scenario -Name "passing") {
         -Message "Summary should count tracked PDF floating table geometry rows."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_supported_geometry_percent) -Expected 44 `
         -Message "Summary should expose supported PDF floating table geometry percentage."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_support_coverage) `
+        -Expected "4/9 supported (44 percent); metadata_only=5" `
+        -Message "Summary should expose PDF floating table support coverage."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_reviewer_focus) `
+        -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
+        -Message "Summary should expose PDF floating table reviewer focus."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_support.supported_geometry_percent) -Expected 44 `
         -Message "PDF support evidence should expose supported geometry percentage."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_support.support_coverage) `
+        -Expected "4/9 supported (44 percent); metadata_only=5" `
+        -Message "PDF support evidence should expose support coverage."
+    Assert-Equal -Actual ([string]$summary.pdf_floating_table_support.reviewer_focus) `
+        -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
+        -Message "PDF support evidence should expose reviewer focus."
     Assert-ContainsText -Text (($summary.pdf_floating_table_support.supported_geometry | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "topFromText" `
         -Message "PDF support evidence should mention topFromText support."
@@ -206,6 +218,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown report should include PDF floating table support evidence."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF floating table supported geometry" `
         -Message "Markdown report should include supported geometry percentage."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_support_coverage" `
+        -Message "Markdown report should include PDF floating table support coverage marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_reviewer_focus" `
+        -Message "Markdown report should include PDF floating table reviewer focus marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "metadata-only tblpPr" `
+        -Message "Markdown report should include metadata-only tblpPr reviewer guidance."
     Assert-ContainsText -Text $markdown -ExpectedText "stable_pdf_geometry_subset_not_full_word_wrapping" `
         -Message "Markdown report should include the PDF floating table boundary."
     Assert-ContainsText -Text $markdown -ExpectedText "apply-table-position-plan" `
