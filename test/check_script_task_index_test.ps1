@@ -362,6 +362,17 @@ foreach ($templateVisualScript in @(
         -ExpectedValue $templateVisualScript `
         -Message "Summary should list the template visual regression script $templateVisualScript."
 }
+foreach ($templateSupportScript in @(
+        "scripts\template_schema_cli_common.ps1",
+        "scripts\project_template_smoke_manifest_common.ps1",
+        "scripts\onboard_project_template.ps1",
+        "scripts\export_render_data_skeleton.ps1"
+    )) {
+    Assert-ArrayContains `
+        -Values @($passingSummary.checked_scripts | ForEach-Object { $_.relative_path }) `
+        -ExpectedValue $templateSupportScript `
+        -Message "Summary should list the template support script $templateSupportScript."
+}
 foreach ($sectionVisualScript in @(
         "scripts\run_section_page_setup_regression.ps1",
         "scripts\run_section_page_setup_visual_regression.ps1",
@@ -455,7 +466,7 @@ foreach ($visualHelperScript in @(
 }
 Assert-ArrayContains `
     -Values $passingUnindexedScripts `
-    -ExpectedValue (Join-Path "scripts" "export_render_data_skeleton.ps1") `
+    -ExpectedValue (Join-Path "scripts" "find_superseded_review_tasks.ps1") `
     -Message "Summary should list unindexed scripts as informational inventory."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptPrefixes | ForEach-Object { $_.prefix }) `
@@ -463,15 +474,15 @@ Assert-ArrayContains `
     -Message "Unindexed script prefix summary should group run_* maintenance entries."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptPrefixes | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
-    -ExpectedValue (Join-Path "scripts" "export_render_data_skeleton.ps1") `
+    -ExpectedValue (Join-Path "scripts" "find_superseded_review_tasks.ps1") `
     -Message "Unindexed script prefix summary should retain script paths."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.family }) `
-    -ExpectedValue "export_render" `
+    -ExpectedValue "find_superseded" `
     -Message "Unindexed script family summary should group remaining maintenance entries into families."
 Assert-ArrayContains `
     -Values @($passingUnindexedScriptFamilies | ForEach-Object { $_.scripts } | ForEach-Object { $_ }) `
-    -ExpectedValue (Join-Path "scripts" "export_render_data_skeleton.ps1") `
+    -ExpectedValue (Join-Path "scripts" "find_superseded_review_tasks.ps1") `
     -Message "Unindexed script family summary should retain script paths."
 foreach ($marker in @(
         '# Script Task Index Check',
@@ -502,11 +513,11 @@ foreach ($marker in @(
         '`.ps1`:',
         'unique /',
         '## Unindexed Scripts',
-        'export_render_data_skeleton.ps1',
+        'find_superseded_review_tasks.ps1',
         '## Unindexed Script Prefixes',
         '`run`:',
         '## Unindexed Script Families',
-        '`export_render`:',
+        '`find_superseded`:',
         '## Duplicate Script References',
         '[ok] `scripts\check_script_task_index.ps1`',
         '[ok] `scripts\run_release_candidate_checks.ps1`'

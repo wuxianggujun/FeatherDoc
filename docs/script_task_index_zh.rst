@@ -62,6 +62,8 @@
   样本注册进 manifest。
 - ``scripts/describe_template_schema_manifest.ps1``：只读描述 schema
   manifest 状态。
+- ``scripts/template_schema_cli_common.ps1``：提供模板 schema CLI 共享的路径、
+  相对路径和命令行参数转义工具。
 - ``scripts/run_template_validation_regression.ps1``：运行模板校验视觉回归。
 - ``scripts/run_template_bookmark_multiline_visual_regression.ps1``：运行模板书签
   多行文本视觉回归。
@@ -103,6 +105,8 @@
 - ``scripts/run_project_template_smoke.ps1``：运行项目模板 smoke manifest。
 - ``scripts/check_project_template_smoke_manifest.ps1``：校验项目模板 smoke
   manifest 结构。
+- ``scripts/project_template_smoke_manifest_common.ps1``：提供项目模板 smoke
+  manifest 共享的属性读取、路径解析和校验问题工具。
 - ``scripts/describe_project_template_smoke_manifest.ps1``：只读描述项目模板
   smoke manifest 状态与维护入口。
 - ``scripts/discover_project_template_smoke_candidates.ps1``：发现尚未纳入
@@ -119,6 +123,8 @@
   onboarding governance 报告。
 - ``scripts/build_project_template_delivery_readiness_report.ps1``：生成项目模板
   delivery readiness 报告。
+- ``scripts/onboard_project_template.ps1``：为真实项目模板生成可复核的接入
+  bundle，并在显式要求时注册 smoke manifest。
 
 
 模板渲染与数据映射
@@ -130,6 +136,8 @@
 - ``scripts/patch_template_render_plan.ps1``：把 patch 应用到 render plan。
 - ``scripts/prepare_template_render_data_workspace.ps1``：准备数据映射工作区。
 - ``scripts/export_render_data_mapping_draft.ps1``：导出初始 mapping draft。
+- ``scripts/export_render_data_skeleton.ps1``：从 mapping draft 导出可编辑的
+  业务数据 JSON skeleton。
 - ``scripts/lint_render_data_mapping.ps1``：对 mapping draft 做结构 lint。
 - ``scripts/validate_render_data_mapping.ps1``：校验 mapping 是否满足渲染输入。
 - ``scripts/convert_render_data_to_patch_plan.ps1``：把 render data 转为 patch
