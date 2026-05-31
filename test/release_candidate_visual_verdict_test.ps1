@@ -1296,6 +1296,8 @@ $expectedPdfAttemptSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoo
 $expectedPdfSegmentedSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfSegmentedSummaryPath
 $expectedPdfReadinessSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfReadinessSummaryPath
 $expectedFullPdfCtestSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $fullPdfCtestSummaryPath
+$expectedReleaseEntryChecklistSourceReport = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot `
+    -Path $candidateSummaryPath
 $expectedReleaseEntryPackagedAuditSourceReport = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot `
     -Path (Join-Path $releaseGovernanceHandoffOutputDir "release-blocker-rollup\release_blocker_rollup.md")
 if ($candidateSummary.execution_status -ne "pass") {
@@ -1712,6 +1714,29 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Proje
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
     ("source_report={0}" -f $expectedReleaseEntryPackagedAuditSourceReport)
 ) -Message "final_review.md should expose project-template checklist handoff and packaged audit evidence consumed from release governance handoff."
+Assert-LineContainsAll -Text $candidateFinalReview -Fragments @(
+    "Project-template readiness checklist handoff evidence",
+    "project_template_readiness_checklist_entrypoints_source_reports=2",
+    "docs/project_template_release_readiness_checklist_zh.rst",
+    "required_entrypoint_count=3",
+    "entrypoint_paths=",
+    "release_entry_project_template_readiness_checklist_trace",
+    "source_schema=featherdoc.release_candidate_summary",
+    ("source_report={0}" -f $expectedReleaseEntryChecklistSourceReport)
+) -Message "final_review.md should keep project-template checklist handoff evidence on one compact source_report line."
+Assert-LineContainsAll -Text $candidateFinalReview -Fragments @(
+    "Project-template readiness checklist packaged audit evidence",
+    "release_entry_project_template_readiness_checklist_material_safety_audit_source_reports=2",
+    "audit_script=.\scripts\assert_release_material_safety.ps1",
+    "audited_entrypoints=start_here, artifact_guide, reviewer_checklist",
+    "compact_evidence_field=project_template_readiness_checklist_entrypoints_source_reports",
+    "compact_evidence_source_schema=featherdoc.release_candidate_summary",
+    "checklist_path=docs/project_template_release_readiness_checklist_zh.rst",
+    "checklist_marker=release_entry_project_template_readiness_checklist_trace",
+    "material_safety_marker=project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
+    "source_schema=featherdoc.release_candidate_summary",
+    ("source_report={0}" -f $expectedReleaseEntryPackagedAuditSourceReport)
+) -Message "final_review.md should keep project-template packaged audit evidence on one compact source_report line."
 Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Word visual standard review metadata evidence" -Fragments @(
     "Word visual standard review metadata evidence",
     "word_visual_standard_review_metadata_source_reports=1",
