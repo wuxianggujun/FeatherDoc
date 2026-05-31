@@ -91,6 +91,8 @@ function Assert-StageGovernanceItemSourceTrace {
         if ($ExpectOpenCommandProperty) {
             Assert-HasProperty -Object $item -Name "open_command" `
                 -Message "$context should expose reviewer open command metadata."
+            Assert-NonEmptyString -Value $item.open_command `
+                -Message "$context should keep a non-empty reviewer open command."
         }
     }
 }
@@ -813,6 +815,9 @@ Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [str
 Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [string]$_.review_command }) -join "`n") `
     -ExpectedText "build_document_skeleton_governance_rollup_report.ps1" `
     -Message "Pipeline numbering stage should preserve action review commands."
+Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "build_numbering_catalog_governance_report.ps1" `
+    -Message "Pipeline numbering stage should provide stage rerun command when source actions omit open commands."
 $numberingInformationalActions = @($numberingStage.informational_action_items | Where-Object {
         [string]$_.id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline")
     })
@@ -836,6 +841,11 @@ foreach ($item in $numberingInformationalActions) {
     Assert-Equal -Actual ([bool]$item.optional) -Expected $true `
         -Message "Pipeline numbering informational action should remain optional."
 }
+
+$tableStage = Get-StageById -Summary $summary -Id "table_layout_delivery_governance"
+Assert-ContainsText -Text (($tableStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "build_table_layout_delivery_governance_report.ps1" `
+    -Message "Pipeline table-layout stage should provide stage rerun command when source actions omit open commands."
 
 $contentControlStage = Get-StageById -Summary $summary -Id "content_control_data_binding_governance"
 Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `

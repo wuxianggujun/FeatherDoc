@@ -238,6 +238,7 @@ function New-StageActionItems {
         [string]$StageSchema,
         [string]$SummaryJson,
         [string]$SummaryJsonDisplay,
+        [string]$DefaultOpenCommand,
         [object[]]$Items
     )
 
@@ -256,6 +257,10 @@ function New-StageActionItems {
                 -DisplayProperty "source_json_display" `
                 -DefaultDisplay $sourceReportDisplay
             $command = Get-JsonString -Object $item -Name "command"
+            $openCommand = Get-JsonString -Object $item -Name "open_command" -DefaultValue $command
+            if ([string]::IsNullOrWhiteSpace($openCommand)) {
+                $openCommand = $DefaultOpenCommand
+            }
             [ordered]@{
                 stage_id = $StageId
                 stage_title = $StageTitle
@@ -266,7 +271,7 @@ function New-StageActionItems {
                 action = Get-JsonString -Object $item -Name "action"
                 title = Get-JsonString -Object $item -Name "title"
                 command = $command
-                open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue $command
+                open_command = $openCommand
                 category = Get-JsonString -Object $item -Name "category"
                 severity = Get-JsonString -Object $item -Name "severity"
                 release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
@@ -284,6 +289,34 @@ function New-StageActionItems {
             }
         }
     )
+}
+
+function New-StageDefaultOpenCommand {
+    param(
+        [string]$RepoRoot,
+        [string]$ScriptPath,
+        [string[]]$InputJson,
+        [string]$OutputDir
+    )
+
+    $scriptDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $ScriptPath
+    $outputDirDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $OutputDir
+    $command = "pwsh -ExecutionPolicy Bypass -File `"$scriptDisplay`""
+
+    $inputDisplays = @(
+        foreach ($input in @($InputJson)) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$input)) {
+                Get-DisplayPath -RepoRoot $RepoRoot -Path ([string]$input)
+            }
+        }
+    )
+    if ($inputDisplays.Count -gt 0) {
+        $command += " -InputJson `"$($inputDisplays -join ',')`""
+    }
+    if (-not [string]::IsNullOrWhiteSpace($outputDirDisplay)) {
+        $command += " -OutputDir `"$outputDirDisplay`""
+    }
+    return $command
 }
 
 function New-StageWarningItems {
@@ -400,6 +433,11 @@ function New-StageEntry {
 
     $summaryJsonDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $SummaryJson
     $stageSchema = Get-JsonString -Object $Summary -Name "schema" -DefaultValue "unknown"
+    $defaultOpenCommand = New-StageDefaultOpenCommand `
+        -RepoRoot $RepoRoot `
+        -ScriptPath $Script `
+        -InputJson $InputJson `
+        -OutputDir $OutputDir
     $releaseBlockers = @(New-StageBlockerItems `
             -RepoRoot $RepoRoot `
             -StageId $Id `
@@ -415,6 +453,7 @@ function New-StageEntry {
             -StageSchema $stageSchema `
             -SummaryJson $SummaryJson `
             -SummaryJsonDisplay $summaryJsonDisplay `
+            -DefaultOpenCommand $defaultOpenCommand `
             -Items @(Get-JsonArray -Object $Summary -Name "action_items"))
     $informationalActionItems = @(New-StageActionItems `
             -RepoRoot $RepoRoot `
@@ -423,6 +462,7 @@ function New-StageEntry {
             -StageSchema $stageSchema `
             -SummaryJson $SummaryJson `
             -SummaryJsonDisplay $summaryJsonDisplay `
+            -DefaultOpenCommand $defaultOpenCommand `
             -Items @(Get-JsonArray -Object $Summary -Name "informational_action_items"))
     $warnings = @(New-StageWarningItems `
             -RepoRoot $RepoRoot `
