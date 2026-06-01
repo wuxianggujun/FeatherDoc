@@ -1252,6 +1252,8 @@ if (Test-Scenario -Name "include_rollup") {
             required_fields = @(
                 "status",
                 "release_ready",
+                "release_blocker_count",
+                "warning_count",
                 "schema_approval_status_summary",
                 "source_report_display",
                 "source_json_display"
@@ -1712,9 +1714,20 @@ if (Test-Scenario -Name "include_rollup") {
     Assert-ContainsText -Text (@($manifestSignoffEvidence.manifest_signoff_entrypoints_required_contracts) -join "`n") `
         -ExpectedText "project_template_delivery_readiness_contract" `
         -Message "Handoff summary should expose manifest signoff required project-template delivery contract."
-    Assert-ContainsText -Text (@($manifestSignoffEvidence.manifest_signoff_entrypoints_required_fields) -join "`n") `
-        -ExpectedText "source_json_display" `
-        -Message "Handoff summary should expose manifest signoff required traceability fields."
+    $manifestSignoffRequiredFieldsText = @($manifestSignoffEvidence.manifest_signoff_entrypoints_required_fields) -join "`n"
+    foreach ($requiredField in @(
+        "status",
+        "release_ready",
+        "release_blocker_count",
+        "warning_count",
+        "schema_approval_status_summary",
+        "source_report_display",
+        "source_json_display"
+    )) {
+        Assert-ContainsText -Text $manifestSignoffRequiredFieldsText `
+            -ExpectedText $requiredField `
+            -Message "Handoff summary should expose manifest signoff required field '$requiredField'."
+    }
     Assert-Equal -Actual ([string]$manifestSignoffEvidence.manifest_signoff_entrypoints_checklist_marker) -Expected "reviewer_manifest_scoped_project_template_trace" `
         -Message "Handoff summary should expose manifest signoff reviewer checklist marker."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.project_template_readiness_checklist_entrypoints_source_report_count) -Expected 1 `
@@ -2039,7 +2052,7 @@ if (Test-Scenario -Name "include_rollup") {
         "manifest_signoff_entrypoints_required_entrypoint_count: ``3``",
         "manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``",
         "manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``",
-        "manifest_signoff_entrypoints_required_fields: ``status, release_ready, schema_approval_status_summary, source_report_display, source_json_display``",
+        "manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, source_report_display, source_json_display``",
         "manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``"
     ) -Message "Handoff Markdown should keep manifest signoff evidence and release-candidate source identity in one source_report block."
     Assert-ContainsText -Text $markdown -ExpectedText "Project-template readiness checklist entrypoints evidence source reports: ``1``" `

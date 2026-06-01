@@ -607,6 +607,8 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
         required_fields = @(
             "status",
             "release_ready",
+            "release_blocker_count",
+            "warning_count",
             "schema_approval_status_summary",
             "source_report_display",
             "source_json_display"
@@ -1520,9 +1522,20 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (@($releaseCandidateSourceReport.manifest_signoff_entrypoints_required_contracts) -join "`n") `
         -ExpectedText "project_template_onboarding_governance_contract" `
         -Message "Rollup should preserve manifest signoff required governance contracts."
-    Assert-ContainsText -Text (@($releaseCandidateSourceReport.manifest_signoff_entrypoints_required_fields) -join "`n") `
-        -ExpectedText "source_json_display" `
-        -Message "Rollup should preserve manifest signoff required traceability fields."
+    $manifestSignoffRequiredFieldsText = @($releaseCandidateSourceReport.manifest_signoff_entrypoints_required_fields) -join "`n"
+    foreach ($requiredField in @(
+        "status",
+        "release_ready",
+        "release_blocker_count",
+        "warning_count",
+        "schema_approval_status_summary",
+        "source_report_display",
+        "source_json_display"
+    )) {
+        Assert-ContainsText -Text $manifestSignoffRequiredFieldsText `
+            -ExpectedText $requiredField `
+            -Message "Rollup should preserve manifest signoff required field '$requiredField'."
+    }
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.manifest_signoff_entrypoints_checklist_marker) -Expected "reviewer_manifest_scoped_project_template_trace" `
         -Message "Rollup should preserve manifest signoff reviewer checklist marker."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.project_template_readiness_checklist_entrypoints_status) -Expected "declared" `
@@ -1823,6 +1836,8 @@ if (Test-Scenario -Name "passing") {
         "manifest_signoff_entrypoints_required_fields:",
         "status",
         "release_ready",
+        "release_blocker_count",
+        "warning_count",
         "schema_approval_status_summary",
         "source_report_display",
         "source_json_display",
