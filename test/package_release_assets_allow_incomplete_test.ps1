@@ -501,6 +501,8 @@ $summary = [ordered]@{
         required_fields = @(
             "status",
             "release_ready",
+            "release_blocker_count",
+            "warning_count",
             "schema_approval_status_summary",
             "source_report_display",
             "source_json_display"
@@ -674,6 +676,8 @@ foreach ($requiredContract in @(
 foreach ($requiredField in @(
         "status",
         "release_ready",
+        "release_blocker_count",
+        "warning_count",
         "schema_approval_status_summary",
         "source_report_display",
         "source_json_display"

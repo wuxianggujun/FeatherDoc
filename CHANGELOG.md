@@ -55,6 +55,8 @@ performance.
   evidence remains reviewer-visible before publish.
 - Documented the same manifest signoff count fields in the project-template
   readiness checklist and release metadata pipeline route docs.
+- Added packaged manifest signoff regression coverage for the 7 required
+  project-template governance fields.
 
 ### Fixed
 
