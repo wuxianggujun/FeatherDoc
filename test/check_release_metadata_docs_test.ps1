@@ -697,6 +697,11 @@ $defaultPolicyText = @(
     '- ``required``',
     '- ``location``',
     '- ``path_display``',
+    '1. Prepare ``CHANGELOG.md`` release decision.',
+    '2. Align ``CMakeLists.txt`` version with release notes.',
+    '3. Complete MSVC build, tests, samples and install smoke.',
+    '4. Run local release candidate checks with Word visual release gate.',
+    '5. Create final tag from ``CHANGELOG.md`` release notes.',
     ''
 ) -join "`n"
 
@@ -1492,6 +1497,29 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs/release_policy_zh.rst' `
     -ExpectedFailureExpectedText "assert_release_material_safety.ps1"
+
+$releasePolicyStep4 = '4. Run local release candidate checks with Word visual release gate.'
+$releasePolicyStep5 = '5. Create final tag from ``CHANGELOG.md`` release notes.'
+$releasePolicyOutOfOrderText = $defaultPolicyText.Replace(
+    ($releasePolicyStep4 + "`n" + $releasePolicyStep5),
+    ($releasePolicyStep5 + "`n" + $releasePolicyStep4)
+)
+$releasePolicyOutOfOrderCaseRoot = New-DocsCase `
+    -Name "release-policy-execution-order" `
+    -PolicyText $releasePolicyOutOfOrderText
+$releasePolicyOutOfOrderSummaryJsonPath = Join-Path $releasePolicyOutOfOrderCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $releasePolicyOutOfOrderCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage 'release policy doc has missing or out-of-order line sequence: 1. + ``CHANGELOG.md``' `
+    -SummaryJson $releasePolicyOutOfOrderSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $releasePolicyOutOfOrderSummaryJsonPath `
+    -ExpectedMessage 'release policy doc has missing or out-of-order line sequence: 1. + ``CHANGELOG.md``' `
+    -ExpectedFailureKind "text_order" `
+    -ExpectedFailureRuleId "release_metadata_docs.release_policy_execution_order" `
+    -ExpectedFailureRelativePath 'docs/release_policy_zh.rst' `
+    -ExpectedFailureExpectedText '1. + ``CHANGELOG.md``'
 
 $missingChecklistWordVisualMetadataText = $defaultChecklistText.Replace(
     "Word visual standard review metadata evidence",

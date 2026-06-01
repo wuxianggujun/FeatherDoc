@@ -255,6 +255,48 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-LineSequenceContainsAll {
+    param(
+        [string]$Text,
+        [object[]]$ExpectedLines,
+        [string]$Label,
+        [string]$Path = "",
+        [string]$RuleId = "release_metadata_docs.text_order"
+    )
+
+    $lines = @($Text -split "`r?`n")
+    for ($startIndex = 0; $startIndex -le ($lines.Count - $ExpectedLines.Count); ++$startIndex) {
+        $matchedSequence = $true
+        for ($expectedIndex = 0; $expectedIndex -lt $ExpectedLines.Count; ++$expectedIndex) {
+            $line = $lines[$startIndex + $expectedIndex]
+            $fragments = @($ExpectedLines[$expectedIndex].Fragments)
+            foreach ($fragment in $fragments) {
+                if ($line.IndexOf([string]$fragment, [System.StringComparison]::Ordinal) -lt 0) {
+                    $matchedSequence = $false
+                    break
+                }
+            }
+
+            if (-not $matchedSequence) {
+                break
+            }
+        }
+
+        if ($matchedSequence) {
+            return
+        }
+    }
+
+    $expectedText = (@($ExpectedLines[0].Fragments) -join " + ")
+    Set-FailureDetail `
+        -Kind "text_order" `
+        -RuleId $RuleId `
+        -Label $Label `
+        -Path $Path `
+        -ExpectedText $expectedText
+    throw "$Label has missing or out-of-order line sequence: $expectedText"
+}
+
 function Assert-NoTrailingWhitespace {
     param(
         [string]$Text,
@@ -605,6 +647,13 @@ $policyExpectedMarkers = @(
     '``location``',
     '``path_display``'
 )
+$releasePolicyExecutionOrderLines = @(
+    [pscustomobject]@{ Fragments = @("1.", '``CHANGELOG.md``') },
+    [pscustomobject]@{ Fragments = @("2.", '``CMakeLists.txt``') },
+    [pscustomobject]@{ Fragments = @("3.", "MSVC", "smoke") },
+    [pscustomobject]@{ Fragments = @("4.", "release candidate checks", "Word visual release gate") },
+    [pscustomobject]@{ Fragments = @("5.", "tag", '``CHANGELOG.md``', "release") }
+)
 $entrypointExpectedMarkers = @(
     "release_metadata_pipeline_zh",
     "release_metadata_maintenance_checklist_zh"
@@ -730,6 +779,12 @@ try {
             -Label "release policy doc" `
             -Path $policyPath
     }
+    Assert-LineSequenceContainsAll `
+        -Text $policyText `
+        -ExpectedLines $releasePolicyExecutionOrderLines `
+        -Label "release policy doc" `
+        -Path $policyPath `
+        -RuleId "release_metadata_docs.release_policy_execution_order"
 
     foreach ($expected in $entrypointExpectedMarkers) {
         foreach ($entrypoint in @(
