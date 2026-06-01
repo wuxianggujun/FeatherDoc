@@ -42,6 +42,8 @@ performance.
 - Added duplicate-reference line diagnostics to the script task index checker
   so repeated `scripts/*.ps1` or `scripts/*.py` entries point reviewers to the
   exact source lines and groups.
+- Added script task index regression coverage for duplicate script references
+  that span multiple documentation groups.
 - Added a stable `featherdoc.project_template_smoke_onboarding_plan.v1` schema
   marker to project-template smoke onboarding plans.
 - Added a stable `featherdoc.project_template_onboarding_summary.v1` schema

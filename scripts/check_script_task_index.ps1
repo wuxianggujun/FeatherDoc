@@ -497,15 +497,26 @@ function New-MarkdownReport {
         $lines.Add("- none")
     } else {
         foreach ($script in $DuplicateScriptReferences) {
-            $lineSuffix = ""
+            $detailParts = New-Object 'System.Collections.Generic.List[string]'
             if ($script.PSObject.Properties.Name -contains "occurrence_lines") {
                 $occurrenceLines = @($script.occurrence_lines)
                 if ($occurrenceLines.Count -gt 0) {
-                    $lineSuffix = " (lines $($occurrenceLines -join ', '))"
+                    $detailParts.Add("lines $($occurrenceLines -join ', ')") | Out-Null
+                }
+            }
+            if ($script.PSObject.Properties.Name -contains "occurrence_groups") {
+                $occurrenceGroups = @($script.occurrence_groups)
+                if ($occurrenceGroups.Count -gt 0) {
+                    $detailParts.Add("groups $($occurrenceGroups -join ', ')") | Out-Null
                 }
             }
 
-            $lines.Add("- ``$($script.relative_path)`` x$($script.occurrence_count)$lineSuffix")
+            $detailSuffix = ""
+            if ($detailParts.Count -gt 0) {
+                $detailSuffix = " ($($detailParts -join '; '))"
+            }
+
+            $lines.Add("- ``$($script.relative_path)`` x$($script.occurrence_count)$detailSuffix")
         }
     }
 

@@ -756,7 +756,7 @@ foreach ($marker in @(
         '`.ps1`: 3 unique / 4 total',
         '`.py`: 1 unique / 1 total',
         '## Duplicate Script References',
-        '`scripts\existing_tool.ps1` x2 (lines 5, 8)',
+        '`scripts\existing_tool.ps1` x2 (lines 5, 8; groups Script task index)',
         '## Missing Scripts',
         '`scripts\missing_tool.ps1`',
         '## Missing Markers',
@@ -765,5 +765,88 @@ foreach ($marker in @(
     Assert-FileContainsText -Path $failingReportMarkdown -ExpectedText $marker `
         -Message "Failing Markdown report should include marker."
 }
+
+$crossGroupRoot = Join-Path $resolvedWorkingDir "cross-group-duplicate-repo"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $crossGroupRoot "docs\script_task_index_zh.rst") `
+    -Text (@(
+        "Script task index",
+        "=================",
+        "",
+        "- ``scripts/check_script_task_index.ps1``",
+        "- ``scripts/existing_tool.ps1``",
+        "",
+        "Maintenance helpers",
+        "-------------------",
+        "",
+        "- ``scripts/existing_tool.ps1``"
+    ) -join "`n")
+Write-Utf8NoBomFile `
+    -Path (Join-Path $crossGroupRoot "docs\index.rst") `
+    -Text "script_task_index_zh"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $crossGroupRoot "docs\documentation_maintenance_zh.rst") `
+    -Text "docs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $crossGroupRoot "docs\project_score_assessment_zh.rst") `
+    -Text "docs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $crossGroupRoot "README.md") `
+    -Text "docs/documentation_maintenance_zh.rst`ndocs/script_task_index_zh.rst"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $crossGroupRoot "README.zh-CN.md") `
+    -Text "docs/documentation_maintenance_zh.rst`ndocs/script_task_index_zh.rst"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $crossGroupRoot "test\CMakeLists.txt") `
+    -Text (@(
+        "check_script_task_index",
+        "check_script_task_index_test.ps1",
+        "TIMEOUT 60",
+        'LABELS "docs;smoke;governance;scripts"'
+    ) -join "`n")
+Write-Utf8NoBomFile `
+    -Path (Join-Path $crossGroupRoot "scripts\check_script_task_index.ps1") `
+    -Text "param()`n"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $crossGroupRoot "scripts\existing_tool.ps1") `
+    -Text "param()`n"
+
+$crossGroupSummaryJson = Join-Path $crossGroupRoot "summary.json"
+$crossGroupReportMarkdown = Join-Path $crossGroupRoot "script-task-index-report.md"
+$crossGroupFailed = $false
+try {
+    Invoke-IndexCheck `
+        -Root $crossGroupRoot `
+        -SummaryJson $crossGroupSummaryJson `
+        -ReportMarkdown $crossGroupReportMarkdown | Out-Null
+} catch {
+    $crossGroupFailed = $true
+}
+if (-not $crossGroupFailed) {
+    throw "check_script_task_index.ps1 unexpectedly passed with a cross-group duplicate script reference."
+}
+$crossGroupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $crossGroupSummaryJson | ConvertFrom-Json
+if ($crossGroupSummary.duplicate_script_reference_count -ne 1) {
+    throw "Expected one cross-group duplicate script reference, got: $($crossGroupSummary.duplicate_script_reference_count)"
+}
+$crossGroupDuplicate = @($crossGroupSummary.duplicate_script_references |
+    Where-Object { $_.relative_path -eq "scripts\existing_tool.ps1" })[0]
+$crossGroupDuplicateLines = @($crossGroupDuplicate.occurrence_lines)
+if ($crossGroupDuplicateLines.Count -ne 2 -or
+    $crossGroupDuplicateLines[0] -ne 5 -or
+    $crossGroupDuplicateLines[1] -ne 10) {
+    throw "Expected cross-group duplicate line numbers 5 and 10, got: $($crossGroupDuplicateLines -join ', ')"
+}
+$crossGroupDuplicateGroups = @($crossGroupDuplicate.occurrence_groups)
+foreach ($expectedGroup in @("Script task index", "Maintenance helpers")) {
+    Assert-ArrayContains `
+        -Values $crossGroupDuplicateGroups `
+        -ExpectedValue $expectedGroup `
+        -Message "Cross-group duplicate reference should preserve source group '$expectedGroup'."
+}
+Assert-FileContainsText `
+    -Path $crossGroupReportMarkdown `
+    -ExpectedText '`scripts\existing_tool.ps1` x2 (lines 5, 10; groups Script task index, Maintenance helpers)' `
+    -Message "Cross-group duplicate Markdown report should include line and group diagnostics."
 
 Write-Host "Script task index checker regression passed."
