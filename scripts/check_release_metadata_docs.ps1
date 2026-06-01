@@ -562,7 +562,16 @@ $documentGovernanceExpectedMarkers = @(
     "delivery_quality",
     "pdf_floating_table_support_coverage",
     "pdf_floating_table_reviewer_focus",
-    "metadata-only tblpPr"
+    "metadata-only tblpPr",
+    "release_assets_manifest.json",
+    "manifest_signoff_entrypoints",
+    "release_entry_project_template_readiness_checklist_material_safety_audit",
+    "audit_script",
+    "audited_entrypoints",
+    "release_entry_project_template_readiness_checklist_trace",
+    "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
+    "package_release_assets_safety_test.ps1",
+    "package_release_assets_allow_incomplete_test.ps1"
 )
 $policyExpectedMarkers = @(
     ':doc:`release_metadata_pipeline_zh`',
