@@ -74,6 +74,12 @@
    workflow 固定 ``windows-2022`` runner，并改用 ``vswhere`` +
    ``vcvars64.bat`` 内联导出 MSVC x64 环境，避免 ``windows-latest`` 迁移和
    Node 20 action 注解变成后续构建风险。
+9. ``docs/script_task_index_zh.rst`` 已完成当前 ``scripts`` 目录索引覆盖：
+   ``scripts/check_script_task_index.ps1`` 报告 ``repository_script_count``、
+   ``script_reference_count`` 与 ``total_script_reference_count`` 均为 ``163``，
+   且 ``unindexed_script_count=0``、``duplicate_script_reference_count=0``、
+   ``missing_script_count=0``。后续新增脚本时应先归入索引分组，再运行
+   ``scripts/check_script_task_index.ps1`` 复核。
 
 
 旧参考分支处理规则

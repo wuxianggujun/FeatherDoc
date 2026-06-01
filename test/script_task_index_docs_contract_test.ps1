@@ -106,7 +106,13 @@ foreach ($entrypoint in @(
 
 foreach ($marker in @(
         "docs/script_task_index_zh.rst",
-        "check_word_visual_release_gate_preflight.ps1"
+        "check_word_visual_release_gate_preflight.ps1",
+        "repository_script_count",
+        "script_reference_count",
+        "total_script_reference_count",
+        "unindexed_script_count=0",
+        "duplicate_script_reference_count=0",
+        "missing_script_count=0"
     )) {
     Assert-ContainsText -Text $maintenanceDoc -ExpectedText $marker `
         -Message "Documentation maintenance guide should point to the script task index marker '$marker'."
