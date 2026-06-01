@@ -60,6 +60,9 @@ $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.r
 $templateSchemaDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\template_schema_mutation_zh.rst"
 $releasePipelineDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_metadata_pipeline_zh.rst"
 $releasePolicyDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_policy_zh.rst"
+$readmeDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
+$readmeZhDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
+$changelogDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "CHANGELOG.md"
 $deliveryScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_project_template_delivery_readiness_report.ps1"
 $contentControlScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
 $releaseChecksScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_release_candidate_checks.ps1"
@@ -228,6 +231,81 @@ foreach ($marker in @(
     Assert-ContainsText -Text $checklistDoc -ExpectedText $marker `
         -Message "Project-template release readiness checklist should preserve marker '$marker'."
 }
+
+$deliveryReadinessGuidanceStart = $checklistDoc.IndexOf(
+    "3. Delivery readiness",
+    [System.StringComparison]::Ordinal)
+if ($deliveryReadinessGuidanceStart -lt 0) {
+    throw "Project-template release readiness checklist should keep the delivery readiness section."
+}
+
+$deliveryReadinessGuidanceEnd = $checklistDoc.IndexOf(
+    "4. Content-control",
+    $deliveryReadinessGuidanceStart,
+    [System.StringComparison]::Ordinal)
+if ($deliveryReadinessGuidanceEnd -lt 0) {
+    throw "Project-template release readiness checklist should keep content-control guidance after delivery readiness."
+}
+
+$deliveryReadinessGuidance = $checklistDoc.Substring(
+    $deliveryReadinessGuidanceStart,
+    $deliveryReadinessGuidanceEnd - $deliveryReadinessGuidanceStart)
+
+foreach ($marker in @(
+    "project_template_smoke_summary_missing",
+    "manifest-only / missing-evidence",
+    "release_ready = false",
+    "status = blocked",
+    "needs_review",
+    "warning_count",
+    "warnings[]"
+)) {
+    Assert-ContainsText -Text $deliveryReadinessGuidance -ExpectedText $marker `
+        -Message "Project-template delivery readiness guidance should preserve warning-only needs_review marker '$marker'."
+}
+
+Assert-TextOrder -Text $deliveryReadinessGuidance -ExpectedTexts @(
+    "release_ready = false",
+    "status = blocked",
+    "release_blocker_count",
+    "manifest-only / missing-evidence",
+    "needs_review",
+    "warning_count",
+    "warnings[]"
+) -Message "Project-template delivery readiness guidance should distinguish blocked blockers from warning-only needs_review evidence."
+
+foreach ($marker in @(
+    '} elseif ($warnings.Count -gt 0) {',
+    '"needs_review"',
+    'release_ready = ($status -eq "ready")',
+    'warning_count = $warnings.Count',
+    'warnings = @($warnings.ToArray())'
+)) {
+    Assert-ContainsText -Text $deliveryScript -ExpectedText $marker `
+        -Message "Project-template delivery readiness script should preserve warning-only needs_review implementation marker '$marker'."
+}
+
+Assert-ContainsText -Text $readmeDoc -ExpectedText "Warning-only evidence gaps now" `
+    -Message "English README should preserve warning-only needs_review project-template delivery readiness semantics."
+Assert-TextOrder `
+    -Text $readmeDoc `
+    -ExpectedTexts @("Warning-only evidence gaps now", "produce", "status=needs_review", "release_ready=false") `
+    -Message "English README should preserve warning-only needs_review/release_ready=false wording."
+Assert-TextOrder `
+    -Text $readmeZhDoc `
+    -ExpectedTexts @(
+        "scripts/build_project_template_delivery_readiness_report.ps1",
+        "status=needs_review",
+        "release_ready=false",
+        "onboarding_summary.json"
+    ) `
+    -Message "Chinese README should preserve needs_review/release_ready=false wording."
+Assert-ContainsText -Text $changelogDoc -ExpectedText "warning-only evidence gaps report" `
+    -Message "Changelog should preserve warning-only delivery readiness fix note."
+Assert-TextOrder `
+    -Text $changelogDoc `
+    -ExpectedTexts @("warning-only evidence gaps report", "needs_review", "instead of", "ready") `
+    -Message "Changelog should preserve needs_review instead of ready regression note."
 
 foreach ($marker in @(
     "schema_patch_approval_gate_status",

@@ -1583,6 +1583,71 @@ function Copy-ReleaseSummaryForNegativeCase {
     return ($summary | ConvertTo-Json -Depth 10 | ConvertFrom-Json)
 }
 
+function Set-ProjectTemplateReadinessWarningOnlyFixture {
+    param([AllowNull()]$Report)
+
+    if ($null -eq $Report) {
+        return
+    }
+
+    $Report.status = "needs_review"
+    $Report.release_ready = $false
+    $Report.source_failure_count = 0
+    $Report.latest_schema_approval_gate_status = "passed"
+    $Report.schema_approval_status_summary = "approved=4"
+    $Report.schema_history_blocked_run_count = 0
+    $Report.schema_history_pending_run_count = 0
+    $Report.schema_history_passed_run_count = 4
+    $Report.template_count = 3
+    $Report.ready_template_count = 3
+    $Report.blocked_template_count = 0
+    $Report.release_blocker_count = 0
+    $Report.action_item_count = 0
+    $Report.warning_count = 1
+
+    if ($null -ne $Report.PSObject.Properties["error"]) {
+        $Report.error = ""
+    }
+}
+
+$warningOnlyReadinessSummary = Copy-ReleaseSummaryForNegativeCase
+$warningOnlyRollupReadinessReport = @($warningOnlyReadinessSummary.release_blocker_rollup.source_reports |
+    Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
+    Select-Object -First 1)
+$warningOnlyHandoffReadinessReport = @($warningOnlyReadinessSummary.release_governance_handoff.reports |
+    Where-Object { [string]$_.id -eq "project_template_delivery_readiness" } |
+    Select-Object -First 1)
+Set-ProjectTemplateReadinessWarningOnlyFixture -Report $warningOnlyRollupReadinessReport
+Set-ProjectTemplateReadinessWarningOnlyFixture -Report $warningOnlyHandoffReadinessReport
+$warningOnlyReadinessSummary.release_governance_handoff.failed_report_count = 0
+
+$warningOnlyReadinessSummaryPath = Join-Path $reportDir "summary.project-template-warning-only-readiness.json"
+($warningOnlyReadinessSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $warningOnlyReadinessSummaryPath -Encoding UTF8
+& $bundleScript -SummaryJson $warningOnlyReadinessSummaryPath -SkipMaterialSafetyAudit
+
+Assert-LineContainsAll -Path $bodyPath -ExpectedFragments @(
+    'Project template readiness:',
+    'project_template_delivery_readiness_contract',
+    'status=needs_review',
+    'release_ready=False',
+    'latest_schema_approval_gate_status=passed',
+    'schema_approval_status_summary=approved=4',
+    'schema_history_blocked_run_count=0',
+    'schema_history_pending_run_count=0',
+    'schema_history_passed_run_count=4',
+    'template_count=3',
+    'ready_template_count=3',
+    'blocked_template_count=0',
+    'release_blocker_count=0',
+    'action_item_count=0',
+    'warning_count=1',
+    'source_failure_count=0',
+    'source_report_display=.\output\project-template-delivery-readiness\summary.json',
+    'source_json_display=.\output\project-template-delivery-readiness\summary.json'
+) -Label 'release_body.zh-CN.md warning-only project-template readiness'
+Assert-Contains -Path $shortPath -ExpectedText 'status=needs_review release_ready=False latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' `
+    -Label 'release_summary.zh-CN.md warning-only project-template readiness'
+
 function Assert-BundleRejectsSummary {
     param(
         [object]$CandidateSummary,

@@ -47,6 +47,9 @@ performance.
   to prefer explicit onboarding evidence schemas.
 - Added release-asset packaging regression coverage for warning-only
   project-template delivery readiness contracts.
+- Added release-note bundle and docs-contract regression coverage for
+  warning-only project-template delivery readiness `needs_review` handoff
+  semantics.
 
 ### Fixed
 
