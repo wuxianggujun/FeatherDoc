@@ -269,6 +269,13 @@ foreach ($assertion in @(
 foreach ($marker in @(
         "style_merge_confidence_route_docs_contract",
         "style_merge_confidence_route_docs_contract_test.ps1",
+        "write_style_merge_suggestion_review_valid",
+        "write_style_merge_suggestion_review_invalid_count",
+        "write_style_merge_suggestion_review_test.ps1",
+        "apply_reviewed_style_merge_suggestions_valid",
+        "apply_reviewed_style_merge_suggestions_pending_review",
+        "apply_reviewed_style_merge_suggestions_partial_review",
+        "apply_reviewed_style_merge_suggestions_test.ps1",
         "audit_style_merge_restore_plan_clean",
         "audit_style_merge_restore_plan_issue",
         "audit_style_merge_restore_plan_test.ps1",

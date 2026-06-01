@@ -3647,6 +3647,111 @@ if(WIN32)
 
             add_test(
                 NAME
+                write_style_merge_suggestion_review_valid
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/write_style_merge_suggestion_review_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/write_style_merge_suggestion_review_valid
+                -Scenario
+                valid
+            )
+            set_tests_properties(write_style_merge_suggestion_review_valid
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;style")
+
+            add_test(
+                NAME
+                write_style_merge_suggestion_review_invalid_count
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/write_style_merge_suggestion_review_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/write_style_merge_suggestion_review_invalid_count
+                -Scenario
+                invalid_count
+            )
+            set_tests_properties(write_style_merge_suggestion_review_invalid_count
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;style")
+
+            add_test(
+                NAME
+                apply_reviewed_style_merge_suggestions_valid
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/apply_reviewed_style_merge_suggestions_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/apply_reviewed_style_merge_suggestions_valid
+                -Scenario
+                valid
+            )
+            set_tests_properties(apply_reviewed_style_merge_suggestions_valid
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;style")
+
+            add_test(
+                NAME
+                apply_reviewed_style_merge_suggestions_pending_review
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/apply_reviewed_style_merge_suggestions_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/apply_reviewed_style_merge_suggestions_pending_review
+                -Scenario
+                pending_review
+            )
+            set_tests_properties(apply_reviewed_style_merge_suggestions_pending_review
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;style")
+
+            add_test(
+                NAME
+                apply_reviewed_style_merge_suggestions_partial_review
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/apply_reviewed_style_merge_suggestions_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/apply_reviewed_style_merge_suggestions_partial_review
+                -Scenario
+                partial_review
+            )
+            set_tests_properties(apply_reviewed_style_merge_suggestions_partial_review
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;style")
+
+            add_test(
+                NAME
                 audit_style_merge_restore_plan_clean
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
