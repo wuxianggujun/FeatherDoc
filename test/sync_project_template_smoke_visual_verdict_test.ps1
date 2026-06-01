@@ -34,8 +34,17 @@ function Write-JsonFile {
 function Invoke-SyncScript {
     param([string[]]$Arguments)
 
-    $powerShellCommand = Get-Command powershell.exe -ErrorAction SilentlyContinue
-    $powerShellPath = if ($powerShellCommand) { $powerShellCommand.Source } else { (Get-Process -Id $PID).Path }
+    $powerShellPath = (Get-Process -Id $PID).Path
+    if ([string]::IsNullOrWhiteSpace($powerShellPath)) {
+        $powerShellCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+        if ($null -eq $powerShellCommand) {
+            $powerShellCommand = Get-Command powershell.exe -ErrorAction SilentlyContinue
+        }
+        if ($null -eq $powerShellCommand) {
+            throw "Unable to resolve a PowerShell executable for the sync script."
+        }
+        $powerShellPath = $powerShellCommand.Source
+    }
     $previousErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {

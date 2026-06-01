@@ -123,8 +123,16 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $summaryPath = Join-Path $resolvedWorkingDir "summary.json"
 $summaryMarkdownPath = Join-Path $resolvedWorkingDir "summary.md"
-$releaseSummaryPath = Join-Path $resolvedWorkingDir "release-summary.json"
-$releaseFinalReviewPath = Join-Path $resolvedWorkingDir "final_review.md"
+$releaseRoot = Join-Path $resolvedWorkingDir "release-candidate-checks"
+$releaseReportDir = Join-Path $releaseRoot "report"
+$releaseSummaryPath = Join-Path $releaseReportDir "summary.json"
+$releaseFinalReviewPath = Join-Path $releaseReportDir "final_review.md"
+$releaseHandoffPath = Join-Path $releaseReportDir "release_handoff.md"
+$releaseBodyPath = Join-Path $releaseReportDir "release_body.zh-CN.md"
+$releaseSummaryZhPath = Join-Path $releaseReportDir "release_summary.zh-CN.md"
+$artifactGuidePath = Join-Path $releaseReportDir "ARTIFACT_GUIDE.md"
+$reviewerChecklistPath = Join-Path $releaseReportDir "REVIEWER_CHECKLIST.md"
+$startHerePath = Join-Path $releaseRoot "START_HERE.md"
 $schemaPath = Join-Path $resolvedWorkingDir "drift.template-schema.json"
 $generatedOutput = Join-Path $resolvedWorkingDir "generated.template-schema.json"
 $approvalResultPath = Join-Path $resolvedWorkingDir "schema_patch_approval_result.json"
@@ -134,6 +142,8 @@ $invalidApprovalResultPath = Join-Path $resolvedWorkingDir "schema_patch_approva
 $reviewJsonPath = Join-Path $resolvedWorkingDir "schema_patch_review.json"
 $logPath = Join-Path $resolvedWorkingDir "schema_baseline.log"
 $inputDocx = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.docx"
+
+New-Item -ItemType Directory -Path $releaseReportDir -Force | Out-Null
 
 Set-Content -LiteralPath $schemaPath -Encoding UTF8 -Value `
     '{"targets":[{"part":"body","slots":[{"bookmark":"customer_name","kind":"text"}]}]}'
@@ -205,11 +215,34 @@ $releaseSummary = [ordered]@{
     generated_at = "2026-04-29T09:30:00"
     execution_status = "completed"
     visual_verdict = "not_applicable"
+    failed_step = ""
+    error = ""
+    build_dir = Join-Path $resolvedWorkingDir "build"
+    install_dir = Join-Path $resolvedWorkingDir "install"
+    consumer_build_dir = Join-Path $resolvedWorkingDir "consumer-build"
+    gate_output_dir = Join-Path $resolvedWorkingDir "visual-gate"
+    task_output_root = Join-Path $resolvedWorkingDir "tasks"
+    release_handoff = $releaseHandoffPath
+    release_body_zh_cn = $releaseBodyPath
+    release_summary_zh_cn = $releaseSummaryZhPath
+    artifact_guide = $artifactGuidePath
+    reviewer_checklist = $reviewerChecklistPath
+    start_here = $startHerePath
+    readme_gallery = [ordered]@{
+        status = "not_requested"
+    }
     steps = [ordered]@{
+        configure = [ordered]@{ status = "completed" }
+        build = [ordered]@{ status = "completed" }
+        tests = [ordered]@{ status = "completed" }
+        template_schema = [ordered]@{ status = "completed" }
+        template_schema_manifest = [ordered]@{ status = "completed" }
         project_template_smoke = [ordered]@{
             status = "completed"
             summary_json = "stale-summary.json"
         }
+        install_smoke = [ordered]@{ status = "completed" }
+        visual_gate = [ordered]@{ status = "completed" }
     }
     project_template_smoke = [ordered]@{
         summary_json = "stale-summary.json"
@@ -240,10 +273,13 @@ $result = Invoke-ScriptAndCapture -ScriptPath $syncScriptPath -Arguments @(
     "-Decision", "approved",
     "-Reviewer", "CI Reviewer",
     "-ReviewedAt", "2026-04-29T10:00:00",
-    "-Note", "schema approval sync regression"
+    "-Note", "schema approval sync regression",
+    "-RefreshReleaseBundle"
 )
 Assert-Equal -Actual $result.ExitCode -Expected 0 `
     -Message "Schema approval sync should succeed. Output: $($result.Text)"
+Assert-ContainsText -Text $result.Text -ExpectedText "Refreshed release note bundle" `
+    -Message "Sync output should report that -RefreshReleaseBundle refreshed the release note bundle."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([int]$summary.schema_patch_approval_pending_count) -Expected 1 `
@@ -397,5 +433,28 @@ Assert-ContainsText -Text $releaseFinalReview -ExpectedText "schema-review-needs
     -Message "Release final review should include needs_changes approval item."
 Assert-ContainsText -Text $releaseFinalReview -ExpectedText "schema-review-invalid: status=invalid_result" `
     -Message "Release final review should include invalid approval item."
+
+foreach ($bundlePath in @($releaseHandoffPath, $artifactGuidePath, $reviewerChecklistPath, $startHerePath)) {
+    Assert-True -Condition (Test-Path -LiteralPath $bundlePath) `
+        -Message "RefreshReleaseBundle should generate release-facing material: $bundlePath"
+    $bundleText = Get-Content -Raw -Encoding UTF8 -LiteralPath $bundlePath
+    Assert-ContainsText -Text $bundleText -ExpectedText "Release blockers: 2" `
+        -Message "Release-facing material should expose the refreshed blocker count: $bundlePath"
+    Assert-ContainsText -Text $bundleText -ExpectedText "project_template_smoke.schema_approval" `
+        -Message "Release-facing material should expose the schema approval blocker: $bundlePath"
+    Assert-ContainsText -Text $bundleText -ExpectedText "fix_schema_patch_approval_result" `
+        -Message "Release-facing material should expose the schema approval repair action: $bundlePath"
+    Assert-ContainsText -Text $bundleText -ExpectedText "schema-review-invalid" `
+        -Message "Release-facing material should expose the invalid approval item: $bundlePath"
+    Assert-ContainsText -Text $bundleText -ExpectedText "missing_reviewer" `
+        -Message "Release-facing material should expose missing reviewer compliance metadata: $bundlePath"
+    Assert-ContainsText -Text $bundleText -ExpectedText "missing_reviewed_at" `
+        -Message "Release-facing material should expose missing reviewed_at compliance metadata: $bundlePath"
+}
+
+foreach ($bundlePath in @($releaseBodyPath, $releaseSummaryZhPath)) {
+    Assert-True -Condition (Test-Path -LiteralPath $bundlePath) `
+        -Message "RefreshReleaseBundle should generate release note material: $bundlePath"
+}
 
 Write-Host "Project template schema approval sync regression passed."
