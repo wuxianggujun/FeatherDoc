@@ -192,7 +192,10 @@
   材料。
 - ``scripts/apply_reviewed_style_merge_suggestions.ps1``：应用已复核的 style merge
   建议。
-- ``scripts/audit_style_merge_restore_plan.ps1``：审计 style merge restore plan。
+- ``scripts/audit_style_merge_restore_plan.ps1``：只读审计 style merge restore plan，
+  输出 ``review_handoff_steps``、``next_copy_command``、``rollback_plan_summary``
+  和 release governance action / blocker evidence，帮助 reviewer 从 dry-run
+  结果进入 issue group 复核、Word 视觉审阅或选择性 restore。
 - ``scripts/run_paragraph_list_visual_regression.ps1``：运行段落列表视觉回归。
 - ``scripts/run_paragraph_numbering_visual_regression.ps1``：运行段落编号视觉回归。
 - ``scripts/run_paragraph_style_numbering_visual_regression.ps1``：运行段落样式编号
