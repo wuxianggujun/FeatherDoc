@@ -57,6 +57,19 @@ function Get-SummaryEntry {
     return @($Summary.entries | Where-Object { [string]$_.name -eq $Name }) | Select-Object -First 1
 }
 
+function Get-RepoRelativeDisplayPath {
+    param([string]$RepoRoot, [string]$Path)
+
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
+        return ".\" + ($relative -replace '/', '\')
+    }
+
+    return $resolvedPath
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
@@ -64,8 +77,17 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\sync_project_template_smoke_visual_verdict.ps1"
 $summaryPath = Join-Path $resolvedWorkingDir "summary.json"
 $summaryMarkdownPath = Join-Path $resolvedWorkingDir "summary.md"
-$releaseSummaryPath = Join-Path $resolvedWorkingDir "release-candidate-checks\report\summary.json"
-$releaseFinalReviewPath = Join-Path $resolvedWorkingDir "release-candidate-checks\report\final_review.md"
+$releaseRoot = Join-Path $resolvedWorkingDir "release-candidate-checks"
+$releaseReportDir = Join-Path $releaseRoot "report"
+$releaseSummaryPath = Join-Path $releaseReportDir "summary.json"
+$releaseFinalReviewPath = Join-Path $releaseReportDir "final_review.md"
+$releaseHandoffPath = Join-Path $releaseReportDir "release_handoff.md"
+$releaseBodyPath = Join-Path $releaseReportDir "release_body.zh-CN.md"
+$releaseSummaryZhPath = Join-Path $releaseReportDir "release_summary.zh-CN.md"
+$artifactGuidePath = Join-Path $releaseReportDir "ARTIFACT_GUIDE.md"
+$reviewerChecklistPath = Join-Path $releaseReportDir "REVIEWER_CHECKLIST.md"
+$startHerePath = Join-Path $releaseRoot "START_HERE.md"
+$summaryDisplayPath = Get-RepoRelativeDisplayPath -RepoRoot $resolvedRepoRoot -Path $summaryPath
 $manifestPath = Join-Path $resolvedWorkingDir "project_template_smoke.manifest.json"
 $outputDir = Join-Path $resolvedWorkingDir "project-template-smoke-output"
 $contactSheetPath = Join-Path $resolvedWorkingDir "visual\contact-sheet.png"
@@ -200,12 +222,12 @@ Write-JsonFile -Path $releaseSummaryPath -Value ([ordered]@{
     consumer_build_dir = Join-Path $resolvedWorkingDir "consumer-build"
     gate_output_dir = Join-Path $resolvedWorkingDir "visual-gate"
     task_output_root = Join-Path $resolvedWorkingDir "tasks"
-    release_handoff = Join-Path $resolvedWorkingDir "release-handoff.md"
-    release_body_zh_cn = Join-Path $resolvedWorkingDir "release-body.zh-CN.md"
-    release_summary_zh_cn = Join-Path $resolvedWorkingDir "release-summary.zh-CN.md"
-    artifact_guide = Join-Path $resolvedWorkingDir "artifact-guide.md"
-    reviewer_checklist = Join-Path $resolvedWorkingDir "reviewer-checklist.md"
-    start_here = Join-Path $resolvedWorkingDir "START_HERE.md"
+    release_handoff = $releaseHandoffPath
+    release_body_zh_cn = $releaseBodyPath
+    release_summary_zh_cn = $releaseSummaryZhPath
+    artifact_guide = $artifactGuidePath
+    reviewer_checklist = $reviewerChecklistPath
+    start_here = $startHerePath
     readme_gallery = [ordered]@{
         status = "not_requested"
     }
@@ -224,7 +246,8 @@ Write-JsonFile -Path $releaseSummaryPath -Value ([ordered]@{
 $result = Invoke-SyncScript -Arguments @(
     "-SummaryJson", $summaryPath,
     "-SummaryMarkdown", $summaryMarkdownPath,
-    "-ReleaseCandidateSummaryJson", $releaseSummaryPath
+    "-ReleaseCandidateSummaryJson", $releaseSummaryPath,
+    "-RefreshReleaseBundle"
 )
 
 Assert-Equal -Actual $result.ExitCode -Expected 0 `
@@ -326,5 +349,15 @@ Assert-ContainsText -Text $releaseFinalReview -ExpectedText "Project template sm
     -Message "Final review should include dirty schema baseline count."
 Assert-ContainsText -Text $releaseFinalReview -ExpectedText "Project template smoke schema baseline drifts: 0" `
     -Message "Final review should include schema baseline drift count."
+
+foreach ($bundlePath in @($releaseHandoffPath, $artifactGuidePath, $reviewerChecklistPath, $startHerePath)) {
+    Assert-True -Condition (Test-Path -LiteralPath $bundlePath) `
+        -Message "RefreshReleaseBundle should generate release-facing material: $bundlePath"
+    $bundleText = Get-Content -Raw -Encoding UTF8 -LiteralPath $bundlePath
+    Assert-ContainsText -Text $bundleText -ExpectedText "Project template smoke visual verdict: pending_manual_review" `
+        -Message "Release-facing material should expose the synced project template smoke visual verdict: $bundlePath"
+    Assert-ContainsText -Text $bundleText -ExpectedText $summaryDisplayPath `
+        -Message "Release-facing material should point reviewers at the synced project template smoke summary: $bundlePath"
+}
 
 Write-Host "Project template smoke visual verdict sync regression passed."
