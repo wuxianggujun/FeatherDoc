@@ -343,7 +343,12 @@ Release governance 与发布材料
   安全边界，确保待发布目录只包含已声明、可复核的 release 产物；同时审计
   ``release_assets_manifest.json`` 的 ``manifest_signoff_entrypoints`` 和
   ``release_entry_project_template_readiness_checklist_material_safety_audit``
-  追踪字段。
+  追踪字段。``manifest_signoff_entrypoints`` 必须保留 ``required_contracts``、
+  ``required_fields``、``path_display`` 和 ``reviewer_manifest_scoped_project_template_trace``；
+  其中 ``required_fields`` 至少覆盖 ``status``、``release_ready``、
+  ``schema_approval_status_summary``、``source_report_display`` 与
+  ``source_json_display``，并要求 ``project_template_delivery_readiness_contract`` 和
+  ``project_template_onboarding_governance_contract`` 同时进入 manifest signoff。
 - ``scripts/package_release_assets.ps1``：打包发布资产，并保留
   ``release_assets_manifest.json`` 中的 table-layout release review aliases
   （``metadata_only_fields``、``review_required_fields``）；它必须与
