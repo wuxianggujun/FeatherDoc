@@ -752,6 +752,7 @@ foreach ($scriptText in @($releaseBlockerRollupScript, $releaseGovernanceHandoff
 foreach ($marker in @(
     "release_entry_project_template_readiness_checklist_material_safety_audit",
     "release_entry_project_template_readiness_checklist_material_safety_audit_status",
+    "release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count",
     "release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema",
     "release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker"
 )) {
@@ -786,6 +787,7 @@ foreach ($marker in @(
     'project_template_readiness_checklist_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``',
     'project_template_readiness_checklist_entrypoints_checklist_marker: ``release_entry_project_template_readiness_checklist_trace``',
     'release_entry_project_template_readiness_checklist_material_safety_audit_status: ``passed``',
+    'release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoint_count: ``3``',
     'release_entry_project_template_readiness_checklist_material_safety_audit_audited_entrypoints: ``start_here, artifact_guide, reviewer_checklist``',
     'release_entry_project_template_readiness_checklist_material_safety_audit_compact_evidence_source_schema: ``featherdoc.release_candidate_summary``',
     'release_entry_project_template_readiness_checklist_material_safety_audit_material_safety_marker: ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``'

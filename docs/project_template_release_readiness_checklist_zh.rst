@@ -331,7 +331,8 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``project_template_readiness_checklist_entrypoints_packaged_material_safety_trace``。
      ``scripts/build_release_blocker_rollup_report.ps1`` 还必须把该 packaged audit
      展平成 source report contract 字段，至少保留 ``status``、``audit_script``、
-     ``audited_entrypoints``、compact evidence label/field/source schema、固定 checklist
+     ``audited_entrypoint_count``、``audited_entrypoints``、compact evidence
+     label/field/source schema、固定 checklist
      路径和 material-safety marker；其中 ``compact_evidence_source_schema`` 必须固定为
      ``featherdoc.release_candidate_summary``，让打包阶段的入口审计结论可以继续进入
      release blocker rollup，而不是只停留在 ``release_assets_manifest.json``。固定标记：
