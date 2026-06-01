@@ -23,6 +23,18 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-FileHasNoBom {
+    param([string]$Path, [string]$Message)
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 3 -and
+        $bytes[0] -eq 0xEF -and
+        $bytes[1] -eq 0xBB -and
+        $bytes[2] -eq 0xBF) {
+        throw $Message
+    }
+}
+
 function Invoke-PowerShellScript {
     param([string]$ScriptPath, [string[]]$Arguments)
 
@@ -261,6 +273,8 @@ $fixtureResult = Invoke-PowerShellScript -ScriptPath $fixtureScript -Arguments @
 )
 Assert-Equal -Actual $fixtureResult.ExitCode -Expected 0 `
     -Message "Fixture PDF release readiness check should pass. Output: $($fixtureResult.Text)"
+Assert-FileHasNoBom -Path $fixtureSummaryPath `
+    -Message "Fixture readiness summary JSON should be UTF-8 without BOM."
 $fixtureSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $fixtureSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$fixtureSummary.schema) -Expected "featherdoc.pdf_release_readiness_check.v1" `
     -Message "Readiness summary should expose a stable schema."
@@ -476,6 +490,8 @@ $tailResult = Invoke-PowerShellScript -ScriptPath $tailScript -Arguments @(
 )
 Assert-Equal -Actual $tailResult.ExitCode -Expected 0 `
     -Message "Tail-combined PDF release readiness check should pass. Output: $($tailResult.Text)"
+Assert-FileHasNoBom -Path $tailSummaryPath `
+    -Message "Tail-combined readiness summary JSON should be UTF-8 without BOM."
 $tailSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $tailSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$tailSummary.status) -Expected "pass" `
     -Message "Tail-combined fixture should report pass status."
@@ -536,6 +552,8 @@ $completedResult = Invoke-PowerShellScript -ScriptPath $completedScript -Argumen
 )
 Assert-Equal -Actual $completedResult.ExitCode -Expected 0 `
     -Message "Completed fixture PDF release readiness check should pass. Output: $($completedResult.Text)"
+Assert-FileHasNoBom -Path $completedSummaryPath `
+    -Message "Completed readiness summary JSON should be UTF-8 without BOM."
 $completedSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $completedSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$completedSummary.status) -Expected "pass" `
     -Message "Completed fixture should report pass status."
@@ -598,6 +616,8 @@ $passSummaryTimeoutResult = Invoke-PowerShellScript -ScriptPath $passSummaryTime
 )
 Assert-Equal -Actual $passSummaryTimeoutResult.ExitCode -Expected 0 `
     -Message "Pass-summary-before-timeout readiness check should pass. Output: $($passSummaryTimeoutResult.Text)"
+Assert-FileHasNoBom -Path $passSummaryTimeoutSummaryPath `
+    -Message "Pass-summary-before-timeout readiness summary JSON should be UTF-8 without BOM."
 $passSummaryTimeoutSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $passSummaryTimeoutSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$passSummaryTimeoutSummary.verdict) -Expected "pass" `
     -Message "Pass-summary-before-timeout fixture with full CTest pass should not retain visual warning debt."
@@ -627,6 +647,8 @@ $blockedResult = Invoke-PowerShellScript -ScriptPath $blockedScript -Arguments @
 )
 Assert-True -Condition ($blockedResult.ExitCode -ne 0) `
     -Message "Strict readiness check should fail blocked fixture."
+Assert-FileHasNoBom -Path $blockedSummaryPath `
+    -Message "Blocked readiness summary JSON should be UTF-8 without BOM."
 $blockedSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $blockedSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$blockedSummary.status) -Expected "blocked" `
     -Message "Blocked fixture should report blocked status."

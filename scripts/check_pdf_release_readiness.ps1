@@ -77,6 +77,21 @@ function Read-JsonFile {
     return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
 }
 
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [string]$Text
+    )
+
+    $parent = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Text, $encoding)
+}
+
 function Get-OptionalPropertyValue {
     param($Object, [string]$Name)
 
@@ -1011,11 +1026,7 @@ $summary = [ordered]@{
 }
 
 if (-not [string]::IsNullOrWhiteSpace($resolvedOutputJson)) {
-    $outputDir = Split-Path -Parent $resolvedOutputJson
-    if (-not [string]::IsNullOrWhiteSpace($outputDir)) {
-        New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
-    }
-    ($summary | ConvertTo-Json -Depth 16) | Set-Content -LiteralPath $resolvedOutputJson -Encoding UTF8
+    Write-Utf8NoBomFile -Path $resolvedOutputJson -Text (($summary | ConvertTo-Json -Depth 16) + [Environment]::NewLine)
 }
 
 $summary | ConvertTo-Json -Depth 16
