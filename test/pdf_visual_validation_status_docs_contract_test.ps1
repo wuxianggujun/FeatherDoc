@@ -50,6 +50,33 @@ function Assert-TextBlockContainsAll {
     }
 }
 
+function Assert-TextParagraphContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$ExpectedFragments,
+        [string]$Message
+    )
+
+    $normalizedText = $Text -replace "`r`n", "`n"
+    $anchorIndex = $normalizedText.IndexOf($Anchor, [StringComparison]::Ordinal)
+    if ($anchorIndex -lt 0) {
+        throw "$Message Missing anchor '$Anchor'."
+    }
+
+    $paragraphEnd = $normalizedText.IndexOf("`n`n", $anchorIndex, [StringComparison]::Ordinal)
+    if ($paragraphEnd -lt 0) {
+        $paragraphEnd = $normalizedText.Length
+    }
+
+    $paragraph = $normalizedText.Substring($anchorIndex, $paragraphEnd - $anchorIndex)
+    foreach ($fragment in $ExpectedFragments) {
+        if ($paragraph.IndexOf($fragment, [StringComparison]::Ordinal) -lt 0) {
+            throw "$Message Missing '$fragment' in paragraph anchored by '$Anchor'."
+        }
+    }
+}
+
 function Get-RepoFileText {
     param(
         [string]$Root,
@@ -899,6 +926,18 @@ Assert-TextBlockContainsAll -Text $releaseChecklistDoc `
         "manifest_signoff_entrypoints"
     ) `
     -Message "PDF release readiness checklist should keep release entry checklist path, PDF evidence, and manifest signoff in one bullet block."
+
+Assert-TextParagraphContainsAll -Text $releaseChecklistDoc `
+    -Anchor "bounded subset summary" `
+    -ExpectedFragments @(
+        "skipped_test_count = 0",
+        "scripts/run_pdf_ctest_bounded_subset.ps1",
+        "***Skipped",
+        '``status`` / ``verdict``',
+        "fail",
+        "skipped"
+    ) `
+    -Message "PDF release readiness checklist should keep skipped bounded CTest failure semantics in one paragraph."
 
 foreach ($template in @(
     @{ Label = "RELEASE_ARTIFACT_TEMPLATE.md"; Text = $releaseArtifactTemplateEn },
