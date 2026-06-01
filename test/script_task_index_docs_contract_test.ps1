@@ -145,6 +145,8 @@ foreach ($marker in @(
         "check_script_task_index.ps1",
         "summary.json",
         "script_task_index_check.md",
+        "-FailOnUnindexed",
+        "fail_on_unindexed",
         "powershell_version",
         "output_encoding",
         "UTF-8 without BOM",

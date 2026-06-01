@@ -2,7 +2,8 @@ param(
     [string]$RepoRoot = "",
     [string]$SummaryJson = "output/script-task-index-check/summary.json",
     [string]$ReportMarkdown = "output/script-task-index-check/script_task_index_check.md",
-    [switch]$Quiet
+    [switch]$Quiet,
+    [switch]$FailOnUnindexed
 )
 
 Set-StrictMode -Version Latest
@@ -403,6 +404,7 @@ function New-MarkdownReport {
     $lines.Add("")
     $lines.Add("- schema: ``$($Summary.schema)``")
     $lines.Add("- status: ``$($Summary.status)``")
+    $lines.Add("- fail_on_unindexed: ``$($Summary.fail_on_unindexed)``")
     $lines.Add("- checked_at_utc: ``$($Summary.checked_at_utc)``")
     $lines.Add("- checker: ``$($Summary.checker_name)``")
     $lines.Add("- powershell_version: ``$($Summary.powershell_version)``")
@@ -672,7 +674,8 @@ foreach ($group in $requiredMarkerGroups) {
 
 $status = if ($missingScripts.Count -eq 0 -and
     $duplicateScriptReferences.Count -eq 0 -and
-    $missingMarkers.Count -eq 0) {
+    $missingMarkers.Count -eq 0 -and
+    (-not $FailOnUnindexed -or $unindexedScripts.Count -eq 0)) {
     "passed"
 } else {
     "failed"
@@ -701,6 +704,7 @@ $summary = [ordered]@{
     powershell_version = $PSVersionTable.PSVersion.ToString()
     output_encoding = "UTF-8 without BOM"
     status = $status
+    fail_on_unindexed = [bool]$FailOnUnindexed
     repo_root = $resolvedRepoRoot
     summary_json_path = $summaryJsonPath
     summary_json_relative_path = $summaryJsonRelativePath
@@ -746,7 +750,7 @@ Write-Utf8NoBomFile -Path $reportMarkdownPath -Text (New-MarkdownReport `
         -MissingMarkers $missingMarkerEntries)
 
 if ($status -ne "passed") {
-    throw "Script task index check failed. MissingScripts=$($missingScripts.Count); DuplicateScriptReferences=$($duplicateScriptReferences.Count); MissingMarkers=$($missingMarkers.Count)."
+    throw "Script task index check failed. MissingScripts=$($missingScripts.Count); DuplicateScriptReferences=$($duplicateScriptReferences.Count); MissingMarkers=$($missingMarkers.Count); UnindexedScripts=$($unindexedScripts.Count); FailOnUnindexed=$([bool]$FailOnUnindexed)."
 }
 
 if (-not $Quiet) {

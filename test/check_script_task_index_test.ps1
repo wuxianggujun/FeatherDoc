@@ -106,7 +106,8 @@ function Invoke-IndexCheck {
         [string]$Root,
         [string]$SummaryJson,
         [string]$ReportMarkdown,
-        [switch]$Quiet
+        [switch]$Quiet,
+        [switch]$FailOnUnindexed
     )
 
     $parameters = @{
@@ -118,6 +119,9 @@ function Invoke-IndexCheck {
     }
     if ($Quiet) {
         $parameters.Quiet = $true
+    }
+    if ($FailOnUnindexed) {
+        $parameters.FailOnUnindexed = $true
     }
 
     return @(& $checkerScript @parameters *>&1)
@@ -153,6 +157,9 @@ Assert-RawJsonUtcTimestamp -JsonText $passingSummaryText -FieldName "checked_at_
 $passingSummary = $passingSummaryText | ConvertFrom-Json
 if ($passingSummary.status -ne "passed") {
     throw "Expected passing summary status, got: $($passingSummary.status)"
+}
+if ([bool]$passingSummary.fail_on_unindexed) {
+    throw "Expected default passing run to leave fail_on_unindexed disabled."
 }
 if ($passingSummary.schema -ne "featherdoc.script_task_index_check.v1") {
     throw "Unexpected script task index summary schema: $($passingSummary.schema)"
@@ -514,6 +521,7 @@ foreach ($marker in @(
         '# Script Task Index Check',
         '- schema: `featherdoc.script_task_index_check.v1`',
         '- status: `passed`',
+        '- fail_on_unindexed: `False`',
         '- checked_at_utc:',
         '- powershell_version:',
         '- output_encoding: `UTF-8 without BOM`',
@@ -617,6 +625,9 @@ $unindexedSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $unindexedSumma
 if ($unindexedSummary.status -ne "passed") {
     throw "Expected unindexed-script fixture to pass, got: $($unindexedSummary.status)"
 }
+if ([bool]$unindexedSummary.fail_on_unindexed) {
+    throw "Expected default unindexed-script fixture to leave fail_on_unindexed disabled."
+}
 if ($unindexedSummary.script_reference_count -ne 1) {
     throw "Expected one indexed script in unindexed fixture, got: $($unindexedSummary.script_reference_count)"
 }
@@ -644,6 +655,7 @@ if ($unindexedSummary.missing_script_count -ne 0 -or
     throw "Unindexed scripts should not be treated as missing scripts, duplicate references, or missing markers."
 }
 foreach ($marker in @(
+        '- fail_on_unindexed: `False`',
         '- unindexed_script_count: `1`',
         '- unindexed_script_prefix_count: `1`',
         '- unindexed_script_family_count: `1`',
@@ -654,6 +666,50 @@ foreach ($marker in @(
     )) {
     Assert-FileContainsText -Path $unindexedReportMarkdown -ExpectedText $marker `
         -Message "Unindexed Markdown report should include marker."
+}
+
+$failOnUnindexedSummaryJson = Join-Path $unindexedRoot "fail-on-unindexed-summary.json"
+$failOnUnindexedReportMarkdown = Join-Path $unindexedRoot "fail-on-unindexed-report.md"
+$failOnUnindexedFailed = $false
+$failOnUnindexedOutput = @()
+try {
+    $failOnUnindexedOutput = Invoke-IndexCheck `
+        -Root $unindexedRoot `
+        -SummaryJson $failOnUnindexedSummaryJson `
+        -ReportMarkdown $failOnUnindexedReportMarkdown `
+        -FailOnUnindexed
+} catch {
+    $failOnUnindexedFailed = $true
+    $failOnUnindexedOutput += $_.Exception.Message
+}
+if (-not $failOnUnindexedFailed) {
+    throw "check_script_task_index.ps1 should fail when -FailOnUnindexed is enabled and unindexed scripts exist."
+}
+$joinedFailOnUnindexedOutput = ($failOnUnindexedOutput | ForEach-Object { $_.ToString() }) -join "`n"
+if ($joinedFailOnUnindexedOutput -notmatch [regex]::Escape("UnindexedScripts=1")) {
+    throw "Expected unindexed script count in -FailOnUnindexed failure output, got: $joinedFailOnUnindexedOutput"
+}
+if ($joinedFailOnUnindexedOutput -notmatch [regex]::Escape("FailOnUnindexed=True")) {
+    throw "Expected -FailOnUnindexed flag in failure output, got: $joinedFailOnUnindexedOutput"
+}
+$failOnUnindexedSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $failOnUnindexedSummaryJson | ConvertFrom-Json
+if ($failOnUnindexedSummary.status -ne "failed") {
+    throw "Expected -FailOnUnindexed summary status to fail, got: $($failOnUnindexedSummary.status)"
+}
+if (-not [bool]$failOnUnindexedSummary.fail_on_unindexed) {
+    throw "Expected -FailOnUnindexed summary to record fail_on_unindexed=true."
+}
+if ($failOnUnindexedSummary.unindexed_script_count -ne 1) {
+    throw "Expected one unindexed script in -FailOnUnindexed summary, got: $($failOnUnindexedSummary.unindexed_script_count)"
+}
+foreach ($marker in @(
+        '- status: `failed`',
+        '- fail_on_unindexed: `True`',
+        '- unindexed_script_count: `1`',
+        '`scripts\unindexed_helper.ps1`'
+    )) {
+    Assert-FileContainsText -Path $failOnUnindexedReportMarkdown -ExpectedText $marker `
+        -Message "-FailOnUnindexed Markdown report should include marker."
 }
 
 $failingRoot = Join-Path $resolvedWorkingDir "failing-repo"
@@ -741,6 +797,9 @@ Assert-RawJsonUtcTimestamp -JsonText $failingSummaryText -FieldName "checked_at_
 $failingSummary = $failingSummaryText | ConvertFrom-Json
 if ($failingSummary.status -ne "failed") {
     throw "Expected failing summary status, got: $($failingSummary.status)"
+}
+if ([bool]$failingSummary.fail_on_unindexed) {
+    throw "Expected regular failing fixture to leave fail_on_unindexed disabled."
 }
 if ($failingSummary.missing_script_count -ne 1) {
     throw "Expected one missing script, got: $($failingSummary.missing_script_count)"
@@ -831,6 +890,7 @@ Assert-ArrayContains `
     -Message "Failing summary should list the missing README marker."
 foreach ($marker in @(
         '- status: `failed`',
+        '- fail_on_unindexed: `False`',
         '- documentation_entrypoint_count: `2`',
         '- script_reference_group_count: `1`',
         '- script_reference_extension_count: `2`',

@@ -45,7 +45,9 @@
   快速发现某个分组或脚本类型的异常变化；同时写出
   ``repository_script_count``、``unindexed_script_count`` 和
   ``unindexed_scripts``，只读盘点 ``scripts`` 目录下尚未纳入本维护索引的入口，
-  但不把未索引脚本作为失败条件。
+  默认不把未索引脚本作为失败条件；需要把脚本索引升级为 CI gate 时，可显式传入
+  ``-FailOnUnindexed``，并在 JSON / Markdown 中通过 ``fail_on_unindexed`` 固定本次运行
+  是否启用该门禁。
 
 
 模板契约与项目模板
