@@ -111,7 +111,8 @@
 - ``scripts/describe_project_template_smoke_manifest.ps1``：只读描述项目模板
   smoke manifest 状态与维护入口。
 - ``scripts/discover_project_template_smoke_candidates.ps1``：发现尚未纳入
-  manifest 的 ``.docx`` / ``.dotx`` 候选。
+  manifest 的 ``.docx`` / ``.dotx`` 候选；支持 ``-FailOnUnregistered``
+  作为 CI gating，并在 JSON 报告中写入 ``unregistered_candidate_count``。
 - ``scripts/new_project_template_smoke_onboarding_plan.ps1``：生成项目模板
   smoke 候选接入计划，不直接修改 manifest。
 - ``scripts/register_project_template_smoke_manifest_entry.ps1``：注册真实模板

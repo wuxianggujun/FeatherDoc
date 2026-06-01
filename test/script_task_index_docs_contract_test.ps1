@@ -123,6 +123,9 @@ foreach ($marker in @(
 foreach ($marker in @(
         "check_template_schema_baseline.ps1",
         "export_template_render_plan.ps1",
+        "discover_project_template_smoke_candidates.ps1",
+        "-FailOnUnregistered",
+        "unregistered_candidate_count",
         "check_docx_functional_smoke_readiness.ps1",
         "check_script_task_index.ps1",
         "summary.json",
@@ -164,6 +167,7 @@ $requiredScriptPaths = @(
     "scripts\check_template_schema_manifest.ps1",
     "scripts\run_project_template_smoke.ps1",
     "scripts\describe_project_template_smoke_manifest.ps1",
+    "scripts\discover_project_template_smoke_candidates.ps1",
     "scripts\new_project_template_smoke_onboarding_plan.ps1",
     "scripts\sync_project_template_schema_approval.ps1",
     "scripts\write_project_template_schema_approval_history.ps1",
@@ -211,6 +215,8 @@ foreach ($relativePath in $requiredScriptPaths) {
 foreach ($marker in @(
         "script_task_index_docs_contract",
         "script_task_index_docs_contract_test.ps1",
+        "discover_project_template_smoke_candidates_registered",
+        "discover_project_template_smoke_candidates_fail_on_unregistered",
         "ReportMarkdown",
         "script_task_index_check.md",
         "TIMEOUT 60",

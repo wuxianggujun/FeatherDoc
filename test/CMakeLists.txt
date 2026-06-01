@@ -2617,6 +2617,48 @@ if(WIN32)
 
         add_test(
             NAME
+            discover_project_template_smoke_candidates_registered
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/discover_project_template_smoke_candidates_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/discover_project_template_smoke_candidates_registered
+            -Scenario
+            registered
+        )
+        set_tests_properties(discover_project_template_smoke_candidates_registered
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;project_template")
+
+        add_test(
+            NAME
+            discover_project_template_smoke_candidates_fail_on_unregistered
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/discover_project_template_smoke_candidates_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/discover_project_template_smoke_candidates_fail_on_unregistered
+            -Scenario
+            fail_on_unregistered
+        )
+        set_tests_properties(discover_project_template_smoke_candidates_fail_on_unregistered
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;project_template")
+
+        add_test(
+            NAME
             onboard_project_template
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

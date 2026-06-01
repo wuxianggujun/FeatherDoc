@@ -54,6 +54,8 @@ performance.
   for success and review-gate failure scenarios.
 - Added DOCX functional smoke readiness `-FailOnWarning` regression coverage
   and CTest registration for pending visual-review warnings.
+- Added project-template smoke candidate discovery `-FailOnUnregistered`
+  regression coverage and CTest registration.
 - Added lightweight parser coverage for release metadata, script index, Word
   visual preflight, and DOCX functional smoke readiness guard scripts.
 - Added script task index regression coverage for reporting unindexed
