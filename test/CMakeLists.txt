@@ -3907,8 +3907,31 @@ if(WIN32)
                 ${PROJECT_SOURCE_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/docx_functional_smoke_readiness
+                -Scenario
+                ready
             )
             set_tests_properties(docx_functional_smoke_readiness
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;docx")
+
+            add_test(
+                NAME
+                docx_functional_smoke_readiness_fail_on_warning
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/docx_functional_smoke_readiness_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/docx_functional_smoke_readiness_fail_on_warning
+                -Scenario
+                fail_on_warning
+            )
+            set_tests_properties(docx_functional_smoke_readiness_fail_on_warning
                 PROPERTIES
                     TIMEOUT 60
                     LABELS "docs;smoke;governance;docx")

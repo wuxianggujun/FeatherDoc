@@ -210,6 +210,8 @@ foreach ($assertion in @(
 foreach ($marker in @(
         "docx_functional_smoke_readiness",
         "docx_functional_smoke_readiness_test.ps1",
+        "docx_functional_smoke_readiness_fail_on_warning",
+        "fail_on_warning",
         "docx_functional_smoke_readiness_route_docs_contract",
         "docx_functional_smoke_readiness_route_docs_contract_test.ps1",
         "TIMEOUT 60",

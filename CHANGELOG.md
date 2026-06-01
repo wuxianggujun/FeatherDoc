@@ -52,6 +52,8 @@ performance.
   scenarios, with the style confidence route contract guarding the entries.
 - Added style-merge suggestion review and reviewed-apply CTest registration
   for success and review-gate failure scenarios.
+- Added DOCX functional smoke readiness `-FailOnWarning` regression coverage
+  and CTest registration for pending visual-review warnings.
 - Added lightweight parser coverage for release metadata, script index, Word
   visual preflight, and DOCX functional smoke readiness guard scripts.
 - Added script task index regression coverage for reporting unindexed
