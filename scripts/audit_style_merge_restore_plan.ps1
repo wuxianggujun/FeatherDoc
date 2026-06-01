@@ -623,6 +623,50 @@ function Get-StyleMergeRestoreIssueReviewCommands {
     return @($commands.ToArray())
 }
 
+function Get-StyleMergeRestoreIssueReviewGroupSummary {
+    param(
+        $IssueReviewGroups,
+        [string[]]$IssueReviewCommands
+    )
+
+    $groups = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($group in @($IssueReviewGroups)) {
+        if ($null -ne $group) {
+            $groups.Add($group) | Out-Null
+        }
+    }
+
+    $commands = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($command in @($IssueReviewCommands)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$command)) {
+            $commands.Add([string]$command) | Out-Null
+        }
+    }
+
+    $firstGroup = if ($groups.Count -gt 0) { $groups[0] } else { $null }
+    $firstAffectedOperation = $null
+    if ($null -ne $firstGroup) {
+        $affectedOperations = @(Get-JsonProperty -Object $firstGroup -Name "affected_operations")
+        if ($affectedOperations.Count -gt 0) {
+            $firstAffectedOperation = $affectedOperations[0]
+        }
+    }
+
+    $firstReviewCommand = if ($commands.Count -gt 0) { [string]$commands[0] } else { "" }
+    return [ordered]@{
+        issue_review_group_count = $groups.Count
+        issue_review_command_count = $commands.Count
+        has_issue_review_commands = ($commands.Count -gt 0)
+        first_issue_code = Get-JsonString -Object $firstGroup -Names @("code")
+        first_issue_count = Get-JsonInt -Object $firstGroup -Names @("count")
+        first_affected_operation_count = Get-JsonInt -Object $firstGroup -Names @("affected_operation_count")
+        first_source_style_id = Get-JsonString -Object $firstAffectedOperation -Names @("source_style_id")
+        first_target_style_id = Get-JsonString -Object $firstAffectedOperation -Names @("target_style_id")
+        first_review_command = $firstReviewCommand
+        copy_review_command = $firstReviewCommand
+    }
+}
+
 function Get-StyleMergeRestoreHandoffStatusSummary {
     param(
         $Steps,
@@ -862,6 +906,9 @@ $reviewHandoffSteps = Get-StyleMergeRestoreReviewHandoffSteps `
 $nextHandoffStep = Get-NextStyleMergeRestoreHandoffStep -Steps $reviewHandoffSteps
 $issueReviewCommands = Get-StyleMergeRestoreIssueReviewCommands -IssueReviewGroups $issueReviewGroups
 $firstIssueReviewCommand = if (@($issueReviewCommands).Count -gt 0) { [string]@($issueReviewCommands)[0] } else { "" }
+$issueReviewGroupSummary = Get-StyleMergeRestoreIssueReviewGroupSummary `
+    -IssueReviewGroups $issueReviewGroups `
+    -IssueReviewCommands @($issueReviewCommands)
 $nextCopyCommand = Get-JsonString -Object $nextHandoffStep -Names @("copy_command", "command", "command_template")
 $nextStepReason = Get-JsonString -Object $nextHandoffStep -Names @("reason")
 $handoffStatusSummary = Get-StyleMergeRestoreHandoffStatusSummary `
@@ -896,8 +943,10 @@ if ($issueCount -gt 0) {
         next_copy_command = $nextCopyCommand
         next_step_reason = $nextStepReason
         issue_review_commands = @($issueReviewCommands)
+        issue_review_command_count = @($issueReviewCommands).Count
         first_issue_review_command = $firstIssueReviewCommand
         copy_issue_review_command = $firstIssueReviewCommand
+        issue_review_group_summary = $issueReviewGroupSummary
         handoff_status_summary = $handoffStatusSummary
         rollback_plan_summary = $rollbackPlanSummary
     }) | Out-Null
@@ -925,8 +974,10 @@ $actionItems.Add([ordered]@{
     next_copy_command = $nextCopyCommand
     next_step_reason = $nextStepReason
     issue_review_commands = @($issueReviewCommands)
+    issue_review_command_count = @($issueReviewCommands).Count
     first_issue_review_command = $firstIssueReviewCommand
     copy_issue_review_command = $firstIssueReviewCommand
+    issue_review_group_summary = $issueReviewGroupSummary
     handoff_status_summary = $handoffStatusSummary
     rollback_plan_summary = $rollbackPlanSummary
 }) | Out-Null
@@ -965,8 +1016,10 @@ $summary = [ordered]@{
     next_copy_command = $nextCopyCommand
     next_step_reason = $nextStepReason
     issue_review_commands = @($issueReviewCommands)
+    issue_review_command_count = @($issueReviewCommands).Count
     first_issue_review_command = $firstIssueReviewCommand
     copy_issue_review_command = $firstIssueReviewCommand
+    issue_review_group_summary = $issueReviewGroupSummary
     handoff_status_summary = $handoffStatusSummary
     rollback_plan_summary = $rollbackPlanSummary
     selected_restore_command_template = $selectedRestoreCommandTemplate

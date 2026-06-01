@@ -271,13 +271,15 @@ rollup summary 与 Markdown 顶部还会输出 ``blocker_source_schema_summary``
 ``audit_style_merge_restore_plan.ps1`` 发现 restore dry-run issue 时，
 ``release_blockers`` 会保留 ``review_handoff_steps``、``next_handoff_step``、
 ``next_copy_command``、``next_step_reason``、``issue_review_commands``、
+``issue_review_command_count``、``issue_review_group_summary``、
 ``first_issue_review_command``、``copy_issue_review_command``、
 ``handoff_status_summary`` 与 ``rollback_plan_summary``，同时携带 ``source_schema``、``source_report_display``、
 ``source_json_display``、``rollback_plan_display`` 和 ``repair_strategy``。
 当审计 clean 时，同一组字段会进入 ``action_items``，让 reviewer 能先按
 ``handoff_status_summary.next_step_id`` 判断下一步，再直接复制
 ``next_copy_command``；有 issue group 时，也可以从顶层
-``copy_issue_review_command`` 直接拿到第一条样式对复核命令。``rollback_plan_summary`` 只描述 rollback JSON 本身，
+``issue_review_group_summary`` 判断第一组 issue code / source-target 样式对，
+再用 ``copy_issue_review_command`` 直接拿到第一条样式对复核命令。``rollback_plan_summary`` 只描述 rollback JSON 本身，
 包括 ``merge_rollback_entry_count``、``restorable_merge_rollback_entry_count``、
 ``non_restorable_merge_rollback_entry_count`` 与
 ``non_restorable_merge_rollback_entry_indexes``；它不等同于 dry-run 实际恢复成功数。
