@@ -1086,6 +1086,34 @@ Assert-ArrayContains `
     -Message "JSON summary checklist should list project-template handoff block-scoped trace marker."
 Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "manifest_signoff_entrypoints" `
+    -Message "JSON summary checklist should list manifest signoff entrypoints marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "release_entry_project_template_readiness_checklist_material_safety_audit" `
+    -Message "JSON summary checklist should list project-template readiness checklist material safety audit marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "audit_script" `
+    -Message "JSON summary checklist should list project-template readiness checklist audit script marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "audited_entrypoint_count" `
+    -Message "JSON summary checklist should list project-template readiness checklist audited entrypoint count marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "audited_entrypoints" `
+    -Message "JSON summary checklist should list project-template readiness checklist audited entrypoints marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "release_entry_project_template_readiness_checklist_trace" `
+    -Message "JSON summary checklist should list project-template readiness checklist release entry trace marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
+    -Message "JSON summary checklist should list project-template readiness checklist release entry material safety trace marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
     -ExpectedValue "open_latest_word_review_task_curated_source_kind_test.ps1" `
     -Message "JSON summary should list curated open-latest test marker."
 Assert-ArrayContains `
