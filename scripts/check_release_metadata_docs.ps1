@@ -505,6 +505,7 @@ $checklistExpectedMarkers = @(
     "source_schema",
     "source_report_display",
     "source_json_display",
+    "block_scoped_governance_handoff_project_template_status_trace",
     "featherdoc.style_merge_restore_audit.v1",
     "review_handoff_steps",
     "next_handoff_step",

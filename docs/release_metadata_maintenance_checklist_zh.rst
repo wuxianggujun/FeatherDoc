@@ -301,6 +301,7 @@ Word-compatible wrapping 边界。
 ``final_governance_report_count``、``final_governance_reports``、
 ``required_stage_count``、``completed_required_stage_count``、``required_stages``、
 ``source_schema``、``source_report_display``、``source_json_display``、
+``block_scoped_governance_handoff_project_template_status_trace``、
 ``featherdoc.style_merge_restore_audit.v1``、``review_handoff_steps``、
 ``next_handoff_step``、``next_copy_command``、``next_step_reason``、
 ``issue_review_commands``、``issue_review_command_count``、
@@ -334,6 +335,11 @@ Word-compatible wrapping 边界。
 ``ReleaseGovernanceHandoffFailOnBlocker`` 和
 ``ReleaseGovernanceHandoffFailOnWarning``。其中 ``source_report_display`` 用于让
 reviewer 先打开治理源报告，``source_json_display`` 用于继续追溯到原始证据 JSON；
+project-template handoff 还必须保留
+``block_scoped_governance_handoff_project_template_status_trace``，确保
+``project_template_delivery_readiness`` 与 ``project_template_onboarding.schema_approval``
+各自的 ``schema_approval_status_summary``、``source_report_display`` 和
+``source_json_display`` 不被拆到 detached notes；
 ``release_governance_handoff.*[]`` 与 pipeline ``stages[]`` 则用于证明 reviewer
 既能从 handoff 视角读取 blocker / warning / action item 明细，也能从 stage 视角
 追溯 ``stage_id``、``stage_title`` 和对应 ``open_command``。

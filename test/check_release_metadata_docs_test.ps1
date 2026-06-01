@@ -279,8 +279,8 @@ function Assert-SummaryFailure {
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
     Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-    if ($summary.required_marker_count -ne 291) {
-        throw "Expected JSON summary to count 291 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 292) {
+        throw "Expected JSON summary to count 292 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -578,6 +578,7 @@ $defaultChecklistText = @(
     '- source_schema',
     '- source_report_display',
     '- source_json_display',
+    '- block_scoped_governance_handoff_project_template_status_trace',
     '- featherdoc.style_merge_restore_audit.v1',
     '- review_handoff_steps',
     '- next_handoff_step',
@@ -757,8 +758,8 @@ if ($summary.checked_document_count -ne 8) {
 if ($summary.required_pipeline_marker_count -ne 122) {
     throw "Expected JSON summary pipeline marker count 122, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 122) {
-    throw "Expected JSON summary checklist marker count 122, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 123) {
+    throw "Expected JSON summary checklist marker count 123, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 23) {
     throw "Expected JSON summary document governance marker count 23, got: $($summary.required_document_governance_marker_count)"
@@ -769,8 +770,8 @@ if ($summary.required_policy_marker_count -ne 22) {
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 291) {
-    throw "Expected JSON summary total marker count 291, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 292) {
+    throw "Expected JSON summary total marker count 292, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 8) {
     throw "Expected JSON summary to list 8 checked documents, got: $($summary.checked_documents.Count)"
@@ -1081,6 +1082,10 @@ Assert-ArrayContains `
     -Message "JSON summary checklist should list local closure required stages marker."
 Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "block_scoped_governance_handoff_project_template_status_trace" `
+    -Message "JSON summary checklist should list project-template handoff block-scoped trace marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
     -ExpectedValue "open_latest_word_review_task_curated_source_kind_test.ps1" `
     -Message "JSON summary should list curated open-latest test marker."
 Assert-ArrayContains `
@@ -1379,6 +1384,26 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
     -ExpectedFailureExpectedText "release_entry_project_template_readiness_checklist_material_safety_audit"
+
+$missingChecklistProjectTemplateHandoffTraceText = $defaultChecklistText.Replace(
+    "block_scoped_governance_handoff_project_template_status_trace",
+    "block_scoped_governance_handoff_project_template_status_removed"
+)
+$missingChecklistProjectTemplateHandoffTraceCaseRoot = New-DocsCase `
+    -Name "missing-checklist-project-template-handoff-trace" `
+    -ChecklistText $missingChecklistProjectTemplateHandoffTraceText
+$missingChecklistProjectTemplateHandoffTraceSummaryJsonPath = Join-Path $missingChecklistProjectTemplateHandoffTraceCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingChecklistProjectTemplateHandoffTraceCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: block_scoped_governance_handoff_project_template_status_trace" `
+    -SummaryJson $missingChecklistProjectTemplateHandoffTraceSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingChecklistProjectTemplateHandoffTraceSummaryJsonPath `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: block_scoped_governance_handoff_project_template_status_trace" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
+    -ExpectedFailureExpectedText "block_scoped_governance_handoff_project_template_status_trace"
 
 $missingPolicyMaterialSafetyText = $defaultPolicyText.Replace(
     "assert_release_material_safety.ps1",
