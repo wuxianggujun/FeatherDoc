@@ -293,7 +293,8 @@ Word-compatible wrapping 边界。
 ``release_governance_handoff``、``release_governance_pipeline``、
 ``local_governance_closure``、``local_governance_closure.status``、
 ``local_governance_closure.closed``、``governance_detail_source``、
-``pipeline_summary_json_display``、``pipeline_report_markdown_display``、
+``pipeline_summary_json``、``pipeline_summary_json_display``、
+``pipeline_report_markdown``、``pipeline_report_markdown_display``、
 ``release_governance_handoff.release_blockers[]``、
 ``release_governance_handoff.warnings[]``、
 ``release_governance_handoff.action_items[]``、``stages[]``、``stage_id``、
