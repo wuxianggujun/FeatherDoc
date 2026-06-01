@@ -452,7 +452,10 @@ blocker rollup 的 source report contract evidence，并由 release governance h
 需要把该 evidence 同步到 ``release_governance_handoff`` 与
 ``steps.release_governance_handoff``，让 ``final_review.md``、``START_HERE.md``、
 ``ARTIFACT_GUIDE.md`` 和 ``REVIEWER_CHECKLIST.md`` 都能展示 ``status``、
-``release_assets_manifest``、三个必需入口、必需 governance contracts、必需字段和
+``release_assets_manifest``、三个必需入口、必需 governance contracts、必需字段
+（至少包含 ``status``、``release_ready``、``release_blocker_count``、
+``warning_count``、``schema_approval_status_summary``、``source_report_display`` 和
+``source_json_display``）和
 ``reviewer_manifest_scoped_project_template_trace``，避免 packaged manifest signoff
 只停留在打包产物层。``release_blocker_rollup.md`` 的
 ``Source Report Contracts`` 必须先把同一组字段保留在

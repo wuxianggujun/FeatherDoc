@@ -53,6 +53,8 @@ performance.
 - Added packaged release manifest signoff prompts for project-template
   readiness `release_blocker_count` and `warning_count` so warning-only handoff
   evidence remains reviewer-visible before publish.
+- Documented the same manifest signoff count fields in the project-template
+  readiness checklist and release metadata pipeline route docs.
 
 ### Fixed
 
