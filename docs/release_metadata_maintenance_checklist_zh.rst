@@ -103,6 +103,12 @@ release 流水线的详细设计文档；详细字段流向请先阅读
   ``report``。
 - 每个入口都必须保留 ``required``、``location`` 与 ``path_display``，避免
   下游从平铺字段重新推断路径边界。
+- 涉及 ``manifest_signoff_entrypoints`` 时，同时保留
+  ``release_entry_project_template_readiness_checklist_material_safety_audit``，
+  并核对 ``audit_script``、``audited_entrypoint_count``、``audited_entrypoints``、
+  ``release_entry_project_template_readiness_checklist_trace`` 和
+  ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``
+  没有从 manifest 或发布入口材料中丢失。
 - 涉及打包链路时，同时覆盖 ``package_release_assets.ps1``、
   ``package_release_assets_safety_test.ps1``、
   ``package_release_assets_allow_incomplete_test.ps1`` 和
