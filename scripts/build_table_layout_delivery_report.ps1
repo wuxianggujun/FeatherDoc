@@ -181,6 +181,10 @@ function New-ReportMarkdown {
     $lines.Add("- PDF floating table supported geometry: ``$($Summary.pdf_floating_table_supported_geometry_count)/$($Summary.pdf_floating_table_tracked_geometry_count)`` (``$($Summary.pdf_floating_table_supported_geometry_percent)%``)") | Out-Null
     $lines.Add("- pdf_floating_table_support_coverage: ``$($Summary.pdf_floating_table_support_coverage)``") | Out-Null
     $lines.Add("- pdf_floating_table_reviewer_focus: ``$($Summary.pdf_floating_table_reviewer_focus)``") | Out-Null
+    $lines.Add("- pdf_floating_table_metadata_only_fields: ``$(@($Summary.pdf_floating_table_metadata_only_fields) -join ', ')``") | Out-Null
+    $lines.Add("- pdf_floating_table_review_required_fields: ``$(@($Summary.pdf_floating_table_review_required_fields) -join ', ')``") | Out-Null
+    $lines.Add("- metadata_only_fields: ``$(@($Summary.metadata_only_fields) -join ', ')``") | Out-Null
+    $lines.Add("- review_required_fields: ``$(@($Summary.review_required_fields) -join ', ')``") | Out-Null
     $lines.Add("") | Out-Null
 
     $lines.Add("## PDF Floating Table Support") | Out-Null
@@ -390,6 +394,10 @@ $summary = [ordered]@{
     pdf_floating_table_supported_geometry_percent = $pdfFloatingTableSupport.supported_geometry_percent
     pdf_floating_table_support_coverage = $pdfFloatingTableSupport.support_coverage
     pdf_floating_table_reviewer_focus = $pdfFloatingTableSupport.reviewer_focus
+    pdf_floating_table_metadata_only_fields = @($pdfFloatingTableSupport.metadata_only)
+    pdf_floating_table_review_required_fields = @($pdfFloatingTableSupport.review_required)
+    metadata_only_fields = @($pdfFloatingTableSupport.metadata_only)
+    review_required_fields = @($pdfFloatingTableSupport.review_required)
     release_blockers = @($releaseBlockers)
     release_blocker_count = @($releaseBlockers).Count
     action_items = @($actionItems)

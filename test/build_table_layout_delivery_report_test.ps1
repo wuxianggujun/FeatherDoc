@@ -188,6 +188,18 @@ if (Test-Scenario -Name "passing") {
     Assert-Equal -Actual ([string]$summary.pdf_floating_table_reviewer_focus) `
         -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
         -Message "Summary should expose PDF floating table reviewer focus."
+    Assert-ContainsText -Text (($summary.pdf_floating_table_metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "tblOverlap" `
+        -Message "Summary should expose top-level metadata-only PDF floating table fields."
+    Assert-ContainsText -Text (($summary.pdf_floating_table_review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "full Word-compatible floating table text wrapping" `
+        -Message "Summary should expose top-level review-required PDF floating table fields."
+    Assert-ContainsText -Text (($summary.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "vertical paragraph/inside/outside Word page-side context" `
+        -Message "Summary should expose metadata-only fields through the generic reviewer alias."
+    Assert-ContainsText -Text (($summary.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "table overlap avoidance and collision resolution" `
+        -Message "Summary should expose review-required fields through the generic reviewer alias."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_support.supported_geometry_percent) -Expected 44 `
         -Message "PDF support evidence should expose supported geometry percentage."
     Assert-Equal -Actual ([string]$summary.pdf_floating_table_support.support_coverage) `
@@ -222,6 +234,14 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown report should include PDF floating table support coverage marker."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_reviewer_focus" `
         -Message "Markdown report should include PDF floating table reviewer focus marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_metadata_only_fields" `
+        -Message "Markdown report should include PDF floating table metadata-only field marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_review_required_fields" `
+        -Message "Markdown report should include PDF floating table review-required field marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "metadata_only_fields" `
+        -Message "Markdown report should include generic metadata-only field marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_required_fields" `
+        -Message "Markdown report should include generic review-required field marker."
     Assert-ContainsText -Text $markdown -ExpectedText "metadata-only tblpPr" `
         -Message "Markdown report should include metadata-only tblpPr reviewer guidance."
     Assert-ContainsText -Text $markdown -ExpectedText "stable_pdf_geometry_subset_not_full_word_wrapping" `
