@@ -177,7 +177,14 @@ foreach ($assertion in @(
                 "issue_summary_groups",
                 "selected_entries",
                 "selection_summary",
-                "requested_count"
+                "requested_count",
+                "status_reason",
+                "minimum_risk_next_action",
+                "minimum_risk_next_action_command",
+                "source_schema",
+                "source_report_display",
+                "source_json_display",
+                "repair_strategy"
             )
             label = "style merge restore audit script"
         },
@@ -238,6 +245,13 @@ foreach ($assertion in @(
                 "issue_summary_groups",
                 "selection_summary",
                 "requested_count",
+                "status_reason",
+                "minimum_risk_next_action",
+                "minimum_risk_next_action_command",
+                "source_schema",
+                "source_report_display",
+                "source_json_display",
+                "repair_strategy",
                 "Entry",
                 "SourceStyle",
                 "TargetStyle"

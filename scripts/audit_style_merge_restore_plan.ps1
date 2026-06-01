@@ -182,6 +182,12 @@ function ConvertTo-CommandLine {
     return ConvertTo-TemplateSchemaCommandLine -Arguments $Arguments
 }
 
+function Get-DisplayPath {
+    param([string]$RepoRoot, [string]$Path)
+
+    return Convert-ToPortableRelativePath -BasePath $RepoRoot -TargetPath $Path
+}
+
 $repoRoot = Resolve-TemplateSchemaRepoRoot -ScriptRoot $PSScriptRoot
 $resolvedApplySummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $ApplySummaryJson
 $applySummary = $null
@@ -297,10 +303,17 @@ $issueSummary = Get-JsonProperty -Object $cliJson -Name "issue_summary"
 $issueSummaryGroups = Get-IssueSummaryGroups -IssueSummary $issueSummary
 $requestedCount = Get-JsonInt -Object $cliJson -Names @("requested_count") -DefaultValue 0
 $status = if ($issueCount -eq 0) { "clean" } else { "needs_review" }
+$statusReason = if ($issueCount -eq 0) {
+    "style_merge_restore_audit_clean"
+} else {
+    "style_merge_restore_audit_issues"
+}
 $summaryBasePath = [System.IO.Path]::GetDirectoryName($resolvedSummaryJson)
 if ([string]::IsNullOrWhiteSpace($summaryBasePath)) {
     $summaryBasePath = (Get-Location).Path
 }
+$summaryDisplayPath = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryJson
+$rollbackPlanDisplayPath = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedRollbackPlan
 
 $restoreAuditCommand = "featherdoc_cli " + (ConvertTo-CommandLine -Arguments $argumentArray)
 $visualReviewDocx = Convert-ToPortableRelativePath -BasePath $repoRoot -TargetPath $resolvedInputDocx
@@ -333,6 +346,16 @@ $openVisualReviewCommand = ConvertTo-CommandLine -Arguments @(
     $visualReviewSourceKind,
     "-PrintPrompt"
 )
+$minimumRiskNextAction = if ($issueCount -eq 0) {
+    "prepare_word_visual_review"
+} else {
+    "review_style_merge_restore_audit_issues"
+}
+$minimumRiskNextActionCommand = if ($issueCount -eq 0) {
+    $visualReviewCommand
+} else {
+    $restoreAuditCommand
+}
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 if ($issueCount -gt 0) {
@@ -342,6 +365,17 @@ if ($issueCount -gt 0) {
         status = "blocked"
         action = "review_style_merge_restore_audit"
         message = "Style merge restore dry-run reported $issueCount issue(s)."
+        issue_keys = @($statusReason)
+        repair_strategy = "review_style_merge_restore_audit"
+        repair_hint = "Review issue_summary_groups, rerun the restore dry-run for the selected rollback entries, then prepare Word visual review after the audit is clean."
+        command = $restoreAuditCommand
+        open_command = $openVisualReviewCommand
+        source_schema = "featherdoc.style_merge_restore_audit.v1"
+        source_report = $resolvedSummaryJson
+        source_report_display = $summaryDisplayPath
+        source_json = $resolvedSummaryJson
+        source_json_display = $summaryDisplayPath
+        rollback_plan_display = $rollbackPlanDisplayPath
     }) | Out-Null
 }
 
@@ -353,6 +387,14 @@ $actionItems.Add([ordered]@{
     command = $visualReviewCommand
     open_command = $openVisualReviewCommand
     audit_command = $restoreAuditCommand
+    minimum_risk_next_action = $minimumRiskNextAction
+    minimum_risk_next_action_command = $minimumRiskNextActionCommand
+    source_schema = "featherdoc.style_merge_restore_audit.v1"
+    source_report = $resolvedSummaryJson
+    source_report_display = $summaryDisplayPath
+    source_json = $resolvedSummaryJson
+    source_json_display = $summaryDisplayPath
+    rollback_plan_display = $rollbackPlanDisplayPath
 }) | Out-Null
 
 $selectionSummary = [ordered]@{
@@ -370,6 +412,7 @@ $summary = [ordered]@{
     schema = "featherdoc.style_merge_restore_audit.v1"
     generated_at = (Get-Date).ToString("s")
     status = $status
+    status_reason = $statusReason
     dry_run = $true
     input_docx = $resolvedInputDocx
     input_docx_relative_path = Convert-ToPortableRelativePath -BasePath $summaryBasePath -TargetPath $resolvedInputDocx
@@ -391,6 +434,8 @@ $summary = [ordered]@{
     restored_style_count = Get-JsonInt -Object $cliJson -Names @("restored_style_count") -DefaultValue 0
     restored_reference_count = Get-JsonInt -Object $cliJson -Names @("restored_reference_count") -DefaultValue 0
     command = $restoreAuditCommand
+    minimum_risk_next_action = $minimumRiskNextAction
+    minimum_risk_next_action_command = $minimumRiskNextActionCommand
     visual_review_command = $visualReviewCommand
     open_visual_review_command = $openVisualReviewCommand
     release_blocker_count = $releaseBlockers.Count

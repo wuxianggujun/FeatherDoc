@@ -164,6 +164,8 @@ if (Test-Scenario -Name "clean") {
         -Message "Restore audit summary should expose a stable schema."
     Assert-Equal -Actual ([string]$summary.status) -Expected "clean" `
         -Message "Clean restore audit should report clean status."
+    Assert-Equal -Actual ([string]$summary.status_reason) -Expected "style_merge_restore_audit_clean" `
+        -Message "Clean restore audit should expose a stable status reason."
     Assert-Equal -Actual ([bool]$summary.dry_run) -Expected $true `
         -Message "Restore audit should run in dry-run mode."
     Assert-Equal -Actual ([int]$summary.issue_count) -Expected 0 `
@@ -179,6 +181,22 @@ if (Test-Scenario -Name "clean") {
     $actionItem = @($summary.action_items)[0]
     Assert-Equal -Actual ([string]$actionItem.action) -Expected "review_style_merge_restore_audit" `
         -Message "Restore audit action item should expose a stable action."
+    Assert-Equal -Actual ([string]$summary.minimum_risk_next_action) -Expected "prepare_word_visual_review" `
+        -Message "Clean restore audit should recommend the visual review next action."
+    Assert-ContainsText -Text ([string]$summary.minimum_risk_next_action_command) -ExpectedText "prepare_word_review_task.ps1" `
+        -Message "Clean restore audit should expose the visual review next command."
+    Assert-Equal -Actual ([string]$actionItem.minimum_risk_next_action) -Expected "prepare_word_visual_review" `
+        -Message "Clean restore audit action item should preserve the minimum-risk next action."
+    Assert-ContainsText -Text ([string]$actionItem.minimum_risk_next_action_command) -ExpectedText "prepare_word_review_task.ps1" `
+        -Message "Clean restore audit action item should preserve the minimum-risk next command."
+    Assert-Equal -Actual ([string]$actionItem.source_schema) -Expected "featherdoc.style_merge_restore_audit.v1" `
+        -Message "Restore audit action item should expose release governance source schema."
+    Assert-ContainsText -Text ([string]$actionItem.source_report_display) -ExpectedText "style-merge.restore-audit.summary.json" `
+        -Message "Restore audit action item should point at the source report display path."
+    Assert-ContainsText -Text ([string]$actionItem.source_json_display) -ExpectedText "style-merge.restore-audit.summary.json" `
+        -Message "Restore audit action item should point at the source JSON display path."
+    Assert-ContainsText -Text ([string]$actionItem.rollback_plan_display) -ExpectedText "style-merge.apply.rollback.json" `
+        -Message "Restore audit action item should preserve the rollback plan display path."
     Assert-ContainsText -Text ([string]$summary.visual_review_command) -ExpectedText "prepare_word_review_task.ps1" `
         -Message "Restore audit should expose a Word visual review command."
     Assert-ContainsText -Text ([string]$summary.visual_review_command) -ExpectedText "-DocumentSourceKind style-merge-restore-audit" `
@@ -251,8 +269,14 @@ if (Test-Scenario -Name "issue") {
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
         -Message "Issue restore audit should report needs_review status."
+    Assert-Equal -Actual ([string]$summary.status_reason) -Expected "style_merge_restore_audit_issues" `
+        -Message "Issue restore audit should expose a stable status reason."
     Assert-Equal -Actual ([int]$summary.issue_count) -Expected 1 `
         -Message "Issue restore audit should preserve issue count."
+    Assert-Equal -Actual ([string]$summary.minimum_risk_next_action) -Expected "review_style_merge_restore_audit_issues" `
+        -Message "Issue restore audit should recommend issue review as the next action."
+    Assert-ContainsText -Text ([string]$summary.minimum_risk_next_action_command) -ExpectedText "restore-style-merge" `
+        -Message "Issue restore audit should expose the dry-run command as the next action command."
     Assert-Equal -Actual ([int]$summary.issue_summary_group_count) -Expected 1 `
         -Message "Issue restore audit should group issue summary codes."
     Assert-Equal -Actual ([string]$summary.issue_summary_groups[0].code) -Expected "missing_source_style" `
@@ -266,6 +290,25 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit blocker should expose a stable id."
     Assert-Equal -Actual ([string]$blocker.action) -Expected "review_style_merge_restore_audit" `
         -Message "Issue restore audit blocker should point to the restore review action."
+    Assert-Equal -Actual ([string]$blocker.source_schema) -Expected "featherdoc.style_merge_restore_audit.v1" `
+        -Message "Issue restore audit blocker should expose release governance source schema."
+    Assert-ContainsText -Text ([string]$blocker.source_report_display) -ExpectedText "style-merge.restore-audit.summary.json" `
+        -Message "Issue restore audit blocker should point at the source report display path."
+    Assert-ContainsText -Text ([string]$blocker.source_json_display) -ExpectedText "style-merge.restore-audit.summary.json" `
+        -Message "Issue restore audit blocker should point at the source JSON display path."
+    Assert-ContainsText -Text ([string]$blocker.rollback_plan_display) -ExpectedText "style-merge.apply.rollback.json" `
+        -Message "Issue restore audit blocker should preserve the rollback plan display path."
+    Assert-ContainsText -Text ((@($blocker.issue_keys) | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "style_merge_restore_audit_issues" `
+        -Message "Issue restore audit blocker should expose stable issue keys."
+    Assert-Equal -Actual ([string]$blocker.repair_strategy) -Expected "review_style_merge_restore_audit" `
+        -Message "Issue restore audit blocker should expose a repair strategy."
+    Assert-ContainsText -Text ([string]$blocker.repair_hint) -ExpectedText "issue_summary_groups" `
+        -Message "Issue restore audit blocker should explain where to review grouped issues."
+    Assert-ContainsText -Text ([string]$blocker.command) -ExpectedText "restore-style-merge" `
+        -Message "Issue restore audit blocker should preserve the dry-run command."
+    Assert-ContainsText -Text ([string]$blocker.open_command) -ExpectedText "open_latest_word_review_task.ps1" `
+        -Message "Issue restore audit blocker should preserve the open-latest review command."
     Assert-ContainsText -Text ([string]$blocker.message) -ExpectedText "1 issue" `
         -Message "Issue restore audit blocker should explain the issue count."
     Assert-ContainsText -Text ((@($summary.action_items) | ForEach-Object { [string]$_.action }) -join "`n") `
