@@ -148,6 +148,34 @@ function Read-JsonObjectFromLines {
     throw "Command '$Command' did not emit a JSON object."
 }
 
+function Get-IssueSummaryGroups {
+    param($IssueSummary)
+
+    if ($null -eq $IssueSummary) {
+        return @()
+    }
+
+    $groups = [ordered]@{}
+    foreach ($issue in @($IssueSummary)) {
+        $code = Get-JsonString -Object $issue -Names @("code", "issue") -DefaultValue "unknown"
+        $count = Get-JsonInt -Object $issue -Names @("count") -DefaultValue 1
+        if ($groups.Contains($code)) {
+            $groups[$code] = [int]$groups[$code] + $count
+        } else {
+            $groups[$code] = $count
+        }
+    }
+
+    $result = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($entry in $groups.GetEnumerator()) {
+        $result.Add([ordered]@{
+            code = [string]$entry.Key
+            count = [int]$entry.Value
+        }) | Out-Null
+    }
+    return @($result.ToArray())
+}
+
 function ConvertTo-CommandLine {
     param([string[]]$Arguments)
 
@@ -265,6 +293,8 @@ if ($result.ExitCode -ne 0) {
 }
 
 $issueCount = Get-JsonInt -Object $cliJson -Names @("issue_count") -DefaultValue 0
+$issueSummary = Get-JsonProperty -Object $cliJson -Name "issue_summary"
+$issueSummaryGroups = Get-IssueSummaryGroups -IssueSummary $issueSummary
 $requestedCount = Get-JsonInt -Object $cliJson -Names @("requested_count") -DefaultValue 0
 $status = if ($issueCount -eq 0) { "clean" } else { "needs_review" }
 $summaryBasePath = [System.IO.Path]::GetDirectoryName($resolvedSummaryJson)
@@ -353,7 +383,9 @@ $summary = [ordered]@{
     selected_target_styles = @($TargetStyle)
     selection_summary = $selectionSummary
     issue_count = $issueCount
-    issue_summary = Get-JsonProperty -Object $cliJson -Name "issue_summary"
+    issue_summary = $issueSummary
+    issue_summary_group_count = @($issueSummaryGroups).Count
+    issue_summary_groups = @($issueSummaryGroups)
     requested_count = $requestedCount
     restored_count = Get-JsonInt -Object $cliJson -Names @("restored_count") -DefaultValue 0
     restored_style_count = Get-JsonInt -Object $cliJson -Names @("restored_style_count") -DefaultValue 0

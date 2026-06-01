@@ -70,7 +70,7 @@ function Write-MockCli {
     $issueSummary = if ($IssueCount -eq 0) {
         "[]"
     } else {
-        '[{"issue":"missing_source_style","count":1}]'
+        '[{"code":"missing_source_style","count":1},{"issue":"missing_source_style","count":2}]'
     }
 
     $mock = @'
@@ -253,6 +253,12 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit should report needs_review status."
     Assert-Equal -Actual ([int]$summary.issue_count) -Expected 1 `
         -Message "Issue restore audit should preserve issue count."
+    Assert-Equal -Actual ([int]$summary.issue_summary_group_count) -Expected 1 `
+        -Message "Issue restore audit should group issue summary codes."
+    Assert-Equal -Actual ([string]$summary.issue_summary_groups[0].code) -Expected "missing_source_style" `
+        -Message "Issue restore audit should prefer code and fall back to issue keys."
+    Assert-Equal -Actual ([int]$summary.issue_summary_groups[0].count) -Expected 3 `
+        -Message "Issue restore audit should aggregate duplicate issue summary counts."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 1 `
         -Message "Issue restore audit should emit one release blocker."
     $blocker = @($summary.release_blockers)[0]

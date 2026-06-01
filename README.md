@@ -3545,7 +3545,7 @@ unique same-name relink, and catalog import pre-repairs.
   rollback records. Merge rollback records now capture the removed source
   style XML plus original source usage hits.
   `plan_style_refactor_restore(...)` / `restore-style-merge --dry-run`
-  (alias `--plan-only`) can audit the restore plan without saving changes, `--entry` can be repeated to select multiple rollback entries, `--source-style` / `--target-style` can filter merge rollback entries by style id, restore audits expose `selection_summary` and `requested_count`, and restore issues include actionable `suggestion` text plus top-level `issue_count` / `issue_summary`, while
+  (alias `--plan-only`) can audit the restore plan without saving changes, `--entry` can be repeated to select multiple rollback entries, `--source-style` / `--target-style` can filter merge rollback entries by style id, restore audits expose `selection_summary`, `requested_count`, `issue_summary_group_count`, and `issue_summary_groups`, and restore issues include actionable `suggestion` text plus top-level `issue_count` / `issue_summary`, while
   `restore_style_refactor(...)` / `restore-style-merge` restore those merge
   snapshots by only rewriting the captured original source hits. `suggest_style_merges(...)` /
   `suggest-style-merges` now emits conservative duplicate-style merge plans

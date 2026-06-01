@@ -173,6 +173,8 @@ foreach ($assertion in @(
                 "--source-style",
                 "--target-style",
                 "issue_summary",
+                "issue_summary_group_count",
+                "issue_summary_groups",
                 "selected_entries",
                 "selection_summary",
                 "requested_count"
@@ -232,6 +234,8 @@ foreach ($assertion in @(
                 "dry-run",
                 "issue_count",
                 "issue_summary",
+                "issue_summary_group_count",
+                "issue_summary_groups",
                 "selection_summary",
                 "requested_count",
                 "Entry",
