@@ -141,7 +141,7 @@ Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 - Project template release readiness checklist: docs/project_template_release_readiness_checklist_zh.rst
 - Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks-ci\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks-ci\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks-ci\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks-ci\summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
-- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. metadata_only_fields=leftFromText,rightFromText,topFromText outside paragraph anchoring,tblOverlap review_required_fields=full Word-compatible floating table text wrapping,table overlap avoidance and collision resolution penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 
 foreach ($filePath in @($releaseBodyPath, $releaseSummaryPath)) {
@@ -170,7 +170,7 @@ foreach ($filePath in @($releaseBodyPath, $releaseSummaryPath)) {
     - source_report_display: .\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
     - source_json_display: .\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
-- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. metadata_only_fields=leftFromText,rightFromText,topFromText outside paragraph anchoring,tblOverlap review_required_fields=full Word-compatible floating table text wrapping,table overlap avoidance and collision resolution penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 }
 
@@ -187,7 +187,7 @@ foreach ($filePath in @($artifactGuidePath, $reviewerChecklistPath)) {
 - Project template release readiness checklist: docs/project_template_release_readiness_checklist_zh.rst
 - Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-checks-ci\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-checks-ci\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-checks-ci\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-checks-ci\summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
-- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. metadata_only_fields=leftFromText,rightFromText,topFromText outside paragraph anchoring,tblOverlap review_required_fields=full Word-compatible floating table text wrapping,table overlap avoidance and collision resolution penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 }
 
@@ -220,7 +220,7 @@ Set-Content -LiteralPath $releaseHandoffPath -Encoding UTF8 -Value @"
     - source_report_display: .\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
     - source_json_display: .\output\release-candidate-checks-ci\report\project_template_onboarding_governance_summary.json
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence low 56 source_schema=featherdoc.numbering_catalog_governance_report.v1 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
-- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. metadata_only_fields=leftFromText,rightFromText,topFromText outside paragraph anchoring,tblOverlap review_required_fields=full Word-compatible floating table text wrapping,table overlap avoidance and collision resolution penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 
 Set-Content -LiteralPath $finalReviewPath -Encoding UTF8 -Value @"
@@ -442,6 +442,8 @@ $summary = [ordered]@{
                 pdf_floating_table_metadata_only_count = 5
                 pdf_floating_table_tracked_geometry_count = 9
                 pdf_floating_table_supported_geometry_percent = 44
+                metadata_only_fields = @("leftFromText", "rightFromText", "topFromText outside paragraph anchoring", "tblOverlap")
+                review_required_fields = @("full Word-compatible floating table text wrapping", "table overlap avoidance and collision resolution")
                 penalty_summary = @(
                     [ordered]@{ factor = "needs_review_documents"; count = 0; penalty = 0 },
                     [ordered]@{ factor = "floating_table_plans_pending"; count = 0; penalty = 0 }
@@ -927,6 +929,12 @@ if ([int]$manifestTableLayoutDeliveryQuality.details.pdf_floating_table_supporte
 if ([int]$manifestTableLayoutDeliveryQuality.details.pdf_floating_table_tracked_geometry_count -ne 9) {
     throw "Release assets manifest lost table layout delivery quality PDF floating table tracked geometry count in AllowIncomplete mode."
 }
+if (-not (@($manifestTableLayoutDeliveryQuality.details.metadata_only_fields) -contains "leftFromText")) {
+    throw "Release assets manifest lost table layout delivery quality metadata_only_fields in AllowIncomplete mode."
+}
+if (-not (@($manifestTableLayoutDeliveryQuality.details.review_required_fields) -contains "full Word-compatible floating table text wrapping")) {
+    throw "Release assets manifest lost table layout delivery quality review_required_fields in AllowIncomplete mode."
+}
 if ([int]$manifestTableLayoutDeliveryQuality.details.table_position_automatic_count -ne 0) {
     throw "Release assets manifest lost table layout delivery quality table_position_automatic_count in AllowIncomplete mode."
 }
@@ -1131,6 +1139,8 @@ foreach ($expectedText in @(
     "pdf_floating_table_support_coverage",
     "pdf_floating_table_reviewer_focus",
     "metadata-only tblpPr",
+    "metadata_only_fields",
+    "review_required_fields",
     "catalog_coverage_percent=100",
     "matched_document_count=2",
     "alignment_gap_count=0",
@@ -1191,6 +1201,8 @@ foreach ($expectedText in @(
     "pdf_floating_table_support_coverage",
     "pdf_floating_table_reviewer_focus",
     "metadata-only tblpPr",
+    "metadata_only_fields",
+    "review_required_fields",
     "catalog_coverage_percent=100",
     "matched_document_count=2",
     "alignment_gap_count=0",
@@ -1250,6 +1262,8 @@ foreach ($expectedText in @(
     "pdf_floating_table_support_coverage",
     "pdf_floating_table_reviewer_focus",
     "metadata-only tblpPr",
+    "metadata_only_fields",
+    "review_required_fields",
     "catalog_coverage_percent=100",
     "matched_document_count=2",
     "alignment_gap_count=0",
