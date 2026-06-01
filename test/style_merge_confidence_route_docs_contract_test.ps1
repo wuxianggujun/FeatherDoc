@@ -258,6 +258,8 @@ foreach ($assertion in @(
                 "minimum_risk_next_action_command",
                 "review_handoff_step_count",
                 "review_handoff_steps",
+                "actionItem.review_handoff_steps",
+                "blocker.review_handoff_steps",
                 "selected_restore_command_template",
                 "per_entry_dry_run_commands",
                 "per_entry_restore_command_templates",

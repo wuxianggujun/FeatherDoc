@@ -235,6 +235,10 @@ if (Test-Scenario -Name "clean") {
         -Message "Restore audit action item should point at the source JSON display path."
     Assert-ContainsText -Text ([string]$actionItem.rollback_plan_display) -ExpectedText "style-merge.apply.rollback.json" `
         -Message "Restore audit action item should preserve the rollback plan display path."
+    Assert-Equal -Actual ([int]$actionItem.review_handoff_step_count) -Expected 3 `
+        -Message "Restore audit action item should expose reviewer handoff step count."
+    Assert-Equal -Actual ([string]$actionItem.review_handoff_steps[1].id) -Expected "prepare_word_visual_review" `
+        -Message "Restore audit action item should preserve reviewer handoff steps."
     Assert-ContainsText -Text ([string]$summary.visual_review_command) -ExpectedText "prepare_word_review_task.ps1" `
         -Message "Restore audit should expose a Word visual review command."
     Assert-ContainsText -Text ([string]$summary.visual_review_command) -ExpectedText "-DocumentSourceKind style-merge-restore-audit" `
@@ -428,6 +432,10 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit blocker should point at the source JSON display path."
     Assert-ContainsText -Text ([string]$blocker.rollback_plan_display) -ExpectedText "style-merge.apply.rollback.json" `
         -Message "Issue restore audit blocker should preserve the rollback plan display path."
+    Assert-Equal -Actual ([int]$blocker.review_handoff_step_count) -Expected 3 `
+        -Message "Issue restore audit blocker should expose reviewer handoff step count."
+    Assert-Equal -Actual ([string]$blocker.review_handoff_steps[1].id) -Expected "review_issue_groups" `
+        -Message "Issue restore audit blocker should preserve issue review handoff steps."
     Assert-ContainsText -Text ((@($blocker.issue_keys) | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "style_merge_restore_audit_issues" `
         -Message "Issue restore audit blocker should expose stable issue keys."
@@ -446,6 +454,11 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit should keep the restore review action item."
     Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 1 `
         -Message "Issue restore audit should expose action item count."
+    $issueActionItem = @($summary.action_items)[0]
+    Assert-Equal -Actual ([int]$issueActionItem.review_handoff_step_count) -Expected 3 `
+        -Message "Issue restore audit action item should expose reviewer handoff step count."
+    Assert-Equal -Actual ([string]$issueActionItem.review_handoff_steps[1].id) -Expected "review_issue_groups" `
+        -Message "Issue restore audit action item should preserve issue review handoff steps."
 }
 
 Write-Host "Style merge restore audit regression passed."

@@ -684,6 +684,14 @@ $minimumRiskNextActionCommand = if ($issueCount -eq 0) {
 } else {
     $restoreAuditCommand
 }
+$reviewHandoffSteps = Get-StyleMergeRestoreReviewHandoffSteps `
+    -IssueCount $issueCount `
+    -IssueReviewGroups $issueReviewGroups `
+    -RestorableRollbackCommandSummary $restorableRollbackCommandSummary `
+    -RestoreAuditCommand $restoreAuditCommand `
+    -SelectedRestoreCommandTemplate $selectedRestoreCommandTemplate `
+    -VisualReviewCommand $visualReviewCommand `
+    -OpenVisualReviewCommand $openVisualReviewCommand
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 if ($issueCount -gt 0) {
@@ -704,6 +712,8 @@ if ($issueCount -gt 0) {
         source_json = $resolvedSummaryJson
         source_json_display = $summaryDisplayPath
         rollback_plan_display = $rollbackPlanDisplayPath
+        review_handoff_step_count = @($reviewHandoffSteps).Count
+        review_handoff_steps = @($reviewHandoffSteps)
     }) | Out-Null
 }
 
@@ -723,6 +733,8 @@ $actionItems.Add([ordered]@{
     source_json = $resolvedSummaryJson
     source_json_display = $summaryDisplayPath
     rollback_plan_display = $rollbackPlanDisplayPath
+    review_handoff_step_count = @($reviewHandoffSteps).Count
+    review_handoff_steps = @($reviewHandoffSteps)
 }) | Out-Null
 
 $selectionSummary = [ordered]@{
@@ -735,14 +747,6 @@ $selectionSummary = [ordered]@{
     requested_count = $requestedCount
     restored_count = Get-JsonInt -Object $cliJson -Names @("restored_count") -DefaultValue 0
 }
-$reviewHandoffSteps = Get-StyleMergeRestoreReviewHandoffSteps `
-    -IssueCount $issueCount `
-    -IssueReviewGroups $issueReviewGroups `
-    -RestorableRollbackCommandSummary $restorableRollbackCommandSummary `
-    -RestoreAuditCommand $restoreAuditCommand `
-    -SelectedRestoreCommandTemplate $selectedRestoreCommandTemplate `
-    -VisualReviewCommand $visualReviewCommand `
-    -OpenVisualReviewCommand $openVisualReviewCommand
 
 $summary = [ordered]@{
     schema = "featherdoc.style_merge_restore_audit.v1"
