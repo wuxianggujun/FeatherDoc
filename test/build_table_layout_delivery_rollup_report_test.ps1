@@ -294,6 +294,12 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.pdf_floating_table_review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "full Word-compatible floating table text wrapping" `
         -Message "Aggregate layout rollup should expose machine-readable reviewer-required PDF floating table fields."
+    Assert-ContainsText -Text (($summary.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "vertical paragraph/inside/outside Word page-side context" `
+        -Message "Aggregate layout rollup should expose generic metadata-only PDF floating table fields."
+    Assert-ContainsText -Text (($summary.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "table overlap avoidance and collision resolution" `
+        -Message "Aggregate layout rollup should expose generic review-required PDF floating table fields."
     Assert-ContainsText -Text (($summary.pdf_floating_table_support_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
         -ExpectedText "partial:2" `
         -Message "Aggregate layout rollup should group PDF floating table support statuses."
@@ -341,6 +347,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should include aggregate metadata-only PDF floating table field marker."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_review_required_fields" `
         -Message "Markdown report should include aggregate reviewer-required PDF floating table field marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "metadata_only_fields" `
+        -Message "Markdown report should include aggregate generic metadata-only field marker."
     Assert-ContainsText -Text $markdown -ExpectedText "review_required_fields" `
         -Message "Markdown report should include per-document reviewer-required PDF floating table field marker."
     Assert-ContainsText -Text $markdown -ExpectedText "metadata-only tblpPr" `

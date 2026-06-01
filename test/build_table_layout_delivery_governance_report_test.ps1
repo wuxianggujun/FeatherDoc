@@ -431,6 +431,12 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.delivery_quality.pdf_floating_table_review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "full Word-compatible floating table text wrapping" `
         -Message "Delivery quality should expose machine-readable reviewer-required PDF floating table fields."
+    Assert-ContainsText -Text (($summary.delivery_quality.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "vertical paragraph/inside/outside Word page-side context" `
+        -Message "Delivery quality should expose generic metadata-only PDF floating table fields."
+    Assert-ContainsText -Text (($summary.delivery_quality.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "table overlap avoidance and collision resolution" `
+        -Message "Delivery quality should expose generic review-required PDF floating table fields."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_supported_geometry_percent) -Expected 44 `
         -Message "Summary should expose aggregate supported PDF floating table geometry percentage."
     Assert-Equal -Actual ([string]$summary.pdf_floating_table_support_coverage) `
@@ -445,6 +451,12 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.pdf_floating_table_review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "table overlap avoidance and collision resolution" `
         -Message "Summary should expose aggregate reviewer-required PDF floating table fields."
+    Assert-ContainsText -Text (($summary.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "vertical paragraph/inside/outside Word page-side context" `
+        -Message "Summary should expose generic metadata-only PDF floating table fields."
+    Assert-ContainsText -Text (($summary.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "table overlap avoidance and collision resolution" `
+        -Message "Summary should expose generic review-required PDF floating table fields."
     Assert-Equal -Actual ([int]$summary.delivery_quality.command_failure_count) -Expected 0 `
         -Message "Summary should expose command failure count in delivery quality details."
     Assert-Equal -Actual ([int]$summary.delivery_quality.unresolved_item_count) -Expected 10 `

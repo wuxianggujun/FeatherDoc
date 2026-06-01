@@ -270,6 +270,8 @@ function New-DeliveryQuality {
         pdf_floating_table_reviewer_focus = $pdfFloatingTableReviewerFocus
         pdf_floating_table_metadata_only_fields = @($PdfFloatingTableMetadataOnlyFields)
         pdf_floating_table_review_required_fields = @($PdfFloatingTableReviewRequiredFields)
+        metadata_only_fields = @($PdfFloatingTableMetadataOnlyFields)
+        review_required_fields = @($PdfFloatingTableReviewRequiredFields)
         command_failure_count = $TotalCommandFailureCount
         unresolved_item_count = $unresolvedItemCount
         penalty_summary = @(
@@ -495,6 +497,12 @@ function New-ReportMarkdown {
     if (@($Summary.pdf_floating_table_review_required_fields).Count -gt 0) {
         $lines.Add("- pdf_floating_table_review_required_fields: ``$(@($Summary.pdf_floating_table_review_required_fields) -join ', ')``") | Out-Null
     }
+    if (@($Summary.metadata_only_fields).Count -gt 0) {
+        $lines.Add("- metadata_only_fields: ``$(@($Summary.metadata_only_fields) -join ', ')``") | Out-Null
+    }
+    if (@($Summary.review_required_fields).Count -gt 0) {
+        $lines.Add("- review_required_fields: ``$(@($Summary.review_required_fields) -join ', ')``") | Out-Null
+    }
     $lines.Add("- Delivery quality: ``$($Summary.delivery_quality_level)`` (score=``$($Summary.delivery_quality_score)``)") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -524,6 +532,12 @@ function New-ReportMarkdown {
     }
     if (@($quality.pdf_floating_table_review_required_fields).Count -gt 0) {
         $lines.Add("- pdf_floating_table_review_required_fields: ``$(@($quality.pdf_floating_table_review_required_fields) -join ', ')``") | Out-Null
+    }
+    if (@($quality.metadata_only_fields).Count -gt 0) {
+        $lines.Add("- metadata_only_fields: ``$(@($quality.metadata_only_fields) -join ', ')``") | Out-Null
+    }
+    if (@($quality.review_required_fields).Count -gt 0) {
+        $lines.Add("- review_required_fields: ``$(@($quality.review_required_fields) -join ', ')``") | Out-Null
     }
     $lines.Add("- Command failures: ``$($quality.command_failure_count)``") | Out-Null
     $lines.Add("- Unresolved items: ``$($quality.unresolved_item_count)``") | Out-Null
@@ -1077,6 +1091,8 @@ $summary = [ordered]@{
     pdf_floating_table_reviewer_focus = $deliveryQuality.pdf_floating_table_reviewer_focus
     pdf_floating_table_metadata_only_fields = @($pdfFloatingTableMetadataOnlyFields)
     pdf_floating_table_review_required_fields = @($pdfFloatingTableReviewRequiredFields)
+    metadata_only_fields = @($pdfFloatingTableMetadataOnlyFields)
+    review_required_fields = @($pdfFloatingTableReviewRequiredFields)
     pdf_floating_table_support_summary = @(Add-PdfFloatingTableSupportSummary -Items $pdfFloatingTableSupport.ToArray())
     pdf_floating_table_support = @($pdfFloatingTableSupport.ToArray())
     total_table_style_issue_count = $totalIssueCount
