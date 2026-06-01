@@ -185,6 +185,35 @@ function Get-JsonInt {
     return $DefaultValue
 }
 
+function Get-SummaryGroupMarkdownText {
+    param(
+        [object[]]$Items,
+        [string]$NameProperty = "source_schema",
+        [string]$CountProperty = "count"
+    )
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($item in @($Items)) {
+        $name = Get-JsonString -Object $item -Name $NameProperty
+        if ([string]::IsNullOrWhiteSpace($name)) {
+            continue
+        }
+
+        $count = Get-JsonString -Object $item -Name $CountProperty
+        if ([string]::IsNullOrWhiteSpace($count)) {
+            $count = "0"
+        }
+
+        [void]$parts.Add("${name}=${count}")
+    }
+
+    if ($parts.Count -eq 0) {
+        return "(none)"
+    }
+
+    return ($parts.ToArray() -join ", ")
+}
+
 function Test-InformationalActionItem {
     param($Item)
 
@@ -1297,6 +1326,10 @@ function New-ReportMarkdown {
         $lines.Add("- Informational action items: ``$($rollup.informational_action_item_count)``") | Out-Null
         $lines.Add("- Warnings: ``$($rollup.warning_count)``") | Out-Null
         $lines.Add("- Governance metrics: ``$($rollup.governance_metric_count)``") | Out-Null
+        $lines.Add("- Blocker source schemas: ``$(Get-SummaryGroupMarkdownText -Items @($rollup.blocker_source_schema_summary))``") | Out-Null
+        $lines.Add("- Action item source schemas: ``$(Get-SummaryGroupMarkdownText -Items @($rollup.action_item_source_schema_summary))``") | Out-Null
+        $lines.Add("- Informational action item source schemas: ``$(Get-SummaryGroupMarkdownText -Items @($rollup.informational_action_item_source_schema_summary))``") | Out-Null
+        $lines.Add("- Warning source schemas: ``$(Get-SummaryGroupMarkdownText -Items @($rollup.warning_source_schema_summary))``") | Out-Null
         $lines.Add("- DOCX functional smoke readiness evidence source reports: ``$($rollup.docx_functional_smoke_readiness_evidence_source_report_count)``") | Out-Null
         foreach ($evidence in @($rollup.docx_functional_smoke_readiness_evidence_source_reports)) {
             $lines.Add("  - source_report: ``$($evidence.path_display)`` schema=``$($evidence.schema)``") | Out-Null
@@ -1945,9 +1978,13 @@ $summary = [ordered]@{
         source_report_count = 0
         source_failure_count = 0
         release_blocker_count = 0
+        blocker_source_schema_summary = @()
         action_item_count = 0
+        action_item_source_schema_summary = @()
         informational_action_item_count = 0
+        informational_action_item_source_schema_summary = @()
         warning_count = 0
+        warning_source_schema_summary = @()
         governance_metric_count = 0
         governance_metrics = @()
         docx_functional_smoke_readiness_evidence_source_report_count = 0
@@ -2021,9 +2058,13 @@ if ($IncludeReleaseBlockerRollup) {
     $summary.release_blocker_rollup.source_report_count = [int]$rollupSummary.source_report_count
     $summary.release_blocker_rollup.source_failure_count = [int]$rollupSummary.source_failure_count
     $summary.release_blocker_rollup.release_blocker_count = [int]$rollupSummary.release_blocker_count
+    $summary.release_blocker_rollup.blocker_source_schema_summary = @(Get-JsonArray -Object $rollupSummary -Name "blocker_source_schema_summary")
     $summary.release_blocker_rollup.action_item_count = [int]$rollupSummary.action_item_count
+    $summary.release_blocker_rollup.action_item_source_schema_summary = @(Get-JsonArray -Object $rollupSummary -Name "action_item_source_schema_summary")
     $summary.release_blocker_rollup.informational_action_item_count = [int](Get-JsonInt -Object $rollupSummary -Name "informational_action_item_count")
+    $summary.release_blocker_rollup.informational_action_item_source_schema_summary = @(Get-JsonArray -Object $rollupSummary -Name "informational_action_item_source_schema_summary")
     $summary.release_blocker_rollup.warning_count = [int]$rollupSummary.warning_count
+    $summary.release_blocker_rollup.warning_source_schema_summary = @(Get-JsonArray -Object $rollupSummary -Name "warning_source_schema_summary")
     $summary.release_blocker_rollup.governance_metric_count = [int]$rollupGovernanceMetricCount
     $summary.release_blocker_rollup.governance_metrics = @($rollupGovernanceMetrics)
     $summary.release_blocker_rollup.pdf_visual_gate_evidence_source_report_count = @($pdfVisualGateEvidence).Count

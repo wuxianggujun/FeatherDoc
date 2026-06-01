@@ -602,6 +602,23 @@ if ($Scenario -eq "handoff") {
         -Message "Nested release governance handoff should write its schema."
     Assert-Equal -Actual ([bool]$handoffSummary.release_blocker_rollup.included) -Expected $true `
         -Message "Governance handoff should record the nested release blocker rollup."
+    foreach ($propertyName in @(
+            "blocker_source_schema_summary",
+            "action_item_source_schema_summary",
+            "informational_action_item_source_schema_summary",
+            "warning_source_schema_summary"
+        )) {
+        Assert-Equal -Actual (
+            ($handoffReleaseSummary.release_governance_handoff.release_blocker_rollup.$propertyName | ConvertTo-Json -Depth 12 -Compress)
+        ) -Expected (
+            ($handoffSummary.release_blocker_rollup.$propertyName | ConvertTo-Json -Depth 12 -Compress)
+        ) -Message "Release candidate summary should mirror handoff nested rollup $propertyName."
+        Assert-Equal -Actual (
+            ($handoffReleaseSummary.steps.release_governance_handoff.release_blocker_rollup.$propertyName | ConvertTo-Json -Depth 12 -Compress)
+        ) -Expected (
+            ($handoffSummary.release_blocker_rollup.$propertyName | ConvertTo-Json -Depth 12 -Compress)
+        ) -Message "Release candidate step summary should mirror handoff nested rollup $propertyName."
+    }
 
     $handoffFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffFinalReviewPath
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "- Release governance handoff: blocked" `
@@ -812,6 +829,28 @@ Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.governance_met
 Assert-ContainsText -Text (($summary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1" `
     -Message "Release candidate summary should carry rollup blocker source schema."
+Assert-ContainsText -Text (($summary.release_blocker_rollup.blocker_source_schema_summary | ForEach-Object { "$($_.source_schema):$($_.count)" }) -join "`n") `
+    -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1:1" `
+    -Message "Release candidate summary should carry rollup blocker source schema summary."
+Assert-ContainsText -Text (($summary.release_blocker_rollup.action_item_source_schema_summary | ForEach-Object { "$($_.source_schema):$($_.count)" }) -join "`n") `
+    -ExpectedText "featherdoc.table_layout_delivery_governance_report.v1:1" `
+    -Message "Release candidate summary should carry rollup action item source schema summary."
+Assert-ContainsText -Text (($summary.release_blocker_rollup.warning_source_schema_summary | ForEach-Object { "$($_.source_schema):$($_.count)" }) -join "`n") `
+    -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1:1" `
+    -Message "Release candidate summary should carry rollup warning source schema summary."
+Assert-Equal -Actual (@($summary.release_blocker_rollup.informational_action_item_source_schema_summary).Count) -Expected 0 `
+    -Message "Release candidate summary should carry empty informational action source schema summary."
+Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.blocker_source_schema_summary | ForEach-Object { "$($_.source_schema):$($_.count)" }) -join "`n") `
+    -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1:1" `
+    -Message "Release candidate step summary should mirror rollup blocker source schema summary."
+Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.action_item_source_schema_summary | ForEach-Object { "$($_.source_schema):$($_.count)" }) -join "`n") `
+    -ExpectedText "featherdoc.table_layout_delivery_governance_report.v1:1" `
+    -Message "Release candidate step summary should mirror rollup action item source schema summary."
+Assert-Equal -Actual (@($summary.steps.release_blocker_rollup.informational_action_item_source_schema_summary).Count) -Expected 0 `
+    -Message "Release candidate step summary should mirror empty informational action source schema summary."
+Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.warning_source_schema_summary | ForEach-Object { "$($_.source_schema):$($_.count)" }) -join "`n") `
+    -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1:1" `
+    -Message "Release candidate step summary should mirror rollup warning source schema summary."
 Assert-ContainsText -Text (($summary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "style-numbering-audit.json" `
     -Message "Release candidate summary should carry rollup blocker source JSON display."
@@ -822,6 +861,18 @@ Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.action_items |
 $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
     -Message "Nested release blocker rollup should write its schema."
+foreach ($propertyName in @(
+        "blocker_source_schema_summary",
+        "action_item_source_schema_summary",
+        "informational_action_item_source_schema_summary",
+        "warning_source_schema_summary"
+    )) {
+    Assert-Equal -Actual (
+        ($summary.release_blocker_rollup.$propertyName | ConvertTo-Json -Depth 12 -Compress)
+    ) -Expected (
+        ($rollupSummary.$propertyName | ConvertTo-Json -Depth 12 -Compress)
+    ) -Message "Release candidate summary should mirror nested rollup $propertyName."
+}
 Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "run_table_style_quality_visual_regression" `
     -Message "Nested release blocker rollup should retain table layout action items."

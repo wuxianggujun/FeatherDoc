@@ -359,6 +359,35 @@ function Get-ReleaseBlockerDisplayValue {
     return $text
 }
 
+function Get-ReleaseBlockerSummaryGroupDisplay {
+    param(
+        [object[]]$Items,
+        [string]$NameProperty = "source_schema",
+        [string]$CountProperty = "count"
+    )
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($item in @($Items)) {
+        $name = Get-ReleaseBlockerPropertyValue -Object $item -Name $NameProperty
+        if ([string]::IsNullOrWhiteSpace($name)) {
+            continue
+        }
+
+        $count = Get-ReleaseBlockerPropertyValue -Object $item -Name $CountProperty
+        if ([string]::IsNullOrWhiteSpace($count)) {
+            $count = "0"
+        }
+
+        [void]$parts.Add("${name}=${count}")
+    }
+
+    if ($parts.Count -eq 0) {
+        return "(none)"
+    }
+
+    return ($parts.ToArray() -join ", ")
+}
+
 function Get-ReleaseBlockerDisplayPath {
     param(
         [string]$RepoRoot,
@@ -4113,6 +4142,10 @@ function Add-ReleaseGovernanceRollupMarkdownSection {
     [void]$Lines.Add("- Blockers: $($releaseBlockers.Count)")
     [void]$Lines.Add("- Warnings: $($warnings.Count)")
     [void]$Lines.Add("- Action items: $($actionItems.Count)")
+    [void]$Lines.Add("- Blocker source schemas: $(Get-ReleaseBlockerSummaryGroupDisplay -Items @(Get-ReleaseBlockerArrayProperty -Object $rollup -Name "blocker_source_schema_summary"))")
+    [void]$Lines.Add("- Action item source schemas: $(Get-ReleaseBlockerSummaryGroupDisplay -Items @(Get-ReleaseBlockerArrayProperty -Object $rollup -Name "action_item_source_schema_summary"))")
+    [void]$Lines.Add("- Informational action item source schemas: $(Get-ReleaseBlockerSummaryGroupDisplay -Items @(Get-ReleaseBlockerArrayProperty -Object $rollup -Name "informational_action_item_source_schema_summary"))")
+    [void]$Lines.Add("- Warning source schemas: $(Get-ReleaseBlockerSummaryGroupDisplay -Items @(Get-ReleaseBlockerArrayProperty -Object $rollup -Name "warning_source_schema_summary"))")
 
     Add-ReleaseGovernanceMetricsMarkdownSection -Lines $Lines -Summary $rollup
 

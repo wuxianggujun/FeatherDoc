@@ -1468,6 +1468,17 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should consume nested rollup action item count."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 3 `
         -Message "Handoff summary should consume nested rollup warning count."
+    Assert-ContainsText -Text (($summary.release_blocker_rollup.blocker_source_schema_summary | ForEach-Object { "$($_.source_schema):$($_.count)" }) -join "`n") `
+        -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1:1" `
+        -Message "Handoff summary should consume nested rollup blocker source schema summary."
+    Assert-ContainsText -Text (($summary.release_blocker_rollup.action_item_source_schema_summary | ForEach-Object { "$($_.source_schema):$($_.count)" }) -join "`n") `
+        -ExpectedText "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1:1" `
+        -Message "Handoff summary should consume nested rollup action item source schema summary."
+    Assert-ContainsText -Text (($summary.release_blocker_rollup.warning_source_schema_summary | ForEach-Object { "$($_.source_schema):$($_.count)" }) -join "`n") `
+        -ExpectedText "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1:1" `
+        -Message "Handoff summary should consume nested rollup warning source schema summary."
+    Assert-Equal -Actual (@($summary.release_blocker_rollup.informational_action_item_source_schema_summary).Count) -Expected 0 `
+        -Message "Handoff summary should keep empty nested rollup informational action source schema summary."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.governance_metric_count) -Expected 2 `
         -Message "Handoff summary should consume nested rollup governance metric count."
     Assert-ContainsText -Text (($summary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
@@ -1775,6 +1786,21 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Nested rollup should preserve action item count."
     Assert-Equal -Actual ([int]$rollupSummary.governance_metric_count) -Expected 2 `
         -Message "Nested rollup should preserve governance metric count."
+    Assert-Equal -Actual (
+        ($summary.release_blocker_rollup.blocker_source_schema_summary | ConvertTo-Json -Depth 12 -Compress)
+    ) -Expected (
+        ($rollupSummary.blocker_source_schema_summary | ConvertTo-Json -Depth 12 -Compress)
+    ) -Message "Handoff summary should mirror nested blocker source schema summary."
+    Assert-Equal -Actual (
+        ($summary.release_blocker_rollup.action_item_source_schema_summary | ConvertTo-Json -Depth 12 -Compress)
+    ) -Expected (
+        ($rollupSummary.action_item_source_schema_summary | ConvertTo-Json -Depth 12 -Compress)
+    ) -Message "Handoff summary should mirror nested action item source schema summary."
+    Assert-Equal -Actual (
+        ($summary.release_blocker_rollup.warning_source_schema_summary | ConvertTo-Json -Depth 12 -Compress)
+    ) -Expected (
+        ($rollupSummary.warning_source_schema_summary | ConvertTo-Json -Depth 12 -Compress)
+    ) -Message "Handoff summary should mirror nested warning source schema summary."
     Assert-ContainsText -Text (($rollupSummary.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
         -ExpectedText "real_corpus_confidence:low:56" `
         -Message "Nested rollup should preserve numbering confidence metric."
@@ -1893,6 +1919,20 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Nested rollup summary should not expose private Word visual review notes."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Blocker source schemas:" `
+        -Message "Handoff Markdown should expose nested rollup blocker source schema summary label."
+    Assert-ContainsText -Text $markdown -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1=1" `
+        -Message "Handoff Markdown should expose nested rollup blocker source schema summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "Action item source schemas:" `
+        -Message "Handoff Markdown should expose nested rollup action item source schema summary label."
+    Assert-ContainsText -Text $markdown -ExpectedText "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1=1" `
+        -Message "Handoff Markdown should expose nested rollup action item source schema summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "Informational action item source schemas: ``(none)``" `
+        -Message "Handoff Markdown should expose empty nested rollup informational action source schema summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "Warning source schemas:" `
+        -Message "Handoff Markdown should expose nested rollup warning source schema summary label."
+    Assert-ContainsText -Text $markdown -ExpectedText "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1=1" `
+        -Message "Handoff Markdown should expose nested rollup warning source schema summary."
     Assert-ContainsText -Text $markdown -ExpectedText "DOCX functional smoke readiness evidence source reports: ``1``" `
         -Message "Handoff Markdown should expose the DOCX functional smoke readiness evidence count."
     Assert-ContainsText -Text $markdown -ExpectedText "evidence_scope: ``persisted_docx_functional_smoke_evidence_only``" `
@@ -2262,6 +2302,14 @@ if (Test-Scenario -Name "informational_actions") {
         -Message "Nested rollup should preserve informational release checklist entries."
     $rollupSummaryPath = Join-Path $outputDir "release-blocker-rollup\summary.json"
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
+    Assert-ContainsText -Text (($summary.release_blocker_rollup.informational_action_item_source_schema_summary | ForEach-Object { "$($_.source_schema):$($_.count)" }) -join "`n") `
+        -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1:2" `
+        -Message "Handoff summary should consume nested informational action source schema summary."
+    Assert-Equal -Actual (
+        ($summary.release_blocker_rollup.informational_action_item_source_schema_summary | ConvertTo-Json -Depth 12 -Compress)
+    ) -Expected (
+        ($rollupSummary.informational_action_item_source_schema_summary | ConvertTo-Json -Depth 12 -Compress)
+    ) -Message "Handoff summary should mirror nested informational action source schema summary."
     foreach ($id in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline")) {
         Assert-Equal -Actual (@($summary.action_items | Where-Object { [string]$_.id -eq $id }).Count) -Expected 0 `
             -Message "Handoff should not duplicate informational release checklist action '$id' as an actionable item."

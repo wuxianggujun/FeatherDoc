@@ -620,8 +620,27 @@ Add-ReleaseGovernanceRollupMarkdownSection `
             source_failure_count = 1
             governance_metrics = @($numberingGovernanceMetric)
             release_blockers = @($styleNumberingBlocker)
+            blocker_source_schema_summary = @(
+                [pscustomobject]@{
+                    source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+                    count = 1
+                }
+            )
             warnings = @($warningWithStyleMergeCount)
+            warning_source_schema_summary = @(
+                [pscustomobject]@{
+                    source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                    count = 1
+                }
+            )
             action_items = @($restoreAuditActionItem)
+            action_item_source_schema_summary = @(
+                [pscustomobject]@{
+                    source_schema = "featherdoc.style_merge_restore_audit.v1"
+                    count = 1
+                }
+            )
+            informational_action_item_source_schema_summary = @()
         }
     }) `
     -RepoRoot $resolvedRepoRoot
@@ -632,6 +651,14 @@ Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- Source failures
     -Message "Rollup detail Markdown should include source failure counts."
 Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- source_failure_count: 1" `
     -Message "Rollup detail Markdown should expose a machine-readable source failure count."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- Blocker source schemas: featherdoc.numbering_catalog_governance_report.v1=1" `
+    -Message "Rollup detail Markdown should render blocker source schema summary."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- Action item source schemas: featherdoc.style_merge_restore_audit.v1=1" `
+    -Message "Rollup detail Markdown should render action item source schema summary."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- Informational action item source schemas: (none)" `
+    -Message "Rollup detail Markdown should render empty informational action source schema summary."
+Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText "- Warning source schemas: featherdoc.document_skeleton_governance_rollup_report.v1=1" `
+    -Message "Rollup detail Markdown should render warning source schema summary."
 Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_report: output/numbering-catalog-governance/summary.json' `
     -Message "Rollup metric Markdown should render raw source report paths."
 Assert-ContainsText -Text $rollupDetailMarkdown -ExpectedText 'source_json: output/numbering-catalog-governance/coverage.json' `

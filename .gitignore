@@ -87,5 +87,6 @@ tmp-word-com.txt
 **/*.swp
 .ace-tool/
 .codex-temp/
+.codex-tmp/
 __pycache__/
 *.py[cod]
