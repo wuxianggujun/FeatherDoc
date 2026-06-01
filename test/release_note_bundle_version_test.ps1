@@ -1300,6 +1300,8 @@ foreach ($document in $manifestEntryDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'release_assets_manifest.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'project_template_delivery_readiness_contract' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'project_template_onboarding_governance_contract' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'release_blocker_count' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'warning_count' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'schema_approval_status_summary' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report_display' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_json_display' -Label $document.Label
@@ -1310,6 +1312,8 @@ Assert-Contains -Path $manifestChecklistPath -ExpectedText 'Confirm the packaged
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'release_assets_manifest.json must include' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'project_template_delivery_readiness_contract' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'project_template_onboarding_governance_contract' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'release_blocker_count' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'warning_count' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'schema_approval_status_summary' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_report_display' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_json_display' -Label 'REVIEWER_CHECKLIST.md'

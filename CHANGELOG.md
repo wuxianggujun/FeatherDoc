@@ -50,6 +50,9 @@ performance.
 - Added release-note bundle and docs-contract regression coverage for
   warning-only project-template delivery readiness `needs_review` handoff
   semantics.
+- Added packaged release manifest signoff prompts for project-template
+  readiness `release_blocker_count` and `warning_count` so warning-only handoff
+  evidence remains reviewer-visible before publish.
 
 ### Fixed
 
