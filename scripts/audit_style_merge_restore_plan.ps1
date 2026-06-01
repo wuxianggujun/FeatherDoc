@@ -268,12 +268,16 @@ function Get-IssueReviewGroups {
     $result = New-Object 'System.Collections.Generic.List[object]'
     foreach ($entry in $groups.GetEnumerator()) {
         $operations = @($entry.Value.affected_operations.ToArray())
+        $reviewCommands = @($operations | ForEach-Object { [string]$_.review_command })
+        $firstReviewCommand = if ($reviewCommands.Count -gt 0) { [string]$reviewCommands[0] } else { "" }
         $result.Add([ordered]@{
             code = [string]$entry.Key
             count = [int]$entry.Value.count
             affected_operation_count = $operations.Count
             affected_operations = $operations
-            review_commands = @($operations | ForEach-Object { [string]$_.review_command })
+            review_commands = $reviewCommands
+            first_review_command = $firstReviewCommand
+            copy_review_command = $firstReviewCommand
         }) | Out-Null
     }
     return @($result.ToArray())
@@ -517,6 +521,11 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
                 }
             }
         }
+        $firstIssueReviewCommand = if ($issueReviewCommands.Count -gt 0) {
+            [string]$issueReviewCommands[0]
+        } else {
+            $RestoreAuditCommand
+        }
 
         $step = [ordered]@{
             order = 2
@@ -526,7 +535,10 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             reason = "style_merge_restore_audit_issues_require_issue_group_review"
             issue_count = $IssueCount
             issue_group_count = @($IssueReviewGroups).Count
-            command = $RestoreAuditCommand
+            command = $firstIssueReviewCommand
+            audit_command = $RestoreAuditCommand
+            first_review_command = $firstIssueReviewCommand
+            copy_review_command = $firstIssueReviewCommand
             issue_review_commands = @($issueReviewCommands.ToArray())
         }
         Add-StyleMergeRestoreHandoffStep -Steps $steps -Step $step -SourceFields $sourceFields

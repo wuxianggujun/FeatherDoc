@@ -492,6 +492,12 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit handoff should preserve issue group count."
     Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].copy_command) -ExpectedText "restore-style-merge" `
         -Message "Issue restore audit handoff should expose the dry-run as copy command."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].first_review_command) -ExpectedText "--source-style MissingBody" `
+        -Message "Issue restore audit handoff should expose the first issue-specific review command."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].copy_review_command) -ExpectedText "--target-style Normal" `
+        -Message "Issue restore audit handoff should expose a copy-ready issue review command."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].audit_command) -ExpectedText "restore-style-merge" `
+        -Message "Issue restore audit handoff should preserve the full audit command."
     Assert-ContainsText -Text ((@($summary.review_handoff_steps[1].issue_review_commands) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "--source-style MissingBody" `
         -Message "Issue restore audit handoff should expose issue-specific review commands."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[2].id) -Expected "prepare_word_visual_review_after_clean_audit" `
@@ -519,6 +525,10 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit review group should expose a target-style filtered command."
     Assert-ContainsText -Text ((@($issueReviewGroup.review_commands) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "restore-style-merge" `
         -Message "Issue restore audit review group should list review commands."
+    Assert-ContainsText -Text ([string]$issueReviewGroup.first_review_command) -ExpectedText "--source-style MissingBody" `
+        -Message "Issue restore audit review group should expose the first review command."
+    Assert-ContainsText -Text ([string]$issueReviewGroup.copy_review_command) -ExpectedText "--target-style Normal" `
+        -Message "Issue restore audit review group should expose a copy-ready review command."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 1 `
         -Message "Issue restore audit should emit one release blocker."
     $blocker = @($summary.release_blockers)[0]
