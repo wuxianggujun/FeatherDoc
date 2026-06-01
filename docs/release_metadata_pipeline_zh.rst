@@ -282,7 +282,8 @@ rollup summary 与 Markdown 顶部还会输出 ``blocker_source_schema_summary``
 再用 ``copy_issue_review_command`` 直接拿到第一条样式对复核命令。``rollback_plan_summary`` 只描述 rollback JSON 本身，
 包括 ``merge_rollback_entry_count``、``restorable_merge_rollback_entry_count``、
 ``non_restorable_merge_rollback_entry_count`` 与
-``non_restorable_merge_rollback_entry_indexes``；它不等同于 dry-run 实际恢复成功数。
+``non_restorable_merge_rollback_entry_indexes``；``restorable_rollback_command_summary``
+只描述 reviewer 可复制的单项 / 批量恢复命令是否可用。它们都不等同于 dry-run 实际恢复成功数。
 
 ``run_release_candidate_checks.ps1`` 在读取 ``featherdoc.release_blocker_rollup_report.v1``
 后会把上述数组同步写入 ``summary.json`` 的 ``release_blocker_rollup`` 与

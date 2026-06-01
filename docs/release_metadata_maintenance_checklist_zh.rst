@@ -300,6 +300,7 @@ Word-compatible wrapping 边界。
 ``issue_review_commands``、``issue_review_command_count``、
 ``issue_review_group_summary``、``first_issue_review_command``、
 ``copy_issue_review_command``、``handoff_status_summary``、``rollback_plan_summary``、
+``restorable_rollback_command_summary``、
 ``non_restorable_merge_rollback_entry_count``、
 ``non_restorable_merge_rollback_entry_indexes``、
 ``blocker_source_schema_summary``、``action_item_source_schema_summary``、
