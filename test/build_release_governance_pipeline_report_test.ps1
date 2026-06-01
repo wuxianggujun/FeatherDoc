@@ -253,9 +253,44 @@ function New-TableLayoutRollup {
                 table_position_automatic_count = 0
                 table_position_review_count = 1
                 table_position_already_matching_count = 0
+                pdf_floating_table_support_status = "partial"
+                pdf_floating_table_layout_boundary = "docx-table-position metadata"
+                pdf_floating_table_supported_geometry_count = 4
+                pdf_floating_table_metadata_only_count = 4
+                pdf_floating_table_tracked_geometry_count = 9
+                pdf_floating_table_supported_geometry_percent = 44
                 command_failure_count = 0
                 table_position_plan_path = "output/table-layout-delivery/contract/table-position.plan.json"
                 table_position_plan_display = ".\output\table-layout-delivery\contract\table-position.plan.json"
+            }
+        )
+        pdf_floating_table_support = @(
+            [ordered]@{
+                document_name = "contract.docx"
+                input_docx = "samples/contract.docx"
+                status = "partial"
+                boundary = "docx-table-position metadata"
+                supported_geometry_count = 4
+                metadata_only_count = 4
+                tracked_geometry_count = 9
+                supported_geometry_percent = 44
+                review_required_count = 2
+                supported_geometry = @(
+                    "tblpPr anchor metadata",
+                    "horizontal absolute positioning",
+                    "vertical absolute positioning",
+                    "cell-margin stable geometry"
+                )
+                metadata_only = @(
+                    "leftFromText",
+                    "rightFromText",
+                    "topFromText outside paragraph anchoring",
+                    "tblOverlap"
+                )
+                review_required = @(
+                    "full Word-compatible floating table text wrapping",
+                    "table overlap avoidance and collision resolution"
+                )
             }
         )
         table_position_plans = @(
@@ -846,6 +881,23 @@ $tableStage = Get-StageById -Summary $summary -Id "table_layout_delivery_governa
 Assert-ContainsText -Text (($tableStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "build_table_layout_delivery_governance_report.ps1" `
     -Message "Pipeline table-layout stage should provide stage rerun command when source actions omit open commands."
+$tableStageSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath ([string]$tableStage.summary_json) | ConvertFrom-Json
+Assert-Equal -Actual ([int]$tableStageSummary.pdf_floating_table_tracked_geometry_count) -Expected 9 `
+    -Message "Pipeline table-layout stage should preserve PDF floating table tracked geometry count."
+Assert-Equal -Actual ([int]$tableStageSummary.pdf_floating_table_supported_geometry_percent) -Expected 44 `
+    -Message "Pipeline table-layout stage should preserve PDF floating table supported geometry percent."
+Assert-ContainsText -Text (($tableStageSummary.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "tblOverlap" `
+    -Message "Pipeline table-layout stage should preserve metadata-only PDF floating table fields."
+Assert-ContainsText -Text (($tableStageSummary.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "table overlap avoidance and collision resolution" `
+    -Message "Pipeline table-layout stage should preserve review-required PDF floating table fields."
+Assert-ContainsText -Text (($tableStageSummary.delivery_quality.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "topFromText outside paragraph anchoring" `
+    -Message "Pipeline table-layout delivery_quality should preserve metadata-only PDF floating table fields."
+Assert-ContainsText -Text (($tableStageSummary.delivery_quality.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "full Word-compatible floating table text wrapping" `
+    -Message "Pipeline table-layout delivery_quality should preserve review-required PDF floating table fields."
 
 $contentControlStage = Get-StageById -Summary $summary -Id "content_control_data_binding_governance"
 Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
@@ -957,8 +1009,28 @@ Assert-Equal -Actual ([string]$handoffSummary.schema) -Expected "featherdoc.rele
     -Message "Pipeline handoff should expose schema."
 Assert-Equal -Actual ([bool]$handoffSummary.release_blocker_rollup.included) -Expected $true `
     -Message "Pipeline handoff should include nested release blocker rollup."
+$handoffTableMetric = @($handoffSummary.governance_metrics |
+    Where-Object { [string]$_.id -eq "table_layout_delivery_governance.delivery_quality" })
+Assert-Equal -Actual $handoffTableMetric.Count -Expected 1 `
+    -Message "Pipeline handoff should expose one table-layout delivery quality governance metric."
+Assert-ContainsText -Text (($handoffTableMetric[0].details.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "tblOverlap" `
+    -Message "Pipeline handoff should preserve table-layout metadata-only PDF alias fields."
+Assert-ContainsText -Text (($handoffTableMetric[0].details.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "table overlap avoidance and collision resolution" `
+    -Message "Pipeline handoff should preserve table-layout review-required PDF alias fields."
 
 $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
+$rollupTableMetric = @($rollupSummary.governance_metrics |
+    Where-Object { [string]$_.id -eq "table_layout_delivery_governance.delivery_quality" })
+Assert-Equal -Actual $rollupTableMetric.Count -Expected 1 `
+    -Message "Pipeline final rollup should expose one table-layout delivery quality governance metric."
+Assert-ContainsText -Text (($rollupTableMetric[0].details.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "topFromText outside paragraph anchoring" `
+    -Message "Pipeline final rollup should preserve table-layout metadata-only PDF alias fields."
+Assert-ContainsText -Text (($rollupTableMetric[0].details.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "full Word-compatible floating table text wrapping" `
+    -Message "Pipeline final rollup should preserve table-layout review-required PDF alias fields."
 Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "pdf_visual_release_gate_preflight.build_outputs_missing" `
     -Message "Pipeline final rollup should include PDF preflight blockers."
