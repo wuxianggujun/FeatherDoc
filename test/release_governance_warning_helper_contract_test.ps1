@@ -54,6 +54,30 @@ function Assert-DoesNotContainText {
     }
 }
 
+function Assert-ThrowsContains {
+    param(
+        [scriptblock]$ScriptBlock,
+        [string]$ExpectedText,
+        [string]$Message
+    )
+
+    $failed = $false
+    $actualMessage = ""
+    try {
+        & $ScriptBlock
+    } catch {
+        $failed = $true
+        $actualMessage = $_.Exception.Message
+    }
+
+    if (-not $failed) {
+        throw "$Message Expected the script block to throw."
+    }
+    if ($actualMessage -notmatch [regex]::Escape($ExpectedText)) {
+        throw "$Message Expected error to contain '$ExpectedText'. Actual error: $actualMessage"
+    }
+}
+
 function Assert-ScriptParses {
     param([string]$Path)
 
@@ -174,6 +198,96 @@ $numberingGovernanceMetric = [pscustomobject]@{
         matched_document_keys = @("invoice")
     }
 }
+
+$sourceSchemaSummaryWarning = [pscustomobject]@{
+    id = "document_skeleton.style_merge_suggestions_pending"
+    action = "review_style_merge_suggestions"
+    message = "Document skeleton governance reports duplicate style merge suggestion(s) awaiting review."
+    source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+    source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
+    source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
+}
+
+$sourceSchemaSummaryFixture = [pscustomobject]@{
+    release_blocker_rollup = [pscustomobject]@{
+        release_blocker_count = 1
+        release_blockers = @($styleNumberingBlocker)
+        blocker_source_schema_summary = @(
+            [pscustomobject]@{
+                source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+                count = 1
+            }
+        )
+        action_item_count = 1
+        action_items = @($restoreAuditActionItem)
+        action_item_source_schema_summary = @(
+            [pscustomobject]@{
+                source_schema = "featherdoc.style_merge_restore_audit.v1"
+                count = 1
+            }
+        )
+        informational_action_item_count = 0
+        informational_action_items = @()
+        informational_action_item_source_schema_summary = @()
+        warning_count = 1
+        warnings = @($sourceSchemaSummaryWarning)
+        warning_source_schema_summary = @(
+            [pscustomobject]@{
+                source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                count = 1
+            }
+        )
+    }
+}
+
+Assert-ReleaseGovernanceReviewerMetadataQuality `
+    -Summary $sourceSchemaSummaryFixture `
+    -Context "source schema summary contract"
+
+$mismatchedSourceSchemaSummaryFixture = $sourceSchemaSummaryFixture | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+@($mismatchedSourceSchemaSummaryFixture.release_blocker_rollup.blocker_source_schema_summary)[0].count = 2
+Assert-ThrowsContains `
+    -ScriptBlock { Assert-ReleaseGovernanceReviewerMetadataQuality -Summary $mismatchedSourceSchemaSummaryFixture -Context "source schema summary contract" } `
+    -ExpectedText "release_blocker_rollup.blocker_source_schema_summary count mismatch" `
+    -Message "Reviewer metadata quality should reject source schema summary count mismatches."
+
+$orphanedSourceSchemaSummaryFixture = $sourceSchemaSummaryFixture | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+$orphanedSourceSchemaSummaryFixture.release_blocker_rollup.blocker_source_schema_summary = @(
+    [pscustomobject]@{
+        source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+        count = 1
+    },
+    [pscustomobject]@{
+        source_schema = "featherdoc.unknown_source_schema.v1"
+        count = 1
+    }
+)
+Assert-ThrowsContains `
+    -ScriptBlock { Assert-ReleaseGovernanceReviewerMetadataQuality -Summary $orphanedSourceSchemaSummaryFixture -Context "source schema summary contract" } `
+    -ExpectedText "release_blocker_rollup.blocker_source_schema_summary has source_schema 'featherdoc.unknown_source_schema.v1' but release_blocker_rollup.release_blockers contains no matching item" `
+    -Message "Reviewer metadata quality should reject source schema summaries that omit materialized item schemas."
+
+$missingSourceSchemaSummaryFixture = $sourceSchemaSummaryFixture | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+$missingSourceSchemaSummaryFixture.release_blocker_rollup.blocker_source_schema_summary = @(
+    [pscustomobject]@{
+        count = 1
+    }
+)
+Assert-ThrowsContains `
+    -ScriptBlock { Assert-ReleaseGovernanceReviewerMetadataQuality -Summary $missingSourceSchemaSummaryFixture -Context "source schema summary contract" } `
+    -ExpectedText "release_blocker_rollup.blocker_source_schema_summary[0].source_schema must not be empty" `
+    -Message "Reviewer metadata quality should reject source schema summary groups without a schema."
+
+$missingCountSourceSchemaSummaryFixture = $sourceSchemaSummaryFixture | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+$missingCountSourceSchemaSummaryFixture.release_blocker_rollup.blocker_source_schema_summary = @(
+    [pscustomobject]@{
+        source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+    }
+)
+Assert-ThrowsContains `
+    -ScriptBlock { Assert-ReleaseGovernanceReviewerMetadataQuality -Summary $missingCountSourceSchemaSummaryFixture -Context "source schema summary contract" } `
+    -ExpectedText "release_blocker_rollup.blocker_source_schema_summary[0].count must not be empty" `
+    -Message "Reviewer metadata quality should reject source schema summary groups without a count."
 
 $normalizedBlockers = @(Get-NormalizedReleaseGovernanceBlockers -Blockers @($styleNumberingBlocker, $styleMergeBlocker))
 Assert-Equal -Actual $normalizedBlockers.Count -Expected 2 `

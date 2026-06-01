@@ -1729,6 +1729,37 @@ Assert-BundleRejectsSummary `
     -FileName "summary.release-rollup-missing-source-json-display.json" `
     -ExpectedFragments @("release_blocker_rollup.release_blockers[0].source_json_display must not be empty")
 
+$mismatchedRollupSourceSchemaSummary = Copy-ReleaseSummaryForNegativeCase
+$mismatchedRollup = $mismatchedRollupSourceSchemaSummary.release_blocker_rollup
+$blockerSourceSchemaSummary = @(
+    @($mismatchedRollup.release_blockers) |
+        Group-Object -Property source_schema |
+        ForEach-Object {
+            [pscustomobject]@{
+                source_schema = [string]$_.Name
+                count = [int]$_.Count
+            }
+        }
+)
+$mismatchedRollup | Add-Member `
+    -NotePropertyName "blocker_source_schema_summary" `
+    -NotePropertyValue $blockerSourceSchemaSummary `
+    -Force
+$mismatchedSourceSchemaGroup = @($mismatchedRollup.blocker_source_schema_summary) |
+    Where-Object { [string]$_.source_schema -eq "featherdoc.document_skeleton_governance_rollup_report.v1" } |
+    Select-Object -First 1
+if ($null -eq $mismatchedSourceSchemaGroup) {
+    throw "Missing release blocker rollup source schema summary fixture."
+}
+$mismatchedSourceSchemaGroup.count = 2
+Assert-BundleRejectsSummary `
+    -CandidateSummary $mismatchedRollupSourceSchemaSummary `
+    -FileName "summary.release-rollup-blocker-source-schema-summary-count-mismatch.json" `
+    -ExpectedFragments @(
+        "release_blocker_rollup.blocker_source_schema_summary count mismatch for 'featherdoc.document_skeleton_governance_rollup_report.v1'",
+        "declared 2 but release_blocker_rollup.release_blockers contains 1 item(s)"
+    )
+
 $missingHandoffCommandSummary = Copy-ReleaseSummaryForNegativeCase
 $missingHandoffActionItem = @($missingHandoffCommandSummary.release_governance_handoff.action_items)[0]
 $missingHandoffActionItem.open_command = ""

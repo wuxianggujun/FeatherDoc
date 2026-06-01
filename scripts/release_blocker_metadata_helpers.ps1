@@ -24,6 +24,23 @@ function Get-ReleaseBlockerPropertyObject {
     return $property.Value
 }
 
+function Test-ReleaseBlockerPropertyExists {
+    param(
+        [AllowNull()]$Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return $false
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        return $Object.Contains($Name)
+    }
+
+    return ($null -ne $Object.PSObject.Properties[$Name])
+}
+
 function Get-ReleaseBlockerPropertyValue {
     param(
         [AllowNull()]$Object,
@@ -236,6 +253,76 @@ function Assert-ReleaseGovernanceReviewerMetadataItemQuality {
     }
 }
 
+function Assert-ReleaseGovernanceSourceSchemaSummaryConsistency {
+    param(
+        [AllowNull()]$Container,
+        [string]$ContainerName,
+        [string]$ItemsProperty,
+        [string]$SummaryProperty,
+        [string]$Context
+    )
+
+    if (-not (Test-ReleaseBlockerPropertyExists -Object $Container -Name $SummaryProperty)) {
+        return
+    }
+
+    $expectedCounts = @{}
+    foreach ($item in @(Get-ReleaseBlockerArrayProperty -Object $Container -Name $ItemsProperty)) {
+        $sourceSchema = Get-ReleaseBlockerPropertyValue -Object $item -Name "source_schema"
+        if ([string]::IsNullOrWhiteSpace($sourceSchema)) {
+            throw "$ContainerName.$ItemsProperty source_schema must not be empty when $ContainerName.$SummaryProperty is provided in ${Context}."
+        }
+
+        if (-not $expectedCounts.ContainsKey($sourceSchema)) {
+            $expectedCounts[$sourceSchema] = 0
+        }
+        $expectedCounts[$sourceSchema] += 1
+    }
+
+    $actualCounts = @{}
+    $summaryGroups = @(Get-ReleaseBlockerArrayProperty -Object $Container -Name $SummaryProperty)
+    for ($groupIndex = 0; $groupIndex -lt $summaryGroups.Count; $groupIndex++) {
+        $group = $summaryGroups[$groupIndex]
+        $sourceSchema = Get-ReleaseBlockerPropertyValue -Object $group -Name "source_schema"
+        if ([string]::IsNullOrWhiteSpace($sourceSchema)) {
+            throw "$ContainerName.$SummaryProperty[$groupIndex].source_schema must not be empty in ${Context}."
+        }
+        if ($actualCounts.ContainsKey($sourceSchema)) {
+            throw "$ContainerName.$SummaryProperty contains duplicate source_schema '$sourceSchema' in ${Context}."
+        }
+
+        $countText = Get-ReleaseBlockerPropertyValue -Object $group -Name "count"
+        if ([string]::IsNullOrWhiteSpace($countText)) {
+            throw "$ContainerName.$SummaryProperty[$groupIndex].count must not be empty in ${Context}."
+        }
+
+        $count = 0
+        if (-not [int]::TryParse($countText, [ref]$count)) {
+            throw "$ContainerName.$SummaryProperty[$groupIndex].count must be an integer in ${Context}; actual value: $countText"
+        }
+        if ($count -lt 0) {
+            throw "$ContainerName.$SummaryProperty[$groupIndex].count must not be negative in ${Context}; actual value: $count"
+        }
+
+        $actualCounts[$sourceSchema] = $count
+    }
+
+    foreach ($sourceSchema in @($expectedCounts.Keys)) {
+        if (-not $actualCounts.ContainsKey($sourceSchema)) {
+            throw "$ContainerName.$SummaryProperty missing source_schema '$sourceSchema' in ${Context}."
+        }
+        if ([int]$actualCounts[$sourceSchema] -ne [int]$expectedCounts[$sourceSchema]) {
+            throw "$ContainerName.$SummaryProperty count mismatch for '$sourceSchema' in ${Context}: declared $($actualCounts[$sourceSchema]) but $ContainerName.$ItemsProperty contains $($expectedCounts[$sourceSchema]) item(s)."
+        }
+    }
+
+    foreach ($sourceSchema in @($actualCounts.Keys)) {
+        if (-not $expectedCounts.ContainsKey($sourceSchema)) {
+            throw "$ContainerName.$SummaryProperty has source_schema '$sourceSchema' but $ContainerName.$ItemsProperty contains no matching item in ${Context}."
+        }
+    }
+}
+
 function Assert-ReleaseGovernanceReviewerMetadataCollectionQuality {
     param(
         [AllowNull()]$Container,
@@ -264,6 +351,12 @@ function Assert-ReleaseGovernanceReviewerMetadataCollectionQuality {
         -ContainerName $ContainerName `
         -CountProperty "action_item_count" `
         -ItemsProperty "action_items" `
+        -Context $Context
+    Assert-ReleaseGovernanceDeclaredCountConsistency `
+        -Container $Container `
+        -ContainerName $ContainerName `
+        -CountProperty "informational_action_item_count" `
+        -ItemsProperty "informational_action_items" `
         -Context $Context
 
     $blockerRequiredFields = @("id", "action", "message", "source_schema", "source_report_display", "source_json_display")
@@ -296,6 +389,31 @@ function Assert-ReleaseGovernanceReviewerMetadataCollectionQuality {
             -RequiredFields $actionItemRequiredFields `
             -Context $Context
     }
+
+    Assert-ReleaseGovernanceSourceSchemaSummaryConsistency `
+        -Container $Container `
+        -ContainerName $ContainerName `
+        -ItemsProperty "release_blockers" `
+        -SummaryProperty "blocker_source_schema_summary" `
+        -Context $Context
+    Assert-ReleaseGovernanceSourceSchemaSummaryConsistency `
+        -Container $Container `
+        -ContainerName $ContainerName `
+        -ItemsProperty "action_items" `
+        -SummaryProperty "action_item_source_schema_summary" `
+        -Context $Context
+    Assert-ReleaseGovernanceSourceSchemaSummaryConsistency `
+        -Container $Container `
+        -ContainerName $ContainerName `
+        -ItemsProperty "informational_action_items" `
+        -SummaryProperty "informational_action_item_source_schema_summary" `
+        -Context $Context
+    Assert-ReleaseGovernanceSourceSchemaSummaryConsistency `
+        -Container $Container `
+        -ContainerName $ContainerName `
+        -ItemsProperty "warnings" `
+        -SummaryProperty "warning_source_schema_summary" `
+        -Context $Context
 }
 
 function Assert-ReleaseGovernanceReviewerMetadataQuality {
