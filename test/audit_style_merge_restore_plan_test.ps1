@@ -108,7 +108,7 @@ if ([string]::IsNullOrWhiteSpace($rollbackPath)) {
 
 $argsPath = Join-Path ([System.IO.Path]::GetDirectoryName($MyInvocation.MyCommand.Path)) "mock-cli-args.json"
 (ConvertTo-Json -InputObject @($CliArgs) -Depth 8) | Set-Content -LiteralPath $argsPath -Encoding UTF8
-Write-Output '{"command":"restore-style-merge","dry_run":true,"changed":false,"issue_count":__ISSUE_COUNT__,"issue_summary":__ISSUE_SUMMARY__,"restored_count":2,"restored_style_count":1,"restored_reference_count":4}'
+Write-Output '{"command":"restore-style-merge","dry_run":true,"changed":false,"requested_count":3,"issue_count":__ISSUE_COUNT__,"issue_summary":__ISSUE_SUMMARY__,"restored_count":2,"restored_style_count":1,"restored_reference_count":4}'
 exit 0
 '@
 
@@ -191,6 +191,18 @@ if (Test-Scenario -Name "clean") {
         -Message "Restore audit action item should preserve the open-latest command."
     Assert-Equal -Actual ([int]$summary.restored_count) -Expected 2 `
         -Message "Restore audit should preserve restored count."
+    Assert-Equal -Actual ([int]$summary.requested_count) -Expected 3 `
+        -Message "Restore audit should preserve requested count."
+    Assert-Equal -Actual ([int]$summary.selection_summary.entry_filter_count) -Expected 1 `
+        -Message "Restore audit should summarize entry filter count."
+    Assert-Equal -Actual ([int]$summary.selection_summary.source_style_filter_count) -Expected 1 `
+        -Message "Restore audit should summarize source style filter count."
+    Assert-Equal -Actual ([int]$summary.selection_summary.target_style_filter_count) -Expected 1 `
+        -Message "Restore audit should summarize target style filter count."
+    Assert-Equal -Actual ([bool]$summary.selection_summary.has_entry_filter) -Expected $true `
+        -Message "Restore audit should mark entry filter usage."
+    Assert-Equal -Actual ([int]$summary.selection_summary.requested_count) -Expected 3 `
+        -Message "Restore audit selection summary should preserve requested count."
     Assert-Equal -Actual ([int]$summary.restored_reference_count) -Expected 4 `
         -Message "Restore audit should preserve restored reference count."
 

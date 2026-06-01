@@ -173,7 +173,9 @@ foreach ($assertion in @(
                 "--source-style",
                 "--target-style",
                 "issue_summary",
-                "selected_entries"
+                "selected_entries",
+                "selection_summary",
+                "requested_count"
             )
             label = "style merge restore audit script"
         },
@@ -230,6 +232,8 @@ foreach ($assertion in @(
                 "dry-run",
                 "issue_count",
                 "issue_summary",
+                "selection_summary",
+                "requested_count",
                 "Entry",
                 "SourceStyle",
                 "TargetStyle"

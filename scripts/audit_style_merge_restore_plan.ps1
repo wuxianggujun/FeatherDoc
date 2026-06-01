@@ -265,6 +265,7 @@ if ($result.ExitCode -ne 0) {
 }
 
 $issueCount = Get-JsonInt -Object $cliJson -Names @("issue_count") -DefaultValue 0
+$requestedCount = Get-JsonInt -Object $cliJson -Names @("requested_count") -DefaultValue 0
 $status = if ($issueCount -eq 0) { "clean" } else { "needs_review" }
 $summaryBasePath = [System.IO.Path]::GetDirectoryName($resolvedSummaryJson)
 if ([string]::IsNullOrWhiteSpace($summaryBasePath)) {
@@ -324,6 +325,17 @@ $actionItems.Add([ordered]@{
     audit_command = $restoreAuditCommand
 }) | Out-Null
 
+$selectionSummary = [ordered]@{
+    entry_filter_count = @($Entry).Count
+    source_style_filter_count = @($SourceStyle | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }).Count
+    target_style_filter_count = @($TargetStyle | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }).Count
+    has_entry_filter = (@($Entry).Count -gt 0)
+    has_source_style_filter = (@($SourceStyle | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }).Count -gt 0)
+    has_target_style_filter = (@($TargetStyle | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }).Count -gt 0)
+    requested_count = $requestedCount
+    restored_count = Get-JsonInt -Object $cliJson -Names @("restored_count") -DefaultValue 0
+}
+
 $summary = [ordered]@{
     schema = "featherdoc.style_merge_restore_audit.v1"
     generated_at = (Get-Date).ToString("s")
@@ -339,8 +351,10 @@ $summary = [ordered]@{
     selected_entries = @($Entry)
     selected_source_styles = @($SourceStyle)
     selected_target_styles = @($TargetStyle)
+    selection_summary = $selectionSummary
     issue_count = $issueCount
     issue_summary = Get-JsonProperty -Object $cliJson -Name "issue_summary"
+    requested_count = $requestedCount
     restored_count = Get-JsonInt -Object $cliJson -Names @("restored_count") -DefaultValue 0
     restored_style_count = Get-JsonInt -Object $cliJson -Names @("restored_style_count") -DefaultValue 0
     restored_reference_count = Get-JsonInt -Object $cliJson -Names @("restored_reference_count") -DefaultValue 0
