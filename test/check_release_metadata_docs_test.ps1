@@ -279,8 +279,8 @@ function Assert-SummaryFailure {
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
     Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-    if ($summary.required_marker_count -ne 219) {
-        throw "Expected JSON summary to count 219 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 223) {
+        throw "Expected JSON summary to count 223 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -410,6 +410,10 @@ $defaultPipelineText = @(
     '- ``required``',
     '- assert_release_material_safety.ps1',
     '- -SkipMaterialSafetyAudit',
+    '- reviewer_manifest_scoped_project_template_trace',
+    '- manifest_signoff_entrypoints_release_trace',
+    '- manifest_signoff_entrypoints_manifest_trace',
+    '- release_entry_project_template_readiness_checklist_trace',
     '- release governance warning contract',
     '- warning_count',
     '- release_blocker_rollup.md',
@@ -671,8 +675,8 @@ Assert-SummaryCheckedDocumentsConsistent -Summary $summary
 if ($summary.checked_document_count -ne 7) {
     throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 96) {
-    throw "Expected JSON summary pipeline marker count 96, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 100) {
+    throw "Expected JSON summary pipeline marker count 100, got: $($summary.required_pipeline_marker_count)"
 }
 if ($summary.required_checklist_marker_count -ne 89) {
     throw "Expected JSON summary checklist marker count 89, got: $($summary.required_checklist_marker_count)"
@@ -686,8 +690,8 @@ if ($summary.required_policy_marker_count -ne 19) {
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 219) {
-    throw "Expected JSON summary total marker count 219, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 223) {
+    throw "Expected JSON summary total marker count 223, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 7) {
     throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
@@ -872,6 +876,22 @@ Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "release-candidate-checks-source" `
     -Message "JSON summary should list source-only release candidate summary marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "reviewer_manifest_scoped_project_template_trace" `
+    -Message "JSON summary should list reviewer manifest scoped project-template trace marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "manifest_signoff_entrypoints_release_trace" `
+    -Message "JSON summary should list manifest signoff release trace marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "manifest_signoff_entrypoints_manifest_trace" `
+    -Message "JSON summary should list manifest signoff packaged manifest trace marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "release_entry_project_template_readiness_checklist_trace" `
+    -Message "JSON summary should list project-template readiness checklist release entry trace marker."
 Assert-ArrayContains `
     -Values @($summary.required_policy_markers) `
     -ExpectedValue "Word visual standard review metadata evidence" `

@@ -457,7 +457,12 @@ blocker rollup 的 source report contract evidence，并由 release governance h
 ``warning_count``、``schema_approval_status_summary``、``source_report_display`` 和
 ``source_json_display``）和
 ``reviewer_manifest_scoped_project_template_trace``，避免 packaged manifest signoff
-只停留在打包产物层。``release_blocker_rollup.md`` 的
+只停留在打包产物层。固定标记：
+``manifest_signoff_entrypoints_release_trace``。
+``release_assets_manifest.json`` 必须继续保留同一组 signoff 字段和
+``reviewer_manifest_scoped_project_template_trace``，固定标记：
+``manifest_signoff_entrypoints_manifest_trace``。
+``release_blocker_rollup.md`` 的
 ``Source Report Contracts`` 必须先把同一组字段保留在
 ``featherdoc.release_candidate_summary`` 列表块内，不能由 detached notes 或
 ``featherdoc.release_blocker_rollup_report.v1`` 冒充原始 signoff 证据。固定标记：
