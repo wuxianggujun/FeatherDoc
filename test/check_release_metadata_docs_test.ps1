@@ -279,8 +279,8 @@ function Assert-SummaryFailure {
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
     Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-    if ($summary.required_marker_count -ne 292) {
-        throw "Expected JSON summary to count 292 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 298) {
+        throw "Expected JSON summary to count 298 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -453,6 +453,8 @@ $defaultPipelineText = @(
     '- task_reviews=',
     '- release-candidate-checks',
     '- release-candidate-checks-source',
+    '- release-candidate-checks\report\summary.json',
+    '- release-candidate-checks-source\summary.json',
     '- report/ARTIFACT_GUIDE.md',
     '- report/REVIEWER_CHECKLIST.md',
     '- report/release_handoff.md',
@@ -537,6 +539,8 @@ $defaultChecklistText = @(
     '- source_schema=featherdoc.release_candidate_summary',
     '- release-candidate-checks',
     '- release-candidate-checks-source',
+    '- release-candidate-checks\report\summary.json',
+    '- release-candidate-checks-source\summary.json',
     '- public_release_wording_regression_test.ps1',
     '- git diff --check',
     '- release_note_bundle',
@@ -687,6 +691,8 @@ $defaultPolicyText = @(
     '- source_schema=featherdoc.release_candidate_summary',
     '- release-candidate-checks',
     '- release-candidate-checks-source',
+    '- release-candidate-checks\report\summary.json',
+    '- release-candidate-checks-source\summary.json',
     '- report/ARTIFACT_GUIDE.md',
     '- report/REVIEWER_CHECKLIST.md',
     '- report/release_handoff.md',
@@ -760,23 +766,23 @@ Assert-SummaryCheckedDocumentsConsistent -Summary $summary
 if ($summary.checked_document_count -ne 8) {
     throw "Expected JSON summary checked document count 8, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 122) {
-    throw "Expected JSON summary pipeline marker count 122, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 124) {
+    throw "Expected JSON summary pipeline marker count 124, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 123) {
-    throw "Expected JSON summary checklist marker count 123, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 125) {
+    throw "Expected JSON summary checklist marker count 125, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 23) {
     throw "Expected JSON summary document governance marker count 23, got: $($summary.required_document_governance_marker_count)"
 }
-if ($summary.required_policy_marker_count -ne 22) {
-    throw "Expected JSON summary policy marker count 22, got: $($summary.required_policy_marker_count)"
+if ($summary.required_policy_marker_count -ne 24) {
+    throw "Expected JSON summary policy marker count 24, got: $($summary.required_policy_marker_count)"
 }
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 292) {
-    throw "Expected JSON summary total marker count 292, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 298) {
+    throw "Expected JSON summary total marker count 298, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 8) {
     throw "Expected JSON summary to list 8 checked documents, got: $($summary.checked_documents.Count)"
@@ -849,6 +855,14 @@ Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "release-candidate-checks-source" `
     -Message "JSON summary checklist should list source-only release candidate summary marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "release-candidate-checks\report\summary.json" `
+    -Message "JSON summary checklist should list final release candidate summary path marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "release-candidate-checks-source\summary.json" `
+    -Message "JSON summary checklist should list source-only release candidate summary path marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue '``output_gap_count``' `
@@ -991,6 +1005,14 @@ Assert-ArrayContains `
     -Message "JSON summary should list source-only release candidate summary marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "release-candidate-checks\report\summary.json" `
+    -Message "JSON summary should list final release candidate summary path marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "release-candidate-checks-source\summary.json" `
+    -Message "JSON summary should list source-only release candidate summary path marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "reviewer_manifest_scoped_project_template_trace" `
     -Message "JSON summary should list reviewer manifest scoped project-template trace marker."
 Assert-ArrayContains `
@@ -1029,6 +1051,14 @@ Assert-ArrayContains `
     -Values @($summary.required_policy_markers) `
     -ExpectedValue "release-candidate-checks-source" `
     -Message "JSON summary policy should list source-only release candidate summary marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "release-candidate-checks\report\summary.json" `
+    -Message "JSON summary policy should list final release candidate summary path marker."
+Assert-ArrayContains `
+    -Values @($summary.required_policy_markers) `
+    -ExpectedValue "release-candidate-checks-source\summary.json" `
+    -Message "JSON summary policy should list source-only release candidate summary path marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "readme_gallery" `
