@@ -1615,12 +1615,18 @@ function Set-ProjectTemplateReadinessWarningOnlyFixture {
 }
 
 $warningOnlyReadinessSummary = Copy-ReleaseSummaryForNegativeCase
-$warningOnlyRollupReadinessReport = @($warningOnlyReadinessSummary.release_blocker_rollup.source_reports |
+$warningOnlyRollupReadinessReport = $warningOnlyReadinessSummary.release_blocker_rollup.source_reports |
     Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
-    Select-Object -First 1)
-$warningOnlyHandoffReadinessReport = @($warningOnlyReadinessSummary.release_governance_handoff.reports |
+    Select-Object -First 1
+$warningOnlyHandoffReadinessReport = $warningOnlyReadinessSummary.release_governance_handoff.reports |
     Where-Object { [string]$_.id -eq "project_template_delivery_readiness" } |
-    Select-Object -First 1)
+    Select-Object -First 1
+if ($null -eq $warningOnlyRollupReadinessReport) {
+    throw "Missing project template delivery readiness source report fixture."
+}
+if ($null -eq $warningOnlyHandoffReadinessReport) {
+    throw "Missing project template delivery readiness handoff report fixture."
+}
 Set-ProjectTemplateReadinessWarningOnlyFixture -Report $warningOnlyRollupReadinessReport
 Set-ProjectTemplateReadinessWarningOnlyFixture -Report $warningOnlyHandoffReadinessReport
 $warningOnlyReadinessSummary.release_governance_handoff.failed_report_count = 0

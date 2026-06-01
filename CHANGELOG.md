@@ -73,6 +73,8 @@ performance.
 - Fixed project-template delivery readiness so warning-only evidence gaps report
   `needs_review` instead of `ready`, and direct onboarding summary/plan evidence
   keeps its stable source schema in propagated blockers and action items.
+- Fixed release-note bundle warning-only readiness regression fixture selection
+  so the coverage runs consistently under PowerShell 7 CI.
 
 ## [1.12.0] - 2026-05-28
 
