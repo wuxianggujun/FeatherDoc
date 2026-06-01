@@ -498,7 +498,9 @@ $checklistExpectedMarkers = @(
     "build_table_layout_delivery_governance_report_test.ps1",
     "pdf_floating_table_support_coverage",
     "pdf_floating_table_reviewer_focus",
-    "metadata-only tblpPr"
+    "metadata-only tblpPr",
+    "metadata_only_fields",
+    "review_required_fields"
 )
 $documentGovernanceExpectedMarkers = @(
     "document_governance_acceptance.v1",

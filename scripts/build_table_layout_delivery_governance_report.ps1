@@ -551,6 +551,14 @@ function New-ReportMarkdown {
                 $support.supported_geometry_count,
                 $support.metadata_only_count,
                 $support.source_json_display)) | Out-Null
+            $metadataOnlyFields = @($support.metadata_only | ForEach-Object { [string]$_ })
+            if ($metadataOnlyFields.Count -gt 0) {
+                $lines.Add(("  - metadata_only_fields: ``{0}``" -f ($metadataOnlyFields -join ", "))) | Out-Null
+            }
+            $reviewRequiredFields = @($support.review_required | ForEach-Object { [string]$_ })
+            if ($reviewRequiredFields.Count -gt 0) {
+                $lines.Add(("  - review_required_fields: ``{0}``" -f ($reviewRequiredFields -join ", "))) | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null

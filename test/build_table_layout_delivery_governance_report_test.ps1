@@ -610,6 +610,14 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include PDF floating table reviewer focus marker."
     Assert-ContainsText -Text $markdown -ExpectedText "metadata-only tblpPr" `
         -Message "Markdown should include metadata-only tblpPr reviewer guidance."
+    Assert-ContainsText -Text $markdown -ExpectedText "metadata_only_fields" `
+        -Message "Markdown should include the concrete metadata-only PDF floating table fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "leftFromText, rightFromText, topFromText outside paragraph anchoring, tblOverlap" `
+        -Message "Markdown should list metadata-only tblpPr fields before reviewer approval."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_required_fields" `
+        -Message "Markdown should include reviewer-required PDF floating table boundaries."
+    Assert-ContainsText -Text $markdown -ExpectedText "full Word-compatible floating table text wrapping" `
+        -Message "Markdown should list the unsupported full wrapping boundary."
     Assert-ContainsText -Text $markdown -ExpectedText "source_schema" `
         -Message "Markdown should include traceable source schema fields for actions and blockers."
     Assert-ContainsText -Text $markdown -ExpectedText "source_report_display" `
