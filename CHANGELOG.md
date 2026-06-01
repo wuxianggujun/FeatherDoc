@@ -77,6 +77,8 @@ performance.
   keeps its stable source schema in propagated blockers and action items.
 - Fixed release-note bundle warning-only readiness regression fixture selection
   so the coverage runs consistently under PowerShell 7 CI.
+- Fixed release short summaries so project-template readiness governance lines
+  preserve `release_blocker_count` and `warning_count`.
 
 ## [1.12.0] - 2026-05-28
 

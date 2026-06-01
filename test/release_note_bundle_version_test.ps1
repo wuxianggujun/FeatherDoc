@@ -1152,7 +1152,7 @@ Assert-Contains -Path $shortPath -ExpectedText 'section page setup=`pass`' -Labe
 Assert-Contains -Path $shortPath -ExpectedText 'page number fields=`pending_manual_review`' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'Template table CLI selector=`pass`' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'project-template readiness governance contract' -Label 'release_summary.zh-CN.md'
-Assert-Contains -Path $shortPath -ExpectedText 'status=blocked release_ready=False latest_schema_approval_gate_status=pending_review schema_approval_status_summary=pending_review source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_summary.zh-CN.md'
+Assert-Contains -Path $shortPath -ExpectedText 'status=blocked release_ready=False latest_schema_approval_gate_status=pending_review schema_approval_status_summary=pending_review release_blocker_count=1 warning_count=0 source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'project-template onboarding governance contract' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'status=pending_review release_ready=False schema_approval_status_summary=pending_review source_report_display=.\output\project-template-onboarding-governance\summary.json source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_summary.zh-CN.md'
 Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
@@ -1655,7 +1655,7 @@ Assert-LineContainsAll -Path $bodyPath -ExpectedFragments @(
     'source_report_display=.\output\project-template-delivery-readiness\summary.json',
     'source_json_display=.\output\project-template-delivery-readiness\summary.json'
 ) -Label 'release_body.zh-CN.md warning-only project-template readiness'
-Assert-Contains -Path $shortPath -ExpectedText 'status=needs_review release_ready=False latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' `
+Assert-Contains -Path $shortPath -ExpectedText 'status=needs_review release_ready=False latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 release_blocker_count=0 warning_count=1 source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' `
     -Label 'release_summary.zh-CN.md warning-only project-template readiness'
 
 function Assert-BundleRejectsSummary {

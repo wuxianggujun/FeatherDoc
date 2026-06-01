@@ -547,11 +547,13 @@ function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
         $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
             -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "schema_approval_status_summary")
         Add-UniqueLine -Lines $Lines -Line (
-            'project-template readiness governance contract 已进入短摘要： status={0} release_ready={1} latest_schema_approval_gate_status={2} schema_approval_status_summary={3} source_report_display={4} source_json_display={5}。' -f `
+            'project-template readiness governance contract 已进入短摘要： status={0} release_ready={1} latest_schema_approval_gate_status={2} schema_approval_status_summary={3} release_blocker_count={4} warning_count={5} source_report_display={6} source_json_display={7}。' -f `
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "status")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "release_ready")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "latest_schema_approval_gate_status")),
                 (Get-DisplayValue -Value $schemaApprovalSummary),
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "release_blocker_count")),
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "warning_count")),
                 (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $readinessReport)),
                 (Get-DisplayValue -Value (Get-GovernanceSourceJsonDisplay -Item $readinessReport))
         )
