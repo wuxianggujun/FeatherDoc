@@ -484,6 +484,7 @@ $checklistExpectedMarkers = @(
     "source_schema",
     "source_report_display",
     "source_json_display",
+    "Assert-ReleaseGovernanceSourceSchemaSummaryConsistency",
     "blocker_source_schema_summary",
     "action_item_source_schema_summary",
     "informational_action_item_source_schema_summary",

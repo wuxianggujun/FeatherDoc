@@ -294,6 +294,7 @@ Word-compatible wrapping 边界。
 ``source_schema``、``source_report_display``、``source_json_display``、
 ``blocker_source_schema_summary``、``action_item_source_schema_summary``、
 ``informational_action_item_source_schema_summary``、``warning_source_schema_summary``、
+``Assert-ReleaseGovernanceSourceSchemaSummaryConsistency``、
 ``style_merge_suggestion_count``、``check_word_visual_release_gate_preflight.ps1``、
 ``check_word_visual_release_gate_preflight_test.ps1``、
 ``word_visual_release_gate_preflight_route_docs_contract``、
