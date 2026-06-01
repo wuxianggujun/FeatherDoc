@@ -35,6 +35,33 @@ function Assert-TextOrder {
     }
 }
 
+function Assert-SourceSectionContainsAll {
+    param(
+        [string]$Text,
+        [string]$StartText,
+        [string]$EndText,
+        [string[]]$ExpectedTexts,
+        [string]$Message
+    )
+
+    $startIndex = $Text.IndexOf($StartText, [System.StringComparison]::Ordinal)
+    if ($startIndex -lt 0) {
+        throw "$Message Missing section start='$StartText'."
+    }
+
+    $endIndex = $Text.IndexOf($EndText, $startIndex + $StartText.Length, [System.StringComparison]::Ordinal)
+    if ($endIndex -lt 0) {
+        throw "$Message Missing section end='$EndText'."
+    }
+
+    $section = $Text.Substring($startIndex, $endIndex - $startIndex)
+    foreach ($expectedText in $ExpectedTexts) {
+        if ($section.IndexOf($expectedText, [System.StringComparison]::Ordinal) -lt 0) {
+            throw "$Message Missing expected text in section. Missing='$expectedText'."
+        }
+    }
+}
+
 function Get-RepoFileText {
     param(
         [string]$Root,
@@ -762,6 +789,32 @@ foreach ($marker in @(
 
 Assert-ContainsText -Text $releaseBlockerRollupTest -ExpectedText 'Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "featherdoc.release_candidate_summary" -ExpectedFragments @(' `
     -Message "Release blocker rollup regression should lock release-candidate Source Report Contracts as one Markdown list block."
+Assert-SourceSectionContainsAll -Text $releaseBlockerRollupTest `
+    -StartText 'Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "featherdoc.release_candidate_summary" -ExpectedFragments @(' `
+    -EndText 'project_template_readiness_checklist_entrypoints_status: ``declared``' `
+    -ExpectedTexts @(
+        'manifest_signoff_entrypoints_status: ``declared``',
+        'manifest_signoff_entrypoints_release_assets_manifest_display:',
+        'release_assets_manifest.json',
+        'manifest_signoff_entrypoints_required_entrypoint_count: ``3``',
+        'manifest_signoff_entrypoints_entrypoint_ids:',
+        'start_here',
+        'artifact_guide',
+        'reviewer_checklist',
+        'manifest_signoff_entrypoints_required_contracts:',
+        'project_template_delivery_readiness_contract',
+        'project_template_onboarding_governance_contract',
+        'manifest_signoff_entrypoints_required_fields:',
+        'status',
+        'release_ready',
+        'release_blocker_count',
+        'warning_count',
+        'schema_approval_status_summary',
+        'source_report_display',
+        'source_json_display',
+        'manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``'
+    ) `
+    -Message "Release blocker rollup regression should keep manifest signoff evidence in the release-candidate Source Report Contracts block."
 foreach ($marker in @(
     'project_template_readiness_checklist_entrypoints_status: ``declared``',
     'project_template_readiness_checklist_entrypoints_checklist_path: ``docs/project_template_release_readiness_checklist_zh.rst``',
@@ -779,6 +832,22 @@ Assert-ContainsText -Text $releaseGovernanceHandoffTest -ExpectedText 'if (Test-
     -Message "Release governance handoff regression should exercise the nested release blocker rollup evidence path."
 Assert-ContainsText -Text $releaseGovernanceHandoffTest -ExpectedText 'Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(' `
     -Message "Release governance handoff regression should lock release-candidate source_report evidence as one Markdown list block."
+Assert-SourceSectionContainsAll -Text $releaseGovernanceHandoffTest `
+    -StartText 'Assert-ContainsText -Text $markdown -ExpectedText "Manifest signoff entrypoints evidence source reports: ``1``"' `
+    -EndText 'Assert-ContainsText -Text $markdown -ExpectedText "Project-template readiness checklist entrypoints evidence source reports: ``1``"' `
+    -ExpectedTexts @(
+        'Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(',
+        '"schema=``featherdoc.release_candidate_summary``"',
+        '"manifest_signoff_entrypoints_status: ``declared``"',
+        '"manifest_signoff_entrypoints_release_assets_manifest_display:"',
+        '"release_assets_manifest.json"',
+        '"manifest_signoff_entrypoints_required_entrypoint_count: ``3``"',
+        '"manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``"',
+        '"manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``"',
+        '"manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, source_report_display, source_json_display``"',
+        '"manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``"'
+    ) `
+    -Message "Release governance handoff regression should keep manifest signoff evidence in one release-candidate source_report block."
 foreach ($marker in @(
     'project_template_readiness_checklist_entrypoints_source_report_count) -Expected 1',
     'release_entry_project_template_readiness_checklist_material_safety_audit_source_report_count) -Expected 1',
