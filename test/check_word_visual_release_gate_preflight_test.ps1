@@ -113,6 +113,8 @@ Assert-True -Condition (-not [bool]$summary.release_ready) `
     -Message "Static preflight should never claim release readiness."
 Assert-Equal -Actual ([string]$summary.evidence_scope) -Expected "word_visual_release_gate_preflight_static_contract_only" `
     -Message "Evidence scope mismatch."
+Assert-ContainsText -Text ([string]$summary.evidence_scope_note) -ExpectedText "static scripts, docs, and test registration only" `
+    -Message "Evidence scope note should explain the static-only contract."
 Assert-Equal -Actual ([string]$summary.output_encoding) -Expected "UTF-8 without BOM" `
     -Message "Output encoding summary mismatch."
 Assert-ContainsText -Text ([string]$summary.boundary) -ExpectedText "does not run Word, CMake, CTest" `
@@ -148,6 +150,8 @@ foreach ($marker in @(
         "featherdoc.word_visual_release_gate_preflight.v1",
         'Output encoding: `UTF-8 without BOM`',
         "word_visual_release_gate_preflight_static_contract_only",
+        "Evidence scope note:",
+        "static scripts, docs, and test registration only",
         'powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1',
         'powershell -ExecutionPolicy Bypass -File .\scripts\check_word_visual_release_gate_preflight.ps1 -RepoRoot . -Strict',
         "word_visual_gate_core_flows_wired",

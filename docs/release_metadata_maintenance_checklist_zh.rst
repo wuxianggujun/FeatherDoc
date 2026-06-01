@@ -147,6 +147,9 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 复查命令；``strict_preflight_command_template`` 与 ``full_gate_command_template``
 应保持可复制、可审阅，``output_encoding`` 应保持为 ``UTF-8 without BOM``，
 避免 release 面板只能展示自然语言下一步或重新猜测产物编码。
+``evidence_scope_note`` 必须保留
+``static scripts, docs, and test registration only``，``boundary`` 必须继续说明该
+preflight 不运行 Word、CMake、CTest、浏览器、LibreOffice 或视觉渲染。
 
 修改 DOCX 功能 smoke 准入或 release governance 接入：
 
@@ -301,7 +304,8 @@ Word-compatible wrapping 边界。
 ``word_visual_release_gate_preflight_route_docs_contract_test.ps1``、
 ``featherdoc.word_visual_release_gate_preflight.v1``、
 ``word_visual_release_gate_preflight_static_contract_only``、``output_encoding``、
-``UTF-8 without BOM``、``preflight_ready``、``release_ready``、
+``UTF-8 without BOM``、``evidence_scope_note``、``boundary``、
+``static scripts, docs, and test registration only``、``preflight_ready``、``release_ready``、
 ``check_docx_functional_smoke_readiness.ps1``、
 ``docx_functional_smoke_readiness_test.ps1``、
 ``docx_functional_smoke_readiness_route_docs_contract``、

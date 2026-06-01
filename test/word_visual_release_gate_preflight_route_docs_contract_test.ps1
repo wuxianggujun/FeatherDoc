@@ -97,6 +97,9 @@ foreach ($assertion in @(
                 "featherdoc.word_visual_release_gate_preflight.v1",
                 "word_visual_release_gate_preflight_static_contract_only",
                 "minimum_risk_next_action_command",
+                "evidence_scope_note",
+                "boundary",
+                "static scripts, docs, and test registration only",
                 "output_encoding",
                 "UTF-8 without BOM",
                 "preflight_ready",
@@ -113,6 +116,9 @@ foreach ($assertion in @(
                 "word_visual_release_gate_preflight_static_contract_only",
                 "output_encoding",
                 "UTF-8 without BOM",
+                "evidence_scope_note",
+                "boundary",
+                "static scripts, docs, and test registration only",
                 "preflight_ready",
                 "release_ready"
             )
@@ -126,6 +132,9 @@ foreach ($assertion in @(
                 "word_visual_release_gate_preflight_static_contract_only",
                 "output_encoding",
                 "UTF-8 without BOM",
+                "evidence_scope_note",
+                "boundary",
+                "static scripts, docs, and test registration only",
                 "strict_preflight_command_template",
                 "full_gate_command_template",
                 "release-ready evidence"
@@ -141,6 +150,9 @@ foreach ($assertion in @(
 foreach ($marker in @(
         "featherdoc.word_visual_release_gate_preflight.v1",
         "word_visual_release_gate_preflight_static_contract_only",
+        "evidence_scope_note",
+        "static scripts, docs, and test registration only",
+        "Evidence scope note:",
         "output_encoding",
         "UTF-8 without BOM",
         "preflight_ready",
@@ -174,6 +186,8 @@ foreach ($unexpected in @(
 foreach ($marker in @(
         "featherdoc.word_visual_release_gate_preflight.v1",
         "word_visual_release_gate_preflight_static_contract_only",
+        "Evidence scope note:",
+        "static scripts, docs, and test registration only",
         "output_encoding",
         "UTF-8 without BOM",
         "minimum_risk_next_action_command",

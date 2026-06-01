@@ -355,6 +355,7 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReportMarkdown)) {
     $markdownLines.Add("- Status: ``$($summary.status)``") | Out-Null
     $markdownLines.Add("- Output encoding: ``$($summary.output_encoding)``") | Out-Null
     $markdownLines.Add("- Evidence scope: ``$($summary.evidence_scope)``") | Out-Null
+    $markdownLines.Add("- Evidence scope note: $($summary.evidence_scope_note)") | Out-Null
     $markdownLines.Add("- Blocking checks: ``$($summary.blocking_check_count)``") | Out-Null
     $markdownLines.Add("- Boundary: $boundary") | Out-Null
     $markdownLines.Add("") | Out-Null
