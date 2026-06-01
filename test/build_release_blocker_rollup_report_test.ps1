@@ -63,6 +63,24 @@ function Assert-HasProperty {
     }
 }
 
+function Assert-SummaryGroupCount {
+    param(
+        [object[]]$Groups,
+        [string]$PropertyName,
+        [string]$Name,
+        [int]$ExpectedCount,
+        [string]$Message
+    )
+
+    $match = @($Groups | Where-Object { [string]($_.$PropertyName) -eq $Name }) | Select-Object -First 1
+    if ($null -eq $match) {
+        throw "$Message Missing summary group '$Name'."
+    }
+
+    Assert-Equal -Actual ([int]$match.count) -Expected $ExpectedCount `
+        -Message $Message
+}
+
 function Assert-NonEmptyString {
     param($Value, [string]$Message)
     if ([string]::IsNullOrWhiteSpace([string]$Value)) {
@@ -1059,6 +1077,28 @@ if (Test-Scenario -Name "passing") {
         -ExpectOpenCommandProperty $true
     Assert-GovernanceTraceMetadata -Items @($summary.informational_action_items) -CollectionName "informational_action_items" `
         -ExpectOpenCommandProperty $true
+    Assert-SummaryGroupCount -Groups @($summary.action_item_source_schema_summary) `
+        -PropertyName "source_schema" `
+        -Name "featherdoc.schema_patch_confidence_calibration_report.v1" `
+        -ExpectedCount 1 `
+        -Message "Rollup should summarize action items by source schema for reviewer filtering."
+    Assert-SummaryGroupCount -Groups @($summary.action_item_source_schema_summary) `
+        -PropertyName "source_schema" `
+        -Name "featherdoc.project_template_onboarding_governance_report.v1" `
+        -ExpectedCount 1 `
+        -Message "Rollup should summarize project-template action items by source schema."
+    Assert-SummaryGroupCount -Groups @($summary.warning_source_schema_summary) `
+        -PropertyName "source_schema" `
+        -Name "featherdoc.schema_patch_confidence_calibration_report.v1" `
+        -ExpectedCount 1 `
+        -Message "Rollup should summarize warnings by source schema for reviewer filtering."
+    Assert-SummaryGroupCount -Groups @($summary.warning_source_schema_summary) `
+        -PropertyName "source_schema" `
+        -Name "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" `
+        -ExpectedCount 1 `
+        -Message "Rollup should summarize PDF preflight warnings by source schema."
+    Assert-Equal -Actual (@($summary.informational_action_item_source_schema_summary).Count) -Expected 0 `
+        -Message "Rollup should expose an empty informational action source-schema summary when no informational actions are present."
     $metricText = ($summary.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n"
     Assert-ContainsText -Text $metricText -ExpectedText "real_corpus_confidence:low:56" `
         -Message "Rollup should preserve numbering real-corpus confidence metric."
@@ -1814,6 +1854,18 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF build option readiness action."
     Assert-ContainsText -Text $markdown -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT" `
         -Message "Markdown should include the disabled PDF build option name."
+    Assert-ContainsText -Text $markdown -ExpectedText "Action item source schemas:" `
+        -Message "Markdown should include action source-schema rollup for reviewer filtering."
+    Assert-ContainsText -Text $markdown -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1=1" `
+        -Message "Markdown should include calibration action/warning source-schema counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1=1" `
+        -Message "Markdown should include project-template action source-schema counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "Warning source schemas:" `
+        -Message "Markdown should include warning source-schema rollup for reviewer filtering."
+    Assert-ContainsText -Text $markdown -ExpectedText "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1=1" `
+        -Message "Markdown should include PDF preflight warning source-schema counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "Informational action item source schemas: ``(none)``" `
+        -Message "Markdown should mark empty informational action source-schema rollup explicitly."
     Assert-ContainsText -Text $markdown -ExpectedText "Governance Metric Review Focus" `
         -Message "Markdown should include governance metric review focus."
     Assert-ContainsText -Text $markdown -ExpectedText "Numbering real-corpus confidence" `

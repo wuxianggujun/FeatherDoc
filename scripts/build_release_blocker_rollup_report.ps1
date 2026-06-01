@@ -1306,15 +1306,48 @@ function Add-WordVisualStandardReviewMetadataEvidenceFields {
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
+    $countsByName = @{}
+    foreach ($item in @($Items)) {
+        $name = Get-JsonString -Object $item -Name $PropertyName
+        if (-not $countsByName.ContainsKey($name)) {
+            $countsByName[$name] = 0
+        }
+
+        $countsByName[$name] = [int]$countsByName[$name] + 1
+    }
+
     return @(
-        foreach ($group in @($Items | Group-Object $PropertyName |
-            Sort-Object -Property @{ Expression = "Count"; Descending = $true }, @{ Expression = "Name"; Ascending = $true })) {
+        foreach ($groupName in @($countsByName.Keys |
+            Sort-Object -Property @{ Expression = { [int]$countsByName[$_] }; Descending = $true }, @{ Expression = { [string]$_ }; Ascending = $true })) {
             $summary = [ordered]@{}
-            $summary[$OutputName] = [string]$group.Name
-            $summary["count"] = [int]$group.Count
+            $summary[$OutputName] = [string]$groupName
+            $summary["count"] = [int]$countsByName[$groupName]
             $summary
         }
     )
+}
+
+function Get-SummaryGroupMarkdownText {
+    param(
+        [object[]]$Items,
+        [string]$PropertyName
+    )
+
+    $parts = @(
+        foreach ($item in @($Items)) {
+            $name = Get-JsonString -Object $item -Name $PropertyName
+            if ([string]::IsNullOrWhiteSpace($name)) {
+                $name = "(empty)"
+            }
+            $count = Get-JsonInt -Object $item -Name "count"
+            "$name=$count"
+        }
+    )
+    if ($parts.Count -eq 0) {
+        return "(none)"
+    }
+
+    return ($parts -join ", ")
 }
 
 function Add-TraceabilityMarkdownLines {
@@ -1562,6 +1595,10 @@ function New-ReportMarkdown {
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
     $lines.Add("- Informational action items: ``$($Summary.informational_action_item_count)``") | Out-Null
     $lines.Add("- Warnings: ``$($Summary.warning_count)``") | Out-Null
+    $lines.Add("- Blocker source schemas: ``$(Get-SummaryGroupMarkdownText -Items $Summary.blocker_source_schema_summary -PropertyName "source_schema")``") | Out-Null
+    $lines.Add("- Action item source schemas: ``$(Get-SummaryGroupMarkdownText -Items $Summary.action_item_source_schema_summary -PropertyName "source_schema")``") | Out-Null
+    $lines.Add("- Informational action item source schemas: ``$(Get-SummaryGroupMarkdownText -Items $Summary.informational_action_item_source_schema_summary -PropertyName "source_schema")``") | Out-Null
+    $lines.Add("- Warning source schemas: ``$(Get-SummaryGroupMarkdownText -Items $Summary.warning_source_schema_summary -PropertyName "source_schema")``") | Out-Null
     $lines.Add("") | Out-Null
 
     $lines.Add("## Governance Metric Review Focus") | Out-Null
@@ -2345,11 +2382,14 @@ $summary = [ordered]@{
     action_item_count = $actionItems.Count
     action_items = @($actionItems.ToArray())
     action_item_summary = @(Add-SummaryGroup -Items $actionItems.ToArray() -PropertyName "action" -OutputName "action")
+    action_item_source_schema_summary = @(Add-SummaryGroup -Items $actionItems.ToArray() -PropertyName "source_schema" -OutputName "source_schema")
     informational_action_item_count = $informationalActionItems.Count
     informational_action_items = @($informationalActionItems.ToArray())
     informational_action_item_summary = @(Add-SummaryGroup -Items $informationalActionItems.ToArray() -PropertyName "action" -OutputName "action")
+    informational_action_item_source_schema_summary = @(Add-SummaryGroup -Items $informationalActionItems.ToArray() -PropertyName "source_schema" -OutputName "source_schema")
     warning_count = $warnings.Count
     warnings = @($warnings.ToArray())
+    warning_source_schema_summary = @(Add-SummaryGroup -Items $warnings.ToArray() -PropertyName "source_schema" -OutputName "source_schema")
 }
 
 Write-ReleaseMaterialFiles -Summary $summary -SummaryPath $summaryPath -MarkdownPath $markdownPath -JsonDepth 24
