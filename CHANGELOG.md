@@ -40,6 +40,8 @@ performance.
 - Added release metadata docs checker coverage for the documentation
   maintenance overview so the release metadata pipeline and checklist remain
   linked from the maintenance entrypoint.
+- Added release governance handoff `-FailOnBlocker` regression coverage and
+  CTest registration so blocker-triggered handoff exits stay guarded.
 - Added stable public evidence-path display handling for packaged release
   manifests so project-template and manifest-signoff evidence keeps source
   identity even when packaging runs from an out-of-repository working directory.

@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "missing", "failed_report", "fail_on_missing", "fail_on_warning", "explicit_input", "explicit_only", "include_rollup", "informational_actions")]
+    [ValidateSet("all", "aggregate", "missing", "failed_report", "fail_on_missing", "fail_on_blocker", "fail_on_warning", "explicit_input", "explicit_only", "include_rollup", "informational_actions")]
     [string]$Scenario = "all"
 )
 
@@ -1055,6 +1055,39 @@ if (Test-Scenario -Name "fail_on_missing") {
         -Message "Fail-on-missing handoff Markdown should expose the missing report source failure count as a machine-readable field."
     Assert-ContainsText -Text $markdown -ExpectedText "build_project_template_delivery_readiness_report.ps1" `
         -Message "Fail-on-missing handoff Markdown should include the rebuild command."
+}
+
+if (Test-Scenario -Name "fail_on_blocker") {
+    $inputRoot = Join-Path $resolvedWorkingDir "fail-blocker-input"
+    $outputDir = Join-Path $resolvedWorkingDir "fail-blocker-report"
+    Write-GovernanceFixtures -Root $inputRoot
+
+    $result = Invoke-HandoffScript -Arguments @(
+        "-InputRoot", $inputRoot,
+        "-OutputDir", $outputDir,
+        "-FailOnBlocker"
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 1 `
+        -Message "Handoff should fail fail-on-blocker when governance blockers are present. Output: $($result.Text)"
+    Assert-True -Condition (Test-Path -LiteralPath (Join-Path $outputDir "summary.json")) `
+        -Message "Fail-on-blocker handoff should still write summary.json."
+    Assert-True -Condition (Test-Path -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")) `
+        -Message "Fail-on-blocker handoff should still write Markdown report."
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
+        -Message "Fail-on-blocker handoff should keep blocker summaries in blocked status."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 4 `
+        -Message "Fail-on-blocker handoff should still write structured blocker evidence."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "project_template_delivery.pending_schema_approval" `
+        -Message "Fail-on-blocker handoff should preserve project-template blockers in summary output."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Release blockers: ``4``" `
+        -Message "Fail-on-blocker handoff Markdown should summarize the blocker count."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery.pending_schema_approval" `
+        -Message "Fail-on-blocker handoff Markdown should include blocker ids."
 }
 
 if (Test-Scenario -Name "fail_on_warning") {
