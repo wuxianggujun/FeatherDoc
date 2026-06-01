@@ -261,6 +261,24 @@ if (Test-Scenario -Name "clean") {
         -Message "Restore audit selection summary should preserve requested count."
     Assert-Equal -Actual ([int]$summary.restored_reference_count) -Expected 4 `
         -Message "Restore audit should preserve restored reference count."
+    Assert-Equal -Actual ([int]$summary.review_handoff_step_count) -Expected 3 `
+        -Message "Clean restore audit should expose three reviewer handoff steps."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[0].id) -Expected "review_restore_audit_dry_run" `
+        -Message "Clean restore audit handoff should start from the completed dry-run review."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].id) -Expected "prepare_word_visual_review" `
+        -Message "Clean restore audit handoff should route the reviewer to visual review next."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].status) -Expected "next" `
+        -Message "Clean restore audit visual review handoff should be the next step."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].command) -ExpectedText "prepare_word_review_task.ps1" `
+        -Message "Clean restore audit visual review handoff should expose the review command."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[2].id) -Expected "restore_selected_style_merges" `
+        -Message "Clean restore audit handoff should still expose the selected restore step."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[2].status) -Expected "ready" `
+        -Message "Clean restore audit selected restore step should be ready."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[2].command_template) -ExpectedText "--output <output.docx>" `
+        -Message "Clean restore audit selected restore step should expose an output template."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[2].batch_restore_command_template) -ExpectedText "--entry 1" `
+        -Message "Clean restore audit handoff should expose the batch restore template."
     Assert-ContainsText -Text ([string]$summary.selected_restore_command_template) -ExpectedText "--entry 0" `
         -Message "Restore audit should expose the selected restore command template."
     Assert-ContainsText -Text ([string]$summary.selected_restore_command_template) -ExpectedText "--source-style OldBody" `
@@ -360,6 +378,22 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit should prefer code and fall back to issue keys."
     Assert-Equal -Actual ([int]$summary.issue_summary_groups[0].count) -Expected 3 `
         -Message "Issue restore audit should aggregate duplicate issue summary counts."
+    Assert-Equal -Actual ([int]$summary.review_handoff_step_count) -Expected 3 `
+        -Message "Issue restore audit should expose three reviewer handoff steps."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].id) -Expected "review_issue_groups" `
+        -Message "Issue restore audit handoff should route reviewer to issue groups."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].status) -Expected "next" `
+        -Message "Issue restore audit issue group handoff should be the next step."
+    Assert-Equal -Actual ([int]$summary.review_handoff_steps[1].issue_group_count) -Expected 1 `
+        -Message "Issue restore audit handoff should preserve issue group count."
+    Assert-ContainsText -Text ((@($summary.review_handoff_steps[1].issue_review_commands) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "--source-style MissingBody" `
+        -Message "Issue restore audit handoff should expose issue-specific review commands."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[2].id) -Expected "prepare_word_visual_review_after_clean_audit" `
+        -Message "Issue restore audit handoff should keep visual review blocked until audit is clean."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[2].status) -Expected "blocked" `
+        -Message "Issue restore audit visual review step should be blocked."
+    Assert-ContainsText -Text ((@($summary.review_handoff_steps[2].blocked_by) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "style_merge.restore_audit_issues" `
+        -Message "Issue restore audit visual review blocker should point at restore audit issues."
     Assert-Equal -Actual ([int]$summary.issue_review_group_count) -Expected 1 `
         -Message "Issue restore audit should group affected operations by issue code."
     $issueReviewGroup = @($summary.issue_review_groups)[0]

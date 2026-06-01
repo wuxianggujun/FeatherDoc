@@ -428,6 +428,78 @@ function Get-RestorableRollbackEntryCommands {
     }
 }
 
+function Get-StyleMergeRestoreReviewHandoffSteps {
+    param(
+        [int]$IssueCount,
+        $IssueReviewGroups,
+        $RestorableRollbackCommandSummary,
+        [string]$RestoreAuditCommand,
+        [string]$SelectedRestoreCommandTemplate,
+        [string]$VisualReviewCommand,
+        [string]$OpenVisualReviewCommand
+    )
+
+    $steps = New-Object 'System.Collections.Generic.List[object]'
+    $steps.Add([ordered]@{
+        order = 1
+        id = "review_restore_audit_dry_run"
+        action = "review_style_merge_restore_audit"
+        status = "completed"
+        command = $RestoreAuditCommand
+    }) | Out-Null
+
+    if ($IssueCount -gt 0) {
+        $issueReviewCommands = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($group in @($IssueReviewGroups)) {
+            foreach ($command in @(Get-JsonProperty -Object $group -Name "review_commands")) {
+                if (-not [string]::IsNullOrWhiteSpace([string]$command)) {
+                    $issueReviewCommands.Add([string]$command) | Out-Null
+                }
+            }
+        }
+
+        $steps.Add([ordered]@{
+            order = 2
+            id = "review_issue_groups"
+            action = "review_style_merge_restore_audit_issues"
+            status = "next"
+            issue_count = $IssueCount
+            issue_group_count = @($IssueReviewGroups).Count
+            command = $RestoreAuditCommand
+            issue_review_commands = @($issueReviewCommands.ToArray())
+        }) | Out-Null
+        $steps.Add([ordered]@{
+            order = 3
+            id = "prepare_word_visual_review_after_clean_audit"
+            action = "prepare_word_visual_review"
+            status = "blocked"
+            blocked_by = @("style_merge.restore_audit_issues")
+            command = $VisualReviewCommand
+            open_command = $OpenVisualReviewCommand
+        }) | Out-Null
+    } else {
+        $steps.Add([ordered]@{
+            order = 2
+            id = "prepare_word_visual_review"
+            action = "prepare_word_visual_review"
+            status = "next"
+            command = $VisualReviewCommand
+            open_command = $OpenVisualReviewCommand
+        }) | Out-Null
+        $steps.Add([ordered]@{
+            order = 3
+            id = "restore_selected_style_merges"
+            action = "restore_style_merge"
+            status = "ready"
+            command_template = $SelectedRestoreCommandTemplate
+            restorable_rollback_entry_count = $RestorableRollbackCommandSummary.restorable_rollback_entry_count
+            batch_restore_command_template = $RestorableRollbackCommandSummary.batch_restorable_restore_command_template
+        }) | Out-Null
+    }
+
+    return @($steps.ToArray())
+}
+
 $repoRoot = Resolve-TemplateSchemaRepoRoot -ScriptRoot $PSScriptRoot
 $resolvedApplySummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $ApplySummaryJson
 $applySummary = $null
@@ -663,6 +735,14 @@ $selectionSummary = [ordered]@{
     requested_count = $requestedCount
     restored_count = Get-JsonInt -Object $cliJson -Names @("restored_count") -DefaultValue 0
 }
+$reviewHandoffSteps = Get-StyleMergeRestoreReviewHandoffSteps `
+    -IssueCount $issueCount `
+    -IssueReviewGroups $issueReviewGroups `
+    -RestorableRollbackCommandSummary $restorableRollbackCommandSummary `
+    -RestoreAuditCommand $restoreAuditCommand `
+    -SelectedRestoreCommandTemplate $selectedRestoreCommandTemplate `
+    -VisualReviewCommand $visualReviewCommand `
+    -OpenVisualReviewCommand $openVisualReviewCommand
 
 $summary = [ordered]@{
     schema = "featherdoc.style_merge_restore_audit.v1"
@@ -681,6 +761,8 @@ $summary = [ordered]@{
     selected_source_styles = @($SourceStyle)
     selected_target_styles = @($TargetStyle)
     selection_summary = $selectionSummary
+    review_handoff_step_count = @($reviewHandoffSteps).Count
+    review_handoff_steps = @($reviewHandoffSteps)
     selected_restore_command_template = $selectedRestoreCommandTemplate
     restorable_rollback_entry_count = $restorableRollbackCommandSummary.restorable_rollback_entry_count
     restorable_rollback_entry_indexes = @($restorableRollbackCommandSummary.restorable_rollback_entry_indexes)
