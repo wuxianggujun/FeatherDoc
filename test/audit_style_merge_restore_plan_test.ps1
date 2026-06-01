@@ -357,6 +357,24 @@ if (Test-Scenario -Name "clean") {
         -Message "Restore audit selected restore command should include an output template."
     Assert-Equal -Actual ([int]$summary.restorable_rollback_entry_count) -Expected 2 `
         -Message "Restore audit should count restorable merge rollback entries."
+    Assert-Equal -Actual ([int]$summary.restorable_rollback_command_summary.restorable_rollback_entry_count) -Expected 2 `
+        -Message "Restore audit should summarize restorable command entry count."
+    Assert-Equal -Actual ([int]$summary.restorable_rollback_command_summary.per_entry_dry_run_command_count) -Expected 2 `
+        -Message "Restore audit should summarize per-entry dry-run command count."
+    Assert-Equal -Actual ([int]$summary.restorable_rollback_command_summary.per_entry_restore_command_template_count) -Expected 2 `
+        -Message "Restore audit should summarize per-entry restore template count."
+    Assert-Equal -Actual ([bool]$summary.restorable_rollback_command_summary.has_batch_restorable_dry_run_command) -Expected $true `
+        -Message "Restore audit should summarize that a batch dry-run command exists."
+    Assert-Equal -Actual ([bool]$summary.restorable_rollback_command_summary.has_batch_restorable_restore_command_template) -Expected $true `
+        -Message "Restore audit should summarize that a batch restore template exists."
+    Assert-ContainsText -Text ([string]$summary.restorable_rollback_command_summary.first_per_entry_dry_run_command) -ExpectedText "--entry 1" `
+        -Message "Restore audit should summarize the first per-entry dry-run command."
+    Assert-ContainsText -Text ([string]$summary.restorable_rollback_command_summary.first_per_entry_restore_command_template) -ExpectedText "--output <output.docx>" `
+        -Message "Restore audit should summarize the first per-entry restore template."
+    Assert-ContainsText -Text ([string]$summary.restorable_rollback_command_summary.batch_restorable_dry_run_command) -ExpectedText "--entry 2" `
+        -Message "Restore audit should summarize the batch dry-run command."
+    Assert-ContainsText -Text ([string]$summary.restorable_rollback_command_summary.batch_restorable_restore_command_template) -ExpectedText "--output <output.docx>" `
+        -Message "Restore audit should summarize the batch restore template."
     Assert-ContainsText -Text ((@($summary.restorable_rollback_entry_indexes) | ForEach-Object { [string]$_ }) -join ",") -ExpectedText "1,2" `
         -Message "Restore audit should list restorable merge rollback entry indexes."
     Assert-Equal -Actual (@($summary.per_entry_dry_run_commands).Count) -Expected 2 `

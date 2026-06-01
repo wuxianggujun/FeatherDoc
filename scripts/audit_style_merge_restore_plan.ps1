@@ -479,6 +479,38 @@ function Get-RollbackPlanSummary {
     }
 }
 
+function Get-StyleMergeRestoreRestorableCommandSummary {
+    param($RestorableRollbackCommandSummary)
+
+    $dryRunCommands = @(Get-JsonProperty -Object $RestorableRollbackCommandSummary -Name "per_entry_dry_run_commands")
+    $restoreCommandTemplates = @(Get-JsonProperty -Object $RestorableRollbackCommandSummary -Name "per_entry_restore_command_templates")
+    $batchDryRunCommand = Get-JsonString -Object $RestorableRollbackCommandSummary -Names @("batch_restorable_dry_run_command")
+    $batchRestoreCommandTemplate = Get-JsonString -Object $RestorableRollbackCommandSummary -Names @("batch_restorable_restore_command_template")
+    $firstDryRunCommand = if ($dryRunCommands.Count -gt 0) {
+        Get-JsonString -Object $dryRunCommands[0] -Names @("command")
+    } else {
+        ""
+    }
+    $firstRestoreCommandTemplate = if ($restoreCommandTemplates.Count -gt 0) {
+        Get-JsonString -Object $restoreCommandTemplates[0] -Names @("command_template")
+    } else {
+        ""
+    }
+
+    return [ordered]@{
+        restorable_rollback_entry_count = Get-JsonInt -Object $RestorableRollbackCommandSummary -Names @("restorable_rollback_entry_count")
+        restorable_rollback_entry_indexes = @(Get-JsonProperty -Object $RestorableRollbackCommandSummary -Name "restorable_rollback_entry_indexes")
+        per_entry_dry_run_command_count = $dryRunCommands.Count
+        per_entry_restore_command_template_count = $restoreCommandTemplates.Count
+        has_batch_restorable_dry_run_command = (-not [string]::IsNullOrWhiteSpace($batchDryRunCommand))
+        has_batch_restorable_restore_command_template = (-not [string]::IsNullOrWhiteSpace($batchRestoreCommandTemplate))
+        first_per_entry_dry_run_command = $firstDryRunCommand
+        first_per_entry_restore_command_template = $firstRestoreCommandTemplate
+        batch_restorable_dry_run_command = $batchDryRunCommand
+        batch_restorable_restore_command_template = $batchRestoreCommandTemplate
+    }
+}
+
 function Get-StyleMergeRestoreReviewHandoffSteps {
     param(
         [int]$IssueCount,
@@ -851,6 +883,8 @@ $restorableRollbackCommandSummary = Get-RestorableRollbackEntryCommands `
     -RollbackPlanObject $rollbackPlanObject `
     -InputDocx $resolvedInputDocx `
     -RollbackPlan $resolvedRollbackPlan
+$restorableCommandSummary = Get-StyleMergeRestoreRestorableCommandSummary `
+    -RestorableRollbackCommandSummary $restorableRollbackCommandSummary
 $visualReviewDocx = Convert-ToPortableRelativePath -BasePath $repoRoot -TargetPath $resolvedInputDocx
 if ([string]::IsNullOrWhiteSpace($visualReviewDocx)) {
     $visualReviewDocx = $resolvedInputDocx
@@ -1022,6 +1056,7 @@ $summary = [ordered]@{
     issue_review_group_summary = $issueReviewGroupSummary
     handoff_status_summary = $handoffStatusSummary
     rollback_plan_summary = $rollbackPlanSummary
+    restorable_rollback_command_summary = $restorableCommandSummary
     selected_restore_command_template = $selectedRestoreCommandTemplate
     restorable_rollback_entry_count = $restorableRollbackCommandSummary.restorable_rollback_entry_count
     restorable_rollback_entry_indexes = @($restorableRollbackCommandSummary.restorable_rollback_entry_indexes)
