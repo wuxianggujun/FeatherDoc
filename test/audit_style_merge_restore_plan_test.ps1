@@ -281,12 +281,16 @@ if (Test-Scenario -Name "clean") {
         -Message "Clean restore audit visual review handoff should be the next step."
     Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].command) -ExpectedText "prepare_word_review_task.ps1" `
         -Message "Clean restore audit visual review handoff should expose the review command."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].copy_command) -ExpectedText "prepare_word_review_task.ps1" `
+        -Message "Clean restore audit visual review handoff should expose a copy command."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[2].id) -Expected "restore_selected_style_merges" `
         -Message "Clean restore audit handoff should still expose the selected restore step."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[2].status) -Expected "ready" `
         -Message "Clean restore audit selected restore step should be ready."
     Assert-ContainsText -Text ([string]$summary.review_handoff_steps[2].command_template) -ExpectedText "--output <output.docx>" `
         -Message "Clean restore audit selected restore step should expose an output template."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[2].copy_command) -ExpectedText "--output <output.docx>" `
+        -Message "Clean restore audit selected restore step should expose its restore template as copy command."
     Assert-ContainsText -Text ([string]$summary.review_handoff_steps[2].batch_restore_command_template) -ExpectedText "--entry 1" `
         -Message "Clean restore audit handoff should expose the batch restore template."
     Assert-ContainsText -Text ([string]$summary.selected_restore_command_template) -ExpectedText "--entry 0" `
@@ -402,6 +406,8 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit issue group handoff should be the next step."
     Assert-Equal -Actual ([int]$summary.review_handoff_steps[1].issue_group_count) -Expected 1 `
         -Message "Issue restore audit handoff should preserve issue group count."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].copy_command) -ExpectedText "restore-style-merge" `
+        -Message "Issue restore audit handoff should expose the dry-run as copy command."
     Assert-ContainsText -Text ((@($summary.review_handoff_steps[1].issue_review_commands) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "--source-style MissingBody" `
         -Message "Issue restore audit handoff should expose issue-specific review commands."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[2].id) -Expected "prepare_word_visual_review_after_clean_audit" `

@@ -458,8 +458,7 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
         status = "completed"
         command = $RestoreAuditCommand
     }
-    foreach ($entry in $sourceFields.GetEnumerator()) { $step[$entry.Key] = $entry.Value }
-    $steps.Add($step) | Out-Null
+    Add-StyleMergeRestoreHandoffStep -Steps $steps -Step $step -SourceFields $sourceFields
 
     if ($IssueCount -gt 0) {
         $issueReviewCommands = New-Object 'System.Collections.Generic.List[string]'
@@ -481,8 +480,7 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             command = $RestoreAuditCommand
             issue_review_commands = @($issueReviewCommands.ToArray())
         }
-        foreach ($entry in $sourceFields.GetEnumerator()) { $step[$entry.Key] = $entry.Value }
-        $steps.Add($step) | Out-Null
+        Add-StyleMergeRestoreHandoffStep -Steps $steps -Step $step -SourceFields $sourceFields
         $step = [ordered]@{
             order = 3
             id = "prepare_word_visual_review_after_clean_audit"
@@ -492,8 +490,7 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             command = $VisualReviewCommand
             open_command = $OpenVisualReviewCommand
         }
-        foreach ($entry in $sourceFields.GetEnumerator()) { $step[$entry.Key] = $entry.Value }
-        $steps.Add($step) | Out-Null
+        Add-StyleMergeRestoreHandoffStep -Steps $steps -Step $step -SourceFields $sourceFields
     } else {
         $step = [ordered]@{
             order = 2
@@ -503,8 +500,7 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             command = $VisualReviewCommand
             open_command = $OpenVisualReviewCommand
         }
-        foreach ($entry in $sourceFields.GetEnumerator()) { $step[$entry.Key] = $entry.Value }
-        $steps.Add($step) | Out-Null
+        Add-StyleMergeRestoreHandoffStep -Steps $steps -Step $step -SourceFields $sourceFields
         $step = [ordered]@{
             order = 3
             id = "restore_selected_style_merges"
@@ -514,11 +510,26 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             restorable_rollback_entry_count = $RestorableRollbackCommandSummary.restorable_rollback_entry_count
             batch_restore_command_template = $RestorableRollbackCommandSummary.batch_restorable_restore_command_template
         }
-        foreach ($entry in $sourceFields.GetEnumerator()) { $step[$entry.Key] = $entry.Value }
-        $steps.Add($step) | Out-Null
+        Add-StyleMergeRestoreHandoffStep -Steps $steps -Step $step -SourceFields $sourceFields
     }
 
     return @($steps.ToArray())
+}
+
+function Add-StyleMergeRestoreHandoffStep {
+    param(
+        [System.Collections.Generic.List[object]]$Steps,
+        [System.Collections.Specialized.OrderedDictionary]$Step,
+        [System.Collections.Specialized.OrderedDictionary]$SourceFields
+    )
+
+    foreach ($entry in $SourceFields.GetEnumerator()) {
+        $Step[$entry.Key] = $entry.Value
+    }
+
+    $copyCommand = Get-JsonString -Object $Step -Names @("command", "command_template", "batch_restore_command_template")
+    $Step["copy_command"] = $copyCommand
+    $Steps.Add($Step) | Out-Null
 }
 
 $repoRoot = Resolve-TemplateSchemaRepoRoot -ScriptRoot $PSScriptRoot
