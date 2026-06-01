@@ -201,6 +201,16 @@ Write-JsonFile -Path $tableSummaryPath -Value ([ordered]@{
         table_position_review_count = 1
         pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
         pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
+        metadata_only_fields = @(
+            "leftFromText",
+            "rightFromText",
+            "topFromText outside paragraph anchoring",
+            "tblOverlap"
+        )
+        review_required_fields = @(
+            "full Word-compatible floating table text wrapping",
+            "table overlap avoidance and collision resolution"
+        )
     }
     release_blocker_count = 1
     release_blockers = @(
@@ -313,6 +323,16 @@ Write-JsonFile -Path $autoDiscoverTableSummaryPath -Value ([ordered]@{
         table_position_review_count = 1
         pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
         pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
+        metadata_only_fields = @(
+            "leftFromText",
+            "rightFromText",
+            "topFromText outside paragraph anchoring",
+            "tblOverlap"
+        )
+        review_required_fields = @(
+            "full Word-compatible floating table text wrapping",
+            "table overlap avoidance and collision resolution"
+        )
     }
     release_blocker_count = 1
     release_blockers = @(
@@ -817,6 +837,12 @@ Assert-Equal -Actual ([string]$tableMetric.details.pdf_floating_table_support_co
 Assert-Equal -Actual ([string]$tableMetric.details.pdf_floating_table_reviewer_focus) `
     -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
     -Message "Release candidate summary should preserve PDF floating table reviewer focus details."
+Assert-ContainsText -Text (($tableMetric.details.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "tblOverlap" `
+    -Message "Release candidate summary should preserve generic PDF floating table metadata-only fields."
+Assert-ContainsText -Text (($tableMetric.details.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "table overlap avoidance and collision resolution" `
+    -Message "Release candidate summary should preserve generic PDF floating table review-required fields."
 Assert-Equal -Actual ([string]$summary.steps.release_blocker_rollup.status) -Expected "blocked" `
     -Message "Release candidate step status should mirror rollup status."
 Assert-Equal -Actual ([int]$summary.steps.release_blocker_rollup.source_failure_count) -Expected 0 `
@@ -826,6 +852,15 @@ Assert-Equal -Actual ([int]$summary.steps.release_blocker_rollup.governance_metr
 Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
     -ExpectedText "real_corpus_confidence:low:56" `
     -Message "Release candidate step summary should mirror rollup governance metrics."
+$stepTableMetric = ($summary.steps.release_blocker_rollup.governance_metrics |
+    Where-Object { [string]$_.id -eq "table_layout_delivery_governance.delivery_quality" } |
+    Select-Object -First 1)
+Assert-ContainsText -Text (($stepTableMetric.details.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "tblOverlap" `
+    -Message "Release candidate step summary should preserve generic PDF floating table metadata-only fields."
+Assert-ContainsText -Text (($stepTableMetric.details.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "table overlap avoidance and collision resolution" `
+    -Message "Release candidate step summary should preserve generic PDF floating table review-required fields."
 Assert-ContainsText -Text (($summary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1" `
     -Message "Release candidate summary should carry rollup blocker source schema."
@@ -1038,6 +1073,12 @@ Assert-Equal -Actual ([string]$autoDiscoverTableMetric.details.pdf_floating_tabl
 Assert-Equal -Actual ([string]$autoDiscoverTableMetric.details.pdf_floating_table_reviewer_focus) `
     -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
     -Message "Auto-discovered rollup should preserve PDF floating table reviewer focus details."
+Assert-ContainsText -Text (($autoDiscoverTableMetric.details.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "tblOverlap" `
+    -Message "Auto-discovered rollup should preserve generic PDF floating table metadata-only fields."
+Assert-ContainsText -Text (($autoDiscoverTableMetric.details.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "table overlap avoidance and collision resolution" `
+    -Message "Auto-discovered rollup should preserve generic PDF floating table review-required fields."
 $autoDiscoverNumberingMetric = ($autoDiscoverSummary.release_blocker_rollup.governance_metrics |
     Where-Object { [string]$_.id -eq "numbering_catalog_governance.real_corpus_confidence" } |
     Select-Object -First 1)
@@ -1128,8 +1169,16 @@ Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "repair_hint
     -Message "Auto-discovered rollup Markdown should include warning repair hints."
 Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "sync-content-controls-from-custom-xml" `
     -Message "Auto-discovered rollup Markdown should include warning command templates."
+Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "metadata_only_fields: ``leftFromText, rightFromText, topFromText outside paragraph anchoring, tblOverlap``" `
+    -Message "Auto-discovered rollup Markdown should include generic PDF floating table metadata-only fields."
+Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "review_required_fields: ``full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution``" `
+    -Message "Auto-discovered rollup Markdown should include generic PDF floating table review-required fields."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "Release blocker rollup details" `
     -Message "Auto-discovered final review should include release blocker rollup details."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "metadata_only_fields: leftFromText, rightFromText, topFromText outside paragraph anchoring, tblOverlap" `
+    -Message "Auto-discovered final review should include generic PDF floating table metadata-only fields."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "review_required_fields: full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution" `
+    -Message "Auto-discovered final review should include generic PDF floating table review-required fields."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "project_template_onboarding.schema_approval" `
     -Message "Auto-discovered final review should include project-template blocker id."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "source_report_display:" `

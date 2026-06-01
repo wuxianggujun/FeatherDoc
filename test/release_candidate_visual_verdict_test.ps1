@@ -1102,6 +1102,16 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "table-layout
             table_position_review_count = 0
             pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
             pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
+            metadata_only_fields = @(
+                "leftFromText",
+                "rightFromText",
+                "topFromText outside paragraph anchoring",
+                "tblOverlap"
+            )
+            review_required_fields = @(
+                "full Word-compatible floating table text wrapping",
+                "table overlap avoidance and collision resolution"
+            )
             command_failure_count = 0
             unresolved_item_count = 0
             penalty_summary = @(
@@ -1582,6 +1592,12 @@ if ([string]$tableMetric.details.pdf_floating_table_support_coverage -ne "4/9 su
     [string]$tableMetric.details.pdf_floating_table_reviewer_focus -ne "review metadata-only tblpPr fields before approving PDF-layout-sensitive release.") {
     throw "Release candidate summary lost the PDF floating table reviewer focus details."
 }
+Assert-ContainsText -Text (($tableMetric.details.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "tblOverlap" `
+    -Message "Release candidate summary lost generic PDF floating table metadata-only fields."
+Assert-ContainsText -Text (($tableMetric.details.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "table overlap avoidance and collision resolution" `
+    -Message "Release candidate summary lost generic PDF floating table review-required fields."
 if ([int]$candidateSummary.release_governance_handoff.report_count -ne 6 -or
     @($candidateSummary.release_governance_handoff.reports).Count -ne 6) {
     throw "Release candidate summary did not preserve release governance source reports for material rendering."
@@ -1690,6 +1706,10 @@ Assert-ContainsText -Text $finalReviewContent -ExpectedText "PDF visual segmente
     -Message "final_review.md should link segmented PDF visual gate summary evidence."
 Assert-ContainsText -Text $finalReviewContent -ExpectedText "segmented-summary.json" `
     -Message "final_review.md should expose the segmented PDF visual gate summary path."
+Assert-ContainsText -Text $finalReviewContent -ExpectedText "metadata_only_fields: leftFromText, rightFromText, topFromText outside paragraph anchoring, tblOverlap" `
+    -Message "final_review.md should expose generic PDF floating table metadata-only fields."
+Assert-ContainsText -Text $finalReviewContent -ExpectedText "review_required_fields: full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution" `
+    -Message "final_review.md should expose generic PDF floating table review-required fields."
 
 foreach ($assertion in @(
         @{ Path = $candidateReleaseHandoffPath; Label = "release_handoff.md" },
