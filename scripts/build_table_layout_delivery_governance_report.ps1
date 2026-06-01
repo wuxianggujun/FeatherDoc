@@ -217,7 +217,9 @@ function New-DeliveryQuality {
         [int]$PdfFloatingTableSupportedGeometryCount = 0,
         [int]$PdfFloatingTableMetadataOnlyCount = 0,
         [int]$PdfFloatingTableTrackedGeometryCount = 0,
-        [int]$PdfFloatingTableSupportedGeometryPercent = 0
+        [int]$PdfFloatingTableSupportedGeometryPercent = 0,
+        [string[]]$PdfFloatingTableMetadataOnlyFields = @(),
+        [string[]]$PdfFloatingTableReviewRequiredFields = @()
     )
 
     $readyDocumentPercent = Get-Percent -Numerator $ReadyDocumentCount -Denominator $DocumentCount
@@ -266,6 +268,8 @@ function New-DeliveryQuality {
         pdf_floating_table_supported_geometry_percent = $PdfFloatingTableSupportedGeometryPercent
         pdf_floating_table_support_coverage = $pdfFloatingTableSupportCoverage
         pdf_floating_table_reviewer_focus = $pdfFloatingTableReviewerFocus
+        pdf_floating_table_metadata_only_fields = @($PdfFloatingTableMetadataOnlyFields)
+        pdf_floating_table_review_required_fields = @($PdfFloatingTableReviewRequiredFields)
         command_failure_count = $TotalCommandFailureCount
         unresolved_item_count = $unresolvedItemCount
         penalty_summary = @(
@@ -356,6 +360,21 @@ function Add-PdfFloatingTableSupportSummary {
             }
         }
     )
+}
+
+function Get-UniqueStringValues {
+    param([object[]]$Values)
+
+    $seen = @{}
+    $result = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($value in @($Values)) {
+        $text = [string]$value
+        if ([string]::IsNullOrWhiteSpace($text)) { continue }
+        if ($seen.ContainsKey($text)) { continue }
+        $seen[$text] = $true
+        $result.Add($text) | Out-Null
+    }
+    return @($result.ToArray())
 }
 
 function New-ReleaseBlocker {
@@ -470,6 +489,12 @@ function New-ReportMarkdown {
     $lines.Add("- PDF floating table supported geometry: ``$($Summary.pdf_floating_table_supported_geometry_count)/$($Summary.pdf_floating_table_tracked_geometry_count)`` (``$($Summary.pdf_floating_table_supported_geometry_percent)%``)") | Out-Null
     $lines.Add("- pdf_floating_table_support_coverage: ``$($Summary.pdf_floating_table_support_coverage)``") | Out-Null
     $lines.Add("- pdf_floating_table_reviewer_focus: ``$($Summary.pdf_floating_table_reviewer_focus)``") | Out-Null
+    if (@($Summary.pdf_floating_table_metadata_only_fields).Count -gt 0) {
+        $lines.Add("- pdf_floating_table_metadata_only_fields: ``$(@($Summary.pdf_floating_table_metadata_only_fields) -join ', ')``") | Out-Null
+    }
+    if (@($Summary.pdf_floating_table_review_required_fields).Count -gt 0) {
+        $lines.Add("- pdf_floating_table_review_required_fields: ``$(@($Summary.pdf_floating_table_review_required_fields) -join ', ')``") | Out-Null
+    }
     $lines.Add("- Delivery quality: ``$($Summary.delivery_quality_level)`` (score=``$($Summary.delivery_quality_score)``)") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -494,6 +519,12 @@ function New-ReportMarkdown {
     $lines.Add("- PDF floating table supported geometry: ``$($quality.pdf_floating_table_supported_geometry_count)/$($quality.pdf_floating_table_tracked_geometry_count)`` (``$($quality.pdf_floating_table_supported_geometry_percent)%``)") | Out-Null
     $lines.Add("- pdf_floating_table_support_coverage: ``$($quality.pdf_floating_table_support_coverage)``") | Out-Null
     $lines.Add("- pdf_floating_table_reviewer_focus: ``$($quality.pdf_floating_table_reviewer_focus)``") | Out-Null
+    if (@($quality.pdf_floating_table_metadata_only_fields).Count -gt 0) {
+        $lines.Add("- pdf_floating_table_metadata_only_fields: ``$(@($quality.pdf_floating_table_metadata_only_fields) -join ', ')``") | Out-Null
+    }
+    if (@($quality.pdf_floating_table_review_required_fields).Count -gt 0) {
+        $lines.Add("- pdf_floating_table_review_required_fields: ``$(@($quality.pdf_floating_table_review_required_fields) -join ', ')``") | Out-Null
+    }
     $lines.Add("- Command failures: ``$($quality.command_failure_count)``") | Out-Null
     $lines.Add("- Unresolved items: ``$($quality.unresolved_item_count)``") | Out-Null
     foreach ($penalty in @($quality.penalty_summary)) {
@@ -969,6 +1000,18 @@ $pdfFloatingTableTrackedGeometryCount = if ($pdfFloatingTableSupportReportCount 
 $pdfFloatingTableSupportedGeometryPercent = Get-Percent `
     -Numerator $pdfFloatingTableSupportedGeometryCount `
     -Denominator $pdfFloatingTableTrackedGeometryCount
+$pdfFloatingTableMetadataOnlyFields = Get-UniqueStringValues -Values @(
+    foreach ($support in @($pdfFloatingTableSupport.ToArray())) {
+        if ([string]$support.status -eq "not_reported") { continue }
+        Get-JsonArray -Object $support -Name "metadata_only"
+    }
+)
+$pdfFloatingTableReviewRequiredFields = Get-UniqueStringValues -Values @(
+    foreach ($support in @($pdfFloatingTableSupport.ToArray())) {
+        if ([string]$support.status -eq "not_reported") { continue }
+        Get-JsonArray -Object $support -Name "review_required"
+    }
+)
 $deliveryQuality = New-DeliveryQuality `
     -DocumentCount $documents.Count `
     -ReadyDocumentCount $readyDocumentCount `
@@ -985,7 +1028,9 @@ $deliveryQuality = New-DeliveryQuality `
     -PdfFloatingTableSupportedGeometryCount $pdfFloatingTableSupportedGeometryCount `
     -PdfFloatingTableMetadataOnlyCount $pdfFloatingTableMetadataOnlyCount `
     -PdfFloatingTableTrackedGeometryCount $pdfFloatingTableTrackedGeometryCount `
-    -PdfFloatingTableSupportedGeometryPercent $pdfFloatingTableSupportedGeometryPercent
+    -PdfFloatingTableSupportedGeometryPercent $pdfFloatingTableSupportedGeometryPercent `
+    -PdfFloatingTableMetadataOnlyFields $pdfFloatingTableMetadataOnlyFields `
+    -PdfFloatingTableReviewRequiredFields $pdfFloatingTableReviewRequiredFields
 $status = if ($sourceFailureCount -gt 0 -or $failedDocumentCount -gt 0 -or $totalCommandFailureCount -gt 0) {
     "failed"
 } elseif ($releaseBlockers.Count -gt 0 -or $warnings.Count -gt 0 -or $needsReviewDocumentCount -gt 0 -or
@@ -1030,6 +1075,8 @@ $summary = [ordered]@{
     pdf_floating_table_supported_geometry_percent = $pdfFloatingTableSupportedGeometryPercent
     pdf_floating_table_support_coverage = $deliveryQuality.pdf_floating_table_support_coverage
     pdf_floating_table_reviewer_focus = $deliveryQuality.pdf_floating_table_reviewer_focus
+    pdf_floating_table_metadata_only_fields = @($pdfFloatingTableMetadataOnlyFields)
+    pdf_floating_table_review_required_fields = @($pdfFloatingTableReviewRequiredFields)
     pdf_floating_table_support_summary = @(Add-PdfFloatingTableSupportSummary -Items $pdfFloatingTableSupport.ToArray())
     pdf_floating_table_support = @($pdfFloatingTableSupport.ToArray())
     total_table_style_issue_count = $totalIssueCount

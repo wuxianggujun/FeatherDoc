@@ -69,7 +69,9 @@ Content-control 修复工作流：
 - ``delivery_quality`` 已暴露表格样式、自动修复、人工复核、
   浮动表格定位和命令失败等明细计数。
 - PDF 浮动表交付边界固定为 ``pdf_floating_table_support_coverage``、
-  ``pdf_floating_table_reviewer_focus`` 和 ``metadata-only tblpPr``，
+  ``pdf_floating_table_reviewer_focus``、
+  ``pdf_floating_table_metadata_only_fields``、
+  ``pdf_floating_table_review_required_fields`` 和 ``metadata-only tblpPr``，
   reviewer 必须先复核元数据级 ``tblpPr`` 字段，再批准 PDF 版式敏感发布。
 - ``floating_table_plans_pending`` 保留兼容。
 - 发布汇总、handoff 报告和公开材料审计路径已纳入这些明细。

@@ -72,6 +72,8 @@ foreach ($marker in @(
         "pdf_floating_table_supported_geometry_percent",
         "pdf_floating_table_tracked_geometry_count",
         "pdf_floating_table_reviewer_focus",
+        "pdf_floating_table_metadata_only_fields",
+        "pdf_floating_table_review_required_fields",
         "metadata-only",
         "source_schema",
         "source_report_display",
@@ -130,6 +132,8 @@ foreach ($marker in @(
         "pdf_floating_table_supported_geometry_percent",
         "pdf_floating_table_tracked_geometry_count",
         "pdf_floating_table_reviewer_focus",
+        "pdf_floating_table_metadata_only_fields",
+        "pdf_floating_table_review_required_fields",
         "metadata-only",
         "tblpPr",
         "dry_run_apply_table_position_plans",
@@ -167,7 +171,9 @@ foreach ($assertion in @(
                 "pdf_floating_table_support",
                 "pdf_floating_table_supported_geometry_percent",
                 "pdf_floating_table_support_coverage",
-                "pdf_floating_table_reviewer_focus"
+                "pdf_floating_table_reviewer_focus",
+                "pdf_floating_table_metadata_only_fields",
+                "pdf_floating_table_review_required_fields"
             )
         },
         [ordered]@{
@@ -190,6 +196,8 @@ foreach ($assertion in @(
                 "pdf_floating_table_tracked_geometry_count",
                 "pdf_floating_table_support_coverage",
                 "pdf_floating_table_reviewer_focus",
+                "pdf_floating_table_metadata_only_fields",
+                "pdf_floating_table_review_required_fields",
                 "metadata-only tblpPr",
                 "pdf_floating_table_layout_boundary",
                 "source_schema",
@@ -241,7 +249,9 @@ foreach ($assertion in @(
                 "source_json_display",
                 "open_command",
                 "pdf_floating_table_support_coverage",
-                "pdf_floating_table_reviewer_focus"
+                "pdf_floating_table_reviewer_focus",
+                "pdf_floating_table_metadata_only_fields",
+                "pdf_floating_table_review_required_fields"
             )
         }
     )) {
@@ -280,7 +290,9 @@ foreach ($assertion in @(
                 "action_items",
                 "table_position_plans",
                 "pdf_floating_table_support",
-                "pdf_floating_table_supported_geometry_percent"
+                "pdf_floating_table_supported_geometry_percent",
+                "pdf_floating_table_metadata_only_fields",
+                "pdf_floating_table_review_required_fields"
             )
         },
         [ordered]@{
@@ -295,6 +307,8 @@ foreach ($assertion in @(
                 "floating_table_plans_pending",
                 "pdf_floating_table_support",
                 "pdf_floating_table_supported_geometry_percent",
+                "pdf_floating_table_metadata_only_fields",
+                "pdf_floating_table_review_required_fields",
                 "stable_pdf_geometry_subset_not_full_word_wrapping",
                 "source_schema",
                 "source_report_display",

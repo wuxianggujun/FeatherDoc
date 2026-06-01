@@ -682,6 +682,8 @@ foreach ($marker in @(
     "table_layout_delivery_governance.delivery_quality",
     "pdf_floating_table_support_coverage",
     "pdf_floating_table_reviewer_focus",
+    "pdf_floating_table_metadata_only_fields",
+    "pdf_floating_table_review_required_fields",
     'metadata-only ``tblpPr``',
     "block_scoped_entry_project_template_trace",
     "block_scoped_entry_project_template_status_trace",

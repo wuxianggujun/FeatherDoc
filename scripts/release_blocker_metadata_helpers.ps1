@@ -4032,6 +4032,22 @@ function Add-ReleaseGovernanceMetricDetailLines {
         } elseif ($pdfFloatingTableSupportedGeometryPercent -lt 100) {
             [void]$Lines.Add("  - pdf_floating_table_reviewer_focus: review metadata-only tblpPr fields before approving PDF-layout-sensitive release.")
         }
+        $pdfFloatingTableMetadataOnlyFields = @(
+            Get-ReleaseBlockerArrayProperty -Object $details -Name "pdf_floating_table_metadata_only_fields" |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        if ($pdfFloatingTableMetadataOnlyFields.Count -gt 0) {
+            [void]$Lines.Add("  - pdf_floating_table_metadata_only_fields: $($pdfFloatingTableMetadataOnlyFields -join ', ')")
+        }
+        $pdfFloatingTableReviewRequiredFields = @(
+            Get-ReleaseBlockerArrayProperty -Object $details -Name "pdf_floating_table_review_required_fields" |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        if ($pdfFloatingTableReviewRequiredFields.Count -gt 0) {
+            [void]$Lines.Add("  - pdf_floating_table_review_required_fields: $($pdfFloatingTableReviewRequiredFields -join ', ')")
+        }
     }
 
     foreach ($fieldName in @("catalog_document_keys", "baseline_document_keys", "matched_document_keys")) {

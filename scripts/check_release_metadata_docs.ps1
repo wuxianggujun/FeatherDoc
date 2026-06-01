@@ -498,6 +498,8 @@ $checklistExpectedMarkers = @(
     "build_table_layout_delivery_governance_report_test.ps1",
     "pdf_floating_table_support_coverage",
     "pdf_floating_table_reviewer_focus",
+    "pdf_floating_table_metadata_only_fields",
+    "pdf_floating_table_review_required_fields",
     "metadata-only tblpPr",
     "metadata_only_fields",
     "review_required_fields"

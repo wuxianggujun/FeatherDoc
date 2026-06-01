@@ -279,8 +279,8 @@ function Assert-SummaryFailure {
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
     Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-    if ($summary.required_marker_count -ne 225) {
-        throw "Expected JSON summary to count 225 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 227) {
+        throw "Expected JSON summary to count 227 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -570,6 +570,8 @@ $defaultChecklistText = @(
     '- build_table_layout_delivery_governance_report_test.ps1',
     '- pdf_floating_table_support_coverage',
     '- pdf_floating_table_reviewer_focus',
+    '- pdf_floating_table_metadata_only_fields',
+    '- pdf_floating_table_review_required_fields',
     '- metadata-only tblpPr',
     '- metadata_only_fields',
     '- review_required_fields',
@@ -680,8 +682,8 @@ if ($summary.checked_document_count -ne 7) {
 if ($summary.required_pipeline_marker_count -ne 100) {
     throw "Expected JSON summary pipeline marker count 100, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 91) {
-    throw "Expected JSON summary checklist marker count 91, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 93) {
+    throw "Expected JSON summary checklist marker count 93, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 13) {
     throw "Expected JSON summary document governance marker count 13, got: $($summary.required_document_governance_marker_count)"
@@ -692,8 +694,8 @@ if ($summary.required_policy_marker_count -ne 19) {
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 225) {
-    throw "Expected JSON summary total marker count 225, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 227) {
+    throw "Expected JSON summary total marker count 227, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 7) {
     throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
@@ -986,6 +988,14 @@ Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "metadata-only tblpPr" `
     -Message "JSON summary should list metadata-only tblpPr checklist marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "pdf_floating_table_metadata_only_fields" `
+    -Message "JSON summary should list PDF floating table aggregate metadata-only field marker."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "pdf_floating_table_review_required_fields" `
+    -Message "JSON summary should list PDF floating table aggregate review-required field marker."
 Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "metadata_only_fields" `

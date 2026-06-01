@@ -345,6 +345,16 @@ Write-JsonFile -Path $tableLayoutPath -Value ([ordered]@{
         pdf_floating_table_supported_geometry_percent = 44
         pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
         pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
+        pdf_floating_table_metadata_only_fields = @(
+            "leftFromText",
+            "rightFromText",
+            "topFromText outside paragraph anchoring",
+            "tblOverlap"
+        )
+        pdf_floating_table_review_required_fields = @(
+            "full Word-compatible floating table text wrapping",
+            "table overlap avoidance and collision resolution"
+        )
         command_failure_count = 0
         unresolved_item_count = 10
         penalty_summary = @(
@@ -1858,6 +1868,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF floating table reviewer focus marker."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
         -Message "Markdown should include PDF floating table reviewer focus guidance."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_metadata_only_fields: ``leftFromText, rightFromText, topFromText outside paragraph anchoring, tblOverlap``" `
+        -Message "Markdown should include concrete PDF floating table metadata-only fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_review_required_fields: ``full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution``" `
+        -Message "Markdown should include concrete PDF floating table reviewer-required fields."
     Assert-ContainsText -Text $markdown -ExpectedText "floating_table_plans_pending(count=3, penalty=14)" `
         -Message "Markdown should include table layout delivery penalty summary."
     Assert-ContainsText -Text $markdown -ExpectedText "review_source_table_position_plan" `

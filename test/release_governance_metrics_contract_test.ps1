@@ -190,6 +190,8 @@ foreach ($marker in @(
     "pdf_floating_table_supported_geometry_percent",
     "pdf_floating_table_support_coverage",
     "pdf_floating_table_reviewer_focus",
+    "pdf_floating_table_metadata_only_fields",
+    "pdf_floating_table_review_required_fields",
     "command_failure_count",
     "floating_table_plans_pending"
 )) {
@@ -236,6 +238,8 @@ foreach ($marker in @(
     "long_task_document_governance_closure",
     "pdf_floating_table_support_coverage",
     "pdf_floating_table_reviewer_focus",
+    "pdf_floating_table_metadata_only_fields",
+    "pdf_floating_table_review_required_fields",
     "metadata-only tblpPr"
 )) {
     Assert-ContainsText -Text $acceptanceDoc -ExpectedText $marker `

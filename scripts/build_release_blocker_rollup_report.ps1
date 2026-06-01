@@ -540,6 +540,18 @@ function Add-GovernanceMetricDetailLines {
         } elseif ($pdfFloatingTableSupportedGeometryPercent -lt 100) {
             $Lines.Add("  - pdf_floating_table_reviewer_focus: review metadata-only ``tblpPr`` fields before approving PDF-layout-sensitive release.") | Out-Null
         }
+        $pdfFloatingTableMetadataOnlyFields = @(Get-JsonArray -Object $details -Name "pdf_floating_table_metadata_only_fields" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($pdfFloatingTableMetadataOnlyFields.Count -gt 0) {
+            $Lines.Add("  - pdf_floating_table_metadata_only_fields: ``$($pdfFloatingTableMetadataOnlyFields -join ', ')``") | Out-Null
+        }
+        $pdfFloatingTableReviewRequiredFields = @(Get-JsonArray -Object $details -Name "pdf_floating_table_review_required_fields" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($pdfFloatingTableReviewRequiredFields.Count -gt 0) {
+            $Lines.Add("  - pdf_floating_table_review_required_fields: ``$($pdfFloatingTableReviewRequiredFields -join ', ')``") | Out-Null
+        }
     }
 
     $penaltyParts = New-Object 'System.Collections.Generic.List[string]'

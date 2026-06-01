@@ -329,6 +329,21 @@ function Add-PdfFloatingTableSupportSummary {
     )
 }
 
+function Get-UniqueStringValues {
+    param([object[]]$Values)
+
+    $seen = @{}
+    $result = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($value in @($Values)) {
+        $text = [string]$value
+        if ([string]::IsNullOrWhiteSpace($text)) { continue }
+        if ($seen.ContainsKey($text)) { continue }
+        $seen[$text] = $true
+        $result.Add($text) | Out-Null
+    }
+    return @($result.ToArray())
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -350,6 +365,12 @@ function New-ReportMarkdown {
     $lines.Add("- PDF floating table support reports: ``$($Summary.pdf_floating_table_support_report_count)``") | Out-Null
     $lines.Add("- pdf_floating_table_support_coverage: ``$($Summary.pdf_floating_table_support_coverage)``") | Out-Null
     $lines.Add("- pdf_floating_table_reviewer_focus: ``$($Summary.pdf_floating_table_reviewer_focus)``") | Out-Null
+    if (@($Summary.pdf_floating_table_metadata_only_fields).Count -gt 0) {
+        $lines.Add("- pdf_floating_table_metadata_only_fields: ``$(@($Summary.pdf_floating_table_metadata_only_fields) -join ', ')``") | Out-Null
+    }
+    if (@($Summary.pdf_floating_table_review_required_fields).Count -gt 0) {
+        $lines.Add("- pdf_floating_table_review_required_fields: ``$(@($Summary.pdf_floating_table_review_required_fields) -join ', ')``") | Out-Null
+    }
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("") | Out-Null
 
@@ -425,6 +446,14 @@ function New-ReportMarkdown {
                 $support.metadata_only_count,
                 $support.reviewer_focus,
                 $support.source_report_display)) | Out-Null
+            $metadataOnlyFields = @($support.metadata_only | ForEach-Object { [string]$_ })
+            if ($metadataOnlyFields.Count -gt 0) {
+                $lines.Add(("  - metadata_only_fields: ``{0}``" -f ($metadataOnlyFields -join ", "))) | Out-Null
+            }
+            $reviewRequiredFields = @($support.review_required | ForEach-Object { [string]$_ })
+            if ($reviewRequiredFields.Count -gt 0) {
+                $lines.Add(("  - review_required_fields: ``{0}``" -f ($reviewRequiredFields -join ", "))) | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -741,6 +770,18 @@ $pdfFloatingTableSupportCoverage = "{0}/{1} supported ({2} percent); metadata_on
     $pdfFloatingTableSupportedGeometryPercent,
     $pdfFloatingTableMetadataOnlyTotal
 $pdfFloatingTableReviewerFocus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
+$pdfFloatingTableMetadataOnlyFields = Get-UniqueStringValues -Values @(
+    foreach ($support in @($pdfFloatingTableSupport.ToArray())) {
+        if ([string]$support.status -eq "not_reported") { continue }
+        Get-JsonArray -Object $support -Name "metadata_only"
+    }
+)
+$pdfFloatingTableReviewRequiredFields = Get-UniqueStringValues -Values @(
+    foreach ($support in @($pdfFloatingTableSupport.ToArray())) {
+        if ([string]$support.status -eq "not_reported") { continue }
+        Get-JsonArray -Object $support -Name "review_required"
+    }
+)
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($sourceReportFailureCount -gt 0 -or $totalCommandFailureCount -gt 0) {
@@ -789,6 +830,8 @@ $summary = [ordered]@{
     pdf_floating_table_supported_geometry_percent = $pdfFloatingTableSupportedGeometryPercent
     pdf_floating_table_support_coverage = $pdfFloatingTableSupportCoverage
     pdf_floating_table_reviewer_focus = $pdfFloatingTableReviewerFocus
+    pdf_floating_table_metadata_only_fields = @($pdfFloatingTableMetadataOnlyFields)
+    pdf_floating_table_review_required_fields = @($pdfFloatingTableReviewRequiredFields)
     pdf_floating_table_support_summary = @(Add-PdfFloatingTableSupportSummary -Items $pdfFloatingTableSupport.ToArray())
     pdf_floating_table_support = @($pdfFloatingTableSupport.ToArray())
     release_blocker_count = $blockers.Count

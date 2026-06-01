@@ -2700,7 +2700,9 @@ Current Limitations
   ``tblLook``, floating-table, and PDF support evidence without re-reading the
   original DOCX. Release material reviewers also get
   ``pdf_floating_table_reviewer_focus`` guidance for metadata-only ``tblpPr``
-  wrapping scope. Advanced table-style coverage and the remaining
+  wrapping scope plus ``pdf_floating_table_metadata_only_fields`` and
+  ``pdf_floating_table_review_required_fields`` lists for the concrete
+  metadata-only and full wrapping boundaries. Advanced table-style coverage and the remaining
   ``w:tblpPr`` wrapping/overlap details are still active extension areas.
 - Paragraphs can now be attached to managed bullet and decimal lists and can
   restart managed list sequences, and custom numbering definitions can now be

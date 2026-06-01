@@ -208,6 +208,16 @@ function New-TableLayoutDeliveryMetricFixture {
             pdf_floating_table_supported_geometry_percent = 44
             pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
             pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
+            pdf_floating_table_metadata_only_fields = @(
+                "leftFromText",
+                "rightFromText",
+                "topFromText outside paragraph anchoring",
+                "tblOverlap"
+            )
+            pdf_floating_table_review_required_fields = @(
+                "full Word-compatible floating table text wrapping",
+                "table overlap avoidance and collision resolution"
+            )
             command_failure_count = 0
             unresolved_item_count = 0
             penalty_summary = @(
@@ -1027,6 +1037,8 @@ Assert-Contains -Path $handoffPath -ExpectedText 'pdf_floating_table_supported_g
 Assert-Contains -Path $handoffPath -ExpectedText 'pdf_floating_table_tracked_geometry_count=9' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText "pdf_floating_table_support_coverage: 4/9 supported (44 percent); metadata_only=5" -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'pdf_floating_table_reviewer_focus: review metadata-only tblpPr fields before approving PDF-layout-sensitive release.' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'pdf_floating_table_metadata_only_fields: leftFromText, rightFromText, topFromText outside paragraph anchoring, tblOverlap' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'pdf_floating_table_review_required_fields: full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'command_failure_count=0' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'unresolved_item_count=0' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText "floating_table_plans_pending(count=0, penalty=0)" -Label 'release_handoff.md'
@@ -1438,6 +1450,8 @@ Assert-Contains -Path $guidePath -ExpectedText 'pdf_floating_table_supported_geo
 Assert-Contains -Path $guidePath -ExpectedText 'pdf_floating_table_tracked_geometry_count=9' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText "pdf_floating_table_support_coverage: 4/9 supported (44 percent); metadata_only=5" -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'pdf_floating_table_reviewer_focus: review metadata-only tblpPr fields before approving PDF-layout-sensitive release.' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'pdf_floating_table_metadata_only_fields: leftFromText, rightFromText, topFromText outside paragraph anchoring, tblOverlap' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'pdf_floating_table_review_required_fields: full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'unresolved_item_count=0' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText "floating_table_plans_pending(count=0, penalty=0)" -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'schema_patch_confidence_calibration.pending_schema_approvals' -Label 'ARTIFACT_GUIDE.md'
@@ -1470,6 +1484,8 @@ Assert-Contains -Path $checklistPath -ExpectedText 'pdf_floating_table_supported
 Assert-Contains -Path $checklistPath -ExpectedText 'pdf_floating_table_tracked_geometry_count=9' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText "pdf_floating_table_support_coverage: 4/9 supported (44 percent); metadata_only=5" -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'pdf_floating_table_reviewer_focus: review metadata-only tblpPr fields before approving PDF-layout-sensitive release.' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'pdf_floating_table_metadata_only_fields: leftFromText, rightFromText, topFromText outside paragraph anchoring, tblOverlap' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'pdf_floating_table_review_required_fields: full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'unresolved_item_count=0' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText "floating_table_plans_pending(count=0, penalty=0)" -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'schema_patch_confidence_calibration.pending_schema_approvals' -Label 'REVIEWER_CHECKLIST.md'

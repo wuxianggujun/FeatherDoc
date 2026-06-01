@@ -31,6 +31,10 @@ performance.
   distinguish the stable PDF geometry subset from metadata-only wrapping scope.
 - Added table layout governance Markdown details for metadata-only PDF floating
   table fields and reviewer-required wrapping boundaries.
+- Added machine-readable PDF floating table field lists to table layout rollup,
+  governance, handoff, and release bundle materials so reviewers can see the
+  concrete metadata-only and review-required boundaries without reopening the
+  source layout JSON.
 - Added stable public evidence-path display handling for packaged release
   manifests so project-template and manifest-signoff evidence keeps source
   identity even when packaging runs from an out-of-repository working directory.

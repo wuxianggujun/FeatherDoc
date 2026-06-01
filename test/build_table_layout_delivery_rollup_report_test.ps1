@@ -288,6 +288,12 @@ if (Test-Scenario -Name "aggregate") {
     Assert-Equal -Actual ([string]$summary.pdf_floating_table_reviewer_focus) `
         -Expected "review metadata-only tblpPr fields before approving PDF-layout-sensitive release." `
         -Message "Aggregate layout rollup should expose PDF floating table reviewer focus."
+    Assert-ContainsText -Text (($summary.pdf_floating_table_metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "topFromText outside paragraph anchoring" `
+        -Message "Aggregate layout rollup should expose machine-readable metadata-only PDF floating table fields."
+    Assert-ContainsText -Text (($summary.pdf_floating_table_review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "full Word-compatible floating table text wrapping" `
+        -Message "Aggregate layout rollup should expose machine-readable reviewer-required PDF floating table fields."
     Assert-ContainsText -Text (($summary.pdf_floating_table_support_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
         -ExpectedText "partial:2" `
         -Message "Aggregate layout rollup should group PDF floating table support statuses."
@@ -331,6 +337,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should include PDF floating table support coverage marker."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_reviewer_focus" `
         -Message "Markdown report should include PDF floating table reviewer focus marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_metadata_only_fields" `
+        -Message "Markdown report should include aggregate metadata-only PDF floating table field marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_review_required_fields" `
+        -Message "Markdown report should include aggregate reviewer-required PDF floating table field marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_required_fields" `
+        -Message "Markdown report should include per-document reviewer-required PDF floating table field marker."
     Assert-ContainsText -Text $markdown -ExpectedText "metadata-only tblpPr" `
         -Message "Markdown report should include metadata-only tblpPr reviewer guidance."
     Assert-ContainsText -Text $markdown -ExpectedText "stable_pdf_geometry_subset_not_full_word_wrapping" `

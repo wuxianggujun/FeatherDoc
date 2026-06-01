@@ -273,10 +273,12 @@ failure diagnostics 时重新猜测编码。
 ``build_table_layout_delivery_governance_report_test.ps1``。
 其中表格版式交付入口还必须保留 ``pdf_floating_table_support_coverage``、
 ``pdf_floating_table_reviewer_focus`` 和 metadata-only ``tblpPr`` 复核提示，
-并把固定 marker ``metadata-only tblpPr`` 留在同一维护材料里；治理 Markdown 还应直接
-列出 ``metadata_only_fields`` 与 ``review_required_fields``，确保 release metadata
-维护者不需要回到 JSON 才能区分当前 PDF 几何子集、reviewer focus、元数据级字段
-复核和完整 Word-compatible wrapping 边界。
+并把固定 marker ``metadata-only tblpPr`` 留在同一维护材料里；治理 JSON 和 Markdown
+还应直接列出 ``pdf_floating_table_metadata_only_fields``、
+``pdf_floating_table_review_required_fields``、``metadata_only_fields`` 与
+``review_required_fields``，确保 release metadata 维护者不需要回到底层 layout JSON
+才能区分当前 PDF 几何子集、reviewer focus、元数据级字段复核和完整
+Word-compatible wrapping 边界。
 为了保持发布面板兼容，维护文档还要继续提到 ``release governance warning``、
 ``warning_count``、``release_blocker_rollup``、
 ``release_governance_handoff``、``release_governance_pipeline``、
