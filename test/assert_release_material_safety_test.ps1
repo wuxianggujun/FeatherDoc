@@ -266,6 +266,8 @@ $governanceMetrics = @(
             table_position_review_count = 0
             command_failure_count = 0
             unresolved_item_count = 0
+            metadata_only_fields = @("leftFromText", "rightFromText", "topFromText outside paragraph anchoring", "tblOverlap")
+            review_required_fields = @("full Word-compatible floating table text wrapping", "table overlap avoidance and collision resolution")
             penalty_summary = @(
                 [ordered]@{ factor = "needs_review_documents"; count = 0; penalty = 0 },
                 [ordered]@{ factor = "floating_table_plans_pending"; count = 0; penalty = 0 }
@@ -1041,6 +1043,8 @@ $badManifestMismatchedMetricDetails.table_layout_delivery_quality = [ordered]@{
         table_position_review_count = 0
         command_failure_count = 0
         unresolved_item_count = 1
+        metadata_only_fields = @("leftFromText", "rightFromText", "topFromText outside paragraph anchoring", "tblOverlap")
+        review_required_fields = @("full Word-compatible floating table text wrapping", "table overlap avoidance and collision resolution")
         penalty_summary = @(
             [ordered]@{ factor = "needs_review_documents"; count = 0; penalty = 0 },
             [ordered]@{ factor = "floating_table_plans_pending"; count = 0; penalty = 0 }
@@ -1058,6 +1062,42 @@ try {
 
 if (-not $mismatchedManifestMetricDetailsFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with mismatched table layout delivery details."
+}
+
+$badManifestMissingTableLayoutMetadataFieldsDir = Join-Path $failDir "manifest-missing-table-layout-metadata-fields"
+$badManifestMissingTableLayoutMetadataFieldsPath = Join-Path $badManifestMissingTableLayoutMetadataFieldsDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingTableLayoutMetadataFieldsDir -Force | Out-Null
+$badManifestMissingTableLayoutMetadataFields = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingTableLayoutMetadataFields.table_layout_delivery_quality.details.PSObject.Properties.Remove("metadata_only_fields")
+($badManifestMissingTableLayoutMetadataFields | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingTableLayoutMetadataFieldsPath -Encoding UTF8
+
+$missingManifestTableLayoutMetadataFieldsFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingTableLayoutMetadataFieldsPath
+} catch {
+    $missingManifestTableLayoutMetadataFieldsFailedAsExpected = $true
+}
+
+if (-not $missingManifestTableLayoutMetadataFieldsFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest without table layout metadata_only_fields details."
+}
+
+$badManifestMissingTableLayoutReviewFieldsDir = Join-Path $failDir "manifest-missing-table-layout-review-fields"
+$badManifestMissingTableLayoutReviewFieldsPath = Join-Path $badManifestMissingTableLayoutReviewFieldsDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingTableLayoutReviewFieldsDir -Force | Out-Null
+$badManifestMissingTableLayoutReviewFields = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingTableLayoutReviewFields.table_layout_delivery_quality.details.PSObject.Properties.Remove("review_required_fields")
+($badManifestMissingTableLayoutReviewFields | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingTableLayoutReviewFieldsPath -Encoding UTF8
+
+$missingManifestTableLayoutReviewFieldsFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingTableLayoutReviewFieldsPath
+} catch {
+    $missingManifestTableLayoutReviewFieldsFailedAsExpected = $true
+}
+
+if (-not $missingManifestTableLayoutReviewFieldsFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest without table layout review_required_fields details."
 }
 
 $badManifestMissingNumberingConfidenceSourceJsonDisplayDir = Join-Path $failDir "manifest-missing-numbering-confidence-source-json-display"
@@ -1131,7 +1171,7 @@ Set-Content -LiteralPath $passEntryGovernanceTracePath -Encoding UTF8 -Value @"
 - Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
 - Project template release readiness checklist: docs/project_template_release_readiness_checklist_zh.rst
 - Numbering real corpus confidence: numbering_catalog_governance.real_corpus_confidence level=low score=56 catalog_coverage_percent=100 baseline_coverage_percent=100 coverage_score=100 matched_document_count=2 unmatched_catalog_document_count=0 unmatched_baseline_document_count=0 alignment_gap_count=0 catalog_document_keys=contract.docx,invoice.docx baseline_document_keys=contract.docx,invoice.docx matched_document_keys=contract.docx,invoice.docx penalty_summary=style_numbering_issues(count=4, penalty=20)
-- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. metadata_only_fields=leftFromText,rightFromText,topFromText outside paragraph anchoring,tblOverlap review_required_fields=full Word-compatible floating table text wrapping,table overlap avoidance and collision resolution penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 
 & $auditScript -Path $passEntryGovernanceTracePath
@@ -1142,7 +1182,7 @@ New-Item -ItemType Directory -Path $badEntryTableLayoutPdfCoverageMissingDir -Fo
 Set-Content -LiteralPath $badEntryTableLayoutPdfCoverageMissingPath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. metadata_only_fields=leftFromText,rightFromText,topFromText outside paragraph anchoring,tblOverlap review_required_fields=full Word-compatible floating table text wrapping,table overlap avoidance and collision resolution penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 
 $badEntryTableLayoutPdfCoverageMissingFailedAsExpected = $false
@@ -1162,7 +1202,7 @@ New-Item -ItemType Directory -Path $badEntryTableLayoutPdfReviewerFocusMissingDi
 Set-Content -LiteralPath $badEntryTableLayoutPdfReviewerFocusMissingPath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) metadata_only_fields=leftFromText,rightFromText,topFromText outside paragraph anchoring,tblOverlap review_required_fields=full Word-compatible floating table text wrapping,table overlap avoidance and collision resolution penalty_summary=floating_table_plans_pending(count=0, penalty=0)
 "@
 
 $badEntryTableLayoutPdfReviewerFocusMissingFailedAsExpected = $false
@@ -1174,6 +1214,46 @@ try {
 
 if (-not $badEntryTableLayoutPdfReviewerFocusMissingFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed entry document without PDF floating table reviewer focus guidance."
+}
+
+$badEntryTableLayoutMetadataFieldsMissingDir = Join-Path $failDir "entry-table-layout-metadata-fields-missing"
+$badEntryTableLayoutMetadataFieldsMissingPath = Join-Path $badEntryTableLayoutMetadataFieldsMissingDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryTableLayoutMetadataFieldsMissingDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryTableLayoutMetadataFieldsMissingPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. review_required_fields=full Word-compatible floating table text wrapping,table overlap avoidance and collision resolution penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+"@
+
+$badEntryTableLayoutMetadataFieldsMissingFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryTableLayoutMetadataFieldsMissingPath
+} catch {
+    $badEntryTableLayoutMetadataFieldsMissingFailedAsExpected = $true
+}
+
+if (-not $badEntryTableLayoutMetadataFieldsMissingFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document without table layout metadata_only_fields guidance."
+}
+
+$badEntryTableLayoutReviewFieldsMissingDir = Join-Path $failDir "entry-table-layout-review-fields-missing"
+$badEntryTableLayoutReviewFieldsMissingPath = Join-Path $badEntryTableLayoutReviewFieldsMissingDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryTableLayoutReviewFieldsMissingDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryTableLayoutReviewFieldsMissingPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Table layout delivery: table_layout_delivery_governance.delivery_quality release_ready table_style_issue_count=0 automatic_tblLook_fix_count=0 manual_table_style_fix_count=0 table_position_automatic_count=0 table_position_review_count=0 command_failure_count=0 ready_document_percent=100 unresolved_item_count=0 pdf_floating_table_support_coverage=4/9 supported (44 percent) pdf_floating_table_reviewer_focus=review metadata-only tblpPr fields before approving PDF-layout-sensitive release. metadata_only_fields=leftFromText,rightFromText,topFromText outside paragraph anchoring,tblOverlap penalty_summary=floating_table_plans_pending(count=0, penalty=0)
+"@
+
+$badEntryTableLayoutReviewFieldsMissingFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryTableLayoutReviewFieldsMissingPath
+} catch {
+    $badEntryTableLayoutReviewFieldsMissingFailedAsExpected = $true
+}
+
+if (-not $badEntryTableLayoutReviewFieldsMissingFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed entry document without table layout review_required_fields guidance."
 }
 
 $passEntryProjectTemplateChecklistHandoffEvidenceDir = Join-Path $passDir "entry-project-template-checklist-handoff-evidence"

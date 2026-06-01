@@ -207,6 +207,8 @@ foreach ($marker in @(
     "table_position_automatic_count",
     "table_position_review_count",
     "command_failure_count",
+    "metadata_only_fields",
+    "review_required_fields",
     "penalty_summary"
 )) {
     Assert-ContainsText -Text $handoffScript -ExpectedText $marker `

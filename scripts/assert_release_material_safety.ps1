@@ -1142,6 +1142,8 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "unresolved_item_count",
             "pdf_floating_table_support_coverage",
             "pdf_floating_table_reviewer_focus",
+            "metadata_only_fields",
+            "review_required_fields",
             "metadata-only tblpPr",
             "penalty_summary",
             "floating_table_plans_pending"
@@ -3789,7 +3791,9 @@ function Add-GovernanceMetricDetailsViolations {
             continue
         }
 
-        if ([string]$manifestValue -ne [string]$sourceValue) {
+        $sourceComparable = Convert-GovernanceMetricDetailValueToComparableString -Value $sourceValue
+        $manifestComparable = Convert-GovernanceMetricDetailValueToComparableString -Value $manifestValue
+        if ($manifestComparable -ne $sourceComparable) {
             Add-AuditViolation -Violations $Violations -File $File -Label $Label -Text "$PropertyName.details.$fieldName does not match the source governance metric."
         }
     }
@@ -4061,7 +4065,9 @@ function Add-GovernanceMetricContractViolations {
                     "table_position_automatic_count",
                     "table_position_review_count",
                     "command_failure_count",
-                    "unresolved_item_count"
+                    "unresolved_item_count",
+                    "metadata_only_fields",
+                    "review_required_fields"
                 ) `
                 -Violations $Violations
         }
@@ -4204,6 +4210,31 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
         $integerValues["warning_count"] -le 0) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.release_blocker_count or warning_count must be greater than 0 when release_ready is false."
     }
+}
+
+function Convert-GovernanceMetricDetailValueToComparableString {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [string]) {
+        return [string]$Value
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        return [string]$Value
+    }
+
+    if ($Value -is [System.Collections.IEnumerable]) {
+        $separator = [string][char]31
+        return (@($Value |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join $separator)
+    }
+
+    return [string]$Value
 }
 
 function Add-ProjectTemplateOnboardingGovernanceContractViolations {
