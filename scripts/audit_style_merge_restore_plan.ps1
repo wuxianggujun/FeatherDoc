@@ -608,6 +608,21 @@ function Get-NextStyleMergeRestoreHandoffStep {
     return $null
 }
 
+function Get-StyleMergeRestoreIssueReviewCommands {
+    param($IssueReviewGroups)
+
+    $commands = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($group in @($IssueReviewGroups)) {
+        foreach ($command in @(Get-JsonProperty -Object $group -Name "review_commands")) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$command)) {
+                $commands.Add([string]$command) | Out-Null
+            }
+        }
+    }
+
+    return @($commands.ToArray())
+}
+
 function Get-StyleMergeRestoreHandoffStatusSummary {
     param(
         $Steps,
@@ -845,6 +860,8 @@ $reviewHandoffSteps = Get-StyleMergeRestoreReviewHandoffSteps `
     -SourceJsonDisplay $summaryDisplayPath `
     -RollbackPlanDisplay $rollbackPlanDisplayPath
 $nextHandoffStep = Get-NextStyleMergeRestoreHandoffStep -Steps $reviewHandoffSteps
+$issueReviewCommands = Get-StyleMergeRestoreIssueReviewCommands -IssueReviewGroups $issueReviewGroups
+$firstIssueReviewCommand = if (@($issueReviewCommands).Count -gt 0) { [string]@($issueReviewCommands)[0] } else { "" }
 $nextCopyCommand = Get-JsonString -Object $nextHandoffStep -Names @("copy_command", "command", "command_template")
 $nextStepReason = Get-JsonString -Object $nextHandoffStep -Names @("reason")
 $handoffStatusSummary = Get-StyleMergeRestoreHandoffStatusSummary `
@@ -878,6 +895,9 @@ if ($issueCount -gt 0) {
         next_handoff_step = $nextHandoffStep
         next_copy_command = $nextCopyCommand
         next_step_reason = $nextStepReason
+        issue_review_commands = @($issueReviewCommands)
+        first_issue_review_command = $firstIssueReviewCommand
+        copy_issue_review_command = $firstIssueReviewCommand
         handoff_status_summary = $handoffStatusSummary
         rollback_plan_summary = $rollbackPlanSummary
     }) | Out-Null
@@ -904,6 +924,9 @@ $actionItems.Add([ordered]@{
     next_handoff_step = $nextHandoffStep
     next_copy_command = $nextCopyCommand
     next_step_reason = $nextStepReason
+    issue_review_commands = @($issueReviewCommands)
+    first_issue_review_command = $firstIssueReviewCommand
+    copy_issue_review_command = $firstIssueReviewCommand
     handoff_status_summary = $handoffStatusSummary
     rollback_plan_summary = $rollbackPlanSummary
 }) | Out-Null
@@ -941,6 +964,9 @@ $summary = [ordered]@{
     next_handoff_step = $nextHandoffStep
     next_copy_command = $nextCopyCommand
     next_step_reason = $nextStepReason
+    issue_review_commands = @($issueReviewCommands)
+    first_issue_review_command = $firstIssueReviewCommand
+    copy_issue_review_command = $firstIssueReviewCommand
     handoff_status_summary = $handoffStatusSummary
     rollback_plan_summary = $rollbackPlanSummary
     selected_restore_command_template = $selectedRestoreCommandTemplate

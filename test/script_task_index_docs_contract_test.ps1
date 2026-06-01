@@ -159,6 +159,8 @@ foreach ($marker in @(
         "audit_style_merge_restore_plan.ps1",
         "review_handoff_steps",
         "next_copy_command",
+        "issue_review_commands",
+        "copy_issue_review_command",
         "rollback_plan_summary",
         "release governance action / blocker evidence",
         "build_table_layout_delivery_report.ps1",

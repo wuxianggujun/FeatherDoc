@@ -448,6 +448,12 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit should expose the top-level next handoff step."
     Assert-ContainsText -Text ([string]$summary.next_copy_command) -ExpectedText "restore-style-merge" `
         -Message "Issue restore audit should expose the top-level next copy command."
+    Assert-ContainsText -Text ((@($summary.issue_review_commands) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "--source-style MissingBody" `
+        -Message "Issue restore audit should expose top-level issue review commands."
+    Assert-ContainsText -Text ([string]$summary.first_issue_review_command) -ExpectedText "--source-style MissingBody" `
+        -Message "Issue restore audit should expose the first top-level issue review command."
+    Assert-ContainsText -Text ([string]$summary.copy_issue_review_command) -ExpectedText "--target-style Normal" `
+        -Message "Issue restore audit should expose a copy-ready top-level issue review command."
     Assert-Equal -Actual ([string]$summary.next_step_reason) -Expected "style_merge_restore_audit_issues_require_issue_group_review" `
         -Message "Issue restore audit should explain why issue group review is next."
     Assert-Equal -Actual ([string]$summary.handoff_status_summary.status) -Expected "needs_review" `
@@ -552,6 +558,12 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit blocker should expose the next handoff step."
     Assert-ContainsText -Text ([string]$blocker.next_copy_command) -ExpectedText "restore-style-merge" `
         -Message "Issue restore audit blocker should expose the next copy command."
+    Assert-ContainsText -Text ((@($blocker.issue_review_commands) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "--source-style MissingBody" `
+        -Message "Issue restore audit blocker should expose issue review commands."
+    Assert-ContainsText -Text ([string]$blocker.first_issue_review_command) -ExpectedText "--source-style MissingBody" `
+        -Message "Issue restore audit blocker should expose the first issue review command."
+    Assert-ContainsText -Text ([string]$blocker.copy_issue_review_command) -ExpectedText "--target-style Normal" `
+        -Message "Issue restore audit blocker should expose a copy-ready issue review command."
     Assert-Equal -Actual ([string]$blocker.next_step_reason) -Expected "style_merge_restore_audit_issues_require_issue_group_review" `
         -Message "Issue restore audit blocker should explain why issue group review is next."
     Assert-Equal -Actual ([string]$blocker.handoff_status_summary.next_step_id) -Expected "review_issue_groups" `
@@ -585,6 +597,12 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit action item should expose the next handoff step."
     Assert-ContainsText -Text ([string]$issueActionItem.next_copy_command) -ExpectedText "restore-style-merge" `
         -Message "Issue restore audit action item should expose the next copy command."
+    Assert-ContainsText -Text ((@($issueActionItem.issue_review_commands) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "--source-style MissingBody" `
+        -Message "Issue restore audit action item should expose issue review commands."
+    Assert-ContainsText -Text ([string]$issueActionItem.first_issue_review_command) -ExpectedText "--source-style MissingBody" `
+        -Message "Issue restore audit action item should expose the first issue review command."
+    Assert-ContainsText -Text ([string]$issueActionItem.copy_issue_review_command) -ExpectedText "--target-style Normal" `
+        -Message "Issue restore audit action item should expose a copy-ready issue review command."
     Assert-Equal -Actual ([string]$issueActionItem.next_step_reason) -Expected "style_merge_restore_audit_issues_require_issue_group_review" `
         -Message "Issue restore audit action item should explain why issue group review is next."
     Assert-Equal -Actual ([string]$issueActionItem.handoff_status_summary.next_step_id) -Expected "review_issue_groups" `
