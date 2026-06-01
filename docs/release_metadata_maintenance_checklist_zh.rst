@@ -313,6 +313,12 @@ Word-compatible wrapping 边界。
 ``non_restorable_merge_rollback_entry_indexes``、
 ``blocker_source_schema_summary``、``action_item_source_schema_summary``、
 ``informational_action_item_source_schema_summary``、``warning_source_schema_summary``、
+``check_pdf_release_readiness.ps1``、``featherdoc.pdf_release_readiness_check.v1``、
+``pdf_release_readiness_machine_gate_trace``、``preflight_summary_json_display``、
+``visual_gate_summary_json_display``、``visual_full_gate_guarded_summary_json_display``、
+``visual_segmented_gate_summary_json_display``、``full_ctest_summary_json_display``、
+``full_ctest_remaining_summary_json_display``、
+``pdf_visual_gate_release_owner_acceptance_trace``、
 ``Assert-ReleaseGovernanceSourceSchemaSummaryConsistency``、
 ``style_merge_suggestion_count``、``check_word_visual_release_gate_preflight.ps1``、
 ``check_word_visual_release_gate_preflight_test.ps1``、

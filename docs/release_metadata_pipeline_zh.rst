@@ -230,6 +230,15 @@ PDF preflight governance report、release blocker rollup 与 release note bundle
 这些 runbook 还会直接展示 ``output gap checks`` 和 ``missing outputs``，与
 preflight summary 的顶层 ``output_gap_count`` / ``missing_output_count`` 保持一致，
 避免 reviewer 需要手动合计 CLI baseline、visual baseline 和 CJK text-layer 缺口。
+PDF release readiness 的机器收口由 ``check_pdf_release_readiness.ps1`` 只读消费
+已有 preflight、visual gate、segmented gate 和 CTest 证据；summary schema 固定为
+``featherdoc.pdf_release_readiness_check.v1``，并必须保留
+``pdf_release_readiness_machine_gate_trace``、``preflight_summary_json_display``、
+``visual_gate_summary_json_display``、``visual_full_gate_guarded_summary_json_display``、
+``visual_segmented_gate_summary_json_display``、``full_ctest_summary_json_display``、
+``full_ctest_remaining_summary_json_display`` 与
+``pdf_visual_gate_release_owner_acceptance_trace``，避免 release metadata 只展示
+pass / warning 结论而丢失 reviewer 可打开的 PDF readiness 证据路径。
 DOCX 功能 smoke 的 ``restore_docx_functional_smoke_evidence`` blocker action 也
 映射到固定 runbook：reviewer 先打开 ``source_report_display`` /
 ``source_json_display`` 指向的 ``docx-functional-smoke-readiness`` 证据，恢复缺失的

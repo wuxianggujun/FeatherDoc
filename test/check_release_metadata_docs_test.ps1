@@ -279,8 +279,8 @@ function Assert-SummaryFailure {
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
     Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-    if ($summary.required_marker_count -ne 300) {
-        throw "Expected JSON summary to count 300 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 320) {
+        throw "Expected JSON summary to count 320 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -447,6 +447,16 @@ $defaultPipelineText = @(
     '- rerun_pdf_controlled_visual_smoke_check',
     '- check_pdf_controlled_visual_smoke.ps1',
     '- controlled_visual_smoke_json_display',
+    '- check_pdf_release_readiness.ps1',
+    '- featherdoc.pdf_release_readiness_check.v1',
+    '- pdf_release_readiness_machine_gate_trace',
+    '- preflight_summary_json_display',
+    '- visual_gate_summary_json_display',
+    '- visual_full_gate_guarded_summary_json_display',
+    '- visual_segmented_gate_summary_json_display',
+    '- full_ctest_summary_json_display',
+    '- full_ctest_remaining_summary_json_display',
+    '- pdf_visual_gate_release_owner_acceptance_trace',
     '- restore_docx_functional_smoke_evidence',
     '- Word visual standard review metadata evidence',
     '- word_visual_standard_review_metadata_source_reports',
@@ -605,6 +615,16 @@ $defaultChecklistText = @(
     '- action_item_source_schema_summary',
     '- informational_action_item_source_schema_summary',
     '- warning_source_schema_summary',
+    '- check_pdf_release_readiness.ps1',
+    '- featherdoc.pdf_release_readiness_check.v1',
+    '- pdf_release_readiness_machine_gate_trace',
+    '- preflight_summary_json_display',
+    '- visual_gate_summary_json_display',
+    '- visual_full_gate_guarded_summary_json_display',
+    '- visual_segmented_gate_summary_json_display',
+    '- full_ctest_summary_json_display',
+    '- full_ctest_remaining_summary_json_display',
+    '- pdf_visual_gate_release_owner_acceptance_trace',
     '- style_merge_suggestion_count',
     '- check_docx_functional_smoke_readiness.ps1',
     '- docx_functional_smoke_readiness_test.ps1',
@@ -768,11 +788,11 @@ Assert-SummaryCheckedDocumentsConsistent -Summary $summary
 if ($summary.checked_document_count -ne 8) {
     throw "Expected JSON summary checked document count 8, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 124) {
-    throw "Expected JSON summary pipeline marker count 124, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 134) {
+    throw "Expected JSON summary pipeline marker count 134, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 127) {
-    throw "Expected JSON summary checklist marker count 127, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 137) {
+    throw "Expected JSON summary checklist marker count 137, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 23) {
     throw "Expected JSON summary document governance marker count 23, got: $($summary.required_document_governance_marker_count)"
@@ -783,8 +803,8 @@ if ($summary.required_policy_marker_count -ne 24) {
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 300) {
-    throw "Expected JSON summary total marker count 300, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 320) {
+    throw "Expected JSON summary total marker count 320, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 8) {
     throw "Expected JSON summary to list 8 checked documents, got: $($summary.checked_documents.Count)"
