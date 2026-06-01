@@ -31,6 +31,55 @@ function Get-RepoFileText {
     return Get-Content -Raw -Encoding UTF8 -LiteralPath $path
 }
 
+function Get-CMakeAddTestBlock {
+    param(
+        [string]$CMakeLists,
+        [string]$TestName
+    )
+
+    $escapedTestName = [regex]::Escape($TestName)
+    $testMatch = [regex]::Match(
+        $CMakeLists,
+        "(?ms)^[ \t]*add_test\(\s*NAME\s+$escapedTestName(?:\s|$)"
+    )
+
+    if (-not $testMatch.Success) {
+        throw "CMake test registration is missing add_test block for '$TestName'."
+    }
+
+    $remaining = $CMakeLists.Substring($testMatch.Index + $testMatch.Length)
+    $nextTestMatch = [regex]::Match($remaining, "(?m)^[ \t]*add_test\(")
+    if ($nextTestMatch.Success) {
+        return $CMakeLists.Substring($testMatch.Index, $testMatch.Length + $nextTestMatch.Index)
+    }
+
+    return $CMakeLists.Substring($testMatch.Index)
+}
+
+function Assert-CMakeScenarioRegistration {
+    param(
+        [string]$CMakeLists,
+        [string]$TestName,
+        [string]$ScriptName,
+        [string]$Scenario
+    )
+
+    $testBlock = Get-CMakeAddTestBlock -CMakeLists $CMakeLists -TestName $TestName
+    foreach ($marker in @(
+            $ScriptName,
+            "-RepoRoot",
+            "-WorkingDir"
+        )) {
+        Assert-ContainsText -Text $testBlock -ExpectedText $marker `
+            -Message "CMake table-layout test '$TestName' should preserve marker '$marker'."
+    }
+
+    $scenarioPattern = "(?ms)-Scenario\s+$([regex]::Escape($Scenario))(?:\s|$)"
+    if ($testBlock -notmatch $scenarioPattern) {
+        throw "CMake table-layout test '$TestName' should pass scenario '$Scenario'."
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     throw "RepoRoot is required."
 }
@@ -366,6 +415,85 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $cmakeLists -ExpectedText $marker `
         -Message "CMake test registration should keep table-layout delivery route contract wired."
+}
+
+foreach ($registration in @(
+        [ordered]@{
+            name = "build_table_layout_delivery_report_passing"
+            script = "build_table_layout_delivery_report_test.ps1"
+            scenario = "passing"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_report_failing"
+            script = "build_table_layout_delivery_report_test.ps1"
+            scenario = "failing"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_report_fail_on_issue"
+            script = "build_table_layout_delivery_report_test.ps1"
+            scenario = "fail_on_issue"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_rollup_report_aggregate"
+            script = "build_table_layout_delivery_rollup_report_test.ps1"
+            scenario = "aggregate"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_rollup_report_empty"
+            script = "build_table_layout_delivery_rollup_report_test.ps1"
+            scenario = "empty"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_rollup_report_malformed"
+            script = "build_table_layout_delivery_rollup_report_test.ps1"
+            scenario = "malformed"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_rollup_report_failed_source_report"
+            script = "build_table_layout_delivery_rollup_report_test.ps1"
+            scenario = "failed_source_report"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_rollup_report_fail_on_issue"
+            script = "build_table_layout_delivery_rollup_report_test.ps1"
+            scenario = "fail_on_issue"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_rollup_report_fail_on_blocker"
+            script = "build_table_layout_delivery_rollup_report_test.ps1"
+            scenario = "fail_on_blocker"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_governance_report_aggregate"
+            script = "build_table_layout_delivery_governance_report_test.ps1"
+            scenario = "aggregate"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_governance_report_ready"
+            script = "build_table_layout_delivery_governance_report_test.ps1"
+            scenario = "ready"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_governance_report_malformed"
+            script = "build_table_layout_delivery_governance_report_test.ps1"
+            scenario = "malformed"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_governance_report_fail_on_issue"
+            script = "build_table_layout_delivery_governance_report_test.ps1"
+            scenario = "fail_on_issue"
+        },
+        [ordered]@{
+            name = "build_table_layout_delivery_governance_report_fail_on_blocker"
+            script = "build_table_layout_delivery_governance_report_test.ps1"
+            scenario = "fail_on_blocker"
+        }
+    )) {
+    Assert-CMakeScenarioRegistration `
+        -CMakeLists $cmakeLists `
+        -TestName ([string]$registration.name) `
+        -ScriptName ([string]$registration.script) `
+        -Scenario ([string]$registration.scenario)
 }
 
 Write-Host "Table layout delivery route docs contract passed."
