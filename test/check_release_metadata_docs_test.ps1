@@ -289,6 +289,7 @@ function New-DocsCase {
         [string]$Name,
         [string]$PipelineText = $defaultPipelineText,
         [string]$ChecklistText = $defaultChecklistText,
+        [string]$DocumentationMaintenanceText = $defaultDocumentationMaintenanceText,
         [string]$DocumentGovernanceText = $defaultDocumentGovernanceText,
         [string]$PolicyText = $defaultPolicyText,
         [string]$IndexText = $defaultIndexText,
@@ -301,6 +302,7 @@ function New-DocsCase {
 
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_metadata_pipeline_zh.rst") -Text $PipelineText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_metadata_maintenance_checklist_zh.rst") -Text $ChecklistText
+    Write-Utf8NoBomFile -Path (Join-Path $docsDir "documentation_maintenance_zh.rst") -Text $DocumentationMaintenanceText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "document_governance_acceptance_zh.rst") -Text $DocumentGovernanceText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_policy_zh.rst") -Text $PolicyText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "index.rst") -Text $IndexText
@@ -578,6 +580,15 @@ $defaultChecklistText = @(
     ''
 ) -join "`n"
 
+$defaultDocumentationMaintenanceText = @(
+    'Documentation maintenance',
+    '=========================',
+    '',
+    '- docs/release_metadata_pipeline_zh.rst',
+    '- docs/release_metadata_maintenance_checklist_zh.rst',
+    ''
+) -join "`n"
+
 $defaultDocumentGovernanceText = @(
     'Document governance acceptance',
     '==============================',
@@ -676,8 +687,8 @@ if ($summary.summary_schema_version -ne 1) {
 Assert-SummaryAuditFields -Summary $summary
 Assert-SummaryMarkerCountsConsistent -Summary $summary
 Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-if ($summary.checked_document_count -ne 7) {
-    throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
+if ($summary.checked_document_count -ne 8) {
+    throw "Expected JSON summary checked document count 8, got: $($summary.checked_document_count)"
 }
 if ($summary.required_pipeline_marker_count -ne 100) {
     throw "Expected JSON summary pipeline marker count 100, got: $($summary.required_pipeline_marker_count)"
@@ -697,13 +708,17 @@ if ($summary.required_entrypoint_marker_count -ne 2) {
 if ($summary.required_marker_count -ne 227) {
     throw "Expected JSON summary total marker count 227, got: $($summary.required_marker_count)"
 }
-if ($summary.checked_documents.Count -ne 7) {
-    throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
+if ($summary.checked_documents.Count -ne 8) {
+    throw "Expected JSON summary to list 8 checked documents, got: $($summary.checked_documents.Count)"
 }
 Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
     -ExpectedValue 'docs/release_metadata_pipeline_zh.rst' `
     -Message "JSON summary should list the release metadata pipeline doc."
+Assert-ArrayContains `
+    -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue 'docs/documentation_maintenance_zh.rst' `
+    -Message "JSON summary should list the documentation maintenance overview doc."
 Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
     -ExpectedValue 'docs/document_governance_acceptance_zh.rst' `
@@ -1031,6 +1046,9 @@ Write-Utf8NoBomFile `
     -Path (Join-Path $missingPolicyDocsDir "release_metadata_maintenance_checklist_zh.rst") `
     -Text $defaultChecklistText
 Write-Utf8NoBomFile `
+    -Path (Join-Path $missingPolicyDocsDir "documentation_maintenance_zh.rst") `
+    -Text $defaultDocumentationMaintenanceText
+Write-Utf8NoBomFile `
     -Path (Join-Path $missingPolicyDocsDir "document_governance_acceptance_zh.rst") `
     -Text $defaultDocumentGovernanceText
 Write-Utf8NoBomFile `
@@ -1073,6 +1091,26 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs/index.rst' `
     -ExpectedFailureExpectedText "release_metadata_maintenance_checklist_zh"
+
+$missingDocumentationMaintenanceEntrypointText = $defaultDocumentationMaintenanceText.Replace(
+    "release_metadata_pipeline_zh",
+    "release_metadata_pipeline_removed"
+)
+$missingDocumentationMaintenanceEntrypointCaseRoot = New-DocsCase `
+    -Name "missing-documentation-maintenance-entrypoint" `
+    -DocumentationMaintenanceText $missingDocumentationMaintenanceEntrypointText
+$missingDocumentationMaintenanceEntrypointSummaryJsonPath = Join-Path $missingDocumentationMaintenanceEntrypointCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingDocumentationMaintenanceEntrypointCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "documentation maintenance overview doc is missing expected text: release_metadata_pipeline_zh" `
+    -SummaryJson $missingDocumentationMaintenanceEntrypointSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingDocumentationMaintenanceEntrypointSummaryJsonPath `
+    -ExpectedMessage "documentation maintenance overview doc is missing expected text: release_metadata_pipeline_zh" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs/documentation_maintenance_zh.rst' `
+    -ExpectedFailureExpectedText "release_metadata_pipeline_zh"
 
 $missingReadmePipelineEntrypointText = $defaultReadmeText.Replace(
     "release_metadata_pipeline_zh",

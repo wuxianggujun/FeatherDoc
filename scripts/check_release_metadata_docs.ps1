@@ -563,6 +563,11 @@ try {
             path = Join-Path (Join-Path $resolvedRepoRoot "docs") "release_metadata_maintenance_checklist_zh.rst"
         },
         [pscustomobject]@{
+            label = "documentation maintenance overview doc"
+            relative_path = "docs/documentation_maintenance_zh.rst"
+            path = Join-Path (Join-Path $resolvedRepoRoot "docs") "documentation_maintenance_zh.rst"
+        },
+        [pscustomobject]@{
             label = "document governance acceptance doc"
             relative_path = "docs/document_governance_acceptance_zh.rst"
             path = Join-Path (Join-Path $resolvedRepoRoot "docs") "document_governance_acceptance_zh.rst"
@@ -590,14 +595,16 @@ try {
     )
     $pipelinePath = $checkedDocuments[0].path
     $checklistPath = $checkedDocuments[1].path
-    $documentGovernancePath = $checkedDocuments[2].path
-    $policyPath = $checkedDocuments[3].path
-    $indexPath = $checkedDocuments[4].path
-    $readmePath = $checkedDocuments[5].path
-    $readmeZhPath = $checkedDocuments[6].path
+    $documentationMaintenancePath = $checkedDocuments[2].path
+    $documentGovernancePath = $checkedDocuments[3].path
+    $policyPath = $checkedDocuments[4].path
+    $indexPath = $checkedDocuments[5].path
+    $readmePath = $checkedDocuments[6].path
+    $readmeZhPath = $checkedDocuments[7].path
 
     Assert-FileExists -Path $pipelinePath -Label "release metadata pipeline doc"
     Assert-FileExists -Path $checklistPath -Label "release metadata maintenance checklist doc"
+    Assert-FileExists -Path $documentationMaintenancePath -Label "documentation maintenance overview doc"
     Assert-FileExists -Path $documentGovernancePath -Label "document governance acceptance doc"
     Assert-FileExists -Path $policyPath -Label "release policy doc"
     Assert-FileExists -Path $indexPath -Label "Sphinx index doc"
@@ -606,6 +613,7 @@ try {
 
     $pipelineText = Read-Utf8Text -Path $pipelinePath
     $checklistText = Read-Utf8Text -Path $checklistPath
+    $documentationMaintenanceText = Read-Utf8Text -Path $documentationMaintenancePath
     $documentGovernanceText = Read-Utf8Text -Path $documentGovernancePath
     $policyText = Read-Utf8Text -Path $policyPath
     $indexText = Read-Utf8Text -Path $indexPath
@@ -615,6 +623,7 @@ try {
     foreach ($doc in @(
             @{ Path = $pipelinePath; Text = $pipelineText },
             @{ Path = $checklistPath; Text = $checklistText },
+            @{ Path = $documentationMaintenancePath; Text = $documentationMaintenanceText },
             @{ Path = $documentGovernancePath; Text = $documentGovernanceText },
             @{ Path = $policyPath; Text = $policyText },
             @{ Path = $indexPath; Text = $indexText },
@@ -659,6 +668,7 @@ try {
 
     foreach ($expected in $entrypointExpectedMarkers) {
         foreach ($entrypoint in @(
+                @{ Label = "documentation maintenance overview doc"; Text = $documentationMaintenanceText; Path = $documentationMaintenancePath },
                 @{ Label = "Sphinx index doc"; Text = $indexText; Path = $indexPath },
                 @{ Label = "English README"; Text = $readmeText; Path = $readmePath },
                 @{ Label = "Chinese README"; Text = $readmeZhText; Path = $readmeZhPath }

@@ -37,6 +37,9 @@ performance.
   source layout JSON.
 - Added a table layout governance `-FailOnIssue` regression and CTest
   registration so issue-triggered release-gate failures stay covered.
+- Added release metadata docs checker coverage for the documentation
+  maintenance overview so the release metadata pipeline and checklist remain
+  linked from the maintenance entrypoint.
 - Added stable public evidence-path display handling for packaged release
   manifests so project-template and manifest-signoff evidence keeps source
   identity even when packaging runs from an out-of-repository working directory.
