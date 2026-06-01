@@ -234,6 +234,7 @@ $requiredScriptPaths = @(
     "scripts\build_content_control_data_binding_governance_report.ps1",
     "scripts\check_docx_functional_smoke_readiness.ps1",
     "scripts\check_numbering_catalog_baseline.ps1",
+    "scripts\check_numbering_catalog_manifest.ps1",
     "scripts\build_numbering_catalog_governance_report.ps1",
     "scripts\build_document_skeleton_governance_report.ps1",
     "scripts\build_document_skeleton_governance_rollup_report.ps1",
@@ -265,6 +266,9 @@ $requiredScriptPaths = @(
     "scripts\check_pdf_dependency_inputs.ps1",
     "scripts\check_pdf_release_readiness.ps1",
     "scripts\check_pdf_visual_release_gate_preflight.ps1",
+    "scripts\check_pdf_controlled_visual_smoke.ps1",
+    "scripts\check_pdf_controlled_visual_smoke.py",
+    "scripts\check_pdf_text_layer.py",
     "scripts\run_pdf_ctest_bounded_subset.ps1"
 )
 
