@@ -32,6 +32,31 @@ function Assert-CheckPassed {
     }
 }
 
+function Assert-FileHasNoBom {
+    param(
+        [string]$Path,
+        [string]$Message
+    )
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 3 -and
+        $bytes[0] -eq 0xEF -and
+        $bytes[1] -eq 0xBB -and
+        $bytes[2] -eq 0xBF) {
+        throw "$Message Path='$Path'."
+    }
+}
+
+function Assert-PdfPreflightOutputEncoding {
+    param(
+        [object]$Summary,
+        [string]$Message
+    )
+
+    Assert-True -Condition ([string]$Summary.output_encoding -eq "UTF-8 without BOM") `
+        -Message $Message
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     throw "RepoRoot is required."
 }
@@ -83,9 +108,13 @@ if ($LASTEXITCODE -ne 0) {
 if (-not (Test-Path -LiteralPath $plainBuildDefaultSummaryPath -PathType Leaf)) {
     throw "PDF visual release gate preflight should write the default current raw summary when -OutputJson is omitted."
 }
+Assert-FileHasNoBom -Path $plainBuildDefaultSummaryPath `
+    -Message "Default current raw summary should be UTF-8 without BOM."
 $plainBuildDefaultSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $plainBuildDefaultSummaryPath | ConvertFrom-Json
 Assert-True -Condition ([string]$plainBuildDefaultSummary.schema -eq "featherdoc.pdf_visual_release_gate_preflight.v1") `
     -Message "Default current raw summary should expose the stable preflight schema."
+Assert-PdfPreflightOutputEncoding -Summary $plainBuildDefaultSummary `
+    -Message "Default current raw summary should expose UTF-8 without BOM output encoding."
 Assert-True -Condition ([string]$plainBuildDefaultSummary.status -eq "not_ready") `
     -Message "Default current raw summary should preserve the preflight status."
 Assert-True -Condition (($plainBuildDefaultSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "build_dir_exists") `
@@ -272,6 +301,8 @@ try {
     if (-not (Test-Path -LiteralPath $visualGatePreflightSummaryPath -PathType Leaf)) {
         throw "PDF visual release gate -PreflightOnly should write its rejected preflight summary."
     }
+    Assert-FileHasNoBom -Path $visualGatePreflightSummaryPath `
+        -Message "PDF visual release gate -PreflightOnly preflight summary should be UTF-8 without BOM."
     if (Test-Path -LiteralPath (Join-Path $visualGateOutputDir "report\summary.json") -PathType Leaf) {
         throw "PDF visual release gate -PreflightOnly should not write the full visual gate summary."
     }
@@ -285,8 +316,22 @@ try {
 
 Assert-True -Condition (Test-Path -LiteralPath $summaryPath -PathType Leaf) `
     -Message "Preflight should write a JSON summary."
+Assert-FileHasNoBom -Path $plainBuildSummaryPath `
+    -Message "Plain build summary should be UTF-8 without BOM."
+Assert-FileHasNoBom -Path $malformedManifestSummaryPath `
+    -Message "Malformed manifest summary should be UTF-8 without BOM."
+Assert-FileHasNoBom -Path $disabledBuildSummaryPath `
+    -Message "Disabled build summary should be UTF-8 without BOM."
+Assert-FileHasNoBom -Path $disabledOverrideSummaryPath `
+    -Message "Disabled override summary should be UTF-8 without BOM."
+Assert-FileHasNoBom -Path $summaryPath `
+    -Message "Synthetic fixture summary should be UTF-8 without BOM."
+Assert-FileHasNoBom -Path $lowMemorySummaryPath `
+    -Message "Low-memory summary should be UTF-8 without BOM."
 
 $plainBuildSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $plainBuildSummaryPath | ConvertFrom-Json
+Assert-PdfPreflightOutputEncoding -Summary $plainBuildSummary `
+    -Message "Plain build summary should expose UTF-8 without BOM output encoding."
 Assert-True -Condition ($plainBuildSummary.status -eq "not_ready") `
     -Message "Plain build directory preflight should stay not_ready."
 Assert-True -Condition ([string]$plainBuildSummary.build_dir_source -eq "requested") `
@@ -324,6 +369,8 @@ Assert-True -Condition ([int]$plainBuildSummary.missing_output_count -gt 0) `
     -Message "Plain build directory preflight should report missing output totals."
 
 $malformedManifestSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $malformedManifestSummaryPath | ConvertFrom-Json
+Assert-PdfPreflightOutputEncoding -Summary $malformedManifestSummary `
+    -Message "Malformed manifest summary should expose UTF-8 without BOM output encoding."
 Assert-True -Condition ($malformedManifestSummary.status -eq "not_ready") `
     -Message "Malformed manifest preflight should stay not_ready."
 Assert-True -Condition (($malformedManifestSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_regression_manifest_readable") `
@@ -337,6 +384,8 @@ Assert-True -Condition (-not [string]::IsNullOrWhiteSpace([string]$malformedMani
     -Message "Malformed manifest readable check should include a parse error message."
 
 $disabledBuildSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $disabledBuildSummaryPath | ConvertFrom-Json
+Assert-PdfPreflightOutputEncoding -Summary $disabledBuildSummary `
+    -Message "Disabled build summary should expose UTF-8 without BOM output encoding."
 Assert-True -Condition ($disabledBuildSummary.status -eq "not_ready") `
     -Message "Disabled PDF build preflight should stay not_ready."
 Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_build_options_enabled") `
@@ -376,6 +425,8 @@ Assert-True -Condition ((@($disabledCtestCheck.details.disabled_pdf_build_option
     -Message "Disabled PDF build ctest check should expose FEATHERDOC_BUILD_PDF_IMPORT as disabled."
 
 $disabledOverrideSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $disabledOverrideSummaryPath | ConvertFrom-Json
+Assert-PdfPreflightOutputEncoding -Summary $disabledOverrideSummary `
+    -Message "Disabled override summary should expose UTF-8 without BOM output encoding."
 Assert-True -Condition ($disabledOverrideSummary.status -eq "not_ready") `
     -Message "Disabled PDF build override preflight should still be not_ready because build options are disabled."
 Assert-True -Condition (($disabledOverrideSummary.blocking_checks | ForEach-Object { [string]$_ }) -notcontains "pdf_dependency_inputs_ready") `
@@ -396,6 +447,8 @@ Assert-True -Condition ([string]$disabledOverrideSummary.recommended_recovery_st
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-True -Condition ([string]$summary.schema -eq "featherdoc.pdf_visual_release_gate_preflight.v1") `
     -Message "Synthetic fixture preflight should expose the stable raw summary schema."
+Assert-PdfPreflightOutputEncoding -Summary $summary `
+    -Message "Synthetic fixture summary should expose UTF-8 without BOM output encoding."
 Assert-True -Condition ($summary.status -eq "not_ready") `
     -Message "Preflight summary should reject reusable fake PDF build evidence."
 Assert-True -Condition ([int]$summary.blocking_summary.blocking_check_count -eq 1) `
@@ -477,6 +530,8 @@ Assert-True -Condition ($syntheticMarkers -match [regex]::Escape("fake-python.cm
     -Message "Ready fake fixture preflight should identify the fake render Python evidence marker."
 
 $lowMemorySummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $lowMemorySummaryPath | ConvertFrom-Json
+Assert-PdfPreflightOutputEncoding -Summary $lowMemorySummary `
+    -Message "Low-memory summary should expose UTF-8 without BOM output encoding."
 Assert-True -Condition ($lowMemorySummary.status -eq "not_ready") `
     -Message "Low-memory preflight should be not_ready."
 Assert-True -Condition ([bool]$lowMemorySummary.blocking_summary.memory_guard_blocked -eq $true) `
@@ -574,6 +629,8 @@ $preflightText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 foreach ($expectedText in @(
     '[string]$OutputJson = "output/pdf-visual-release-gate-preflight-current/summary.json"',
     'schema = "featherdoc.pdf_visual_release_gate_preflight.v1"',
+    'output_encoding = "UTF-8 without BOM"',
+    'Write-Utf8NoBomFile',
     'if ([string]::IsNullOrWhiteSpace($OutputJson))',
     "Resolve-PreferredBuildDir",
     "Get-BuildDirectorySnapshot",

@@ -36,6 +36,16 @@ function Resolve-RepoPath {
     return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $InputPath))
 }
 
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [string]$Text
+    )
+
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Text, $encoding)
+}
+
 function Test-CMakeCacheBoolOn {
     param([string]$Value)
 
@@ -1053,6 +1063,7 @@ $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
     status = $status
     strict = [bool]$Strict
+    output_encoding = "UTF-8 without BOM"
     repo_root = $repoRoot
     build_dir = $resolvedBuildDir
     build_dir_source = $buildDirSelection.Source
@@ -1078,7 +1089,8 @@ $outputDir = Split-Path -Parent $resolvedOutputJson
 if (-not [string]::IsNullOrWhiteSpace($outputDir)) {
     New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 }
-($summary | ConvertTo-Json -Depth 16) | Set-Content -LiteralPath $resolvedOutputJson -Encoding UTF8
+$summaryJson = ($summary | ConvertTo-Json -Depth 16) + [Environment]::NewLine
+Write-Utf8NoBomFile -Path $resolvedOutputJson -Text $summaryJson
 
 $summary | ConvertTo-Json -Depth 16
 if ($Strict -and $status -ne "ready") {
