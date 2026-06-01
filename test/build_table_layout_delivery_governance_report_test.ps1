@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "ready", "missing_rollup", "malformed", "fail_on_blocker")]
+    [ValidateSet("all", "aggregate", "ready", "missing_rollup", "malformed", "fail_on_issue", "fail_on_blocker")]
     [string]$Scenario = "all"
 )
 
@@ -745,6 +745,33 @@ if (Test-Scenario -Name "malformed") {
         -Message "Read-failed warning should include source_json."
     Assert-ContainsText -Text ([string]$readFailedWarning.source_json_display) -ExpectedText "malformed-evidence\summary.json" `
         -Message "Read-failed warning should include source_json_display."
+}
+
+if (Test-Scenario -Name "fail_on_issue") {
+    $rollup = New-Evidence -Root (Join-Path $resolvedWorkingDir "fail-on-issue-evidence") -Ready:$false
+    $outputDir = Join-Path $resolvedWorkingDir "fail-on-issue-report"
+    $result = Invoke-GovernanceScript -Arguments @(
+        "-InputJson", $rollup,
+        "-OutputDir", $outputDir,
+        "-FailOnIssue"
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 1 `
+        -Message "Governance report should fail with -FailOnIssue when table style issues exist. Output: $($result.Text)"
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
+        -Message "Fail-on-issue governance report should preserve needs_review status."
+    Assert-True -Condition ([int]$summary.total_table_style_issue_count -gt 0) `
+        -Message "Fail-on-issue governance report should write the table style issue count."
+
+    $markdownPath = Join-Path $outputDir "table_layout_delivery_governance.md"
+    Assert-True -Condition (Test-Path -LiteralPath $markdownPath) `
+        -Message "Fail-on-issue governance report should write Markdown output."
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "Table style issues" `
+        -Message "Fail-on-issue Markdown should preserve table style issue diagnostics."
+    Assert-ContainsText -Text $markdown -ExpectedText "safe_tblLook_fixes_pending" `
+        -Message "Fail-on-issue Markdown should preserve issue-driven remediation guidance."
 }
 
 if (Test-Scenario -Name "fail_on_blocker") {

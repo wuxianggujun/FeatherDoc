@@ -206,7 +206,8 @@ foreach ($assertion in @(
                 "open_command",
                 "repair_strategy",
                 "repair_hint",
-                "command_template"
+                "command_template",
+                "FailOnIssue"
             )
         },
         [ordered]@{
@@ -355,6 +356,8 @@ foreach ($assertion in @(
 foreach ($marker in @(
         "table_layout_delivery_route_docs_contract",
         "table_layout_delivery_route_docs_contract_test.ps1",
+        "build_table_layout_delivery_governance_report_fail_on_issue",
+        "fail_on_issue",
         "TIMEOUT 60",
         'LABELS "docs;smoke;governance;table-layout"'
     )) {

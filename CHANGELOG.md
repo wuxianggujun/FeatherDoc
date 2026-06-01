@@ -35,6 +35,8 @@ performance.
   governance, handoff, and release bundle materials so reviewers can see the
   concrete metadata-only and review-required boundaries without reopening the
   source layout JSON.
+- Added a table layout governance `-FailOnIssue` regression and CTest
+  registration so issue-triggered release-gate failures stay covered.
 - Added stable public evidence-path display handling for packaged release
   manifests so project-template and manifest-signoff evidence keeps source
   identity even when packaging runs from an out-of-repository working directory.

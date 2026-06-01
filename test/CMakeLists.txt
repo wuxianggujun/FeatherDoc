@@ -3281,6 +3281,26 @@ if(WIN32)
 
             add_test(
                 NAME
+                build_table_layout_delivery_governance_report_fail_on_issue
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_table_layout_delivery_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_table_layout_delivery_governance_report_fail_on_issue
+                -Scenario
+                fail_on_issue
+            )
+            set_tests_properties(build_table_layout_delivery_governance_report_fail_on_issue
+                PROPERTIES
+                    TIMEOUT 60)
+
+            add_test(
+                NAME
                 build_table_layout_delivery_governance_report_fail_on_blocker
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
