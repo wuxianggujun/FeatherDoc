@@ -58,6 +58,9 @@ performance.
   regression coverage and CTest registration.
 - Added project-template smoke manifest description regression coverage and
   bounded CTest registration for adjacent onboarding tests.
+- Added project-template smoke manifest checker regression coverage for
+  manifest structure, duplicate entries, disabled checks, invalid slots, and
+  `-CheckPaths` failures.
 - Added lightweight parser coverage for release metadata, script index, Word
   visual preflight, and DOCX functional smoke readiness guard scripts.
 - Added script task index regression coverage for reporting unindexed

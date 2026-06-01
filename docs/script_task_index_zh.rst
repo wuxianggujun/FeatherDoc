@@ -105,7 +105,7 @@
   运行 template table CLI section-kind 合并 / 拆分视觉回归。
 - ``scripts/run_project_template_smoke.ps1``：运行项目模板 smoke manifest。
 - ``scripts/check_project_template_smoke_manifest.ps1``：校验项目模板 smoke
-  manifest 结构。
+  manifest 结构、入口唯一性、启用检查项和 ``-CheckPaths`` 路径存在性。
 - ``scripts/project_template_smoke_manifest_common.ps1``：提供项目模板 smoke
   manifest 共享的属性读取、路径解析和校验问题工具。
 - ``scripts/describe_project_template_smoke_manifest.ps1``：只读描述项目模板
