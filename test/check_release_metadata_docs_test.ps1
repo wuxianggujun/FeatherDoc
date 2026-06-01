@@ -279,8 +279,8 @@ function Assert-SummaryFailure {
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
     Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-    if ($summary.required_marker_count -ne 236) {
-        throw "Expected JSON summary to count 236 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 240) {
+        throw "Expected JSON summary to count 240 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -463,6 +463,10 @@ $defaultPipelineText = @(
     '- ``message``',
     '- ``source_schema``',
     '- ``source_report_display``',
+    '- blocker_source_schema_summary',
+    '- action_item_source_schema_summary',
+    '- informational_action_item_source_schema_summary',
+    '- warning_source_schema_summary',
     '- ``output_gap_count``',
     '- ``missing_output_count``',
     '- ``output gap checks``',
@@ -699,8 +703,8 @@ Assert-SummaryCheckedDocumentsConsistent -Summary $summary
 if ($summary.checked_document_count -ne 8) {
     throw "Expected JSON summary checked document count 8, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 103) {
-    throw "Expected JSON summary pipeline marker count 103, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 107) {
+    throw "Expected JSON summary pipeline marker count 107, got: $($summary.required_pipeline_marker_count)"
 }
 if ($summary.required_checklist_marker_count -ne 96) {
     throw "Expected JSON summary checklist marker count 96, got: $($summary.required_checklist_marker_count)"
@@ -714,8 +718,8 @@ if ($summary.required_policy_marker_count -ne 22) {
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 236) {
-    throw "Expected JSON summary total marker count 236, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 240) {
+    throw "Expected JSON summary total marker count 240, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 8) {
     throw "Expected JSON summary to list 8 checked documents, got: $($summary.checked_documents.Count)"
@@ -868,6 +872,22 @@ Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue '``source_json_display``' `
     -Message "JSON summary should list release governance source JSON display marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "blocker_source_schema_summary" `
+    -Message "JSON summary should list release blocker source schema summary marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "action_item_source_schema_summary" `
+    -Message "JSON summary should list release action item source schema summary marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "informational_action_item_source_schema_summary" `
+    -Message "JSON summary should list informational action item source schema summary marker."
+Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "warning_source_schema_summary" `
+    -Message "JSON summary should list release warning source schema summary marker."
 Assert-ArrayContains `
     -Values @($summary.required_pipeline_markers) `
     -ExpectedValue "final_governance_report_count" `

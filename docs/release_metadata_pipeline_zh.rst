@@ -247,9 +247,17 @@ handoff 与 release note bundle。该 runbook 必须继续声明它不是新鲜 
   ``source_schema``、``source_report_display`` 与 ``source_json_display``。
 - ``release_blocker_rollup.action_items[]``：展示 ``id``、``action``、``open_command``、
   ``source_schema``、``source_report_display`` 与 ``source_json_display``。
+- ``release_blocker_rollup.informational_action_items[]``：展示非阻断的 release checklist
+  动作、``open_command``、``source_schema``、``source_report_display`` 与
+  ``source_json_display``。
 
 对应的人读摘要文件为 ``release_blocker_rollup.md``，用于把同一组机器字段交给
 reviewer 复核。
+rollup summary 与 Markdown 顶部还会输出 ``blocker_source_schema_summary``、
+``action_item_source_schema_summary``、``informational_action_item_source_schema_summary`` 与
+``warning_source_schema_summary``。发布面板和 reviewer 可以先按 ``source_schema``
+把 blocker、warning、action item 与 informational action item 分流，再打开对应
+``source_report_display`` / ``source_json_display`` 定位证据。
 同一轮 release governance 还会保留 ``release_governance_handoff.md`` 与
 ``release_governance_pipeline.md``，确保 handoff 和 pipeline 两个视角都能追溯到
 相同的 blocker / warning / action item 来源。

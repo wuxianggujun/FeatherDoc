@@ -1077,6 +1077,11 @@ if (Test-Scenario -Name "passing") {
         -ExpectOpenCommandProperty $true
     Assert-GovernanceTraceMetadata -Items @($summary.informational_action_items) -CollectionName "informational_action_items" `
         -ExpectOpenCommandProperty $true
+    Assert-SummaryGroupCount -Groups @($summary.blocker_source_schema_summary) `
+        -PropertyName "source_schema" `
+        -Name "featherdoc.schema_patch_confidence_calibration_report.v1" `
+        -ExpectedCount 1 `
+        -Message "Rollup should summarize blockers by source schema for reviewer filtering."
     Assert-SummaryGroupCount -Groups @($summary.action_item_source_schema_summary) `
         -PropertyName "source_schema" `
         -Name "featherdoc.schema_patch_confidence_calibration_report.v1" `
@@ -1854,6 +1859,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include PDF build option readiness action."
     Assert-ContainsText -Text $markdown -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT" `
         -Message "Markdown should include the disabled PDF build option name."
+    Assert-ContainsText -Text $markdown -ExpectedText "Blocker source schemas:" `
+        -Message "Markdown should include blocker source-schema rollup for reviewer filtering."
     Assert-ContainsText -Text $markdown -ExpectedText "Action item source schemas:" `
         -Message "Markdown should include action source-schema rollup for reviewer filtering."
     Assert-ContainsText -Text $markdown -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1=1" `

@@ -223,6 +223,21 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+    "blocker_source_schema_summary",
+    "action_item_source_schema_summary",
+    "informational_action_item_source_schema_summary",
+    "warning_source_schema_summary"
+)) {
+    foreach ($entry in @(
+        [ordered]@{ name = "release blocker rollup script"; text = $rollupScript },
+        [ordered]@{ name = "release blocker rollup test"; text = $rollupTest }
+    )) {
+        Assert-ContainsText -Text $entry.text -ExpectedText $marker `
+            -Message "$($entry.name) should keep source schema summary marker '$marker'."
+    }
+}
+
+foreach ($marker in @(
     "Get-ReleaseGovernanceChecklistSections",
     "Assert-ReleaseGovernanceReviewerMetadataQuality",
     "Assert-ReleaseGovernanceReviewerMetadataCollectionQuality",

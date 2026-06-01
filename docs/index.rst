@@ -1674,7 +1674,13 @@ catalog document keys and baseline document keys no longer align. Blockers,
 warnings, action items, and governance metrics keep ``source_schema``,
 ``source_report_display``, ``source_json_display``, and ``open_command`` so
 the release governance pipeline, final rollup, and reviewer bundle can trace
-numbering evidence without reopening the original DOCX.
+numbering evidence without reopening the original DOCX. The final release
+blocker rollup also exposes ``blocker_source_schema_summary``,
+``action_item_source_schema_summary``,
+``informational_action_item_source_schema_summary`` and
+``warning_source_schema_summary`` so dashboards and reviewers can filter
+blockers, warnings, action items and informational action items by
+``source_schema`` before opening the source report.
 
 Edit plans can call the same import path with
 ``import_numbering_catalog`` and a ``catalog_file`` /
