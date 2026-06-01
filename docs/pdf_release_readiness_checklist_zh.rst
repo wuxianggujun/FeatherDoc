@@ -123,6 +123,12 @@ OCR 或任意视觉精确还原。
    ``visual_gate_fresh_full_guarded_evidence``、
    ``visual_gate_pass_summary_before_outer_timeout``、
    ``visual_gate_segmented_full_coverage_evidence``。
+   summary 还必须保留可打开的证据路径字段：
+   ``preflight_summary_json_display``、``visual_gate_summary_json_display``、
+   ``visual_full_gate_guarded_summary_json_display``、
+   ``visual_segmented_gate_summary_json_display``、``full_ctest_summary_json_display`` 和
+   ``full_ctest_remaining_summary_json_display``，避免 reviewer 只看到结论字段却无法
+   直接打开对应的 preflight、visual gate、segmented gate 或 CTest 证据。
    当 fresh full visual gate 和
    full PDF CTest 组合证据都已闭合时，``verdict`` 应为 ``pass`` 且
    ``warning_count = 0``；如果任一重型证据只达到可追溯但未完整闭合，

@@ -911,7 +911,13 @@ foreach ($marker in @(
     'ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_" --output-on-failure --timeout 60',
     "text-first",
     "opt-in",
-    "PDF"
+    "PDF",
+    "preflight_summary_json_display",
+    "visual_gate_summary_json_display",
+    "visual_full_gate_guarded_summary_json_display",
+    "visual_segmented_gate_summary_json_display",
+    "full_ctest_summary_json_display",
+    "full_ctest_remaining_summary_json_display"
 )) {
     Assert-ContainsText -Text $releaseChecklistDoc -ExpectedText $marker `
         -Message "PDF release readiness checklist should preserve marker '$marker'."
