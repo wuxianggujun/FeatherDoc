@@ -88,6 +88,8 @@ $artifactGuidePath = Join-Path $releaseReportDir "ARTIFACT_GUIDE.md"
 $reviewerChecklistPath = Join-Path $releaseReportDir "REVIEWER_CHECKLIST.md"
 $startHerePath = Join-Path $releaseRoot "START_HERE.md"
 $summaryDisplayPath = Get-RepoRelativeDisplayPath -RepoRoot $resolvedRepoRoot -Path $summaryPath
+$summaryPublicPath = $summaryDisplayPath.TrimStart('.', '\', '/')
+$fullWidthColon = [char]0xFF1A
 $manifestPath = Join-Path $resolvedWorkingDir "project_template_smoke.manifest.json"
 $outputDir = Join-Path $resolvedWorkingDir "project-template-smoke-output"
 $contactSheetPath = Join-Path $resolvedWorkingDir "visual\contact-sheet.png"
@@ -256,6 +258,8 @@ Assert-ContainsText -Text $result.Text -ExpectedText "Overall status: passed_wit
     -Message "Sync output should report the derived overall status."
 Assert-ContainsText -Text $result.Text -ExpectedText "Visual verdict: pending_manual_review" `
     -Message "Sync output should report the aggregate visual verdict."
+Assert-ContainsText -Text $result.Text -ExpectedText "Refreshed release note bundle" `
+    -Message "Sync output should report that -RefreshReleaseBundle refreshed the release note bundle."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-True -Condition (-not [string]::IsNullOrWhiteSpace([string]$summary.visual_review_synced_at)) `
@@ -359,5 +363,17 @@ foreach ($bundlePath in @($releaseHandoffPath, $artifactGuidePath, $reviewerChec
     Assert-ContainsText -Text $bundleText -ExpectedText $summaryDisplayPath `
         -Message "Release-facing material should point reviewers at the synced project template smoke summary: $bundlePath"
 }
+
+Assert-True -Condition (Test-Path -LiteralPath $releaseBodyPath) `
+    -Message "RefreshReleaseBundle should generate release_body.zh-CN.md."
+$releaseBody = Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseBodyPath
+Assert-ContainsText -Text $releaseBody -ExpectedText "project template smoke visual verdict$($fullWidthColon)pending_manual_review" `
+    -Message "Release body should expose the synced project template smoke visual verdict."
+Assert-ContainsText -Text $releaseBody -ExpectedText "project template smoke pending reviews$($fullWidthColon)1" `
+    -Message "Release body should expose the synced project template smoke pending review count."
+Assert-ContainsText -Text $releaseBody -ExpectedText "Project template smoke summary$($fullWidthColon)" `
+    -Message "Release body should point reviewers at the synced project template smoke summary."
+Assert-ContainsText -Text $releaseBody -ExpectedText $summaryPublicPath `
+    -Message "Release body should include the public synced project template smoke summary path."
 
 Write-Host "Project template smoke visual verdict sync regression passed."
