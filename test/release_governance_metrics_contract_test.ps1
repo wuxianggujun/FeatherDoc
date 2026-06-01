@@ -219,6 +219,10 @@ foreach ($marker in @(
         -Message "Release material safety audit should keep the table delivery marker '$marker'."
     Assert-ContainsText -Text $safetyAuditTest -ExpectedText $marker `
         -Message "Release material safety regression should lock the table delivery marker '$marker'."
+    Assert-ContainsText -Text $packageSafetyTest -ExpectedText $marker `
+        -Message "Release asset packaging regression should lock the table delivery marker '$marker'."
+    Assert-ContainsText -Text $packageAllowIncompleteTest -ExpectedText $marker `
+        -Message "Release asset allow-incomplete regression should lock the table delivery marker '$marker'."
 }
 
 foreach ($marker in @("floating_table_plans_pending")) {
