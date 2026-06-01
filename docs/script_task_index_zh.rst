@@ -189,7 +189,8 @@
 - ``scripts/build_document_skeleton_governance_rollup_report.ps1``：汇总多份骨架
   治理报告。
 - ``scripts/write_schema_patch_confidence_calibration_report.ps1``：生成 schema
-  patch 置信度校准报告。
+  patch 置信度校准报告，并把 reviewer 分流固定为 ``source_report_display``、
+  ``source_json_display`` 和 ``open_command`` 三段入口。
 - ``scripts/write_style_merge_suggestion_review.ps1``：生成 style merge 建议复核
   材料。
 - ``scripts/apply_reviewed_style_merge_suggestions.ps1``：应用已复核的 style merge

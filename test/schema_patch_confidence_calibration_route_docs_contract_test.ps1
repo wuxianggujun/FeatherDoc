@@ -91,6 +91,7 @@ foreach ($marker in @(
         "schema patch confidence calibration",
         "schema-patch-confidence-calibration/summary.json",
         "source_schema",
+        "source_report_display",
         "source_json_display",
         "open_command",
         "confidence calibration",
@@ -108,7 +109,8 @@ foreach ($marker in @(
         "release blocker auto-discovery",
         "source_report_display",
         "source_json_display",
-        "open_command"
+        "open_command",
+        "summary JSON"
     )) {
     Assert-ContainsText -Text $featureGapDoc -ExpectedText $marker `
         -Message "Feature gap document should preserve schema calibration marker '$marker'."

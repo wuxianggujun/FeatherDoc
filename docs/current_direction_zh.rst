@@ -113,7 +113,9 @@
   reviewer-facing bundle
 - schema patch confidence calibration 只读校准报告；pending approval、未打分候选和
   recommendation 现在会作为 release blocker / warning / action item 进入
-  ``schema-patch-confidence-calibration/summary.json``，并被默认发布面板消费
+  ``schema-patch-confidence-calibration/summary.json``，并被默认发布面板消费；
+  reviewer 分流约定为先用 ``source_report_display`` 打开 Markdown 报告，再用
+  ``source_json_display`` 核对机器证据，最后复制 ``open_command`` 重新生成或复核校准材料
 - release blocker rollup 统一发布阻断汇总
 - content-control data-binding governance 只读报告，已把 Custom XML
   同步 issue、绑定占位符和重复绑定复核接入发布治理 pipeline；这些治理项现在会携带

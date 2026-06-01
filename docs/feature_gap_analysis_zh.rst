@@ -102,6 +102,9 @@ confidence 元数据，生成 ``featherdoc.schema_patch_confidence_calibration_r
 把未打分候选或无效审批记录写成 warning，并把 recommendation 同步为带
 ``open_command`` 的 action item；默认 release blocker auto-discovery、governance
 pipeline 和 handoff 都会读取 ``schema-patch-confidence-calibration/summary.json``。
+reviewer 处理该治理源时按 ``source_report_display``、``source_json_display`` 和
+``open_command`` 三段分流：先读 Markdown 校准报告，再核对 summary JSON，最后重建或
+复核校准输入。
 ``build_release_blocker_rollup_report.ps1`` 则把模板、骨架、版式等报告里的
 ``release_blockers`` / ``action_items`` 聚合成统一发布阻断视图。
 ``build_release_governance_pipeline_report.ps1`` 的
