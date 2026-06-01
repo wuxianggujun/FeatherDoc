@@ -570,6 +570,9 @@ Its JSON and Markdown reports also include `minimum_risk_next_action_command`,
 `output_encoding` (`UTF-8 without BOM`) so a reviewer or automation can copy the
 correct next command and consume stable artifacts without treating the static
 preflight as release-ready evidence.
+The reports also preserve `evidence_scope_note` and `boundary`; the note must
+state `static scripts, docs, and test registration only`, and the boundary must
+keep the no-heavy-tooling / no-visual-rendering contract explicit.
 
 If the standard smoke contact sheet is reviewed during the same gate run, add
 `-SmokeReviewVerdict pass` (or `fail` / `undetermined`) and `-SmokeReviewNote`

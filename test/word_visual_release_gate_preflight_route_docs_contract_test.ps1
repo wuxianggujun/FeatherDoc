@@ -69,6 +69,9 @@ foreach ($assertion in @(
                 "minimum_risk_next_action_command",
                 "strict_preflight_command_template",
                 "full_gate_command_template",
+                "evidence_scope_note",
+                "boundary",
+                "static scripts, docs, and test registration only",
                 "output_encoding",
                 "UTF-8 without BOM",
                 "does not run Word, CMake, CTest"
@@ -84,6 +87,9 @@ foreach ($assertion in @(
                 "minimum_risk_next_action_command",
                 "strict_preflight_command_template",
                 "full_gate_command_template",
+                "evidence_scope_note",
+                "boundary",
+                "static scripts, docs, and test registration only",
                 "output_encoding",
                 "UTF-8 without BOM",
                 "release-ready evidence"

@@ -353,6 +353,9 @@ JSON 和 Markdown 报告会同时写出 `minimum_risk_next_action_command`、
 `output_encoding`（`UTF-8 without BOM`），方便 reviewer 或自动化复制正确的
 下一步命令，并稳定消费无 BOM 产物；这个静态 preflight 不能单独当作
 release-ready evidence。
+报告还必须保留 `evidence_scope_note` 与 `boundary`：其中
+`evidence_scope_note` 应包含 `static scripts, docs, and test registration only`，
+`boundary` 必须继续说明它不会运行重型工具链或视觉渲染。
 
 如果希望在证据生成后，立即打包成 AI 可消费的 review task：
 
