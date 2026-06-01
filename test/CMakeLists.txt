@@ -2659,6 +2659,25 @@ if(WIN32)
 
         add_test(
             NAME
+            sync_project_template_smoke_visual_verdict
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_project_template_smoke_visual_verdict_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_project_template_smoke_visual_verdict
+        )
+        set_tests_properties(sync_project_template_smoke_visual_verdict
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;project_template")
+
+        add_test(
+            NAME
             describe_project_template_smoke_manifest
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

@@ -557,6 +557,7 @@ foreach ($entry in $entries) {
     Set-ProjectTemplateSmokePropertyValue -Object $entry -Name "status" -Value $entryState.status
     Set-ProjectTemplateSmokePropertyValue -Object $entry -Name "passed" -Value $entryState.passed
     Set-ProjectTemplateSmokePropertyValue -Object $entry -Name "manual_review_pending" -Value $entryState.manual_review_pending
+    Set-ProjectTemplateSmokePropertyValue -Object $entry -Name "visual_review_undetermined" -Value $entryState.visual_review_undetermined
 
     if ($entryState.failed) {
         $failedEntryCount += 1
