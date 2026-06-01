@@ -279,8 +279,8 @@ function Assert-SummaryFailure {
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
     Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-    if ($summary.required_marker_count -ne 245) {
-        throw "Expected JSON summary to count 245 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 263) {
+        throw "Expected JSON summary to count 263 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -472,6 +472,15 @@ $defaultPipelineText = @(
     '- ``output gap checks``',
     '- ``missing outputs``',
     '- ``style_merge_suggestion_count``',
+    '- ``featherdoc.style_merge_restore_audit.v1``',
+    '- ``review_handoff_steps``',
+    '- ``next_handoff_step``',
+    '- ``next_copy_command``',
+    '- ``next_step_reason``',
+    '- ``handoff_status_summary``',
+    '- ``rollback_plan_summary``',
+    '- ``non_restorable_merge_rollback_entry_count``',
+    '- ``non_restorable_merge_rollback_entry_indexes``',
     '- ``featherdoc.project_template_delivery_readiness_report.v1``',
     '- ``featherdoc.content_control_data_binding_governance_report.v1``',
     '- ``featherdoc.numbering_catalog_governance_report.v1``',
@@ -557,6 +566,15 @@ $defaultChecklistText = @(
     '- source_schema',
     '- source_report_display',
     '- source_json_display',
+    '- featherdoc.style_merge_restore_audit.v1',
+    '- review_handoff_steps',
+    '- next_handoff_step',
+    '- next_copy_command',
+    '- next_step_reason',
+    '- handoff_status_summary',
+    '- rollback_plan_summary',
+    '- non_restorable_merge_rollback_entry_count',
+    '- non_restorable_merge_rollback_entry_indexes',
     '- Assert-ReleaseGovernanceSourceSchemaSummaryConsistency',
     '- blocker_source_schema_summary',
     '- action_item_source_schema_summary',
@@ -708,11 +726,11 @@ Assert-SummaryCheckedDocumentsConsistent -Summary $summary
 if ($summary.checked_document_count -ne 8) {
     throw "Expected JSON summary checked document count 8, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 107) {
-    throw "Expected JSON summary pipeline marker count 107, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 116) {
+    throw "Expected JSON summary pipeline marker count 116, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 101) {
-    throw "Expected JSON summary checklist marker count 101, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 110) {
+    throw "Expected JSON summary checklist marker count 110, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_document_governance_marker_count -ne 13) {
     throw "Expected JSON summary document governance marker count 13, got: $($summary.required_document_governance_marker_count)"
@@ -723,8 +741,8 @@ if ($summary.required_policy_marker_count -ne 22) {
 if ($summary.required_entrypoint_marker_count -ne 2) {
     throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 245) {
-    throw "Expected JSON summary total marker count 245, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 263) {
+    throw "Expected JSON summary total marker count 263, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 8) {
     throw "Expected JSON summary to list 8 checked documents, got: $($summary.checked_documents.Count)"

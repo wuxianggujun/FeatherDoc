@@ -295,6 +295,11 @@ Word-compatible wrapping 边界。
 ``final_governance_report_count``、``final_governance_reports``、
 ``required_stage_count``、``completed_required_stage_count``、``required_stages``、
 ``source_schema``、``source_report_display``、``source_json_display``、
+``featherdoc.style_merge_restore_audit.v1``、``review_handoff_steps``、
+``next_handoff_step``、``next_copy_command``、``next_step_reason``、
+``handoff_status_summary``、``rollback_plan_summary``、
+``non_restorable_merge_rollback_entry_count``、
+``non_restorable_merge_rollback_entry_indexes``、
 ``blocker_source_schema_summary``、``action_item_source_schema_summary``、
 ``informational_action_item_source_schema_summary``、``warning_source_schema_summary``、
 ``Assert-ReleaseGovernanceSourceSchemaSummaryConsistency``、

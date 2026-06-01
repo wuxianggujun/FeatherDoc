@@ -231,6 +231,12 @@ if (Test-Scenario -Name "clean") {
         -Message "Clean restore audit action item should expose the next handoff step."
     Assert-ContainsText -Text ([string]$actionItem.next_copy_command) -ExpectedText "prepare_word_review_task.ps1" `
         -Message "Clean restore audit action item should expose the next copy command."
+    Assert-Equal -Actual ([string]$actionItem.next_step_reason) -Expected "style_merge_restore_audit_clean_requires_word_visual_review" `
+        -Message "Clean restore audit action item should explain why the visual review is next."
+    Assert-Equal -Actual ([string]$actionItem.handoff_status_summary.next_step_id) -Expected "prepare_word_visual_review" `
+        -Message "Clean restore audit action item should expose the handoff status summary."
+    Assert-Equal -Actual ([int]$actionItem.rollback_plan_summary.non_restorable_merge_rollback_entry_count) -Expected 1 `
+        -Message "Clean restore audit action item should preserve rollback plan summary evidence."
     Assert-Equal -Actual ([string]$actionItem.source_schema) -Expected "featherdoc.style_merge_restore_audit.v1" `
         -Message "Restore audit action item should expose release governance source schema."
     Assert-ContainsText -Text ([string]$actionItem.source_report_display) -ExpectedText "style-merge.restore-audit.summary.json" `
@@ -279,8 +285,42 @@ if (Test-Scenario -Name "clean") {
         -Message "Clean restore audit should expose the top-level next handoff step."
     Assert-ContainsText -Text ([string]$summary.next_copy_command) -ExpectedText "prepare_word_review_task.ps1" `
         -Message "Clean restore audit should expose the top-level next copy command."
+    Assert-Equal -Actual ([string]$summary.next_step_reason) -Expected "style_merge_restore_audit_clean_requires_word_visual_review" `
+        -Message "Clean restore audit should explain why the visual review is next."
+    Assert-Equal -Actual ([string]$summary.handoff_status_summary.status) -Expected "clean" `
+        -Message "Clean restore audit handoff summary should preserve status."
+    Assert-Equal -Actual ([string]$summary.handoff_status_summary.next_step_id) -Expected "prepare_word_visual_review" `
+        -Message "Clean restore audit handoff summary should identify the next step."
+    Assert-Equal -Actual ([string]$summary.handoff_status_summary.next_step_reason) -Expected "style_merge_restore_audit_clean_requires_word_visual_review" `
+        -Message "Clean restore audit handoff summary should preserve the next step reason."
+    Assert-Equal -Actual ([int]$summary.handoff_status_summary.total_step_count) -Expected 3 `
+        -Message "Clean restore audit handoff summary should count all steps."
+    Assert-Equal -Actual ([int]$summary.handoff_status_summary.completed_step_count) -Expected 1 `
+        -Message "Clean restore audit handoff summary should count completed steps."
+    Assert-Equal -Actual ([int]$summary.handoff_status_summary.next_step_count) -Expected 1 `
+        -Message "Clean restore audit handoff summary should count next steps."
+    Assert-Equal -Actual ([int]$summary.handoff_status_summary.ready_step_count) -Expected 1 `
+        -Message "Clean restore audit handoff summary should count ready steps."
+    Assert-Equal -Actual ([int]$summary.handoff_status_summary.blocked_step_count) -Expected 0 `
+        -Message "Clean restore audit handoff summary should count blocked steps."
+    Assert-ContainsText -Text ([string]$summary.handoff_status_summary.next_copy_command) -ExpectedText "prepare_word_review_task.ps1" `
+        -Message "Clean restore audit handoff summary should expose the next copy command."
+    Assert-Equal -Actual ([int]$summary.rollback_plan_summary.rollback_operation_count) -Expected 4 `
+        -Message "Clean restore audit should summarize rollback operation count."
+    Assert-Equal -Actual ([int]$summary.rollback_plan_summary.merge_rollback_entry_count) -Expected 3 `
+        -Message "Clean restore audit should summarize merge rollback entry count."
+    Assert-Equal -Actual ([int]$summary.rollback_plan_summary.restorable_merge_rollback_entry_count) -Expected 2 `
+        -Message "Clean restore audit should summarize restorable merge rollback entries."
+    Assert-Equal -Actual ([int]$summary.rollback_plan_summary.non_restorable_merge_rollback_entry_count) -Expected 1 `
+        -Message "Clean restore audit should summarize non-restorable merge rollback entries."
+    Assert-Equal -Actual ([bool]$summary.rollback_plan_summary.has_non_restorable_merge_rollback_entries) -Expected $true `
+        -Message "Clean restore audit should flag non-restorable merge rollback entries."
+    Assert-ContainsText -Text ((@($summary.rollback_plan_summary.non_restorable_merge_rollback_entry_indexes) | ForEach-Object { [string]$_ }) -join ",") -ExpectedText "3" `
+        -Message "Clean restore audit should list non-restorable merge rollback entry indexes."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].source_schema) -Expected "featherdoc.style_merge_restore_audit.v1" `
         -Message "Clean restore audit handoff step should expose source schema."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].reason) -Expected "style_merge_restore_audit_clean_requires_word_visual_review" `
+        -Message "Clean restore audit handoff step should explain why visual review is next."
     Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].source_json_display) -ExpectedText "style-merge.restore-audit.summary.json" `
         -Message "Clean restore audit handoff step should expose source JSON display path."
     Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].rollback_plan_display) -ExpectedText "style-merge.apply.rollback.json" `
@@ -408,8 +448,40 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit should expose the top-level next handoff step."
     Assert-ContainsText -Text ([string]$summary.next_copy_command) -ExpectedText "restore-style-merge" `
         -Message "Issue restore audit should expose the top-level next copy command."
+    Assert-Equal -Actual ([string]$summary.next_step_reason) -Expected "style_merge_restore_audit_issues_require_issue_group_review" `
+        -Message "Issue restore audit should explain why issue group review is next."
+    Assert-Equal -Actual ([string]$summary.handoff_status_summary.status) -Expected "needs_review" `
+        -Message "Issue restore audit handoff summary should preserve status."
+    Assert-Equal -Actual ([string]$summary.handoff_status_summary.next_step_id) -Expected "review_issue_groups" `
+        -Message "Issue restore audit handoff summary should identify the next step."
+    Assert-Equal -Actual ([string]$summary.handoff_status_summary.next_step_reason) -Expected "style_merge_restore_audit_issues_require_issue_group_review" `
+        -Message "Issue restore audit handoff summary should preserve the next step reason."
+    Assert-Equal -Actual ([int]$summary.handoff_status_summary.total_step_count) -Expected 3 `
+        -Message "Issue restore audit handoff summary should count all steps."
+    Assert-Equal -Actual ([int]$summary.handoff_status_summary.completed_step_count) -Expected 1 `
+        -Message "Issue restore audit handoff summary should count completed steps."
+    Assert-Equal -Actual ([int]$summary.handoff_status_summary.next_step_count) -Expected 1 `
+        -Message "Issue restore audit handoff summary should count next steps."
+    Assert-Equal -Actual ([int]$summary.handoff_status_summary.ready_step_count) -Expected 0 `
+        -Message "Issue restore audit handoff summary should count ready steps."
+    Assert-Equal -Actual ([int]$summary.handoff_status_summary.blocked_step_count) -Expected 1 `
+        -Message "Issue restore audit handoff summary should count blocked steps."
+    Assert-ContainsText -Text ([string]$summary.handoff_status_summary.next_copy_command) -ExpectedText "restore-style-merge" `
+        -Message "Issue restore audit handoff summary should expose the next copy command."
+    Assert-Equal -Actual ([int]$summary.rollback_plan_summary.rollback_operation_count) -Expected 1 `
+        -Message "Issue restore audit should summarize rollback operation count."
+    Assert-Equal -Actual ([int]$summary.rollback_plan_summary.merge_rollback_entry_count) -Expected 1 `
+        -Message "Issue restore audit should summarize merge rollback entry count."
+    Assert-Equal -Actual ([int]$summary.rollback_plan_summary.restorable_merge_rollback_entry_count) -Expected 1 `
+        -Message "Issue restore audit should summarize restorable merge rollback entries."
+    Assert-Equal -Actual ([int]$summary.rollback_plan_summary.non_restorable_merge_rollback_entry_count) -Expected 0 `
+        -Message "Issue restore audit should summarize non-restorable merge rollback entries."
+    Assert-Equal -Actual ([bool]$summary.rollback_plan_summary.has_non_restorable_merge_rollback_entries) -Expected $false `
+        -Message "Issue restore audit should flag that no merge rollback entries are non-restorable."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].source_schema) -Expected "featherdoc.style_merge_restore_audit.v1" `
         -Message "Issue restore audit handoff step should expose source schema."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].reason) -Expected "style_merge_restore_audit_issues_require_issue_group_review" `
+        -Message "Issue restore audit handoff step should explain why issue review is next."
     Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].source_report_display) -ExpectedText "style-merge.restore-audit.summary.json" `
         -Message "Issue restore audit handoff step should expose source report display path."
     Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].rollback_plan_display) -ExpectedText "style-merge.apply.rollback.json" `
@@ -470,6 +542,12 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit blocker should expose the next handoff step."
     Assert-ContainsText -Text ([string]$blocker.next_copy_command) -ExpectedText "restore-style-merge" `
         -Message "Issue restore audit blocker should expose the next copy command."
+    Assert-Equal -Actual ([string]$blocker.next_step_reason) -Expected "style_merge_restore_audit_issues_require_issue_group_review" `
+        -Message "Issue restore audit blocker should explain why issue group review is next."
+    Assert-Equal -Actual ([string]$blocker.handoff_status_summary.next_step_id) -Expected "review_issue_groups" `
+        -Message "Issue restore audit blocker should expose the handoff status summary."
+    Assert-Equal -Actual ([int]$blocker.rollback_plan_summary.merge_rollback_entry_count) -Expected 1 `
+        -Message "Issue restore audit blocker should preserve rollback plan summary evidence."
     Assert-ContainsText -Text ((@($blocker.issue_keys) | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "style_merge_restore_audit_issues" `
         -Message "Issue restore audit blocker should expose stable issue keys."
@@ -497,6 +575,12 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit action item should expose the next handoff step."
     Assert-ContainsText -Text ([string]$issueActionItem.next_copy_command) -ExpectedText "restore-style-merge" `
         -Message "Issue restore audit action item should expose the next copy command."
+    Assert-Equal -Actual ([string]$issueActionItem.next_step_reason) -Expected "style_merge_restore_audit_issues_require_issue_group_review" `
+        -Message "Issue restore audit action item should explain why issue group review is next."
+    Assert-Equal -Actual ([string]$issueActionItem.handoff_status_summary.next_step_id) -Expected "review_issue_groups" `
+        -Message "Issue restore audit action item should expose the handoff status summary."
+    Assert-Equal -Actual ([int]$issueActionItem.rollback_plan_summary.merge_rollback_entry_count) -Expected 1 `
+        -Message "Issue restore audit action item should preserve rollback plan summary evidence."
 }
 
 Write-Host "Style merge restore audit regression passed."

@@ -267,6 +267,18 @@ rollup summary 与 Markdown 顶部还会输出 ``blocker_source_schema_summary``
 相同的 blocker / warning / action item 来源。
 历史样式合并建议计数字段 ``style_merge_suggestion_count`` 仍保留为机器字段，
 并在文档中写作 ``style_merge_suggestion_count``，避免旧 release 面板丢失该计数。
+样式合并恢复审计会写出 ``featherdoc.style_merge_restore_audit.v1``。当
+``audit_style_merge_restore_plan.ps1`` 发现 restore dry-run issue 时，
+``release_blockers`` 会保留 ``review_handoff_steps``、``next_handoff_step``、
+``next_copy_command``、``next_step_reason``、``handoff_status_summary`` 与
+``rollback_plan_summary``，同时携带 ``source_schema``、``source_report_display``、
+``source_json_display``、``rollback_plan_display`` 和 ``repair_strategy``。
+当审计 clean 时，同一组字段会进入 ``action_items``，让 reviewer 能先按
+``handoff_status_summary.next_step_id`` 判断下一步，再直接复制
+``next_copy_command``。``rollback_plan_summary`` 只描述 rollback JSON 本身，
+包括 ``merge_rollback_entry_count``、``restorable_merge_rollback_entry_count``、
+``non_restorable_merge_rollback_entry_count`` 与
+``non_restorable_merge_rollback_entry_indexes``；它不等同于 dry-run 实际恢复成功数。
 
 ``run_release_candidate_checks.ps1`` 在读取 ``featherdoc.release_blocker_rollup_report.v1``
 后会把上述数组同步写入 ``summary.json`` 的 ``release_blocker_rollup`` 与

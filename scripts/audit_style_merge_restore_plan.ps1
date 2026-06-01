@@ -428,6 +428,53 @@ function Get-RestorableRollbackEntryCommands {
     }
 }
 
+function Get-RollbackPlanSummary {
+    param($RollbackPlanObject)
+
+    $operations = Get-JsonProperty -Object $RollbackPlanObject -Name "rollback_operations"
+    if ($null -eq $operations) {
+        return [ordered]@{
+            rollback_operation_count = 0
+            merge_rollback_entry_count = 0
+            restorable_merge_rollback_entry_count = 0
+            non_restorable_merge_rollback_entry_count = 0
+            has_non_restorable_merge_rollback_entries = $false
+            non_restorable_merge_rollback_entry_indexes = @()
+        }
+    }
+
+    $mergeEntryCount = 0
+    $restorableMergeEntryCount = 0
+    $nonRestorableMergeEntryIndexes = New-Object 'System.Collections.Generic.List[int]'
+    $operationIndex = 0
+    foreach ($operation in @($operations)) {
+        $action = Get-JsonString -Object $operation -Names @("action")
+        if ($action -ne "merge") {
+            $operationIndex += 1
+            continue
+        }
+
+        $mergeEntryCount += 1
+        $restorable = Get-JsonBool -Object $operation -Names @("restorable") -DefaultValue $false
+        if ($restorable) {
+            $restorableMergeEntryCount += 1
+        } else {
+            $nonRestorableMergeEntryIndexes.Add([int]$operationIndex) | Out-Null
+        }
+        $operationIndex += 1
+    }
+
+    $nonRestorableIndexes = @($nonRestorableMergeEntryIndexes.ToArray())
+    return [ordered]@{
+        rollback_operation_count = @($operations).Count
+        merge_rollback_entry_count = $mergeEntryCount
+        restorable_merge_rollback_entry_count = $restorableMergeEntryCount
+        non_restorable_merge_rollback_entry_count = $nonRestorableIndexes.Count
+        has_non_restorable_merge_rollback_entries = ($nonRestorableIndexes.Count -gt 0)
+        non_restorable_merge_rollback_entry_indexes = $nonRestorableIndexes
+    }
+}
+
 function Get-StyleMergeRestoreReviewHandoffSteps {
     param(
         [int]$IssueCount,
@@ -456,6 +503,7 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
         id = "review_restore_audit_dry_run"
         action = "review_style_merge_restore_audit"
         status = "completed"
+        reason = "style_merge_restore_audit_dry_run_completed"
         command = $RestoreAuditCommand
     }
     Add-StyleMergeRestoreHandoffStep -Steps $steps -Step $step -SourceFields $sourceFields
@@ -475,6 +523,7 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             id = "review_issue_groups"
             action = "review_style_merge_restore_audit_issues"
             status = "next"
+            reason = "style_merge_restore_audit_issues_require_issue_group_review"
             issue_count = $IssueCount
             issue_group_count = @($IssueReviewGroups).Count
             command = $RestoreAuditCommand
@@ -486,6 +535,7 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             id = "prepare_word_visual_review_after_clean_audit"
             action = "prepare_word_visual_review"
             status = "blocked"
+            reason = "style_merge_restore_audit_issues_block_word_visual_review"
             blocked_by = @("style_merge.restore_audit_issues")
             command = $VisualReviewCommand
             open_command = $OpenVisualReviewCommand
@@ -497,6 +547,7 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             id = "prepare_word_visual_review"
             action = "prepare_word_visual_review"
             status = "next"
+            reason = "style_merge_restore_audit_clean_requires_word_visual_review"
             command = $VisualReviewCommand
             open_command = $OpenVisualReviewCommand
         }
@@ -506,6 +557,7 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             id = "restore_selected_style_merges"
             action = "restore_style_merge"
             status = "ready"
+            reason = "style_merge_restore_ready_after_word_visual_review"
             command_template = $SelectedRestoreCommandTemplate
             restorable_rollback_entry_count = $RestorableRollbackCommandSummary.restorable_rollback_entry_count
             batch_restore_command_template = $RestorableRollbackCommandSummary.batch_restorable_restore_command_template
@@ -542,6 +594,45 @@ function Get-NextStyleMergeRestoreHandoffStep {
         }
     }
     return $null
+}
+
+function Get-StyleMergeRestoreHandoffStatusSummary {
+    param(
+        $Steps,
+        $NextHandoffStep,
+        [string]$Status,
+        [string]$StatusReason,
+        [int]$IssueCount
+    )
+
+    $statusCounts = [ordered]@{
+        completed = 0
+        next = 0
+        ready = 0
+        blocked = 0
+    }
+
+    foreach ($step in @($Steps)) {
+        $stepStatus = Get-JsonString -Object $step -Names @("status") -DefaultValue "unknown"
+        if ($statusCounts.Contains($stepStatus)) {
+            $statusCounts[$stepStatus] = [int]$statusCounts[$stepStatus] + 1
+        }
+    }
+
+    return [ordered]@{
+        status = $Status
+        status_reason = $StatusReason
+        issue_count = $IssueCount
+        total_step_count = @($Steps).Count
+        completed_step_count = [int]$statusCounts.completed
+        next_step_count = [int]$statusCounts.next
+        ready_step_count = [int]$statusCounts.ready
+        blocked_step_count = [int]$statusCounts.blocked
+        next_step_id = Get-JsonString -Object $NextHandoffStep -Names @("id")
+        next_step_action = Get-JsonString -Object $NextHandoffStep -Names @("action")
+        next_step_reason = Get-JsonString -Object $NextHandoffStep -Names @("reason")
+        next_copy_command = Get-JsonString -Object $NextHandoffStep -Names @("copy_command", "command", "command_template")
+    }
 }
 
 $repoRoot = Resolve-TemplateSchemaRepoRoot -ScriptRoot $PSScriptRoot
@@ -585,6 +676,7 @@ $resolvedRollbackPlan = if ($null -ne $applySummary -and [string]::IsNullOrWhite
     Resolve-RepoPath -RepoRoot $repoRoot -InputPath $rollbackReference
 }
 $rollbackPlanObject = Read-JsonObject -Path $resolvedRollbackPlan
+$rollbackPlanSummary = Get-RollbackPlanSummary -RollbackPlanObject $rollbackPlanObject
 
 $resolvedSummaryJson = if ([string]::IsNullOrWhiteSpace($SummaryJson)) {
     $rollbackDirectory = [System.IO.Path]::GetDirectoryName($resolvedRollbackPlan)
@@ -742,6 +834,13 @@ $reviewHandoffSteps = Get-StyleMergeRestoreReviewHandoffSteps `
     -RollbackPlanDisplay $rollbackPlanDisplayPath
 $nextHandoffStep = Get-NextStyleMergeRestoreHandoffStep -Steps $reviewHandoffSteps
 $nextCopyCommand = Get-JsonString -Object $nextHandoffStep -Names @("copy_command", "command", "command_template")
+$nextStepReason = Get-JsonString -Object $nextHandoffStep -Names @("reason")
+$handoffStatusSummary = Get-StyleMergeRestoreHandoffStatusSummary `
+    -Steps $reviewHandoffSteps `
+    -NextHandoffStep $nextHandoffStep `
+    -Status $status `
+    -StatusReason $statusReason `
+    -IssueCount $issueCount
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 if ($issueCount -gt 0) {
@@ -766,6 +865,9 @@ if ($issueCount -gt 0) {
         review_handoff_steps = @($reviewHandoffSteps)
         next_handoff_step = $nextHandoffStep
         next_copy_command = $nextCopyCommand
+        next_step_reason = $nextStepReason
+        handoff_status_summary = $handoffStatusSummary
+        rollback_plan_summary = $rollbackPlanSummary
     }) | Out-Null
 }
 
@@ -789,6 +891,9 @@ $actionItems.Add([ordered]@{
     review_handoff_steps = @($reviewHandoffSteps)
     next_handoff_step = $nextHandoffStep
     next_copy_command = $nextCopyCommand
+    next_step_reason = $nextStepReason
+    handoff_status_summary = $handoffStatusSummary
+    rollback_plan_summary = $rollbackPlanSummary
 }) | Out-Null
 
 $selectionSummary = [ordered]@{
@@ -823,6 +928,9 @@ $summary = [ordered]@{
     review_handoff_steps = @($reviewHandoffSteps)
     next_handoff_step = $nextHandoffStep
     next_copy_command = $nextCopyCommand
+    next_step_reason = $nextStepReason
+    handoff_status_summary = $handoffStatusSummary
+    rollback_plan_summary = $rollbackPlanSummary
     selected_restore_command_template = $selectedRestoreCommandTemplate
     restorable_rollback_entry_count = $restorableRollbackCommandSummary.restorable_rollback_entry_count
     restorable_rollback_entry_indexes = @($restorableRollbackCommandSummary.restorable_rollback_entry_indexes)
