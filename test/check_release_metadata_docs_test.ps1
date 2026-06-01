@@ -1385,6 +1385,46 @@ Assert-SummaryFailure `
     -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
     -ExpectedFailureExpectedText "release_entry_project_template_readiness_checklist_material_safety_audit"
 
+$missingChecklistReleaseEntryTraceText = $defaultChecklistText.Replace(
+    "release_entry_project_template_readiness_checklist_trace",
+    "release_entry_project_template_readiness_checklist_removed"
+)
+$missingChecklistReleaseEntryTraceCaseRoot = New-DocsCase `
+    -Name "missing-checklist-release-entry-trace" `
+    -ChecklistText $missingChecklistReleaseEntryTraceText
+$missingChecklistReleaseEntryTraceSummaryJsonPath = Join-Path $missingChecklistReleaseEntryTraceCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingChecklistReleaseEntryTraceCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: release_entry_project_template_readiness_checklist_trace" `
+    -SummaryJson $missingChecklistReleaseEntryTraceSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingChecklistReleaseEntryTraceSummaryJsonPath `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: release_entry_project_template_readiness_checklist_trace" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
+    -ExpectedFailureExpectedText "release_entry_project_template_readiness_checklist_trace"
+
+$missingChecklistMaterialSafetyMarkerText = $defaultChecklistText.Replace(
+    "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
+    "project_template_readiness_checklist_entrypoints_release_entry_material_safety_removed"
+)
+$missingChecklistMaterialSafetyMarkerCaseRoot = New-DocsCase `
+    -Name "missing-checklist-material-safety-marker" `
+    -ChecklistText $missingChecklistMaterialSafetyMarkerText
+$missingChecklistMaterialSafetyMarkerSummaryJsonPath = Join-Path $missingChecklistMaterialSafetyMarkerCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingChecklistMaterialSafetyMarkerCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
+    -SummaryJson $missingChecklistMaterialSafetyMarkerSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingChecklistMaterialSafetyMarkerSummaryJsonPath `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs/release_metadata_maintenance_checklist_zh.rst' `
+    -ExpectedFailureExpectedText "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace"
+
 $missingChecklistProjectTemplateHandoffTraceText = $defaultChecklistText.Replace(
     "block_scoped_governance_handoff_project_template_status_trace",
     "block_scoped_governance_handoff_project_template_status_removed"
