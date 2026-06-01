@@ -40,6 +40,8 @@ performance.
 - Added release metadata docs checker coverage for the documentation
   maintenance overview so the release metadata pipeline and checklist remain
   linked from the maintenance entrypoint.
+- Added release metadata docs checker summary-label assertions and checklist
+  entrypoint regression coverage for the documentation maintenance overview.
 - Added release governance handoff `-FailOnBlocker` regression coverage and
   CTest registration so blocker-triggered handoff exits stay guarded.
 - Added lightweight parser coverage for release metadata, script index, Word

@@ -720,6 +720,14 @@ Assert-ArrayContains `
     -ExpectedValue 'docs/documentation_maintenance_zh.rst' `
     -Message "JSON summary should list the documentation maintenance overview doc."
 Assert-ArrayContains `
+    -Values @($summary.checked_document_labels) `
+    -ExpectedValue 'documentation maintenance overview doc' `
+    -Message "JSON summary labels should list the documentation maintenance overview doc."
+Assert-ArrayContains `
+    -Values @($summary.checked_document_relative_paths) `
+    -ExpectedValue 'docs/documentation_maintenance_zh.rst' `
+    -Message "JSON summary relative paths should list the documentation maintenance overview doc."
+Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
     -ExpectedValue 'docs/document_governance_acceptance_zh.rst' `
     -Message "JSON summary should list the document governance acceptance doc."
@@ -1111,6 +1119,26 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs/documentation_maintenance_zh.rst' `
     -ExpectedFailureExpectedText "release_metadata_pipeline_zh"
+
+$missingDocumentationMaintenanceChecklistEntrypointText = $defaultDocumentationMaintenanceText.Replace(
+    "release_metadata_maintenance_checklist_zh",
+    "release_metadata_maintenance_checklist_removed"
+)
+$missingDocumentationMaintenanceChecklistEntrypointCaseRoot = New-DocsCase `
+    -Name "missing-documentation-maintenance-checklist-entrypoint" `
+    -DocumentationMaintenanceText $missingDocumentationMaintenanceChecklistEntrypointText
+$missingDocumentationMaintenanceChecklistEntrypointSummaryJsonPath = Join-Path $missingDocumentationMaintenanceChecklistEntrypointCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingDocumentationMaintenanceChecklistEntrypointCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "documentation maintenance overview doc is missing expected text: release_metadata_maintenance_checklist_zh" `
+    -SummaryJson $missingDocumentationMaintenanceChecklistEntrypointSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingDocumentationMaintenanceChecklistEntrypointSummaryJsonPath `
+    -ExpectedMessage "documentation maintenance overview doc is missing expected text: release_metadata_maintenance_checklist_zh" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs/documentation_maintenance_zh.rst' `
+    -ExpectedFailureExpectedText "release_metadata_maintenance_checklist_zh"
 
 $missingReadmePipelineEntrypointText = $defaultReadmeText.Replace(
     "release_metadata_pipeline_zh",
