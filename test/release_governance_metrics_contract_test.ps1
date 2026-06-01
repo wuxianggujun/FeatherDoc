@@ -251,6 +251,7 @@ foreach ($marker in @(
     "manifest_signoff_entrypoints",
     "release_entry_project_template_readiness_checklist_material_safety_audit",
     "audit_script",
+    "audited_entrypoint_count",
     "audited_entrypoints",
     "release_entry_project_template_readiness_checklist_trace",
     "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",

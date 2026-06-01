@@ -81,7 +81,7 @@ Content-control 修复工作流：
 - ``release_assets_manifest.json`` 已作为发布资产打包后的固定审计入口。
 - ``manifest_signoff_entrypoints`` 必须保留三个 reviewer-facing 必签入口。
 - ``release_entry_project_template_readiness_checklist_material_safety_audit`` 必须记录
-  ``audit_script``、``audited_entrypoints``、
+  ``audit_script``、``audited_entrypoint_count``、``audited_entrypoints``、
   ``release_entry_project_template_readiness_checklist_trace`` 和
   ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``。
 - ``assert_release_material_safety.ps1``、``package_release_assets_safety_test.ps1`` 与

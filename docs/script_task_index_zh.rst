@@ -346,7 +346,8 @@ Release governance 与发布材料
   ``release_assets_manifest.json`` 中的 table-layout release review aliases
   （``metadata_only_fields``、``review_required_fields``）；它必须与
   ``assert_release_material_safety.ps1`` 的 staged release material safety audit
-  形成闭环，在 manifest 中记录 ``audit_script``、``audited_entrypoints``、
+  形成闭环，在 manifest 中记录 ``audit_script``、``audited_entrypoint_count``、
+  ``audited_entrypoints``、
   ``release_entry_project_template_readiness_checklist_trace`` 和
   ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``，
   避免入口文档丢失 PDF 浮动表复核字段与 project-template readiness checklist
