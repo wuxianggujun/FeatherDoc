@@ -330,7 +330,9 @@ Release governance 与发布材料
 - ``scripts/build_release_governance_pipeline_report.ps1``：生成 release governance
   pipeline summary。
 - ``scripts/build_release_governance_handoff_report.ps1``：生成 release governance
-  handoff summary。
+  handoff summary，并保留
+  ``word_visual_standard_review_metadata_source_reports`` 作为 Word visual 标准复核
+  metadata 的交接证据。
 - ``scripts/check_release_metadata_docs.ps1``：检查发布元数据文档的固定契约与
   reviewer-facing 入口。
 - ``scripts/release_blocker_metadata_helpers.ps1``：提供 release blocker 元数据、

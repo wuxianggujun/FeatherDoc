@@ -191,6 +191,7 @@ foreach ($marker in @(
         "audited_entrypoints",
         "release_entry_project_template_readiness_checklist_trace",
         "project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace",
+        "word_visual_standard_review_metadata_source_reports",
         "check_word_visual_release_gate_preflight.ps1",
         "build_release_governance_pipeline_report.ps1",
         "check_pdf_release_readiness.ps1",
