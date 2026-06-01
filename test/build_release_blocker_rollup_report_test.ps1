@@ -373,6 +373,16 @@ Write-JsonFile -Path $tableLayoutPath -Value ([ordered]@{
             "full Word-compatible floating table text wrapping",
             "table overlap avoidance and collision resolution"
         )
+        metadata_only_fields = @(
+            "leftFromText",
+            "rightFromText",
+            "topFromText outside paragraph anchoring",
+            "tblOverlap"
+        )
+        review_required_fields = @(
+            "full Word-compatible floating table text wrapping",
+            "table overlap avoidance and collision resolution"
+        )
         command_failure_count = 0
         unresolved_item_count = 10
         penalty_summary = @(
@@ -1155,6 +1165,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve tracked PDF floating table geometry detail fields."
     Assert-Equal -Actual ([int]$tableMetric.details.pdf_floating_table_supported_geometry_percent) -Expected 44 `
         -Message "Rollup should preserve supported PDF floating table geometry percentage detail fields."
+    Assert-ContainsText -Text (($tableMetric.details.metadata_only_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "tblOverlap" `
+        -Message "Rollup should preserve generic PDF floating table metadata-only fields."
+    Assert-ContainsText -Text (($tableMetric.details.review_required_fields | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "table overlap avoidance and collision resolution" `
+        -Message "Rollup should preserve generic PDF floating table review-required fields."
     Assert-ContainsText -Text (($tableMetric.details.penalty_summary | ForEach-Object { [string]$_.factor }) -join "`n") `
         -ExpectedText "floating_table_plans_pending" `
         -Message "Rollup should preserve table layout delivery penalty summary."
@@ -1931,6 +1947,14 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include concrete PDF floating table metadata-only fields."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_review_required_fields: ``full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution``" `
         -Message "Markdown should include concrete PDF floating table reviewer-required fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "metadata_only_fields=leftFromText,rightFromText,topFromText outside paragraph anchoring,tblOverlap" `
+        -Message "Markdown details should include generic PDF floating table metadata-only fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_required_fields=full Word-compatible floating table text wrapping,table overlap avoidance and collision resolution" `
+        -Message "Markdown details should include generic PDF floating table reviewer-required fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "metadata_only_fields: ``leftFromText, rightFromText, topFromText outside paragraph anchoring, tblOverlap``" `
+        -Message "Markdown should include generic PDF floating table metadata-only field marker."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_required_fields: ``full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution``" `
+        -Message "Markdown should include generic PDF floating table review-required field marker."
     Assert-ContainsText -Text $markdown -ExpectedText "floating_table_plans_pending(count=3, penalty=14)" `
         -Message "Markdown should include table layout delivery penalty summary."
     Assert-ContainsText -Text $markdown -ExpectedText "review_source_table_position_plan" `

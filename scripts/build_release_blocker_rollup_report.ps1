@@ -504,13 +504,25 @@ function Add-GovernanceMetricDetailLines {
         "pdf_floating_table_supported_geometry_percent",
         "pdf_floating_table_support_coverage",
         "pdf_floating_table_reviewer_focus",
+        "metadata_only_fields",
+        "review_required_fields",
         "command_failure_count",
         "unresolved_item_count"
     )
     $detailParts = New-Object 'System.Collections.Generic.List[string]'
     foreach ($fieldName in $detailFields) {
         $value = Get-JsonProperty -Object $details -Name $fieldName
-        if ($null -ne $value -and -not [string]::IsNullOrWhiteSpace([string]$value)) {
+        if ($null -eq $value) { continue }
+        if (($value -is [System.Collections.IEnumerable]) -and -not ($value -is [string])) {
+            $values = @($value |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            if ($values.Count -gt 0) {
+                $detailParts.Add("$fieldName=$($values -join ',')") | Out-Null
+            }
+            continue
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string]$value)) {
             $detailParts.Add("$fieldName=$value") | Out-Null
         }
     }
@@ -551,6 +563,18 @@ function Add-GovernanceMetricDetailLines {
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         if ($pdfFloatingTableReviewRequiredFields.Count -gt 0) {
             $Lines.Add("  - pdf_floating_table_review_required_fields: ``$($pdfFloatingTableReviewRequiredFields -join ', ')``") | Out-Null
+        }
+        $metadataOnlyFields = @(Get-JsonArray -Object $details -Name "metadata_only_fields" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($metadataOnlyFields.Count -gt 0) {
+            $Lines.Add("  - metadata_only_fields: ``$($metadataOnlyFields -join ', ')``") | Out-Null
+        }
+        $reviewRequiredFields = @(Get-JsonArray -Object $details -Name "review_required_fields" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($reviewRequiredFields.Count -gt 0) {
+            $Lines.Add("  - review_required_fields: ``$($reviewRequiredFields -join ', ')``") | Out-Null
         }
     }
 
