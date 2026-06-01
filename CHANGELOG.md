@@ -67,6 +67,9 @@ performance.
 - Added project-template smoke visual verdict sync regression coverage for
   refreshed review results, undetermined visual-review state, summary markdown,
   and release-candidate summary propagation.
+- Added project-template smoke visual verdict failure regression coverage so
+  explicit `review_verdict=fail` updates smoke summaries, release summaries,
+  and the script exit code as a blocking failure.
 - Added lightweight parser coverage for release metadata, script index, Word
   visual preflight, and DOCX functional smoke readiness guard scripts.
 - Added script task index regression coverage for reporting unindexed

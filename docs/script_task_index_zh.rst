@@ -163,7 +163,8 @@
 - ``scripts/check_docx_functional_smoke_readiness.ps1``：只读检查 DOCX 功能
   smoke 证据和可复用 Word visual smoke PNG。
 - ``scripts/sync_project_template_smoke_visual_verdict.ps1``：同步项目模板 smoke
-  的视觉 verdict、``visual_review_undetermined_count`` 和发布材料。
+  的视觉 verdict、``review_verdict=fail``、
+  ``visual_review_undetermined_count`` 和发布材料。
 - ``scripts/run_content_control_rich_replacement_visual_regression.ps1``：运行
   content-control 富文本替换视觉回归。
 - ``scripts/run_content_control_image_replacement_visual_regression.ps1``：运行
