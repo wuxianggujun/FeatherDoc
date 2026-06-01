@@ -227,6 +227,10 @@ if (Test-Scenario -Name "clean") {
         -Message "Clean restore audit action item should preserve the minimum-risk next action."
     Assert-ContainsText -Text ([string]$actionItem.minimum_risk_next_action_command) -ExpectedText "prepare_word_review_task.ps1" `
         -Message "Clean restore audit action item should preserve the minimum-risk next command."
+    Assert-Equal -Actual ([string]$actionItem.next_handoff_step.id) -Expected "prepare_word_visual_review" `
+        -Message "Clean restore audit action item should expose the next handoff step."
+    Assert-ContainsText -Text ([string]$actionItem.next_copy_command) -ExpectedText "prepare_word_review_task.ps1" `
+        -Message "Clean restore audit action item should expose the next copy command."
     Assert-Equal -Actual ([string]$actionItem.source_schema) -Expected "featherdoc.style_merge_restore_audit.v1" `
         -Message "Restore audit action item should expose release governance source schema."
     Assert-ContainsText -Text ([string]$actionItem.source_report_display) -ExpectedText "style-merge.restore-audit.summary.json" `
@@ -271,6 +275,10 @@ if (Test-Scenario -Name "clean") {
         -Message "Clean restore audit handoff should start from the completed dry-run review."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].id) -Expected "prepare_word_visual_review" `
         -Message "Clean restore audit handoff should route the reviewer to visual review next."
+    Assert-Equal -Actual ([string]$summary.next_handoff_step.id) -Expected "prepare_word_visual_review" `
+        -Message "Clean restore audit should expose the top-level next handoff step."
+    Assert-ContainsText -Text ([string]$summary.next_copy_command) -ExpectedText "prepare_word_review_task.ps1" `
+        -Message "Clean restore audit should expose the top-level next copy command."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].source_schema) -Expected "featherdoc.style_merge_restore_audit.v1" `
         -Message "Clean restore audit handoff step should expose source schema."
     Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].source_json_display) -ExpectedText "style-merge.restore-audit.summary.json" `
@@ -396,6 +404,10 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit should expose three reviewer handoff steps."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].id) -Expected "review_issue_groups" `
         -Message "Issue restore audit handoff should route reviewer to issue groups."
+    Assert-Equal -Actual ([string]$summary.next_handoff_step.id) -Expected "review_issue_groups" `
+        -Message "Issue restore audit should expose the top-level next handoff step."
+    Assert-ContainsText -Text ([string]$summary.next_copy_command) -ExpectedText "restore-style-merge" `
+        -Message "Issue restore audit should expose the top-level next copy command."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].source_schema) -Expected "featherdoc.style_merge_restore_audit.v1" `
         -Message "Issue restore audit handoff step should expose source schema."
     Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].source_report_display) -ExpectedText "style-merge.restore-audit.summary.json" `
@@ -454,6 +466,10 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit blocker should expose reviewer handoff step count."
     Assert-Equal -Actual ([string]$blocker.review_handoff_steps[1].id) -Expected "review_issue_groups" `
         -Message "Issue restore audit blocker should preserve issue review handoff steps."
+    Assert-Equal -Actual ([string]$blocker.next_handoff_step.id) -Expected "review_issue_groups" `
+        -Message "Issue restore audit blocker should expose the next handoff step."
+    Assert-ContainsText -Text ([string]$blocker.next_copy_command) -ExpectedText "restore-style-merge" `
+        -Message "Issue restore audit blocker should expose the next copy command."
     Assert-ContainsText -Text ((@($blocker.issue_keys) | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "style_merge_restore_audit_issues" `
         -Message "Issue restore audit blocker should expose stable issue keys."
@@ -477,6 +493,10 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit action item should expose reviewer handoff step count."
     Assert-Equal -Actual ([string]$issueActionItem.review_handoff_steps[1].id) -Expected "review_issue_groups" `
         -Message "Issue restore audit action item should preserve issue review handoff steps."
+    Assert-Equal -Actual ([string]$issueActionItem.next_handoff_step.id) -Expected "review_issue_groups" `
+        -Message "Issue restore audit action item should expose the next handoff step."
+    Assert-ContainsText -Text ([string]$issueActionItem.next_copy_command) -ExpectedText "restore-style-merge" `
+        -Message "Issue restore audit action item should expose the next copy command."
 }
 
 Write-Host "Style merge restore audit regression passed."

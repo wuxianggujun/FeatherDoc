@@ -532,6 +532,18 @@ function Add-StyleMergeRestoreHandoffStep {
     $Steps.Add($Step) | Out-Null
 }
 
+function Get-NextStyleMergeRestoreHandoffStep {
+    param($Steps)
+
+    foreach ($step in @($Steps)) {
+        $status = Get-JsonString -Object $step -Names @("status")
+        if ($status -eq "next") {
+            return $step
+        }
+    }
+    return $null
+}
+
 $repoRoot = Resolve-TemplateSchemaRepoRoot -ScriptRoot $PSScriptRoot
 $resolvedApplySummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $ApplySummaryJson
 $applySummary = $null
@@ -728,6 +740,8 @@ $reviewHandoffSteps = Get-StyleMergeRestoreReviewHandoffSteps `
     -SourceReportDisplay $summaryDisplayPath `
     -SourceJsonDisplay $summaryDisplayPath `
     -RollbackPlanDisplay $rollbackPlanDisplayPath
+$nextHandoffStep = Get-NextStyleMergeRestoreHandoffStep -Steps $reviewHandoffSteps
+$nextCopyCommand = Get-JsonString -Object $nextHandoffStep -Names @("copy_command", "command", "command_template")
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 if ($issueCount -gt 0) {
@@ -750,6 +764,8 @@ if ($issueCount -gt 0) {
         rollback_plan_display = $rollbackPlanDisplayPath
         review_handoff_step_count = @($reviewHandoffSteps).Count
         review_handoff_steps = @($reviewHandoffSteps)
+        next_handoff_step = $nextHandoffStep
+        next_copy_command = $nextCopyCommand
     }) | Out-Null
 }
 
@@ -771,6 +787,8 @@ $actionItems.Add([ordered]@{
     rollback_plan_display = $rollbackPlanDisplayPath
     review_handoff_step_count = @($reviewHandoffSteps).Count
     review_handoff_steps = @($reviewHandoffSteps)
+    next_handoff_step = $nextHandoffStep
+    next_copy_command = $nextCopyCommand
 }) | Out-Null
 
 $selectionSummary = [ordered]@{
@@ -803,6 +821,8 @@ $summary = [ordered]@{
     selection_summary = $selectionSummary
     review_handoff_step_count = @($reviewHandoffSteps).Count
     review_handoff_steps = @($reviewHandoffSteps)
+    next_handoff_step = $nextHandoffStep
+    next_copy_command = $nextCopyCommand
     selected_restore_command_template = $selectedRestoreCommandTemplate
     restorable_rollback_entry_count = $restorableRollbackCommandSummary.restorable_rollback_entry_count
     restorable_rollback_entry_indexes = @($restorableRollbackCommandSummary.restorable_rollback_entry_indexes)
