@@ -72,6 +72,11 @@ function Write-MockCli {
     } else {
         '[{"code":"missing_source_style","count":1},{"issue":"missing_source_style","count":2}]'
     }
+    $operations = if ($IssueCount -eq 0) {
+        '[{"action":"merge","source_style_id":"OldBody","target_style_id":"Normal","restorable":true,"restored":true,"style_restored":true,"restored_reference_count":4,"issues":[]}]'
+    } else {
+        '[{"action":"merge","source_style_id":"MissingBody","target_style_id":"Normal","restorable":false,"restored":false,"style_restored":false,"restored_reference_count":0,"issues":[{"code":"missing_source_style","message":"source style is missing","suggestion":"Review this rollback entry."},{"code":"missing_source_style","message":"source style is still missing","suggestion":"Review this rollback entry again."}]}]'
+    }
 
     $mock = @'
 param([Parameter(ValueFromRemainingArguments = $true)][string[]]$CliArgs)
@@ -108,12 +113,13 @@ if ([string]::IsNullOrWhiteSpace($rollbackPath)) {
 
 $argsPath = Join-Path ([System.IO.Path]::GetDirectoryName($MyInvocation.MyCommand.Path)) "mock-cli-args.json"
 (ConvertTo-Json -InputObject @($CliArgs) -Depth 8) | Set-Content -LiteralPath $argsPath -Encoding UTF8
-Write-Output '{"command":"restore-style-merge","dry_run":true,"changed":false,"requested_count":3,"issue_count":__ISSUE_COUNT__,"issue_summary":__ISSUE_SUMMARY__,"restored_count":2,"restored_style_count":1,"restored_reference_count":4}'
+Write-Output '{"command":"restore-style-merge","dry_run":true,"changed":false,"requested_count":3,"issue_count":__ISSUE_COUNT__,"issue_summary":__ISSUE_SUMMARY__,"restored_count":2,"restored_style_count":1,"restored_reference_count":4,"operations":__OPERATIONS__}'
 exit 0
 '@
 
     $mock = $mock.Replace("__ISSUE_COUNT__", [string]$IssueCount)
     $mock = $mock.Replace("__ISSUE_SUMMARY__", $issueSummary)
+    $mock = $mock.Replace("__OPERATIONS__", $operations)
     Set-Content -LiteralPath $Path -Encoding UTF8 -Value $mock
 }
 
@@ -137,6 +143,36 @@ if (Test-Scenario -Name "clean") {
     Write-JsonFile -Path $rollbackPath -Value ([ordered]@{
         command = "apply-style-refactor"
         rollback_count = 2
+        rollback_operations = @(
+            [ordered]@{
+                action = "rename"
+                source_style_id = "RenamedHeading"
+                target_style_id = "OldHeading"
+                automatic = $true
+                restorable = $true
+            },
+            [ordered]@{
+                action = "merge"
+                source_style_id = "OldBody"
+                target_style_id = "Normal"
+                automatic = $false
+                restorable = $true
+            },
+            [ordered]@{
+                action = "merge"
+                source_style_id = "ArchiveBody"
+                target_style_id = "Normal"
+                automatic = $false
+                restorable = $true
+            },
+            [ordered]@{
+                action = "merge"
+                source_style_id = "BrokenBody"
+                target_style_id = "Normal"
+                automatic = $false
+                restorable = $false
+            }
+        )
     })
     Write-JsonFile -Path $applySummaryPath -Value ([ordered]@{
         schema = "featherdoc.reviewed_style_merge_apply.v1"
@@ -170,6 +206,8 @@ if (Test-Scenario -Name "clean") {
         -Message "Restore audit should run in dry-run mode."
     Assert-Equal -Actual ([int]$summary.issue_count) -Expected 0 `
         -Message "Clean restore audit should preserve zero issue count."
+    Assert-Equal -Actual ([int]$summary.issue_review_group_count) -Expected 0 `
+        -Message "Clean restore audit should not emit issue review groups."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 0 `
         -Message "Clean restore audit should not emit release blockers."
     Assert-Equal -Actual (@($summary.release_blockers).Count) -Expected 0 `
@@ -223,6 +261,36 @@ if (Test-Scenario -Name "clean") {
         -Message "Restore audit selection summary should preserve requested count."
     Assert-Equal -Actual ([int]$summary.restored_reference_count) -Expected 4 `
         -Message "Restore audit should preserve restored reference count."
+    Assert-ContainsText -Text ([string]$summary.selected_restore_command_template) -ExpectedText "--entry 0" `
+        -Message "Restore audit should expose the selected restore command template."
+    Assert-ContainsText -Text ([string]$summary.selected_restore_command_template) -ExpectedText "--source-style OldBody" `
+        -Message "Restore audit selected restore command should preserve source filters."
+    Assert-ContainsText -Text ([string]$summary.selected_restore_command_template) -ExpectedText "--target-style Normal" `
+        -Message "Restore audit selected restore command should preserve target filters."
+    Assert-ContainsText -Text ([string]$summary.selected_restore_command_template) -ExpectedText "--output <output.docx>" `
+        -Message "Restore audit selected restore command should include an output template."
+    Assert-Equal -Actual ([int]$summary.restorable_rollback_entry_count) -Expected 2 `
+        -Message "Restore audit should count restorable merge rollback entries."
+    Assert-ContainsText -Text ((@($summary.restorable_rollback_entry_indexes) | ForEach-Object { [string]$_ }) -join ",") -ExpectedText "1,2" `
+        -Message "Restore audit should list restorable merge rollback entry indexes."
+    Assert-Equal -Actual (@($summary.per_entry_dry_run_commands).Count) -Expected 2 `
+        -Message "Restore audit should expose per-entry dry-run commands."
+    Assert-ContainsText -Text ([string]$summary.per_entry_dry_run_commands[0].command) -ExpectedText "--entry 1" `
+        -Message "Restore audit per-entry dry-run command should select the first merge entry."
+    Assert-ContainsText -Text ([string]$summary.per_entry_dry_run_commands[0].command) -ExpectedText "--dry-run" `
+        -Message "Restore audit per-entry dry-run command should remain read-only."
+    Assert-Equal -Actual (@($summary.per_entry_restore_command_templates).Count) -Expected 2 `
+        -Message "Restore audit should expose per-entry restore command templates."
+    Assert-ContainsText -Text ([string]$summary.per_entry_restore_command_templates[1].command_template) -ExpectedText "--entry 2" `
+        -Message "Restore audit per-entry restore template should select the second merge entry."
+    Assert-ContainsText -Text ([string]$summary.per_entry_restore_command_templates[1].command_template) -ExpectedText "--output <output.docx>" `
+        -Message "Restore audit per-entry restore template should include an output placeholder."
+    Assert-ContainsText -Text ([string]$summary.batch_restorable_dry_run_command) -ExpectedText "--entry 1" `
+        -Message "Restore audit batch dry-run command should include the first restorable entry."
+    Assert-ContainsText -Text ([string]$summary.batch_restorable_dry_run_command) -ExpectedText "--entry 2" `
+        -Message "Restore audit batch dry-run command should include the second restorable entry."
+    Assert-ContainsText -Text ([string]$summary.batch_restorable_restore_command_template) -ExpectedText "--output <output.docx>" `
+        -Message "Restore audit batch restore template should include an output placeholder."
 
     $mockArgs = @((Get-Content -Raw -Encoding UTF8 -LiteralPath $mockArgsPath | ConvertFrom-Json) |
         ForEach-Object { $_ })
@@ -248,6 +316,15 @@ if (Test-Scenario -Name "issue") {
     Write-JsonFile -Path $rollbackPath -Value ([ordered]@{
         command = "apply-style-refactor"
         rollback_count = 1
+        rollback_operations = @(
+            [ordered]@{
+                action = "merge"
+                source_style_id = "MissingBody"
+                target_style_id = "Normal"
+                automatic = $false
+                restorable = $true
+            }
+        )
     })
     Write-MockCli -Path $mockCliPath -IssueCount 1
 
@@ -283,6 +360,25 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit should prefer code and fall back to issue keys."
     Assert-Equal -Actual ([int]$summary.issue_summary_groups[0].count) -Expected 3 `
         -Message "Issue restore audit should aggregate duplicate issue summary counts."
+    Assert-Equal -Actual ([int]$summary.issue_review_group_count) -Expected 1 `
+        -Message "Issue restore audit should group affected operations by issue code."
+    $issueReviewGroup = @($summary.issue_review_groups)[0]
+    Assert-Equal -Actual ([string]$issueReviewGroup.code) -Expected "missing_source_style" `
+        -Message "Issue restore audit review group should expose the issue code."
+    Assert-Equal -Actual ([int]$issueReviewGroup.count) -Expected 2 `
+        -Message "Issue restore audit review group should preserve per-operation issue count."
+    Assert-Equal -Actual ([int]$issueReviewGroup.affected_operation_count) -Expected 1 `
+        -Message "Issue restore audit review group should deduplicate affected operations."
+    Assert-Equal -Actual ([string]$issueReviewGroup.affected_operations[0].source_style_id) -Expected "MissingBody" `
+        -Message "Issue restore audit review group should expose the source style id."
+    Assert-Equal -Actual ([string]$issueReviewGroup.affected_operations[0].target_style_id) -Expected "Normal" `
+        -Message "Issue restore audit review group should expose the target style id."
+    Assert-ContainsText -Text ([string]$issueReviewGroup.affected_operations[0].review_command) -ExpectedText "--source-style MissingBody" `
+        -Message "Issue restore audit review group should expose a source-style filtered command."
+    Assert-ContainsText -Text ([string]$issueReviewGroup.affected_operations[0].review_command) -ExpectedText "--target-style Normal" `
+        -Message "Issue restore audit review group should expose a target-style filtered command."
+    Assert-ContainsText -Text ((@($issueReviewGroup.review_commands) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "restore-style-merge" `
+        -Message "Issue restore audit review group should list review commands."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 1 `
         -Message "Issue restore audit should emit one release blocker."
     $blocker = @($summary.release_blockers)[0]

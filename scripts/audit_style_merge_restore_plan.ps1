@@ -70,6 +70,29 @@ function Get-JsonInt {
     return $DefaultValue
 }
 
+function Get-JsonBool {
+    param($Object, [string[]]$Names, [bool]$DefaultValue = $false)
+
+    foreach ($name in @($Names)) {
+        $value = Get-JsonProperty -Object $Object -Name $name
+        if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+            continue
+        }
+        if ($value -is [bool]) {
+            return [bool]$value
+        }
+
+        $text = ([string]$value).Trim()
+        if ($text -ieq "true" -or $text -eq "1") {
+            return $true
+        }
+        if ($text -ieq "false" -or $text -eq "0") {
+            return $false
+        }
+    }
+    return $DefaultValue
+}
+
 function Resolve-RepoPath {
     param([string]$RepoRoot, [string]$InputPath, [switch]$AllowMissing)
 
@@ -176,6 +199,86 @@ function Get-IssueSummaryGroups {
     return @($result.ToArray())
 }
 
+function Get-IssueReviewGroups {
+    param(
+        $Operations,
+        [string]$InputDocx,
+        [string]$RollbackPlan
+    )
+
+    if ($null -eq $Operations) {
+        return @()
+    }
+
+    $groups = [ordered]@{}
+    foreach ($operation in @($Operations)) {
+        $issues = Get-JsonProperty -Object $operation -Name "issues"
+        if ($null -eq $issues) {
+            continue
+        }
+
+        $sourceStyleId = Get-JsonString -Object $operation -Names @("source_style_id")
+        $targetStyleId = Get-JsonString -Object $operation -Names @("target_style_id")
+        $operationAction = Get-JsonString -Object $operation -Names @("action") -DefaultValue "merge"
+
+        foreach ($issue in @($issues)) {
+            $code = Get-JsonString -Object $issue -Names @("code", "issue") -DefaultValue "unknown"
+            if (-not $groups.Contains($code)) {
+                $groups[$code] = [ordered]@{
+                    count = 0
+                    affected_operations = New-Object 'System.Collections.Generic.List[object]'
+                    affected_operation_keys = @{}
+                }
+            }
+
+            $group = $groups[$code]
+            $group.count = [int]$group.count + 1
+
+            $operationKey = "$operationAction`0$sourceStyleId`0$targetStyleId"
+            if ($group.affected_operation_keys.ContainsKey($operationKey)) {
+                continue
+            }
+
+            $reviewArguments = New-Object 'System.Collections.Generic.List[string]'
+            $reviewArguments.Add("restore-style-merge") | Out-Null
+            $reviewArguments.Add($InputDocx) | Out-Null
+            $reviewArguments.Add("--rollback-plan") | Out-Null
+            $reviewArguments.Add($RollbackPlan) | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace($sourceStyleId)) {
+                $reviewArguments.Add("--source-style") | Out-Null
+                $reviewArguments.Add($sourceStyleId) | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($targetStyleId)) {
+                $reviewArguments.Add("--target-style") | Out-Null
+                $reviewArguments.Add($targetStyleId) | Out-Null
+            }
+            $reviewArguments.Add("--dry-run") | Out-Null
+            $reviewArguments.Add("--json") | Out-Null
+
+            $group.affected_operation_keys[$operationKey] = $true
+            $group.affected_operations.Add([ordered]@{
+                action = $operationAction
+                source_style_id = $sourceStyleId
+                target_style_id = $targetStyleId
+                review_command = "featherdoc_cli " + (ConvertTo-CommandLine -Arguments @($reviewArguments))
+            }) | Out-Null
+        }
+    }
+
+    $result = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($entry in $groups.GetEnumerator()) {
+        $operations = @($entry.Value.affected_operations.ToArray())
+        $result.Add([ordered]@{
+            code = [string]$entry.Key
+            count = [int]$entry.Value.count
+            affected_operation_count = $operations.Count
+            affected_operations = $operations
+            review_commands = @($operations | ForEach-Object { [string]$_.review_command })
+        }) | Out-Null
+    }
+    return @($result.ToArray())
+}
+
 function ConvertTo-CommandLine {
     param([string[]]$Arguments)
 
@@ -186,6 +289,143 @@ function Get-DisplayPath {
     param([string]$RepoRoot, [string]$Path)
 
     return Convert-ToPortableRelativePath -BasePath $RepoRoot -TargetPath $Path
+}
+
+function New-StyleMergeRestoreCommand {
+    param(
+        [string]$InputDocx,
+        [string]$RollbackPlan,
+        [int[]]$EntryIndexes = @(),
+        [string[]]$SourceStyles = @(),
+        [string[]]$TargetStyles = @(),
+        [switch]$DryRun,
+        [switch]$OutputTemplate
+    )
+
+    $commandArguments = New-Object 'System.Collections.Generic.List[string]'
+    $commandArguments.Add("restore-style-merge") | Out-Null
+    $commandArguments.Add($InputDocx) | Out-Null
+    $commandArguments.Add("--rollback-plan") | Out-Null
+    $commandArguments.Add($RollbackPlan) | Out-Null
+
+    foreach ($entryIndex in @($EntryIndexes)) {
+        $commandArguments.Add("--entry") | Out-Null
+        $commandArguments.Add([string]$entryIndex) | Out-Null
+    }
+    foreach ($styleId in @($SourceStyles)) {
+        if (-not [string]::IsNullOrWhiteSpace($styleId)) {
+            $commandArguments.Add("--source-style") | Out-Null
+            $commandArguments.Add($styleId) | Out-Null
+        }
+    }
+    foreach ($styleId in @($TargetStyles)) {
+        if (-not [string]::IsNullOrWhiteSpace($styleId)) {
+            $commandArguments.Add("--target-style") | Out-Null
+            $commandArguments.Add($styleId) | Out-Null
+        }
+    }
+
+    if ($DryRun) {
+        $commandArguments.Add("--dry-run") | Out-Null
+    } elseif ($OutputTemplate) {
+        $commandArguments.Add("--output") | Out-Null
+        $commandArguments.Add("<output.docx>") | Out-Null
+    }
+    $commandArguments.Add("--json") | Out-Null
+
+    $commandLine = "featherdoc_cli " + (ConvertTo-CommandLine -Arguments @($commandArguments))
+    return $commandLine.Replace('"<output.docx>"', '<output.docx>')
+}
+
+function Get-RestorableRollbackEntryCommands {
+    param(
+        $RollbackPlanObject,
+        [string]$InputDocx,
+        [string]$RollbackPlan
+    )
+
+    $operations = Get-JsonProperty -Object $RollbackPlanObject -Name "rollback_operations"
+    if ($null -eq $operations) {
+        return [ordered]@{
+            restorable_rollback_entry_count = 0
+            restorable_rollback_entry_indexes = @()
+            per_entry_dry_run_commands = @()
+            per_entry_restore_command_templates = @()
+            batch_restorable_dry_run_command = ""
+            batch_restorable_restore_command_template = ""
+        }
+    }
+
+    $restorableIndexes = New-Object 'System.Collections.Generic.List[int]'
+    $dryRunCommands = New-Object 'System.Collections.Generic.List[object]'
+    $restoreCommandTemplates = New-Object 'System.Collections.Generic.List[object]'
+    $operationIndex = 0
+    foreach ($operation in @($operations)) {
+        $action = Get-JsonString -Object $operation -Names @("action")
+        $restorable = Get-JsonBool -Object $operation -Names @("restorable") -DefaultValue $false
+        if ($action -ne "merge" -or -not $restorable) {
+            $operationIndex += 1
+            continue
+        }
+
+        $sourceStyleId = Get-JsonString -Object $operation -Names @("source_style_id")
+        $targetStyleId = Get-JsonString -Object $operation -Names @("target_style_id")
+        $entryIndexes = @([int]$operationIndex)
+        $dryRunCommand = New-StyleMergeRestoreCommand `
+            -InputDocx $InputDocx `
+            -RollbackPlan $RollbackPlan `
+            -EntryIndexes $entryIndexes `
+            -DryRun
+        $restoreCommandTemplate = New-StyleMergeRestoreCommand `
+            -InputDocx $InputDocx `
+            -RollbackPlan $RollbackPlan `
+            -EntryIndexes $entryIndexes `
+            -OutputTemplate
+
+        $restorableIndexes.Add([int]$operationIndex) | Out-Null
+        $dryRunCommands.Add([ordered]@{
+            entry_index = [int]$operationIndex
+            source_style_id = $sourceStyleId
+            target_style_id = $targetStyleId
+            command = $dryRunCommand
+        }) | Out-Null
+        $restoreCommandTemplates.Add([ordered]@{
+            entry_index = [int]$operationIndex
+            source_style_id = $sourceStyleId
+            target_style_id = $targetStyleId
+            command_template = $restoreCommandTemplate
+        }) | Out-Null
+        $operationIndex += 1
+    }
+
+    $restorableEntryIndexes = @($restorableIndexes.ToArray())
+    $batchDryRunCommand = if ($restorableEntryIndexes.Count -eq 0) {
+        ""
+    } else {
+        New-StyleMergeRestoreCommand `
+            -InputDocx $InputDocx `
+            -RollbackPlan $RollbackPlan `
+            -EntryIndexes $restorableEntryIndexes `
+            -DryRun
+    }
+    $batchRestoreCommandTemplate = if ($restorableEntryIndexes.Count -eq 0) {
+        ""
+    } else {
+        New-StyleMergeRestoreCommand `
+            -InputDocx $InputDocx `
+            -RollbackPlan $RollbackPlan `
+            -EntryIndexes $restorableEntryIndexes `
+            -OutputTemplate
+    }
+
+    return [ordered]@{
+        restorable_rollback_entry_count = $restorableEntryIndexes.Count
+        restorable_rollback_entry_indexes = $restorableEntryIndexes
+        per_entry_dry_run_commands = @($dryRunCommands.ToArray())
+        per_entry_restore_command_templates = @($restoreCommandTemplates.ToArray())
+        batch_restorable_dry_run_command = $batchDryRunCommand
+        batch_restorable_restore_command_template = $batchRestoreCommandTemplate
+    }
 }
 
 $repoRoot = Resolve-TemplateSchemaRepoRoot -ScriptRoot $PSScriptRoot
@@ -228,6 +468,7 @@ $resolvedRollbackPlan = if ($null -ne $applySummary -and [string]::IsNullOrWhite
 } else {
     Resolve-RepoPath -RepoRoot $repoRoot -InputPath $rollbackReference
 }
+$rollbackPlanObject = Read-JsonObject -Path $resolvedRollbackPlan
 
 $resolvedSummaryJson = if ([string]::IsNullOrWhiteSpace($SummaryJson)) {
     $rollbackDirectory = [System.IO.Path]::GetDirectoryName($resolvedRollbackPlan)
@@ -301,6 +542,10 @@ if ($result.ExitCode -ne 0) {
 $issueCount = Get-JsonInt -Object $cliJson -Names @("issue_count") -DefaultValue 0
 $issueSummary = Get-JsonProperty -Object $cliJson -Name "issue_summary"
 $issueSummaryGroups = Get-IssueSummaryGroups -IssueSummary $issueSummary
+$issueReviewGroups = Get-IssueReviewGroups `
+    -Operations (Get-JsonProperty -Object $cliJson -Name "operations") `
+    -InputDocx $resolvedInputDocx `
+    -RollbackPlan $resolvedRollbackPlan
 $requestedCount = Get-JsonInt -Object $cliJson -Names @("requested_count") -DefaultValue 0
 $status = if ($issueCount -eq 0) { "clean" } else { "needs_review" }
 $statusReason = if ($issueCount -eq 0) {
@@ -316,6 +561,17 @@ $summaryDisplayPath = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummary
 $rollbackPlanDisplayPath = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedRollbackPlan
 
 $restoreAuditCommand = "featherdoc_cli " + (ConvertTo-CommandLine -Arguments $argumentArray)
+$selectedRestoreCommandTemplate = New-StyleMergeRestoreCommand `
+    -InputDocx $resolvedInputDocx `
+    -RollbackPlan $resolvedRollbackPlan `
+    -EntryIndexes @($Entry) `
+    -SourceStyles @($SourceStyle) `
+    -TargetStyles @($TargetStyle) `
+    -OutputTemplate
+$restorableRollbackCommandSummary = Get-RestorableRollbackEntryCommands `
+    -RollbackPlanObject $rollbackPlanObject `
+    -InputDocx $resolvedInputDocx `
+    -RollbackPlan $resolvedRollbackPlan
 $visualReviewDocx = Convert-ToPortableRelativePath -BasePath $repoRoot -TargetPath $resolvedInputDocx
 if ([string]::IsNullOrWhiteSpace($visualReviewDocx)) {
     $visualReviewDocx = $resolvedInputDocx
@@ -425,10 +681,19 @@ $summary = [ordered]@{
     selected_source_styles = @($SourceStyle)
     selected_target_styles = @($TargetStyle)
     selection_summary = $selectionSummary
+    selected_restore_command_template = $selectedRestoreCommandTemplate
+    restorable_rollback_entry_count = $restorableRollbackCommandSummary.restorable_rollback_entry_count
+    restorable_rollback_entry_indexes = @($restorableRollbackCommandSummary.restorable_rollback_entry_indexes)
+    per_entry_dry_run_commands = @($restorableRollbackCommandSummary.per_entry_dry_run_commands)
+    per_entry_restore_command_templates = @($restorableRollbackCommandSummary.per_entry_restore_command_templates)
+    batch_restorable_dry_run_command = $restorableRollbackCommandSummary.batch_restorable_dry_run_command
+    batch_restorable_restore_command_template = $restorableRollbackCommandSummary.batch_restorable_restore_command_template
     issue_count = $issueCount
     issue_summary = $issueSummary
     issue_summary_group_count = @($issueSummaryGroups).Count
     issue_summary_groups = @($issueSummaryGroups)
+    issue_review_group_count = @($issueReviewGroups).Count
+    issue_review_groups = @($issueReviewGroups)
     requested_count = $requestedCount
     restored_count = Get-JsonInt -Object $cliJson -Names @("restored_count") -DefaultValue 0
     restored_style_count = Get-JsonInt -Object $cliJson -Names @("restored_style_count") -DefaultValue 0
