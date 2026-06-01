@@ -23,6 +23,30 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-NotContainsText {
+    param([string]$Text, [string]$UnexpectedText, [string]$Message)
+    if ($Text -match [regex]::Escape($UnexpectedText)) {
+        throw "$Message Unexpected='$UnexpectedText'."
+    }
+}
+
+function Assert-TextOrder {
+    param([string]$Text, [string[]]$ExpectedTexts, [string]$Message)
+
+    $lastIndex = -1
+    foreach ($expectedText in $ExpectedTexts) {
+        $currentIndex = $Text.IndexOf($expectedText, [System.StringComparison]::Ordinal)
+        if ($currentIndex -lt 0) {
+            throw "$Message Missing='$expectedText'."
+        }
+        if ($currentIndex -le $lastIndex) {
+            throw "$Message OutOfOrder='$expectedText'."
+        }
+
+        $lastIndex = $currentIndex
+    }
+}
+
 function Convert-ToStableDateText {
     param($Value)
 
@@ -31,6 +55,26 @@ function Convert-ToStableDateText {
     }
 
     return [string]$Value
+}
+
+function Convert-ToRepoDisplayPath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relative)) {
+            return "."
+        }
+
+        return ".\" + ($relative -replace '/', '\')
+    }
+
+    return $resolvedPath
 }
 
 function Invoke-ScriptAndCapture {
@@ -53,9 +97,10 @@ $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\write_project_template_schema_approval_history.ps1"
-$smokeSummaryDir = Join-Path $resolvedWorkingDir "smoke"
-$releaseSummaryDir = Join-Path $resolvedWorkingDir "release"
-$unrelatedSummaryDir = Join-Path $resolvedWorkingDir "unrelated"
+$primaryFixtureDir = Join-Path $resolvedWorkingDir "primary-fixtures"
+$smokeSummaryDir = Join-Path $primaryFixtureDir "smoke"
+$releaseSummaryDir = Join-Path $primaryFixtureDir "release"
+$unrelatedSummaryDir = Join-Path $primaryFixtureDir "unrelated"
 New-Item -ItemType Directory -Path $smokeSummaryDir -Force | Out-Null
 New-Item -ItemType Directory -Path $releaseSummaryDir -Force | Out-Null
 New-Item -ItemType Directory -Path $unrelatedSummaryDir -Force | Out-Null
@@ -67,6 +112,14 @@ $outputJsonPath = Join-Path $resolvedWorkingDir "schema-approval-history.json"
 $outputMarkdownPath = Join-Path $resolvedWorkingDir "schema-approval-history.md"
 $listOutputJsonPath = Join-Path $resolvedWorkingDir "schema-approval-history-list.json"
 $listOutputMarkdownPath = Join-Path $resolvedWorkingDir "schema-approval-history-list.md"
+$arrayOutputJsonPath = Join-Path $resolvedWorkingDir "schema-approval-history-array.json"
+$arrayOutputMarkdownPath = Join-Path $resolvedWorkingDir "schema-approval-history-array.md"
+$dirModeFixtureDir = Join-Path $resolvedWorkingDir "dir-mode"
+$dirModeNestedSummaryDir = Join-Path $dirModeFixtureDir "nested"
+$dirModeSummaryPath = Join-Path $dirModeFixtureDir "summary.json"
+$dirModeNestedSummaryPath = Join-Path $dirModeNestedSummaryDir "summary.json"
+$dirOutputJsonPath = Join-Path $resolvedWorkingDir "schema-approval-history-dir.json"
+$dirOutputMarkdownPath = Join-Path $resolvedWorkingDir "schema-approval-history-dir.md"
 $approvalResultPath = Join-Path $resolvedWorkingDir "schema_patch_approval_invalid_result.json"
 
 $smokeSummary = [ordered]@{
@@ -140,7 +193,7 @@ $releaseSummary = [ordered]@{
 ([ordered]@{ decision = "approved"; reviewer = "alice" } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $ignoredJsonPath -Encoding UTF8
 
 $result = Invoke-ScriptAndCapture -ScriptPath $scriptPath -Arguments @(
-    "-SummaryJsonDir", $resolvedWorkingDir,
+    "-SummaryJsonDir", $primaryFixtureDir,
     "-Recurse",
     "-OutputJson", $outputJsonPath,
     "-OutputMarkdown", $outputMarkdownPath
@@ -153,6 +206,8 @@ Assert-True -Condition (Test-Path -LiteralPath $outputMarkdownPath) `
     -Message "History Markdown should be written."
 
 $history = Get-Content -Raw -Encoding UTF8 -LiteralPath $outputJsonPath | ConvertFrom-Json
+$expectedSmokeSummaryDisplay = Convert-ToRepoDisplayPath -RepoRoot $resolvedRepoRoot -Path $smokeSummaryPath
+$expectedReleaseSummaryDisplay = Convert-ToRepoDisplayPath -RepoRoot $resolvedRepoRoot -Path $releaseSummaryPath
 Assert-Equal -Actual ([string]$history.schema) -Expected "featherdoc.project_template_schema_approval_history.v1" `
     -Message "History JSON should expose the stable schema id."
 Assert-Equal -Actual ([int]$history.summary_count) -Expected 2 `
@@ -190,6 +245,8 @@ Assert-Equal -Actual (Convert-ToStableDateText -Value $history.latest_blocking_s
     -Message "Latest blocking summary should point to the most recent blocked run."
 Assert-Equal -Actual ([int]$history.latest_blocking_summary.blocked_item_count) -Expected 1 `
     -Message "Latest blocking summary should count blocked approval items."
+Assert-Equal -Actual ([string]$history.latest_blocking_summary.summary_json_display) -Expected $expectedSmokeSummaryDisplay `
+    -Message "Latest blocking summary should expose the stable source summary display path."
 Assert-True -Condition (@($history.latest_blocking_summary.issue_keys) -contains "missing_reviewed_at") `
     -Message "Latest blocking summary should aggregate compliance issue keys."
 
@@ -206,6 +263,8 @@ Assert-Equal -Actual ([string]$entryHistory.latest_status) -Expected "approved" 
     -Message "Entry history should expose the latest item status."
 Assert-Equal -Actual ([string]$entryHistory.latest_decision) -Expected "approved" `
     -Message "Entry history should expose the latest item decision."
+Assert-Equal -Actual ([string]$entryHistory.latest_summary_json_display) -Expected $expectedReleaseSummaryDisplay `
+    -Message "Entry history should expose the latest source summary display path."
 Assert-True -Condition (@($entryHistory.issue_keys) -contains "missing_reviewer") `
     -Message "Entry history should preserve historical issue keys."
 
@@ -214,6 +273,8 @@ Assert-Equal -Actual ([string]$passedRun.source_kind) -Expected "release_candida
     -Message "Release summary should be classified as release_candidate_summary."
 Assert-Equal -Actual ([string]$passedRun.execution_status) -Expected "pass" `
     -Message "Release run should preserve execution status."
+Assert-Equal -Actual ([string]$passedRun.summary_json_display) -Expected $expectedReleaseSummaryDisplay `
+    -Message "Release run should expose the stable source summary display path."
 Assert-Equal -Actual ([string]$passedRun.approval_items[0].name) -Expected "schema-review-invalid" `
     -Message "Release run should preserve approval item snapshots."
 
@@ -232,10 +293,20 @@ Assert-ContainsText -Text $markdown -ExpectedText "## Latest Blocking Summary" `
     -Message "Markdown should include latest blocking summary section."
 Assert-ContainsText -Text $markdown -ExpectedText "Latest blocking summary: 2026-04-28T10:00:00" `
     -Message "Markdown should include the latest blocked run timestamp."
+Assert-ContainsText -Text $markdown -ExpectedText "summary=$expectedSmokeSummaryDisplay" `
+    -Message "Markdown should include the latest blocked run source summary display path."
 Assert-ContainsText -Text $markdown -ExpectedText "## Entry History" `
     -Message "Markdown should include entry history section."
 Assert-ContainsText -Text $markdown -ExpectedText "schema-review-invalid: latest=approved/approved runs=2 blocked_runs=1" `
     -Message "Markdown should summarize entry-level approval history."
+Assert-ContainsText -Text $markdown -ExpectedText "summary=$expectedReleaseSummaryDisplay" `
+    -Message "Markdown should include the latest entry source summary display path."
+Assert-TextOrder -Text $markdown -ExpectedTexts @(
+    "## Latest Blocking Summary",
+    "## Entry History",
+    "## Runs",
+    "## Blocked Approval Items"
+) -Message "Markdown should keep reviewer sections in a stable order."
 
 $listResult = Invoke-ScriptAndCapture -ScriptPath $scriptPath -Arguments @(
     "-SummaryJson", "$smokeSummaryPath,$releaseSummaryPath",
@@ -247,5 +318,95 @@ Assert-Equal -Actual $listResult.ExitCode -Expected 0 `
 $listHistory = Get-Content -Raw -Encoding UTF8 -LiteralPath $listOutputJsonPath | ConvertFrom-Json
 Assert-Equal -Actual ([int]$listHistory.summary_count) -Expected 2 `
     -Message "Comma-separated SummaryJson should include both source summaries."
+
+$arrayResult = Invoke-ScriptAndCapture -ScriptPath $scriptPath -Arguments @(
+    "-SummaryJson", $smokeSummaryPath, $releaseSummaryPath,
+    "-OutputJson", $arrayOutputJsonPath,
+    "-OutputMarkdown", $arrayOutputMarkdownPath
+)
+Assert-Equal -Actual $arrayResult.ExitCode -Expected 0 `
+    -Message "Schema approval history writer should accept array SummaryJson values. Output: $($arrayResult.Text)"
+$arrayHistory = Get-Content -Raw -Encoding UTF8 -LiteralPath $arrayOutputJsonPath | ConvertFrom-Json
+Assert-Equal -Actual ([int]$arrayHistory.summary_count) -Expected 2 `
+    -Message "Array SummaryJson should include both source summaries."
+Assert-Equal -Actual ([string]$arrayHistory.latest_gate_status) -Expected "passed" `
+    -Message "Array SummaryJson should preserve latest run ordering."
+Assert-Equal -Actual ([string]$arrayHistory.latest_blocking_summary.summary_json_display) -Expected $expectedSmokeSummaryDisplay `
+    -Message "Array SummaryJson should preserve blocking source summary display paths."
+Assert-True -Condition (@($arrayHistory.runs | ForEach-Object { [string]$_.summary_json_display }) -contains $expectedSmokeSummaryDisplay) `
+    -Message "Array SummaryJson should include the smoke summary source."
+Assert-True -Condition (@($arrayHistory.runs | ForEach-Object { [string]$_.summary_json_display }) -contains $expectedReleaseSummaryDisplay) `
+    -Message "Array SummaryJson should include the release summary source."
+
+New-Item -ItemType Directory -Path $dirModeNestedSummaryDir -Force | Out-Null
+$dirModeSummary = [ordered]@{
+    generated_at = "2026-05-01T10:00:00"
+    schema_patch_review_count = 1
+    schema_patch_review_changed_count = 1
+    schema_patch_approval_pending_count = 0
+    schema_patch_approval_approved_count = 0
+    schema_patch_approval_rejected_count = 1
+    schema_patch_approval_compliance_issue_count = 1
+    schema_patch_approval_invalid_result_count = 1
+    schema_patch_approval_gate_status = "blocked"
+    schema_patch_approval_gate_blocked = $true
+    schema_patch_approval_items = @(
+        [ordered]@{
+            name = "dir-top-only"
+            status = "invalid_result"
+            decision = "needs_changes"
+            action = "fix_dir_top_schema_approval"
+            compliance_issue_count = 1
+            compliance_issues = @("dir_top_issue")
+        }
+    )
+}
+($dirModeSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $dirModeSummaryPath -Encoding UTF8
+$dirModeNestedSummary = [ordered]@{
+    generated_at = "2026-05-02T10:00:00"
+    schema_patch_review_count = 1
+    schema_patch_review_changed_count = 1
+    schema_patch_approval_pending_count = 0
+    schema_patch_approval_approved_count = 1
+    schema_patch_approval_rejected_count = 0
+    schema_patch_approval_compliance_issue_count = 0
+    schema_patch_approval_invalid_result_count = 0
+    schema_patch_approval_gate_status = "passed"
+    schema_patch_approval_gate_blocked = $false
+    schema_patch_approval_items = @(
+        [ordered]@{
+            name = "dir-nested-should-not-load"
+            status = "approved"
+            decision = "approved"
+            action = "promote_nested_schema_update"
+            compliance_issue_count = 0
+            compliance_issues = @()
+        }
+    )
+}
+($dirModeNestedSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $dirModeNestedSummaryPath -Encoding UTF8
+
+$dirResult = Invoke-ScriptAndCapture -ScriptPath $scriptPath -Arguments @(
+    "-SummaryJsonDir", $dirModeFixtureDir,
+    "-OutputJson", $dirOutputJsonPath,
+    "-OutputMarkdown", $dirOutputMarkdownPath
+)
+Assert-Equal -Actual $dirResult.ExitCode -Expected 0 `
+    -Message "Schema approval history writer should accept non-recursive SummaryJsonDir. Output: $($dirResult.Text)"
+$dirHistory = Get-Content -Raw -Encoding UTF8 -LiteralPath $dirOutputJsonPath | ConvertFrom-Json
+$expectedDirModeSummaryDisplay = Convert-ToRepoDisplayPath -RepoRoot $resolvedRepoRoot -Path $dirModeSummaryPath
+Assert-Equal -Actual ([int]$dirHistory.summary_count) -Expected 1 `
+    -Message "Non-recursive SummaryJsonDir should only collect top-level summary.json."
+Assert-Equal -Actual ([string]$dirHistory.latest_gate_status) -Expected "blocked" `
+    -Message "Non-recursive SummaryJsonDir should ignore nested summaries unless -Recurse is set."
+Assert-Equal -Actual ([string]@($dirHistory.runs)[0].summary_json_display) -Expected $expectedDirModeSummaryDisplay `
+    -Message "Non-recursive SummaryJsonDir should preserve the top-level source summary display path."
+$dirMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $dirOutputMarkdownPath
+Assert-ContainsText -Text $dirMarkdown -ExpectedText "dir-top-only" `
+    -Message "Non-recursive SummaryJsonDir Markdown should include top-level approval items."
+Assert-ContainsText -Text $dirMarkdown -ExpectedText "summary=$expectedDirModeSummaryDisplay" `
+    -Message "Non-recursive SummaryJsonDir Markdown should include the top-level source summary display path."
+Assert-NotContainsText -Text $dirMarkdown -UnexpectedText "dir-nested-should-not-load" `
+    -Message "Non-recursive SummaryJsonDir should not include nested approval items."
 
 Write-Host "Project template schema approval history regression passed."
