@@ -56,6 +56,8 @@ performance.
   and CTest registration for pending visual-review warnings.
 - Added project-template smoke candidate discovery `-FailOnUnregistered`
   regression coverage and CTest registration.
+- Added project-template smoke manifest description regression coverage and
+  bounded CTest registration for adjacent onboarding tests.
 - Added lightweight parser coverage for release metadata, script index, Word
   visual preflight, and DOCX functional smoke readiness guard scripts.
 - Added script task index regression coverage for reporting unindexed

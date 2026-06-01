@@ -2614,6 +2614,29 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/new_project_template_smoke_onboarding_plan
         )
+        set_tests_properties(new_project_template_smoke_onboarding_plan
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;project_template")
+
+        add_test(
+            NAME
+            describe_project_template_smoke_manifest
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/describe_project_template_smoke_manifest_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/describe_project_template_smoke_manifest
+        )
+        set_tests_properties(describe_project_template_smoke_manifest
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;project_template")
 
         add_test(
             NAME
@@ -2673,6 +2696,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/onboard_project_template
         )
+        set_tests_properties(onboard_project_template
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;project_template")
 
         if(FEATHERDOC_PYTHON_EXECUTABLE)
             add_test(

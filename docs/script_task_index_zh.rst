@@ -109,7 +109,8 @@
 - ``scripts/project_template_smoke_manifest_common.ps1``：提供项目模板 smoke
   manifest 共享的属性读取、路径解析和校验问题工具。
 - ``scripts/describe_project_template_smoke_manifest.ps1``：只读描述项目模板
-  smoke manifest 状态与维护入口。
+  smoke manifest 状态与维护入口；JSON 输出使用
+  ``featherdoc.project_template_smoke_manifest_description.v1`` schema。
 - ``scripts/discover_project_template_smoke_candidates.ps1``：发现尚未纳入
   manifest 的 ``.docx`` / ``.dotx`` 候选；支持 ``-FailOnUnregistered``
   作为 CI gating，并在 JSON 报告中写入 ``unregistered_candidate_count``。

@@ -123,6 +123,8 @@ foreach ($marker in @(
 foreach ($marker in @(
         "check_template_schema_baseline.ps1",
         "export_template_render_plan.ps1",
+        "describe_project_template_smoke_manifest.ps1",
+        "featherdoc.project_template_smoke_manifest_description.v1",
         "discover_project_template_smoke_candidates.ps1",
         "-FailOnUnregistered",
         "unregistered_candidate_count",
@@ -215,6 +217,10 @@ foreach ($relativePath in $requiredScriptPaths) {
 foreach ($marker in @(
         "script_task_index_docs_contract",
         "script_task_index_docs_contract_test.ps1",
+        "describe_project_template_smoke_manifest",
+        "describe_project_template_smoke_manifest_test.ps1",
+        "new_project_template_smoke_onboarding_plan",
+        "onboard_project_template",
         "discover_project_template_smoke_candidates_registered",
         "discover_project_template_smoke_candidates_fail_on_unregistered",
         "ReportMarkdown",
