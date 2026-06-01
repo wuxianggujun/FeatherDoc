@@ -684,7 +684,8 @@ $releasePolicyExecutionOrderLines = @(
 )
 $entrypointExpectedMarkers = @(
     "release_metadata_pipeline_zh",
-    "release_metadata_maintenance_checklist_zh"
+    "release_metadata_maintenance_checklist_zh",
+    "pdf_release_readiness_checklist_zh"
 )
 $resolvedRepoRoot = ""
 $summaryJsonPath = ""
@@ -703,6 +704,11 @@ try {
             label = "release metadata maintenance checklist doc"
             relative_path = "docs/release_metadata_maintenance_checklist_zh.rst"
             path = Join-Path (Join-Path $resolvedRepoRoot "docs") "release_metadata_maintenance_checklist_zh.rst"
+        },
+        [pscustomobject]@{
+            label = "PDF release readiness checklist doc"
+            relative_path = "docs/pdf_release_readiness_checklist_zh.rst"
+            path = Join-Path (Join-Path $resolvedRepoRoot "docs") "pdf_release_readiness_checklist_zh.rst"
         },
         [pscustomobject]@{
             label = "documentation maintenance overview doc"
@@ -737,15 +743,17 @@ try {
     )
     $pipelinePath = $checkedDocuments[0].path
     $checklistPath = $checkedDocuments[1].path
-    $documentationMaintenancePath = $checkedDocuments[2].path
-    $documentGovernancePath = $checkedDocuments[3].path
-    $policyPath = $checkedDocuments[4].path
-    $indexPath = $checkedDocuments[5].path
-    $readmePath = $checkedDocuments[6].path
-    $readmeZhPath = $checkedDocuments[7].path
+    $pdfReadinessChecklistPath = $checkedDocuments[2].path
+    $documentationMaintenancePath = $checkedDocuments[3].path
+    $documentGovernancePath = $checkedDocuments[4].path
+    $policyPath = $checkedDocuments[5].path
+    $indexPath = $checkedDocuments[6].path
+    $readmePath = $checkedDocuments[7].path
+    $readmeZhPath = $checkedDocuments[8].path
 
     Assert-FileExists -Path $pipelinePath -Label "release metadata pipeline doc"
     Assert-FileExists -Path $checklistPath -Label "release metadata maintenance checklist doc"
+    Assert-FileExists -Path $pdfReadinessChecklistPath -Label "PDF release readiness checklist doc"
     Assert-FileExists -Path $documentationMaintenancePath -Label "documentation maintenance overview doc"
     Assert-FileExists -Path $documentGovernancePath -Label "document governance acceptance doc"
     Assert-FileExists -Path $policyPath -Label "release policy doc"
@@ -755,6 +763,7 @@ try {
 
     $pipelineText = Read-Utf8Text -Path $pipelinePath
     $checklistText = Read-Utf8Text -Path $checklistPath
+    $pdfReadinessChecklistText = Read-Utf8Text -Path $pdfReadinessChecklistPath
     $documentationMaintenanceText = Read-Utf8Text -Path $documentationMaintenancePath
     $documentGovernanceText = Read-Utf8Text -Path $documentGovernancePath
     $policyText = Read-Utf8Text -Path $policyPath
@@ -775,6 +784,8 @@ try {
         Assert-NoTrailingWhitespace -Text $doc.Text -Path $doc.Path
         Assert-NoTabs -Text $doc.Text -Path $doc.Path
     }
+    Assert-NoTrailingWhitespace -Text $pdfReadinessChecklistText -Path $pdfReadinessChecklistPath
+    Assert-NoTabs -Text $pdfReadinessChecklistText -Path $pdfReadinessChecklistPath
 
     foreach ($expected in $pipelineExpectedMarkers) {
         Assert-ContainsText `

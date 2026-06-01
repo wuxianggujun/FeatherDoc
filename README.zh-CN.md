@@ -2030,6 +2030,7 @@ repair 候选文件。
 - 版本与发布策略：`docs/release_policy_zh.rst`
 - Release metadata 流水线：`docs/release_metadata_pipeline_zh.rst`
 - Release metadata 维护清单：`docs/release_metadata_maintenance_checklist_zh.rst`
+- PDF 发布准入清单：`docs/pdf_release_readiness_checklist_zh.rst`
 - Word 可视化工作流：`docs/automation/word_visual_workflow_zh.rst`
 - 许可说明：`docs/licensing_zh.rst`
 - 仓库法律说明：`LEGAL.md`

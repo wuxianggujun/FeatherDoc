@@ -279,8 +279,8 @@ function Assert-SummaryFailure {
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
     Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-    if ($summary.required_marker_count -ne 320) {
-        throw "Expected JSON summary to count 320 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 321) {
+        throw "Expected JSON summary to count 321 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -289,6 +289,7 @@ function New-DocsCase {
         [string]$Name,
         [string]$PipelineText = $defaultPipelineText,
         [string]$ChecklistText = $defaultChecklistText,
+        [string]$PdfReadinessChecklistText = $defaultPdfReadinessChecklistText,
         [string]$DocumentationMaintenanceText = $defaultDocumentationMaintenanceText,
         [string]$DocumentGovernanceText = $defaultDocumentGovernanceText,
         [string]$PolicyText = $defaultPolicyText,
@@ -302,6 +303,7 @@ function New-DocsCase {
 
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_metadata_pipeline_zh.rst") -Text $PipelineText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_metadata_maintenance_checklist_zh.rst") -Text $ChecklistText
+    Write-Utf8NoBomFile -Path (Join-Path $docsDir "pdf_release_readiness_checklist_zh.rst") -Text $PdfReadinessChecklistText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "documentation_maintenance_zh.rst") -Text $DocumentationMaintenanceText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "document_governance_acceptance_zh.rst") -Text $DocumentGovernanceText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_policy_zh.rst") -Text $PolicyText
@@ -664,6 +666,17 @@ $defaultDocumentationMaintenanceText = @(
     '',
     '- docs/release_metadata_pipeline_zh.rst',
     '- docs/release_metadata_maintenance_checklist_zh.rst',
+    '- docs/pdf_release_readiness_checklist_zh.rst',
+    ''
+) -join "`n"
+
+$defaultPdfReadinessChecklistText = @(
+    'PDF release readiness checklist',
+    '===============================',
+    '',
+    '- check_pdf_release_readiness.ps1',
+    '- featherdoc.pdf_release_readiness_check.v1',
+    '- pdf_release_readiness_machine_gate_trace',
     ''
 ) -join "`n"
 
@@ -741,6 +754,7 @@ $defaultIndexText = @(
     '',
     '   release_metadata_pipeline_zh',
     '   release_metadata_maintenance_checklist_zh',
+    '   pdf_release_readiness_checklist_zh',
     ''
 ) -join "`n"
 
@@ -749,6 +763,7 @@ $defaultReadmeText = @(
     '',
     '- Release metadata pipeline guide: `docs/release_metadata_pipeline_zh.rst`',
     '- Release metadata maintenance checklist: `docs/release_metadata_maintenance_checklist_zh.rst`',
+    '- PDF release readiness checklist: `docs/pdf_release_readiness_checklist_zh.rst`',
     ''
 ) -join "`n"
 
@@ -757,6 +772,7 @@ $defaultReadmeZhText = @(
     '',
     '- Release metadata 流水线：`docs/release_metadata_pipeline_zh.rst`',
     '- Release metadata 维护清单：`docs/release_metadata_maintenance_checklist_zh.rst`',
+    '- PDF 发布准入清单：`docs/pdf_release_readiness_checklist_zh.rst`',
     ''
 ) -join "`n"
 
@@ -785,8 +801,8 @@ if ($summary.summary_schema_version -ne 1) {
 Assert-SummaryAuditFields -Summary $summary
 Assert-SummaryMarkerCountsConsistent -Summary $summary
 Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-if ($summary.checked_document_count -ne 8) {
-    throw "Expected JSON summary checked document count 8, got: $($summary.checked_document_count)"
+if ($summary.checked_document_count -ne 9) {
+    throw "Expected JSON summary checked document count 9, got: $($summary.checked_document_count)"
 }
 if ($summary.required_pipeline_marker_count -ne 134) {
     throw "Expected JSON summary pipeline marker count 134, got: $($summary.required_pipeline_marker_count)"
@@ -800,14 +816,14 @@ if ($summary.required_document_governance_marker_count -ne 23) {
 if ($summary.required_policy_marker_count -ne 24) {
     throw "Expected JSON summary policy marker count 24, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_entrypoint_marker_count -ne 2) {
-    throw "Expected JSON summary entrypoint marker count 2, got: $($summary.required_entrypoint_marker_count)"
+if ($summary.required_entrypoint_marker_count -ne 3) {
+    throw "Expected JSON summary entrypoint marker count 3, got: $($summary.required_entrypoint_marker_count)"
 }
-if ($summary.required_marker_count -ne 320) {
-    throw "Expected JSON summary total marker count 320, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 321) {
+    throw "Expected JSON summary total marker count 321, got: $($summary.required_marker_count)"
 }
-if ($summary.checked_documents.Count -ne 8) {
-    throw "Expected JSON summary to list 8 checked documents, got: $($summary.checked_documents.Count)"
+if ($summary.checked_documents.Count -ne 9) {
+    throw "Expected JSON summary to list 9 checked documents, got: $($summary.checked_documents.Count)"
 }
 Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
@@ -817,6 +833,14 @@ Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
     -ExpectedValue 'docs/documentation_maintenance_zh.rst' `
     -Message "JSON summary should list the documentation maintenance overview doc."
+Assert-ArrayContains `
+    -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue 'docs/pdf_release_readiness_checklist_zh.rst' `
+    -Message "JSON summary should list the PDF release readiness checklist doc."
+Assert-ArrayContains `
+    -Values @($summary.checked_document_labels) `
+    -ExpectedValue 'PDF release readiness checklist doc' `
+    -Message "JSON summary labels should list the PDF release readiness checklist doc."
 Assert-ArrayContains `
     -Values @($summary.checked_document_labels) `
     -ExpectedValue 'documentation maintenance overview doc' `
@@ -849,6 +873,10 @@ Assert-ArrayContains `
     -Values @($summary.required_entrypoint_markers) `
     -ExpectedValue "release_metadata_maintenance_checklist_zh" `
     -Message "JSON summary should list release metadata maintenance checklist entrypoint marker."
+Assert-ArrayContains `
+    -Values @($summary.required_entrypoint_markers) `
+    -ExpectedValue "pdf_release_readiness_checklist_zh" `
+    -Message "JSON summary should list PDF release readiness checklist entrypoint marker."
 Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "release_note_bundle_visual_verdict_metadata" `
@@ -1231,6 +1259,9 @@ Write-Utf8NoBomFile `
 Write-Utf8NoBomFile `
     -Path (Join-Path $missingPolicyDocsDir "release_metadata_maintenance_checklist_zh.rst") `
     -Text $defaultChecklistText
+Write-Utf8NoBomFile `
+    -Path (Join-Path $missingPolicyDocsDir "pdf_release_readiness_checklist_zh.rst") `
+    -Text $defaultPdfReadinessChecklistText
 Write-Utf8NoBomFile `
     -Path (Join-Path $missingPolicyDocsDir "documentation_maintenance_zh.rst") `
     -Text $defaultDocumentationMaintenanceText

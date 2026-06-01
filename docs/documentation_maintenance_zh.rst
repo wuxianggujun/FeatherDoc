@@ -18,10 +18,11 @@
 3. ``docs/release_metadata_pipeline_zh.rst``：发布治理、handoff、rollup 和
    reviewer-facing bundle 的元数据链路。
 4. ``docs/release_metadata_maintenance_checklist_zh.rst``：release metadata 修改流程。
-5. ``docs/automation/word_visual_workflow_zh.rst``：Word 视觉验证流程。
-6. ``BUILDING_PDF.md`` 与 ``design/04-pdf-execution-plan.md``：PDF 保守维护和
+5. ``docs/pdf_release_readiness_checklist_zh.rst``：PDF 发布准入检查入口。
+6. ``docs/automation/word_visual_workflow_zh.rst``：Word 视觉验证流程。
+7. ``BUILDING_PDF.md`` 与 ``design/04-pdf-execution-plan.md``：PDF 保守维护和
    后续验证入口。
-7. ``docs/script_task_index_zh.rst``：脚本任务索引，固定 ``scripts`` 目录里
+8. ``docs/script_task_index_zh.rst``：脚本任务索引，固定 ``scripts`` 目录里
    当前应优先维护的轻量检查、治理报告、视觉复核和发布材料入口；配套
    ``scripts/check_script_task_index.ps1`` 做只读路径一致性检查。
 

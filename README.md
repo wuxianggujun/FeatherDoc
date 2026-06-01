@@ -3703,6 +3703,7 @@ reason about and extend independently.
 - Release policy guide: `docs/release_policy_zh.rst`
 - Release metadata pipeline guide: `docs/release_metadata_pipeline_zh.rst`
 - Release metadata maintenance checklist: `docs/release_metadata_maintenance_checklist_zh.rst`
+- PDF release readiness checklist: `docs/pdf_release_readiness_checklist_zh.rst`
 - Chinese license guide: `docs/licensing_zh.rst`
 - Repository legal notes: `LEGAL.md`
 - Distribution notice summary: `NOTICE`
