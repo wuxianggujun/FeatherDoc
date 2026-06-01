@@ -194,7 +194,8 @@
   建议。
 - ``scripts/audit_style_merge_restore_plan.ps1``：只读审计 style merge restore plan，
   输出 ``review_handoff_steps``、``next_copy_command``、``issue_review_commands``、
-  ``copy_issue_review_command``、``rollback_plan_summary``
+  ``copy_issue_review_command``、``rollback_plan_summary``、
+  ``restorable_rollback_command_summary``
   和 release governance action / blocker evidence，帮助 reviewer 从 dry-run
   结果进入 issue group 复核、Word 视觉审阅或选择性 restore。
 - ``scripts/run_paragraph_list_visual_regression.ps1``：运行段落列表视觉回归。

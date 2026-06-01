@@ -162,6 +162,7 @@ foreach ($marker in @(
         "issue_review_commands",
         "copy_issue_review_command",
         "rollback_plan_summary",
+        "restorable_rollback_command_summary",
         "release governance action / blocker evidence",
         "build_table_layout_delivery_report.ps1",
         "pdf_floating_table_support_coverage",
