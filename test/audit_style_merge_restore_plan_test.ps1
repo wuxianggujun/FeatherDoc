@@ -271,6 +271,12 @@ if (Test-Scenario -Name "clean") {
         -Message "Clean restore audit handoff should start from the completed dry-run review."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].id) -Expected "prepare_word_visual_review" `
         -Message "Clean restore audit handoff should route the reviewer to visual review next."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].source_schema) -Expected "featherdoc.style_merge_restore_audit.v1" `
+        -Message "Clean restore audit handoff step should expose source schema."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].source_json_display) -ExpectedText "style-merge.restore-audit.summary.json" `
+        -Message "Clean restore audit handoff step should expose source JSON display path."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].rollback_plan_display) -ExpectedText "style-merge.apply.rollback.json" `
+        -Message "Clean restore audit handoff step should expose rollback plan display path."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].status) -Expected "next" `
         -Message "Clean restore audit visual review handoff should be the next step."
     Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].command) -ExpectedText "prepare_word_review_task.ps1" `
@@ -386,6 +392,12 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit should expose three reviewer handoff steps."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].id) -Expected "review_issue_groups" `
         -Message "Issue restore audit handoff should route reviewer to issue groups."
+    Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].source_schema) -Expected "featherdoc.style_merge_restore_audit.v1" `
+        -Message "Issue restore audit handoff step should expose source schema."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].source_report_display) -ExpectedText "style-merge.restore-audit.summary.json" `
+        -Message "Issue restore audit handoff step should expose source report display path."
+    Assert-ContainsText -Text ([string]$summary.review_handoff_steps[1].rollback_plan_display) -ExpectedText "style-merge.apply.rollback.json" `
+        -Message "Issue restore audit handoff step should expose rollback plan display path."
     Assert-Equal -Actual ([string]$summary.review_handoff_steps[1].status) -Expected "next" `
         -Message "Issue restore audit issue group handoff should be the next step."
     Assert-Equal -Actual ([int]$summary.review_handoff_steps[1].issue_group_count) -Expected 1 `

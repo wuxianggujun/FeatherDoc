@@ -436,17 +436,30 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
         [string]$RestoreAuditCommand,
         [string]$SelectedRestoreCommandTemplate,
         [string]$VisualReviewCommand,
-        [string]$OpenVisualReviewCommand
+        [string]$OpenVisualReviewCommand,
+        [string]$SourceSchema,
+        [string]$SourceReportDisplay,
+        [string]$SourceJsonDisplay,
+        [string]$RollbackPlanDisplay
     )
 
+    $sourceFields = [ordered]@{
+        source_schema = $SourceSchema
+        source_report_display = $SourceReportDisplay
+        source_json_display = $SourceJsonDisplay
+        rollback_plan_display = $RollbackPlanDisplay
+    }
+
     $steps = New-Object 'System.Collections.Generic.List[object]'
-    $steps.Add([ordered]@{
+    $step = [ordered]@{
         order = 1
         id = "review_restore_audit_dry_run"
         action = "review_style_merge_restore_audit"
         status = "completed"
         command = $RestoreAuditCommand
-    }) | Out-Null
+    }
+    foreach ($entry in $sourceFields.GetEnumerator()) { $step[$entry.Key] = $entry.Value }
+    $steps.Add($step) | Out-Null
 
     if ($IssueCount -gt 0) {
         $issueReviewCommands = New-Object 'System.Collections.Generic.List[string]'
@@ -458,7 +471,7 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             }
         }
 
-        $steps.Add([ordered]@{
+        $step = [ordered]@{
             order = 2
             id = "review_issue_groups"
             action = "review_style_merge_restore_audit_issues"
@@ -467,8 +480,10 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             issue_group_count = @($IssueReviewGroups).Count
             command = $RestoreAuditCommand
             issue_review_commands = @($issueReviewCommands.ToArray())
-        }) | Out-Null
-        $steps.Add([ordered]@{
+        }
+        foreach ($entry in $sourceFields.GetEnumerator()) { $step[$entry.Key] = $entry.Value }
+        $steps.Add($step) | Out-Null
+        $step = [ordered]@{
             order = 3
             id = "prepare_word_visual_review_after_clean_audit"
             action = "prepare_word_visual_review"
@@ -476,17 +491,21 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             blocked_by = @("style_merge.restore_audit_issues")
             command = $VisualReviewCommand
             open_command = $OpenVisualReviewCommand
-        }) | Out-Null
+        }
+        foreach ($entry in $sourceFields.GetEnumerator()) { $step[$entry.Key] = $entry.Value }
+        $steps.Add($step) | Out-Null
     } else {
-        $steps.Add([ordered]@{
+        $step = [ordered]@{
             order = 2
             id = "prepare_word_visual_review"
             action = "prepare_word_visual_review"
             status = "next"
             command = $VisualReviewCommand
             open_command = $OpenVisualReviewCommand
-        }) | Out-Null
-        $steps.Add([ordered]@{
+        }
+        foreach ($entry in $sourceFields.GetEnumerator()) { $step[$entry.Key] = $entry.Value }
+        $steps.Add($step) | Out-Null
+        $step = [ordered]@{
             order = 3
             id = "restore_selected_style_merges"
             action = "restore_style_merge"
@@ -494,7 +513,9 @@ function Get-StyleMergeRestoreReviewHandoffSteps {
             command_template = $SelectedRestoreCommandTemplate
             restorable_rollback_entry_count = $RestorableRollbackCommandSummary.restorable_rollback_entry_count
             batch_restore_command_template = $RestorableRollbackCommandSummary.batch_restorable_restore_command_template
-        }) | Out-Null
+        }
+        foreach ($entry in $sourceFields.GetEnumerator()) { $step[$entry.Key] = $entry.Value }
+        $steps.Add($step) | Out-Null
     }
 
     return @($steps.ToArray())
@@ -691,7 +712,11 @@ $reviewHandoffSteps = Get-StyleMergeRestoreReviewHandoffSteps `
     -RestoreAuditCommand $restoreAuditCommand `
     -SelectedRestoreCommandTemplate $selectedRestoreCommandTemplate `
     -VisualReviewCommand $visualReviewCommand `
-    -OpenVisualReviewCommand $openVisualReviewCommand
+    -OpenVisualReviewCommand $openVisualReviewCommand `
+    -SourceSchema "featherdoc.style_merge_restore_audit.v1" `
+    -SourceReportDisplay $summaryDisplayPath `
+    -SourceJsonDisplay $summaryDisplayPath `
+    -RollbackPlanDisplay $rollbackPlanDisplayPath
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 if ($issueCount -gt 0) {
