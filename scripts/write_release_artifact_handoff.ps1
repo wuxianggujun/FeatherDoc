@@ -26,6 +26,17 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($candidate)
 }
 
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [AllowEmptyString()][string]$Text
+    )
+
+    $content = if ($null -eq $Text) { "" } else { $Text }
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $content, $encoding)
+}
+
 function Get-DisplayValue {
     param($Value)
 
@@ -722,6 +733,6 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 
 $handoff = $handoffLines -join [Environment]::NewLine
 
-$handoff | Set-Content -Path $resolvedOutputPath -Encoding UTF8
+Write-Utf8NoBomFile -Path $resolvedOutputPath -Text $handoff
 
 Write-Host "Release handoff: $resolvedOutputPath"

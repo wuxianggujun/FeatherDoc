@@ -6,15 +6,39 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = (Join-Path $PSScriptRoot "..")
+}
+
+$resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+
+if ([string]::IsNullOrWhiteSpace($WorkingDir)) {
+    $WorkingDir = Join-Path $resolvedRepoRoot "output\test\release-note-bundle-visual-verdict-metadata"
+}
+
 $script:TextFileCache = @{}
 $script:LineFileCache = @{}
+
+function Get-Utf8FileText {
+    param([string]$Path)
+
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    return [System.IO.File]::ReadAllText($Path, $encoding)
+}
+
+function Get-Utf8FileLines {
+    param([string]$Path)
+
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    return [System.IO.File]::ReadAllLines($Path, $encoding)
+}
 
 function Get-CachedFileText {
     param([string]$Path)
 
     $cacheKey = [System.IO.Path]::GetFullPath($Path)
     if (-not $script:TextFileCache.ContainsKey($cacheKey)) {
-        $script:TextFileCache[$cacheKey] = Get-Content -Raw -LiteralPath $Path
+        $script:TextFileCache[$cacheKey] = Get-Utf8FileText -Path $cacheKey
     }
 
     return $script:TextFileCache[$cacheKey]
@@ -25,7 +49,7 @@ function Get-CachedFileLines {
 
     $cacheKey = [System.IO.Path]::GetFullPath($Path)
     if (-not $script:LineFileCache.ContainsKey($cacheKey)) {
-        $script:LineFileCache[$cacheKey] = Get-Content -LiteralPath $Path
+        $script:LineFileCache[$cacheKey] = Get-Utf8FileLines -Path $cacheKey
     }
 
     return $script:LineFileCache[$cacheKey]
@@ -41,6 +65,21 @@ function Assert-Contains {
     $content = Get-CachedFileText -Path $Path
     if ($content -notmatch [regex]::Escape($ExpectedText)) {
         throw "$Label does not contain expected text '$ExpectedText': $Path"
+    }
+}
+
+function Assert-FileHasNoBom {
+    param(
+        [string]$Path,
+        [string]$Label
+    )
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 3 -and
+        $bytes[0] -eq 0xEF -and
+        $bytes[1] -eq 0xBB -and
+        $bytes[2] -eq 0xBF) {
+        throw "$Label starts with a UTF-8 BOM: $Path"
     }
 }
 
@@ -150,7 +189,6 @@ function Get-OptionalPropertyObject {
     return $property.Value
 }
 
-$resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 . (Join-Path $resolvedRepoRoot "scripts\release_visual_metadata_helpers.ps1")
 
 $missingReviewTaskSummaryLine = Get-VisualReviewTaskSummaryLine `
@@ -455,6 +493,17 @@ $shortPath = Join-Path $reportDir "release_summary.zh-CN.md"
 $guidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $checklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $startHerePath = Join-Path (Split-Path -Parent $reportDir) "START_HERE.md"
+
+foreach ($assertion in @(
+        @{ Path = $handoffPath; Label = "release_handoff.md" },
+        @{ Path = $bodyPath; Label = "release_body.zh-CN.md" },
+        @{ Path = $shortPath; Label = "release_summary.zh-CN.md" },
+        @{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+        @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        @{ Path = $startHerePath; Label = "START_HERE.md" }
+    )) {
+    Assert-FileHasNoBom -Path $assertion.Path -Label $assertion.Label
+}
 
 foreach ($assertion in @(
         @{ Path = $handoffPath; Label = "release_handoff.md" },

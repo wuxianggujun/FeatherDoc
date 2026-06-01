@@ -25,6 +25,17 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($candidate)
 }
 
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [AllowEmptyString()][string]$Text
+    )
+
+    $content = if ($null -eq $Text) { "" } else { $Text }
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $content, $encoding)
+}
+
 function Get-DisplayValue {
     param($Value)
 
@@ -595,6 +606,6 @@ if (-not [string]::IsNullOrWhiteSpace($wordVisualStandardReviewMetadataEvidenceL
 [void]$lines.Add('- The installed `share/FeatherDoc` tree carries the preview PNGs, quickstarts, and release templates; the `report` directory carries the generated release notes and evidence indexes.')
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
-($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8
+Write-Utf8NoBomFile -Path $resolvedOutputPath -Text ($lines -join [Environment]::NewLine)
 
 Write-Host "Artifact guide: $resolvedOutputPath"

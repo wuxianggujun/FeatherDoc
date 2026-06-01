@@ -16,6 +16,20 @@ if ([string]::IsNullOrWhiteSpace($WorkingDir)) {
     $WorkingDir = Join-Path $resolvedRepoRoot "output\test\release-note-bundle-version"
 }
 
+function Get-Utf8FileText {
+    param([string]$Path)
+
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    return [System.IO.File]::ReadAllText($Path, $encoding)
+}
+
+function Get-Utf8FileLines {
+    param([string]$Path)
+
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    return [System.IO.File]::ReadAllLines($Path, $encoding)
+}
+
 function Assert-Contains {
     param(
         [string]$Path,
@@ -23,7 +37,7 @@ function Assert-Contains {
         [string]$Label
     )
 
-    $content = Get-Content -Raw -LiteralPath $Path
+    $content = Get-Utf8FileText -Path $Path
     if ($content -notmatch [regex]::Escape($ExpectedText)) {
         throw ("{0} does not contain expected text '{1}': {2}" -f $Label, $ExpectedText, $Path)
     }
@@ -36,7 +50,7 @@ function Assert-LineContainsAll {
         [string]$Label
     )
 
-    $lines = Get-Content -LiteralPath $Path
+    $lines = Get-Utf8FileLines -Path $Path
     foreach ($line in $lines) {
         $normalizedLine = $line -replace '/', '\'
         $matchesAllFragments = $true
@@ -64,7 +78,7 @@ function Assert-MarkdownListBlockContainsAll {
         [string]$Label
     )
 
-    $lines = Get-Content -LiteralPath $Path
+    $lines = Get-Utf8FileLines -Path $Path
     for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
         if ($lines[$lineIndex] -notmatch [regex]::Escape($Anchor)) {
             continue
@@ -110,10 +124,25 @@ function Assert-NotContains {
         [string]$Label
     )
 
-    $content = Get-Content -Raw -LiteralPath $Path
+    $content = Get-Utf8FileText -Path $Path
     if (-not [string]::IsNullOrWhiteSpace($UnexpectedText) -and
         $content -match [regex]::Escape($UnexpectedText)) {
         throw ("{0} unexpectedly contains '{1}': {2}" -f $Label, $UnexpectedText, $Path)
+    }
+}
+
+function Assert-FileHasNoBom {
+    param(
+        [string]$Path,
+        [string]$Label
+    )
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 3 -and
+        $bytes[0] -eq 0xEF -and
+        $bytes[1] -eq 0xBB -and
+        $bytes[2] -eq 0xBF) {
+        throw ("{0} starts with a UTF-8 BOM: {1}" -f $Label, $Path)
     }
 }
 
@@ -1216,6 +1245,16 @@ Assert-NotContains -Path $shortPath -UnexpectedText '这份文件由 `write_rele
 $guidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $checklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $startHerePath = Join-Path (Split-Path -Parent $reportDir) "START_HERE.md"
+foreach ($document in @(
+        [pscustomobject]@{ Path = $handoffPath; Label = "release_handoff.md" },
+        [pscustomobject]@{ Path = $bodyPath; Label = "release_body.zh-CN.md" },
+        [pscustomobject]@{ Path = $shortPath; Label = "release_summary.zh-CN.md" },
+        [pscustomobject]@{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+        [pscustomobject]@{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        [pscustomobject]@{ Path = $startHerePath; Label = "START_HERE.md" }
+    )) {
+    Assert-FileHasNoBom -Path $document.Path -Label $document.Label
+}
 $releaseGovernanceReportIssueDocuments = @(
     [pscustomobject]@{ Path = $handoffPath; Label = "release_handoff.md" },
     [pscustomobject]@{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
@@ -1789,7 +1828,7 @@ $unknownActionBlocker.action = "investigate_custom_gate"
 $checklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 Assert-Contains -Path $checklistPath -ExpectedText 'Unregistered release blocker action `investigate_custom_gate`: add a fixed checklist runbook in `release_blocker_metadata_helpers.ps1`' -Label 'REVIEWER_CHECKLIST.md'
 
-$bodyContent = Get-Content -Raw -LiteralPath $bodyPath
+$bodyContent = Get-Utf8FileText -Path $bodyPath
 if ($bodyContent -match 'v1\.6\.1') {
     throw "release_body.zh-CN.md unexpectedly referenced the current development version: $bodyPath"
 }

@@ -27,6 +27,17 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($candidate)
 }
 
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [AllowEmptyString()][string]$Text
+    )
+
+    $content = if ($null -eq $Text) { "" } else { $Text }
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $content, $encoding)
+}
+
 . (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
 . (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
 
@@ -1342,7 +1353,7 @@ if ($pdfPreflightEvidenceBlocker.Count -gt 0) {
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedShortOutputPath) -Force | Out-Null
-($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8
+Write-Utf8NoBomFile -Path $resolvedOutputPath -Text ($lines -join [Environment]::NewLine)
 
 $shortLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$shortLines.Add("# FeatherDoc v$(if ($resolvedReleaseVersion) { $resolvedReleaseVersion } else { '<版本号>' }) 发布摘要")
@@ -1356,7 +1367,7 @@ if ($shortSummaryBullets.Count -eq 0) {
     }
 }
 
-($shortLines -join [Environment]::NewLine) | Set-Content -Path $resolvedShortOutputPath -Encoding UTF8
+Write-Utf8NoBomFile -Path $resolvedShortOutputPath -Text ($shortLines -join [Environment]::NewLine)
 
 Write-Host "Release body output: $resolvedOutputPath"
 Write-Host "Release summary output: $resolvedShortOutputPath"

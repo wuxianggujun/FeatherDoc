@@ -26,6 +26,17 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($candidate)
 }
 
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [AllowEmptyString()][string]$Text
+    )
+
+    $content = if ($null -eq $Text) { "" } else { $Text }
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $content, $encoding)
+}
+
 . (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
 . (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
 
@@ -635,6 +646,6 @@ if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntr
 [void]$lines.Add("4. Check the GitHub Release page. Use the refresh workflow for note/asset updates that should stay private, and the publish workflow only after final local Word signoff is complete.")
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
-($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8
+Write-Utf8NoBomFile -Path $resolvedOutputPath -Text ($lines -join [Environment]::NewLine)
 
 Write-Host "Start here: $resolvedOutputPath"
