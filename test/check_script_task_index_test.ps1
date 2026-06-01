@@ -564,6 +564,98 @@ if (-not (Test-Path -LiteralPath $quietReportMarkdown -PathType Leaf)) {
     throw "check_script_task_index.ps1 did not write a quiet Markdown report."
 }
 
+$unindexedRoot = Join-Path $resolvedWorkingDir "unindexed-repo"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $unindexedRoot "docs\script_task_index_zh.rst") `
+    -Text (@(
+        "Script task index",
+        "=================",
+        "",
+        "- ``scripts/check_script_task_index.ps1``"
+    ) -join "`n")
+Write-Utf8NoBomFile `
+    -Path (Join-Path $unindexedRoot "docs\index.rst") `
+    -Text "script_task_index_zh"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $unindexedRoot "docs\documentation_maintenance_zh.rst") `
+    -Text "docs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $unindexedRoot "docs\project_score_assessment_zh.rst") `
+    -Text "docs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $unindexedRoot "README.md") `
+    -Text "docs/documentation_maintenance_zh.rst`ndocs/script_task_index_zh.rst"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $unindexedRoot "README.zh-CN.md") `
+    -Text "docs/documentation_maintenance_zh.rst`ndocs/script_task_index_zh.rst"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $unindexedRoot "test\CMakeLists.txt") `
+    -Text (@(
+        "check_script_task_index",
+        "check_script_task_index_test.ps1",
+        "TIMEOUT 60",
+        'LABELS "docs;smoke;governance;scripts"'
+    ) -join "`n")
+Write-Utf8NoBomFile `
+    -Path (Join-Path $unindexedRoot "scripts\check_script_task_index.ps1") `
+    -Text "param()`n"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $unindexedRoot "scripts\unindexed_helper.ps1") `
+    -Text "param()`n"
+
+$unindexedSummaryJson = Join-Path $unindexedRoot "summary.json"
+$unindexedReportMarkdown = Join-Path $unindexedRoot "script-task-index-report.md"
+$unindexedOutput = Invoke-IndexCheck `
+    -Root $unindexedRoot `
+    -SummaryJson $unindexedSummaryJson `
+    -ReportMarkdown $unindexedReportMarkdown
+$joinedUnindexedOutput = ($unindexedOutput | ForEach-Object { $_.ToString() }) -join "`n"
+if ($joinedUnindexedOutput -notmatch [regex]::Escape("Script task index check passed.")) {
+    throw "check_script_task_index.ps1 should pass when repository scripts are reported as unindexed."
+}
+$unindexedSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $unindexedSummaryJson | ConvertFrom-Json
+if ($unindexedSummary.status -ne "passed") {
+    throw "Expected unindexed-script fixture to pass, got: $($unindexedSummary.status)"
+}
+if ($unindexedSummary.script_reference_count -ne 1) {
+    throw "Expected one indexed script in unindexed fixture, got: $($unindexedSummary.script_reference_count)"
+}
+if ($unindexedSummary.repository_script_count -ne 2) {
+    throw "Expected two repository scripts in unindexed fixture, got: $($unindexedSummary.repository_script_count)"
+}
+if ($unindexedSummary.unindexed_script_count -ne 1) {
+    throw "Expected one unindexed script, got: $($unindexedSummary.unindexed_script_count)"
+}
+Assert-ArrayContains `
+    -Values @($unindexedSummary.unindexed_scripts) `
+    -ExpectedValue "scripts\unindexed_helper.ps1" `
+    -Message "Unindexed fixture summary should list the extra repository script."
+Assert-ArrayContains `
+    -Values @($unindexedSummary.unindexed_script_prefixes | ForEach-Object { $_.prefix }) `
+    -ExpectedValue "unindexed" `
+    -Message "Unindexed fixture summary should group the extra script by prefix."
+Assert-ArrayContains `
+    -Values @($unindexedSummary.unindexed_script_families | ForEach-Object { $_.family }) `
+    -ExpectedValue "unindexed_helper" `
+    -Message "Unindexed fixture summary should group the extra script by family."
+if ($unindexedSummary.missing_script_count -ne 0 -or
+    $unindexedSummary.duplicate_script_reference_count -ne 0 -or
+    $unindexedSummary.missing_marker_count -ne 0) {
+    throw "Unindexed scripts should not be treated as missing scripts, duplicate references, or missing markers."
+}
+foreach ($marker in @(
+        '- unindexed_script_count: `1`',
+        '- unindexed_script_prefix_count: `1`',
+        '- unindexed_script_family_count: `1`',
+        '## Unindexed Scripts',
+        '`scripts\unindexed_helper.ps1`',
+        '`unindexed`: 1',
+        '`unindexed_helper`: 1'
+    )) {
+    Assert-FileContainsText -Path $unindexedReportMarkdown -ExpectedText $marker `
+        -Message "Unindexed Markdown report should include marker."
+}
+
 $failingRoot = Join-Path $resolvedWorkingDir "failing-repo"
 Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "docs\script_task_index_zh.rst") `

@@ -44,6 +44,8 @@ performance.
   CTest registration so blocker-triggered handoff exits stay guarded.
 - Added lightweight parser coverage for release metadata, script index, Word
   visual preflight, and DOCX functional smoke readiness guard scripts.
+- Added script task index regression coverage for reporting unindexed
+  repository scripts without treating them as missing indexed scripts.
 - Added stable public evidence-path display handling for packaged release
   manifests so project-template and manifest-signoff evidence keeps source
   identity even when packaging runs from an out-of-repository working directory.
