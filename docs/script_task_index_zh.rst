@@ -116,8 +116,8 @@
   作为 CI gating，并在 JSON 报告中写入 ``unregistered_candidate_count``。
 - ``scripts/new_project_template_smoke_onboarding_plan.ps1``：生成项目模板
   smoke 候选接入计划，不直接修改 manifest。
-- ``scripts/register_project_template_smoke_manifest_entry.ps1``：注册真实模板
-  smoke 条目。
+- ``scripts/register_project_template_smoke_manifest_entry.ps1``：注册或用
+  ``-ReplaceExisting`` 更新真实模板 smoke 条目。
 - ``scripts/sync_project_template_schema_approval.ps1``：同步项目模板 schema
   approval 的 reviewer 决策与发布摘要。
 - ``scripts/write_project_template_schema_approval_history.ps1``：汇总多次

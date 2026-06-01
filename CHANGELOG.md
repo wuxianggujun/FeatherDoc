@@ -61,6 +61,9 @@ performance.
 - Added project-template smoke manifest checker regression coverage for
   manifest structure, duplicate entries, disabled checks, invalid slots, and
   `-CheckPaths` failures.
+- Added project-template smoke manifest entry registration regression coverage
+  for JSON snippet merging, duplicate rejection, `-ReplaceExisting`, and path
+  normalization.
 - Added lightweight parser coverage for release metadata, script index, Word
   visual preflight, and DOCX functional smoke readiness guard scripts.
 - Added script task index regression coverage for reporting unindexed

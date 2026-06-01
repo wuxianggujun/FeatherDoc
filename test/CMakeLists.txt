@@ -2640,6 +2640,25 @@ if(WIN32)
 
         add_test(
             NAME
+            register_project_template_smoke_manifest_entry
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/register_project_template_smoke_manifest_entry_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/register_project_template_smoke_manifest_entry
+        )
+        set_tests_properties(register_project_template_smoke_manifest_entry
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;project_template")
+
+        add_test(
+            NAME
             describe_project_template_smoke_manifest
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
