@@ -432,7 +432,13 @@ Word-compatible wrapping 复核边界。
 该 stage 必须保留 ``docx_functional_smoke_readiness_trace``、
 ``persisted_docx_functional_smoke_evidence_only``、``summary_json_display`` 和
 ``report_markdown_display``，让 reviewer 能确认它是低资源复用证据而不是新鲜 Word
-渲染。当 ``review_result.json`` 仍是 ``pending_manual_review`` 时保留
+渲染。该 stage 的治理消费路径固定为
+``output/docx-functional-smoke-readiness/summary.json`` 和
+``output/docx-functional-smoke-readiness/docx_functional_smoke_readiness.md``；
+本地低资源复核默认路径固定为
+``output/docx-functional-smoke-readiness-current/summary.json`` 和
+``output/docx-functional-smoke-readiness-current/docx_functional_smoke_readiness.md``。
+当 ``review_result.json`` 仍是 ``pending_manual_review`` 时保留
 ``word_visual_smoke.pending_manual_review`` warning 边界，并继续传递
 ``warning_count`` 与 ``release_blocker_count``，
 当截图级 review verdict 已记录为 ``pass`` 时则作为闭合证据传递给 final rollup、release

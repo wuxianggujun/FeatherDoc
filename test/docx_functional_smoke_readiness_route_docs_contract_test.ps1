@@ -93,7 +93,11 @@ foreach ($marker in @(
         "-ReportMarkdown",
         "-VisualSmokeRoots",
         "-FailOnWarning",
-        "docx_functional_smoke_readiness.md"
+        "docx_functional_smoke_readiness.md",
+        "output/docx-functional-smoke-readiness/summary.json",
+        "output/docx-functional-smoke-readiness/docx_functional_smoke_readiness.md",
+        "output/docx-functional-smoke-readiness-current/summary.json",
+        "output/docx-functional-smoke-readiness-current/docx_functional_smoke_readiness.md"
     )) {
     Assert-ContainsText -Text $docxReadinessDoc -ExpectedText $marker `
         -Message "Dedicated DOCX readiness docs should preserve marker '$marker'."
@@ -107,7 +111,11 @@ foreach ($marker in @(
         "word_visual_smoke.pending_manual_review",
         "restore_docx_functional_smoke_evidence",
         "summary_json_display",
-        "report_markdown_display"
+        "report_markdown_display",
+        "output/docx-functional-smoke-readiness/summary.json",
+        "output/docx-functional-smoke-readiness/docx_functional_smoke_readiness.md",
+        "output/docx-functional-smoke-readiness-current/summary.json",
+        "output/docx-functional-smoke-readiness-current/docx_functional_smoke_readiness.md"
     )) {
     Assert-ContainsText -Text $releaseMetadataDoc -ExpectedText $marker `
         -Message "Release metadata pipeline docs should preserve DOCX readiness marker '$marker'."
