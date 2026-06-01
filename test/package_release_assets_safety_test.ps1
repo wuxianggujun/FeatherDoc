@@ -1624,6 +1624,9 @@ if ([int]$manifestProjectTemplateReadiness.ready_template_count -ne 4) {
 if ([int]$manifestProjectTemplateReadiness.release_blocker_count -ne 0) {
     throw "release_assets_manifest.json lost project template delivery readiness release_blocker_count."
 }
+if ([int]$manifestProjectTemplateReadiness.warning_count -ne 0) {
+    throw "release_assets_manifest.json lost project template delivery readiness warning_count."
+}
 $expectedProjectTemplateDeliveryReadinessDisplay = Convert-TestEvidencePathToPublicDisplay `
     -Path $projectTemplateDeliveryReadinessSummaryPath `
     -RepoRoot $resolvedRepoRoot
@@ -1675,6 +1678,54 @@ if ([string]$manifestProjectTemplateOnboarding.source_report_display -ne $expect
 }
 if ([string]$manifestProjectTemplateOnboarding.source_json_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
     throw "release_assets_manifest.json lost project template onboarding governance source_json_display."
+}
+
+$warningOnlyProjectTemplateDeliveryReadinessSummaryPath = Join-Path $reportDir "project_template_delivery_readiness_warning_only_summary.json"
+$warningOnlyProjectTemplateDeliveryReadinessSummary = $projectTemplateDeliveryReadinessSummary | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$warningOnlyProjectTemplateDeliveryReadinessSummary.status = "needs_review"
+$warningOnlyProjectTemplateDeliveryReadinessSummary.release_ready = $false
+$warningOnlyProjectTemplateDeliveryReadinessSummary.template_count = 0
+$warningOnlyProjectTemplateDeliveryReadinessSummary.ready_template_count = 0
+$warningOnlyProjectTemplateDeliveryReadinessSummary.blocked_template_count = 0
+$warningOnlyProjectTemplateDeliveryReadinessSummary.release_blocker_count = 0
+$warningOnlyProjectTemplateDeliveryReadinessSummary.action_item_count = 0
+$warningOnlyProjectTemplateDeliveryReadinessSummary.warning_count = 1
+($warningOnlyProjectTemplateDeliveryReadinessSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $warningOnlyProjectTemplateDeliveryReadinessSummaryPath -Encoding UTF8
+
+$warningOnlySummaryPath = Join-Path $reportDir "summary.warning-only-project-template-readiness.json"
+$warningOnlySummary = $summary | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+$warningOnlySummary.project_template_delivery_readiness = $warningOnlyProjectTemplateDeliveryReadinessSummaryPath
+($warningOnlySummary | ConvertTo-Json -Depth 20) | Set-Content -LiteralPath $warningOnlySummaryPath -Encoding UTF8
+
+$warningOnlyOutputRoot = Join-Path $resolvedWorkingDir "output-release-warning-only"
+& $packageScript `
+    -SummaryJson $warningOnlySummaryPath `
+    -OutputRoot $warningOnlyOutputRoot `
+    -KeepStaging
+
+$warningOnlyManifestPath = Join-Path $warningOnlyOutputRoot "v1.6.4\release_assets_manifest.json"
+$warningOnlyManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $warningOnlyManifestPath | ConvertFrom-Json
+$warningOnlyManifestReadiness = $warningOnlyManifest.project_template_delivery_readiness_contract
+if ([string]$warningOnlyManifestReadiness.status -ne "needs_review") {
+    throw "release_assets_manifest.json lost warning-only project template delivery readiness status."
+}
+if ([bool]$warningOnlyManifestReadiness.release_ready) {
+    throw "release_assets_manifest.json lost warning-only project template delivery readiness release_ready=false."
+}
+if ([int]$warningOnlyManifestReadiness.release_blocker_count -ne 0) {
+    throw "release_assets_manifest.json lost warning-only project template delivery readiness release_blocker_count."
+}
+if ([int]$warningOnlyManifestReadiness.warning_count -ne 1) {
+    throw "release_assets_manifest.json lost warning-only project template delivery readiness warning_count."
+}
+$expectedWarningOnlyProjectTemplateDeliveryReadinessDisplay = Convert-TestEvidencePathToPublicDisplay `
+    -Path $warningOnlyProjectTemplateDeliveryReadinessSummaryPath `
+    -RepoRoot $resolvedRepoRoot
+if ([string]$warningOnlyManifestReadiness.source_report_display -ne $expectedWarningOnlyProjectTemplateDeliveryReadinessDisplay) {
+    throw "release_assets_manifest.json lost warning-only project template delivery readiness source_report_display."
+}
+if ([string]$warningOnlyManifestReadiness.source_json_display -ne $expectedWarningOnlyProjectTemplateDeliveryReadinessDisplay) {
+    throw "release_assets_manifest.json lost warning-only project template delivery readiness source_json_display."
 }
 
 $manifestSignoffEntrypoints = $manifest.manifest_signoff_entrypoints

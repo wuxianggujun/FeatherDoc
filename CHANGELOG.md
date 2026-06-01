@@ -45,6 +45,8 @@ performance.
 - Added a stable `featherdoc.project_template_onboarding_summary.v1` schema
   marker to project-template onboarding summaries and taught governance readers
   to prefer explicit onboarding evidence schemas.
+- Added release-asset packaging regression coverage for warning-only
+  project-template delivery readiness contracts.
 
 ### Fixed
 
