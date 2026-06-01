@@ -48,6 +48,8 @@ performance.
   CTest registration so blocker-triggered handoff exits stay guarded.
 - Added content-control data-binding governance report CTest registration for
   aggregate, `-FailOnBlocker`, and `-FailOnWarning` scenarios.
+- Added style-merge restore audit CTest registration for clean and issue
+  scenarios, with the style confidence route contract guarding the entries.
 - Added lightweight parser coverage for release metadata, script index, Word
   visual preflight, and DOCX functional smoke readiness guard scripts.
 - Added script task index regression coverage for reporting unindexed

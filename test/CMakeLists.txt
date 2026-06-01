@@ -3647,6 +3647,48 @@ if(WIN32)
 
             add_test(
                 NAME
+                audit_style_merge_restore_plan_clean
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/audit_style_merge_restore_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/audit_style_merge_restore_plan_clean
+                -Scenario
+                clean
+            )
+            set_tests_properties(audit_style_merge_restore_plan_clean
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;style")
+
+            add_test(
+                NAME
+                audit_style_merge_restore_plan_issue
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/audit_style_merge_restore_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/audit_style_merge_restore_plan_issue
+                -Scenario
+                issue
+            )
+            set_tests_properties(audit_style_merge_restore_plan_issue
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;style")
+
+            add_test(
+                NAME
                 style_merge_confidence_route_docs_contract
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

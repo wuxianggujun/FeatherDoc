@@ -269,6 +269,9 @@ foreach ($assertion in @(
 foreach ($marker in @(
         "style_merge_confidence_route_docs_contract",
         "style_merge_confidence_route_docs_contract_test.ps1",
+        "audit_style_merge_restore_plan_clean",
+        "audit_style_merge_restore_plan_issue",
+        "audit_style_merge_restore_plan_test.ps1",
         "TIMEOUT 60",
         'LABELS "docs;smoke;governance;style"'
     )) {
