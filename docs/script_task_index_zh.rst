@@ -338,12 +338,19 @@ Release governance 与发布材料
 - ``scripts/release_visual_metadata_helpers.ps1``：提供 release 视觉复核 metadata
   汇总、路径解析和任务 verdict helper。
 - ``scripts/assert_release_material_safety.ps1``：检查 staged release materials 的
-  安全边界，确保待发布目录只包含已声明、可复核的 release 产物。
+  安全边界，确保待发布目录只包含已声明、可复核的 release 产物；同时审计
+  ``release_assets_manifest.json`` 的 ``manifest_signoff_entrypoints`` 和
+  ``release_entry_project_template_readiness_checklist_material_safety_audit``
+  追踪字段。
 - ``scripts/package_release_assets.ps1``：打包发布资产，并保留
   ``release_assets_manifest.json`` 中的 table-layout release review aliases
   （``metadata_only_fields``、``review_required_fields``）；它必须与
   ``assert_release_material_safety.ps1`` 的 staged release material safety audit
-  形成闭环，避免入口文档丢失 PDF 浮动表复核字段。
+  形成闭环，在 manifest 中记录 ``audit_script``、``audited_entrypoints``、
+  ``release_entry_project_template_readiness_checklist_trace`` 和
+  ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``，
+  避免入口文档丢失 PDF 浮动表复核字段与 project-template readiness checklist
+  交付证据。
 - ``scripts/publish_github_release.ps1``：发布 GitHub release。
 - ``scripts/sync_github_release_notes.ps1``：同步 GitHub release notes。
 - ``scripts/write_release_metadata_start_here.ps1``：生成发布材料入口
