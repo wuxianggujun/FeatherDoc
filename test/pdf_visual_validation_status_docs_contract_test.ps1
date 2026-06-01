@@ -17,6 +17,39 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-TextBlockContainsAll {
+    param(
+        [string]$Text,
+        [string]$Anchor,
+        [string[]]$ExpectedFragments,
+        [string]$Message
+    )
+
+    $anchorIndex = $Text.IndexOf($Anchor, [StringComparison]::Ordinal)
+    if ($anchorIndex -lt 0) {
+        throw "$Message Missing anchor '$Anchor'."
+    }
+
+    $blockStart = $Text.LastIndexOf("`n   * ", $anchorIndex, [StringComparison]::Ordinal)
+    if ($blockStart -lt 0) {
+        $blockStart = 0
+    } else {
+        $blockStart += 1
+    }
+
+    $blockEnd = $Text.IndexOf("`n   * ", $anchorIndex + $Anchor.Length, [StringComparison]::Ordinal)
+    if ($blockEnd -lt 0) {
+        $blockEnd = $Text.Length
+    }
+
+    $block = $Text.Substring($blockStart, $blockEnd - $blockStart)
+    foreach ($fragment in $ExpectedFragments) {
+        if ($block.IndexOf($fragment, [StringComparison]::Ordinal) -lt 0) {
+            throw "$Message Missing '$fragment' in block anchored by '$Anchor'."
+        }
+    }
+}
+
 function Get-RepoFileText {
     param(
         [string]$Root,
@@ -856,6 +889,16 @@ foreach ($marker in @(
     Assert-ContainsText -Text $releaseChecklistDoc -ExpectedText $marker `
         -Message "PDF release readiness checklist should preserve marker '$marker'."
 }
+
+Assert-TextBlockContainsAll -Text $releaseChecklistDoc `
+    -Anchor "release_entry_pdf_readiness_checklist_trace" `
+    -ExpectedFragments @(
+        "docs/pdf_release_readiness_checklist_zh.rst",
+        "pdf_visual_gate_evidence",
+        "pdf_bounded_ctest_evidence",
+        "manifest_signoff_entrypoints"
+    ) `
+    -Message "PDF release readiness checklist should keep release entry checklist path, PDF evidence, and manifest signoff in one bullet block."
 
 foreach ($template in @(
     @{ Label = "RELEASE_ARTIFACT_TEMPLATE.md"; Text = $releaseArtifactTemplateEn },
