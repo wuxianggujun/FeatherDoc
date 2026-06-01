@@ -406,7 +406,10 @@ $pipelineExpectedMarkers = @(
     '``sync_bound_content_control``',
     '``numbering_catalog_governance.real_corpus_alignment_gap``',
     '``delivery_quality``',
+    "ReleaseBlockerRollupFailOnBlocker",
     "ReleaseBlockerRollupFailOnWarning",
+    "ReleaseGovernanceHandoffFailOnMissing",
+    "ReleaseGovernanceHandoffFailOnBlocker",
     "ReleaseGovernanceHandoffFailOnWarning"
 )
 $checklistExpectedMarkers = @(
@@ -490,7 +493,10 @@ $checklistExpectedMarkers = @(
     "report_markdown_display",
     "word_visual_smoke.pending_manual_review",
     "release_blocker_count",
+    "ReleaseBlockerRollupFailOnBlocker",
     "ReleaseBlockerRollupFailOnWarning",
+    "ReleaseGovernanceHandoffFailOnMissing",
+    "ReleaseGovernanceHandoffFailOnBlocker",
     "ReleaseGovernanceHandoffFailOnWarning",
     "build_project_template_delivery_readiness_report_test.ps1",
     "build_content_control_data_binding_governance_report_test.ps1",
@@ -521,7 +527,10 @@ $documentGovernanceExpectedMarkers = @(
 )
 $policyExpectedMarkers = @(
     ':doc:`release_metadata_pipeline_zh`',
+    "ReleaseBlockerRollupFailOnBlocker",
     "ReleaseBlockerRollupFailOnWarning",
+    "ReleaseGovernanceHandoffFailOnMissing",
+    "ReleaseGovernanceHandoffFailOnBlocker",
     "ReleaseGovernanceHandoffFailOnWarning",
     "Word visual standard review metadata evidence",
     "word_visual_standard_review_metadata_source_reports",

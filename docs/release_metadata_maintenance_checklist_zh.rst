@@ -308,7 +308,9 @@ Word-compatible wrapping 边界。
 ``docx_functional_smoke_readiness_trace``、
 ``persisted_docx_functional_smoke_evidence_only``、``summary_json_display``、
 ``report_markdown_display``、``word_visual_smoke.pending_manual_review``、
-``release_blocker_count``、``ReleaseBlockerRollupFailOnWarning`` 和
+``release_blocker_count``、``ReleaseBlockerRollupFailOnBlocker``、
+``ReleaseBlockerRollupFailOnWarning``、``ReleaseGovernanceHandoffFailOnMissing``、
+``ReleaseGovernanceHandoffFailOnBlocker`` 和
 ``ReleaseGovernanceHandoffFailOnWarning``。其中 ``source_report_display`` 用于让
 reviewer 先打开治理源报告，``source_json_display`` 用于继续追溯到原始证据 JSON；
 ``release_governance_handoff.*[]`` 与 pipeline ``stages[]`` 则用于证明 reviewer
