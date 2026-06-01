@@ -215,7 +215,10 @@
 table style quality、安全 ``tblLook`` 修复、floating table preset plan 和视觉回归入口
 收成 JSON / Markdown；多文档 ``build_table_layout_delivery_rollup_report.ps1``
 也可以继续汇总成 ``featherdoc.table_layout_delivery_rollup_report.v1``，
-再交给 release blocker rollup。
+再交给 release blocker rollup。PDF 浮动表格仍按
+``stable_pdf_geometry_subset_not_full_word_wrapping`` 管理：稳定几何子集可以进入
+``pdf_floating_table_support_coverage``，但 ``metadata-only tblpPr``、完整 Word 环绕、
+重叠避让和 inside/outside page-side 语义必须继续进入 reviewer 视觉复核。
 
 接下来更值得补的是：
 

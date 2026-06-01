@@ -223,6 +223,11 @@ definition 的第一版高层编辑也已经开始落地：``ensure_table_style(
 则可以把多份版式交付 summary 聚合成跨模板 table style issue、``tblLook`` 修复、
 floating table plan、release blocker 和 action item 视图。后续仍需要继续补齐
 更完整的复杂版式属性面。
+PDF 浮动表格当前明确定位为 ``stable_pdf_geometry_subset_not_full_word_wrapping``：
+``pdf_floating_table_support_coverage`` 只统计稳定几何子集，``metadata-only tblpPr``
+字段必须经 ``pdf_floating_table_reviewer_focus`` 和 ``review_required_fields`` 进入人工
+视觉复核，不能被当成完整 Word-compatible floating table text wrapping 或 table overlap
+avoidance 已自动覆盖。
 
 后续建议集中在：
 

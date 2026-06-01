@@ -108,6 +108,9 @@ foreach ($marker in @(
         "table style quality",
         "tblLook",
         "floating table",
+        "stable_pdf_geometry_subset_not_full_word_wrapping",
+        "metadata-only tblpPr",
+        "review_required_fields",
         "release blocker rollup"
     )) {
     Assert-ContainsText -Text $featureGapDoc -ExpectedText $marker `

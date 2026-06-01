@@ -179,6 +179,7 @@ foreach ($marker in @(
         "metadata_only_fields",
         "review_required_fields",
         "metadata-only tblpPr",
+        "stable_pdf_geometry_subset_not_full_word_wrapping",
         "check_word_visual_release_gate_preflight.ps1",
         "build_release_governance_pipeline_report.ps1",
         "check_pdf_release_readiness.ps1",

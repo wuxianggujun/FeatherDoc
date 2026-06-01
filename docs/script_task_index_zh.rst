@@ -227,7 +227,8 @@
   ``pdf_floating_table_metadata_only_fields``、
   ``pdf_floating_table_review_required_fields``、``metadata_only_fields``、
   ``review_required_fields`` 和 ``metadata-only tblpPr``，让 reviewer 能从脚本索引
-  追到 PDF 浮动表的支持边界与元数据级复核要求。
+  追到 PDF 浮动表的 ``stable_pdf_geometry_subset_not_full_word_wrapping`` 支持边界与
+  元数据级复核要求。
 - ``scripts/run_table_layout_delivery_report.ps1``：运行表格交付报告的本地入口。
 - ``scripts/run_table_style_quality_visual_regression.ps1``：运行 table style
   quality 视觉回归。
