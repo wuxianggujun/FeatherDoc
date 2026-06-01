@@ -3318,6 +3318,69 @@ if(WIN32)
 
             add_test(
                 NAME
+                build_content_control_data_binding_governance_report_aggregate
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_content_control_data_binding_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_content_control_data_binding_governance_report_aggregate
+                -Scenario
+                aggregate
+            )
+            set_tests_properties(build_content_control_data_binding_governance_report_aggregate
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;content-control")
+
+            add_test(
+                NAME
+                build_content_control_data_binding_governance_report_fail_on_blocker
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_content_control_data_binding_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_content_control_data_binding_governance_report_fail_on_blocker
+                -Scenario
+                fail_on_blocker
+            )
+            set_tests_properties(build_content_control_data_binding_governance_report_fail_on_blocker
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;content-control")
+
+            add_test(
+                NAME
+                build_content_control_data_binding_governance_report_fail_on_warning
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_content_control_data_binding_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_content_control_data_binding_governance_report_fail_on_warning
+                -Scenario
+                fail_on_warning
+            )
+            set_tests_properties(build_content_control_data_binding_governance_report_fail_on_warning
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "docs;smoke;governance;content-control")
+
+            add_test(
+                NAME
                 table_layout_delivery_report
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

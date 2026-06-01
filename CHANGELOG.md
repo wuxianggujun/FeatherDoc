@@ -46,6 +46,8 @@ performance.
   missing-report, and warning failures in release rollup and handoff flows.
 - Added release governance handoff `-FailOnBlocker` regression coverage and
   CTest registration so blocker-triggered handoff exits stay guarded.
+- Added content-control data-binding governance report CTest registration for
+  aggregate, `-FailOnBlocker`, and `-FailOnWarning` scenarios.
 - Added lightweight parser coverage for release metadata, script index, Word
   visual preflight, and DOCX functional smoke readiness guard scripts.
 - Added script task index regression coverage for reporting unindexed
