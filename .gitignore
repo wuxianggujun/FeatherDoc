@@ -56,6 +56,7 @@ tmp_section_probe.docx
 tmp_section_probe_header.docx
 .venv-word-visual-smoke/
 .venv-pdf-visual-smoke/
+.venv-docs/
 .idea/
 ~$*.doc
 ~$*.docx
