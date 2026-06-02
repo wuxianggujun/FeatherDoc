@@ -1,8 +1,8 @@
 # FeatherDoc
 
-[![Windows MSVC CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml/badge.svg?branch=master)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml)
-[![Linux CMake CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/linux-cmake.yml/badge.svg?branch=master)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/linux-cmake.yml)
-[![macOS CMake CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/macos-cmake.yml/badge.svg?branch=master)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/macos-cmake.yml)
+[![Windows MSVC CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml/badge.svg?branch=dev)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml)
+[![Linux CMake CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/linux-cmake.yml/badge.svg?branch=dev)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/linux-cmake.yml)
+[![macOS CMake CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/macos-cmake.yml/badge.svg?branch=dev)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/macos-cmake.yml)
 
 [Simplified Chinese](README.zh-CN.md) | English
 
@@ -19,6 +19,11 @@ The full Sphinx documentation is published with GitHub Pages:
 Keep this README focused on quick start and repository entry points; feature
 details, release governance, PDF notes, and project-template checklists live in
 the documentation site.
+
+## Support / GPT Access
+
+- GPT access and promotion link: <https://shop.input.im/?code=fbe6f3d5>
+- Sponsor QR codes are also kept in the [Sponsor](#sponsor) section below.
 
 ## Highlights
 
@@ -3741,6 +3746,9 @@ If you need the current planning document that explains what to build next, see
 
 If this project helps your work, you can support ongoing maintenance via the
 following support QR codes.
+
+You can also use the GPT access and promotion link:
+<https://shop.input.im/?code=fbe6f3d5>
 
 <p align="center">
   <img src="sponsor/zhifubao.jpg" alt="Alipay QR Code" width="220" />

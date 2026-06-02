@@ -1,8 +1,8 @@
 # FeatherDoc
 
-[![Windows MSVC CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml/badge.svg?branch=master)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml)
-[![Linux CMake CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/linux-cmake.yml/badge.svg?branch=master)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/linux-cmake.yml)
-[![macOS CMake CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/macos-cmake.yml/badge.svg?branch=master)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/macos-cmake.yml)
+[![Windows MSVC CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml/badge.svg?branch=dev)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml)
+[![Linux CMake CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/linux-cmake.yml/badge.svg?branch=dev)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/linux-cmake.yml)
+[![macOS CMake CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/macos-cmake.yml/badge.svg?branch=dev)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/macos-cmake.yml)
 
 [English](README.md) | 简体中文
 
@@ -2051,6 +2051,8 @@ FeatherDoc 现在应被视为一个持续演进的独立分支，而不是对历
 ## 赞助
 
 如果这个项目对你的工作有帮助，可以通过下列收款码支持持续维护。
+
+GPT 推广链接：<https://shop.input.im/?code=fbe6f3d5>
 
 <p align="center">
   <img src="sponsor/zhifubao.jpg" alt="支付宝收款码" width="220" />
