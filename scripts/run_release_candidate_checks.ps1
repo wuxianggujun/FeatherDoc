@@ -209,6 +209,21 @@ function Convert-ReleaseMaterialString {
         ($resolvedRepoRoot -replace '\\', '/'),
         ($resolvedRepoRoot -replace '\\', '\\')
     ) | Sort-Object -Unique
+    $publicAnchors = @(
+        "\release-candidate-checks-source\",
+        "\release-candidate-checks\",
+        "\release-governance-handoff-input\",
+        "\release-governance-handoff\",
+        "\release-blocker-rollup\",
+        "\pdf-bounded-ctest\",
+        "\pdf-summary\",
+        "\word-visual-gate\",
+        "\visual-tasks\",
+        "\consumer-build\",
+        "\output\",
+        "\build\",
+        "\install\"
+    )
 
     foreach ($rootForm in $repoRootForms) {
         if ([string]::IsNullOrWhiteSpace($rootForm)) {
@@ -232,21 +247,6 @@ function Convert-ReleaseMaterialString {
 
         $displayPath = ([string]$Path).Trim().TrimEnd('\', '/')
         $normalizedPath = $displayPath -replace '/', '\'
-        $publicAnchors = @(
-            "\release-candidate-checks-source\",
-            "\release-candidate-checks\",
-            "\release-governance-handoff-input\",
-            "\release-governance-handoff\",
-            "\release-blocker-rollup\",
-            "\pdf-bounded-ctest\",
-            "\pdf-summary\",
-            "\word-visual-gate\",
-            "\visual-tasks\",
-            "\consumer-build\",
-            "\output\",
-            "\build\",
-            "\install\"
-        )
 
         foreach ($anchor in $publicAnchors) {
             $index = $normalizedPath.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
@@ -292,6 +292,19 @@ function Convert-ReleaseMaterialString {
 
     $unixAbsolutePathPattern = '(?<![\w.])(?<path>/(?:Users|home|tmp)/[^\s"''`<>|;,)]+)'
     $normalized = & $replaceAbsolutePaths $normalized $unixAbsolutePathPattern
+
+    $relativePublicPathPattern = '(?<path>\.[\\/][^\s"''`<>|;,)]+)'
+    foreach ($match in @([regex]::Matches($normalized, $relativePublicPathPattern))) {
+        $path = [string]$match.Groups["path"].Value
+        $normalizedPath = $path -replace '/', '\'
+        foreach ($anchor in $publicAnchors) {
+            $index = $normalizedPath.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+            if ($index -ge 0) {
+                $normalized = $normalized.Replace($path, ".\" + $normalizedPath.Substring($index + 1))
+                break
+            }
+        }
+    }
 
     return $normalized.Replace('./', '.\')
 }

@@ -988,6 +988,14 @@ function Convert-StructuredValueToPublic {
 
     if ($Value -is [string]) {
         $relativeValue = Convert-RepoPathToRelative -Value $Value -RepoRoot $RepoRoot
+        if ($relativeValue -ne $Value -and $relativeValue -match '^\.[\\/]build[^\\/]*[\\/]test[\\/]') {
+            if ([System.IO.Path]::DirectorySeparatorChar -eq '\') {
+                return "<windows-absolute-path>"
+            }
+
+            return "<unix-absolute-path>"
+        }
+
         return Convert-ReleaseTextToPublic -Value $relativeValue -RepoRoot $RepoRoot
     }
 
@@ -1066,6 +1074,21 @@ $hasPdfVisualGateEvidence = (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisua
     (Test-Path -LiteralPath $resolvedPdfVisualGateRoot) -and
     $pdfVisualGateStatus -eq "loaded"
 $pdfVisualGateManifestEvidence = Convert-StructuredValueToPublic -Value $pdfVisualGateEvidence -RepoRoot $repoRoot
+if ($pdfVisualGateManifestEvidence -is [System.Collections.IDictionary]) {
+    $pdfVisualGateManifestEvidence["summary_json_display"] = Convert-EvidencePathToPublicDisplay `
+        -Value $resolvedPdfVisualGateSummaryPath `
+        -RepoRoot $repoRoot `
+        -PreferEvidenceAnchor
+    $pdfVisualGateAggregateContactSheet = Get-OptionalPropertyValue `
+        -Object $pdfVisualGateEvidence `
+        -Name "aggregate_contact_sheet"
+    if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateAggregateContactSheet)) {
+        $pdfVisualGateManifestEvidence["aggregate_contact_sheet_display"] = Convert-EvidencePathToPublicDisplay `
+            -Value $pdfVisualGateAggregateContactSheet `
+            -RepoRoot $repoRoot `
+            -PreferEvidenceAnchor
+    }
+}
 $pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 $pdfBoundedCtestStatus = Get-OptionalPropertyValue -Object $pdfBoundedCtestEvidence -Name "status"
 $hasPdfBoundedCtestEvidence = $pdfBoundedCtestStatus -ne "not_available"

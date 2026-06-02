@@ -1296,6 +1296,9 @@ if (-not [bool]$manifest.pdf_visual_gate_evidence_included) {
 if ([string]$manifest.pdf_visual_gate_evidence.summary_json -ne $expectedSanitizedAbsolutePath) {
     throw "release_assets_manifest.json did not sanitize the PDF visual gate summary path."
 }
+if ([string]$manifest.pdf_visual_gate_evidence.summary_json_display -ne $pdfGateSummaryPathDisplay) {
+    throw "release_assets_manifest.json did not preserve the PDF visual gate summary display path."
+}
 if ([string]$manifest.pdf_visual_gate_evidence.verdict -ne "pass") {
     throw "release_assets_manifest.json lost the PDF visual gate verdict."
 }
@@ -1304,6 +1307,9 @@ if ([string]$manifest.pdf_visual_gate_evidence.full_visual_gate_status -ne "pass
 }
 if ([string]$manifest.pdf_visual_gate_evidence.aggregate_contact_sheet -ne $expectedSanitizedAbsolutePath) {
     throw "release_assets_manifest.json did not sanitize the PDF visual gate aggregate contact sheet path."
+}
+if ([string]$manifest.pdf_visual_gate_evidence.aggregate_contact_sheet_display -ne $pdfGateAggregateContactSheetPathDisplay) {
+    throw "release_assets_manifest.json lost the PDF visual gate aggregate contact sheet."
 }
 if ([string]$manifest.pdf_visual_gate_evidence.cjk_manifest_count -ne "43") {
     throw "release_assets_manifest.json lost the PDF CJK manifest sample count."
