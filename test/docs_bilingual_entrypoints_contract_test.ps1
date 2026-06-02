@@ -42,11 +42,13 @@ $englishIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\
 $englishGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\getting_started.rst"
 $englishApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\index.rst"
 $englishDocumentApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\document.rst"
+$englishParagraphRunApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\paragraph_run.rst"
 $englishTemplatePartApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\template_part.rst"
 $chineseIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\index.rst"
 $chineseGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\getting_started.rst"
 $chineseApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\index.rst"
 $chineseDocumentApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\document.rst"
+$chineseParagraphRunApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\paragraph_run.rst"
 $chineseTemplatePartApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\template_part.rst"
 $readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
 $readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
@@ -95,7 +97,9 @@ foreach ($marker in @(
         "../../api/index",
         "featherdoc::Document",
         "document",
+        "paragraph_run",
         "template_part",
+        "../../api/content_blocks",
         "../../api/templates",
         "../../api/tables"
     )) {
@@ -114,6 +118,22 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $englishDocumentApi -ExpectedText $marker `
         -Message "English Document API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
+        "featherdoc::Paragraph",
+        "featherdoc::Run",
+        "Paragraph Text And Iteration",
+        "Paragraph Layout",
+        "Run Text And Styling",
+        "Run Language And Direction",
+        "set_alignment",
+        "set_font_family",
+        "set_rtl",
+        "../../api/content_blocks"
+    )) {
+    Assert-ContainsText -Text $englishParagraphRunApi -ExpectedText $marker `
+        -Message "English Paragraph/Run API page should preserve method-table marker."
 }
 
 foreach ($marker in @(
@@ -159,7 +179,9 @@ foreach ($marker in @(
         "../../api/index",
         "featherdoc::Document",
         "document",
+        "paragraph_run",
         "template_part",
+        "../../api/content_blocks",
         "../../api/document",
         "../../api/templates",
         "../../api/tables"
@@ -179,6 +201,20 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $chineseDocumentApi -ExpectedText $marker `
         -Message "Chinese Document API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
+        "featherdoc::Paragraph",
+        "featherdoc::Run",
+        "set_alignment",
+        "set_font_family",
+        "set_rtl",
+        "insert_paragraph_after",
+        "insert_run_after",
+        "../../api/content_blocks"
+    )) {
+    Assert-ContainsText -Text $chineseParagraphRunApi -ExpectedText $marker `
+        -Message "Chinese Paragraph/Run API page should preserve method-table marker."
 }
 
 foreach ($marker in @(

@@ -20,7 +20,7 @@ Object Map
      - :doc:`document`
    * - ``featherdoc::Paragraph`` / ``featherdoc::Run``
      - Text content and run-level formatting.
-     - :doc:`../../api/content_blocks`
+     - :doc:`paragraph_run`
    * - ``featherdoc::Table`` / ``TableRow`` / ``TableCell``
      - Table structure, rows, cells, widths, borders, alignment, and merge state.
      - :doc:`../../api/tables`
@@ -36,6 +36,7 @@ Object Map
    :caption: Core Objects
 
    document
+   paragraph_run
    template_part
 
 Complete API Groups

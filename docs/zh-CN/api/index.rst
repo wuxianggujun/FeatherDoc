@@ -25,7 +25,7 @@ API 参考
      - :doc:`document`
    * - ``featherdoc::Paragraph`` / ``featherdoc::Run``
      - 编辑正文文本和 run 级格式。
-     - :doc:`../../api/content_blocks`
+     - :doc:`paragraph_run`
    * - ``featherdoc::Table`` / ``TableRow`` / ``TableCell``
      - 编辑表格结构、宽度、边框、合并状态和单元格内容。
      - :doc:`../../api/tables`
@@ -41,6 +41,7 @@ API 参考
    :caption: 中文核心对象
 
    document
+   paragraph_run
    template_part
 
 英文 API 页面
