@@ -87,8 +87,7 @@ $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.r
 $templateSchemaDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\template_schema_mutation_zh.rst"
 $releasePipelineDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_metadata_pipeline_zh.rst"
 $releasePolicyDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_policy_zh.rst"
-$readmeDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
-$readmeZhDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
+$governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\governance_routes_zh.rst"
 $changelogDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "CHANGELOG.md"
 $deliveryScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_project_template_delivery_readiness_report.ps1"
 $contentControlScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
@@ -120,24 +119,14 @@ foreach ($marker in @(
         -Message "Docs index should expose the project-template release readiness entry."
 }
 
-$indexReleasePreflightStart = $indexDoc.IndexOf(
-    "For a one-shot local release-preflight entry on Windows",
+$governanceReleasePreflightStart = $governanceRoutesDoc.IndexOf(
+    "Project Template Release Readiness",
     [System.StringComparison]::Ordinal)
-if ($indexReleasePreflightStart -lt 0) {
-    throw "Docs index should keep the local release-preflight entry guidance."
+if ($governanceReleasePreflightStart -lt 0) {
+    throw "Governance routes doc should keep the project-template release readiness guidance."
 }
 
-$indexReleasePreflightEnd = $indexDoc.IndexOf(
-    "When top-level ",
-    $indexReleasePreflightStart,
-    [System.StringComparison]::Ordinal)
-if ($indexReleasePreflightEnd -lt 0) {
-    throw "Docs index should keep blocker guidance after release-preflight output guidance."
-}
-
-$indexReleasePreflightGuidance = $indexDoc.Substring(
-    $indexReleasePreflightStart,
-    $indexReleasePreflightEnd - $indexReleasePreflightStart)
+$governanceReleasePreflightGuidance = $governanceRoutesDoc.Substring($governanceReleasePreflightStart)
 
 foreach ($marker in @(
     "output/release-candidate-checks/START_HERE.md",
@@ -150,15 +139,15 @@ foreach ($marker in @(
     "release_handoff.md",
     "Word visual standard review metadata evidence"
 )) {
-    Assert-ContainsText -Text $indexReleasePreflightGuidance -ExpectedText $marker `
-        -Message "Docs index release-preflight guidance should keep Word visual metadata marker '$marker'."
+    Assert-ContainsText -Text $governanceReleasePreflightGuidance -ExpectedText $marker `
+        -Message "Governance routes release-preflight guidance should keep Word visual metadata marker '$marker'."
 }
 
-Assert-TextOrder -Text $indexReleasePreflightGuidance -ExpectedTexts @(
+Assert-TextOrder -Text $governanceReleasePreflightGuidance -ExpectedTexts @(
     "release_governance_handoff.md",
     "word_visual_standard_review_metadata_source_reports",
     "Word visual standard review metadata evidence"
-) -Message "Docs index release-preflight guidance should describe detailed handoff evidence before compact release reviewer evidence."
+) -Message "Governance routes release-preflight guidance should describe detailed handoff evidence before compact release reviewer evidence."
 
 foreach ($marker in @(
     "project-template governance",
@@ -313,21 +302,21 @@ foreach ($marker in @(
         -Message "Project-template delivery readiness script should preserve warning-only needs_review implementation marker '$marker'."
 }
 
-Assert-ContainsText -Text $readmeDoc -ExpectedText "Warning-only evidence gaps now" `
-    -Message "English README should preserve warning-only needs_review project-template delivery readiness semantics."
+Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText "Warning-only evidence gaps now" `
+    -Message "Governance routes doc should preserve warning-only needs_review project-template delivery readiness semantics."
 Assert-TextOrder `
-    -Text $readmeDoc `
+    -Text $governanceRoutesDoc `
     -ExpectedTexts @("Warning-only evidence gaps now", "produce", "status=needs_review", "release_ready=false") `
-    -Message "English README should preserve warning-only needs_review/release_ready=false wording."
+    -Message "Governance routes doc should preserve warning-only needs_review/release_ready=false wording."
 Assert-TextOrder `
-    -Text $readmeZhDoc `
+    -Text $governanceRoutesDoc `
     -ExpectedTexts @(
         "scripts/build_project_template_delivery_readiness_report.ps1",
         "status=needs_review",
         "release_ready=false",
         "onboarding_summary.json"
     ) `
-    -Message "Chinese README should preserve needs_review/release_ready=false wording."
+    -Message "Governance routes doc should preserve needs_review/release_ready=false wording."
 Assert-ContainsText -Text $changelogDoc -ExpectedText "warning-only evidence gaps report" `
     -Message "Changelog should preserve warning-only delivery readiness fix note."
 Assert-TextOrder `

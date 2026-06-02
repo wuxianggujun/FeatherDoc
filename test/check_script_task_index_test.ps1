@@ -244,12 +244,12 @@ if ($passingSummary.documentation_entrypoint_count -ne 2) {
 }
 Assert-ArrayContains `
     -Values @($passingSummary.documentation_entrypoints | ForEach-Object { $_.relative_path }) `
-    -ExpectedValue "README.md" `
-    -Message "Summary should list the English README documentation entrypoint."
+    -ExpectedValue "docs\index.rst" `
+    -Message "Summary should list the Sphinx index documentation entrypoint."
 Assert-ArrayContains `
     -Values @($passingSummary.documentation_entrypoints | ForEach-Object { $_.relative_path }) `
-    -ExpectedValue "README.zh-CN.md" `
-    -Message "Summary should list the Chinese README documentation entrypoint."
+    -ExpectedValue "docs\documentation_maintenance_zh.rst" `
+    -Message "Summary should list the documentation maintenance entrypoint."
 $passingEntryPointMarkerCount = [int](($passingSummary.documentation_entrypoints |
             ForEach-Object { $_.marker_count } |
             Measure-Object -Sum).Sum)
@@ -540,8 +540,8 @@ foreach ($marker in @(
         '- report_markdown:',
         '## Checked Scripts',
         '## Documentation Entry Points',
-        '`README.md`: 2 markers',
-        '`README.zh-CN.md`: 2 markers',
+        '`docs\index.rst`: 2 markers',
+        '`docs\documentation_maintenance_zh.rst`: 2 markers',
         '## Script Reference Groups',
         '## Script Reference Extensions',
         '`.ps1`:',
@@ -583,10 +583,10 @@ Write-Utf8NoBomFile `
     ) -join "`n")
 Write-Utf8NoBomFile `
     -Path (Join-Path $unindexedRoot "docs\index.rst") `
-    -Text "script_task_index_zh"
+    -Text "documentation_maintenance_zh`nscript_task_index_zh"
 Write-Utf8NoBomFile `
     -Path (Join-Path $unindexedRoot "docs\documentation_maintenance_zh.rst") `
-    -Text "docs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
+    -Text "documentation_maintenance_zh`nscript_task_index_zh`ndocs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
 Write-Utf8NoBomFile `
     -Path (Join-Path $unindexedRoot "docs\project_score_assessment_zh.rst") `
     -Text "docs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
@@ -727,10 +727,10 @@ Write-Utf8NoBomFile `
     ) -join "`n")
 Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "docs\index.rst") `
-    -Text "script_task_index_zh"
+    -Text "documentation_maintenance_zh`nscript_task_index_zh"
 Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "docs\documentation_maintenance_zh.rst") `
-    -Text "docs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
+    -Text "script_task_index_zh`ndocs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
 Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "docs\project_score_assessment_zh.rst") `
     -Text "docs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
@@ -886,8 +886,8 @@ Assert-ArrayContains `
     -Message "Failing duplicate reference should preserve the source group name."
 Assert-ArrayContains `
     -Values @($failingSummary.missing_markers | ForEach-Object { "$($_.document)|$($_.marker)" }) `
-    -ExpectedValue "README.zh-CN.md|docs/documentation_maintenance_zh.rst" `
-    -Message "Failing summary should list the missing README marker."
+    -ExpectedValue "docs\documentation_maintenance_zh.rst|documentation_maintenance_zh" `
+    -Message "Failing summary should list the missing maintenance entrypoint marker."
 foreach ($marker in @(
         '- status: `failed`',
         '- fail_on_unindexed: `False`',
@@ -900,8 +900,8 @@ foreach ($marker in @(
         '[ok] `scripts\existing_helper.py`',
         '[missing] `scripts\missing_tool.ps1`',
         '## Documentation Entry Points',
-        '`README.md`: 2 markers',
-        '`README.zh-CN.md`: 2 markers',
+        '`docs\index.rst`: 2 markers',
+        '`docs\documentation_maintenance_zh.rst`: 2 markers',
         '## Script Reference Groups',
         '`Script task index`: 4 unique / 5 total',
         '## Script Reference Extensions',
@@ -912,7 +912,7 @@ foreach ($marker in @(
         '## Missing Scripts',
         '`scripts\missing_tool.ps1`',
         '## Missing Markers',
-        '`README.zh-CN.md` missing `docs/documentation_maintenance_zh.rst`'
+        '`docs\documentation_maintenance_zh.rst` missing `documentation_maintenance_zh`'
     )) {
     Assert-FileContainsText -Path $failingReportMarkdown -ExpectedText $marker `
         -Message "Failing Markdown report should include marker."
@@ -935,10 +935,10 @@ Write-Utf8NoBomFile `
     ) -join "`n")
 Write-Utf8NoBomFile `
     -Path (Join-Path $crossGroupRoot "docs\index.rst") `
-    -Text "script_task_index_zh"
+    -Text "documentation_maintenance_zh`nscript_task_index_zh"
 Write-Utf8NoBomFile `
     -Path (Join-Path $crossGroupRoot "docs\documentation_maintenance_zh.rst") `
-    -Text "docs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
+    -Text "documentation_maintenance_zh`nscript_task_index_zh`ndocs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
 Write-Utf8NoBomFile `
     -Path (Join-Path $crossGroupRoot "docs\project_score_assessment_zh.rst") `
     -Text "docs/script_task_index_zh.rst`ncheck_script_task_index.ps1"

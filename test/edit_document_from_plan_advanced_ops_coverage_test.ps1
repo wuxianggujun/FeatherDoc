@@ -58,9 +58,7 @@ $tableAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_
 $tableStructureAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_structure_aliases_test.ps1"
 $revisionCleanupTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_revision_cleanup_test.ps1"
 $updateFieldsAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_update_fields_aliases_test.ps1"
-$readmePath = Join-Path $RepoRoot "README.md"
-$readmeZhPath = Join-Path $RepoRoot "README.zh-CN.md"
-$docsPath = Join-Path $RepoRoot "docs\index.rst"
+$editPlanOperationsDocsPath = Join-Path $RepoRoot "docs\api\edit_plan_operations.rst"
 
 $scriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 $testText = @(
@@ -77,9 +75,7 @@ $testText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $revisionCleanupTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $updateFieldsAliasesTestPath
 ) -join "`n"
-$readmeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmePath
-$readmeZhText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmeZhPath
-$docsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $docsPath
+$editPlanOperationsDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $editPlanOperationsDocsPath
 
 $advancedOperations = @(
     "accept_all_revisions",
@@ -204,8 +200,7 @@ $advancedOperations = @(
 foreach ($operation in $advancedOperations) {
     Assert-DispatchesOperation -ScriptText $scriptText -Operation $operation
     Assert-TestUsesOperation -TestText $testText -Operation $operation
-    Assert-ContainsText -Text $readmeText -ExpectedText $operation -Label "README.md"
-    Assert-ContainsText -Text $readmeZhText -ExpectedText $operation -Label "README.zh-CN.md"
+    Assert-ContainsText -Text $editPlanOperationsDocsText -ExpectedText $operation -Label "docs/api/edit_plan_operations.rst"
 }
 
 $docsRequiredTerms = @(
@@ -218,7 +213,7 @@ $docsRequiredTerms = @(
 )
 
 foreach ($term in $docsRequiredTerms) {
-    Assert-ContainsText -Text $docsText -ExpectedText $term -Label "docs/index.rst"
+    Assert-ContainsText -Text $editPlanOperationsDocsText -ExpectedText $term -Label "docs/api/edit_plan_operations.rst"
 }
 
 Write-Host "Edit-plan advanced operation coverage passed."

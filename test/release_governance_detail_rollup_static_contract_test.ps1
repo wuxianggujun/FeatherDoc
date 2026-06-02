@@ -44,8 +44,7 @@ $metadataHelpersScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath 
 $releaseCandidateScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_release_candidate_checks.ps1"
 $reviewerChecklistScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_reviewer_checklist.ps1"
 $releaseNoteBundleScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_note_bundle.ps1"
-$readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
-$readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
+$governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\governance_routes_zh.rst"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 
 $rollupTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
@@ -193,13 +192,8 @@ foreach ($marker in @(
     "release_governance_handoff",
     "release_blocker_rollup"
 )) {
-    foreach ($entry in @(
-        [ordered]@{ name = "README.md"; text = $readme },
-        [ordered]@{ name = "README.zh-CN.md"; text = $readmeZh }
-    )) {
-        Assert-ContainsText -Text $entry.text -ExpectedText $marker `
-            -Message "$($entry.name) should keep local release governance closure marker '$marker'."
-    }
+    Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
+        -Message "Governance routes docs should keep local release governance closure marker '$marker'."
 }
 
 foreach ($marker in @(

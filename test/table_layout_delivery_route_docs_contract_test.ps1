@@ -86,7 +86,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
-$readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
+$governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\governance_routes_zh.rst"
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $featureGapDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\feature_gap_analysis_zh.rst"
 $releaseMetadataDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_metadata_pipeline_zh.rst"
@@ -129,8 +129,8 @@ foreach ($marker in @(
         "source_json_display",
         "open_command"
     )) {
-    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
-        -Message "Sphinx index should preserve table-layout delivery route marker '$marker'."
+    Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
+        -Message "Governance routes docs should preserve table-layout delivery route marker '$marker'."
 }
 
 foreach ($marker in @(
@@ -147,8 +147,8 @@ foreach ($marker in @(
         "release blockers",
         "action items"
     )) {
-    Assert-ContainsText -Text $readme -ExpectedText $marker `
-        -Message "README should preserve table-layout governance route marker '$marker'."
+    Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
+        -Message "Governance routes docs should preserve table-layout governance route marker '$marker'."
 }
 
 foreach ($marker in @(

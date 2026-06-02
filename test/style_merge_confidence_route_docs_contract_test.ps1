@@ -37,6 +37,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
+$governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\governance_routes_zh.rst"
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $currentDirectionDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\current_direction_zh.rst"
 $featureGapDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\feature_gap_analysis_zh.rst"
@@ -66,8 +67,8 @@ foreach ($marker in @(
         "--fail-on-suggestion",
         "recommended_min_confidence"
     )) {
-    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
-        -Message "Index documentation should preserve style merge confidence route marker '$marker'."
+    Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
+        -Message "Governance routes docs should preserve style merge confidence route marker '$marker'."
 }
 
 foreach ($marker in @(

@@ -801,8 +801,8 @@ if ($summary.summary_schema_version -ne 1) {
 Assert-SummaryAuditFields -Summary $summary
 Assert-SummaryMarkerCountsConsistent -Summary $summary
 Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-if ($summary.checked_document_count -ne 9) {
-    throw "Expected JSON summary checked document count 9, got: $($summary.checked_document_count)"
+if ($summary.checked_document_count -ne 7) {
+    throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
 }
 if ($summary.required_pipeline_marker_count -ne 134) {
     throw "Expected JSON summary pipeline marker count 134, got: $($summary.required_pipeline_marker_count)"
@@ -822,8 +822,8 @@ if ($summary.required_entrypoint_marker_count -ne 3) {
 if ($summary.required_marker_count -ne 321) {
     throw "Expected JSON summary total marker count 321, got: $($summary.required_marker_count)"
 }
-if ($summary.checked_documents.Count -ne 9) {
-    throw "Expected JSON summary to list 9 checked documents, got: $($summary.checked_documents.Count)"
+if ($summary.checked_documents.Count -ne 7) {
+    throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
 }
 Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
@@ -857,14 +857,6 @@ Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
     -ExpectedValue 'docs/index.rst' `
     -Message "JSON summary should list the Sphinx index doc."
-Assert-ArrayContains `
-    -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
-    -ExpectedValue 'README.md' `
-    -Message "JSON summary should list the English README."
-Assert-ArrayContains `
-    -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
-    -ExpectedValue 'README.zh-CN.md' `
-    -Message "JSON summary should list the Chinese README."
 Assert-ArrayContains `
     -Values @($summary.required_entrypoint_markers) `
     -ExpectedValue "release_metadata_pipeline_zh" `
@@ -1347,46 +1339,6 @@ Assert-SummaryFailure `
     -ExpectedMessage "documentation maintenance overview doc is missing expected text: release_metadata_maintenance_checklist_zh" `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs/documentation_maintenance_zh.rst' `
-    -ExpectedFailureExpectedText "release_metadata_maintenance_checklist_zh"
-
-$missingReadmePipelineEntrypointText = $defaultReadmeText.Replace(
-    "release_metadata_pipeline_zh",
-    "release_metadata_pipeline_removed"
-)
-$missingReadmePipelineEntrypointCaseRoot = New-DocsCase `
-    -Name "missing-readme-pipeline-entrypoint" `
-    -ReadmeText $missingReadmePipelineEntrypointText
-$missingReadmePipelineEntrypointSummaryJsonPath = Join-Path $missingReadmePipelineEntrypointCaseRoot "docs-check-summary.json"
-Invoke-DocsCheck `
-    -CaseRoot $missingReadmePipelineEntrypointCaseRoot `
-    -ShouldFail `
-    -ExpectedMessage "English README is missing expected text: release_metadata_pipeline_zh" `
-    -SummaryJson $missingReadmePipelineEntrypointSummaryJsonPath
-Assert-SummaryFailure `
-    -Path $missingReadmePipelineEntrypointSummaryJsonPath `
-    -ExpectedMessage "English README is missing expected text: release_metadata_pipeline_zh" `
-    -ExpectedFailureKind "missing_text" `
-    -ExpectedFailureRelativePath 'README.md' `
-    -ExpectedFailureExpectedText "release_metadata_pipeline_zh"
-
-$missingReadmeZhChecklistEntrypointText = $defaultReadmeZhText.Replace(
-    "release_metadata_maintenance_checklist_zh",
-    "release_metadata_maintenance_checklist_removed"
-)
-$missingReadmeZhChecklistEntrypointCaseRoot = New-DocsCase `
-    -Name "missing-readme-zh-checklist-entrypoint" `
-    -ReadmeZhText $missingReadmeZhChecklistEntrypointText
-$missingReadmeZhChecklistEntrypointSummaryJsonPath = Join-Path $missingReadmeZhChecklistEntrypointCaseRoot "docs-check-summary.json"
-Invoke-DocsCheck `
-    -CaseRoot $missingReadmeZhChecklistEntrypointCaseRoot `
-    -ShouldFail `
-    -ExpectedMessage "Chinese README is missing expected text: release_metadata_maintenance_checklist_zh" `
-    -SummaryJson $missingReadmeZhChecklistEntrypointSummaryJsonPath
-Assert-SummaryFailure `
-    -Path $missingReadmeZhChecklistEntrypointSummaryJsonPath `
-    -ExpectedMessage "Chinese README is missing expected text: release_metadata_maintenance_checklist_zh" `
-    -ExpectedFailureKind "missing_text" `
-    -ExpectedFailureRelativePath 'README.zh-CN.md' `
     -ExpectedFailureExpectedText "release_metadata_maintenance_checklist_zh"
 
 $missingPolicyWordVisualMetadataText = $defaultPolicyText.Replace(

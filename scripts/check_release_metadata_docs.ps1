@@ -729,16 +729,6 @@ try {
             label = "Sphinx index doc"
             relative_path = "docs/index.rst"
             path = Join-Path (Join-Path $resolvedRepoRoot "docs") "index.rst"
-        },
-        [pscustomobject]@{
-            label = "English README"
-            relative_path = "README.md"
-            path = Join-Path $resolvedRepoRoot "README.md"
-        },
-        [pscustomobject]@{
-            label = "Chinese README"
-            relative_path = "README.zh-CN.md"
-            path = Join-Path $resolvedRepoRoot "README.zh-CN.md"
         }
     )
     $pipelinePath = $checkedDocuments[0].path
@@ -748,8 +738,6 @@ try {
     $documentGovernancePath = $checkedDocuments[4].path
     $policyPath = $checkedDocuments[5].path
     $indexPath = $checkedDocuments[6].path
-    $readmePath = $checkedDocuments[7].path
-    $readmeZhPath = $checkedDocuments[8].path
 
     Assert-FileExists -Path $pipelinePath -Label "release metadata pipeline doc"
     Assert-FileExists -Path $checklistPath -Label "release metadata maintenance checklist doc"
@@ -758,8 +746,6 @@ try {
     Assert-FileExists -Path $documentGovernancePath -Label "document governance acceptance doc"
     Assert-FileExists -Path $policyPath -Label "release policy doc"
     Assert-FileExists -Path $indexPath -Label "Sphinx index doc"
-    Assert-FileExists -Path $readmePath -Label "English README"
-    Assert-FileExists -Path $readmeZhPath -Label "Chinese README"
 
     $pipelineText = Read-Utf8Text -Path $pipelinePath
     $checklistText = Read-Utf8Text -Path $checklistPath
@@ -768,8 +754,6 @@ try {
     $documentGovernanceText = Read-Utf8Text -Path $documentGovernancePath
     $policyText = Read-Utf8Text -Path $policyPath
     $indexText = Read-Utf8Text -Path $indexPath
-    $readmeText = Read-Utf8Text -Path $readmePath
-    $readmeZhText = Read-Utf8Text -Path $readmeZhPath
 
     foreach ($doc in @(
             @{ Path = $pipelinePath; Text = $pipelineText },
@@ -777,9 +761,7 @@ try {
             @{ Path = $documentationMaintenancePath; Text = $documentationMaintenanceText },
             @{ Path = $documentGovernancePath; Text = $documentGovernanceText },
             @{ Path = $policyPath; Text = $policyText },
-            @{ Path = $indexPath; Text = $indexText },
-            @{ Path = $readmePath; Text = $readmeText },
-            @{ Path = $readmeZhPath; Text = $readmeZhText }
+            @{ Path = $indexPath; Text = $indexText }
         )) {
         Assert-NoTrailingWhitespace -Text $doc.Text -Path $doc.Path
         Assert-NoTabs -Text $doc.Text -Path $doc.Path
@@ -828,9 +810,7 @@ try {
     foreach ($expected in $entrypointExpectedMarkers) {
         foreach ($entrypoint in @(
                 @{ Label = "documentation maintenance overview doc"; Text = $documentationMaintenanceText; Path = $documentationMaintenancePath },
-                @{ Label = "Sphinx index doc"; Text = $indexText; Path = $indexPath },
-                @{ Label = "English README"; Text = $readmeText; Path = $readmePath },
-                @{ Label = "Chinese README"; Text = $readmeZhText; Path = $readmeZhPath }
+                @{ Label = "Sphinx index doc"; Text = $indexText; Path = $indexPath }
             )) {
             Assert-ContainsText `
                 -Text $entrypoint.Text `

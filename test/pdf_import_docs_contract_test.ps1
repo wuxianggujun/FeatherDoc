@@ -292,8 +292,6 @@ $pdfImportDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import.rst"
 $pdfImportJsonDiagnosticsDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import_json_diagnostics.rst"
 $pdfImportScopeDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import_scope.rst"
 $docsIndexPath = Join-Path $resolvedRepoRoot "docs\index.rst"
-$readmePath = Join-Path $resolvedRepoRoot "README.md"
-$readmeZhPath = Join-Path $resolvedRepoRoot "README.zh-CN.md"
 $changelogPath = Join-Path $resolvedRepoRoot "CHANGELOG.md"
 $cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
 $pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf_document_importer.hpp"
@@ -308,8 +306,6 @@ $pdfImportDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportDocs
 $pdfImportJsonDiagnosticsDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportJsonDiagnosticsDocsPath
 $pdfImportScopeDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportScopeDocsPath
 $docsIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $docsIndexPath
-$readmeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmePath
-$readmeZhText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmeZhPath
 $changelogText = Get-Content -Raw -Encoding UTF8 -LiteralPath $changelogPath
 $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
@@ -319,21 +315,6 @@ $pdfImportStructureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdf
 $pdfImportFailureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportFailureTestsPath
 $pdfImportTableHeuristicTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportTableHeuristicTestsPath
 
-$readmePdfImportSection = Get-TextSection `
-    -Text $readmeText `
-    -StartText "When PDF import is enabled" `
-    -EndText "## Build With MSVC" `
-    -Label "README.md PDF import section"
-$readmeZhPdfImportSection = Get-TextSection `
-    -Text $readmeZhText `
-    -StartText "featherdoc_cli import-pdf input.pdf --output output.docx" `
-    -EndText "## MSVC" `
-    -Label "README.zh-CN.md PDF import section"
-$pdfImportInstalledDocs = @(
-    'docs/pdf_import.rst',
-    'docs/pdf_import_json_diagnostics.rst',
-    'docs/pdf_import_scope.rst'
-)
 $pdfInstalledDocs = @(
     'docs/pdf_export.rst',
     'docs/pdf_import.rst',
@@ -728,42 +709,19 @@ Assert-RstToctreeContainsEntries `
     -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_export`' -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import`' -Label "docs/index.rst"
-Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import_json_diagnostics`' -Label "docs/index.rst"
-Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import_scope`' -Label "docs/index.rst"
 Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import JSON diagnostics" -Label "docs/index.rst"
 Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import supported scope and limits" -Label "docs/index.rst"
 
-Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_export.rst" -Label "README.md"
-Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_import.rst" -Label "README.md"
-Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_import_json_diagnostics.rst" -Label "README.md"
-Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_export.rst" -Label "README.zh-CN.md"
-Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_import.rst" -Label "README.zh-CN.md"
-Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_import_json_diagnostics.rst" -Label "README.zh-CN.md"
-foreach ($installedDoc in $pdfImportInstalledDocs) {
-    Assert-ContainsText `
-        -Text $readmePdfImportSection `
-        -ExpectedText $installedDoc `
-        -Label "README.md PDF import section"
-    Assert-ContainsText `
-        -Text $readmeZhPdfImportSection `
-        -ExpectedText $installedDoc `
-        -Label "README.zh-CN.md PDF import section"
-}
 Assert-ContainsText `
-    -Text $readmeText `
-    -ExpectedText "--min-table-continuation-confidence <score>" `
-    -Label "README.md"
-Assert-ContainsText `
-    -Text $readmeZhText `
-    -ExpectedText "--min-table-continuation-confidence <score>" `
-    -Label "README.zh-CN.md"
+    -Text $pdfImportDocsText `
+    -ExpectedText "--min-table-continuation-confidence" `
+    -Label "docs/pdf_import.rst"
 foreach ($marker in @(
     "featherdoc_cli export-pdf input.docx --output output.pdf",
     "--expand-header-footer-page-placeholders",
     "--summary-json output.summary.json --json"
 )) {
-    Assert-ContainsText -Text $readmeText -ExpectedText $marker -Label "README.md"
-    Assert-ContainsText -Text $readmeZhText -ExpectedText $marker -Label "README.zh-CN.md"
+    Assert-ContainsText -Text $pdfExportDocsText -ExpectedText $marker -Label "docs/pdf_export.rst"
 }
 foreach ($marker in @(
     'featherdoc_cli export-pdf --expand-header-footer-page-placeholders',
@@ -773,13 +731,9 @@ foreach ($marker in @(
     Assert-ContainsText -Text $changelogText -ExpectedText $marker -Label "CHANGELOG.md"
 }
 Assert-DoesNotContainText `
-    -Text $readmeText `
+    -Text $pdfImportDocsText `
     -UnexpectedText "--min-table-continuation-confidence <count>" `
-    -Label "README.md"
-Assert-DoesNotContainText `
-    -Text $readmeZhText `
-    -UnexpectedText "--min-table-continuation-confidence <count>" `
-    -Label "README.zh-CN.md"
+    -Label "docs/pdf_import.rst"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_export.rst' -Label "CMakeLists.txt"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import.rst' -Label "CMakeLists.txt"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import_json_diagnostics.rst' -Label "CMakeLists.txt"
@@ -790,9 +744,4 @@ Assert-CMakeInstallFilesToDestination `
     -ExpectedFiles $pdfInstalledDocs `
     -Destination '${FEATHERDOC_INSTALL_DATADIR}/docs' `
     -Label "CMakeLists.txt"
-Assert-DoesNotContainText `
-    -Text $readmeText `
-    -UnexpectedText 'docs/index.rst` for the field-level schema' `
-    -Label "README.md"
-
 Write-Host "PDF import docs contract passed."

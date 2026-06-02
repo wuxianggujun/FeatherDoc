@@ -26,6 +26,8 @@
    当前应优先维护的轻量检查、治理报告、视觉复核和发布材料入口；配套
    ``scripts/check_script_task_index.ps1`` 做只读路径一致性检查。
 
+文档自检 marker：``documentation_maintenance_zh``。
+
 历史参考页可以继续保留，但不再作为首页主入口：
 
 1. ``docs/document_api_mainline_status_zh.rst``：文档 API 主线和旧分支复核快照。

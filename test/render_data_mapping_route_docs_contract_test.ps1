@@ -37,7 +37,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
-$readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
+$governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\governance_routes_zh.rst"
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $schemaJson = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "samples\template_render_data_mapping.schema.json"
 $sampleMappingJson = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "samples\chinese_invoice_template.render_data_mapping.json"
@@ -75,8 +75,8 @@ foreach ($marker in @(
         "resolved-section-targets",
         "export_target_mode"
     )) {
-    Assert-ContainsText -Text $readme -ExpectedText $marker `
-        -Message "README should preserve render-data mapping route marker '$marker'."
+    Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
+        -Message "Governance routes docs should preserve render-data mapping route marker '$marker'."
 }
 
 foreach ($marker in @(
@@ -91,8 +91,8 @@ foreach ($marker in @(
         "resolved-section-targets",
         "export_target_mode"
     )) {
-    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
-        -Message "Sphinx index should preserve render-data mapping route marker '$marker'."
+    Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
+        -Message "Governance routes docs should preserve render-data mapping route marker '$marker'."
 }
 
 foreach ($marker in @(

@@ -37,7 +37,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
-$readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
+$governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\governance_routes_zh.rst"
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $docxReadinessDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\docx_functional_smoke_readiness_zh.rst"
 $releaseMetadataDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_metadata_pipeline_zh.rst"
@@ -62,8 +62,8 @@ foreach ($marker in @(
         "read-only",
         "Word"
     )) {
-    Assert-ContainsText -Text $readme -ExpectedText $marker `
-        -Message "README should preserve DOCX functional smoke readiness route marker '$marker'."
+    Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
+        -Message "Governance routes docs should preserve DOCX functional smoke readiness route marker '$marker'."
 }
 
 foreach ($marker in @(
@@ -78,8 +78,8 @@ foreach ($marker in @(
         "summary_json_display",
         "report_markdown_display"
     )) {
-    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
-        -Message "Sphinx index should preserve DOCX functional smoke readiness route marker '$marker'."
+    Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
+        -Message "Governance routes docs should preserve DOCX functional smoke readiness route marker '$marker'."
 }
 
 foreach ($marker in @(

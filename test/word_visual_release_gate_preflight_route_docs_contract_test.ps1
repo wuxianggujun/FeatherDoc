@@ -49,21 +49,20 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
-$readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
-$readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
 $pipelineDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_metadata_pipeline_zh.rst"
 $maintenanceDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_metadata_maintenance_checklist_zh.rst"
 $workflowDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\automation\word_visual_workflow_zh.rst"
+$governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\governance_routes_zh.rst"
 $scriptText = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_word_visual_release_gate_preflight.ps1"
 $regressionText = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\check_word_visual_release_gate_preflight_test.ps1"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 
 foreach ($assertion in @(
         [ordered]@{
-            label = "README"
-            text = $readme
+            label = "governance routes"
+            text = $governanceRoutesDoc
             markers = @(
-                "scripts\check_word_visual_release_gate_preflight.ps1",
+                "scripts/check_word_visual_release_gate_preflight.ps1",
                 "featherdoc.word_visual_release_gate_preflight.v1",
                 "word_visual_release_gate_preflight_static_contract_only",
                 "minimum_risk_next_action_command",
@@ -74,24 +73,7 @@ foreach ($assertion in @(
                 "static scripts, docs, and test registration only",
                 "output_encoding",
                 "UTF-8 without BOM",
-                "does not run Word, CMake, CTest"
-            )
-        },
-        [ordered]@{
-            label = "Chinese README"
-            text = $readmeZh
-            markers = @(
-                "scripts\check_word_visual_release_gate_preflight.ps1",
-                "featherdoc.word_visual_release_gate_preflight.v1",
-                "word_visual_release_gate_preflight_static_contract_only",
-                "minimum_risk_next_action_command",
-                "strict_preflight_command_template",
-                "full_gate_command_template",
-                "evidence_scope_note",
-                "boundary",
-                "static scripts, docs, and test registration only",
-                "output_encoding",
-                "UTF-8 without BOM",
+                "does not run Word, CMake, CTest",
                 "release-ready evidence"
             )
         },

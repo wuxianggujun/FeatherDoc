@@ -12,6 +12,7 @@ work with instead of forcing readers through one long text page.
    content_blocks
    tables
    templates
+   edit_plan_operations
    fields_links_reviews
    styles_numbering
    images_sections
@@ -29,4 +30,3 @@ Object Map
   header, footer, and section-specific parts.
 * Summary structs such as ``content_control_summary`` and
   ``table_inspection_summary`` expose read-only inspection results.
-

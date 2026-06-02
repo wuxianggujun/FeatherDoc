@@ -37,7 +37,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
-$readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
+$governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\governance_routes_zh.rst"
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $featureGapDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\feature_gap_analysis_zh.rst"
 $releaseMetadataDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_metadata_pipeline_zh.rst"
@@ -64,8 +64,8 @@ foreach ($marker in @(
         "content_control_tag",
         "content_control_alias"
     )) {
-    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
-        -Message "Sphinx index should preserve content-control route marker '$marker'."
+    Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
+        -Message "Governance routes docs should preserve content-control route marker '$marker'."
 }
 
 foreach ($marker in @(
@@ -84,8 +84,8 @@ foreach ($marker in @(
         "schema_target",
         "target_mode"
     )) {
-    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
-        -Message "Sphinx index should preserve content-control governance route marker '$marker'."
+    Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
+        -Message "Governance routes docs should preserve content-control governance route marker '$marker'."
 }
 
 foreach ($marker in @(
@@ -94,8 +94,8 @@ foreach ($marker in @(
         "ReleaseBlockerRollupAutoDiscover",
         "ReleaseBlockerRollupInputRoot"
     )) {
-    Assert-ContainsText -Text $readme -ExpectedText $marker `
-        -Message "README should preserve content-control governance release route marker '$marker'."
+    Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
+        -Message "Governance routes docs should preserve content-control governance release route marker '$marker'."
 }
 
 foreach ($marker in @(

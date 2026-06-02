@@ -50,8 +50,6 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
-$readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
-$readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $maintenanceDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\documentation_maintenance_zh.rst"
 $scoreDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\project_score_assessment_zh.rst"
@@ -61,7 +59,13 @@ $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMake
 foreach ($marker in @(
         "script_task_index_zh",
         "documentation_maintenance_zh",
-        "project_score_assessment_zh",
+        "project_score_assessment_zh"
+    )) {
+    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
+        -Message "Sphinx index should keep script task index and maintenance docs reachable."
+}
+
+foreach ($marker in @(
         "scripts/check_script_task_index.ps1",
         "output/script-task-index-check/summary.json",
         "output/script-task-index-check/script_task_index_check.md",
@@ -75,33 +79,8 @@ foreach ($marker in @(
         "output_encoding",
         "UTF-8 without BOM"
     )) {
-    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
-        -Message "Sphinx index should keep script task index and maintenance docs reachable."
-}
-
-foreach ($entrypoint in @(
-        @{ Label = "English README"; Text = $readme },
-        @{ Label = "Chinese README"; Text = $readmeZh }
-    )) {
-    foreach ($marker in @(
-            "docs/documentation_maintenance_zh.rst",
-            "docs/script_task_index_zh.rst",
-            "scripts/check_script_task_index.ps1",
-            "output/script-task-index-check/summary.json",
-            "output/script-task-index-check/script_task_index_check.md",
-            "script_reference_group_count",
-            "script_reference_extension_count",
-            "duplicate_script_reference_count",
-            "occurrence_lines",
-            "occurrence_groups",
-            "missing_marker_count",
-            "powershell_version",
-            "output_encoding",
-            "UTF-8 without BOM"
-        )) {
-        Assert-ContainsText -Text $entrypoint.Text -ExpectedText $marker `
-            -Message "$($entrypoint.Label) should keep documentation maintenance entrypoint '$marker' reachable."
-    }
+    Assert-ContainsText -Text $scriptIndexDoc -ExpectedText $marker `
+        -Message "Script task index docs should keep documentation maintenance marker '$marker' reachable."
 }
 
 foreach ($marker in @(

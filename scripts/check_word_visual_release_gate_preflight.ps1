@@ -281,28 +281,28 @@ Add-Check -Checks $checks `
         missing_markers = @($missingCMakeMarkers)
     })
 
-$readmeText = Get-RepoFileText -Root $repoRoot -RelativePath "README.md"
 $workflowDocText = Get-RepoFileText -Root $repoRoot -RelativePath "docs\automation\word_visual_workflow_zh.rst"
 $maintenanceDocText = Get-RepoFileText -Root $repoRoot -RelativePath "docs\documentation_maintenance_zh.rst"
+$governanceRoutesDocText = Get-RepoFileText -Root $repoRoot -RelativePath "docs\governance_routes_zh.rst"
 $docMarkers = @(
     "check_word_visual_release_gate_preflight.ps1",
     "featherdoc.word_visual_release_gate_preflight.v1",
     "word_visual_release_gate_preflight_static_contract_only"
 )
-$missingReadmeMarkers = @(Get-MissingTextMarkers -Text $readmeText -Markers $docMarkers)
 $missingWorkflowMarkers = @(Get-MissingTextMarkers -Text $workflowDocText -Markers $docMarkers)
 $missingMaintenanceMarkers = @(Get-MissingTextMarkers -Text $maintenanceDocText -Markers $docMarkers)
-$missingDocMarkerCount = $missingReadmeMarkers.Count + $missingWorkflowMarkers.Count + $missingMaintenanceMarkers.Count
+$missingGovernanceRouteMarkers = @(Get-MissingTextMarkers -Text $governanceRoutesDocText -Markers $docMarkers)
+$missingDocMarkerCount = $missingWorkflowMarkers.Count + $missingMaintenanceMarkers.Count + $missingGovernanceRouteMarkers.Count
 Add-Check -Checks $checks `
     -Name "word_visual_gate_docs_linked" `
     -Status $(if ($missingDocMarkerCount -eq 0) { "pass" } else { "missing" }) `
     -Required $true `
-    -Message $(if ($missingDocMarkerCount -eq 0) { "README, Word workflow docs, and maintenance docs describe the controlled preflight boundary." } else { "Word visual release gate preflight documentation markers are incomplete." }) `
+    -Message $(if ($missingDocMarkerCount -eq 0) { "Word workflow docs, governance routes, and maintenance docs describe the controlled preflight boundary." } else { "Word visual release gate preflight documentation markers are incomplete." }) `
     -Details ([ordered]@{
         required_markers = $docMarkers
-        missing_readme_markers = @($missingReadmeMarkers)
         missing_workflow_markers = @($missingWorkflowMarkers)
         missing_maintenance_markers = @($missingMaintenanceMarkers)
+        missing_governance_route_markers = @($missingGovernanceRouteMarkers)
     })
 
 $blockingChecks = @($checks | Where-Object { [bool]$_.required -and [string]$_.status -ne "pass" })

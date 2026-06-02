@@ -551,33 +551,25 @@ $resolvedRepoRoot = Resolve-RepoRoot -InputRoot $RepoRoot
 $summaryJsonPath = Resolve-RepoPath -Root $resolvedRepoRoot -InputPath $SummaryJson
 $reportMarkdownPath = Resolve-RepoPath -Root $resolvedRepoRoot -InputPath $ReportMarkdown
 
-$readmeRelativePath = "README.md"
-$readmeZhRelativePath = "README.zh-CN.md"
 $scriptIndexRelativePath = "docs\script_task_index_zh.rst"
 $indexRelativePath = "docs\index.rst"
 $maintenanceRelativePath = "docs\documentation_maintenance_zh.rst"
 $scoreRelativePath = "docs\project_score_assessment_zh.rst"
 $cmakeRelativePath = "test\CMakeLists.txt"
 
-$readmePath = Join-Path $resolvedRepoRoot $readmeRelativePath
-$readmeZhPath = Join-Path $resolvedRepoRoot $readmeZhRelativePath
 $scriptIndexPath = Join-Path $resolvedRepoRoot $scriptIndexRelativePath
 $indexPath = Join-Path $resolvedRepoRoot $indexRelativePath
 $maintenancePath = Join-Path $resolvedRepoRoot $maintenanceRelativePath
 $scorePath = Join-Path $resolvedRepoRoot $scoreRelativePath
 $cmakePath = Join-Path $resolvedRepoRoot $cmakeRelativePath
-$documentationEntryPointMarkers = @("docs/documentation_maintenance_zh.rst", "docs/script_task_index_zh.rst")
+$documentationEntryPointMarkers = @("documentation_maintenance_zh", "script_task_index_zh")
 
-Assert-FileExists -Path $readmePath -Label "english README"
-Assert-FileExists -Path $readmeZhPath -Label "chinese README"
 Assert-FileExists -Path $scriptIndexPath -Label "script task index doc"
 Assert-FileExists -Path $indexPath -Label "sphinx index doc"
 Assert-FileExists -Path $maintenancePath -Label "documentation maintenance doc"
 Assert-FileExists -Path $scorePath -Label "project score assessment doc"
 Assert-FileExists -Path $cmakePath -Label "test CMakeLists"
 
-$readmeText = Read-Utf8Text -Path $readmePath
-$readmeZhText = Read-Utf8Text -Path $readmeZhPath
 $scriptIndexText = Read-Utf8Text -Path $scriptIndexPath
 $indexText = Read-Utf8Text -Path $indexPath
 $maintenanceText = Read-Utf8Text -Path $maintenancePath
@@ -606,12 +598,12 @@ $checkedScripts = @(
 )
 $documentationEntryPoints = @(
     [pscustomobject]@{
-        relative_path = $readmeRelativePath
+        relative_path = $indexRelativePath
         marker_count = $documentationEntryPointMarkers.Count
         markers = @($documentationEntryPointMarkers)
     },
     [pscustomobject]@{
-        relative_path = $readmeZhRelativePath
+        relative_path = $maintenanceRelativePath
         marker_count = $documentationEntryPointMarkers.Count
         markers = @($documentationEntryPointMarkers)
     }
@@ -626,14 +618,14 @@ $missingScripts = @(
 
 $requiredMarkerGroups = @(
     [pscustomobject]@{
-        document = $readmeRelativePath
+        document = $indexRelativePath
         markers = $documentationEntryPointMarkers
-        text = $readmeText
+        text = $indexText
     },
     [pscustomobject]@{
-        document = $readmeZhRelativePath
+        document = $maintenanceRelativePath
         markers = $documentationEntryPointMarkers
-        text = $readmeZhText
+        text = $maintenanceText
     },
     [pscustomobject]@{
         document = $indexRelativePath
