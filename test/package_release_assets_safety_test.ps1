@@ -104,13 +104,26 @@ function Convert-TestEvidencePathToPublicDisplay {
         [string]$RepoRoot
     )
 
+    $normalizedDisplay = ([System.IO.Path]::GetFullPath($Path)) -replace '/', '\'
+    foreach ($anchor in @(
+            "\output\",
+            "\release-assets\",
+            "\release-assets-ci\",
+            "\build-msvc-install\",
+            "\build-msvc-install"
+        )) {
+        $index = $normalizedDisplay.LastIndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+        if ($index -ge 0) {
+            return ".\" + $normalizedDisplay.Substring($index + 1)
+        }
+    }
+
     $repoDisplay = Convert-TestPathToRepoRelativeDisplay -Path $Path -RepoRoot $RepoRoot
     $normalizedPath = [System.IO.Path]::GetFullPath($Path)
     if ($repoDisplay -ne $normalizedPath) {
         return $repoDisplay
     }
 
-    $normalizedDisplay = $normalizedPath -replace '/', '\'
     foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
         $index = $normalizedDisplay.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
         if ($index -ge 0) {
@@ -978,6 +991,12 @@ $installZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-msvc-install.z
 $galleryZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-visual-validation-gallery.zip"
 $evidenceZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-release-evidence.zip"
 $expectedSanitizedAbsolutePath = "<windows-absolute-path>"
+$expectedManifestSummaryPath = Convert-TestEvidencePathToPublicDisplay `
+    -Path $summaryPath `
+    -RepoRoot $resolvedRepoRoot
+$expectedManifestPdfGateOutputDir = Convert-TestEvidencePathToPublicDisplay `
+    -Path $pdfGateOutputDir `
+    -RepoRoot $resolvedRepoRoot
 $expectedSmokeReviewResultPath = Convert-TestEvidencePathToPublicDisplay `
     -Path (Join-Path $smokeTaskDir "report\review_result.json") `
     -RepoRoot $resolvedRepoRoot
@@ -1293,8 +1312,8 @@ if ([string]$manifest.pdf_visual_gate_status -ne "loaded") {
 if (-not [bool]$manifest.pdf_visual_gate_evidence_included) {
     throw "release_assets_manifest.json did not record PDF visual gate evidence as included."
 }
-if ([string]$manifest.pdf_visual_gate_evidence.summary_json -ne $expectedSanitizedAbsolutePath) {
-    throw "release_assets_manifest.json did not sanitize the PDF visual gate summary path."
+if ([string]$manifest.pdf_visual_gate_evidence.summary_json -ne $pdfGateSummaryPathDisplay) {
+    throw "release_assets_manifest.json did not preserve the PDF visual gate summary path."
 }
 if ([string]$manifest.pdf_visual_gate_evidence.summary_json_display -ne $pdfGateSummaryPathDisplay) {
     throw "release_assets_manifest.json did not preserve the PDF visual gate summary display path."
@@ -1305,8 +1324,8 @@ if ([string]$manifest.pdf_visual_gate_evidence.verdict -ne "pass") {
 if ([string]$manifest.pdf_visual_gate_evidence.full_visual_gate_status -ne "pass") {
     throw "release_assets_manifest.json lost the full PDF visual gate status."
 }
-if ([string]$manifest.pdf_visual_gate_evidence.aggregate_contact_sheet -ne $expectedSanitizedAbsolutePath) {
-    throw "release_assets_manifest.json did not sanitize the PDF visual gate aggregate contact sheet path."
+if ([string]$manifest.pdf_visual_gate_evidence.aggregate_contact_sheet -ne $pdfGateAggregateContactSheetPathDisplay) {
+    throw "release_assets_manifest.json did not preserve the PDF visual gate aggregate contact sheet path."
 }
 if ([string]$manifest.pdf_visual_gate_evidence.aggregate_contact_sheet_display -ne $pdfGateAggregateContactSheetPathDisplay) {
     throw "release_assets_manifest.json lost the PDF visual gate aggregate contact sheet."
@@ -1394,23 +1413,23 @@ if ((Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.verdict) -n
     (Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.review_method) -ne "operator_supplied") {
     throw "release_assets_manifest.json lost the smoke standard Word visual review status metadata."
 }
-if ([string]$manifestSmokeReviewMetadata.review_result_path -ne $expectedSanitizedAbsolutePath) {
-    throw "release_assets_manifest.json did not sanitize the smoke standard Word visual review result path."
+if ([string]$manifestSmokeReviewMetadata.review_result_path -ne $expectedSmokeReviewResultPath) {
+    throw "release_assets_manifest.json did not preserve the smoke standard Word visual review result path."
 }
-if ([string]$manifestSmokeReviewMetadata.final_review_path -ne $expectedSanitizedAbsolutePath) {
-    throw "release_assets_manifest.json did not sanitize the smoke standard Word visual final review path."
+if ([string]$manifestSmokeReviewMetadata.final_review_path -ne $expectedSmokeFinalReviewPath) {
+    throw "release_assets_manifest.json did not preserve the smoke standard Word visual final review path."
 }
 if ([string]$manifest.workspace -ne ".") {
     throw "release_assets_manifest.json did not rewrite workspace to a public relative path."
 }
-if ([string]$manifest.summary_json -ne $expectedSanitizedAbsolutePath) {
-    throw "release_assets_manifest.json did not sanitize summary_json to the expected placeholder."
+if ([string]$manifest.summary_json -ne $expectedManifestSummaryPath) {
+    throw "release_assets_manifest.json did not preserve summary_json as a public display path."
 }
-if ([string]$manifest.pdf_visual_gate_summary_json -ne $expectedSanitizedAbsolutePath) {
-    throw "release_assets_manifest.json did not sanitize pdf_visual_gate_summary_json to the expected placeholder."
+if ([string]$manifest.pdf_visual_gate_summary_json -ne $pdfGateSummaryPathDisplay) {
+    throw "release_assets_manifest.json did not preserve pdf_visual_gate_summary_json as a public display path."
 }
-if ([string]$manifest.pdf_visual_gate_output_dir -ne $expectedSanitizedAbsolutePath) {
-    throw "release_assets_manifest.json did not sanitize pdf_visual_gate_output_dir to the expected placeholder."
+if ([string]$manifest.pdf_visual_gate_output_dir -ne $expectedManifestPdfGateOutputDir) {
+    throw "release_assets_manifest.json did not preserve pdf_visual_gate_output_dir as a public display path."
 }
 if ($manifest.governance_metric_count -ne 3) {
     throw "release_assets_manifest.json did not preserve governance_metric_count=3."

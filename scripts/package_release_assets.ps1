@@ -768,7 +768,13 @@ function Convert-EvidencePathToPublicDisplay {
 
     $normalized = $Value -replace '/', '\'
     if ($PreferEvidenceAnchor) {
-        foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
+        foreach ($anchor in @(
+                "\output\",
+                "\release-assets\",
+                "\release-assets-ci\",
+                "\build-msvc-install\",
+                "\build-msvc-install"
+            )) {
             $index = $normalized.LastIndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
             if ($index -ge 0) {
                 $relative = $normalized.Substring($index + 1)
@@ -784,7 +790,13 @@ function Convert-EvidencePathToPublicDisplay {
         return $repoDisplay
     }
 
-    foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
+    foreach ($anchor in @(
+            "\output\",
+            "\release-assets\",
+            "\release-assets-ci\",
+            "\build-msvc-install\",
+            "\build-msvc-install"
+        )) {
         $index = $normalized.LastIndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
         if ($index -ge 0) {
             $relative = $normalized.Substring($index + 1)
@@ -979,7 +991,8 @@ function Convert-ReleaseTextToPublic {
 function Convert-StructuredValueToPublic {
     param(
         $Value,
-        [string]$RepoRoot
+        [string]$RepoRoot,
+        [switch]$PreferEvidenceAnchor
     )
 
     if ($null -eq $Value) {
@@ -987,8 +1000,20 @@ function Convert-StructuredValueToPublic {
     }
 
     if ($Value -is [string]) {
+        if ($PreferEvidenceAnchor) {
+            $displayValue = Convert-EvidencePathToPublicDisplay `
+                -Value $Value `
+                -RepoRoot $RepoRoot `
+                -PreferEvidenceAnchor
+            if ($displayValue -ne $Value) {
+                return Convert-ReleaseTextToPublic -Value $displayValue -RepoRoot $RepoRoot
+            }
+        }
+
         $relativeValue = Convert-RepoPathToRelative -Value $Value -RepoRoot $RepoRoot
-        if ($relativeValue -ne $Value -and $relativeValue -match '^\.[\\/]build[^\\/]*[\\/]test[\\/]') {
+        if (-not $PreferEvidenceAnchor -and
+            $relativeValue -ne $Value -and
+            $relativeValue -match '^\.[\\/]build[^\\/]*[\\/]test[\\/]') {
             if ([System.IO.Path]::DirectorySeparatorChar -eq '\') {
                 return "<windows-absolute-path>"
             }
@@ -1006,7 +1031,10 @@ function Convert-StructuredValueToPublic {
     if ($Value -is [System.Collections.IDictionary]) {
         $result = [ordered]@{}
         foreach ($key in $Value.Keys) {
-            $result[$key] = Convert-StructuredValueToPublic -Value $Value[$key] -RepoRoot $RepoRoot
+            $result[$key] = Convert-StructuredValueToPublic `
+                -Value $Value[$key] `
+                -RepoRoot $RepoRoot `
+                -PreferEvidenceAnchor:$PreferEvidenceAnchor
         }
         return $result
     }
@@ -1014,7 +1042,10 @@ function Convert-StructuredValueToPublic {
     if ($Value -is [pscustomobject]) {
         $result = [ordered]@{}
         foreach ($property in $Value.PSObject.Properties) {
-            $result[$property.Name] = Convert-StructuredValueToPublic -Value $property.Value -RepoRoot $RepoRoot
+            $result[$property.Name] = Convert-StructuredValueToPublic `
+                -Value $property.Value `
+                -RepoRoot $RepoRoot `
+                -PreferEvidenceAnchor:$PreferEvidenceAnchor
         }
         return $result
     }
@@ -1022,7 +1053,10 @@ function Convert-StructuredValueToPublic {
     if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) {
         $result = @()
         foreach ($item in $Value) {
-            $result += ,(Convert-StructuredValueToPublic -Value $item -RepoRoot $RepoRoot)
+            $result += ,(Convert-StructuredValueToPublic `
+                    -Value $item `
+                    -RepoRoot $RepoRoot `
+                    -PreferEvidenceAnchor:$PreferEvidenceAnchor)
         }
         return $result
     }
@@ -1073,7 +1107,10 @@ $pdfVisualGateStatus = Get-OptionalPropertyValue -Object $pdfVisualGateEvidence 
 $hasPdfVisualGateEvidence = (-not [string]::IsNullOrWhiteSpace($resolvedPdfVisualGateRoot)) -and
     (Test-Path -LiteralPath $resolvedPdfVisualGateRoot) -and
     $pdfVisualGateStatus -eq "loaded"
-$pdfVisualGateManifestEvidence = Convert-StructuredValueToPublic -Value $pdfVisualGateEvidence -RepoRoot $repoRoot
+$pdfVisualGateManifestEvidence = Convert-StructuredValueToPublic `
+    -Value $pdfVisualGateEvidence `
+    -RepoRoot $repoRoot `
+    -PreferEvidenceAnchor
 if ($pdfVisualGateManifestEvidence -is [System.Collections.IDictionary]) {
     $pdfVisualGateManifestEvidence["summary_json_display"] = Convert-EvidencePathToPublicDisplay `
         -Value $resolvedPdfVisualGateSummaryPath `
@@ -1092,7 +1129,10 @@ if ($pdfVisualGateManifestEvidence -is [System.Collections.IDictionary]) {
 $pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
 $pdfBoundedCtestStatus = Get-OptionalPropertyValue -Object $pdfBoundedCtestEvidence -Name "status"
 $hasPdfBoundedCtestEvidence = $pdfBoundedCtestStatus -ne "not_available"
-$pdfBoundedCtestManifestEvidence = Convert-StructuredValueToPublic -Value $pdfBoundedCtestEvidence -RepoRoot $repoRoot
+$pdfBoundedCtestManifestEvidence = Convert-StructuredValueToPublic `
+    -Value $pdfBoundedCtestEvidence `
+    -RepoRoot $repoRoot `
+    -PreferEvidenceAnchor
 $wordVisualStandardReviewMetadata = @(Get-WordVisualStandardReviewMetadata -RepoRoot $repoRoot -Summary $summary)
 $governanceMetrics = @(Get-GovernanceMetrics -Summary $summary)
 $releaseGovernanceHandoff = Get-OptionalPropertyObject -Object $summary -Name "release_governance_handoff"
@@ -1103,11 +1143,20 @@ $contentControlRepairContracts = @(Get-ContentControlRepairContracts -RepoRoot $
 $projectTemplateDeliveryReadinessContract = Get-ProjectTemplateDeliveryReadinessContract -RepoRoot $repoRoot -Summary $summary
 $projectTemplateOnboardingGovernanceContract = Get-ProjectTemplateOnboardingGovernanceContract -RepoRoot $repoRoot -Summary $summary
 $manifestSignoffEntrypoints = Get-OptionalPropertyObject -Object $summary -Name "manifest_signoff_entrypoints"
-$manifestSignoffEntrypointsPublic = Convert-StructuredValueToPublic -Value $manifestSignoffEntrypoints -RepoRoot $repoRoot
+$manifestSignoffEntrypointsPublic = Convert-StructuredValueToPublic `
+    -Value $manifestSignoffEntrypoints `
+    -RepoRoot $repoRoot `
+    -PreferEvidenceAnchor
 $projectTemplateReadinessChecklistEntrypoints = Get-OptionalPropertyObject -Object $summary -Name "project_template_readiness_checklist_entrypoints"
-$projectTemplateReadinessChecklistEntrypointsPublic = Convert-StructuredValueToPublic -Value $projectTemplateReadinessChecklistEntrypoints -RepoRoot $repoRoot
+$projectTemplateReadinessChecklistEntrypointsPublic = Convert-StructuredValueToPublic `
+    -Value $projectTemplateReadinessChecklistEntrypoints `
+    -RepoRoot $repoRoot `
+    -PreferEvidenceAnchor
 $releaseNoteBundle = Get-OptionalPropertyObject -Object $summary -Name "release_note_bundle"
-$releaseNoteBundlePublic = Convert-StructuredValueToPublic -Value $releaseNoteBundle -RepoRoot $repoRoot
+$releaseNoteBundlePublic = Convert-StructuredValueToPublic `
+    -Value $releaseNoteBundle `
+    -RepoRoot $repoRoot `
+    -PreferEvidenceAnchor
 $summaryGovernanceMetricCount = Get-OptionalPropertyValue -Object $summary -Name "governance_metric_count"
 $governanceMetricCount = if (-not [string]::IsNullOrWhiteSpace($summaryGovernanceMetricCount)) {
     [int]$summaryGovernanceMetricCount
@@ -1461,7 +1510,10 @@ if ($null -ne $releaseView) {
     $manifest.upload.remote_assets = $releaseAssets
 }
 
-$publicManifest = Convert-StructuredValueToPublic -Value $manifest -RepoRoot $repoRoot
+$publicManifest = Convert-StructuredValueToPublic `
+    -Value $manifest `
+    -RepoRoot $repoRoot `
+    -PreferEvidenceAnchor
 ($publicManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $manifestPath -Encoding UTF8
 
 if ($runStrictReleaseMaterialAudit) {

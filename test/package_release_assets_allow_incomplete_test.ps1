@@ -28,13 +28,26 @@ function Convert-TestEvidencePathToPublicDisplay {
         [string]$RepoRoot
     )
 
+    $normalizedDisplay = ([System.IO.Path]::GetFullPath($Path)) -replace '/', '\'
+    foreach ($anchor in @(
+            "\output\",
+            "\release-assets\",
+            "\release-assets-ci\",
+            "\build-msvc-install\",
+            "\build-msvc-install"
+        )) {
+        $index = $normalizedDisplay.LastIndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+        if ($index -ge 0) {
+            return ".\" + $normalizedDisplay.Substring($index + 1)
+        }
+    }
+
     $repoDisplay = Convert-TestPathToRepoRelativeDisplay -Path $Path -RepoRoot $RepoRoot
     $normalizedPath = [System.IO.Path]::GetFullPath($Path)
     if ($repoDisplay -ne $normalizedPath) {
         return $repoDisplay
     }
 
-    $normalizedDisplay = $normalizedPath -replace '/', '\'
     foreach ($anchor in @("\output\", "\release-assets\", "\release-assets-ci\")) {
         $index = $normalizedDisplay.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
         if ($index -ge 0) {
@@ -68,7 +81,7 @@ function New-TestReleaseNoteBundleContract {
     )
 
     foreach ($entrypoint in $entrypoints) {
-        $entrypoint["path_display"] = Convert-TestPathToRepoRelativeDisplay -Path ([string]$entrypoint.path) -RepoRoot $RepoRoot
+        $entrypoint["path_display"] = Convert-TestEvidencePathToPublicDisplay -Path ([string]$entrypoint.path) -RepoRoot $RepoRoot
         $entrypoint["required"] = $true
     }
 
@@ -510,19 +523,19 @@ $summary = [ordered]@{
             [ordered]@{
                 id = "start_here"
                 path = $startHerePath
-                path_display = Convert-TestPathToRepoRelativeDisplay -Path $startHerePath -RepoRoot $resolvedRepoRoot
+                path_display = Convert-TestEvidencePathToPublicDisplay -Path $startHerePath -RepoRoot $resolvedRepoRoot
                 required = $true
             },
             [ordered]@{
                 id = "artifact_guide"
                 path = $artifactGuidePath
-                path_display = Convert-TestPathToRepoRelativeDisplay -Path $artifactGuidePath -RepoRoot $resolvedRepoRoot
+                path_display = Convert-TestEvidencePathToPublicDisplay -Path $artifactGuidePath -RepoRoot $resolvedRepoRoot
                 required = $true
             },
             [ordered]@{
                 id = "reviewer_checklist"
                 path = $reviewerChecklistPath
-                path_display = Convert-TestPathToRepoRelativeDisplay -Path $reviewerChecklistPath -RepoRoot $resolvedRepoRoot
+                path_display = Convert-TestEvidencePathToPublicDisplay -Path $reviewerChecklistPath -RepoRoot $resolvedRepoRoot
                 required = $true
             }
         )
@@ -556,19 +569,19 @@ $summary = [ordered]@{
             [ordered]@{
                 id = "start_here"
                 path = $startHerePath
-                path_display = Convert-TestPathToRepoRelativeDisplay -Path $startHerePath -RepoRoot $resolvedRepoRoot
+                path_display = Convert-TestEvidencePathToPublicDisplay -Path $startHerePath -RepoRoot $resolvedRepoRoot
                 required = $true
             },
             [ordered]@{
                 id = "artifact_guide"
                 path = $artifactGuidePath
-                path_display = Convert-TestPathToRepoRelativeDisplay -Path $artifactGuidePath -RepoRoot $resolvedRepoRoot
+                path_display = Convert-TestEvidencePathToPublicDisplay -Path $artifactGuidePath -RepoRoot $resolvedRepoRoot
                 required = $true
             },
             [ordered]@{
                 id = "reviewer_checklist"
                 path = $reviewerChecklistPath
-                path_display = Convert-TestPathToRepoRelativeDisplay -Path $reviewerChecklistPath -RepoRoot $resolvedRepoRoot
+                path_display = Convert-TestEvidencePathToPublicDisplay -Path $reviewerChecklistPath -RepoRoot $resolvedRepoRoot
                 required = $true
             }
         )

@@ -2671,6 +2671,23 @@ function Add-ProjectTemplateDeliveryReadinessContractLines {
         }
     }
 
+    $onboardingNextAction = Format-ProjectTemplateNextActionSummary `
+        -Value (Get-ReleaseBlockerPropertyObject -Object $Report -Name "onboarding_governance_next_action")
+    $onboardingNextActionSummary = Format-ProjectTemplateNextActionSummary `
+        -Value (Get-ReleaseBlockerPropertyObject -Object $Report -Name "onboarding_governance_next_action_summary")
+    $onboardingNextActionGroupCount = Get-ReleaseBlockerPropertyValue `
+        -Object $Report `
+        -Name "onboarding_governance_next_action_group_count"
+    if (-not [string]::IsNullOrWhiteSpace($onboardingNextAction)) {
+        [void]$Lines.Add("    - onboarding_governance_next_action: $onboardingNextAction")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($onboardingNextActionSummary)) {
+        [void]$Lines.Add("    - onboarding_governance_next_action_summary: $onboardingNextActionSummary")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($onboardingNextActionGroupCount)) {
+        [void]$Lines.Add("    - onboarding_governance_next_action_group_count: $onboardingNextActionGroupCount")
+    }
+
     if (-not [string]::IsNullOrWhiteSpace($SourceReportDisplay)) {
         [void]$Lines.Add("    - source_report_display: $SourceReportDisplay")
     }
