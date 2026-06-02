@@ -136,6 +136,21 @@ function New-BlockedEvidence {
         schema = "featherdoc.project_template_onboarding_governance_report.v1"
         status = "blocked"
         release_ready = $false
+        next_action = [ordered]@{
+            action = "review_schema_update_candidate"
+            status = "pending_review"
+            blocker_id = "project_template_onboarding.schema_approval"
+            reason = "Schema approval is pending."
+        }
+        next_action_summary = @(
+            [ordered]@{
+                action = "review_schema_update_candidate"
+                status = "pending_review"
+                blocker_id = "project_template_onboarding.schema_approval"
+                reason = "Schema approval is pending."
+            }
+        )
+        next_action_group_count = 1
         entries = @(
             [ordered]@{
                 name = "invoice-template"
@@ -249,6 +264,21 @@ function New-ReadyEvidence {
         schema = "featherdoc.project_template_onboarding_governance_report.v1"
         status = "ready"
         release_ready = $true
+        next_action = [ordered]@{
+            action = "publish_project_template"
+            status = "ready"
+            blocker_id = ""
+            reason = "Project template onboarding governance is release-ready."
+        }
+        next_action_summary = @(
+            [ordered]@{
+                action = "publish_project_template"
+                status = "ready"
+                blocker_id = ""
+                reason = "Project template onboarding governance is release-ready."
+            }
+        )
+        next_action_group_count = 1
         entries = @(
             [ordered]@{
                 name = "invoice-template"
@@ -347,6 +377,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should aggregate onboarding action items."
     Assert-Equal -Actual ([int]$summary.manual_review_recommendation_count) -Expected 1 `
         -Message "Summary should aggregate manual review recommendations."
+    Assert-Equal -Actual ([int]$summary.onboarding_governance_next_action_group_count) -Expected 1 `
+        -Message "Summary should expose onboarding governance next-action group count."
+    Assert-Equal -Actual ([string]$summary.onboarding_governance_next_action.action) -Expected "review_schema_update_candidate" `
+        -Message "Summary should preserve the onboarding governance next action."
 
     $onboardingBlockers = @($summary.release_blockers | Where-Object { [string]$_.id -eq "project_template_onboarding.schema_approval" })
     Assert-Equal -Actual $onboardingBlockers.Count -Expected 1 `
@@ -359,6 +393,12 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text ([string]$onboardingBlockers[0].source_report_display) `
         -ExpectedText "governance\summary.json" `
         -Message "Onboarding-derived blockers should retain the onboarding governance source report display."
+    Assert-Equal -Actual ([string]$onboardingBlockers[0].blocker_id) -Expected "project_template_onboarding.schema_approval" `
+        -Message "Onboarding-derived blockers should retain a stable blocker_id."
+    Assert-Equal -Actual ([string]$onboardingBlockers[0].onboarding_governance_next_action.action) -Expected "review_schema_update_candidate" `
+        -Message "Onboarding-derived blockers should retain onboarding governance next action."
+    Assert-Equal -Actual ([int]$onboardingBlockers[0].onboarding_governance_next_action_group_count) -Expected 1 `
+        -Message "Onboarding-derived blockers should retain onboarding governance next-action group count."
     $historyGateBlocker = @(
         $summary.release_blockers |
             Where-Object { [string]$_.id -eq "project_template_delivery_readiness.schema_approval_history_gate" }
@@ -387,6 +427,12 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "sync_project_template_schema_approval.ps1" `
         -Message "Action items should expose the reviewer open command."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.reason }) -join "`n") `
+        -ExpectedText "Review invoice schema" `
+        -Message "Action items should expose reviewer reason text."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.onboarding_governance_next_action.action }) -join "`n") `
+        -ExpectedText "review_schema_update_candidate" `
+        -Message "Action items should retain onboarding governance next action."
     Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
     Assert-GovernanceTraceMetadata -Items @($summary.warnings) -CollectionName "warnings"
     Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `

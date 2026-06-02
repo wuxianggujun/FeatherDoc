@@ -404,6 +404,21 @@ function Write-GovernanceFixtures {
                     count = 1
                 }
             )
+            next_action = [ordered]@{
+                action = "approve_project_template_schema"
+                status = "pending_review"
+                blocker_id = "project_template_delivery.pending_schema_approval"
+                reason = "Schema approval is still pending."
+            }
+            next_action_summary = @(
+                [ordered]@{
+                    action = "approve_project_template_schema"
+                    status = "pending_review"
+                    blocker_id = "project_template_delivery.pending_schema_approval"
+                    reason = "Schema approval is still pending."
+                }
+            )
+            next_action_group_count = 1
             release_blocker_count = 1
             action_item_count = 1
         })
@@ -423,6 +438,21 @@ function Write-GovernanceFixtures {
                     count = 1
                 }
             )
+            onboarding_governance_next_action = [ordered]@{
+                action = "approve_project_template_schema"
+                status = "pending_review"
+                blocker_id = "project_template_delivery.pending_schema_approval"
+                reason = "Schema approval is still pending."
+            }
+            onboarding_governance_next_action_summary = @(
+                [ordered]@{
+                    action = "approve_project_template_schema"
+                    status = "pending_review"
+                    blocker_id = "project_template_delivery.pending_schema_approval"
+                    reason = "Schema approval is still pending."
+                }
+            )
+            onboarding_governance_next_action_group_count = 1
             release_blocker_count = 1
             warning_count = 0
             release_blockers = @(
@@ -632,6 +662,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should carry onboarding governance report release_ready separately from delivery readiness."
     Assert-ContainsText -Text ([string]$projectTemplateBlocker.onboarding_governance_source_json_display) -ExpectedText "project-template-onboarding-governance\summary.json" `
         -Message "Aggregate handoff should point onboarding governance contract at onboarding summary JSON."
+    Assert-Equal -Actual ([string]$projectTemplateBlocker.onboarding_governance_next_action.action) -Expected "approve_project_template_schema" `
+        -Message "Aggregate handoff should carry onboarding governance next action on blockers."
+    Assert-Equal -Actual ([int]$projectTemplateBlocker.onboarding_governance_next_action_group_count) -Expected 1 `
+        -Message "Aggregate handoff should carry onboarding governance next-action group count on blockers."
     $projectTemplateAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "approve_project_template_schema" } |
         Select-Object -First 1)
@@ -649,6 +683,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should carry onboarding governance report release_ready separately from action readiness."
     Assert-ContainsText -Text ([string]$projectTemplateAction.onboarding_governance_source_json_display) -ExpectedText "project-template-onboarding-governance\summary.json" `
         -Message "Aggregate handoff should point action onboarding governance contract at onboarding summary JSON."
+    Assert-Equal -Actual ([string]$projectTemplateAction.onboarding_governance_next_action.action) -Expected "approve_project_template_schema" `
+        -Message "Aggregate handoff should carry onboarding governance next action on action items."
+    Assert-Equal -Actual ([int]$projectTemplateAction.onboarding_governance_next_action_group_count) -Expected 1 `
+        -Message "Aggregate handoff should carry onboarding governance next-action group count on action items."
     $metricText = ($summary.governance_metrics | ForEach-Object { "$($_.report_id):$($_.metric):$($_.level):$($_.score)" }) -join "`n"
     Assert-ContainsText -Text $metricText -ExpectedText "numbering_catalog_governance:real_corpus_confidence:low:56" `
         -Message "Aggregate handoff should preserve numbering real-corpus confidence metric."
@@ -867,7 +905,10 @@ if (Test-Scenario -Name "aggregate") {
         'project_template_onboarding_governance_contract:',
         'status: `pending_review`',
         'release_ready: `False`',
-        'schema_approval_status_summary: `pending_review=1`'
+        'schema_approval_status_summary: `pending_review=1`',
+        'next_action:',
+        'next_action_summary:',
+        'next_action_group_count: `1`'
     ) -Message "Markdown should keep project-template readiness status with the handoff blocker evidence block."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor '`project_template_delivery_readiness` / `approve_project_template_schema`' -ExpectedFragments @(
         'source_report_display:',
@@ -877,7 +918,10 @@ if (Test-Scenario -Name "aggregate") {
         'project_template_onboarding_governance_contract:',
         'status: `pending_review`',
         'release_ready: `False`',
-        'schema_approval_status_summary: `pending_review=1`'
+        'schema_approval_status_summary: `pending_review=1`',
+        'next_action:',
+        'next_action_summary:',
+        'next_action_group_count: `1`'
     ) -Message "Markdown should keep project-template onboarding contract status with the handoff action item evidence block."
     Assert-ContainsText -Text $markdown -ExpectedText "content_control_data_binding_governance" `
         -Message "Markdown should include content-control data-binding governance."
@@ -1255,6 +1299,12 @@ if (Test-Scenario -Name "include_rollup") {
                 "release_blocker_count",
                 "warning_count",
                 "schema_approval_status_summary",
+                "onboarding_governance_next_action",
+                "onboarding_governance_next_action_summary",
+                "onboarding_governance_next_action_group_count",
+                "next_action",
+                "next_action_summary",
+                "next_action_group_count",
                 "source_report_display",
                 "source_json_display"
             )
@@ -1721,6 +1771,12 @@ if (Test-Scenario -Name "include_rollup") {
         "release_blocker_count",
         "warning_count",
         "schema_approval_status_summary",
+        "onboarding_governance_next_action",
+        "onboarding_governance_next_action_summary",
+        "onboarding_governance_next_action_group_count",
+        "next_action",
+        "next_action_summary",
+        "next_action_group_count",
         "source_report_display",
         "source_json_display"
     )) {
@@ -2052,7 +2108,7 @@ if (Test-Scenario -Name "include_rollup") {
         "manifest_signoff_entrypoints_required_entrypoint_count: ``3``",
         "manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``",
         "manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``",
-        "manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, source_report_display, source_json_display``",
+        "manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, onboarding_governance_next_action, onboarding_governance_next_action_summary, onboarding_governance_next_action_group_count, next_action, next_action_summary, next_action_group_count, source_report_display, source_json_display``",
         "manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``"
     ) -Message "Handoff Markdown should keep manifest signoff evidence and release-candidate source identity in one source_report block."
     Assert-ContainsText -Text $markdown -ExpectedText "Project-template readiness checklist entrypoints evidence source reports: ``1``" `

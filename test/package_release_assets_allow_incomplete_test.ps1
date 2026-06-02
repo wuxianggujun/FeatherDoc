@@ -320,6 +320,21 @@ $projectTemplateDeliveryReadinessSummary = [ordered]@{
     release_blocker_count = 0
     action_item_count = 0
     warning_count = 0
+    onboarding_governance_next_action = [ordered]@{
+        action = "publish_project_template"
+        status = "ready"
+        blocker_id = ""
+        reason = "Project template delivery readiness is release-ready."
+    }
+    onboarding_governance_next_action_summary = @(
+        [ordered]@{
+            action = "publish_project_template"
+            status = "ready"
+            blocker_id = ""
+            reason = "Project template delivery readiness is release-ready."
+        }
+    )
+    onboarding_governance_next_action_group_count = 1
 }
 ($projectTemplateDeliveryReadinessSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $projectTemplateDeliveryReadinessSummaryPath -Encoding UTF8
 
@@ -348,6 +363,21 @@ $projectTemplateOnboardingGovernanceSummary = [ordered]@{
     release_blocker_count = 0
     action_item_count = 0
     manual_review_recommendation_count = 1
+    next_action = [ordered]@{
+        action = "publish_project_template"
+        status = "ready"
+        blocker_id = ""
+        reason = "Project template onboarding governance is release-ready."
+    }
+    next_action_summary = @(
+        [ordered]@{
+            action = "publish_project_template"
+            status = "ready"
+            blocker_id = ""
+            reason = "Project template onboarding governance is release-ready."
+        }
+    )
+    next_action_group_count = 1
 }
 ($projectTemplateOnboardingGovernanceSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $projectTemplateOnboardingGovernanceSummaryPath -Encoding UTF8
 
@@ -506,6 +536,12 @@ $summary = [ordered]@{
             "release_blocker_count",
             "warning_count",
             "schema_approval_status_summary",
+            "onboarding_governance_next_action",
+            "onboarding_governance_next_action_summary",
+            "onboarding_governance_next_action_group_count",
+            "next_action",
+            "next_action_summary",
+            "next_action_group_count",
             "source_report_display",
             "source_json_display"
         )
@@ -661,10 +697,7 @@ if ([string]$manifestSignoffEntrypoints.status -ne "declared") {
 if ([int]$manifestSignoffEntrypoints.required_entrypoint_count -ne 3) {
     throw "Release assets manifest lost manifest signoff required entrypoint count in AllowIncomplete mode."
 }
-$expectedManifestDisplay = Convert-TestEvidencePathToPublicDisplay `
-    -Path $manifestPath `
-    -RepoRoot $resolvedRepoRoot
-if ([string]$manifestSignoffEntrypoints.release_assets_manifest -ne $expectedManifestDisplay) {
+if ([string]$manifestSignoffEntrypoints.release_assets_manifest -ne "release_assets_manifest.json") {
     throw "Release assets manifest lost packaged manifest signoff path in AllowIncomplete mode."
 }
 foreach ($requiredContract in @(
@@ -681,6 +714,12 @@ foreach ($requiredField in @(
         "release_blocker_count",
         "warning_count",
         "schema_approval_status_summary",
+        "onboarding_governance_next_action",
+        "onboarding_governance_next_action_summary",
+        "onboarding_governance_next_action_group_count",
+        "next_action",
+        "next_action_summary",
+        "next_action_group_count",
         "source_report_display",
         "source_json_display"
     )) {

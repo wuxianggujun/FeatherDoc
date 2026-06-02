@@ -644,6 +644,21 @@ $projectTemplateDeliveryReadinessSummary = [ordered]@{
     release_blocker_count = 0
     action_item_count = 0
     warning_count = 0
+    onboarding_governance_next_action = [ordered]@{
+        action = "publish_project_template"
+        status = "ready"
+        blocker_id = ""
+        reason = "Project template delivery readiness is release-ready."
+    }
+    onboarding_governance_next_action_summary = @(
+        [ordered]@{
+            action = "publish_project_template"
+            status = "ready"
+            blocker_id = ""
+            reason = "Project template delivery readiness is release-ready."
+        }
+    )
+    onboarding_governance_next_action_group_count = 1
 }
 ($projectTemplateDeliveryReadinessSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $projectTemplateDeliveryReadinessSummaryPath -Encoding UTF8
 
@@ -672,6 +687,21 @@ $projectTemplateOnboardingGovernanceSummary = [ordered]@{
     release_blocker_count = 0
     action_item_count = 0
     manual_review_recommendation_count = 1
+    next_action = [ordered]@{
+        action = "publish_project_template"
+        status = "ready"
+        blocker_id = ""
+        reason = "Project template onboarding governance is release-ready."
+    }
+    next_action_summary = @(
+        [ordered]@{
+            action = "publish_project_template"
+            status = "ready"
+            blocker_id = ""
+            reason = "Project template onboarding governance is release-ready."
+        }
+    )
+    next_action_group_count = 1
 }
 ($projectTemplateOnboardingGovernanceSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $projectTemplateOnboardingGovernanceSummaryPath -Encoding UTF8
 
@@ -829,7 +859,15 @@ $summary = [ordered]@{
         required_fields = @(
             "status",
             "release_ready",
+            "release_blocker_count",
+            "warning_count",
             "schema_approval_status_summary",
+            "onboarding_governance_next_action",
+            "onboarding_governance_next_action_summary",
+            "onboarding_governance_next_action_group_count",
+            "next_action",
+            "next_action_summary",
+            "next_action_group_count",
             "source_report_display",
             "source_json_display"
         )
@@ -939,10 +977,7 @@ $manifestPath = Join-Path $outputRoot "v1.6.4\release_assets_manifest.json"
 $installZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-msvc-install.zip"
 $galleryZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-visual-validation-gallery.zip"
 $evidenceZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-release-evidence.zip"
-$expectedRelativeHandoff = ".\$relativeWorkingDir\output\release-candidate-checks\report\release_handoff.md"
-$expectedRelativeGateReport = ".\$relativeWorkingDir\output\word-visual-release-gate\report"
-$expectedRelativePdfGateSummary = ".\$relativeWorkingDir\output\pdf-visual-release-gate\report\summary.json"
-$expectedRelativePdfGateRoot = ".\$relativeWorkingDir\output\pdf-visual-release-gate"
+$expectedSanitizedAbsolutePath = "<windows-absolute-path>"
 $expectedSmokeReviewResultPath = Convert-TestEvidencePathToPublicDisplay `
     -Path (Join-Path $smokeTaskDir "report\review_result.json") `
     -RepoRoot $resolvedRepoRoot
@@ -1229,17 +1264,17 @@ Assert-Contains -Path $stagedProjectTemplateDeliveryReadinessSummaryPath -Expect
 Assert-Contains -Path $stagedProjectTemplateDeliveryReadinessSummaryPath -ExpectedText 'latest_schema_approval_gate_status' -Label 'staged project-template readiness summary'
 Assert-Contains -Path $stagedProjectTemplateOnboardingGovernanceSummaryPath -ExpectedText 'featherdoc.project_template_onboarding_governance_report.v1' -Label 'staged project-template onboarding governance summary'
 Assert-Contains -Path $stagedProjectTemplateOnboardingGovernanceSummaryPath -ExpectedText 'schema_approval_status_summary' -Label 'staged project-template onboarding governance summary'
-if ($stagedSummary.release_handoff -ne $expectedRelativeHandoff) {
-    throw "staged summary.json did not rewrite release_handoff to the expected relative path."
+if ($stagedSummary.release_handoff -ne $expectedSanitizedAbsolutePath) {
+    throw "staged summary.json did not sanitize release_handoff to the expected placeholder."
 }
-if ($stagedGateSummary.report_dir -ne $expectedRelativeGateReport) {
-    throw "staged gate_summary.json did not rewrite report_dir to the expected relative path."
+if ($stagedGateSummary.report_dir -ne $expectedSanitizedAbsolutePath) {
+    throw "staged gate_summary.json did not sanitize report_dir to the expected placeholder."
 }
-if ($stagedSummary.pdf_visual_gate_summary_json -ne $expectedRelativePdfGateSummary) {
-    throw "staged summary.json did not rewrite pdf_visual_gate_summary_json to the expected relative path."
+if ($stagedSummary.pdf_visual_gate_summary_json -ne $expectedSanitizedAbsolutePath) {
+    throw "staged summary.json did not sanitize pdf_visual_gate_summary_json to the expected placeholder."
 }
-if ($stagedPdfGateSummary.output_dir -ne ".\$relativeWorkingDir\output\pdf-visual-release-gate") {
-    throw "staged PDF visual gate summary.json did not rewrite output_dir to the expected relative path."
+if ($stagedPdfGateSummary.output_dir -ne $expectedSanitizedAbsolutePath) {
+    throw "staged PDF visual gate summary.json did not sanitize output_dir to the expected placeholder."
 }
 if ($stagedPdfGateSummary.cjk_copy_search.Count -ne 2) {
     throw "staged PDF visual gate summary.json lost CJK copy/search entries."
@@ -1258,8 +1293,8 @@ if ([string]$manifest.pdf_visual_gate_status -ne "loaded") {
 if (-not [bool]$manifest.pdf_visual_gate_evidence_included) {
     throw "release_assets_manifest.json did not record PDF visual gate evidence as included."
 }
-if ([string]$manifest.pdf_visual_gate_evidence.summary_json -ne $expectedRelativePdfGateSummary) {
-    throw "release_assets_manifest.json did not preserve the PDF visual gate summary display path."
+if ([string]$manifest.pdf_visual_gate_evidence.summary_json -ne $expectedSanitizedAbsolutePath) {
+    throw "release_assets_manifest.json did not sanitize the PDF visual gate summary path."
 }
 if ([string]$manifest.pdf_visual_gate_evidence.verdict -ne "pass") {
     throw "release_assets_manifest.json lost the PDF visual gate verdict."
@@ -1267,8 +1302,8 @@ if ([string]$manifest.pdf_visual_gate_evidence.verdict -ne "pass") {
 if ([string]$manifest.pdf_visual_gate_evidence.full_visual_gate_status -ne "pass") {
     throw "release_assets_manifest.json lost the full PDF visual gate status."
 }
-if ([string]$manifest.pdf_visual_gate_evidence.aggregate_contact_sheet -notmatch "aggregate-contact-sheet.png") {
-    throw "release_assets_manifest.json lost the PDF visual gate aggregate contact sheet."
+if ([string]$manifest.pdf_visual_gate_evidence.aggregate_contact_sheet -ne $expectedSanitizedAbsolutePath) {
+    throw "release_assets_manifest.json did not sanitize the PDF visual gate aggregate contact sheet path."
 }
 if ([string]$manifest.pdf_visual_gate_evidence.cjk_manifest_count -ne "43") {
     throw "release_assets_manifest.json lost the PDF CJK manifest sample count."
@@ -1353,23 +1388,23 @@ if ((Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.verdict) -n
     (Convert-TestComparableValue -Value $manifestSmokeReviewMetadata.review_method) -ne "operator_supplied") {
     throw "release_assets_manifest.json lost the smoke standard Word visual review status metadata."
 }
-if ([string]$manifestSmokeReviewMetadata.review_result_path -ne $expectedSmokeReviewResultPath) {
-    throw "release_assets_manifest.json lost the smoke standard Word visual review result path."
+if ([string]$manifestSmokeReviewMetadata.review_result_path -ne $expectedSanitizedAbsolutePath) {
+    throw "release_assets_manifest.json did not sanitize the smoke standard Word visual review result path."
 }
-if ([string]$manifestSmokeReviewMetadata.final_review_path -ne $expectedSmokeFinalReviewPath) {
-    throw "release_assets_manifest.json lost the smoke standard Word visual final review path."
+if ([string]$manifestSmokeReviewMetadata.final_review_path -ne $expectedSanitizedAbsolutePath) {
+    throw "release_assets_manifest.json did not sanitize the smoke standard Word visual final review path."
 }
 if ([string]$manifest.workspace -ne ".") {
     throw "release_assets_manifest.json did not rewrite workspace to a public relative path."
 }
-if ([string]$manifest.summary_json -ne ".\$relativeWorkingDir\output\release-candidate-checks\report\summary.json") {
-    throw "release_assets_manifest.json did not rewrite summary_json to the expected relative path."
+if ([string]$manifest.summary_json -ne $expectedSanitizedAbsolutePath) {
+    throw "release_assets_manifest.json did not sanitize summary_json to the expected placeholder."
 }
-if ([string]$manifest.pdf_visual_gate_summary_json -ne $expectedRelativePdfGateSummary) {
-    throw "release_assets_manifest.json did not rewrite pdf_visual_gate_summary_json to the expected relative path."
+if ([string]$manifest.pdf_visual_gate_summary_json -ne $expectedSanitizedAbsolutePath) {
+    throw "release_assets_manifest.json did not sanitize pdf_visual_gate_summary_json to the expected placeholder."
 }
-if ([string]$manifest.pdf_visual_gate_output_dir -ne $expectedRelativePdfGateRoot) {
-    throw "release_assets_manifest.json did not rewrite pdf_visual_gate_output_dir to the expected relative path."
+if ([string]$manifest.pdf_visual_gate_output_dir -ne $expectedSanitizedAbsolutePath) {
+    throw "release_assets_manifest.json did not sanitize pdf_visual_gate_output_dir to the expected placeholder."
 }
 if ($manifest.governance_metric_count -ne 3) {
     throw "release_assets_manifest.json did not preserve governance_metric_count=3."
@@ -1745,10 +1780,7 @@ if ($null -eq $manifestSignoffEntrypoints) {
 if ([string]$manifestSignoffEntrypoints.status -ne "declared") {
     throw "release_assets_manifest.json lost manifest signoff status."
 }
-$expectedManifestDisplay = Convert-TestEvidencePathToPublicDisplay `
-    -Path $manifestPath `
-    -RepoRoot $resolvedRepoRoot
-if ([string]$manifestSignoffEntrypoints.release_assets_manifest -ne $expectedManifestDisplay) {
+if ([string]$manifestSignoffEntrypoints.release_assets_manifest -ne "release_assets_manifest.json") {
     throw "release_assets_manifest.json lost manifest signoff packaged manifest path."
 }
 if ([int]$manifestSignoffEntrypoints.required_entrypoint_count -ne 3) {
@@ -1765,7 +1797,15 @@ foreach ($requiredContract in @(
 foreach ($requiredField in @(
         "status",
         "release_ready",
+        "release_blocker_count",
+        "warning_count",
         "schema_approval_status_summary",
+        "onboarding_governance_next_action",
+        "onboarding_governance_next_action_summary",
+        "onboarding_governance_next_action_group_count",
+        "next_action",
+        "next_action_summary",
+        "next_action_group_count",
         "source_report_display",
         "source_json_display"
     )) {

@@ -619,6 +619,12 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
             "release_blocker_count",
             "warning_count",
             "schema_approval_status_summary",
+            "onboarding_governance_next_action",
+            "onboarding_governance_next_action_summary",
+            "onboarding_governance_next_action_group_count",
+            "next_action",
+            "next_action_summary",
+            "next_action_group_count",
             "source_report_display",
             "source_json_display"
         )
@@ -1542,6 +1548,12 @@ if (Test-Scenario -Name "passing") {
         "release_blocker_count",
         "warning_count",
         "schema_approval_status_summary",
+        "onboarding_governance_next_action",
+        "onboarding_governance_next_action_summary",
+        "onboarding_governance_next_action_group_count",
+        "next_action",
+        "next_action_summary",
+        "next_action_group_count",
         "source_report_display",
         "source_json_display"
     )) {
@@ -1852,6 +1864,12 @@ if (Test-Scenario -Name "passing") {
         "release_blocker_count",
         "warning_count",
         "schema_approval_status_summary",
+        "onboarding_governance_next_action",
+        "onboarding_governance_next_action_summary",
+        "onboarding_governance_next_action_group_count",
+        "next_action",
+        "next_action_summary",
+        "next_action_group_count",
         "source_report_display",
         "source_json_display",
         "manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``",

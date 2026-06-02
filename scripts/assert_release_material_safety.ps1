@@ -2817,7 +2817,15 @@ function Add-ReleaseGovernanceHandoffManifestSignoffEntrypointsTraceViolations {
         "manifest_signoff_entrypoints_required_fields:",
         "status",
         "release_ready",
+        "release_blocker_count",
+        "warning_count",
         "schema_approval_status_summary",
+        "onboarding_governance_next_action",
+        "onboarding_governance_next_action_summary",
+        "onboarding_governance_next_action_group_count",
+        "next_action",
+        "next_action_summary",
+        "next_action_group_count",
         "source_report_display",
         "source_json_display",
         "manifest_signoff_entrypoints_checklist_marker:",
@@ -2885,7 +2893,15 @@ function Add-ReleaseBlockerRollupManifestSignoffEntrypointsTraceViolations {
         "manifest_signoff_entrypoints_required_fields:",
         "status",
         "release_ready",
+        "release_blocker_count",
+        "warning_count",
         "schema_approval_status_summary",
+        "onboarding_governance_next_action",
+        "onboarding_governance_next_action_summary",
+        "onboarding_governance_next_action_group_count",
+        "next_action",
+        "next_action_summary",
+        "next_action_group_count",
         "source_report_display",
         "source_json_display",
         "manifest_signoff_entrypoints_checklist_marker:",
@@ -4123,6 +4139,21 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.schema_approval_status_summary is missing."
     }
 
+    $onboardingNextAction = Get-JsonPropertyValue -Object $contract -Name "onboarding_governance_next_action"
+    if ($null -eq $onboardingNextAction -or
+        ($onboardingNextAction -is [string] -and [string]::IsNullOrWhiteSpace($onboardingNextAction)) -or
+        @($onboardingNextAction).Count -eq 0) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.onboarding_governance_next_action is missing."
+    }
+
+    $onboardingNextActionSummary = Get-JsonPropertyValue -Object $contract -Name "onboarding_governance_next_action_summary"
+    if ($null -eq $onboardingNextActionSummary -or
+        ($onboardingNextActionSummary -is [string] -and [string]::IsNullOrWhiteSpace($onboardingNextActionSummary)) -or
+        @($onboardingNextActionSummary).Count -eq 0) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.onboarding_governance_next_action_summary is missing."
+    }
+    $onboardingNextActionSummaryCount = @($onboardingNextActionSummary).Count
+
     $sourceJsonDisplay = Get-JsonPropertyValue -Object $contract -Name "source_json_display"
     if ([string]::IsNullOrWhiteSpace([string]$sourceJsonDisplay)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.source_json_display is missing."
@@ -4164,6 +4195,7 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
         "schema_history_blocked_run_count",
         "schema_history_pending_run_count",
         "schema_history_passed_run_count",
+        "onboarding_governance_next_action_group_count",
         "template_count",
         "ready_template_count",
         "blocked_template_count",
@@ -4182,6 +4214,12 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
         } catch {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.$fieldName must be an integer."
         }
+    }
+
+    if ($integerValues.ContainsKey("onboarding_governance_next_action_group_count") -and
+        $onboardingNextActionSummaryCount -gt 0 -and
+        $integerValues["onboarding_governance_next_action_group_count"] -lt $onboardingNextActionSummaryCount) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.onboarding_governance_next_action_group_count must cover onboarding_governance_next_action_summary."
     }
 
     $releaseReadyIsTrue = $false
@@ -4317,11 +4355,27 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.schema_approval_status_summary is missing."
     }
 
+    $nextAction = Get-JsonPropertyValue -Object $contract -Name "next_action"
+    if ($null -eq $nextAction -or
+        ($nextAction -is [string] -and [string]::IsNullOrWhiteSpace($nextAction)) -or
+        @($nextAction).Count -eq 0) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.next_action is missing."
+    }
+
+    $nextActionSummary = Get-JsonPropertyValue -Object $contract -Name "next_action_summary"
+    if ($null -eq $nextActionSummary -or
+        ($nextActionSummary -is [string] -and [string]::IsNullOrWhiteSpace($nextActionSummary)) -or
+        @($nextActionSummary).Count -eq 0) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.next_action_summary is missing."
+    }
+    $nextActionSummaryCount = @($nextActionSummary).Count
+
     $integerValues = @{}
     foreach ($fieldName in @(
         "source_file_count",
         "source_failure_count",
         "entry_count",
+        "next_action_group_count",
         "blocked_entry_count",
         "pending_review_entry_count",
         "not_evaluated_entry_count",
@@ -4342,6 +4396,12 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
         } catch {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.$fieldName must be an integer."
         }
+    }
+
+    if ($integerValues.ContainsKey("next_action_group_count") -and
+        $nextActionSummaryCount -gt 0 -and
+        $integerValues["next_action_group_count"] -lt $nextActionSummaryCount) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.next_action_group_count must cover next_action_summary."
     }
 
     $releaseReadyIsTrue = $false
@@ -4474,7 +4534,15 @@ function Add-ManifestSignoffEntrypointsContractViolations {
     foreach ($requiredField in @(
         "status",
         "release_ready",
+        "release_blocker_count",
+        "warning_count",
         "schema_approval_status_summary",
+        "onboarding_governance_next_action",
+        "onboarding_governance_next_action_summary",
+        "onboarding_governance_next_action_group_count",
+        "next_action",
+        "next_action_summary",
+        "next_action_group_count",
         "source_report_display",
         "source_json_display"
     )) {

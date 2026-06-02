@@ -613,6 +613,9 @@ function Get-ProjectTemplateDeliveryReadinessContract {
         release_ready = Get-OptionalPropertyObject -Object $readinessSummary -Name "release_ready"
         latest_schema_approval_gate_status = Get-OptionalPropertyValue -Object $readinessSummary -Name "latest_schema_approval_gate_status"
         schema_approval_status_summary = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_approval_status_summary"
+        onboarding_governance_next_action = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action"
+        onboarding_governance_next_action_summary = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action_summary"
+        onboarding_governance_next_action_group_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action_group_count"
         schema_history_blocked_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_blocked_run_count"
         schema_history_pending_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_pending_run_count"
         schema_history_passed_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_passed_run_count"
@@ -652,6 +655,9 @@ function Get-ProjectTemplateOnboardingGovernanceContract {
         source_failure_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "source_failure_count"
         entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "entry_count"
         schema_approval_status_summary = Get-OptionalPropertyObject -Object $onboardingSummary -Name "schema_approval_status_summary"
+        next_action = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action"
+        next_action_summary = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action_summary"
+        next_action_group_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action_group_count"
         blocked_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "blocked_entry_count"
         pending_review_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "pending_review_entry_count"
         not_evaluated_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "not_evaluated_entry_count"
@@ -1351,9 +1357,7 @@ if (-not [string]::IsNullOrWhiteSpace($UploadReleaseTag)) {
 
 $manifestPath = Join-Path $versionOutputDir "release_assets_manifest.json"
 if ($null -ne $manifestSignoffEntrypointsPublic) {
-    $manifestSignoffEntrypointsPublic["release_assets_manifest"] = Convert-EvidencePathToPublicDisplay `
-        -Value $manifestPath `
-        -RepoRoot $repoRoot
+    $manifestSignoffEntrypointsPublic["release_assets_manifest"] = "release_assets_manifest.json"
     Convert-EvidenceEntrypointsToPublicDisplay `
         -Contract $manifestSignoffEntrypointsPublic `
         -SourceContract $manifestSignoffEntrypoints `

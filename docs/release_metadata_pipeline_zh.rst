@@ -502,7 +502,10 @@ blocker rollup 的 source report contract evidence，并由 release governance h
 ``ARTIFACT_GUIDE.md`` 和 ``REVIEWER_CHECKLIST.md`` 都能展示 ``status``、
 ``release_assets_manifest``、三个必需入口、必需 governance contracts、必需字段
 （至少包含 ``status``、``release_ready``、``release_blocker_count``、
-``warning_count``、``schema_approval_status_summary``、``source_report_display`` 和
+``warning_count``、``schema_approval_status_summary``、
+``onboarding_governance_next_action``、``onboarding_governance_next_action_summary``、
+``onboarding_governance_next_action_group_count``、``next_action``、
+``next_action_summary``、``next_action_group_count``、``source_report_display`` 和
 ``source_json_display``）和
 ``reviewer_manifest_scoped_project_template_trace``，避免 packaged manifest signoff
 只停留在打包产物层。固定标记：

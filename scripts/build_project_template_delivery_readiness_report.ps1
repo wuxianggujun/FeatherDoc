@@ -282,6 +282,64 @@ function Add-SummaryGroup {
     )
 }
 
+function Get-FirstJsonObjectValue {
+    param([object[]]$Items, [string]$PropertyName)
+
+    foreach ($item in @($Items)) {
+        $value = Get-JsonProperty -Object $item -Name $PropertyName
+        if ($null -ne $value) {
+            return $value
+        }
+    }
+    return $null
+}
+
+function Get-OnboardingGovernanceNextActionSummary {
+    param([object[]]$Templates)
+
+    $seen = @{}
+    $items = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($template in @($Templates)) {
+        foreach ($item in @(Get-JsonArray -Object $template -Name "onboarding_governance_next_action_summary")) {
+            $key = @(
+                (Get-JsonString -Object $item -Name "action" -DefaultValue "unknown"),
+                (Get-JsonString -Object $item -Name "status" -DefaultValue "unknown"),
+                (Get-JsonString -Object $item -Name "blocker_id"),
+                (Get-JsonString -Object $item -Name "reason")
+            ) -join ([string][char]31)
+            if ($seen.ContainsKey($key)) {
+                continue
+            }
+            $seen[$key] = $true
+            $items.Add($item) | Out-Null
+        }
+    }
+
+    return @($items.ToArray())
+}
+
+function Get-NextActionDisplay {
+    param([AllowNull()]$NextAction)
+
+    if ($null -eq $NextAction) {
+        return ""
+    }
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($field in @("action", "status", "blocker_id", "reason")) {
+        $value = Get-JsonString -Object $NextAction -Name $field
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $parts.Add(("{0}={1}" -f $field, $value)) | Out-Null
+        }
+    }
+
+    if ($parts.Count -gt 0) {
+        return ($parts.ToArray() -join " ")
+    }
+
+    return [string]$NextAction
+}
+
 function New-ReleaseBlocker {
     param(
         [string]$Id,
@@ -395,6 +453,9 @@ function New-ReadinessTemplate {
         onboarding_governance_status = ""
         onboarding_governance_release_ready = ""
         onboarding_governance_schema_approval_status_summary = @()
+        onboarding_governance_next_action = $null
+        onboarding_governance_next_action_summary = @()
+        onboarding_governance_next_action_group_count = 0
         onboarding_governance_source_report = ""
         onboarding_governance_source_report_display = ""
         onboarding_governance_source_json = ""
@@ -428,6 +489,9 @@ function Convert-OnboardingGovernanceToTemplates {
         ""
     }
     $onboardingGovernanceSchemaApprovalStatusSummary = @(Get-JsonArray -Object $Json -Name "schema_approval_status_summary")
+    $onboardingGovernanceNextAction = Get-JsonProperty -Object $Json -Name "next_action"
+    $onboardingGovernanceNextActionSummary = @(Get-JsonArray -Object $Json -Name "next_action_summary")
+    $onboardingGovernanceNextActionGroupCount = Get-JsonInt -Object $Json -Name "next_action_group_count" -DefaultValue $onboardingGovernanceNextActionSummary.Count
     $onboardingGovernanceSourceDisplay = Get-DisplayPath -RepoRoot $RepoRoot -Path $Path
 
     return @(
@@ -447,6 +511,9 @@ function Convert-OnboardingGovernanceToTemplates {
             $template["onboarding_governance_status"] = $onboardingGovernanceStatus
             $template["onboarding_governance_release_ready"] = $onboardingGovernanceReleaseReady
             $template["onboarding_governance_schema_approval_status_summary"] = @($onboardingGovernanceSchemaApprovalStatusSummary)
+            $template["onboarding_governance_next_action"] = $onboardingGovernanceNextAction
+            $template["onboarding_governance_next_action_summary"] = @($onboardingGovernanceNextActionSummary)
+            $template["onboarding_governance_next_action_group_count"] = $onboardingGovernanceNextActionGroupCount
             $template["onboarding_governance_source_report"] = $Path
             $template["onboarding_governance_source_report_display"] = $onboardingGovernanceSourceDisplay
             $template["onboarding_governance_source_json"] = $Path
@@ -728,6 +795,11 @@ function New-ReportMarkdown {
     $lines.Add("- Blocked templates: ``$($Summary.blocked_template_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Latest schema approval gate: ``$($Summary.latest_schema_approval_gate_status)``") | Out-Null
+    $onboardingGovernanceNextAction = Get-NextActionDisplay -NextAction $Summary.onboarding_governance_next_action
+    if (-not [string]::IsNullOrWhiteSpace($onboardingGovernanceNextAction)) {
+        $lines.Add("- Onboarding governance next action: ``$onboardingGovernanceNextAction``") | Out-Null
+        $lines.Add("- Onboarding governance next action groups: ``$($Summary.onboarding_governance_next_action_group_count)``") | Out-Null
+    }
     $lines.Add("") | Out-Null
     $lines.Add("## Schema Approval History") | Out-Null
     $lines.Add("") | Out-Null
@@ -739,6 +811,20 @@ function New-ReportMarkdown {
         $lines.Add("- Blocked runs: ``$($Summary.schema_history_blocked_run_count)``") | Out-Null
         $lines.Add("- Pending runs: ``$($Summary.schema_history_pending_run_count)``") | Out-Null
         $lines.Add("- Passed runs: ``$($Summary.schema_history_passed_run_count)``") | Out-Null
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Onboarding Governance Next Actions") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.onboarding_governance_next_action_summary).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.onboarding_governance_next_action_summary)) {
+            $display = Get-NextActionDisplay -NextAction $item
+            if ([string]::IsNullOrWhiteSpace($display)) {
+                $display = "unknown"
+            }
+            $lines.Add("- ``$display``") | Out-Null
+        }
     }
     $lines.Add("") | Out-Null
     $lines.Add("## Templates") | Out-Null
@@ -763,9 +849,12 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)`` source_report_display=``$($blocker.source_report_display)``") | Out-Null
+            $lines.Add("- ``$($blocker.scope)`` / ``$($blocker.id)``: action=``$($blocker.action)`` blocker_id=``$($blocker.blocker_id)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)`` source_report_display=``$($blocker.source_report_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - message: $($blocker.message)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.reason)) {
+                $lines.Add("  - reason: $($blocker.reason)") | Out-Null
             }
         }
     }
@@ -776,7 +865,10 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.template_name)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)`` source_report_display=``$($item.source_report_display)``") | Out-Null
+            $lines.Add("- ``$($item.template_name)`` / ``$($item.id)``: action=``$($item.action)`` blocker_id=``$($item.blocker_id)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)`` source_report_display=``$($item.source_report_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.reason)) {
+                $lines.Add("  - reason: $($item.reason)") | Out-Null
+            }
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -998,12 +1090,14 @@ foreach ($blocker in @($globalReleaseBlockers.ToArray())) {
         source_json_display = Get-JsonString -Object $blocker -Name "source_json_display" -DefaultValue (Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath)
         source_report = Get-JsonString -Object $blocker -Name "source_report" -DefaultValue $summaryPath
         source_report_display = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue (Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath)
-        id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
-        severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
-        status = Get-JsonString -Object $blocker -Name "status"
-        action = Get-JsonString -Object $blocker -Name "action"
-        message = Get-JsonString -Object $blocker -Name "message"
-    }) | Out-Null
+            id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
+            blocker_id = Get-JsonString -Object $blocker -Name "blocker_id" -DefaultValue (Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker")
+            severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
+            status = Get-JsonString -Object $blocker -Name "status"
+            action = Get-JsonString -Object $blocker -Name "action"
+            message = Get-JsonString -Object $blocker -Name "message"
+            reason = Get-JsonString -Object $blocker -Name "reason" -DefaultValue (Get-JsonString -Object $blocker -Name "message")
+        }) | Out-Null
 }
 
 foreach ($template in @($templates.ToArray())) {
@@ -1018,13 +1112,18 @@ foreach ($template in @($templates.ToArray())) {
             source_report = Get-JsonString -Object $blocker -Name "source_report" -DefaultValue ([string]$template.source_report)
             source_report_display = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue ([string]$template.source_report_display)
             id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
+            blocker_id = Get-JsonString -Object $blocker -Name "blocker_id" -DefaultValue (Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker")
             severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
             status = Get-JsonString -Object $blocker -Name "status" -DefaultValue ([string]$template.schema_approval_status)
             action = Get-JsonString -Object $blocker -Name "action" -DefaultValue ([string]$template.schema_approval_action)
             message = Get-JsonString -Object $blocker -Name "message" -DefaultValue "Release blocker requires review."
+            reason = Get-JsonString -Object $blocker -Name "reason" -DefaultValue (Get-JsonString -Object $blocker -Name "message" -DefaultValue "Release blocker requires review.")
             onboarding_governance_status = Get-JsonString -Object $blocker -Name "onboarding_governance_status" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_status")
             onboarding_governance_release_ready = Get-JsonString -Object $blocker -Name "onboarding_governance_release_ready" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_release_ready")
             onboarding_governance_schema_approval_status_summary = @(Get-JsonArray -Object $blocker -Name "onboarding_governance_schema_approval_status_summary")
+            onboarding_governance_next_action = if ($null -ne (Get-JsonProperty -Object $blocker -Name "onboarding_governance_next_action")) { Get-JsonProperty -Object $blocker -Name "onboarding_governance_next_action" } else { Get-JsonProperty -Object $template -Name "onboarding_governance_next_action" }
+            onboarding_governance_next_action_summary = @(Get-JsonArray -Object $blocker -Name "onboarding_governance_next_action_summary")
+            onboarding_governance_next_action_group_count = Get-JsonInt -Object $blocker -Name "onboarding_governance_next_action_group_count" -DefaultValue (Get-JsonInt -Object $template -Name "onboarding_governance_next_action_group_count")
             onboarding_governance_source_report = Get-JsonString -Object $blocker -Name "onboarding_governance_source_report" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_report")
             onboarding_governance_source_report_display = Get-JsonString -Object $blocker -Name "onboarding_governance_source_report_display" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_report_display")
             onboarding_governance_source_json = Get-JsonString -Object $blocker -Name "onboarding_governance_source_json" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_json")
@@ -1033,6 +1132,10 @@ foreach ($template in @($templates.ToArray())) {
         $lastBlocker = $releaseBlockers[$releaseBlockers.Count - 1]
         if (@($lastBlocker.onboarding_governance_schema_approval_status_summary).Count -eq 0) {
             $lastBlocker["onboarding_governance_schema_approval_status_summary"] = @(Get-JsonArray -Object $template -Name "onboarding_governance_schema_approval_status_summary")
+        }
+        if (@($lastBlocker.onboarding_governance_next_action_summary).Count -eq 0) {
+            $lastBlocker["onboarding_governance_next_action_summary"] = @(Get-JsonArray -Object $template -Name "onboarding_governance_next_action_summary")
+            $lastBlocker["onboarding_governance_next_action_group_count"] = @($lastBlocker.onboarding_governance_next_action_summary).Count
         }
     }
     foreach ($item in @($template.action_items)) {
@@ -1045,13 +1148,18 @@ foreach ($template in @($templates.ToArray())) {
             source_report = Get-JsonString -Object $item -Name "source_report" -DefaultValue ([string]$template.source_report)
             source_report_display = Get-JsonString -Object $item -Name "source_report_display" -DefaultValue ([string]$template.source_report_display)
             id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
+            blocker_id = Get-JsonString -Object $item -Name "blocker_id" -DefaultValue (Get-JsonString -Object $item -Name "id" -DefaultValue "action_item")
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
+            reason = Get-JsonString -Object $item -Name "reason" -DefaultValue (Get-JsonString -Object $item -Name "title")
             command = Get-JsonString -Object $item -Name "command"
             open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command" -DefaultValue $deliveryReadinessOpenCommand)
             onboarding_governance_status = Get-JsonString -Object $item -Name "onboarding_governance_status" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_status")
             onboarding_governance_release_ready = Get-JsonString -Object $item -Name "onboarding_governance_release_ready" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_release_ready")
             onboarding_governance_schema_approval_status_summary = @(Get-JsonArray -Object $item -Name "onboarding_governance_schema_approval_status_summary")
+            onboarding_governance_next_action = if ($null -ne (Get-JsonProperty -Object $item -Name "onboarding_governance_next_action")) { Get-JsonProperty -Object $item -Name "onboarding_governance_next_action" } else { Get-JsonProperty -Object $template -Name "onboarding_governance_next_action" }
+            onboarding_governance_next_action_summary = @(Get-JsonArray -Object $item -Name "onboarding_governance_next_action_summary")
+            onboarding_governance_next_action_group_count = Get-JsonInt -Object $item -Name "onboarding_governance_next_action_group_count" -DefaultValue (Get-JsonInt -Object $template -Name "onboarding_governance_next_action_group_count")
             onboarding_governance_source_report = Get-JsonString -Object $item -Name "onboarding_governance_source_report" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_report")
             onboarding_governance_source_report_display = Get-JsonString -Object $item -Name "onboarding_governance_source_report_display" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_report_display")
             onboarding_governance_source_json = Get-JsonString -Object $item -Name "onboarding_governance_source_json" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_source_json")
@@ -1060,6 +1168,10 @@ foreach ($template in @($templates.ToArray())) {
         $lastActionItem = $actionItems[$actionItems.Count - 1]
         if (@($lastActionItem.onboarding_governance_schema_approval_status_summary).Count -eq 0) {
             $lastActionItem["onboarding_governance_schema_approval_status_summary"] = @(Get-JsonArray -Object $template -Name "onboarding_governance_schema_approval_status_summary")
+        }
+        if (@($lastActionItem.onboarding_governance_next_action_summary).Count -eq 0) {
+            $lastActionItem["onboarding_governance_next_action_summary"] = @(Get-JsonArray -Object $template -Name "onboarding_governance_next_action_summary")
+            $lastActionItem["onboarding_governance_next_action_group_count"] = @($lastActionItem.onboarding_governance_next_action_summary).Count
         }
     }
     foreach ($recommendation in @($template.manual_review_recommendations)) {
@@ -1078,6 +1190,9 @@ foreach ($template in @($templates.ToArray())) {
 $sourceFailureCount = @($sourceFiles.ToArray() | Where-Object { $_.status -eq "failed" }).Count
 $blockedTemplateCount = @($templates.ToArray() | Where-Object { [bool]$_.release_blocked }).Count
 $readyTemplateCount = @($templates.ToArray() | Where-Object { -not [bool]$_.release_blocked }).Count
+$onboardingGovernanceNextAction = Get-FirstJsonObjectValue -Items $templates.ToArray() -PropertyName "onboarding_governance_next_action"
+$onboardingGovernanceNextActionSummary = @(Get-OnboardingGovernanceNextActionSummary -Templates $templates.ToArray())
+$onboardingGovernanceNextActionGroupCount = $onboardingGovernanceNextActionSummary.Count
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($releaseBlockers.Count -gt 0 -or $blockedTemplateCount -gt 0) {
@@ -1115,6 +1230,9 @@ $summary = [ordered]@{
     templates = @($templates.ToArray())
     template_status_summary = @(Add-SummaryGroup -Items $templates.ToArray() -PropertyName "onboarding_status" -OutputName "status")
     schema_approval_status_summary = @(Add-SummaryGroup -Items $templates.ToArray() -PropertyName "schema_approval_status" -OutputName "status")
+    onboarding_governance_next_action = $onboardingGovernanceNextAction
+    onboarding_governance_next_action_summary = @($onboardingGovernanceNextActionSummary)
+    onboarding_governance_next_action_group_count = $onboardingGovernanceNextActionGroupCount
     release_blocker_count = $releaseBlockers.Count
     release_blockers = @($releaseBlockers.ToArray())
     blocker_id_summary = @(Add-SummaryGroup -Items $releaseBlockers.ToArray() -PropertyName "id" -OutputName "id")

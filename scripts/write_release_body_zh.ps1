@@ -439,6 +439,7 @@ function Add-ProjectTemplateGovernanceContractSummaryLines {
                 "schema_history_blocked_run_count",
                 "schema_history_pending_run_count",
                 "schema_history_passed_run_count",
+                "onboarding_governance_next_action_group_count",
                 "template_count",
                 "ready_template_count",
                 "blocked_template_count",
@@ -459,6 +460,16 @@ function Add-ProjectTemplateGovernanceContractSummaryLines {
                     [void]$readinessParts.Add("schema_approval_status_summary=$schemaApprovalSummary")
                 }
             }
+        }
+        $onboardingGovernanceNextAction = Format-ProjectTemplateNextActionSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "onboarding_governance_next_action")
+        if (-not [string]::IsNullOrWhiteSpace($onboardingGovernanceNextAction)) {
+            [void]$readinessParts.Add("onboarding_governance_next_action=$onboardingGovernanceNextAction")
+        }
+        $onboardingGovernanceNextActionSummary = Format-ProjectTemplateNextActionSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "onboarding_governance_next_action_summary")
+        if (-not [string]::IsNullOrWhiteSpace($onboardingGovernanceNextActionSummary)) {
+            [void]$readinessParts.Add("onboarding_governance_next_action_summary=$onboardingGovernanceNextActionSummary")
         }
         [void]$readinessParts.Add("source_report_display=$(Get-GovernanceSourceReportDisplay -Item $readinessReport)")
         [void]$readinessParts.Add("source_json_display=$(Get-GovernanceSourceJsonDisplay -Item $readinessReport)")
@@ -489,6 +500,20 @@ function Add-ProjectTemplateGovernanceContractSummaryLines {
             }
         }
         [void]$onboardingParts.Add("schema_approval_status_summary=$schemaApprovalSummary")
+        $nextAction = Format-ProjectTemplateNextActionSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingReport -Name "next_action")
+        if (-not [string]::IsNullOrWhiteSpace($nextAction)) {
+            [void]$onboardingParts.Add("next_action=$nextAction")
+        }
+        $nextActionSummary = Format-ProjectTemplateNextActionSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingReport -Name "next_action_summary")
+        if (-not [string]::IsNullOrWhiteSpace($nextActionSummary)) {
+            [void]$onboardingParts.Add("next_action_summary=$nextActionSummary")
+        }
+        $nextActionGroupCount = Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "next_action_group_count"
+        if (-not [string]::IsNullOrWhiteSpace($nextActionGroupCount)) {
+            [void]$onboardingParts.Add("next_action_group_count=$nextActionGroupCount")
+        }
         [void]$onboardingParts.Add("source_report_display=$(Get-GovernanceSourceReportDisplay -Item $onboardingReport)")
         [void]$onboardingParts.Add("source_json_display=$(Get-GovernanceSourceJsonDisplay -Item $onboardingReport)")
         [void]$Lines.Add("- Project template onboarding: $($onboardingParts -join ' ')")
@@ -557,12 +582,16 @@ function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
     if ($null -ne $readinessReport) {
         $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
             -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "schema_approval_status_summary")
+        $onboardingGovernanceNextAction = Format-ProjectTemplateNextActionSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "onboarding_governance_next_action")
         Add-UniqueLine -Lines $Lines -Line (
-            'project-template readiness governance contract 已进入短摘要： status={0} release_ready={1} latest_schema_approval_gate_status={2} schema_approval_status_summary={3} release_blocker_count={4} warning_count={5} source_report_display={6} source_json_display={7}。' -f `
+            'project-template readiness governance contract 已进入短摘要： status={0} release_ready={1} latest_schema_approval_gate_status={2} schema_approval_status_summary={3} onboarding_governance_next_action={4} onboarding_governance_next_action_group_count={5} release_blocker_count={6} warning_count={7} source_report_display={8} source_json_display={9}。' -f `
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "status")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "release_ready")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "latest_schema_approval_gate_status")),
                 (Get-DisplayValue -Value $schemaApprovalSummary),
+                (Get-DisplayValue -Value $onboardingGovernanceNextAction),
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "onboarding_governance_next_action_group_count")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "release_blocker_count")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "warning_count")),
                 (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $readinessReport)),
@@ -574,12 +603,16 @@ function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
         $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
             -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingReport -Name "schema_approval_status_summary") `
             -Fallback (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "status")
+        $nextAction = Format-ProjectTemplateNextActionSummary `
+            -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingReport -Name "next_action")
 
         Add-UniqueLine -Lines $Lines -Line (
-            'project-template onboarding governance contract 已进入短摘要： status={0} release_ready={1} schema_approval_status_summary={2} source_report_display={3} source_json_display={4}。' -f `
+            'project-template onboarding governance contract 已进入短摘要： status={0} release_ready={1} schema_approval_status_summary={2} next_action={3} next_action_group_count={4} source_report_display={5} source_json_display={6}。' -f `
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "status")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "release_ready")),
                 (Get-DisplayValue -Value $schemaApprovalSummary),
+                (Get-DisplayValue -Value $nextAction),
+                (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "next_action_group_count")),
                 (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $onboardingReport)),
                 (Get-DisplayValue -Value (Get-GovernanceSourceJsonDisplay -Item $onboardingReport))
         )

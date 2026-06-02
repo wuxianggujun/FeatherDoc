@@ -222,6 +222,76 @@ function Convert-ReleaseMaterialString {
             [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     }
 
+    $convertAbsolutePath = {
+        param([string]$Path)
+
+        if ([string]::IsNullOrWhiteSpace($Path)) {
+            return ".\external"
+        }
+
+        $displayPath = ([string]$Path).Trim().TrimEnd('\', '/')
+        $normalizedPath = $displayPath -replace '/', '\'
+        $publicAnchors = @(
+            "\release-candidate-checks-source\",
+            "\release-candidate-checks\",
+            "\release-governance-handoff-input\",
+            "\release-governance-handoff\",
+            "\release-blocker-rollup\",
+            "\pdf-bounded-ctest\",
+            "\pdf-summary\",
+            "\word-visual-gate\",
+            "\visual-tasks\",
+            "\consumer-build\",
+            "\output\",
+            "\build\",
+            "\install\"
+        )
+
+        foreach ($anchor in $publicAnchors) {
+            $index = $normalizedPath.IndexOf($anchor, [System.StringComparison]::OrdinalIgnoreCase)
+            if ($index -ge 0) {
+                return ".\" + $normalizedPath.Substring($index + 1)
+            }
+        }
+
+        $segments = @($normalizedPath -split '[\\/]' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($segments.Count -eq 0) {
+            return ".\external"
+        }
+
+        $suffixSegmentCount = [Math]::Min(2, $segments.Count)
+        $startIndex = $segments.Count - $suffixSegmentCount
+        $suffix = @($segments[$startIndex..($segments.Count - 1)]) -join '\'
+        return ".\external\$suffix"
+    }
+    $replaceAbsolutePaths = {
+        param(
+            [string]$InputText,
+            [string]$Pattern
+        )
+
+        $convertedText = [string]$InputText
+        foreach ($match in @([regex]::Matches($convertedText, $Pattern))) {
+            $path = [string]$match.Groups["path"].Value
+            if ([string]::IsNullOrWhiteSpace($path)) {
+                continue
+            }
+
+            $convertedText = $convertedText.Replace($path, (& $convertAbsolutePath $path))
+        }
+
+        return $convertedText
+    }
+
+    $windowsAbsolutePathPattern = '(?i)(?<![\w<>])(?<path>[A-Z]:[\\/][^\s"''`<>|;,)]+)'
+    $normalized = & $replaceAbsolutePaths $normalized $windowsAbsolutePathPattern
+
+    $uncAbsolutePathPattern = '(?<![.\\/])(?<path>\\\\[^\\/\s"''`<>|;,)]+[\\/][^\s"''`<>|;,)]+)'
+    $normalized = & $replaceAbsolutePaths $normalized $uncAbsolutePathPattern
+
+    $unixAbsolutePathPattern = '(?<![\w.])(?<path>/(?:Users|home|tmp)/[^\s"''`<>|;,)]+)'
+    $normalized = & $replaceAbsolutePaths $normalized $unixAbsolutePathPattern
+
     return $normalized.Replace('./', '.\')
 }
 
@@ -266,6 +336,30 @@ function Convert-ReleaseMaterialObject {
     }
 
     return $Value
+}
+
+function Convert-ReleaseMaterialFile {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+
+    $content = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path
+    if ([System.IO.Path]::GetExtension($Path) -eq ".json") {
+        $json = $content | ConvertFrom-Json
+        $convertedJson = Convert-ReleaseMaterialObject -RepoRoot $RepoRoot -Value $json
+        $convertedJson | ConvertTo-Json -Depth 12 | Set-Content -Encoding UTF8 -LiteralPath $Path
+        return
+    }
+
+    $converted = Convert-ReleaseMaterialString -RepoRoot $RepoRoot -Text $content
+    if ($converted -ne $content) {
+        $converted | Set-Content -Encoding UTF8 -LiteralPath $Path
+    }
 }
 
 function Get-ProjectVersion {
@@ -2178,6 +2272,12 @@ $releaseManifestSignoffEntrypoints = if ($ReleaseEvidenceScope -eq "pdf-only") {
             "release_blocker_count",
             "warning_count",
             "schema_approval_status_summary",
+            "onboarding_governance_next_action",
+            "onboarding_governance_next_action_summary",
+            "onboarding_governance_next_action_group_count",
+            "next_action",
+            "next_action_summary",
+            "next_action_group_count",
             "source_report_display",
             "source_json_display"
         )
@@ -2274,6 +2374,7 @@ $releaseBlockerRollupScript = Join-Path $repoRoot "scripts\build_release_blocker
 $releaseGovernanceHandoffScript = Join-Path $repoRoot "scripts\build_release_governance_handoff_report.ps1"
 $visualGateScript = Join-Path $repoRoot "scripts\run_word_visual_release_gate.ps1"
 $releaseNoteBundleScript = Join-Path $repoRoot "scripts\write_release_note_bundle.ps1"
+$releaseMaterialAuditScript = Join-Path $repoRoot "scripts\assert_release_material_safety.ps1"
 
 $resolvedTemplateSchemaInputDocx = if ([string]::IsNullOrWhiteSpace($TemplateSchemaInputDocx)) {
     ""
@@ -3665,7 +3766,6 @@ try {
         }
     }
 
-    $summary = Convert-ReleaseMaterialObject -RepoRoot $repoRoot -Value $summary
     ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
 
     $repoRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $repoRoot
@@ -3909,11 +4009,36 @@ $wordVisualStandardReviewMetadataEvidenceMarkdown
                 $reviewerChecklistPath
                 "-StartHereOutputPath"
                 $startHerePath
+                "-SkipMaterialSafetyAudit"
             ) `
             -FailureMessage "Failed to write release note bundle."
     } catch {
         Write-Step $_.Exception.Message
     }
+
+    foreach ($releaseMaterialPath in @(
+            $summaryPath,
+            $finalReviewPath,
+            $releaseHandoffPath,
+            $releaseBodyZhCnPath,
+            $releaseSummaryZhCnPath,
+            $artifactGuidePath,
+            $reviewerChecklistPath,
+            $startHerePath
+        )) {
+        Convert-ReleaseMaterialFile -RepoRoot $repoRoot -Path $releaseMaterialPath
+    }
+
+    & $releaseMaterialAuditScript -Path @(
+        $summaryPath,
+        $finalReviewPath,
+        $releaseHandoffPath,
+        $releaseBodyZhCnPath,
+        $releaseSummaryZhCnPath,
+        $artifactGuidePath,
+        $reviewerChecklistPath,
+        $startHerePath
+    )
 }
 
 Write-Step "Completed release-candidate checks"

@@ -536,7 +536,7 @@ if ($curatedVisualReviewEntries.Count -gt 0) {
 [void]$lines.Add("")
 [void]$lines.Add("- Release assets output dir: $assetOutputDir")
 if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence) {
-    [void]$lines.Add(('- Project-template governance manifest signoff: open `{0}` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `release_blocker_count`, `warning_count`, `schema_approval_status_summary`, `source_report_display`, and `source_json_display` before refreshing or publishing GitHub Release assets.' -f $releaseAssetsManifestPath))
+    [void]$lines.Add(('- Project-template governance manifest signoff: open `{0}` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `release_blocker_count`, `warning_count`, `schema_approval_status_summary`, `onboarding_governance_next_action`, `onboarding_governance_next_action_summary`, `onboarding_governance_next_action_group_count`, `next_action`, `next_action_summary`, `next_action_group_count`, `source_report_display`, and `source_json_display` before refreshing or publishing GitHub Release assets.' -f $releaseAssetsManifestPath))
 }
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateChecklistHandoffEvidenceLine)) {
     [void]$lines.Add("- Project-template readiness checklist handoff signoff: $projectTemplateChecklistHandoffEvidenceLine.")

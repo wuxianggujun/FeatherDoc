@@ -650,6 +650,66 @@ function Format-ProjectTemplateSchemaApprovalStatusSummary {
     return ($parts -join ", ")
 }
 
+function Format-ProjectTemplateNextActionSummary {
+    param(
+        [AllowNull()]$Value,
+        [string]$Fallback = ""
+    )
+
+    if ($null -eq $Value) {
+        return $Fallback
+    }
+
+    if ($Value -is [string]) {
+        if ([string]::IsNullOrWhiteSpace($Value)) {
+            return $Fallback
+        }
+
+        return $Value
+    }
+
+    $items = if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [System.Collections.IDictionary])) {
+        @($Value | Where-Object { $null -ne $_ })
+    } else {
+        @($Value)
+    }
+
+    $itemsText = @(
+        foreach ($item in $items) {
+            if ($null -eq $item) {
+                continue
+            }
+
+            if ($item -is [string]) {
+                if (-not [string]::IsNullOrWhiteSpace($item)) {
+                    [string]$item
+                }
+                continue
+            }
+
+            $parts = New-Object 'System.Collections.Generic.List[string]'
+            foreach ($fieldName in @("action", "status", "blocker_id", "reason")) {
+                $fieldValue = Get-ReleaseBlockerPropertyValue -Object $item -Name $fieldName
+                if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+                    [void]$parts.Add("${fieldName}=${fieldValue}")
+                }
+            }
+
+            if ($parts.Count -gt 0) {
+                $parts -join " "
+            } elseif (-not [string]::IsNullOrWhiteSpace([string]$item)) {
+                [string]$item
+            }
+        }
+    )
+
+    if ($itemsText.Count -eq 0) {
+        return $Fallback
+    }
+
+    return ($itemsText -join ", ")
+}
+
 function Get-ReleaseBlockerSummaryText {
     param([AllowNull()]$Blocker)
 
@@ -2260,6 +2320,20 @@ function Add-ProjectTemplateOnboardingGovernanceContractLines {
     }
     $status = Get-ReleaseBlockerPropertyValue -Object $Item -Name "onboarding_governance_status"
     $releaseReady = Get-ReleaseBlockerPropertyValue -Object $Item -Name "onboarding_governance_release_ready"
+    $nextActionValue = Get-ReleaseBlockerPropertyObject -Object $Item -Name "onboarding_governance_next_action"
+    if ($null -eq $nextActionValue) {
+        $nextActionValue = Get-ReleaseBlockerPropertyObject -Object $Item -Name "next_action"
+    }
+    $nextAction = Format-ProjectTemplateNextActionSummary -Value $nextActionValue
+    $nextActionSummaryValue = Get-ReleaseBlockerPropertyObject -Object $Item -Name "onboarding_governance_next_action_summary"
+    if ($null -eq $nextActionSummaryValue) {
+        $nextActionSummaryValue = Get-ReleaseBlockerPropertyObject -Object $Item -Name "next_action_summary"
+    }
+    $nextActionSummary = Format-ProjectTemplateNextActionSummary -Value $nextActionSummaryValue
+    $nextActionGroupCount = Get-ReleaseBlockerPropertyValue -Object $Item -Name "onboarding_governance_next_action_group_count"
+    if ([string]::IsNullOrWhiteSpace($nextActionGroupCount)) {
+        $nextActionGroupCount = Get-ReleaseBlockerPropertyValue -Object $Item -Name "next_action_group_count"
+    }
     $onboardingSourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Item -Name "onboarding_governance_source_report_display"
     if (-not [string]::IsNullOrWhiteSpace($onboardingSourceReportDisplay)) {
         $SourceReportDisplay = $onboardingSourceReportDisplay
@@ -2278,6 +2352,15 @@ function Add-ProjectTemplateOnboardingGovernanceContractLines {
         [void]$Lines.Add("    - release_ready: $releaseReady")
     }
     [void]$Lines.Add("    - schema_approval_status_summary: $schemaApprovalSummary")
+    if (-not [string]::IsNullOrWhiteSpace($nextAction)) {
+        [void]$Lines.Add("    - next_action: $nextAction")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($nextActionSummary)) {
+        [void]$Lines.Add("    - next_action_summary: $nextActionSummary")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($nextActionGroupCount)) {
+        [void]$Lines.Add("    - next_action_group_count: $nextActionGroupCount")
+    }
     if (-not [string]::IsNullOrWhiteSpace($SourceReportDisplay)) {
         [void]$Lines.Add("    - source_report_display: $SourceReportDisplay")
     }
@@ -2319,6 +2402,11 @@ function Add-ProjectTemplateOnboardingGovernanceReportContractLines {
 
     $status = Get-ReleaseBlockerPropertyValue -Object $Report -Name "status"
     $releaseReady = Get-ReleaseBlockerPropertyValue -Object $Report -Name "release_ready"
+    $nextAction = Format-ProjectTemplateNextActionSummary `
+        -Value (Get-ReleaseBlockerPropertyObject -Object $Report -Name "next_action")
+    $nextActionSummary = Format-ProjectTemplateNextActionSummary `
+        -Value (Get-ReleaseBlockerPropertyObject -Object $Report -Name "next_action_summary")
+    $nextActionGroupCount = Get-ReleaseBlockerPropertyValue -Object $Report -Name "next_action_group_count"
 
     [void]$Lines.Add("  - project_template_onboarding.schema_approval:")
     [void]$Lines.Add("    - project_template_onboarding_governance_contract:")
@@ -2331,6 +2419,15 @@ function Add-ProjectTemplateOnboardingGovernanceReportContractLines {
     }
     [void]$Lines.Add("      - schema_approval_status_summary: $schemaApprovalSummary")
     [void]$Lines.Add("      - schema_approval_status_summary_marker: schema_approval_status_summary=$schemaApprovalSummary")
+    if (-not [string]::IsNullOrWhiteSpace($nextAction)) {
+        [void]$Lines.Add("      - next_action: $nextAction")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($nextActionSummary)) {
+        [void]$Lines.Add("      - next_action_summary: $nextActionSummary")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($nextActionGroupCount)) {
+        [void]$Lines.Add("      - next_action_group_count: $nextActionGroupCount")
+    }
     if (-not [string]::IsNullOrWhiteSpace($SourceReportDisplay)) {
         [void]$Lines.Add("      - source_report_display: $SourceReportDisplay")
     }

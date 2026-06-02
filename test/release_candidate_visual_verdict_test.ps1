@@ -626,8 +626,8 @@ $sanitizedObject = Convert-ReleaseMaterialObject -RepoRoot $resolvedRepoRoot -Va
             }
         )
     })
-Assert-Equal -Actual ([string]$sanitizedObject.path) -Expected (Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfSummaryPath) `
-    -Message "Release material object sanitizer should rewrite repo-root paths recursively."
+Assert-Equal -Actual ([string]$sanitizedObject.path) -Expected ".\pdf-summary\summary.json" `
+    -Message "Release material object sanitizer should rewrite external absolute paths recursively."
 Assert-DoesNotContainText -Text ([string]$sanitizedObject.nested[0].command) -UnexpectedText $resolvedRepoRoot `
     -Message "Release material object sanitizer should rewrite nested command strings."
 
@@ -1157,6 +1157,21 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "project-temp
         warning_count = 0
         warnings = @()
         source_failure_count = 0
+        onboarding_governance_next_action = [ordered]@{
+            action = "publish_project_template"
+            status = "ready"
+            blocker_id = ""
+            reason = "Project template delivery readiness is release-ready."
+        }
+        onboarding_governance_next_action_summary = @(
+            [ordered]@{
+                action = "publish_project_template"
+                status = "ready"
+                blocker_id = ""
+                reason = "Project template delivery readiness is release-ready."
+            }
+        )
+        onboarding_governance_next_action_group_count = 1
     })
 Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "project-template-onboarding-governance\summary.json") -Value ([ordered]@{
         schema = "featherdoc.project_template_onboarding_governance_report.v1"
@@ -1181,6 +1196,21 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "project-temp
         warning_count = 0
         warnings = @()
         source_failure_count = 0
+        next_action = [ordered]@{
+            action = "publish_project_template"
+            status = "ready"
+            blocker_id = ""
+            reason = "Project template onboarding governance is release-ready."
+        }
+        next_action_summary = @(
+            [ordered]@{
+                action = "publish_project_template"
+                status = "ready"
+                blocker_id = ""
+                reason = "Project template onboarding governance is release-ready."
+            }
+        )
+        next_action_group_count = 1
     })
 Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "schema-patch-confidence-calibration\summary.json") -Value ([ordered]@{
         schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
@@ -1351,18 +1381,15 @@ if (-not (Test-Path -LiteralPath $candidateSummaryPath)) {
 }
 
 $candidateSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateSummaryPath | ConvertFrom-Json
-$expectedPdfSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfSummaryPath
-$expectedPdfContactSheetPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfContactSheetPath
-$expectedPdfAttemptSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfAttemptSummaryPath
-$expectedPdfSegmentedSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfSegmentedSummaryPath
-$expectedPdfReadinessSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $pdfReadinessSummaryPath
-$expectedFullPdfCtestSummaryPath = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot -Path $fullPdfCtestSummaryPath
-$expectedReleaseEntryChecklistSourceReport = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot `
-    -Path $candidateSummaryPath
-$expectedReleaseEntryPackagedAuditSummaryReport = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot `
-    -Path $releaseGovernanceSourcePath
-$expectedReleaseEntryPackagedAuditSourceReport = Get-RepoRelativePath -RepoRoot $resolvedRepoRoot `
-    -Path (Join-Path $releaseGovernanceHandoffOutputDir "release-blocker-rollup\release_blocker_rollup.md")
+$expectedPdfSummaryPath = ".\pdf-summary\summary.json"
+$expectedPdfContactSheetPath = ".\pdf-summary\aggregate-contact-sheet.png"
+$expectedPdfAttemptSummaryPath = ".\pdf-summary\attempt-summary.json"
+$expectedPdfSegmentedSummaryPath = ".\pdf-summary\segmented-summary.json"
+$expectedPdfReadinessSummaryPath = ".\pdf-summary\release-readiness-summary.json"
+$expectedFullPdfCtestSummaryPath = ".\pdf-bounded-ctest\full-pdf-ctest-summary.json"
+$expectedReleaseEntryChecklistSourceReport = ".\release-candidate-checks\report\summary.json"
+$expectedReleaseEntryPackagedAuditSummaryReport = ".\release-candidate-checks-source\summary.json"
+$expectedReleaseEntryPackagedAuditSourceReport = ".\release-governance-handoff\release-blocker-rollup\release_blocker_rollup.md"
 if ($candidateSummary.execution_status -ne "pass") {
     throw "Release candidate dry run should pass when all heavy flows are skipped."
 }
@@ -1634,7 +1661,15 @@ foreach ($contractName in @(
 foreach ($fieldName in @(
         "status",
         "release_ready",
+        "release_blocker_count",
+        "warning_count",
         "schema_approval_status_summary",
+        "onboarding_governance_next_action",
+        "onboarding_governance_next_action_summary",
+        "onboarding_governance_next_action_group_count",
+        "next_action",
+        "next_action_summary",
+        "next_action_group_count",
         "source_report_display",
         "source_json_display"
     )) {

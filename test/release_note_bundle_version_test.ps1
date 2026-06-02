@@ -442,6 +442,21 @@ $summary = [ordered]@{
                 source_failure_count = 0
                 latest_schema_approval_gate_status = "pending_review"
                 schema_approval_status_summary = "pending_review"
+                onboarding_governance_next_action = [ordered]@{
+                    action = "review_schema_update_candidate"
+                    status = "pending_review"
+                    blocker_id = "project_template_onboarding.schema_approval"
+                    reason = "Project template onboarding schema approval is pending."
+                }
+                onboarding_governance_next_action_summary = @(
+                    [ordered]@{
+                        action = "review_schema_update_candidate"
+                        status = "pending_review"
+                        blocker_id = "project_template_onboarding.schema_approval"
+                        reason = "Project template onboarding schema approval is pending."
+                    }
+                )
+                onboarding_governance_next_action_group_count = 1
                 schema_history_blocked_run_count = 0
                 schema_history_pending_run_count = 1
                 schema_history_passed_run_count = 2
@@ -464,6 +479,21 @@ $summary = [ordered]@{
                 source_json_display = ".\output\project-template-onboarding-governance\summary.json"
                 source_failure_count = 0
                 schema_approval_status_summary = "pending_review"
+                next_action = [ordered]@{
+                    action = "review_schema_update_candidate"
+                    status = "pending_review"
+                    blocker_id = "project_template_onboarding.schema_approval"
+                    reason = "Project template onboarding schema approval is pending."
+                }
+                next_action_summary = @(
+                    [ordered]@{
+                        action = "review_schema_update_candidate"
+                        status = "pending_review"
+                        blocker_id = "project_template_onboarding.schema_approval"
+                        reason = "Project template onboarding schema approval is pending."
+                    }
+                )
+                next_action_group_count = 1
                 source_file_count = 3
                 entry_count = 4
                 blocked_entry_count = 0
@@ -743,6 +773,21 @@ $summary = [ordered]@{
                 source_failure_count = 1
                 latest_schema_approval_gate_status = "pending_review"
                 schema_approval_status_summary = "pending_review"
+                onboarding_governance_next_action = [ordered]@{
+                    action = "review_schema_update_candidate"
+                    status = "pending_review"
+                    blocker_id = "project_template_onboarding.schema_approval"
+                    reason = "Project template onboarding schema approval is pending."
+                }
+                onboarding_governance_next_action_summary = @(
+                    [ordered]@{
+                        action = "review_schema_update_candidate"
+                        status = "pending_review"
+                        blocker_id = "project_template_onboarding.schema_approval"
+                        reason = "Project template onboarding schema approval is pending."
+                    }
+                )
+                onboarding_governance_next_action_group_count = 1
                 schema_history_blocked_run_count = 0
                 schema_history_pending_run_count = 1
                 schema_history_passed_run_count = 2
@@ -766,6 +811,21 @@ $summary = [ordered]@{
                 source_json_display = ".\output\project-template-onboarding-governance\summary.json"
                 source_failure_count = 0
                 schema_approval_status_summary = "pending_review"
+                next_action = [ordered]@{
+                    action = "review_schema_update_candidate"
+                    status = "pending_review"
+                    blocker_id = "project_template_onboarding.schema_approval"
+                    reason = "Project template onboarding schema approval is pending."
+                }
+                next_action_summary = @(
+                    [ordered]@{
+                        action = "review_schema_update_candidate"
+                        status = "pending_review"
+                        blocker_id = "project_template_onboarding.schema_approval"
+                        reason = "Project template onboarding schema approval is pending."
+                    }
+                )
+                next_action_group_count = 1
                 source_file_count = 3
                 entry_count = 4
                 blocked_entry_count = 0
@@ -795,6 +855,21 @@ $summary = [ordered]@{
                 onboarding_governance_status = "pending_review"
                 onboarding_governance_release_ready = "False"
                 onboarding_governance_schema_approval_status_summary = "pending_review"
+                onboarding_governance_next_action = [ordered]@{
+                    action = "review_schema_update_candidate"
+                    status = "pending_review"
+                    blocker_id = "project_template_onboarding.schema_approval"
+                    reason = "Project template onboarding schema approval is pending."
+                }
+                onboarding_governance_next_action_summary = @(
+                    [ordered]@{
+                        action = "review_schema_update_candidate"
+                        status = "pending_review"
+                        blocker_id = "project_template_onboarding.schema_approval"
+                        reason = "Project template onboarding schema approval is pending."
+                    }
+                )
+                onboarding_governance_next_action_group_count = 1
                 onboarding_governance_source_report_display = ".\output\project-template-onboarding-governance\summary.json"
                 onboarding_governance_source_json_display = ".\output\project-template-onboarding-governance\summary.json"
             },
@@ -825,6 +900,21 @@ $summary = [ordered]@{
                 onboarding_governance_status = "pending_review"
                 onboarding_governance_release_ready = "False"
                 onboarding_governance_schema_approval_status_summary = "pending_review"
+                onboarding_governance_next_action = [ordered]@{
+                    action = "review_schema_update_candidate"
+                    status = "pending_review"
+                    blocker_id = "project_template_onboarding.schema_approval"
+                    reason = "Project template onboarding schema approval is pending."
+                }
+                onboarding_governance_next_action_summary = @(
+                    [ordered]@{
+                        action = "review_schema_update_candidate"
+                        status = "pending_review"
+                        blocker_id = "project_template_onboarding.schema_approval"
+                        reason = "Project template onboarding schema approval is pending."
+                    }
+                )
+                onboarding_governance_next_action_group_count = 1
                 onboarding_governance_source_report_display = ".\output\project-template-onboarding-governance\summary.json"
                 onboarding_governance_source_json_display = ".\output\project-template-onboarding-governance\summary.json"
             },
@@ -1151,12 +1241,30 @@ Assert-Contains -Path $bodyPath -ExpectedText 'project_template_delivery_readine
 Assert-Contains -Path $bodyPath -ExpectedText 'source_schema=featherdoc.project_template_delivery_readiness_report.v1' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'latest_schema_approval_gate_status=pending_review' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'latest_schema_approval_gate_status=pending_review schema_approval_status_summary=pending_review schema_history_blocked_run_count=0 schema_history_pending_run_count=1 schema_history_passed_run_count=2 template_count=3 ready_template_count=2 blocked_template_count=1 release_blocker_count=1 action_item_count=1 warning_count=0 source_failure_count=0 source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_body.zh-CN.md'
+Assert-LineContainsAll -Path $bodyPath -ExpectedFragments @(
+    'Project template readiness:',
+    'latest_schema_approval_gate_status=pending_review',
+    'schema_approval_status_summary=pending_review',
+    'onboarding_governance_next_action_group_count=1',
+    'onboarding_governance_next_action=action=review_schema_update_candidate',
+    'onboarding_governance_next_action_summary=action=review_schema_update_candidate',
+    'source_report_display=.\output\project-template-delivery-readiness\summary.json',
+    'source_json_display=.\output\project-template-delivery-readiness\summary.json'
+) -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'source_schema=featherdoc.project_template_onboarding_governance_report.v1' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'schema_approval_status_summary=pending_review' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 status=pending_review release_ready=False schema_approval_status_summary=pending_review source_report_display=.\output\project-template-onboarding-governance\summary.json source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_body.zh-CN.md'
+Assert-LineContainsAll -Path $bodyPath -ExpectedFragments @(
+    'Project template onboarding:',
+    'project_template_onboarding.schema_approval',
+    'schema_approval_status_summary=pending_review',
+    'next_action=action=review_schema_update_candidate',
+    'next_action_summary=action=review_schema_update_candidate',
+    'next_action_group_count=1',
+    'source_report_display=.\output\project-template-onboarding-governance\summary.json',
+    'source_json_display=.\output\project-template-onboarding-governance\summary.json'
+) -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'Project template release checklist evidence' -Label 'release_body.zh-CN.md'
 Assert-LineContainsAll -Path $bodyPath -ExpectedFragments @(
@@ -1193,9 +1301,30 @@ Assert-Contains -Path $shortPath -ExpectedText 'section page setup=`pass`' -Labe
 Assert-Contains -Path $shortPath -ExpectedText 'page number fields=`pending_manual_review`' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'Template table CLI selector=`pass`' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'project-template readiness governance contract' -Label 'release_summary.zh-CN.md'
-Assert-Contains -Path $shortPath -ExpectedText 'status=blocked release_ready=False latest_schema_approval_gate_status=pending_review schema_approval_status_summary=pending_review release_blocker_count=1 warning_count=0 source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' -Label 'release_summary.zh-CN.md'
+Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
+    'project-template readiness governance contract',
+    'status=blocked',
+    'release_ready=False',
+    'latest_schema_approval_gate_status=pending_review',
+    'schema_approval_status_summary=pending_review',
+    'onboarding_governance_next_action=action=review_schema_update_candidate',
+    'onboarding_governance_next_action_group_count=1',
+    'release_blocker_count=1',
+    'warning_count=0',
+    'source_report_display=.\output\project-template-delivery-readiness\summary.json',
+    'source_json_display=.\output\project-template-delivery-readiness\summary.json'
+) -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText 'project-template onboarding governance contract' -Label 'release_summary.zh-CN.md'
-Assert-Contains -Path $shortPath -ExpectedText 'status=pending_review release_ready=False schema_approval_status_summary=pending_review source_report_display=.\output\project-template-onboarding-governance\summary.json source_json_display=.\output\project-template-onboarding-governance\summary.json' -Label 'release_summary.zh-CN.md'
+Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
+    'project-template onboarding governance contract',
+    'status=pending_review',
+    'release_ready=False',
+    'schema_approval_status_summary=pending_review',
+    'next_action=action=review_schema_update_candidate',
+    'next_action_group_count=1',
+    'source_report_display=.\output\project-template-onboarding-governance\summary.json',
+    'source_json_display=.\output\project-template-onboarding-governance\summary.json'
+) -Label 'release_summary.zh-CN.md'
 Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
     'project-template readiness checklist handoff evidence',
     'Project-template readiness checklist handoff evidence',
@@ -1286,7 +1415,8 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
         'source_schema: featherdoc.project_template_delivery_readiness_report.v1',
         'status: blocked',
         'release_ready: False',
-        'schema_approval_status_summary: pending_review'
+        'schema_approval_status_summary: pending_review',
+        'onboarding_governance_next_action_group_count: 1'
     ) -Label $document.Label
     Assert-MarkdownListBlockContainsAll -Path $document.Path -Anchor 'project_template_onboarding.schema_approval: action=review_schema_update_candidate' -ExpectedFragments @(
         'source_schema=featherdoc.project_template_onboarding_governance_report.v1',
@@ -1297,7 +1427,10 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
         'project_template_onboarding_governance_contract:',
         'status: pending_review',
         'release_ready: False',
-        'schema_approval_status_summary: pending_review'
+        'schema_approval_status_summary: pending_review',
+        'next_action:',
+        'next_action_summary:',
+        'next_action_group_count: 1'
     ) -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'catalog_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'baseline_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label
@@ -1317,6 +1450,7 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'source_schema: featherdoc.project_template_delivery_readiness_report.v1' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'latest_schema_approval_gate_status: pending_review' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'schema_approval_status_summary: pending_review' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'onboarding_governance_next_action_group_count: 1' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'template_count: 3' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'release_blocker_count: 1' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report_display: .\output\project-template-delivery-readiness\summary.json' -Label $document.Label
@@ -1354,6 +1488,12 @@ foreach ($document in $manifestEntryDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'release_blocker_count' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'warning_count' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'schema_approval_status_summary' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'onboarding_governance_next_action' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'onboarding_governance_next_action_summary' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'onboarding_governance_next_action_group_count' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'next_action' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'next_action_summary' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'next_action_group_count' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report_display' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_json_display' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'before refreshing or publishing GitHub Release assets' -Label $document.Label
@@ -1366,6 +1506,12 @@ Assert-Contains -Path $manifestChecklistPath -ExpectedText 'project_template_onb
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'release_blocker_count' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'warning_count' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'schema_approval_status_summary' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'onboarding_governance_next_action' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'onboarding_governance_next_action_summary' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'onboarding_governance_next_action_group_count' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'next_action' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'next_action_summary' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'next_action_group_count' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_report_display' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_json_display' -Label 'REVIEWER_CHECKLIST.md'
 $checklistHandoffEntryDocuments = @(
@@ -1654,6 +1800,21 @@ function Set-ProjectTemplateReadinessWarningOnlyFixture {
     $Report.source_failure_count = 0
     $Report.latest_schema_approval_gate_status = "passed"
     $Report.schema_approval_status_summary = "approved=4"
+    $Report.onboarding_governance_next_action = [pscustomobject]@{
+        action = "review_project_template_delivery_readiness_evidence"
+        status = "needs_review"
+        blocker_id = "project_template_delivery_readiness.warning_only"
+        reason = "Review warning-only project-template readiness evidence."
+    }
+    $Report.onboarding_governance_next_action_summary = @(
+        [pscustomobject]@{
+            action = "review_project_template_delivery_readiness_evidence"
+            status = "needs_review"
+            blocker_id = "project_template_delivery_readiness.warning_only"
+            reason = "Review warning-only project-template readiness evidence."
+        }
+    )
+    $Report.onboarding_governance_next_action_group_count = 1
     $Report.schema_history_blocked_run_count = 0
     $Report.schema_history_pending_run_count = 0
     $Report.schema_history_passed_run_count = 4
@@ -1697,6 +1858,8 @@ Assert-LineContainsAll -Path $bodyPath -ExpectedFragments @(
     'release_ready=False',
     'latest_schema_approval_gate_status=passed',
     'schema_approval_status_summary=approved=4',
+    'onboarding_governance_next_action_group_count=1',
+    'onboarding_governance_next_action=action=review_project_template_delivery_readiness_evidence',
     'schema_history_blocked_run_count=0',
     'schema_history_pending_run_count=0',
     'schema_history_passed_run_count=4',
@@ -1710,8 +1873,19 @@ Assert-LineContainsAll -Path $bodyPath -ExpectedFragments @(
     'source_report_display=.\output\project-template-delivery-readiness\summary.json',
     'source_json_display=.\output\project-template-delivery-readiness\summary.json'
 ) -Label 'release_body.zh-CN.md warning-only project-template readiness'
-Assert-Contains -Path $shortPath -ExpectedText 'status=needs_review release_ready=False latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 release_blocker_count=0 warning_count=1 source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json' `
-    -Label 'release_summary.zh-CN.md warning-only project-template readiness'
+Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
+    'project-template readiness governance contract',
+    'status=needs_review',
+    'release_ready=False',
+    'latest_schema_approval_gate_status=passed',
+    'schema_approval_status_summary=approved=4',
+    'onboarding_governance_next_action=action=review_project_template_delivery_readiness_evidence',
+    'onboarding_governance_next_action_group_count=1',
+    'release_blocker_count=0',
+    'warning_count=1',
+    'source_report_display=.\output\project-template-delivery-readiness\summary.json',
+    'source_json_display=.\output\project-template-delivery-readiness\summary.json'
+) -Label 'release_summary.zh-CN.md warning-only project-template readiness'
 
 function Assert-BundleRejectsSummary {
     param(
