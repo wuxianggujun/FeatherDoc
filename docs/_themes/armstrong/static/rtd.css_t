@@ -92,6 +92,12 @@ div.related {
     background: {{ theme_light_medium_color }};
 }
 
+.featherdoc-language-switch a.is-active {
+    color: {{ theme_white }};
+    border-color: {{ theme_medium_color }};
+    background: {{ theme_medium_color }};
+}
+
 .featherdoc-language-switch__spacer {
     width: 0.6em;
 }

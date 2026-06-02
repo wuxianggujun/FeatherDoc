@@ -65,6 +65,17 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 html_theme = "armstrong"
 html_theme_path = ["_themes", ]
 
+# Keep language-local documentation trees from inheriting Sphinx's global
+# previous/next relation links, which can point readers back into hidden
+# compatibility pages.
+html_sidebars = {
+    '**': [
+        'localtoc.html',
+        'sourcelink.html',
+        'searchbox.html',
+    ],
+}
+
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

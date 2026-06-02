@@ -50,6 +50,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
 $rootIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
+$docsConf = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\conf.py"
 $englishIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\index.rst"
 $englishGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\getting_started.rst"
 $englishApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\index.rst"
@@ -78,7 +79,45 @@ $chineseEditPlanOperationsApi = Get-RepoFileText -Root $resolvedRepoRoot -Relati
 $chineseEnumsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\enums.rst"
 $readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
 $readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
+$themeLayout = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\_themes\armstrong\layout.html"
+$themeCss = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\_themes\armstrong\static\rtd.css_t"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+
+foreach ($marker in @(
+        'data-featherdoc-language-switch="global"',
+        'data-featherdoc-language="en"',
+        'data-featherdoc-language="zh-CN"',
+        'data-featherdoc-api-language="en"',
+        'data-featherdoc-api-language="zh-CN"',
+        'data-featherdoc-language-nav="no-auto-relations"',
+        '{% block linktags %}',
+        '{% block sidebarrel %}{% endblock %}',
+        'featherdoc_current_lang'
+    )) {
+    Assert-ContainsText -Text $themeLayout -ExpectedText $marker `
+        -Message "Theme layout should expose a stable global language/API switch marker."
+}
+
+foreach ($marker in @(
+        ".featherdoc-language-switch a.is-active",
+        "theme_medium_color"
+    )) {
+    Assert-ContainsText -Text $themeCss -ExpectedText $marker `
+        -Message "Theme CSS should highlight the active documentation language."
+}
+
+foreach ($marker in @(
+        "html_sidebars",
+        "'localtoc.html'",
+        "'sourcelink.html'",
+        "'searchbox.html'"
+    )) {
+    Assert-ContainsText -Text $docsConf -ExpectedText $marker `
+        -Message "Sphinx config should keep sidebars free of automatic previous/next relations."
+}
+
+Assert-DoesNotContainText -Text $docsConf -UnexpectedText "'relations.html'" `
+    -Message "Sphinx config should not render automatic previous/next relation sidebars."
 
 foreach ($marker in @(
         "Choose a language entry point",
@@ -157,8 +196,33 @@ foreach ($marker in @(
 foreach ($marker in @(
         "featherdoc::Document",
         "Lifecycle",
+        "FDOC_DOCUMENT_API_PARAMETERS",
+        "Parameters",
+        "path() const",
+        "last_error() const noexcept",
+        "enable_update_fields_on_open()",
         "Template Part Access",
         "Sections And Inspection",
+        "FDOC_DOCUMENT_API_SECTIONS",
+        "move_section",
+        "replace_section_footer_text",
+        "remove_section_footer_reference",
+        "section_page_setup",
+        "reference_kind",
+        "FDOC_DOCUMENT_API_TEMPLATE_FILLING",
+        "replace_content_control_text_by_tag(std::string_view tag, std::string_view replacement)",
+        "list_content_controls() const",
+        "replace_content_control_with_table_rows_by_tag",
+        "bookmark_fill_result",
+        "FDOC_DOCUMENT_API_BODY_TABLE_IMAGE",
+        "append_table",
+        "append_floating_image",
+        "FDOC_DOCUMENT_API_REVIEW_LINKS",
+        "append_paragraph_text_comment",
+        "append_text_range_comment",
+        "FDOC_DOCUMENT_API_RELATED_FAMILIES",
+        "Related API Families",
+        "fields_links_reviews",
         "open()",
         "save_as",
         "../../api/document"
@@ -359,13 +423,24 @@ foreach ($marker in @(
 foreach ($marker in @(
         "../en/index",
         "getting_started",
-        "api/index",
-        "../visual_validation_zh",
-        "../governance_routes_zh",
-        "../release_policy_zh"
+        "api/index"
     )) {
     Assert-ContainsText -Text $chineseIndex -ExpectedText $marker `
         -Message "Chinese docs entrypoint should preserve navigation marker."
+}
+
+foreach ($marker in @(
+        '* :doc:`../visual_validation_zh`',
+        '* :doc:`../governance_routes_zh`',
+        '* :doc:`../release_policy_zh`',
+        '../visual_validation_zh',
+        '../governance_routes_zh',
+        '../release_policy_zh',
+        '../project_identity_zh',
+        '../script_task_index_zh'
+    )) {
+    Assert-DoesNotContainText -Text $chineseIndex -UnexpectedText $marker `
+        -Message "Chinese docs entrypoint should keep legacy topic docs out of the language-local navigation tree."
 }
 
 foreach ($marker in @(
@@ -409,8 +484,31 @@ foreach ($marker in @(
 
 foreach ($marker in @(
         "featherdoc::Document",
+        "FDOC_DOCUMENT_API_PARAMETERS",
+        "path() const",
+        "last_error() const noexcept",
+        "enable_update_fields_on_open()",
         "TemplatePart",
         "sections_inspection_summary",
+        "FDOC_DOCUMENT_API_SECTIONS",
+        "move_section",
+        "replace_section_footer_text",
+        "remove_section_footer_reference",
+        "section_page_setup",
+        "reference_kind",
+        "FDOC_DOCUMENT_API_TEMPLATE_FILLING",
+        "replace_content_control_text_by_tag(std::string_view tag, std::string_view replacement)",
+        "list_content_controls() const",
+        "replace_content_control_with_table_rows_by_tag",
+        "bookmark_fill_result",
+        "FDOC_DOCUMENT_API_BODY_TABLE_IMAGE",
+        "append_table",
+        "append_floating_image",
+        "FDOC_DOCUMENT_API_REVIEW_LINKS",
+        "append_paragraph_text_comment",
+        "append_text_range_comment",
+        "FDOC_DOCUMENT_API_RELATED_FAMILIES",
+        "fields_links_reviews",
         "compare_semantic",
         "open()",
         "save_as",

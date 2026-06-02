@@ -9,16 +9,54 @@
 
 {% endblock %}
 
+{% macro featherdoc_relbar() %}
+    <div class="related" role="navigation" aria-label="Related" data-featherdoc-language-nav="no-auto-relations">
+      <h3>{{ _('Navigation') }}</h3>
+      <ul>
+        {% block rootrellink %}
+        <li class="nav-item nav-item-0"><a href="{{ pathto(root_doc)|e }}">{{ shorttitle|e }}</a>{{ reldelim1 }}</li>
+        {% endblock %}
+        {% for parent in parents %}
+          <li class="nav-item nav-item-{{ loop.index }}"><a href="{{ parent.link|e }}" {% if loop.last %}{{ accesskey("U") }}{% endif %}>{{ parent.title }}</a>{{ reldelim1 }}</li>
+        {% endfor %}
+        <li class="nav-item nav-item-this"><a href="{{ link|e }}">{{ title }}</a></li>
+        {% block relbaritems %} {% endblock %}
+      </ul>
+    </div>
+{% endmacro %}
+
+{% block linktags %}
+    {%- if hasdoc('about') %}
+    <link rel="author" title="{{ _('About these documents') }}" href="{{ pathto('about') }}" />
+    {%- endif %}
+    {%- if hasdoc('genindex') %}
+    <link rel="index" title="{{ _('Index') }}" href="{{ pathto('genindex') }}" />
+    {%- endif %}
+    {%- if hasdoc('search') %}
+    <link rel="search" title="{{ _('Search') }}" href="{{ pathto('search') }}" />
+    {%- endif %}
+    {%- if hasdoc('copyright') %}
+    <link rel="copyright" title="{{ _('Copyright') }}" href="{{ pathto('copyright') }}" />
+    {%- endif %}
+{% endblock %}
+
+{% block sidebarrel %}{% endblock %}
+
 {% block relbar1 %}
-{{ super() }}
-<div class="featherdoc-language-switch" role="navigation" aria-label="Documentation language">
+{{ featherdoc_relbar() }}
+{% set featherdoc_current_lang = "zh-CN" if pagename.startswith("zh-CN/") else "en" if pagename.startswith("en/") else "root" %}
+<div class="featherdoc-language-switch" role="navigation" aria-label="Documentation language" data-featherdoc-language-switch="global">
   <span class="featherdoc-language-switch__label">Language</span>
-  <a href="{{ pathto('en/index') }}">English</a>
-  <a href="{{ pathto('zh-CN/index') }}">简体中文</a>
+  <a href="{{ pathto('en/index') }}" data-featherdoc-language="en"{% if featherdoc_current_lang == "en" %} class="is-active"{% endif %}>English</a>
+  <a href="{{ pathto('zh-CN/index') }}" data-featherdoc-language="zh-CN"{% if featherdoc_current_lang == "zh-CN" %} class="is-active"{% endif %}>简体中文</a>
   <span class="featherdoc-language-switch__spacer"></span>
-  <a href="{{ pathto('en/api/index') }}">English API</a>
-  <a href="{{ pathto('zh-CN/api/index') }}">中文 API</a>
+  <a href="{{ pathto('en/api/index') }}" data-featherdoc-api-language="en">English API</a>
+  <a href="{{ pathto('zh-CN/api/index') }}" data-featherdoc-api-language="zh-CN">中文 API</a>
 </div>
+{% endblock %}
+
+{% block relbar2 %}
+{{ featherdoc_relbar() }}
 {% endblock %}
 
 {% block footer %}
