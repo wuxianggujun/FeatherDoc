@@ -433,6 +433,72 @@ function New-GovernanceNextAction {
     }
 }
 
+function New-GovernanceSummaryNextAction {
+    param(
+        [object[]]$Entries = @(),
+        [object[]]$ActionItems = @()
+    )
+
+    $openActionItems = @(
+        @($ActionItems) |
+            Where-Object { (Get-JsonString -Object $_ -Name "status" -DefaultValue "open") -eq "open" } |
+            Select-Object -First 1
+    )
+    if ($openActionItems.Count -gt 0) {
+        $item = $openActionItems[0]
+        return [ordered]@{
+            id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
+            entry_name = Get-JsonString -Object $item -Name "entry_name"
+            status = Get-JsonString -Object $item -Name "status" -DefaultValue "open"
+            action = Get-JsonString -Object $item -Name "action"
+            title = Get-JsonString -Object $item -Name "title"
+            reason = Get-JsonString -Object $item -Name "reason"
+            blocker_id = Get-JsonString -Object $item -Name "blocker_id"
+            open_command = Get-JsonString -Object $item -Name "open_command"
+            source = "action_items"
+            source_report_display = Get-JsonString -Object $item -Name "source_report_display"
+            source_json_display = Get-JsonString -Object $item -Name "source_json_display"
+        }
+    }
+
+    $openEntryActions = @(
+        @($Entries) |
+            Where-Object { (Get-JsonString -Object (Get-JsonProperty -Object $_ -Name "next_action") -Name "status") -eq "open" } |
+            Select-Object -First 1
+    )
+    if ($openEntryActions.Count -gt 0) {
+        $entry = $openEntryActions[0]
+        $nextAction = Get-JsonProperty -Object $entry -Name "next_action"
+        return [ordered]@{
+            id = Get-JsonString -Object $nextAction -Name "id" -DefaultValue "next_action"
+            entry_name = Get-JsonString -Object $entry -Name "name"
+            status = Get-JsonString -Object $nextAction -Name "status" -DefaultValue "open"
+            action = Get-JsonString -Object $nextAction -Name "action"
+            title = Get-JsonString -Object $nextAction -Name "title"
+            reason = Get-JsonString -Object $nextAction -Name "reason"
+            blocker_id = Get-JsonString -Object $nextAction -Name "blocker_id"
+            open_command = Get-JsonString -Object $nextAction -Name "command"
+            source = "entries.next_action"
+            source_report_display = ""
+            source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path (Get-JsonString -Object $entry -Name "source_json")
+        }
+    }
+
+    return [ordered]@{
+        id = "none"
+        entry_name = ""
+        status = "not_required"
+        action = "none"
+        title = "No onboarding action is required."
+        reason = "No open onboarding action items remain."
+        blocker_id = ""
+        open_command = ""
+        source = "action_items"
+        source_report_display = ""
+        source_json_display = ""
+    }
+}
+
 function New-GovernanceEntry {
     param(
         [string]$Name,
@@ -601,6 +667,13 @@ function New-ReportMarkdown {
     $lines.Add("- Source files: ``$($Summary.source_file_count)``") | Out-Null
     $lines.Add("- Template entries: ``$($Summary.entry_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
+    $lines.Add("- Next action: ``$($Summary.next_action.id)`` entry=``$($Summary.next_action.entry_name)`` blocker=``$($Summary.next_action.blocker_id)``") | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace([string]$Summary.next_action.reason)) {
+        $lines.Add("- Next action reason: $($Summary.next_action.reason)") | Out-Null
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$Summary.next_action.open_command)) {
+        $lines.Add("- Next action command: ``$($Summary.next_action.open_command)``") | Out-Null
+    }
     $lines.Add("") | Out-Null
     $lines.Add("## Schema Approval Status") | Out-Null
     $lines.Add("") | Out-Null
@@ -763,6 +836,7 @@ foreach ($entry in @($entries.ToArray())) {
             source_json = Get-JsonString -Object $item -Name "source_json" -DefaultValue ([string]$entry.source_json)
             source_json_display = Get-JsonString -Object $item -Name "source_json_display" -DefaultValue (Get-DisplayPath -RepoRoot $repoRoot -Path ([string]$entry.source_json))
             id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
+            status = Get-JsonString -Object $item -Name "status" -DefaultValue "open"
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
             reason = Get-JsonString -Object $item -Name "reason"
@@ -786,6 +860,9 @@ foreach ($entry in @($entries.ToArray())) {
 
 $sourceFailureCount = @($sourceFiles.ToArray() | Where-Object { $_.status -eq "failed" }).Count
 $releaseBlockerCount = $releaseBlockers.Count
+$summaryNextAction = New-GovernanceSummaryNextAction `
+    -Entries $entries.ToArray() `
+    -ActionItems $actionItems.ToArray()
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($releaseBlockerCount -gt 0) {
@@ -807,6 +884,7 @@ $summary = [ordered]@{
     source_files = @($sourceFiles.ToArray())
     entry_count = $entries.Count
     entries = @($entries.ToArray())
+    next_action = $summaryNextAction
     schema_approval_status_summary = @(New-StatusSummary -Entries $entries.ToArray())
     blocked_entry_count = @($entries.ToArray() | Where-Object { $_.schema_approval_status -eq "blocked" }).Count
     pending_review_entry_count = @($entries.ToArray() | Where-Object { $_.schema_approval_status -eq "pending_review" }).Count

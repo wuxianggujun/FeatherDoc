@@ -261,6 +261,18 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should aggregate onboarding action items."
     Assert-Equal -Actual ([int]$summary.manual_review_recommendation_count) -Expected 2 `
         -Message "Summary should aggregate manual review recommendations."
+    Assert-Equal -Actual ([string]$summary.next_action.id) -Expected "run_project_template_smoke" `
+        -Message "Summary should expose the first global next action."
+    Assert-Equal -Actual ([string]$summary.next_action.entry_name) -Expected "invoice-template" `
+        -Message "Summary next_action should identify the selected entry."
+    Assert-ContainsText -Text ([string]$summary.next_action.reason) `
+        -ExpectedText "schema approval evidence is missing" `
+        -Message "Summary next_action should preserve the reason."
+    Assert-Equal -Actual ([string]$summary.next_action.blocker_id) -Expected "project_template_onboarding.schema_approval_not_evaluated" `
+        -Message "Summary next_action should link to the selected blocker."
+    Assert-ContainsText -Text ([string]$summary.next_action.open_command) `
+        -ExpectedText "run_project_template_smoke.ps1" `
+        -Message "Summary next_action should expose the reviewer command."
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
         -Message "Release blockers should expose the onboarding governance source schema."
@@ -300,6 +312,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include a title."
     Assert-ContainsText -Text $markdown -ExpectedText "Schema Approval Status" `
         -Message "Markdown should expose status summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "Next action: ``run_project_template_smoke``" `
+        -Message "Markdown should expose the global next action."
+    Assert-ContainsText -Text $markdown -ExpectedText "Next action reason" `
+        -Message "Markdown should expose the global next action reason."
     Assert-ContainsText -Text $markdown -ExpectedText "contract-template" `
         -Message "Markdown should include onboarding plan entries."
     Assert-ContainsText -Text $markdown -ExpectedText "smoke-template" `
