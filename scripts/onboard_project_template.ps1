@@ -340,6 +340,8 @@ function New-OnboardingActionItems {
             status = "open"
             action = "run_project_template_smoke_then_review_schema_patch_approval"
             title = "运行 project-template smoke 并生成 schema approval 证据"
+            reason = "schema approval 尚未评估，需要先运行 smoke 生成审批证据。"
+            blocker_id = "project_template_onboarding.schema_approval_not_evaluated"
             command = [string]$Commands.run_project_template_smoke
             artifacts = @($SmokeSummaryPath)
         })
@@ -349,6 +351,8 @@ function New-OnboardingActionItems {
             status = "open"
             action = "review_schema_update_candidate"
             title = "复核 schema update candidate 并登记 approval decision"
+            reason = "schema approval 正在等待人工复核，需先完成审批决定。"
+            blocker_id = "project_template_onboarding.schema_approval"
             command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1 -SummaryJson '$SmokeSummaryPath'"
             artifacts = @($SmokeSummaryPath)
         })
@@ -358,6 +362,8 @@ function New-OnboardingActionItems {
             status = "open"
             action = [string]$SchemaApprovalState["action"]
             title = "修复 schema approval 阻断项后重新同步审批状态"
+            reason = "schema approval 存在阻断项，需先修复后再同步状态。"
+            blocker_id = "project_template_onboarding.schema_approval"
             command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1 -SummaryJson '$SmokeSummaryPath'"
             artifacts = @($SmokeSummaryPath)
         })
@@ -371,6 +377,8 @@ function New-OnboardingActionItems {
                 status = "open"
                 action = "complete_render_data_workspace"
                 title = "补齐 render-data 中的 TODO 和空表格行"
+                reason = "render-data 仍有占位或缺失业务值，严格校验不能通过。"
+                blocker_id = "project_template_onboarding.render_data_incomplete"
                 command = [string]$Commands.validate_render_data_workspace_strict
                 artifacts = @($ValidationReportPath)
             })
@@ -380,6 +388,8 @@ function New-OnboardingActionItems {
                 status = "open"
                 action = "fix_failed_onboarding_step"
                 title = "查看失败 step 的 error 字段并重跑对应命令"
+                reason = "onboarding 工作流存在失败 step，需要先定位失败命令。"
+                blocker_id = "project_template_onboarding.workflow_failed"
                 command = ""
                 artifacts = @()
             })
@@ -407,6 +417,8 @@ function New-OnboardingNextAction {
             status = Get-JsonString -Object $item -Name "status"
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
+            reason = Get-JsonString -Object $item -Name "reason"
+            blocker_id = Get-JsonString -Object $item -Name "blocker_id"
             command = Get-JsonString -Object $item -Name "command"
             source = "action_items"
             artifacts = @(Get-JsonArray -Object $item -Name "artifacts")
@@ -418,6 +430,8 @@ function New-OnboardingNextAction {
         status = "ready"
         action = "register_manifest_entry"
         title = "登记 manifest entry"
+        reason = "没有 open action_items，manifest 登记成为下一步可执行动作。"
+        blocker_id = ""
         command = [string]$Commands.register_manifest_entry
         source = "manifest_registration"
         artifacts = @()
@@ -529,6 +543,8 @@ function New-StartHere {
         "- id: ``$($Summary.next_action.id)``",
         "- action: ``$($Summary.next_action.action)``",
         "- title: ``$($Summary.next_action.title)``",
+        "- reason: ``$($Summary.next_action.reason)``",
+        "- blocker_id: ``$($Summary.next_action.blocker_id)``",
         "",
         '```powershell',
         $Summary.next_action.command,
@@ -588,6 +604,8 @@ function New-ManualReview {
     $lines.Add("- status: ``$($Summary.next_action.status)``") | Out-Null
     $lines.Add("- action: ``$($Summary.next_action.action)``") | Out-Null
     $lines.Add("- title: ``$($Summary.next_action.title)``") | Out-Null
+    $lines.Add("- reason: ``$($Summary.next_action.reason)``") | Out-Null
+    $lines.Add("- blocker_id: ``$($Summary.next_action.blocker_id)``") | Out-Null
     if (-not [string]::IsNullOrWhiteSpace([string]$Summary.next_action.command)) {
         $lines.Add("") | Out-Null
         $lines.Add('```powershell') | Out-Null

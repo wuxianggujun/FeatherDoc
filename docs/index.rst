@@ -2201,7 +2201,10 @@ smoke output directories, and the final strict-preflight command can be
 reviewed before the manifest is touched. ``plan.json`` exposes
 ``featherdoc.project_template_smoke_onboarding_plan.v1`` with
 ``summary_schema_version = 1`` so governance consumers can identify it without
-guessing from the file name.
+guessing from the file name. Each onboarding entry also exposes a
+machine-readable ``next_action`` with ``reason`` and ``blocker_id`` fields so
+reviewers can see both the first command to run and the blocker it is intended
+to clear.
 You can also run
 ``discover_project_template_smoke_candidates.ps1`` to list tracked ``.docx`` /
 ``.dotx`` candidates that are not yet registered and emit ready-to-run register

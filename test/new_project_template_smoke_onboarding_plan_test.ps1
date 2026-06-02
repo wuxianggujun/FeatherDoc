@@ -113,6 +113,12 @@ Assert-ContainsText -Text ([string]$entry.next_action.id) `
 Assert-ContainsText -Text ([string]$entry.next_action.command) `
     -ExpectedText "freeze_template_schema_baseline.ps1" `
     -Message "Plan entry next_action should include the freeze schema command."
+Assert-ContainsText -Text ([string]$entry.next_action.reason) `
+    -ExpectedText "Schema approval" `
+    -Message "Plan entry next_action should explain why freeze schema is first."
+Assert-ContainsText -Text ([string]$entry.next_action.blocker_id) `
+    -ExpectedText "project_template_onboarding.schema_approval_not_evaluated" `
+    -Message "Plan entry next_action should link back to the schema approval blocker."
 Assert-True -Condition (@($entry.manual_review_recommendations).Count -ge 3) `
     -Message "Plan entry should include manual review recommendations."
 
@@ -150,6 +156,12 @@ Assert-ContainsText -Text $markdown `
 Assert-ContainsText -Text $markdown `
     -ExpectedText "Next action" `
     -Message "Markdown plan should expose the preferred next action."
+Assert-ContainsText -Text $markdown `
+    -ExpectedText "Next action reason" `
+    -Message "Markdown plan should expose why the preferred next action was selected."
+Assert-ContainsText -Text $markdown `
+    -ExpectedText "Next action blocker" `
+    -Message "Markdown plan should expose the blocker behind the preferred next action."
 Assert-ContainsText -Text $markdown `
     -ExpectedText "freeze_template_schema_baseline.ps1" `
     -Message "Markdown plan should include the next action command."

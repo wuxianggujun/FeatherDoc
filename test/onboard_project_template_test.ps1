@@ -102,6 +102,11 @@ Assert-Equal -Actual ([string]$summary.next_action.id) -Expected "run_project_te
 Assert-ContainsText -Text ([string]$summary.next_action.command) `
     -ExpectedText "run_project_template_smoke.ps1" `
     -Message "Plan-only next_action should include the smoke command."
+Assert-ContainsText -Text ([string]$summary.next_action.reason) `
+    -ExpectedText "schema approval" `
+    -Message "Plan-only next_action should explain why smoke is first."
+Assert-Equal -Actual ([string]$summary.next_action.blocker_id) -Expected "project_template_onboarding.schema_approval_not_evaluated" `
+    -Message "Plan-only next_action should link back to the schema approval blocker."
 Assert-True -Condition (@($summary.manual_review_recommendations).Count -ge 1) `
     -Message "Onboarding summary should expose manual review recommendations."
 
@@ -138,6 +143,8 @@ Assert-ContainsText -Text $startHere -ExpectedText "release_blocker_count" `
     -Message "START_HERE should expose release blocker count."
 Assert-ContainsText -Text $startHere -ExpectedText "next_action" `
     -Message "START_HERE should expose the preferred next action."
+Assert-ContainsText -Text $startHere -ExpectedText "blocker_id" `
+    -Message "START_HERE should expose the blocker behind the preferred next action."
 Assert-ContainsText -Text $startHere -ExpectedText "render_template_document_from_workspace.ps1" `
     -Message "START_HERE should include the render command."
 Assert-ContainsText -Text $manualReview -ExpectedText "Review Checklist" `
@@ -152,6 +159,8 @@ Assert-ContainsText -Text $manualReview -ExpectedText "Schema Approval State" `
     -Message "Manual review should expose schema approval state."
 Assert-ContainsText -Text $manualReview -ExpectedText "Next Action" `
     -Message "Manual review should expose the preferred next action."
+Assert-ContainsText -Text $manualReview -ExpectedText "reason" `
+    -Message "Manual review should explain why the preferred next action was selected."
 Assert-ContainsText -Text $manualReview -ExpectedText "run_project_template_smoke.ps1" `
     -Message "Manual review next action should include the smoke command."
 Assert-ContainsText -Text $manualReview -ExpectedText "Release Blockers" `

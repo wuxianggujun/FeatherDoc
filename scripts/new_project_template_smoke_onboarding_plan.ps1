@@ -356,6 +356,8 @@ function New-PlannedActionItems {
             status = "open"
             action = "freeze_schema_baseline"
             title = "Freeze the first schema baseline candidate."
+            reason = "Schema approval is not evaluated until a baseline is frozen and smoked."
+            blocker_id = "project_template_onboarding.schema_approval_not_evaluated"
             command = [string]$Commands.freeze_schema_baseline
         },
         [ordered]@{
@@ -363,6 +365,8 @@ function New-PlannedActionItems {
             status = "open"
             action = "complete_render_data_workspace"
             title = "Prepare and complete the render-data workspace."
+            reason = "The template needs real business data before strict validation and layout review."
+            blocker_id = ""
             command = [string]$Commands.prepare_render_data_workspace
             artifacts = @($RenderDataValidationReport)
         },
@@ -371,6 +375,8 @@ function New-PlannedActionItems {
             status = "open"
             action = "review_schema_update_candidate"
             title = "Run smoke after manifest registration and review schema_patch_approval_items."
+            reason = "Smoke output is required before schema approval can be marked release-ready."
+            blocker_id = "project_template_onboarding.schema_approval_not_evaluated"
             command = [string]$Commands.register_manifest_entry
         }
     )
@@ -430,6 +436,8 @@ function New-PlannedNextAction {
             status = "not_required"
             action = "none"
             title = "No onboarding action is required."
+            reason = "No open action_items remain."
+            blocker_id = ""
             command = ""
             source = "action_items"
             artifacts = @()
@@ -442,6 +450,8 @@ function New-PlannedNextAction {
         status = Get-ActionItemValue -Item $item -Name "status"
         action = Get-ActionItemValue -Item $item -Name "action"
         title = Get-ActionItemValue -Item $item -Name "title"
+        reason = Get-ActionItemValue -Item $item -Name "reason"
+        blocker_id = Get-ActionItemValue -Item $item -Name "blocker_id"
         command = Get-ActionItemValue -Item $item -Name "command"
         source = "action_items"
         artifacts = @(Get-ActionItemArray -Item $item -Name "artifacts")
@@ -697,6 +707,8 @@ if ($entries.Count -eq 0) {
         [void]$lines.Add("- Schema approval action: $($entry.schema_approval_state.action)")
         [void]$lines.Add("- Release blockers: $($entry.release_blocker_count)")
         [void]$lines.Add("- Next action: $($entry.next_action.id)")
+        [void]$lines.Add("- Next action reason: $($entry.next_action.reason)")
+        [void]$lines.Add("- Next action blocker: $($entry.next_action.blocker_id)")
         [void]$lines.Add("")
         [void]$lines.Add("Next action command:")
         [void]$lines.Add("")
