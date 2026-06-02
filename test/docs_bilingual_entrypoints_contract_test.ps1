@@ -46,6 +46,8 @@ $englishParagraphRunApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath
 $englishTableApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\table.rst"
 $englishImagesApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\images.rst"
 $englishSectionsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\sections.rst"
+$englishFieldsLinksReviewsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\fields_links_reviews.rst"
+$englishStylesNumberingApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\styles_numbering.rst"
 $englishTemplatePartApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\template_part.rst"
 $chineseIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\index.rst"
 $chineseGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\getting_started.rst"
@@ -55,6 +57,8 @@ $chineseParagraphRunApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath
 $chineseTableApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\table.rst"
 $chineseImagesApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\images.rst"
 $chineseSectionsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\sections.rst"
+$chineseFieldsLinksReviewsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\fields_links_reviews.rst"
+$chineseStylesNumberingApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\styles_numbering.rst"
 $chineseTemplatePartApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\template_part.rst"
 $readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
 $readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
@@ -107,9 +111,13 @@ foreach ($marker in @(
         "table",
         "images",
         "sections",
+        "fields_links_reviews",
+        "styles_numbering",
         "template_part",
         "../../api/content_blocks",
+        "../../api/fields_links_reviews",
         "../../api/images_sections",
+        "../../api/styles_numbering",
         "../../api/templates",
         "../../api/tables"
     )) {
@@ -200,6 +208,41 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+        "featherdoc::field_summary",
+        "featherdoc::hyperlink_summary",
+        "featherdoc::review_note_summary",
+        "featherdoc::revision_summary",
+        "list_fields",
+        "append_field",
+        "append_hyperlink",
+        "list_comments",
+        "set_comment_resolved",
+        "list_revisions",
+        "accept_all_revisions",
+        "../../api/fields_links_reviews"
+    )) {
+    Assert-ContainsText -Text $englishFieldsLinksReviewsApi -ExpectedText $marker `
+        -Message "English Fields/Links/Reviews API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
+        "numbering_definition_summary",
+        "numbering_catalog",
+        "style_summary",
+        "style_usage_report",
+        "style_refactor_plan",
+        "list_numbering_definitions",
+        "export_numbering_catalog",
+        "list_styles",
+        "suggest_style_merges",
+        "audit_table_style_quality",
+        "../../api/styles_numbering"
+    )) {
+    Assert-ContainsText -Text $englishStylesNumberingApi -ExpectedText $marker `
+        -Message "English Styles/Numbering API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
         "featherdoc::TemplatePart",
         "Part Basics",
         "Bookmarks",
@@ -246,10 +289,14 @@ foreach ($marker in @(
         "table",
         "images",
         "sections",
+        "fields_links_reviews",
+        "styles_numbering",
         "template_part",
         "../../api/content_blocks",
         "../../api/document",
+        "../../api/fields_links_reviews",
         "../../api/images_sections",
+        "../../api/styles_numbering",
         "../../api/templates",
         "../../api/tables"
     )) {
@@ -333,6 +380,41 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $chineseSectionsApi -ExpectedText $marker `
         -Message "Chinese Sections API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
+        "featherdoc::field_summary",
+        "featherdoc::hyperlink_summary",
+        "featherdoc::review_note_summary",
+        "featherdoc::revision_summary",
+        "list_fields",
+        "append_field",
+        "append_hyperlink",
+        "list_comments",
+        "set_comment_resolved",
+        "list_revisions",
+        "accept_all_revisions",
+        "../../api/fields_links_reviews"
+    )) {
+    Assert-ContainsText -Text $chineseFieldsLinksReviewsApi -ExpectedText $marker `
+        -Message "Chinese Fields/Links/Reviews API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
+        "numbering_definition_summary",
+        "numbering_catalog",
+        "style_summary",
+        "style_usage_report",
+        "style_refactor_plan",
+        "list_numbering_definitions",
+        "export_numbering_catalog",
+        "list_styles",
+        "suggest_style_merges",
+        "audit_table_style_quality",
+        "../../api/styles_numbering"
+    )) {
+    Assert-ContainsText -Text $chineseStylesNumberingApi -ExpectedText $marker `
+        -Message "Chinese Styles/Numbering API page should preserve method-table marker."
 }
 
 foreach ($marker in @(

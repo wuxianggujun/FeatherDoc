@@ -30,6 +30,12 @@ Object Map
    * - ``featherdoc::section_page_setup`` / ``page_margins``
      - Section structure, page setup, and section-resolved header/footer editing.
      - :doc:`sections`
+   * - Fields, links, notes, comments, and revisions
+     - Word fields, hyperlinks, footnotes, endnotes, comments, and tracked revisions.
+     - :doc:`fields_links_reviews`
+   * - Styles and numbering
+     - Style inspection, style refactoring, numbering catalogs, and default formatting.
+     - :doc:`styles_numbering`
    * - ``featherdoc::TemplatePart``
      - Shared operations over body, header, footer, and section-specific parts.
      - :doc:`template_part`
@@ -46,6 +52,8 @@ Object Map
    table
    images
    sections
+   fields_links_reviews
+   styles_numbering
    template_part
 
 Complete API Groups

@@ -35,6 +35,12 @@ API 参考
    * - ``featherdoc::section_page_setup`` / ``page_margins``
      - 管理分节结构、页面设置，以及分节解析后的页眉页脚。
      - :doc:`sections`
+   * - 字段、链接、脚注、批注和修订
+     - 管理 Word 字段、超链接、脚注、尾注、批注和跟踪修订。
+     - :doc:`fields_links_reviews`
+   * - 样式和编号
+     - 检查样式、重构样式、管理编号目录和默认格式。
+     - :doc:`styles_numbering`
    * - ``featherdoc::TemplatePart``
      - 把正文、页眉、页脚和分节部件统一纳入模板替换流程。
      - :doc:`template_part`
@@ -51,6 +57,8 @@ API 参考
    table
    images
    sections
+   fields_links_reviews
+   styles_numbering
    template_part
 
 英文 API 页面
