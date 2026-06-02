@@ -6,6 +6,63 @@ Table, TableRow, And TableCell
 ``featherdoc::TableCell`` edits cell content, size, merge state, borders,
 shading, margins, and paragraphs.
 
+Indexing, Units, And Return Semantics
+-------------------------------------
+
+Table APIs use zero-based indexes. ``row_index`` addresses visible table rows,
+``cell_index`` addresses visible cells in that row, and ``grid_column`` addresses
+the resolved Word grid column after spans are considered. Width, indent, margin,
+and spacing values use twips. Methods returning ``std::optional<T>`` return an
+empty value when the target cannot be resolved; methods returning ``bool`` report
+whether the table XML was changed.
+
+Typed Signature Guide
+---------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - Signature
+     - Parameters
+     - Return semantics
+   * - ``std::optional<TableRow> find_row(std::size_t row_index)``
+     - ``row_index``: zero-based visible row index.
+     - Empty when the row does not exist.
+   * - ``std::optional<TableCell> find_cell(std::size_t row_index, std::size_t cell_index)``
+     - ``row_index``: row index. ``cell_index``: visible cell index in that row.
+     - Empty when the row or cell cannot be resolved.
+   * - ``std::optional<TableCell> find_cell_by_grid_column(std::size_t row_index, std::size_t grid_column)``
+     - ``row_index``: row index. ``grid_column``: resolved Word grid column.
+     - Empty when the grid column maps to no visible cell.
+   * - ``bool set_cell_text(std::size_t row_index, std::size_t cell_index, const std::string &text)``
+     - ``row_index`` and ``cell_index``: visible cell location. ``text``: replacement text.
+     - ``true`` when the target cell text was replaced.
+   * - ``bool set_rows_texts(std::size_t start_row_index, const std::vector<std::vector<std::string>> &rows)``
+     - ``start_row_index``: first target row. ``rows``: row/cell text matrix.
+     - ``true`` when every addressed cell in the block was updated.
+   * - ``bool set_cell_block_texts(std::size_t start_row_index, std::size_t start_cell_index, const std::vector<std::vector<std::string>> &rows)``
+     - ``start_row_index`` and ``start_cell_index``: block origin. ``rows``: rectangular text matrix.
+     - ``true`` when the addressed rectangular block was updated.
+   * - ``bool set_column_width_twips(std::size_t column_index, std::uint32_t width_twips)``
+     - ``column_index``: zero-based grid column. ``width_twips``: column width in twips.
+     - ``true`` when the grid column width was updated.
+   * - ``bool set_border(table_border_edge edge, border_definition border)``
+     - ``edge``: table border edge. ``border``: style, size, color, and spacing.
+     - ``true`` when the border definition was written.
+   * - ``bool TableRow::set_texts(const std::vector<std::string> &texts)``
+     - ``texts``: visible cell texts for the current row.
+     - ``true`` when all provided cells were updated.
+   * - ``bool TableCell::merge_right(std::size_t additional_cells = 1U)``
+     - ``additional_cells``: count of cells to merge to the right.
+     - ``true`` when horizontal merge metadata was applied.
+   * - ``bool TableCell::merge_down(std::size_t additional_rows = 1U)``
+     - ``additional_rows``: count of rows to merge downward.
+     - ``true`` when vertical merge metadata was applied.
+   * - ``bool TableCell::set_margin_twips(cell_margin_edge edge, std::uint32_t margin_twips)``
+     - ``edge``: cell margin edge. ``margin_twips``: margin value in twips.
+     - ``true`` when the cell margin was updated.
+
 Table Structure And Lookup
 --------------------------
 

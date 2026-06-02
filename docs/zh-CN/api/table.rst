@@ -6,6 +6,66 @@ Table、TableRow 和 TableCell
 ``featherdoc::TableCell`` 用于编辑单元格内容、宽度、合并状态、边框、
 底色、边距和内部段落。
 
+索引、单位和返回语义
+--------------------
+
+.. FDOC_ZH_CN_TABLE_INDEX_UNITS_RETURN_SEMANTICS
+
+表格 API 使用从 0 开始的索引。``row_index`` 表示可见表格行，
+``cell_index`` 表示该行内的可见单元格，``grid_column`` 表示考虑跨列后的
+Word 网格列。宽度、缩进、边距和间距都使用 twips。返回
+``std::optional<T>`` 的方法在目标无法解析时返回空值；返回 ``bool`` 的方法
+表示表格 XML 是否成功修改。
+
+类型化签名导读
+--------------
+
+.. FDOC_ZH_CN_TABLE_TYPED_SIGNATURE_GUIDE
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - 签名
+     - 参数
+     - 返回语义
+   * - ``std::optional<TableRow> find_row(std::size_t row_index)``
+     - ``row_index``：从 0 开始的可见行索引。
+     - 目标行不存在时返回空值。
+   * - ``std::optional<TableCell> find_cell(std::size_t row_index, std::size_t cell_index)``
+     - ``row_index``：行索引。``cell_index``：该行内的可见单元格索引。
+     - 行或单元格无法解析时返回空值。
+   * - ``std::optional<TableCell> find_cell_by_grid_column(std::size_t row_index, std::size_t grid_column)``
+     - ``row_index``：行索引。``grid_column``：解析后的 Word 网格列。
+     - 网格列无法映射到可见单元格时返回空值。
+   * - ``bool set_cell_text(std::size_t row_index, std::size_t cell_index, const std::string &text)``
+     - ``row_index`` 和 ``cell_index``：可见单元格位置。``text``：替换文本。
+     - 目标单元格文本成功替换时返回 ``true``。
+   * - ``bool set_rows_texts(std::size_t start_row_index, const std::vector<std::vector<std::string>> &rows)``
+     - ``start_row_index``：首个目标行。``rows``：行/单元格文本矩阵。
+     - 所有目标单元格成功更新时返回 ``true``。
+   * - ``bool set_cell_block_texts(std::size_t start_row_index, std::size_t start_cell_index, const std::vector<std::vector<std::string>> &rows)``
+     - ``start_row_index`` 和 ``start_cell_index``：块起点。``rows``：矩形文本矩阵。
+     - 目标矩形块成功更新时返回 ``true``。
+   * - ``bool set_column_width_twips(std::size_t column_index, std::uint32_t width_twips)``
+     - ``column_index``：从 0 开始的网格列。``width_twips``：列宽，单位 twips。
+     - 网格列宽成功更新时返回 ``true``。
+   * - ``bool set_border(table_border_edge edge, border_definition border)``
+     - ``edge``：表格边框边。``border``：样式、尺寸、颜色和间距。
+     - 边框定义成功写入时返回 ``true``。
+   * - ``bool TableRow::set_texts(const std::vector<std::string> &texts)``
+     - ``texts``：当前行可见单元格文本。
+     - 所有提供的单元格成功更新时返回 ``true``。
+   * - ``bool TableCell::merge_right(std::size_t additional_cells = 1U)``
+     - ``additional_cells``：向右合并的单元格数量。
+     - 横向合并元数据成功应用时返回 ``true``。
+   * - ``bool TableCell::merge_down(std::size_t additional_rows = 1U)``
+     - ``additional_rows``：向下合并的行数。
+     - 纵向合并元数据成功应用时返回 ``true``。
+   * - ``bool TableCell::set_margin_twips(cell_margin_edge edge, std::uint32_t margin_twips)``
+     - ``edge``：单元格边距边。``margin_twips``：边距值，单位 twips。
+     - 单元格边距成功更新时返回 ``true``。
+
 表格结构与查找
 --------------
 

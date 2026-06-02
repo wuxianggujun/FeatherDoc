@@ -8,7 +8,6 @@ layout. It is not a substitute for the actual license texts.
 - Formal terms for fork-specific FeatherDoc modifications: `LICENSE`
 - Preserved upstream DuckX MIT text: `LICENSE.upstream-mit`
 - Distribution notice summary: `NOTICE`
-- Chinese practical guide: `docs/licensing_zh.rst`
 
 ## Current Position
 

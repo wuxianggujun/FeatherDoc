@@ -5,6 +5,54 @@ Paragraph And Run
 ``featherdoc::Run`` is the editing handle for text inside a paragraph with its
 own run-level formatting, language, and direction metadata.
 
+Typed Signature Guide
+---------------------
+
+Use this table when you need the exact argument shape before writing code.
+Indexes are zero-based where an API accepts an index. Methods returning
+``bool`` report whether the underlying XML node could be changed.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - Signature
+     - Parameters
+     - Return semantics
+   * - ``bool set_text(const std::string &text) const``
+     - ``text``: replacement paragraph or run text.
+     - ``true`` when the current node was rewritten.
+   * - ``Run add_run(const std::string &text, formatting_flag formatting = formatting_flag::none)``
+     - ``text``: appended text. ``formatting``: optional basic formatting flag.
+     - New ``Run`` handle for the appended run.
+   * - ``Paragraph insert_paragraph_before(const std::string &text, formatting_flag formatting = formatting_flag::none)``
+     - ``text``: inserted paragraph text. ``formatting``: optional first-run formatting.
+     - New paragraph handle inserted before the current paragraph.
+   * - ``Paragraph insert_paragraph_after(const std::string &text, formatting_flag formatting = formatting_flag::none)``
+     - ``text``: inserted paragraph text. ``formatting``: optional first-run formatting.
+     - New paragraph handle inserted after the current paragraph.
+   * - ``bool set_alignment(paragraph_alignment alignment) const``
+     - ``alignment``: one of the documented paragraph alignment enum values.
+     - ``true`` when paragraph properties were updated.
+   * - ``bool set_indent_left_twips(std::uint32_t indent_twips) const``
+     - ``indent_twips``: left indent in twips.
+     - ``true`` when the paragraph indent was updated.
+   * - ``Run insert_run_before(const std::string &text, formatting_flag formatting = formatting_flag::none)``
+     - ``text``: inserted run text. ``formatting``: optional basic formatting flag.
+     - New run handle inserted before the current run.
+   * - ``Run insert_run_after(const std::string &text, formatting_flag formatting = formatting_flag::none)``
+     - ``text``: inserted run text. ``formatting``: optional basic formatting flag.
+     - New run handle inserted after the current run.
+   * - ``bool set_font_family(std::string_view font_family) const``
+     - ``font_family``: primary Latin font family name.
+     - ``true`` when run properties were updated.
+   * - ``bool set_language(std::string_view language) const``
+     - ``language``: BCP-47 style language tag such as ``en-US``.
+     - ``true`` when language metadata was updated.
+   * - ``bool set_rtl(bool enabled = true) const``
+     - ``enabled``: ``true`` to mark the run right-to-left.
+     - ``true`` when run direction metadata was updated.
+
 Paragraph Text And Iteration
 ----------------------------
 

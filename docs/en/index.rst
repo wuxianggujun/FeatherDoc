@@ -15,7 +15,6 @@ Language
 --------
 
 * :doc:`../zh-CN/index`
-* :doc:`../index`
 
 Quick Links
 -----------

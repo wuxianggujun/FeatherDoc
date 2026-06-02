@@ -4,7 +4,55 @@ TemplatePart
 ``featherdoc::TemplatePart`` is the shared editing surface for document body,
 header, footer, and section-resolved parts. Use it when a workflow needs the
 same template operation to work outside the main body, especially bookmark
-filling, content-control replacement, and schema validation.
+filling, content-control replacement, and part-local template validation.
+
+Typed Signature Guide
+---------------------
+
+.. FDOC_EN_TEMPLATE_PART_TYPED_SIGNATURE_GUIDE
+
+Use ``TemplatePart`` for part-local editing. It is valid when
+``operator bool()`` returns ``true``. Methods returning ``std::size_t`` report
+how many matching bookmarks or content controls were changed. Methods returning
+``bool`` report whether the requested XML mutation was applied.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - Signature
+     - Parameters
+     - Return semantics
+   * - ``explicit operator bool() const noexcept``
+     - None.
+     - ``true`` when the part points at an available package XML part.
+   * - ``std::string_view entry_name() const noexcept``
+     - None.
+     - Package entry name such as ``word/document.xml``.
+   * - ``Paragraph append_paragraph(const std::string &text = {}, formatting_flag formatting = formatting_flag::none)``
+     - ``text``: inserted paragraph text. ``formatting``: optional first-run formatting.
+     - New paragraph handle in the current part.
+   * - ``Table append_table(std::size_t row_count = 1U, std::size_t column_count = 1U)``
+     - ``row_count`` and ``column_count``: initial table shape.
+     - New table handle in the current part.
+   * - ``bookmark_fill_result fill_bookmarks(std::span<const bookmark_text_binding> bindings)``
+     - ``bindings``: bookmark-name/text pairs.
+     - Matched, replaced, and missing-bookmark counts.
+   * - ``std::size_t replace_bookmark_text(const std::string &bookmark_name, const std::string &replacement)``
+     - ``bookmark_name``: target bookmark. ``replacement``: inserted text.
+     - Number of bookmark instances replaced.
+   * - ``std::size_t replace_content_control_text_by_tag(std::string_view tag, std::string_view replacement)``
+     - ``tag``: content-control tag. ``replacement``: inserted text.
+     - Number of matching controls replaced.
+   * - ``std::size_t replace_content_control_with_table_by_tag(std::string_view tag, const std::vector<std::vector<std::string>> &rows)``
+     - ``tag``: target control. ``rows``: generated row/cell text matrix.
+     - Number of matching controls replaced with a table.
+   * - ``template_validation_result validate_template(std::span<const template_slot_requirement> requirements) const``
+     - ``requirements``: required bookmark/content-control slots for this part.
+     - Validation result with missing and mismatched slots.
+   * - ``std::size_t append_hyperlink(std::string_view text, std::string_view target)``
+     - ``text``: visible hyperlink text. ``target``: URL or relationship target.
+     - Created hyperlink count; ``0`` means no hyperlink was added.
 
 Part Basics
 -----------
@@ -102,8 +150,8 @@ Content Controls
      - ``std::size_t``
      - Update checkbox, date, dropdown, combo-box, lock, or binding state.
 
-Template Schema
----------------
+Template Validation
+-------------------
 
 .. list-table::
    :header-rows: 1
@@ -115,18 +163,16 @@ Template Schema
    * - ``validate_template(requirements) const``
      - ``template_validation_result``
      - Validate required bookmark and content-control slots.
-   * - ``validate_template_schema(schema) const``
-     - ``template_schema_validation_result``
-     - Validate this part against a structured template schema.
-   * - ``scan_template_schema(options = {})``
-     - ``std::optional<template_schema_scan_result>``
-     - Scan the current part into schema-oriented metadata.
-   * - ``build_template_schema_patch_from_scan(baseline, options = {})``
-     - ``std::optional<template_schema_patch>``
-     - Compare a baseline schema scan with the current part.
-   * - ``onboard_template(options = {})``
-     - ``std::optional<template_onboarding_result>``
-     - Run the template onboarding workflow and collect schema guidance.
+
+Document-Level Schema Workflows
+-------------------------------
+
+``validate_template_schema(...)``, ``scan_template_schema(...)``,
+``build_template_schema_patch_from_scan(...)``, and ``onboard_template(...)``
+are ``featherdoc::Document`` APIs because they can aggregate body, header,
+footer, and section-targeted template slots. Use ``TemplatePart`` for part-local
+slot filling and ``validate_template(...)`` checks, then use ``Document`` for
+whole-document schema governance.
 
 Example
 -------
@@ -141,8 +187,12 @@ Example
    });
 
    part.replace_content_control_text_by_tag("status", "approved");
+   auto validation = part.validate_template({
+       {"invoice_no", featherdoc::template_slot_kind::text, true},
+       {"status", featherdoc::template_slot_kind::text, false},
+   });
 
-   if (!result.missing_bookmarks.empty()) {
+   if (!result.missing_bookmarks.empty() || !validation) {
        return 1;
    }
 

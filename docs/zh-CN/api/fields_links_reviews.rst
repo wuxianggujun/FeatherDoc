@@ -5,6 +5,47 @@
 其中可以限定到正文、页眉、页脚或分节部件的字段和超链接操作，也可通过
 ``featherdoc::TemplatePart`` 使用。
 
+类型化签名导读
+--------------
+
+.. FDOC_ZH_CN_FIELDS_LINKS_REVIEWS_TYPED_SIGNATURE_GUIDE
+
+字段、超链接、脚注、批注和修订索引都从对应 ``list_*`` 方法返回，并从 0 开始。
+append 类方法返回 ``std::size_t`` 时表示创建数量；返回 ``bool`` 的方法表示
+指定索引条目是否成功修改。
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - 签名
+     - 参数
+     - 返回语义
+   * - ``std::vector<field_summary> list_fields() const``
+     - 无。
+     - 返回选中文档部件中的字段摘要。
+   * - ``bool append_field(std::string_view instruction, std::string_view result_text = {}, field_state_options state = {})``
+     - ``instruction``：Word 字段指令。``result_text``：显示结果。``state``：dirty/locked 选项。
+     - 字段追加成功时返回 ``true``。
+   * - ``bool replace_field(std::size_t field_index, std::string_view instruction, std::string_view result_text = {})``
+     - ``field_index``：来自 ``list_fields()`` 的索引。``instruction`` 和 ``result_text``：替换值。
+     - 指定字段替换成功时返回 ``true``。
+   * - ``std::size_t append_hyperlink(std::string_view text, std::string_view target)``
+     - ``text``：可见超链接文本。``target``：URL 或关系目标。
+     - 返回创建的超链接数量；``0`` 表示未追加。
+   * - ``std::size_t append_comment(std::string_view selected_text, std::string_view comment_text, std::string_view author = {}, std::string_view initials = {}, std::string_view date = {})``
+     - ``selected_text``：被批注文本。``comment_text``：批注正文。元数据参数可选。
+     - 返回创建的批注数量；``0`` 表示输入校验或修改失败。
+   * - ``bool set_comment_resolved(std::size_t comment_index, bool resolved)``
+     - ``comment_index``：来自 ``list_comments()`` 的索引。``resolved``：目标状态。
+     - 批注状态更新成功时返回 ``true``。
+   * - ``bool accept_revision(std::size_t revision_index)``
+     - ``revision_index``：来自 ``list_revisions()`` 的索引。
+     - 指定修订接受成功时返回 ``true``。
+   * - ``std::size_t accept_all_revisions()``
+     - 无。
+     - 返回已接受的跟踪修订数量。
+
 摘要类型
 --------
 
@@ -78,7 +119,7 @@
      - 枚举超链接。
    * - ``append_hyperlink(text, target)``
      - ``std::size_t``
-     - 追加超链接并返回创建的索引。
+     - 追加超链接并返回创建数量；``0`` 表示未追加超链接。
    * - ``replace_hyperlink(hyperlink_index, text, target)``
      - ``bool``
      - 替换超链接文本和目标。

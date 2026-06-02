@@ -4,6 +4,52 @@
 ``featherdoc::Document`` 提供样式和编号 API，用于检查、受控修改、重构和默认格式
 设置。这个页面先给出直接入口，完整旧版分组页面仍可继续查阅。
 
+类型化签名导读
+--------------
+
+.. FDOC_ZH_CN_STYLES_NUMBERING_TYPED_SIGNATURE_GUIDE
+
+样式 API 通过 ``style_id`` 定位样式。编号层级从 0 开始。返回
+``std::optional<T>`` 的方法在样式、编号定义或生成计划无法解析时返回空值。
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - 签名
+     - 参数
+     - 返回语义
+   * - ``bool set_paragraph_list(Paragraph paragraph, list_kind kind, std::uint32_t level = 0U)``
+     - ``paragraph``：目标段落。``kind``：项目符号或数字列表类型。``level``：从 0 开始的层级。
+     - 列表元数据绑定成功时返回 ``true``。
+   * - ``numbering_catalog export_numbering_catalog()``
+     - 无。
+     - 返回当前编号目录，供治理或复用。
+   * - ``numbering_catalog_import_summary import_numbering_catalog(const numbering_catalog &catalog)``
+     - ``catalog``：要导入的编号定义。
+     - 返回导入数量和冲突摘要。
+   * - ``std::optional<std::uint32_t> ensure_numbering_definition(const numbering_definition &definition)``
+     - ``definition``：期望存在的编号定义。
+     - 返回定义 id；无法确保时为空。
+   * - ``bool set_paragraph_numbering(Paragraph paragraph, std::uint32_t numbering_definition_id, std::uint32_t level = 0U)``
+     - ``paragraph``：目标段落。``numbering_definition_id`` 和 ``level``：编号目标。
+     - 段落编号设置成功时返回 ``true``。
+   * - ``std::optional<style_summary> find_style(std::string_view style_id)``
+     - ``style_id``：样式标识。
+     - 返回样式摘要；样式缺失时为空。
+   * - ``bool rename_style(std::string_view old_style_id, std::string_view new_style_id)``
+     - ``old_style_id``：源样式 id。``new_style_id``：替换 id。
+     - 样式 id 及引用重命名成功时返回 ``true``。
+   * - ``bool merge_style(std::string_view source_style_id, std::string_view target_style_id)``
+     - ``source_style_id``：要移除的样式。``target_style_id``：替代样式。
+     - 引用迁移且源样式移除成功时返回 ``true``。
+   * - ``bool set_default_run_language(std::string_view language)``
+     - ``language``：类似 BCP-47 的语言标签。
+     - 默认 run 语言写入成功时返回 ``true``。
+   * - ``table_style_region_audit_report audit_table_style_regions(std::optional<std::string_view> style_id = std::nullopt)``
+     - ``style_id``：可选表格样式过滤。
+     - 返回全部或单个表格样式的区域审计报告。
+
 编号
 ----
 

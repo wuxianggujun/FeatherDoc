@@ -41,6 +41,18 @@ function Assert-RepoFileMissing {
     }
 }
 
+function Assert-RepoPathMissing {
+    param(
+        [string]$Root,
+        [string]$RelativePath
+    )
+
+    $path = Join-Path $Root $RelativePath
+    if (Test-Path -LiteralPath $path) {
+        throw "Legacy docs path should have been removed: $RelativePath"
+    }
+}
+
 function Get-RepoFileText {
     param(
         [string]$Root,
@@ -124,10 +136,14 @@ foreach ($marker in @(
         "html_sidebars",
         "'localtoc.html'",
         "'sourcelink.html'",
-        "'searchbox.html'"
+        "'searchbox.html'",
+        "exclude_patterns",
+        "'*_zh.rst'",
+        "'automation/*.rst'",
+        "'libreoffice_pdf/**'"
     )) {
     Assert-ContainsText -Text $docsConf -ExpectedText $marker `
-        -Message "Sphinx config should keep sidebars free of automatic previous/next relations."
+        -Message "Sphinx config should keep public docs focused on bilingual pages."
 }
 
 Assert-DoesNotContainText -Text $docsConf -UnexpectedText "'relations.html'" `
@@ -135,9 +151,13 @@ Assert-DoesNotContainText -Text $docsConf -UnexpectedText "'relations.html'" `
 
 foreach ($marker in @(
         "Choose a language entry point",
+        "English documentation",
+        "FDOC_DOCS_ROOT_ZH_CN_DOCUMENTATION_LABEL",
         "en/index",
         "zh-CN/index",
         "Languages",
+        "English API reference",
+        "FDOC_DOCS_ROOT_ZH_CN_API_LABEL",
         "en/api/index",
         "zh-CN/api/index"
     )) {
@@ -165,10 +185,19 @@ foreach ($legacyPath in @(
         "docs\pdf_export.rst",
         "docs\pdf_import.rst",
         "docs\pdf_import_json_diagnostics.rst",
-        "docs\pdf_import_scope.rst"
+        "docs\pdf_import_scope.rst",
+        "docs\licensing_zh.rst",
+        "docs\table_style_definition_zh.rst",
+        "docs\libreoffice_pdf\migration_gap_notes_zh.rst",
+        "docs\libreoffice_pdf\pdf_pipeline_notes_zh.rst",
+        "docs\libreoffice_pdf\source_map_zh.rst",
+        "docs\libreoffice_pdf\study_plan_zh.rst",
+        "docs\libreoffice_pdf\index_zh.rst"
     )) {
     Assert-RepoFileMissing -Root $resolvedRepoRoot -RelativePath $legacyPath
 }
+Assert-RepoPathMissing -Root $resolvedRepoRoot -RelativePath "docs\api"
+Assert-RepoPathMissing -Root $resolvedRepoRoot -RelativePath "docs\libreoffice_pdf"
 
 foreach ($marker in @(
         "../zh-CN/index",
@@ -179,6 +208,8 @@ foreach ($marker in @(
     Assert-ContainsText -Text $englishIndex -ExpectedText $marker `
         -Message "English docs entrypoint should preserve navigation marker."
 }
+Assert-DoesNotContainText -Text $englishIndex -UnexpectedText "../index" `
+    -Message "English docs entrypoint should keep readers in the language-local path."
 
 foreach ($marker in @(
         "Install And Build",
@@ -209,6 +240,15 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $englishApiIndex -ExpectedText $marker `
         -Message "English API entrypoint should preserve language-local API marker."
+}
+foreach ($marker in @(
+        "How To Read These Pages",
+        "FDOC_EN_API_PUBLIC_SIGNATURES",
+        "FDOC_EN_API_TYPED_PARAMETERS",
+        "FDOC_EN_API_RETURN_SEMANTICS"
+    )) {
+    Assert-ContainsText -Text $englishApiIndex -ExpectedText $marker `
+        -Message "English API entrypoint should explain how to read focused API pages."
 }
 
 foreach ($marker in @(
@@ -245,13 +285,13 @@ Assert-DoesNotContainText -Text $englishDocumentApi -UnexpectedText "../../api/d
     -Message "English Document API should not link to removed legacy API pages."
 
 foreach ($pair in @(
-        @{ Text = $englishParagraphRunApi; Markers = @("featherdoc::Paragraph", "featherdoc::Run", "set_alignment", "set_font_family", "set_rtl") },
-        @{ Text = $englishTableApi; Markers = @("featherdoc::Table", "TableRow", "TableCell", "find_cell_by_grid_column", "set_cell_block_texts", "set_repeats_header", "merge_right", "set_fill_color") },
-        @{ Text = $englishImagesApi; Markers = @("featherdoc::inline_image_info", "featherdoc::drawing_image_info", "append_image", "append_floating_image", "extract_drawing_image", "replace_inline_image", "remove_inline_image") },
-        @{ Text = $englishSectionsApi; Markers = @("featherdoc::section_page_setup", "featherdoc::page_margins", "section_count", "append_section", "inspect_section", "get_section_page_setup", "set_section_page_setup") },
-        @{ Text = $englishFieldsLinksReviewsApi; Markers = @("featherdoc::field_summary", "featherdoc::hyperlink_summary", "featherdoc::review_note_summary", "list_fields", "append_field", "append_hyperlink", "list_comments", "accept_all_revisions") },
-        @{ Text = $englishStylesNumberingApi; Markers = @("numbering_definition_summary", "numbering_catalog", "style_summary", "list_numbering_definitions", "export_numbering_catalog", "list_styles", "suggest_style_merges", "audit_table_style_quality") },
-        @{ Text = $englishTemplatePartApi; Markers = @("featherdoc::TemplatePart", "Part Basics", "Bookmarks", "Content Controls", "Template Schema", "replace_content_control_text_by_tag", "validate_template_schema", "onboard_template") }
+        @{ Text = $englishParagraphRunApi; Markers = @("featherdoc::Paragraph", "featherdoc::Run", "Typed Signature Guide", "bool set_text(const std::string &text) const", "Run add_run(const std::string &text, formatting_flag formatting = formatting_flag::none)", "Paragraph insert_paragraph_after(const std::string &text, formatting_flag formatting = formatting_flag::none)", "bool set_font_family(std::string_view font_family) const", "set_alignment", "set_font_family", "set_rtl") },
+        @{ Text = $englishTableApi; Markers = @("featherdoc::Table", "TableRow", "TableCell", "Indexing, Units, And Return Semantics", "Typed Signature Guide", "std::optional<TableCell> find_cell(std::size_t row_index, std::size_t cell_index)", "bool set_cell_block_texts(std::size_t start_row_index, std::size_t start_cell_index, const std::vector<std::vector<std::string>> &rows)", "bool TableCell::merge_right(std::size_t additional_cells = 1U)", "find_cell_by_grid_column", "set_cell_block_texts", "set_repeats_header", "merge_right", "set_fill_color") },
+        @{ Text = $englishImagesApi; Markers = @("featherdoc::inline_image_info", "featherdoc::drawing_image_info", "FDOC_EN_IMAGES_TYPED_SIGNATURE_GUIDE", "bool append_image(const std::filesystem::path &image_path, std::uint32_t width_px, std::uint32_t height_px)", "bool extract_inline_image(std::size_t image_index, const std::filesystem::path &output_path) const", "append_image", "append_floating_image", "extract_drawing_image", "replace_inline_image", "remove_inline_image") },
+        @{ Text = $englishSectionsApi; Markers = @("featherdoc::section_page_setup", "featherdoc::page_margins", "FDOC_EN_SECTIONS_TYPED_SIGNATURE_GUIDE", "bool append_section(bool inherit_header_footer = true)", "std::optional<section_page_setup> get_section_page_setup(std::size_t section_index) const", "TemplatePart section_header_template(std::size_t section_index, section_reference_kind reference_kind = default_reference)", "section_count", "append_section", "inspect_section", "get_section_page_setup", "set_section_page_setup") },
+        @{ Text = $englishFieldsLinksReviewsApi; Markers = @("featherdoc::field_summary", "featherdoc::hyperlink_summary", "featherdoc::review_note_summary", "FDOC_EN_FIELDS_LINKS_REVIEWS_TYPED_SIGNATURE_GUIDE", "bool append_field(std::string_view instruction, std::string_view result_text = {}, field_state_options state = {})", "std::size_t append_comment(std::string_view selected_text, std::string_view comment_text, std::string_view author = {}, std::string_view initials = {}, std::string_view date = {})", "list_fields", "append_field", "append_hyperlink", "list_comments", "accept_all_revisions") },
+        @{ Text = $englishStylesNumberingApi; Markers = @("numbering_definition_summary", "numbering_catalog", "style_summary", "FDOC_EN_STYLES_NUMBERING_TYPED_SIGNATURE_GUIDE", "bool set_paragraph_list(Paragraph paragraph, list_kind kind, std::uint32_t level = 0U)", "std::optional<style_summary> find_style(std::string_view style_id)", "bool rename_style(std::string_view old_style_id, std::string_view new_style_id)", "list_numbering_definitions", "export_numbering_catalog", "list_styles", "suggest_style_merges", "audit_table_style_quality") },
+        @{ Text = $englishTemplatePartApi; Markers = @("featherdoc::TemplatePart", "FDOC_EN_TEMPLATE_PART_TYPED_SIGNATURE_GUIDE", "Part Basics", "Bookmarks", "Content Controls", "Template Validation", "Document-Level Schema Workflows", "template_validation_result validate_template(std::span<const template_slot_requirement> requirements) const", "std::size_t replace_content_control_text_by_tag(std::string_view tag, std::string_view replacement)", "validate_template_schema(...)") }
     )) {
     foreach ($marker in $pair.Markers) {
         Assert-ContainsText -Text $pair.Text -ExpectedText $marker `
@@ -260,6 +300,10 @@ foreach ($pair in @(
     Assert-DoesNotContainText -Text $pair.Text -UnexpectedText "../../api/" `
         -Message "English API pages should not link to removed legacy API pages."
 }
+Assert-DoesNotContainText -Text $englishTemplatePartApi -UnexpectedText "validate_template_schema(schema) const" `
+    -Message "English TemplatePart API should not document Document-level schema methods as TemplatePart methods."
+Assert-DoesNotContainText -Text $englishTemplatePartApi -UnexpectedText "part.validate_template_schema" `
+    -Message "English TemplatePart API examples should not call Document-level schema methods on TemplatePart."
 
 foreach ($marker in @(
         "scripts/edit_document_from_plan.ps1",
@@ -340,6 +384,8 @@ foreach ($marker in @(
     Assert-ContainsText -Text $chineseIndex -ExpectedText $marker `
         -Message "Chinese docs entrypoint should preserve navigation marker."
 }
+Assert-DoesNotContainText -Text $chineseIndex -UnexpectedText "../index" `
+    -Message "Chinese docs entrypoint should keep readers in the language-local path."
 
 foreach ($marker in @(
         '../visual_validation_zh',
@@ -386,6 +432,15 @@ foreach ($marker in @(
     Assert-ContainsText -Text $chineseApiIndex -ExpectedText $marker `
         -Message "Chinese API entrypoint should preserve mirrored API marker."
 }
+foreach ($marker in @(
+        "FDOC_ZH_CN_API_HOW_TO_READ",
+        "FDOC_ZH_CN_API_PUBLIC_SIGNATURES",
+        "FDOC_ZH_CN_API_TYPED_PARAMETERS",
+        "FDOC_ZH_CN_API_RETURN_SEMANTICS"
+    )) {
+    Assert-ContainsText -Text $chineseApiIndex -ExpectedText $marker `
+        -Message "Chinese API entrypoint should explain how to read focused API pages."
+}
 
 foreach ($marker in @(
         "featherdoc::Document",
@@ -419,13 +474,13 @@ Assert-DoesNotContainText -Text $chineseDocumentApi -UnexpectedText "../../api/d
     -Message "Chinese Document API should not link to removed legacy API pages."
 
 foreach ($pair in @(
-        @{ Text = $chineseParagraphRunApi; Markers = @("featherdoc::Paragraph", "featherdoc::Run", "set_alignment", "set_font_family", "set_rtl", "insert_paragraph_after", "insert_run_after") },
-        @{ Text = $chineseTableApi; Markers = @("featherdoc::Table", "TableRow", "TableCell", "find_cell_by_grid_column", "set_cell_block_texts", "set_repeats_header", "merge_right", "set_fill_color") },
-        @{ Text = $chineseImagesApi; Markers = @("featherdoc::inline_image_info", "featherdoc::drawing_image_info", "floating_image_options", "append_image", "append_floating_image", "extract_drawing_image", "replace_inline_image", "remove_inline_image") },
-        @{ Text = $chineseSectionsApi; Markers = @("featherdoc::section_page_setup", "featherdoc::page_margins", "sections_inspection_summary", "section_count", "append_section", "inspect_section", "get_section_page_setup", "set_section_page_setup") },
-        @{ Text = $chineseFieldsLinksReviewsApi; Markers = @("featherdoc::field_summary", "featherdoc::hyperlink_summary", "featherdoc::review_note_summary", "list_fields", "append_field", "append_hyperlink", "list_comments", "accept_all_revisions") },
-        @{ Text = $chineseStylesNumberingApi; Markers = @("numbering_definition_summary", "numbering_catalog", "style_summary", "style_usage_report", "list_numbering_definitions", "export_numbering_catalog", "list_styles", "suggest_style_merges", "audit_table_style_quality") },
-        @{ Text = $chineseTemplatePartApi; Markers = @("featherdoc::TemplatePart", "entry_name()", "fill_bookmarks", "replace_content_control_text_by_tag", "validate_template_schema", "onboard_template") }
+        @{ Text = $chineseParagraphRunApi; Markers = @("featherdoc::Paragraph", "featherdoc::Run", "FDOC_ZH_CN_PARAGRAPH_RUN_TYPED_SIGNATURE_GUIDE", "bool set_text(const std::string &text) const", "Run add_run(const std::string &text, formatting_flag formatting = formatting_flag::none)", "Paragraph insert_paragraph_after(const std::string &text, formatting_flag formatting = formatting_flag::none)", "bool set_font_family(std::string_view font_family) const", "set_alignment", "set_font_family", "set_rtl", "insert_paragraph_after", "insert_run_after") },
+        @{ Text = $chineseTableApi; Markers = @("featherdoc::Table", "TableRow", "TableCell", "FDOC_ZH_CN_TABLE_INDEX_UNITS_RETURN_SEMANTICS", "FDOC_ZH_CN_TABLE_TYPED_SIGNATURE_GUIDE", "std::optional<TableCell> find_cell(std::size_t row_index, std::size_t cell_index)", "bool set_cell_block_texts(std::size_t start_row_index, std::size_t start_cell_index, const std::vector<std::vector<std::string>> &rows)", "bool TableCell::merge_right(std::size_t additional_cells = 1U)", "find_cell_by_grid_column", "set_cell_block_texts", "set_repeats_header", "merge_right", "set_fill_color") },
+        @{ Text = $chineseImagesApi; Markers = @("featherdoc::inline_image_info", "featherdoc::drawing_image_info", "FDOC_ZH_CN_IMAGES_TYPED_SIGNATURE_GUIDE", "bool append_image(const std::filesystem::path &image_path, std::uint32_t width_px, std::uint32_t height_px)", "bool extract_inline_image(std::size_t image_index, const std::filesystem::path &output_path) const", "floating_image_options", "append_image", "append_floating_image", "extract_drawing_image", "replace_inline_image", "remove_inline_image") },
+        @{ Text = $chineseSectionsApi; Markers = @("featherdoc::section_page_setup", "featherdoc::page_margins", "sections_inspection_summary", "FDOC_ZH_CN_SECTIONS_TYPED_SIGNATURE_GUIDE", "bool append_section(bool inherit_header_footer = true)", "std::optional<section_page_setup> get_section_page_setup(std::size_t section_index) const", "TemplatePart section_header_template(std::size_t section_index, section_reference_kind reference_kind = default_reference)", "section_count", "append_section", "inspect_section", "get_section_page_setup", "set_section_page_setup") },
+        @{ Text = $chineseFieldsLinksReviewsApi; Markers = @("featherdoc::field_summary", "featherdoc::hyperlink_summary", "featherdoc::review_note_summary", "FDOC_ZH_CN_FIELDS_LINKS_REVIEWS_TYPED_SIGNATURE_GUIDE", "bool append_field(std::string_view instruction, std::string_view result_text = {}, field_state_options state = {})", "std::size_t append_comment(std::string_view selected_text, std::string_view comment_text, std::string_view author = {}, std::string_view initials = {}, std::string_view date = {})", "list_fields", "append_field", "append_hyperlink", "list_comments", "accept_all_revisions") },
+        @{ Text = $chineseStylesNumberingApi; Markers = @("numbering_definition_summary", "numbering_catalog", "style_summary", "style_usage_report", "FDOC_ZH_CN_STYLES_NUMBERING_TYPED_SIGNATURE_GUIDE", "bool set_paragraph_list(Paragraph paragraph, list_kind kind, std::uint32_t level = 0U)", "std::optional<style_summary> find_style(std::string_view style_id)", "bool rename_style(std::string_view old_style_id, std::string_view new_style_id)", "list_numbering_definitions", "export_numbering_catalog", "list_styles", "suggest_style_merges", "audit_table_style_quality") },
+        @{ Text = $chineseTemplatePartApi; Markers = @("featherdoc::TemplatePart", "FDOC_ZH_CN_TEMPLATE_PART_TYPED_SIGNATURE_GUIDE", "entry_name()", "fill_bookmarks", "replace_content_control_text_by_tag", "FDOC_ZH_CN_TEMPLATE_PART_TEMPLATE_VALIDATION", "FDOC_ZH_CN_TEMPLATE_PART_DOCUMENT_LEVEL_SCHEMA_WORKFLOWS", "template_validation_result validate_template(std::span<const template_slot_requirement> requirements) const", "validate_template_schema(...)") }
     )) {
     foreach ($marker in $pair.Markers) {
         Assert-ContainsText -Text $pair.Text -ExpectedText $marker `
@@ -434,6 +489,10 @@ foreach ($pair in @(
     Assert-DoesNotContainText -Text $pair.Text -UnexpectedText "../../api/" `
         -Message "Chinese API pages should not link to removed legacy API pages."
 }
+Assert-DoesNotContainText -Text $chineseTemplatePartApi -UnexpectedText "validate_template_schema(schema) const" `
+    -Message "Chinese TemplatePart API should not document Document-level schema methods as TemplatePart methods."
+Assert-DoesNotContainText -Text $chineseTemplatePartApi -UnexpectedText "body.validate_template_schema" `
+    -Message "Chinese TemplatePart API examples should not call Document-level schema methods on TemplatePart."
 
 foreach ($marker in @(
         "scripts/edit_document_from_plan.ps1",

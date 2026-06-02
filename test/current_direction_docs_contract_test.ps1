@@ -17,6 +17,30 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-DoesNotContainText {
+    param(
+        [string]$Text,
+        [string]$UnexpectedText,
+        [string]$Message
+    )
+
+    if ($Text -match [regex]::Escape($UnexpectedText)) {
+        throw "$Message Unexpected='$UnexpectedText'."
+    }
+}
+
+function Assert-RepoFileMissing {
+    param(
+        [string]$Root,
+        [string]$RelativePath
+    )
+
+    $path = Join-Path $Root $RelativePath
+    if (Test-Path -LiteralPath $path) {
+        throw "Legacy current-direction file should have been removed: $RelativePath"
+    }
+}
+
 function Get-RepoFileText {
     param(
         [string]$Root,
@@ -44,6 +68,21 @@ $scriptTaskIndexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "do
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 
 foreach ($marker in @(
+        "Choose a language entry point",
+        "English documentation",
+        "FDOC_DOCS_ROOT_ZH_CN_DOCUMENTATION_LABEL",
+        "English API reference",
+        "FDOC_DOCS_ROOT_ZH_CN_API_LABEL",
+        "en/index",
+        "zh-CN/index",
+        "en/api/index",
+        "zh-CN/api/index"
+    )) {
+    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
+        -Message "Documentation index should preserve bilingual public entry '$marker'."
+}
+
+foreach ($marker in @(
         "project_identity_zh",
         "current_direction_zh",
         "document_governance_acceptance_zh",
@@ -52,9 +91,11 @@ foreach ($marker in @(
         "automation/word_visual_workflow_zh",
         "libreoffice_pdf/index_zh"
     )) {
-    Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
-        -Message "Documentation index should preserve current product direction and maintenance entry '$marker'."
+    Assert-DoesNotContainText -Text $indexDoc -UnexpectedText $marker `
+        -Message "Documentation index should not expose legacy root-level governance entry '$marker'."
 }
+
+Assert-RepoFileMissing -Root $resolvedRepoRoot -RelativePath "docs\libreoffice_pdf\index_zh.rst"
 
 foreach ($marker in @(
         "WordprocessingML",
@@ -102,6 +143,9 @@ foreach ($marker in @(
         "BUILDING_PDF.md",
         "design/04-pdf-execution-plan.md",
         "docs/stale_codex_branch_inventory_zh.rst",
+        "docs/pdf_release_readiness_checklist_zh.rst",
+        "FDOC_DOCS_LIBREOFFICE_PDF_LEGACY_REMOVED",
+        "FDOC_DOCS_LIBREOFFICE_PDF_LEGACY_DO_NOT_RESTORE",
         "PDF CJK",
         "git status --short --branch",
         "git rev-list --left-right --count dev...origin/dev",

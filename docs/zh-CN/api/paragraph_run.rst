@@ -5,6 +5,55 @@ Paragraph 和 Run
 ``featherdoc::Run`` 是段落内部文本片段的编辑句柄，用于处理 run 级格式、
 语言和文字方向元数据。
 
+类型化签名导读
+--------------
+
+.. FDOC_ZH_CN_PARAGRAPH_RUN_TYPED_SIGNATURE_GUIDE
+
+写代码前可以先看这一组完整签名。涉及索引的 API 都使用从 0 开始的索引。
+返回 ``bool`` 的方法表示底层 XML 节点是否成功修改。
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - 签名
+     - 参数
+     - 返回语义
+   * - ``bool set_text(const std::string &text) const``
+     - ``text``：替换后的段落或 run 文本。
+     - 当前节点成功重写时返回 ``true``。
+   * - ``Run add_run(const std::string &text, formatting_flag formatting = formatting_flag::none)``
+     - ``text``：追加文本。``formatting``：可选基础格式标记。
+     - 返回追加后的新 ``Run`` 句柄。
+   * - ``Paragraph insert_paragraph_before(const std::string &text, formatting_flag formatting = formatting_flag::none)``
+     - ``text``：插入段落文本。``formatting``：可选首个 run 格式。
+     - 返回插入在当前段落前的新段落句柄。
+   * - ``Paragraph insert_paragraph_after(const std::string &text, formatting_flag formatting = formatting_flag::none)``
+     - ``text``：插入段落文本。``formatting``：可选首个 run 格式。
+     - 返回插入在当前段落后的新段落句柄。
+   * - ``bool set_alignment(paragraph_alignment alignment) const``
+     - ``alignment``：文档中列出的段落对齐枚举值。
+     - 段落属性成功更新时返回 ``true``。
+   * - ``bool set_indent_left_twips(std::uint32_t indent_twips) const``
+     - ``indent_twips``：左缩进，单位是 twips。
+     - 段落缩进成功更新时返回 ``true``。
+   * - ``Run insert_run_before(const std::string &text, formatting_flag formatting = formatting_flag::none)``
+     - ``text``：插入 run 文本。``formatting``：可选基础格式标记。
+     - 返回插入在当前 run 前的新 ``Run`` 句柄。
+   * - ``Run insert_run_after(const std::string &text, formatting_flag formatting = formatting_flag::none)``
+     - ``text``：插入 run 文本。``formatting``：可选基础格式标记。
+     - 返回插入在当前 run 后的新 ``Run`` 句柄。
+   * - ``bool set_font_family(std::string_view font_family) const``
+     - ``font_family``：主要西文字体名称。
+     - run 属性成功更新时返回 ``true``。
+   * - ``bool set_language(std::string_view language) const``
+     - ``language``：类似 ``zh-CN`` 或 ``en-US`` 的语言标签。
+     - 语言元数据成功更新时返回 ``true``。
+   * - ``bool set_rtl(bool enabled = true) const``
+     - ``enabled``：为 ``true`` 时标记 run 为从右到左。
+     - run 方向元数据成功更新时返回 ``true``。
+
 段落文本与迭代
 --------------
 

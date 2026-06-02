@@ -5,6 +5,53 @@ Styles And Numbering
 controlled mutation, refactoring, and default formatting. Use this page to find
 the direct entry points for style and numbering work.
 
+Typed Signature Guide
+---------------------
+
+.. FDOC_EN_STYLES_NUMBERING_TYPED_SIGNATURE_GUIDE
+
+Style APIs address styles by ``style_id``. Numbering levels are zero-based.
+Methods returning ``std::optional<T>`` return an empty value when the style,
+numbering definition, or generated plan cannot be resolved.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - Signature
+     - Parameters
+     - Return semantics
+   * - ``bool set_paragraph_list(Paragraph paragraph, list_kind kind, std::uint32_t level = 0U)``
+     - ``paragraph``: target paragraph. ``kind``: bullet/decimal list kind. ``level``: zero-based level.
+     - ``true`` when list metadata was attached.
+   * - ``numbering_catalog export_numbering_catalog()``
+     - None.
+     - Current numbering catalog for governance or reuse.
+   * - ``numbering_catalog_import_summary import_numbering_catalog(const numbering_catalog &catalog)``
+     - ``catalog``: definitions to import.
+     - Import counts and conflicts.
+   * - ``std::optional<std::uint32_t> ensure_numbering_definition(const numbering_definition &definition)``
+     - ``definition``: requested numbering definition.
+     - Definition id, or empty when it cannot be ensured.
+   * - ``bool set_paragraph_numbering(Paragraph paragraph, std::uint32_t numbering_definition_id, std::uint32_t level = 0U)``
+     - ``paragraph``: target paragraph. ``numbering_definition_id`` and ``level``: numbering target.
+     - ``true`` when paragraph numbering was set.
+   * - ``std::optional<style_summary> find_style(std::string_view style_id)``
+     - ``style_id``: style identifier.
+     - Summary, or empty when the style is missing.
+   * - ``bool rename_style(std::string_view old_style_id, std::string_view new_style_id)``
+     - ``old_style_id``: source id. ``new_style_id``: replacement id.
+     - ``true`` when style id and references were renamed.
+   * - ``bool merge_style(std::string_view source_style_id, std::string_view target_style_id)``
+     - ``source_style_id``: style to remove. ``target_style_id``: replacement style.
+     - ``true`` when references moved and the source style was removed.
+   * - ``bool set_default_run_language(std::string_view language)``
+     - ``language``: BCP-47 style language tag.
+     - ``true`` when the default run language was written.
+   * - ``table_style_region_audit_report audit_table_style_regions(std::optional<std::string_view> style_id = std::nullopt)``
+     - ``style_id``: optional table style filter.
+     - Audit report for all or one table style.
+
 Numbering
 ---------
 

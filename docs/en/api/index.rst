@@ -4,6 +4,29 @@ English API Reference
 This language-local API entry gives the ``/en/api/`` path a stable structure.
 Use the object map below to jump directly to focused API pages.
 
+Language
+--------
+
+* :doc:`../../zh-CN/api/index`
+* :doc:`../index`
+
+How To Read These Pages
+-----------------------
+
+.. FDOC_EN_API_HOW_TO_READ
+.. FDOC_EN_API_PUBLIC_SIGNATURES
+.. FDOC_EN_API_TYPED_PARAMETERS
+.. FDOC_EN_API_RETURN_SEMANTICS
+
+The API pages are organized around public C++ objects rather than one long
+README-style page. Each focused page should expose:
+
+* Full public signatures from ``include/featherdoc.hpp`` where the API is a
+  C++ entry point.
+* Typed parameters, default values, units, and zero-based index rules.
+* Return values with success/failure semantics.
+* Short examples that show the intended call shape.
+
 Object Map
 ----------
 

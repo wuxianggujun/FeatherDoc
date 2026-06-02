@@ -6,6 +6,48 @@ Field, hyperlink, note, comment, and revision APIs are available on
 body, header, footer, or section part are also available on
 ``featherdoc::TemplatePart``.
 
+Typed Signature Guide
+---------------------
+
+.. FDOC_EN_FIELDS_LINKS_REVIEWS_TYPED_SIGNATURE_GUIDE
+
+Field, hyperlink, note, comment, and revision indexes are zero-based and come
+from the corresponding ``list_*`` method. Append methods returning
+``std::size_t`` return a created count. Methods returning ``bool`` report
+whether a specific indexed item was changed.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - Signature
+     - Parameters
+     - Return semantics
+   * - ``std::vector<field_summary> list_fields() const``
+     - None.
+     - Field summaries in the selected document part.
+   * - ``bool append_field(std::string_view instruction, std::string_view result_text = {}, field_state_options state = {})``
+     - ``instruction``: Word field instruction. ``result_text``: displayed result. ``state``: dirty/locked options.
+     - ``true`` when the field was appended.
+   * - ``bool replace_field(std::size_t field_index, std::string_view instruction, std::string_view result_text = {})``
+     - ``field_index``: item from ``list_fields()``. ``instruction`` and ``result_text``: replacement values.
+     - ``true`` when the indexed field was replaced.
+   * - ``std::size_t append_hyperlink(std::string_view text, std::string_view target)``
+     - ``text``: visible hyperlink text. ``target``: URL or relationship target.
+     - Created hyperlink count; ``0`` means nothing was appended.
+   * - ``std::size_t append_comment(std::string_view selected_text, std::string_view comment_text, std::string_view author = {}, std::string_view initials = {}, std::string_view date = {})``
+     - ``selected_text``: text to annotate. ``comment_text``: comment body. Metadata arguments are optional.
+     - Created comment count; ``0`` means input validation or mutation failed.
+   * - ``bool set_comment_resolved(std::size_t comment_index, bool resolved)``
+     - ``comment_index``: item from ``list_comments()``. ``resolved``: target state.
+     - ``true`` when the comment state was updated.
+   * - ``bool accept_revision(std::size_t revision_index)``
+     - ``revision_index``: item from ``list_revisions()``.
+     - ``true`` when that revision was accepted.
+   * - ``std::size_t accept_all_revisions()``
+     - None.
+     - Number of tracked revisions accepted.
+
 Summary Types
 -------------
 
@@ -79,7 +121,7 @@ Hyperlinks
      - Enumerate hyperlinks.
    * - ``append_hyperlink(text, target)``
      - ``std::size_t``
-     - Append a hyperlink and return the created hyperlink index.
+     - Append a hyperlink and return the created hyperlink count; ``0`` means no hyperlink was added.
    * - ``replace_hyperlink(hyperlink_index, text, target)``
      - ``bool``
      - Replace hyperlink text and target.

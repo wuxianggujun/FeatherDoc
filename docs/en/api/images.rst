@@ -6,6 +6,48 @@ are available on ``featherdoc::Document`` and ``featherdoc::TemplatePart``.
 Use them to append inline or floating images, inspect packaged image metadata,
 and extract, replace, or remove existing image parts.
 
+Typed Signature Guide
+---------------------
+
+.. FDOC_EN_IMAGES_TYPED_SIGNATURE_GUIDE
+
+Image APIs use zero-based ``image_index`` values from ``drawing_images()`` or
+``inline_images()``. ``width_px`` and ``height_px`` are explicit pixel sizes.
+Methods returning ``bool`` report whether the package image part and its
+relationships were updated.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - Signature
+     - Parameters
+     - Return semantics
+   * - ``std::vector<drawing_image_info> drawing_images() const``
+     - None.
+     - All drawing images, including anchored floating images.
+   * - ``std::vector<inline_image_info> inline_images() const``
+     - None.
+     - All inline images with package metadata and optional body location.
+   * - ``bool append_image(const std::filesystem::path &image_path)``
+     - ``image_path``: source image path.
+     - ``true`` when an inline image was appended with source dimensions.
+   * - ``bool append_image(const std::filesystem::path &image_path, std::uint32_t width_px, std::uint32_t height_px)``
+     - ``image_path``: source image. ``width_px`` / ``height_px``: explicit size.
+     - ``true`` when a sized inline image was appended.
+   * - ``bool append_floating_image(const std::filesystem::path &image_path, floating_image_options options = {})``
+     - ``image_path``: source image. ``options``: anchor, wrap, offset, crop, and layer options.
+     - ``true`` when a floating image was appended.
+   * - ``bool extract_inline_image(std::size_t image_index, const std::filesystem::path &output_path) const``
+     - ``image_index``: item from ``inline_images()``. ``output_path``: destination file.
+     - ``true`` when the image bytes were copied.
+   * - ``bool replace_drawing_image(std::size_t image_index, const std::filesystem::path &image_path)``
+     - ``image_index``: item from ``drawing_images()``. ``image_path``: replacement image.
+     - ``true`` when the image part was replaced while references were preserved.
+   * - ``bool remove_inline_image(std::size_t image_index)``
+     - ``image_index``: item from ``inline_images()``.
+     - ``true`` when the inline drawing and related package part were removed.
+
 Image Info Types
 ----------------
 

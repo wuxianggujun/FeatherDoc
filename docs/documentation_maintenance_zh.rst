@@ -107,16 +107,26 @@
 LibreOffice PDF 研究文档
 ------------------------
 
-当前 ``dev`` 仍保留 ``docs/libreoffice_pdf`` 研究文档，并在 ``docs/index.rst`` 中
-保留入口。这些文档属于历史研究和路线决策背景，不是当前 PDF 主线。
+.. FDOC_DOCS_LIBREOFFICE_PDF_LEGACY_REMOVED
 
-后续不应在没有明确确认的情况下删除这些文件。若要清理，应先列出路径、影响范围和
-风险，并获得明确确认。当前更稳妥的处理方式是：
+旧的 ``docs/libreoffice_pdf`` 研究目录已经从公开文档树中物理删除；它曾经保留为
+LibreOffice PDF 背景材料，但内容长期脱离当前 PDF 主线，且会把文档站重新带回旧的
+根目录长文档结构。
 
-1. 保留研究文档作为历史背景。
-2. 在当前方向文档中明确 PDF 主线仍以现有 PDFio / PDFium 路线和保守维护为准。
-3. 不把旧 ``codex/*`` 分支里的大批 PDF regression 样例、manifest 或视觉 baseline
+当前 PDF 主线仍以 ``BUILDING_PDF.md``、``design/04-pdf-execution-plan.md``、
+``docs/pdf_release_readiness_checklist_zh.rst`` 和现有 PDFio / PDFium 保守维护路线为准。
+
+.. FDOC_DOCS_LIBREOFFICE_PDF_LEGACY_DO_NOT_RESTORE
+
+后续如果重新评估 LibreOffice PDF，只能新增一份当前化的决策记录，不能恢复旧目录。
+
+仍需遵守的边界是：
+
+1. 不把旧 ``codex/*`` 分支里的大批 PDF regression 样例、manifest 或视觉 baseline
    直接搬入 ``dev``。
+2. 新 PDF 文档必须先说明和现有 PDF visual gate、PDF CJK、PDF import/export
+   维护入口的关系。
+3. 新增入口必须进入双语文档站或内部治理文档二选一，不能回到根目录混合导航。
 
 
 验证边界

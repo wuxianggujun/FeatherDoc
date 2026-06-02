@@ -10,6 +10,22 @@ API 参考
 * :doc:`../index`
 * :doc:`../../en/api/index`
 
+如何阅读这些页面
+----------------
+
+.. FDOC_ZH_CN_API_HOW_TO_READ
+.. FDOC_ZH_CN_API_PUBLIC_SIGNATURES
+.. FDOC_ZH_CN_API_TYPED_PARAMETERS
+.. FDOC_ZH_CN_API_RETURN_SEMANTICS
+
+API 页面按公开 C++ 对象拆分，而不是继续维护一篇很长的 README 式文档。
+每个专题页应尽量提供：
+
+* 来自 ``include/featherdoc.hpp`` 的完整公开签名。
+* 类型化参数、默认值、单位，以及从 0 开始的索引规则。
+* 返回值语义，包括成功、失败和 ``std::optional`` 为空的含义。
+* 能直接看出调用方式的短示例。
+
 对象地图
 --------
 

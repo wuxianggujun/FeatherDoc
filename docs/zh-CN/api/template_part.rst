@@ -3,7 +3,54 @@ TemplatePart
 
 ``featherdoc::TemplatePart`` 是正文、页眉和页脚部件的统一编辑入口。
 它把同一组模板操作应用到不同的 ``.docx`` 包部件上，适合处理书签填充、
-内容控件替换，以及基于 Schema 的模板校验和上架流程。
+内容控件替换，以及部件级模板校验。
+
+类型化签名导读
+--------------
+
+.. FDOC_ZH_CN_TEMPLATE_PART_TYPED_SIGNATURE_GUIDE
+
+``TemplatePart`` 用于部件级编辑。只有 ``operator bool()`` 返回 ``true`` 时，
+它才指向可用的包内 XML 部件。返回 ``std::size_t`` 的方法表示匹配并修改了
+多少个书签或内容控件；返回 ``bool`` 的方法表示请求的 XML 修改是否成功应用。
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - 签名
+     - 参数
+     - 返回语义
+   * - ``explicit operator bool() const noexcept``
+     - 无。
+     - 指向可用包内 XML 部件时为 ``true``。
+   * - ``std::string_view entry_name() const noexcept``
+     - 无。
+     - 包内条目名，例如 ``word/document.xml``。
+   * - ``Paragraph append_paragraph(const std::string &text = {}, formatting_flag formatting = formatting_flag::none)``
+     - ``text``：插入段落文本。``formatting``：可选首个 run 格式。
+     - 返回当前部件中新建的段落句柄。
+   * - ``Table append_table(std::size_t row_count = 1U, std::size_t column_count = 1U)``
+     - ``row_count`` 和 ``column_count``：初始表格形状。
+     - 返回当前部件中新建的表格句柄。
+   * - ``bookmark_fill_result fill_bookmarks(std::span<const bookmark_text_binding> bindings)``
+     - ``bindings``：书签名和文本绑定。
+     - 返回匹配、替换和缺失书签统计。
+   * - ``std::size_t replace_bookmark_text(const std::string &bookmark_name, const std::string &replacement)``
+     - ``bookmark_name``：目标书签。``replacement``：插入文本。
+     - 返回被替换的书签实例数量。
+   * - ``std::size_t replace_content_control_text_by_tag(std::string_view tag, std::string_view replacement)``
+     - ``tag``：内容控件 tag。``replacement``：插入文本。
+     - 返回被替换的匹配控件数量。
+   * - ``std::size_t replace_content_control_with_table_by_tag(std::string_view tag, const std::vector<std::vector<std::string>> &rows)``
+     - ``tag``：目标控件。``rows``：生成表格的行/单元格文本矩阵。
+     - 返回被替换为表格的匹配控件数量。
+   * - ``template_validation_result validate_template(std::span<const template_slot_requirement> requirements) const``
+     - ``requirements``：当前部件必需的书签/内容控件槽位。
+     - 返回缺失和类型不匹配槽位的校验结果。
+   * - ``std::size_t append_hyperlink(std::string_view text, std::string_view target)``
+     - ``text``：超链接显示文本。``target``：URL 或关系目标。
+     - 返回创建的超链接数量；``0`` 表示未追加。
 
 部件基础
 --------
@@ -110,11 +157,12 @@ TemplatePart
      - ``std::size_t``
      - 设置复选框、日期、下拉框、组合框、锁定或数据绑定状态。
 
-模板 Schema
------------
+模板校验
+--------
 
-模板 Schema API 用于把模板要求显式化。它可以校验必需的书签和内容控件，
-也可以扫描现有模板，生成用于评审、补丁和上架的结构化结果。
+.. FDOC_ZH_CN_TEMPLATE_PART_TEMPLATE_VALIDATION
+
+模板校验 API 用于把当前部件的必需槽位显式化，并检查必需书签和内容控件。
 
 .. list-table::
    :header-rows: 1
@@ -126,18 +174,17 @@ TemplatePart
    * - ``validate_template(requirements) const``
      - ``template_validation_result``
      - 按必需槽位校验书签和内容控件。
-   * - ``validate_template_schema(schema) const``
-     - ``template_schema_validation_result``
-     - 按结构化 Schema 校验模板。
-   * - ``scan_template_schema(options = {})``
-     - ``std::optional<template_schema_scan_result>``
-     - 从当前部件扫描生成 Schema 风格的结果。
-   * - ``build_template_schema_patch_from_scan(baseline, options = {})``
-     - ``std::optional<template_schema_patch>``
-     - 基于基线和当前扫描结果构建模板补丁。
-   * - ``onboard_template(options = {})``
-     - ``std::optional<template_onboarding_result>``
-     - 执行模板上架流程，返回上架结果。
+
+文档级 Schema 工作流
+------------------------
+
+.. FDOC_ZH_CN_TEMPLATE_PART_DOCUMENT_LEVEL_SCHEMA_WORKFLOWS
+
+``validate_template_schema(...)``、``scan_template_schema(...)``、
+``build_template_schema_patch_from_scan(...)`` 和 ``onboard_template(...)``
+是 ``featherdoc::Document`` API，因为它们会聚合正文、页眉、页脚和分节目标槽位。
+``TemplatePart`` 负责部件级填充和 ``validate_template(...)`` 校验；
+整篇文档的 schema 治理应从 ``Document`` 入口执行。
 
 示例
 ----
@@ -156,7 +203,10 @@ TemplatePart
    });
    body.replace_content_control_text_by_tag("status", "approved");
 
-   auto schema_result = body.validate_template_schema(schema);
-   auto onboarding = body.onboard_template();
+   auto validation = body.validate_template({
+       {"invoice_no", featherdoc::template_slot_kind::text, true},
+       {"status", featherdoc::template_slot_kind::text, false},
+   });
+   auto onboarding = doc.onboard_template();
 
-   return doc.save_as("filled.docx") ? 1 : 0;
+   return (!validation || doc.save_as("filled.docx")) ? 1 : 0;

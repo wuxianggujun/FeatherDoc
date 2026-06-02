@@ -6,6 +6,51 @@ structure, page setup, and relationships to header and footer parts. Header and
 footer content can then be edited through ``featherdoc::TemplatePart`` or the
 paragraph handles returned by the section helpers.
 
+Typed Signature Guide
+---------------------
+
+.. FDOC_EN_SECTIONS_TYPED_SIGNATURE_GUIDE
+
+Section indexes are zero-based. ``reference_kind`` selects the default,
+first-page, or even-page header/footer reference. Methods returning
+``TemplatePart`` or ``Paragraph &`` may point at an unavailable part unless you
+use an ``ensure_*`` helper first.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - Signature
+     - Parameters
+     - Return semantics
+   * - ``bool append_section(bool inherit_header_footer = true)``
+     - ``inherit_header_footer``: copy previous section header/footer references.
+     - ``true`` when a section was appended.
+   * - ``bool insert_section(std::size_t section_index, bool inherit_header_footer = true)``
+     - ``section_index``: insertion point. ``inherit_header_footer``: copy nearby references.
+     - ``true`` when the section was inserted.
+   * - ``bool move_section(std::size_t source_section_index, std::size_t target_section_index)``
+     - ``source_section_index``: section to move. ``target_section_index``: destination after removal.
+     - ``true`` when the section order changed.
+   * - ``std::optional<section_page_setup> get_section_page_setup(std::size_t section_index) const``
+     - ``section_index``: target section.
+     - Empty when the section or setup cannot be resolved.
+   * - ``bool set_section_page_setup(std::size_t section_index, const section_page_setup &setup)``
+     - ``section_index``: target section. ``setup``: size, margins, orientation, and page-number data.
+     - ``true`` when page setup was written.
+   * - ``TemplatePart section_header_template(std::size_t section_index, section_reference_kind reference_kind = default_reference)``
+     - ``section_index``: target section. ``reference_kind``: default, first, or even reference.
+     - Template part handle for the resolved header.
+   * - ``Paragraph &ensure_section_footer_paragraphs(std::size_t section_index, section_reference_kind reference_kind = default_reference)``
+     - ``section_index`` and ``reference_kind``: footer target to create or reuse.
+     - Paragraph entry for the ensured footer part.
+   * - ``bool remove_section_header_reference(std::size_t section_index, section_reference_kind reference_kind = default_reference)``
+     - ``section_index`` and ``reference_kind``: reference to detach.
+     - ``true`` when the section reference was removed.
+   * - ``bool replace_section_footer_text(std::size_t section_index, std::string_view replacement_text, section_reference_kind reference_kind = default_reference)``
+     - ``replacement_text``: full footer text for the resolved part.
+     - ``true`` when footer text was replaced.
+
 Section Info Types
 ------------------
 
