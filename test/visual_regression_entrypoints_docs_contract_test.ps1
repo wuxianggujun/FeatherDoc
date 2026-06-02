@@ -37,9 +37,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
-$indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
-$featureGapDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\feature_gap_analysis_zh.rst"
-$docxSmokeDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\docx_functional_smoke_readiness_zh.rst"
+$visualValidationDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\visual_validation_zh.rst"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 $basicTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\basic_tests.cpp"
 $cliTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\cli_tests.cpp"
@@ -50,7 +48,7 @@ $visualEntrypoints = @(
         script = "scripts\run_omml_visual_regression.ps1"
         sample = "samples\sample_omml_visual.cpp"
         target = "featherdoc_sample_omml_visual"
-        docs = @($featureGapDoc)
+        docs = @($visualValidationDoc)
         docMarker = "scripts/run_omml_visual_regression.ps1"
         scriptMarkers = @(
             "BuildDir",
@@ -82,7 +80,7 @@ $visualEntrypoints = @(
         script = "scripts\run_semantic_diff_visual_regression.ps1"
         sample = "samples\sample_semantic_diff_visual.cpp"
         target = "featherdoc_sample_semantic_diff_visual"
-        docs = @($indexDoc, $featureGapDoc)
+        docs = @($visualValidationDoc)
         docMarker = "scripts/run_semantic_diff_visual_regression.ps1"
         scriptMarkers = @(
             "BuildDir",
@@ -116,7 +114,7 @@ $visualEntrypoints = @(
         script = "scripts\run_generic_fields_visual_regression.ps1"
         sample = "samples\sample_generic_fields_visual.cpp"
         target = "featherdoc_sample_generic_fields_visual"
-        docs = @($indexDoc, $featureGapDoc)
+        docs = @($visualValidationDoc)
         docMarker = "scripts/run_generic_fields_visual_regression.ps1"
         scriptMarkers = @(
             "BuildDir",
@@ -150,7 +148,7 @@ $visualEntrypoints = @(
         script = "scripts\run_page_number_fields_visual_regression.ps1"
         sample = "samples\sample_page_number_fields.cpp"
         target = "featherdoc_sample_page_number_fields"
-        docs = @($indexDoc)
+        docs = @($visualValidationDoc)
         docMarker = ".\scripts\run_page_number_fields_visual_regression.ps1"
         scriptMarkers = @(
             "BuildDir",

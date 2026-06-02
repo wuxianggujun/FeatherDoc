@@ -47,3 +47,18 @@ Local Reproduction
 
 For the full review workflow, see :doc:`automation/word_visual_workflow_zh`.
 
+Curated Regression Entrypoints
+------------------------------
+
+The release gate and targeted review tasks keep several focused visual
+regression entrypoints. They are listed here instead of on the documentation
+home page so the home page stays a short navigation surface.
+
+* ``scripts/run_omml_visual_regression.ps1`` validates OMML formula mutation
+  output with Word-rendered evidence.
+* ``scripts/run_semantic_diff_visual_regression.ps1`` validates semantic diff
+  before/after evidence, including style, numbering, and template part changes.
+* ``scripts/run_generic_fields_visual_regression.ps1`` validates TOC, REF, SEQ,
+  and update-fields evidence through generated documents and semantic diff JSON.
+* ``.\scripts\run_page_number_fields_visual_regression.ps1`` validates page
+  number and total-pages fields in header and footer template parts.
