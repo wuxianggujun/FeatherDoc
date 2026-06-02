@@ -21,6 +21,15 @@ function Assert-True {
     if (-not $Condition) { throw $Message }
 }
 
+function Assert-NoUtf8Bom {
+    param([string]$Path, [string]$Message)
+
+    [byte[]]$bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+        throw $Message
+    }
+}
+
 function Convert-TestComparableValue {
     param($Value)
 
@@ -1067,6 +1076,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should write summary.json."
     Assert-True -Condition (Test-Path -LiteralPath $markdownPath) `
         -Message "Rollup should write Markdown report."
+    Assert-NoUtf8Bom -Path $summaryPath `
+        -Message "Rollup summary JSON should be UTF-8 without BOM."
+    Assert-NoUtf8Bom -Path $markdownPath `
+        -Message "Rollup Markdown report should be UTF-8 without BOM."
 
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `

@@ -50,6 +50,13 @@ function Ensure-Directory {
     }
 }
 
+function Write-Utf8NoBomFile {
+    param([string]$Path, [AllowNull()][string]$Text)
+
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, [string]$Text, $encoding)
+}
+
 function Get-DisplayPath {
     param([string]$RepoRoot, [string]$Path)
 
@@ -111,12 +118,12 @@ function Write-ReleaseMaterialFiles {
     )
 
     $summaryJson = $Summary | ConvertTo-Json -Depth $JsonDepth
-    (Convert-ReleaseMaterialString -RepoRoot $repoRoot -Text $summaryJson) |
-        Set-Content -LiteralPath $SummaryPath -Encoding UTF8
+    $summaryJson = Convert-ReleaseMaterialString -RepoRoot $repoRoot -Text $summaryJson
+    Write-Utf8NoBomFile -Path $SummaryPath -Text ($summaryJson + [Environment]::NewLine)
 
     $markdown = @(New-ReportMarkdown -Summary $Summary) -join [Environment]::NewLine
-    (Convert-ReleaseMaterialString -RepoRoot $repoRoot -Text $markdown) |
-        Set-Content -LiteralPath $MarkdownPath -Encoding UTF8
+    $markdown = Convert-ReleaseMaterialString -RepoRoot $repoRoot -Text $markdown
+    Write-Utf8NoBomFile -Path $MarkdownPath -Text ($markdown + [Environment]::NewLine)
 }
 
 function Resolve-RepoPathFromDisplayPath {
