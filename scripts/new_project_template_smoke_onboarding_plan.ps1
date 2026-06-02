@@ -376,6 +376,78 @@ function New-PlannedActionItems {
     )
 }
 
+function Get-ActionItemValue {
+    param($Item, [string]$Name)
+
+    if ($null -eq $Item) {
+        return ""
+    }
+    if ($Item -is [System.Collections.IDictionary]) {
+        if ($Item.Contains($Name) -and $null -ne $Item[$Name]) {
+            return [string]$Item[$Name]
+        }
+        return ""
+    }
+
+    $property = $Item.PSObject.Properties[$Name]
+    if ($null -eq $property -or $null -eq $property.Value) {
+        return ""
+    }
+    return [string]$property.Value
+}
+
+function Get-ActionItemArray {
+    param($Item, [string]$Name)
+
+    if ($null -eq $Item) {
+        return @()
+    }
+    if ($Item -is [System.Collections.IDictionary]) {
+        if ($Item.Contains($Name) -and $null -ne $Item[$Name]) {
+            return @($Item[$Name] | Where-Object { $null -ne $_ })
+        }
+        return @()
+    }
+
+    $property = $Item.PSObject.Properties[$Name]
+    if ($null -eq $property -or $null -eq $property.Value) {
+        return @()
+    }
+    return @($property.Value | Where-Object { $null -ne $_ })
+}
+
+function New-PlannedNextAction {
+    param([object[]]$ActionItems)
+
+    $firstOpenItem = @(
+        $ActionItems |
+            Where-Object { (Get-ActionItemValue -Item $_ -Name "status") -eq "open" } |
+            Select-Object -First 1
+    )
+    if ($firstOpenItem.Count -eq 0) {
+        return [ordered]@{
+            id = "none"
+            status = "not_required"
+            action = "none"
+            title = "No onboarding action is required."
+            command = ""
+            source = "action_items"
+            artifacts = @()
+        }
+    }
+
+    $item = $firstOpenItem[0]
+    return [ordered]@{
+        id = Get-ActionItemValue -Item $item -Name "id"
+        status = Get-ActionItemValue -Item $item -Name "status"
+        action = Get-ActionItemValue -Item $item -Name "action"
+        title = Get-ActionItemValue -Item $item -Name "title"
+        command = Get-ActionItemValue -Item $item -Name "command"
+        source = "action_items"
+        artifacts = @(Get-ActionItemArray -Item $item -Name "artifacts")
+    }
+}
+
 function New-PlannedManualReviewRecommendations {
     param(
         [string]$Name,
@@ -516,6 +588,7 @@ foreach ($candidate in $unregisteredCandidates) {
         -Name $entryName `
         -Commands $entryCommands `
         -RenderDataValidationReport $renderDataValidationReport
+    $nextAction = New-PlannedNextAction -ActionItems $actionItems
     $manualReviewRecommendations = New-PlannedManualReviewRecommendations `
         -Name $entryName `
         -SchemaBaselinePath $schemaBaselinePath `
@@ -543,6 +616,7 @@ foreach ($candidate in $unregisteredCandidates) {
         release_blockers = @($releaseBlockers)
         release_blocker_count = @($releaseBlockers).Count
         action_items = @($actionItems)
+        next_action = $nextAction
         manual_review_recommendations = @($manualReviewRecommendations)
         review_checklist = @(
             "Run freeze_schema_baseline and review the generated schema for unexpected, duplicate, or malformed bookmarks.",
@@ -622,6 +696,13 @@ if ($entries.Count -eq 0) {
         [void]$lines.Add("- Schema approval status: $($entry.schema_approval_state.status)")
         [void]$lines.Add("- Schema approval action: $($entry.schema_approval_state.action)")
         [void]$lines.Add("- Release blockers: $($entry.release_blocker_count)")
+        [void]$lines.Add("- Next action: $($entry.next_action.id)")
+        [void]$lines.Add("")
+        [void]$lines.Add("Next action command:")
+        [void]$lines.Add("")
+        [void]$lines.Add('```powershell')
+        [void]$lines.Add($entry.next_action.command)
+        [void]$lines.Add('```')
         [void]$lines.Add("")
         [void]$lines.Add("Release blockers:")
         foreach ($blocker in @($entry.release_blockers)) {

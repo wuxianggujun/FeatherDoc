@@ -105,6 +105,14 @@ Assert-ContainsText -Text ([string]$entry.release_blockers[0].id) `
     -Message "Plan entry release blocker should identify not-evaluated schema approval."
 Assert-True -Condition (@($entry.action_items).Count -ge 3) `
     -Message "Plan entry should include action items."
+Assert-True -Condition ($null -ne $entry.next_action) `
+    -Message "Plan entry should include a machine-readable next_action."
+Assert-ContainsText -Text ([string]$entry.next_action.id) `
+    -ExpectedText "freeze_schema_baseline" `
+    -Message "Plan entry should point next_action at the first onboarding command."
+Assert-ContainsText -Text ([string]$entry.next_action.command) `
+    -ExpectedText "freeze_template_schema_baseline.ps1" `
+    -Message "Plan entry next_action should include the freeze schema command."
 Assert-True -Condition (@($entry.manual_review_recommendations).Count -ge 3) `
     -Message "Plan entry should include manual review recommendations."
 
@@ -139,6 +147,12 @@ Assert-ContainsText -Text $markdown `
 Assert-ContainsText -Text $markdown `
     -ExpectedText "Release blockers" `
     -Message "Markdown plan should expose release blockers."
+Assert-ContainsText -Text $markdown `
+    -ExpectedText "Next action" `
+    -Message "Markdown plan should expose the preferred next action."
+Assert-ContainsText -Text $markdown `
+    -ExpectedText "freeze_template_schema_baseline.ps1" `
+    -Message "Markdown plan should include the next action command."
 Assert-ContainsText -Text $markdown `
     -ExpectedText "Manual review recommendations" `
     -Message "Markdown plan should expose manual review recommendations."

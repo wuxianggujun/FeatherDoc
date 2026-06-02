@@ -389,6 +389,41 @@ function New-OnboardingActionItems {
     return @($items.ToArray())
 }
 
+function New-OnboardingNextAction {
+    param(
+        [object[]]$ActionItems,
+        [object]$Commands
+    )
+
+    $firstOpenItem = @(
+        $ActionItems |
+            Where-Object { (Get-JsonString -Object $_ -Name "status") -eq "open" } |
+            Select-Object -First 1
+    )
+    if ($firstOpenItem.Count -gt 0) {
+        $item = $firstOpenItem[0]
+        return [ordered]@{
+            id = Get-JsonString -Object $item -Name "id"
+            status = Get-JsonString -Object $item -Name "status"
+            action = Get-JsonString -Object $item -Name "action"
+            title = Get-JsonString -Object $item -Name "title"
+            command = Get-JsonString -Object $item -Name "command"
+            source = "action_items"
+            artifacts = @(Get-JsonArray -Object $item -Name "artifacts")
+        }
+    }
+
+    return [ordered]@{
+        id = "register_manifest_entry"
+        status = "ready"
+        action = "register_manifest_entry"
+        title = "登记 manifest entry"
+        command = [string]$Commands.register_manifest_entry
+        source = "manifest_registration"
+        artifacts = @()
+    }
+}
+
 function New-ManualReviewRecommendations {
     param(
         [System.Collections.IDictionary]$SchemaApprovalState,
@@ -487,6 +522,17 @@ function New-StartHere {
         "- schema_approval_status: ``$($Summary.schema_approval_state.status)``",
         "- schema_approval_action: ``$($Summary.schema_approval_state.action)``",
         "- release_blocker_count: ``$($Summary.release_blocker_count)``",
+        "- next_action: ``$($Summary.next_action.id)``",
+        "",
+        "## 当前优先动作",
+        "",
+        "- id: ``$($Summary.next_action.id)``",
+        "- action: ``$($Summary.next_action.action)``",
+        "- title: ``$($Summary.next_action.title)``",
+        "",
+        '```powershell',
+        $Summary.next_action.command,
+        '```',
         "",
         "## 下一步",
         "",
@@ -535,6 +581,19 @@ function New-ManualReview {
     $lines.Add("- schema_approval_action: ``$($Summary.schema_approval_state.action)``") | Out-Null
     $lines.Add("- release_blocker_count: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- validation_issue: ``$($Summary.validation_issue)``") | Out-Null
+    $lines.Add("") | Out-Null
+    $lines.Add("## Next Action") | Out-Null
+    $lines.Add("") | Out-Null
+    $lines.Add("- id: ``$($Summary.next_action.id)``") | Out-Null
+    $lines.Add("- status: ``$($Summary.next_action.status)``") | Out-Null
+    $lines.Add("- action: ``$($Summary.next_action.action)``") | Out-Null
+    $lines.Add("- title: ``$($Summary.next_action.title)``") | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace([string]$Summary.next_action.command)) {
+        $lines.Add("") | Out-Null
+        $lines.Add('```powershell') | Out-Null
+        $lines.Add([string]$Summary.next_action.command) | Out-Null
+        $lines.Add('```') | Out-Null
+    }
     $lines.Add("") | Out-Null
     $lines.Add("## Schema Approval State") | Out-Null
     $lines.Add("") | Out-Null
@@ -832,6 +891,9 @@ $actionItems = New-OnboardingActionItems `
     -Commands $commands `
     -SmokeSummaryPath $smokeSummaryPath `
     -ValidationReportPath $validationReportPath
+$nextAction = New-OnboardingNextAction `
+    -ActionItems $actionItems `
+    -Commands $commands
 $manualReviewRecommendations = New-ManualReviewRecommendations `
     -SchemaApprovalState $schemaApprovalState `
     -ApprovalItems $schemaPatchApprovalItems `
@@ -882,6 +944,7 @@ $summary["steps"] = @($steps.ToArray())
 $summary["release_blockers"] = @($releaseBlockers)
 $summary["release_blocker_count"] = @($releaseBlockers).Count
 $summary["action_items"] = @($actionItems)
+$summary["next_action"] = $nextAction
 $summary["manual_review_recommendations"] = @($manualReviewRecommendations)
 $summary["next_actions"] = @(
     "Edit render-data JSON and replace TODO placeholders.",
