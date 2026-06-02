@@ -18,6 +18,7 @@ PDF 研究和维护路线；API 中文镜像会从核心对象开始逐步补齐
 快速入口
 --------
 
+* :doc:`getting_started`
 * :doc:`api/index`
 * :doc:`../getting_started`
 * :doc:`../pdf_export`
@@ -36,6 +37,7 @@ PDF 研究和维护路线；API 中文镜像会从核心对象开始逐步补齐
    :maxdepth: 2
    :caption: 用户指南与验证
 
+   getting_started
    ../visual_validation_zh
    ../template_schema_mutation_zh
    ../table_style_definition_zh

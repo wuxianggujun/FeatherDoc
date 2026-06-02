@@ -9,8 +9,8 @@ rewriting Microsoft Word ``.docx`` files.
 This English entry keeps the public API and user guides easy to scan while the
 site grows a matching Simplified Chinese reference.
 
-Chinese project-governance notes remain linked from the Simplified Chinese
-entry while English API pages stay at the existing ``/api/`` URLs.
+The language-local pages provide the stable ``/en/`` browsing path. The older
+root-level API and guide URLs stay available for external links.
 
 Language
 --------
@@ -21,7 +21,8 @@ Language
 Quick Links
 -----------
 
-* :doc:`../getting_started`
+* :doc:`getting_started`
+* :doc:`api/index`
 * :doc:`../api/index`
 * :doc:`../pdf_export`
 * :doc:`../pdf_import`
@@ -30,14 +31,10 @@ Quick Links
    :maxdepth: 2
    :caption: API Reference
 
-   ../api/index
+   api/index
 
 .. toctree::
    :maxdepth: 2
    :caption: User Guides
 
-   ../getting_started
-   ../pdf_export
-   ../pdf_import
-   ../pdf_import_json_diagnostics
-   ../pdf_import_scope
+   getting_started

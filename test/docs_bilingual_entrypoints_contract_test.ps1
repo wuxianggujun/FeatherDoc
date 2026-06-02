@@ -39,8 +39,13 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
 $rootIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $englishIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\index.rst"
+$englishGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\getting_started.rst"
+$englishApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\index.rst"
+$englishDocumentApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\document.rst"
 $chineseIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\index.rst"
+$chineseGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\getting_started.rst"
 $chineseApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\index.rst"
+$chineseDocumentApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\document.rst"
 $readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
 $readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
@@ -50,8 +55,13 @@ foreach ($marker in @(
         "en/index",
         "zh-CN/index",
         "Languages",
+        "en/api/index",
+        "zh-CN/api/index",
         "api/index",
-        "getting_started"
+        "getting_started",
+        "pdf_export",
+        "project_template_release_readiness_checklist_zh",
+        "script_task_index_zh"
     )) {
     Assert-ContainsText -Text $rootIndex -ExpectedText $marker `
         -Message "Root docs index should preserve bilingual landing markers."
@@ -59,8 +69,9 @@ foreach ($marker in @(
 
 foreach ($marker in @(
         "../zh-CN/index",
+        "getting_started",
+        "api/index",
         "../api/index",
-        "../getting_started",
         "../pdf_export"
     )) {
     Assert-ContainsText -Text $englishIndex -ExpectedText $marker `
@@ -68,7 +79,43 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+        "Install And Build",
+        "Minimal C++ Usage",
+        "api/document",
+        "../api/content_blocks",
+        "../pdf_export"
+    )) {
+    Assert-ContainsText -Text $englishGettingStarted -ExpectedText $marker `
+        -Message "English getting-started page should preserve language-local quick-start marker."
+}
+
+foreach ($marker in @(
+        "../../api/index",
+        "featherdoc::Document",
+        "document",
+        "../../api/templates",
+        "../../api/tables"
+    )) {
+    Assert-ContainsText -Text $englishApiIndex -ExpectedText $marker `
+        -Message "English API entrypoint should preserve language-local API marker."
+}
+
+foreach ($marker in @(
+        "featherdoc::Document",
+        "Lifecycle",
+        "Template Part Access",
+        "Sections And Inspection",
+        "open()",
+        "save_as",
+        "../../api/document"
+    )) {
+    Assert-ContainsText -Text $englishDocumentApi -ExpectedText $marker `
+        -Message "English Document API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
         "../en/index",
+        "getting_started",
         "api/index",
         "../visual_validation_zh",
         "../governance_routes_zh",
@@ -79,8 +126,21 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+        "cmake -S . -B build",
+        "BUILD_CLI",
+        "featherdoc::Document",
+        "api/document",
+        "../api/templates",
+        "../pdf_export"
+    )) {
+    Assert-ContainsText -Text $chineseGettingStarted -ExpectedText $marker `
+        -Message "Chinese getting-started page should preserve language-local quick-start marker."
+}
+
+foreach ($marker in @(
         "../../api/index",
         "featherdoc::Document",
+        "document",
         "../../api/document",
         "../../api/templates",
         "../../api/tables"
@@ -90,8 +150,24 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+        "featherdoc::Document",
+        "TemplatePart",
+        "sections_inspection_summary",
+        "compare_semantic",
+        "open()",
+        "save_as",
+        "../../api/document"
+    )) {
+    Assert-ContainsText -Text $chineseDocumentApi -ExpectedText $marker `
+        -Message "Chinese Document API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
         "https://wuxianggujun.github.io/FeatherDoc/en/",
         "https://wuxianggujun.github.io/FeatherDoc/zh-CN/",
+        "https://wuxianggujun.github.io/FeatherDoc/en/api/",
+        "https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/",
+        "https://wuxianggujun.github.io/FeatherDoc/api/",
         "https://shop.input.im/?code=fbe6f3d5",
         "sponsor/zhifubao.jpg",
         "sponsor/weixin.png"
@@ -103,6 +179,9 @@ foreach ($marker in @(
 foreach ($marker in @(
         "https://wuxianggujun.github.io/FeatherDoc/zh-CN/",
         "https://wuxianggujun.github.io/FeatherDoc/en/",
+        "https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/",
+        "https://wuxianggujun.github.io/FeatherDoc/en/api/",
+        "https://wuxianggujun.github.io/FeatherDoc/api/",
         "https://shop.input.im/?code=fbe6f3d5",
         "sponsor/zhifubao.jpg",
         "sponsor/weixin.png"

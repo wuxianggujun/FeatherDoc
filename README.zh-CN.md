@@ -16,7 +16,9 @@ Microsoft Word 文档。
 
 - 中文文档：<https://wuxianggujun.github.io/FeatherDoc/zh-CN/>
 - 英文文档：<https://wuxianggujun.github.io/FeatherDoc/en/>
-- API 参考：<https://wuxianggujun.github.io/FeatherDoc/api/>
+- 中文 API 参考：<https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/>
+- 英文 API 参考：<https://wuxianggujun.github.io/FeatherDoc/en/api/>
+- 旧 API 兼容入口：<https://wuxianggujun.github.io/FeatherDoc/api/>
 - 快速开始：<https://wuxianggujun.github.io/FeatherDoc/getting_started.html>
 - 文档源码：[`docs/index.rst`](docs/index.rst)
 

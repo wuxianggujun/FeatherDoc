@@ -17,7 +17,9 @@ site.
 
 - English documentation: <https://wuxianggujun.github.io/FeatherDoc/en/>
 - Simplified Chinese documentation: <https://wuxianggujun.github.io/FeatherDoc/zh-CN/>
-- API reference: <https://wuxianggujun.github.io/FeatherDoc/api/>
+- English API reference: <https://wuxianggujun.github.io/FeatherDoc/en/api/>
+- Simplified Chinese API reference: <https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/>
+- Legacy API reference: <https://wuxianggujun.github.io/FeatherDoc/api/>
 - Getting started: <https://wuxianggujun.github.io/FeatherDoc/getting_started.html>
 - Source docs: [`docs/index.rst`](docs/index.rst)
 
