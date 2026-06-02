@@ -31,7 +31,7 @@ API 参考
      - :doc:`../../api/tables`
    * - ``featherdoc::TemplatePart``
      - 把正文、页眉、页脚和分节部件统一纳入模板替换流程。
-     - :doc:`../../api/templates`
+     - :doc:`template_part`
    * - inspection summary 结构体
      - 暴露内容控件、表格、字段、图片和语义差异等只读检查结果。
      - :doc:`../../api/enums`
@@ -41,6 +41,7 @@ API 参考
    :caption: 中文核心对象
 
    document
+   template_part
 
 英文 API 页面
 -------------

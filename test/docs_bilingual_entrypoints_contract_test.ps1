@@ -42,10 +42,12 @@ $englishIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\
 $englishGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\getting_started.rst"
 $englishApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\index.rst"
 $englishDocumentApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\document.rst"
+$englishTemplatePartApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\template_part.rst"
 $chineseIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\index.rst"
 $chineseGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\getting_started.rst"
 $chineseApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\index.rst"
 $chineseDocumentApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\document.rst"
+$chineseTemplatePartApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\template_part.rst"
 $readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
 $readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
@@ -93,6 +95,7 @@ foreach ($marker in @(
         "../../api/index",
         "featherdoc::Document",
         "document",
+        "template_part",
         "../../api/templates",
         "../../api/tables"
     )) {
@@ -111,6 +114,21 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $englishDocumentApi -ExpectedText $marker `
         -Message "English Document API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
+        "featherdoc::TemplatePart",
+        "Part Basics",
+        "Bookmarks",
+        "Content Controls",
+        "Template Schema",
+        "replace_content_control_text_by_tag",
+        "validate_template_schema",
+        "onboard_template",
+        "../../api/templates"
+    )) {
+    Assert-ContainsText -Text $englishTemplatePartApi -ExpectedText $marker `
+        -Message "English TemplatePart API page should preserve method-table marker."
 }
 
 foreach ($marker in @(
@@ -141,6 +159,7 @@ foreach ($marker in @(
         "../../api/index",
         "featherdoc::Document",
         "document",
+        "template_part",
         "../../api/document",
         "../../api/templates",
         "../../api/tables"
@@ -160,6 +179,19 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $chineseDocumentApi -ExpectedText $marker `
         -Message "Chinese Document API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
+        "featherdoc::TemplatePart",
+        "entry_name()",
+        "fill_bookmarks",
+        "replace_content_control_text_by_tag",
+        "validate_template_schema",
+        "onboard_template",
+        "../../api/templates"
+    )) {
+    Assert-ContainsText -Text $chineseTemplatePartApi -ExpectedText $marker `
+        -Message "Chinese TemplatePart API page should preserve method-table marker."
 }
 
 foreach ($marker in @(

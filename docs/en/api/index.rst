@@ -26,7 +26,7 @@ Object Map
      - :doc:`../../api/tables`
    * - ``featherdoc::TemplatePart``
      - Shared operations over body, header, footer, and section-specific parts.
-     - :doc:`../../api/templates`
+     - :doc:`template_part`
    * - Inspection summaries
      - Read-only results for content controls, tables, fields, images, and diffs.
      - :doc:`../../api/enums`
@@ -36,6 +36,7 @@ Object Map
    :caption: Core Objects
 
    document
+   template_part
 
 Complete API Groups
 -------------------
