@@ -1017,7 +1017,9 @@ $scriptMarkers = @(
 $preflightDefaultOutputMarkers = @(
     '[string]$OutputJson = "output/pdf-visual-release-gate-preflight-current/summary.json"',
     'if ([string]::IsNullOrWhiteSpace($OutputJson))',
-    "Set-Content -LiteralPath `$resolvedOutputJson"
+    "function Write-Utf8NoBomFile",
+    'output_encoding = "UTF-8 without BOM"',
+    "Write-Utf8NoBomFile -Path `$resolvedOutputJson -Text `$summaryJson"
 )
 
 foreach ($marker in $preflightDefaultOutputMarkers) {
