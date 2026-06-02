@@ -2794,6 +2794,23 @@ if(WIN32)
             )
         endif()
 
+        add_test(
+            NAME
+            docs_bilingual_entrypoints_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/docs_bilingual_entrypoints_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(docs_bilingual_entrypoints_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "docs;smoke;bilingual")
+
         if(
             TARGET featherdoc_sample_merge_right_fixed_grid
             AND TARGET featherdoc_sample_merge_down_fixed_grid

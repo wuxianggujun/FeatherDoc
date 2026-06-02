@@ -14,7 +14,8 @@ Microsoft Word 文档。
 
 ## 文档入口
 
-- 文档站：<https://wuxianggujun.github.io/FeatherDoc/>
+- 中文文档：<https://wuxianggujun.github.io/FeatherDoc/zh-CN/>
+- 英文文档：<https://wuxianggujun.github.io/FeatherDoc/en/>
 - API 参考：<https://wuxianggujun.github.io/FeatherDoc/api/>
 - 快速开始：<https://wuxianggujun.github.io/FeatherDoc/getting_started.html>
 - 文档源码：[`docs/index.rst`](docs/index.rst)

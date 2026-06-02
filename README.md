@@ -15,7 +15,8 @@ site.
 
 ## Documentation
 
-- Documentation site: <https://wuxianggujun.github.io/FeatherDoc/>
+- English documentation: <https://wuxianggujun.github.io/FeatherDoc/en/>
+- Simplified Chinese documentation: <https://wuxianggujun.github.io/FeatherDoc/zh-CN/>
 - API reference: <https://wuxianggujun.github.io/FeatherDoc/api/>
 - Getting started: <https://wuxianggujun.github.io/FeatherDoc/getting_started.html>
 - Source docs: [`docs/index.rst`](docs/index.rst)
