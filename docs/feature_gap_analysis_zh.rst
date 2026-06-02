@@ -155,8 +155,8 @@ release governance handoff 现在也会把归一化后的 blocker、warning 与 
   onboarding summary、onboarding plan 和 smoke approval evidence 汇成项目级
   JSON / Markdown 治理报告；entry 级 ``next_action.reason`` /
   ``next_action.blocker_id`` 与聚合后的 action item 会继续保留，同时提供顶层
-  全局 ``next_action``，便于跨模板视图直接解释第一步动作来源，并用
-  ``-FailOnBlocker`` 接入发布前 gate
+  全局 ``next_action`` 和 ``next_action_summary`` 分组，便于跨模板视图直接解释
+  第一动作来源并看出多少模板卡在同一步，并用 ``-FailOnBlocker`` 接入发布前 gate
 
 后续更值得继续沉淀的是跨项目 onboarding 策略、更多真实业务语料样本和
 发布面板里的治理报告消费体验。

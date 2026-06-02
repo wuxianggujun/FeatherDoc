@@ -273,6 +273,14 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text ([string]$summary.next_action.open_command) `
         -ExpectedText "run_project_template_smoke.ps1" `
         -Message "Summary next_action should expose the reviewer command."
+    Assert-Equal -Actual ([int]$summary.next_action_group_count) -Expected 3 `
+        -Message "Summary should group entry next actions."
+    Assert-ContainsText -Text (($summary.next_action_summary | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "freeze_schema_baseline" `
+        -Message "Next action summary should include onboarding-plan actions."
+    Assert-ContainsText -Text (($summary.next_action_summary | ForEach-Object { (@($_.entry_names) -join ",") }) -join "`n") `
+        -ExpectedText "contract-template" `
+        -Message "Next action summary should preserve grouped entry names."
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
         -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
         -Message "Release blockers should expose the onboarding governance source schema."
@@ -316,6 +324,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should expose the global next action."
     Assert-ContainsText -Text $markdown -ExpectedText "Next action reason" `
         -Message "Markdown should expose the global next action reason."
+    Assert-ContainsText -Text $markdown -ExpectedText "Next Action Summary" `
+        -Message "Markdown should expose grouped next actions."
     Assert-ContainsText -Text $markdown -ExpectedText "contract-template" `
         -Message "Markdown should include onboarding plan entries."
     Assert-ContainsText -Text $markdown -ExpectedText "smoke-template" `

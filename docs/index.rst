@@ -479,8 +479,10 @@ project-template smoke summaries into the stable
 ``featherdoc.project_template_onboarding_governance_report.v1`` JSON/Markdown
 handoff, carrying entry-level ``next_action.reason`` and ``next_action.blocker_id``
 through to the aggregate report and action-item handoff. The summary also exposes
-a top-level project-wide ``next_action`` for the first open onboarding command,
-with ``-FailOnBlocker`` for release gates. For threshold tuning,
+a top-level project-wide ``next_action`` for the first open onboarding command
+plus ``next_action_summary`` groups that show how many entries share the same
+next action and blocker, with ``-FailOnBlocker`` for release gates. For threshold
+tuning,
 ``scripts/write_schema_patch_confidence_calibration_report.ps1`` reads existing
 smoke or approval-history evidence and writes
 ``featherdoc.schema_patch_confidence_calibration_report.v1`` with confidence buckets,

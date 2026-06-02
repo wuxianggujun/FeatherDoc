@@ -656,6 +656,45 @@ function New-StatusSummary {
     )
 }
 
+function New-NextActionSummary {
+    param([object[]]$Entries)
+
+    $groups = [ordered]@{}
+    foreach ($entry in @($Entries)) {
+        $nextAction = Get-JsonProperty -Object $entry -Name "next_action"
+        $id = Get-JsonString -Object $nextAction -Name "id" -DefaultValue "none"
+        $status = Get-JsonString -Object $nextAction -Name "status" -DefaultValue "not_required"
+        $action = Get-JsonString -Object $nextAction -Name "action" -DefaultValue "none"
+        $blockerId = Get-JsonString -Object $nextAction -Name "blocker_id"
+        $key = "$id|$status|$blockerId|$action"
+        if (-not $groups.Contains($key)) {
+            $groups[$key] = [ordered]@{
+                id = $id
+                status = $status
+                action = $action
+                blocker_id = $blockerId
+                count = 0
+                entry_names = New-Object 'System.Collections.Generic.List[string]'
+            }
+        }
+        $groups[$key].count = [int]$groups[$key].count + 1
+        $groups[$key].entry_names.Add((Get-JsonString -Object $entry -Name "name" -DefaultValue "template")) | Out-Null
+    }
+
+    return @(
+        foreach ($group in @($groups.Values)) {
+            [ordered]@{
+                id = [string]$group.id
+                status = [string]$group.status
+                action = [string]$group.action
+                blocker_id = [string]$group.blocker_id
+                count = [int]$group.count
+                entry_names = @($group.entry_names.ToArray())
+            }
+        }
+    )
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -681,6 +720,16 @@ function New-ReportMarkdown {
         $lines.Add("- ``$($item.status)``: $($item.count)") | Out-Null
     }
     if (@($Summary.schema_approval_status_summary).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Next Action Summary") | Out-Null
+    $lines.Add("") | Out-Null
+    foreach ($item in @($Summary.next_action_summary)) {
+        $entryNames = (@($item.entry_names) -join ", ")
+        $lines.Add("- ``$($item.id)``: status=``$($item.status)`` blocker=``$($item.blocker_id)`` count=``$($item.count)`` entries=``$entryNames``") | Out-Null
+    }
+    if (@($Summary.next_action_summary).Count -eq 0) {
         $lines.Add("- none") | Out-Null
     }
     $lines.Add("") | Out-Null
@@ -863,6 +912,7 @@ $releaseBlockerCount = $releaseBlockers.Count
 $summaryNextAction = New-GovernanceSummaryNextAction `
     -Entries $entries.ToArray() `
     -ActionItems $actionItems.ToArray()
+$nextActionSummary = @(New-NextActionSummary -Entries $entries.ToArray())
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($releaseBlockerCount -gt 0) {
@@ -886,6 +936,8 @@ $summary = [ordered]@{
     entries = @($entries.ToArray())
     next_action = $summaryNextAction
     schema_approval_status_summary = @(New-StatusSummary -Entries $entries.ToArray())
+    next_action_summary = @($nextActionSummary)
+    next_action_group_count = $nextActionSummary.Count
     blocked_entry_count = @($entries.ToArray() | Where-Object { $_.schema_approval_status -eq "blocked" }).Count
     pending_review_entry_count = @($entries.ToArray() | Where-Object { $_.schema_approval_status -eq "pending_review" }).Count
     not_evaluated_entry_count = @($entries.ToArray() | Where-Object { $_.schema_approval_status -eq "not_evaluated" }).Count
