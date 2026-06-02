@@ -1007,7 +1007,12 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
         }
     }
 
-    if (Test-TextContainsAny -Text $Content -Needles @("project_template_delivery_readiness", "project_template_onboarding.schema_approval", "project_template_onboarding_governance")) {
+    $mentionsProjectTemplateGovernance = Test-TextContainsAny -Text $Content -Needles @(
+        "project_template_delivery_readiness",
+        "project_template_onboarding.schema_approval",
+        "project_template_onboarding_governance"
+    )
+    if ($mentionsProjectTemplateGovernance) {
         if (-not (Test-TextLineContainsAll -Text $Content -Needles @(
             "Project template release readiness checklist",
             "docs/project_template_release_readiness_checklist_zh.rst"
@@ -1018,6 +1023,14 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
                 -Label $label `
                 -Text "Entry document must point reviewers at docs/project_template_release_readiness_checklist_zh.rst when project-template governance evidence is present."
         }
+    }
+
+    $hasProjectTemplateGovernanceEvidence = Test-TextContainsAny -Text $Content -Needles @(
+        "featherdoc.project_template_delivery_readiness_report.v1",
+        "project_template_onboarding.schema_approval",
+        "featherdoc.project_template_onboarding_governance_report.v1"
+    )
+    if ($hasProjectTemplateGovernanceEvidence) {
 
         Add-ReleaseEntryProjectTemplateDetailViolations `
             -File $File `
@@ -3460,11 +3473,10 @@ function Add-FinalReviewPdfVisualGateTraceViolations {
         return
     }
 
-    if (-not (Test-TextContainsAny -Text $Content -Needles @(
-        "PDF visual gate verdict",
-        "PDF visual gate counts",
-        "PDF visual gate summary"
-    ))) {
+    if (-not (
+        (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate summary:", "summary.json")) -or
+        (Test-TextLineContainsAll -Text $Content -Needles @("PDF visual gate contact sheet:", "aggregate-contact-sheet.png"))
+    )) {
         return
     }
 
@@ -3834,6 +3846,48 @@ function Add-GovernanceMetricDetailsViolations {
     }
 }
 
+function Test-ReleaseGovernanceSummaryContainerActive {
+    param([AllowNull()]$Container)
+
+    if ($null -eq $Container) {
+        return $false
+    }
+
+    $requested = Get-JsonPropertyValue -Object $Container -Name "requested"
+    if ([string]::Equals([string]$requested, "True", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $true
+    }
+
+    $status = [string](Get-JsonPropertyValue -Object $Container -Name "status")
+    if (-not [string]::IsNullOrWhiteSpace($status) -and
+        -not [string]::Equals($status, "not_requested", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $true
+    }
+
+    foreach ($countProperty in @(
+        "governance_metric_count",
+        "release_blocker_count",
+        "action_item_count",
+        "warning_count",
+        "source_report_count",
+        "loaded_report_count"
+    )) {
+        $countValue = Get-JsonPropertyValue -Object $Container -Name $countProperty
+        if ($null -eq $countValue -or [string]::IsNullOrWhiteSpace([string]$countValue)) {
+            continue
+        }
+
+        try {
+            if ([int]$countValue -gt 0) {
+                return $true
+            }
+        } catch {
+        }
+    }
+
+    return $false
+}
+
 function Test-ReleaseGovernanceContractTarget {
     param(
         [string]$File,
@@ -3856,8 +3910,20 @@ function Test-ReleaseGovernanceContractTarget {
         return $false
     }
 
-    foreach ($marker in @("release_handoff", "artifact_guide", "reviewer_checklist", "governance_metrics")) {
-        if ($null -ne (Get-JsonPropertyValue -Object $Json -Name $marker)) {
+    $metricsValue = Get-JsonPropertyValue -Object $Json -Name "governance_metrics"
+    if ($null -ne $metricsValue -and @($metricsValue).Count -gt 0) {
+        return $true
+    }
+
+    foreach ($containerName in @("release_blocker_rollup", "release_governance_handoff")) {
+        if (Test-ReleaseGovernanceSummaryContainerActive -Container (Get-JsonPropertyValue -Object $Json -Name $containerName)) {
+            return $true
+        }
+    }
+
+    $steps = Get-JsonPropertyValue -Object $Json -Name "steps"
+    foreach ($containerName in @("release_blocker_rollup", "release_governance_handoff")) {
+        if (Test-ReleaseGovernanceSummaryContainerActive -Container (Get-JsonPropertyValue -Object $steps -Name $containerName)) {
             return $true
         }
     }

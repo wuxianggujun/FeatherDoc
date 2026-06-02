@@ -3426,6 +3426,10 @@ $badSummary = [ordered]@{
     release_version = "1.6.4"
     execution_status = "pass"
     release_handoff = ".\output\release-candidate-checks\report\release_handoff.md"
+    release_blocker_rollup = [ordered]@{
+        requested = $true
+        status = "completed"
+    }
 }
 ($badSummary | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $badSummaryPath -Encoding UTF8
 
@@ -6463,6 +6467,77 @@ try {
 if (-not $badFinalReviewPdfSegmentedDetachedOutputTraceFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with PDF visual segmented gate Key outputs evidence supplied only by detached notes."
 }
+
+$passMetadataOnlyReleaseBundleDir = Join-Path $passDir "metadata-only-release-bundle"
+$passMetadataOnlyReleaseBundleReportDir = Join-Path $passMetadataOnlyReleaseBundleDir "report"
+New-Item -ItemType Directory -Path $passMetadataOnlyReleaseBundleReportDir -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $passMetadataOnlyReleaseBundleDir "START_HERE.md") -Encoding UTF8 -Value @"
+# Release Metadata Start Here
+
+- Project template release readiness checklist: `docs/project_template_release_readiness_checklist_zh.rst`
+- Open `output\release-assets\v1.12.0\release_assets_manifest.json` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `release_blocker_count`, `warning_count`, `schema_approval_status_summary`, `onboarding_governance_next_action`, `onboarding_governance_next_action_summary`, `onboarding_governance_next_action_group_count`, `next_action`, `next_action_summary`, `next_action_group_count`, `source_report_display`, and `source_json_display` before publishing.
+"@
+Set-Content -LiteralPath (Join-Path $passMetadataOnlyReleaseBundleReportDir "ARTIFACT_GUIDE.md") -Encoding UTF8 -Value @"
+# Release Metadata Artifact Guide
+
+- Project template release readiness checklist: `docs/project_template_release_readiness_checklist_zh.rst`
+- Project-template governance manifest signoff: open `output\release-assets\v1.12.0\release_assets_manifest.json` after packaging and confirm `project_template_delivery_readiness_contract` plus `project_template_onboarding_governance_contract` both preserve `status`, `release_ready`, `release_blocker_count`, `warning_count`, `schema_approval_status_summary`, `onboarding_governance_next_action`, `onboarding_governance_next_action_summary`, `onboarding_governance_next_action_group_count`, `next_action`, `next_action_summary`, `next_action_group_count`, `source_report_display`, and `source_json_display` before publishing.
+"@
+Set-Content -LiteralPath (Join-Path $passMetadataOnlyReleaseBundleReportDir "REVIEWER_CHECKLIST.md") -Encoding UTF8 -Value @"
+# Release Reviewer Checklist
+
+- Project template release readiness checklist: `docs/project_template_release_readiness_checklist_zh.rst`
+- [ ] Confirm the packaged release manifest preserves project-template governance contracts before publishing: output\release-assets\v1.12.0\release_assets_manifest.json must include `project_template_delivery_readiness_contract` and `project_template_onboarding_governance_contract` with `status`, `release_ready`, `release_blocker_count`, `warning_count`, `schema_approval_status_summary`, `onboarding_governance_next_action`, `onboarding_governance_next_action_summary`, `onboarding_governance_next_action_group_count`, `next_action`, `next_action_summary`, `next_action_group_count`, `source_report_display`, and `source_json_display`.
+"@
+Set-Content -LiteralPath (Join-Path $passMetadataOnlyReleaseBundleReportDir "final_review.md") -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Step status
+
+- PDF visual gate: not_requested
+- PDF visual gate verdict:
+- PDF visual gate counts: 0 visual baselines, 0 CJK copy/search
+- PDF visual gate manifest counts: 0 visual baseline manifest samples, 0 CJK manifest samples
+- PDF visual gate finalizable: False
+
+## Key outputs
+
+- PDF visual gate summary: (not available)
+- PDF visual gate contact sheet: (not available)
+"@
+$passMetadataOnlySummary = [ordered]@{
+    schema = "featherdoc.release_candidate_summary"
+    release_version = "1.12.0"
+    execution_status = "pass"
+    release_handoff = ".\output\release-candidate-checks-ci\report\release_handoff.md"
+    artifact_guide = ".\output\release-candidate-checks-ci\report\ARTIFACT_GUIDE.md"
+    reviewer_checklist = ".\output\release-candidate-checks-ci\report\REVIEWER_CHECKLIST.md"
+    governance_metric_count = 0
+    governance_metrics = @()
+    release_blocker_rollup = [ordered]@{
+        requested = $false
+        status = "not_requested"
+        governance_metric_count = 0
+        governance_metrics = @()
+        release_blocker_count = 0
+        action_item_count = 0
+        warning_count = 0
+        source_report_count = 0
+    }
+    release_governance_handoff = [ordered]@{
+        requested = $false
+        status = "not_requested"
+        governance_metric_count = 0
+        governance_metrics = @()
+        release_blocker_count = 0
+        action_item_count = 0
+        warning_count = 0
+        loaded_report_count = 0
+    }
+}
+($passMetadataOnlySummary | ConvertTo-Json -Depth 8) |
+    Set-Content -LiteralPath (Join-Path $passMetadataOnlyReleaseBundleReportDir "summary.json") -Encoding UTF8
+& $auditScript -Path $passMetadataOnlyReleaseBundleDir
 
 $badEntryGovernanceTracePath = Join-Path $failDir "ARTIFACT_GUIDE.md"
 Set-Content -LiteralPath $badEntryGovernanceTracePath -Encoding UTF8 -Value @"
