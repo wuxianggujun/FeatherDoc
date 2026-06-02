@@ -104,6 +104,7 @@ param(
     [string]$PdfVisualSegmentedGateSummaryJson = "",
     [string[]]$PdfBoundedCtestSummaryJson = @(),
     [string]$PdfReleaseReadinessSummaryJson = "",
+    [switch]$SkipMaterialSafetyAudit,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -4029,16 +4030,20 @@ $wordVisualStandardReviewMetadataEvidenceMarkdown
         Convert-ReleaseMaterialFile -RepoRoot $repoRoot -Path $releaseMaterialPath
     }
 
-    & $releaseMaterialAuditScript -Path @(
-        $summaryPath,
-        $finalReviewPath,
-        $releaseHandoffPath,
-        $releaseBodyZhCnPath,
-        $releaseSummaryZhCnPath,
-        $artifactGuidePath,
-        $reviewerChecklistPath,
-        $startHerePath
-    )
+    if (-not $SkipMaterialSafetyAudit.IsPresent) {
+        & $releaseMaterialAuditScript -Path @(
+            $summaryPath,
+            $finalReviewPath,
+            $releaseHandoffPath,
+            $releaseBodyZhCnPath,
+            $releaseSummaryZhCnPath,
+            $artifactGuidePath,
+            $reviewerChecklistPath,
+            $startHerePath
+        )
+    } else {
+        Write-Step "Skipping final release material safety audit"
+    }
 }
 
 Write-Step "Completed release-candidate checks"

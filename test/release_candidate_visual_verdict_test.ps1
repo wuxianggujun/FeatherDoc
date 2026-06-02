@@ -311,7 +311,8 @@ foreach ($name in @(
         "ReleaseGovernanceHandoffFailOnBlocker",
         "ReleaseGovernanceHandoffFailOnWarning",
         "ReleaseGovernanceHandoffExpectedReportProfile",
-        "ReleaseEvidenceScope"
+        "ReleaseEvidenceScope",
+        "SkipMaterialSafetyAudit"
     )) {
     Assert-ContainsText -Text $scriptText -ExpectedText $name `
         -Message ("Release preflight should expose {0}." -f $name)
@@ -477,6 +478,12 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'Get-ReleaseGovernanceProjec
 
 Assert-ContainsText -Text $scriptText -ExpectedText 'Get-ReleaseGovernanceWordVisualStandardReviewMetadataEvidenceLine -Summary $summary' `
     -Message "Release preflight final_review.md should derive compact Word visual metadata evidence from release governance handoff."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'if (-not $SkipMaterialSafetyAudit.IsPresent)' `
+    -Message "Release preflight should keep final material safety audit enabled by default."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'Skipping final release material safety audit' `
+    -Message "Release preflight should make partial-fixture material safety audit skips explicit."
 
 Assert-ContainsText -Text $scriptText -ExpectedText '## Project-template release entry evidence' `
     -Message "Release preflight final_review.md should expose project-template release entry evidence as a reviewer-facing section."
