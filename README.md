@@ -9,6 +9,17 @@
 FeatherDoc is a modernized C++ library for reading and writing Microsoft Word
 `.docx` files.
 
+## Documentation
+
+The full Sphinx documentation is published with GitHub Pages:
+
+- Documentation site: <https://wuxianggujun.github.io/FeatherDoc/>
+- Source index: [`docs/index.rst`](docs/index.rst)
+
+Keep this README focused on quick start and repository entry points; feature
+details, release governance, PDF notes, and project-template checklists live in
+the documentation site.
+
 ## Highlights
 
 - CMake 3.20+ and C++20

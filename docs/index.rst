@@ -2429,9 +2429,8 @@ footer content. For cross-reference and document metadata fields, use
 ``PAGEREF``, ``STYLEREF``, ``DOCPROPERTY``, ``DATE``, ``HYPERLINK``, caption
 ``SEQ``, ``XE``, ``INDEX``, and complex nested field instructions; documents can also opt into
 Word open-time refresh via ``enable_update_fields_on_open()``; all simple field
-appenders accept
- dirty / locked state where appropriate. For section-scoped fields,
-materialize the target part first
+appenders accept dirty / locked state where appropriate. For section-scoped
+fields, materialize the target part first
 through ``ensure_section_header_paragraphs(...)`` or
 ``ensure_section_footer_paragraphs(...)`` when it does not exist yet.
 
@@ -2605,15 +2604,15 @@ fallback behavior.
         return 1;
     }
 
-The CLI now exposes the same ``docDefaults`` surface through
-``inspect-default-run-properties``, ``set-default-run-properties``, and
-``clear-default-run-properties`` when you need the same default
-font/language/RTL edits from scripts instead of C++.
-
     if (const auto error = doc.save()) {
         std::cerr << error.message() << std::endl;
         return 1;
     }
+
+The CLI now exposes the same ``docDefaults`` surface through
+``inspect-default-run-properties``, ``set-default-run-properties``, and
+``clear-default-run-properties`` when you need the same default
+font/language/RTL edits from scripts instead of C++.
 
 Call ``run.set_font_family(...)``, ``run.set_east_asia_font_family(...)``,
 ``run.set_language(...)``, and ``run.set_east_asia_language(...)`` on the
