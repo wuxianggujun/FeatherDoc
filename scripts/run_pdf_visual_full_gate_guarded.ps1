@@ -219,6 +219,15 @@ $process = Start-Process `
 $completed = $process.WaitForExit($OuterTimeoutSeconds * 1000)
 $cleanedProcessIds = @()
 if (-not $completed) {
+    $attemptSummaryRun = Invoke-AttemptSummary `
+        -PowerShellPath $powerShellPath `
+        -ScriptPath $resolvedAttemptSummaryScript `
+        -RepoRoot $repoRoot `
+        -ReportDir $resolvedReportDir `
+        -AttemptSummaryJson $attemptSummaryJson `
+        -AttemptStartedAt $startedAt `
+        -OuterGuardTimedOut $true `
+        -OuterGuardTimeoutSeconds $OuterTimeoutSeconds
     $descendants = @(Get-DescendantProcessIds -ParentId $process.Id)
     $cleanedProcessIds = @($descendants + $process.Id | Sort-Object -Descending -Unique)
     foreach ($processId in $cleanedProcessIds) {
@@ -226,6 +235,15 @@ if (-not $completed) {
     }
 } else {
     $process.Refresh()
+    $attemptSummaryRun = Invoke-AttemptSummary `
+        -PowerShellPath $powerShellPath `
+        -ScriptPath $resolvedAttemptSummaryScript `
+        -RepoRoot $repoRoot `
+        -ReportDir $resolvedReportDir `
+        -AttemptSummaryJson $attemptSummaryJson `
+        -AttemptStartedAt $startedAt `
+        -OuterGuardTimedOut $false `
+        -OuterGuardTimeoutSeconds $OuterTimeoutSeconds
 }
 $finishedAt = Get-Date
 
@@ -237,15 +255,6 @@ $rawProcessExitCode = if (-not $completed) {
     1
 }
 
-$attemptSummaryRun = Invoke-AttemptSummary `
-    -PowerShellPath $powerShellPath `
-    -ScriptPath $resolvedAttemptSummaryScript `
-    -RepoRoot $repoRoot `
-    -ReportDir $resolvedReportDir `
-    -AttemptSummaryJson $attemptSummaryJson `
-    -AttemptStartedAt $startedAt `
-    -OuterGuardTimedOut (-not $completed) `
-    -OuterGuardTimeoutSeconds $OuterTimeoutSeconds
 $attemptSummary = Read-JsonFile -Path $attemptSummaryJson
 $attemptStatus = if ($null -eq $attemptSummary) { "missing" } else { [string](Get-OptionalPropertyValue -Object $attemptSummary -Name "status") }
 $attemptVerdict = if ($null -eq $attemptSummary) { "not_available" } else { [string](Get-OptionalPropertyValue -Object $attemptSummary -Name "verdict") }
