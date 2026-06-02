@@ -23,7 +23,7 @@ Object Map
      - :doc:`paragraph_run`
    * - ``featherdoc::Table`` / ``TableRow`` / ``TableCell``
      - Table structure, rows, cells, widths, borders, alignment, and merge state.
-     - :doc:`../../api/tables`
+     - :doc:`table`
    * - ``featherdoc::TemplatePart``
      - Shared operations over body, header, footer, and section-specific parts.
      - :doc:`template_part`
@@ -37,6 +37,7 @@ Object Map
 
    document
    paragraph_run
+   table
    template_part
 
 Complete API Groups

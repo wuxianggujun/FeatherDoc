@@ -28,7 +28,7 @@ API 参考
      - :doc:`paragraph_run`
    * - ``featherdoc::Table`` / ``TableRow`` / ``TableCell``
      - 编辑表格结构、宽度、边框、合并状态和单元格内容。
-     - :doc:`../../api/tables`
+     - :doc:`table`
    * - ``featherdoc::TemplatePart``
      - 把正文、页眉、页脚和分节部件统一纳入模板替换流程。
      - :doc:`template_part`
@@ -42,6 +42,7 @@ API 参考
 
    document
    paragraph_run
+   table
    template_part
 
 英文 API 页面
