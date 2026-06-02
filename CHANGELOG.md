@@ -14,9 +14,10 @@ performance.
   so header and footer `{{page}}` / `{{total_pages}}` placeholders can be
   expanded during PDF export, with the effective export switches reported in
   both `--json` and `--summary-json` output.
-- Added `docs/pdf_export.rst` and README links for the experimental PDF export
-  CLI entry point, supported options, JSON summary shape, and current scope
-  limits.
+- Added the bilingual `docs/en/api/pdf_workflow.rst` and
+  `docs/zh-CN/api/pdf_workflow.rst` pages plus README links for the
+  experimental PDF export CLI entry point, supported options, JSON summary
+  shape, and current scope limits.
 - Documented the `export-pdf --json` failure result contract, including parse,
   open, export, and summary failure stages.
 - Added a stable schema marker to the raw PDF visual release-gate preflight

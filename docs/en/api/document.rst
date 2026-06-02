@@ -5,8 +5,6 @@ Document
 open and save files, access body/header/footer template parts, inspect sections,
 and call document-wide editing APIs.
 
-FDOC_DOCUMENT_API_PARAMETERS
-
 Lifecycle
 ---------
 
@@ -115,8 +113,6 @@ footers.
 Sections And Inspection
 -----------------------
 
-FDOC_DOCUMENT_API_SECTIONS
-
 .. list-table::
    :header-rows: 1
    :widths: 31 29 18 42
@@ -201,8 +197,6 @@ FDOC_DOCUMENT_API_SECTIONS
 Template Filling Shortcuts
 --------------------------
 
-FDOC_DOCUMENT_API_TEMPLATE_FILLING
-
 These methods operate from ``Document`` directly. Use them for common template
 fills without first taking a ``TemplatePart``.
 
@@ -275,8 +269,6 @@ fills without first taking a ``TemplatePart``.
 Body, Tables, And Images
 ------------------------
 
-FDOC_DOCUMENT_API_BODY_TABLE_IMAGE
-
 .. list-table::
    :header-rows: 1
    :widths: 31 29 18 42
@@ -319,8 +311,6 @@ FDOC_DOCUMENT_API_BODY_TABLE_IMAGE
 
 Notes, Revisions, And Links
 ---------------------------
-
-FDOC_DOCUMENT_API_REVIEW_LINKS
 
 The detailed object pages cover these families, but the root ``Document`` API
 also exposes document-wide entry points.
@@ -377,8 +367,6 @@ also exposes document-wide entry points.
 
 Related API Families
 --------------------
-
-FDOC_DOCUMENT_API_RELATED_FAMILIES
 
 The root ``Document`` type also exposes these public API families. Use the
 focused pages for the full method sets and examples:
@@ -453,5 +441,3 @@ Create a new document with a table and field-update setting:
    }
 
    return doc.save_as("report.docx") ? 1 : 0;
-
-The complete legacy page remains available at :doc:`../../api/document`.

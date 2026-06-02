@@ -159,5 +159,3 @@ Example
    auto header = doc.section_header_template(
        0, featherdoc::section_reference_kind::default_reference);
    header.append_paragraph("Quarterly report");
-
-The complete legacy page remains available at :doc:`../../api/images_sections`.

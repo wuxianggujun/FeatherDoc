@@ -201,5 +201,3 @@ Example
    if (run.has_next()) {
        run.next().set_font_family("Aptos");
    }
-
-The complete legacy page remains available at :doc:`../../api/content_blocks`.

@@ -4,8 +4,6 @@ Document
 ``featherdoc::Document`` 是 ``.docx`` 文档包的根对象。通常先用它打开或创建
 文档，再通过正文、页眉、页脚、分节和检查 API 完成编辑与验证。
 
-FDOC_DOCUMENT_API_PARAMETERS
-
 生命周期
 --------
 
@@ -112,8 +110,6 @@ FDOC_DOCUMENT_API_PARAMETERS
 分节与检查
 ----------
 
-FDOC_DOCUMENT_API_SECTIONS
-
 .. list-table::
    :header-rows: 1
    :widths: 31 29 18 42
@@ -194,8 +190,6 @@ FDOC_DOCUMENT_API_SECTIONS
 模板填充快捷入口
 ----------------
 
-FDOC_DOCUMENT_API_TEMPLATE_FILLING
-
 这些方法直接从 ``Document`` 操作。常见模板填充场景不必先取得
 ``TemplatePart``。
 
@@ -264,8 +258,6 @@ FDOC_DOCUMENT_API_TEMPLATE_FILLING
 正文、表格和图片
 ----------------
 
-FDOC_DOCUMENT_API_BODY_TABLE_IMAGE
-
 .. list-table::
    :header-rows: 1
    :widths: 31 29 18 42
@@ -307,8 +299,6 @@ FDOC_DOCUMENT_API_BODY_TABLE_IMAGE
 
 批注、修订和链接
 ----------------
-
-FDOC_DOCUMENT_API_REVIEW_LINKS
 
 详细能力在对应对象页中展开；这里列出 ``Document`` 级常用入口。
 
@@ -362,8 +352,6 @@ FDOC_DOCUMENT_API_REVIEW_LINKS
 
 相关 API 家族
 -------------
-
-FDOC_DOCUMENT_API_RELATED_FAMILIES
 
 ``Document`` 根对象还暴露以下公开 API 家族。完整方法集和示例请进入对应专题页：
 
@@ -431,5 +419,3 @@ FDOC_DOCUMENT_API_RELATED_FAMILIES
    }
 
    return doc.save_as("report.docx") ? 1 : 0;
-
-英文完整页面仍保留在 :doc:`../../api/document`。

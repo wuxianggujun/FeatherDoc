@@ -465,8 +465,8 @@ scope 行必须直接携带 `segmented_visual_gate_auxiliary_only`；segmented s
 网格候选写入 `Document` 表格。当前实现还会在首个导入块是表格时，移除
 `create_empty()` 留下的 body 占位段落，并通过 `inspect_body_blocks()` 做顺序验收。
 面向用户的支持范围、保守边界和 `import-pdf --json` 输出契约已经集中到
-`docs/pdf_import_json_diagnostics.rst` 与 `docs/pdf_import_scope.rst`；
-`docs/pdf_import.rst` 只保留用户总览入口。本文档只保留构建、开发者测试和调试入口，
+`docs/zh-CN/api/pdf_workflow.rst`；英文镜像见
+`docs/en/api/pdf_workflow.rst`。本文档只保留构建、开发者测试和调试入口，
 避免用户契约在多处漂移。
 
 导入侧的发布边界必须保持清晰：当前是 text-first importer，只承诺可抽取文本、
@@ -494,7 +494,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 ## CLI 导出入口
 
 `featherdoc_cli export-pdf` 已经可以作为用户入口使用。当前常用参数是：
-完整选项、JSON summary 结构和导出边界见 `docs/pdf_export.rst`。
+完整选项、JSON summary 结构和导出边界见 `docs/zh-CN/api/pdf_workflow.rst`；
+英文镜像见 `docs/en/api/pdf_workflow.rst`。
 
 - `--output <pdf>`
 - `--font-file <path>`

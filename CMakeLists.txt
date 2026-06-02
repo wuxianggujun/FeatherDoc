@@ -1327,11 +1327,14 @@ install(
 
 install(
     FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_export.rst"
-        "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import.rst"
-        "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import_json_diagnostics.rst"
-        "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import_scope.rst"
-    DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/docs"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/en/api/pdf_workflow.rst"
+    DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/docs/en/api"
+)
+
+install(
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/zh-CN/api/pdf_workflow.rst"
+    DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/docs/zh-CN/api"
 )
 
 install(

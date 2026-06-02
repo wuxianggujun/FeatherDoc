@@ -201,5 +201,3 @@ Run 语言与方向
    if (run.has_next()) {
        run.next().set_font_family("Aptos");
    }
-
-旧版完整页面仍保留在 :doc:`../../api/content_blocks`。

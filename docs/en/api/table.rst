@@ -274,5 +274,3 @@ Example
        sku->set_fill_color("D9EAF7");
        sku->set_vertical_alignment(featherdoc::cell_vertical_alignment::center);
    }
-
-The complete legacy page remains available at :doc:`../../api/tables`.

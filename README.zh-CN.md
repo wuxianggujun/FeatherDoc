@@ -18,8 +18,9 @@ Microsoft Word 文档。
 - 英文文档：<https://wuxianggujun.github.io/FeatherDoc/en/>
 - 中文 API 参考：<https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/>
 - 英文 API 参考：<https://wuxianggujun.github.io/FeatherDoc/en/api/>
-- 旧 API 兼容入口：<https://wuxianggujun.github.io/FeatherDoc/api/>
-- 快速开始：<https://wuxianggujun.github.io/FeatherDoc/getting_started.html>
+- 中文快速开始：<https://wuxianggujun.github.io/FeatherDoc/zh-CN/getting_started.html>
+- 英文快速开始：<https://wuxianggujun.github.io/FeatherDoc/en/getting_started.html>
+- PDF 工作流：<https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/pdf_workflow.html>
 - 文档源码：[`docs/index.rst`](docs/index.rst)
 
 ## 可以用来做什么

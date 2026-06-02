@@ -47,6 +47,9 @@ API 参考
    * - 编辑计划操作
      - ``scripts/edit_document_from_plan.ps1`` 接收的 JSON operation 名称索引。
      - :doc:`edit_plan_operations`
+   * - PDF 工作流
+     - 实验性 ``export-pdf`` 和 ``import-pdf`` CLI 工作流、JSON 诊断和支持范围。
+     - :doc:`pdf_workflow`
    * - inspection summary 结构体
      - 暴露内容控件、表格、字段、图片和语义差异等只读检查结果，以及通用枚举选项。
      - :doc:`enums`
@@ -64,4 +67,5 @@ API 参考
    styles_numbering
    template_part
    edit_plan_operations
+   pdf_workflow
    enums

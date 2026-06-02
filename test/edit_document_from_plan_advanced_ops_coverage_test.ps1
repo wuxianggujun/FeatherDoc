@@ -58,7 +58,7 @@ $tableAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_
 $tableStructureAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_structure_aliases_test.ps1"
 $revisionCleanupTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_revision_cleanup_test.ps1"
 $updateFieldsAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_update_fields_aliases_test.ps1"
-$editPlanOperationsDocsPath = Join-Path $RepoRoot "docs\api\edit_plan_operations.rst"
+$editPlanOperationsDocsPath = Join-Path $RepoRoot "docs\en\api\edit_plan_operations.rst"
 
 $scriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 $testText = @(
@@ -200,7 +200,7 @@ $advancedOperations = @(
 foreach ($operation in $advancedOperations) {
     Assert-DispatchesOperation -ScriptText $scriptText -Operation $operation
     Assert-TestUsesOperation -TestText $testText -Operation $operation
-    Assert-ContainsText -Text $editPlanOperationsDocsText -ExpectedText $operation -Label "docs/api/edit_plan_operations.rst"
+    Assert-ContainsText -Text $editPlanOperationsDocsText -ExpectedText $operation -Label "docs/en/api/edit_plan_operations.rst"
 }
 
 $docsRequiredTerms = @(
@@ -213,7 +213,7 @@ $docsRequiredTerms = @(
 )
 
 foreach ($term in $docsRequiredTerms) {
-    Assert-ContainsText -Text $editPlanOperationsDocsText -ExpectedText $term -Label "docs/api/edit_plan_operations.rst"
+    Assert-ContainsText -Text $editPlanOperationsDocsText -ExpectedText $term -Label "docs/en/api/edit_plan_operations.rst"
 }
 
 Write-Host "Edit-plan advanced operation coverage passed."

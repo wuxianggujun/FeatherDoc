@@ -150,5 +150,3 @@
            doc.set_comment_resolved(comment.index, true);
        }
    }
-
-旧版完整页面仍保留在 :doc:`../../api/fields_links_reviews`。

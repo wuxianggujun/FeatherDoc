@@ -151,6 +151,3 @@ Example
            doc.set_comment_resolved(comment.index, true);
        }
    }
-
-The complete legacy page remains available at
-:doc:`../../api/fields_links_reviews`.

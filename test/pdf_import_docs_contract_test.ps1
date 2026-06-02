@@ -243,7 +243,7 @@ function Get-RstCodeBlocks {
                 continue
             }
 
-            if ($line -match '^    (?<body>.*)$') {
+            if ($line -match '^ {3,}(?<body>.*)$') {
                 $blockLines += $matches["body"]
                 continue
             }
@@ -287,11 +287,10 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
-$pdfExportDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_export.rst"
-$pdfImportDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import.rst"
-$pdfImportJsonDiagnosticsDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import_json_diagnostics.rst"
-$pdfImportScopeDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import_scope.rst"
-$docsIndexPath = Join-Path $resolvedRepoRoot "docs\index.rst"
+$englishPdfWorkflowDocsPath = Join-Path $resolvedRepoRoot "docs\en\api\pdf_workflow.rst"
+$chinesePdfWorkflowDocsPath = Join-Path $resolvedRepoRoot "docs\zh-CN\api\pdf_workflow.rst"
+$englishApiIndexPath = Join-Path $resolvedRepoRoot "docs\en\api\index.rst"
+$chineseApiIndexPath = Join-Path $resolvedRepoRoot "docs\zh-CN\api\index.rst"
 $changelogPath = Join-Path $resolvedRepoRoot "CHANGELOG.md"
 $cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
 $pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf_document_importer.hpp"
@@ -301,11 +300,10 @@ $pdfImportStructureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_stru
 $pdfImportFailureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_failure_tests.cpp"
 $pdfImportTableHeuristicTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_table_heuristic_tests.cpp"
 
-$pdfExportDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfExportDocsPath
-$pdfImportDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportDocsPath
-$pdfImportJsonDiagnosticsDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportJsonDiagnosticsDocsPath
-$pdfImportScopeDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportScopeDocsPath
-$docsIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $docsIndexPath
+$englishPdfWorkflowDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $englishPdfWorkflowDocsPath
+$chinesePdfWorkflowDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $chinesePdfWorkflowDocsPath
+$englishApiIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $englishApiIndexPath
+$chineseApiIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $chineseApiIndexPath
 $changelogText = Get-Content -Raw -Encoding UTF8 -LiteralPath $changelogPath
 $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
@@ -315,18 +313,9 @@ $pdfImportStructureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdf
 $pdfImportFailureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportFailureTestsPath
 $pdfImportTableHeuristicTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportTableHeuristicTestsPath
 
-$pdfInstalledDocs = @(
-    'docs/pdf_export.rst',
-    'docs/pdf_import.rst',
-    'docs/pdf_import_json_diagnostics.rst',
-    'docs/pdf_import_scope.rst'
-)
-$pdfImportToctreeEntries = @(
-    'pdf_export',
-    'pdf_import',
-    'pdf_import_json_diagnostics',
-    'pdf_import_scope'
-)
+$englishPdfInstalledDocs = @('docs/en/api/pdf_workflow.rst')
+$chinesePdfInstalledDocs = @('docs/zh-CN/api/pdf_workflow.rst')
+$pdfApiToctreeEntries = @('pdf_workflow')
 
 $requiredPdfExportDocsTerms = @(
     "PDF Export",
@@ -354,8 +343,6 @@ $requiredPdfImportDocsTerms = @(
     "featherdoc_cli import-pdf input.pdf --output imported.docx --json",
     "--import-table-candidates-as-tables",
     "--min-table-continuation-confidence",
-    "pdf_import_json_diagnostics",
-    "pdf_import_scope",
     "PDF Import JSON Diagnostics",
     "PDF Import Supported Scope And Limits"
 )
@@ -602,31 +589,59 @@ $scopeCoverageAnchors = @(
 )
 
 foreach ($term in $requiredPdfExportDocsTerms) {
-    Assert-ContainsText -Text $pdfExportDocsText -ExpectedText $term -Label "docs/pdf_export.rst"
+    Assert-ContainsText -Text $englishPdfWorkflowDocsText -ExpectedText $term -Label "docs/en/api/pdf_workflow.rst"
 }
-Assert-RstJsonCodeBlocksParse `
-    -Text $pdfExportDocsText `
-    -Label "docs/pdf_export.rst"
 
 foreach ($term in $requiredPdfImportDocsTerms) {
-    Assert-ContainsText -Text $pdfImportDocsText -ExpectedText $term -Label "docs/pdf_import.rst"
+    Assert-ContainsText -Text $englishPdfWorkflowDocsText -ExpectedText $term -Label "docs/en/api/pdf_workflow.rst"
 }
 
 foreach ($term in $requiredPdfImportJsonDiagnosticsDocsTerms) {
-    Assert-ContainsText -Text $pdfImportJsonDiagnosticsDocsText -ExpectedText $term -Label "docs/pdf_import_json_diagnostics.rst"
+    Assert-ContainsText -Text $englishPdfWorkflowDocsText -ExpectedText $term -Label "docs/en/api/pdf_workflow.rst"
 }
-Assert-RstJsonCodeBlocksParse `
-    -Text $pdfImportJsonDiagnosticsDocsText `
-    -Label "docs/pdf_import_json_diagnostics.rst"
 
 foreach ($term in $requiredPdfImportScopeDocsTerms) {
-    Assert-ContainsText -Text $pdfImportScopeDocsText -ExpectedText $term -Label "docs/pdf_import_scope.rst"
+    Assert-ContainsText -Text $englishPdfWorkflowDocsText -ExpectedText $term -Label "docs/en/api/pdf_workflow.rst"
 }
+
+Assert-RstJsonCodeBlocksParse `
+    -Text $englishPdfWorkflowDocsText `
+    -Label "docs/en/api/pdf_workflow.rst"
+Assert-RstJsonCodeBlocksParse `
+    -Text $chinesePdfWorkflowDocsText `
+    -Label "docs/zh-CN/api/pdf_workflow.rst"
+
+foreach ($marker in @(
+    "PDF",
+    "FEATHERDOC_BUILD_PDF",
+    "FEATHERDOC_BUILD_PDF_IMPORT",
+    "featherdoc_cli export-pdf input.docx --output output.pdf --json",
+    "--render-headers-and-footers",
+    "--expand-header-footer-page-placeholders",
+    "--summary-json <path>",
+    '"stage": "parse"',
+    "featherdoc_cli import-pdf input.pdf --output imported.docx --json",
+    "--import-table-candidates-as-tables",
+    "--min-table-continuation-confidence",
+    "table_continuation_diagnostics_count",
+    "table_continuation_diagnostics",
+    "column_anchors_mismatch",
+    "continuation_confidence_below_threshold",
+    "inconsistent_source_rows",
+    "parse_failed",
+    "document_create_failed",
+    "extract_geometry_disabled",
+    "table_candidates_detected",
+    "Unsupported cases must fail or remain paragraphs"
+)) {
+    Assert-ContainsText -Text $chinesePdfWorkflowDocsText -ExpectedText $marker -Label "docs/zh-CN/api/pdf_workflow.rst"
+}
+
 foreach ($anchor in $scopeCoverageAnchors) {
     Assert-ContainsText `
-        -Text $pdfImportScopeDocsText `
+        -Text $englishPdfWorkflowDocsText `
         -ExpectedText $anchor.DocExpected `
-        -Label "docs/pdf_import_scope.rst"
+        -Label "docs/en/api/pdf_workflow.rst"
     Assert-ContainsText `
         -Text $anchor.Text `
         -ExpectedText $anchor.Expected `
@@ -647,25 +662,25 @@ $headerMatchKindMembers = Get-CppEnumMembers `
     -EnumName "PdfTableContinuationHeaderMatchKind"
 
 Assert-DocumentedEnumMembers `
-    -Text $pdfImportJsonDiagnosticsDocsText `
+    -Text $englishPdfWorkflowDocsText `
     -Members $failureKindMembers `
     -ExcludedMembers @("none") `
-    -Label "docs/pdf_import_json_diagnostics.rst"
+    -Label "docs/en/api/pdf_workflow.rst"
 Assert-DocumentedEnumMembers `
-    -Text $pdfImportJsonDiagnosticsDocsText `
+    -Text $englishPdfWorkflowDocsText `
     -Members $dispositionMembers `
     -ExcludedMembers @() `
-    -Label "docs/pdf_import_json_diagnostics.rst"
+    -Label "docs/en/api/pdf_workflow.rst"
 Assert-DocumentedEnumMembers `
-    -Text $pdfImportJsonDiagnosticsDocsText `
+    -Text $englishPdfWorkflowDocsText `
     -Members $blockerMembers `
     -ExcludedMembers @() `
-    -Label "docs/pdf_import_json_diagnostics.rst"
+    -Label "docs/en/api/pdf_workflow.rst"
 Assert-DocumentedEnumMembers `
-    -Text $pdfImportJsonDiagnosticsDocsText `
+    -Text $englishPdfWorkflowDocsText `
     -Members $headerMatchKindMembers `
     -ExcludedMembers @() `
-    -Label "docs/pdf_import_json_diagnostics.rst"
+    -Label "docs/en/api/pdf_workflow.rst"
 
 Assert-CliMapsEnumMembers `
     -Text $cliText `
@@ -695,54 +710,58 @@ foreach ($blockerMember in $blockerMembers) {
     }
 }
 Assert-ContainsText `
-    -Text $pdfImportJsonDiagnosticsDocsText `
+    -Text $englishPdfWorkflowDocsText `
     -ExpectedText '``inconsistent_source_rows`` is an internal consistency guard' `
-    -Label "docs/pdf_import_json_diagnostics.rst"
+    -Label "docs/en/api/pdf_workflow.rst"
 
-Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_export" -Label "docs/index.rst"
-Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import" -Label "docs/index.rst"
-Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import_json_diagnostics" -Label "docs/index.rst"
-Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import_scope" -Label "docs/index.rst"
 Assert-RstToctreeContainsEntries `
-    -Text $docsIndexText `
-    -ExpectedEntries $pdfImportToctreeEntries `
-    -Label "docs/index.rst"
-Assert-ContainsText -Text $docsIndexText -ExpectedText ":hidden:" -Label "docs/index.rst"
-Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText ':doc:`pdf_export`' -Label "docs/index.rst"
-Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText ':doc:`pdf_import`' -Label "docs/index.rst"
-Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import JSON diagnostics" -Label "docs/index.rst"
-Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import supported scope and limits" -Label "docs/index.rst"
+    -Text $englishApiIndexText `
+    -ExpectedEntries $pdfApiToctreeEntries `
+    -Label "docs/en/api/index.rst"
+Assert-RstToctreeContainsEntries `
+    -Text $chineseApiIndexText `
+    -ExpectedEntries $pdfApiToctreeEntries `
+    -Label "docs/zh-CN/api/index.rst"
+Assert-ContainsText -Text $englishApiIndexText -ExpectedText ':doc:`pdf_workflow`' -Label "docs/en/api/index.rst"
+Assert-ContainsText -Text $chineseApiIndexText -ExpectedText ':doc:`pdf_workflow`' -Label "docs/zh-CN/api/index.rst"
 
 Assert-ContainsText `
-    -Text $pdfImportDocsText `
+    -Text $englishPdfWorkflowDocsText `
     -ExpectedText "--min-table-continuation-confidence" `
-    -Label "docs/pdf_import.rst"
+    -Label "docs/en/api/pdf_workflow.rst"
 foreach ($marker in @(
     "featherdoc_cli export-pdf input.docx --output output.pdf",
     "--expand-header-footer-page-placeholders",
     "--summary-json output.summary.json --json"
 )) {
-    Assert-ContainsText -Text $pdfExportDocsText -ExpectedText $marker -Label "docs/pdf_export.rst"
+    Assert-ContainsText -Text $englishPdfWorkflowDocsText -ExpectedText $marker -Label "docs/en/api/pdf_workflow.rst"
 }
 foreach ($marker in @(
     'featherdoc_cli export-pdf --expand-header-footer-page-placeholders',
     'both `--json` and `--summary-json` output',
-    'docs/pdf_export.rst'
+    'docs/en/api/pdf_workflow.rst',
+    'docs/zh-CN/api/pdf_workflow.rst'
 )) {
     Assert-ContainsText -Text $changelogText -ExpectedText $marker -Label "CHANGELOG.md"
 }
 Assert-DoesNotContainText `
-    -Text $pdfImportDocsText `
+    -Text $englishPdfWorkflowDocsText `
     -UnexpectedText "--min-table-continuation-confidence <count>" `
-    -Label "docs/pdf_import.rst"
-Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_export.rst' -Label "CMakeLists.txt"
-Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import.rst' -Label "CMakeLists.txt"
-Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import_json_diagnostics.rst' -Label "CMakeLists.txt"
-Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import_scope.rst' -Label "CMakeLists.txt"
-Assert-ContainsText -Text $cmakeListsText -ExpectedText '${FEATHERDOC_INSTALL_DATADIR}/docs' -Label "CMakeLists.txt"
+    -Label "docs/en/api/pdf_workflow.rst"
+Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/en/api/pdf_workflow.rst' -Label "CMakeLists.txt"
+Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/zh-CN/api/pdf_workflow.rst' -Label "CMakeLists.txt"
+Assert-DoesNotContainText -Text $cmakeListsText -UnexpectedText 'docs/pdf_export.rst' -Label "CMakeLists.txt"
+Assert-DoesNotContainText -Text $cmakeListsText -UnexpectedText 'docs/pdf_import.rst' -Label "CMakeLists.txt"
+Assert-DoesNotContainText -Text $cmakeListsText -UnexpectedText 'docs/pdf_import_json_diagnostics.rst' -Label "CMakeLists.txt"
+Assert-DoesNotContainText -Text $cmakeListsText -UnexpectedText 'docs/pdf_import_scope.rst' -Label "CMakeLists.txt"
 Assert-CMakeInstallFilesToDestination `
     -Text $cmakeListsText `
-    -ExpectedFiles $pdfInstalledDocs `
-    -Destination '${FEATHERDOC_INSTALL_DATADIR}/docs' `
+    -ExpectedFiles $englishPdfInstalledDocs `
+    -Destination '${FEATHERDOC_INSTALL_DATADIR}/docs/en/api' `
+    -Label "CMakeLists.txt"
+Assert-CMakeInstallFilesToDestination `
+    -Text $cmakeListsText `
+    -ExpectedFiles $chinesePdfInstalledDocs `
+    -Destination '${FEATHERDOC_INSTALL_DATADIR}/docs/zh-CN/api' `
     -Label "CMakeLists.txt"
 Write-Host "PDF import docs contract passed."

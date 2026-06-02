@@ -19,8 +19,9 @@ site.
 - Simplified Chinese documentation: <https://wuxianggujun.github.io/FeatherDoc/zh-CN/>
 - English API reference: <https://wuxianggujun.github.io/FeatherDoc/en/api/>
 - Simplified Chinese API reference: <https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/>
-- Legacy API reference: <https://wuxianggujun.github.io/FeatherDoc/api/>
-- Getting started: <https://wuxianggujun.github.io/FeatherDoc/getting_started.html>
+- English getting started: <https://wuxianggujun.github.io/FeatherDoc/en/getting_started.html>
+- Simplified Chinese getting started: <https://wuxianggujun.github.io/FeatherDoc/zh-CN/getting_started.html>
+- PDF workflows: <https://wuxianggujun.github.io/FeatherDoc/en/api/pdf_workflow.html>
 - Source docs: [`docs/index.rst`](docs/index.rst)
 
 ## What You Can Build

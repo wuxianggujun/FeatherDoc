@@ -113,5 +113,3 @@ Example
    if (!inline_images.empty()) {
        doc.replace_inline_image(0, "logo-updated.png");
    }
-
-The complete legacy page remains available at :doc:`../../api/images_sections`.

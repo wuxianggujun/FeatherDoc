@@ -274,5 +274,3 @@ TableCell
        sku->set_fill_color("D9EAF7");
        sku->set_vertical_alignment(featherdoc::cell_vertical_alignment::center);
    }
-
-旧版完整页面仍保留在 :doc:`../../api/tables`。

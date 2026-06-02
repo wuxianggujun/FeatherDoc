@@ -160,5 +160,3 @@ TemplatePart
    auto onboarding = body.onboard_template();
 
    return doc.save_as("filled.docx") ? 1 : 0;
-
-旧版完整页面仍保留在 :doc:`../../api/templates`。

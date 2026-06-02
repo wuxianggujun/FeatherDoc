@@ -466,7 +466,3 @@ JSON 示例
 * ``merge_table_cell``
 * ``unmerge_table_cells``
 * ``unmerge_table_cell``
-
-旧版完整页面仍为兼容外链保留在 :doc:`../../api/edit_plan_operations`。
-
-.. FDOC_API_EDIT_PLAN_ZH_CN_MARKER

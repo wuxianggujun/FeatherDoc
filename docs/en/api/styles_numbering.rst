@@ -3,7 +3,7 @@ Styles And Numbering
 
 ``featherdoc::Document`` exposes style and numbering APIs for inspection,
 controlled mutation, refactoring, and default formatting. Use this page to find
-the direct entry points before drilling into the complete legacy reference.
+the direct entry points for style and numbering work.
 
 Numbering
 ---------
@@ -148,5 +148,3 @@ Example
    auto &paragraph = doc.paragraphs();
    doc.set_paragraph_list(paragraph, featherdoc::list_kind::bullet);
    doc.set_default_run_language("en-US");
-
-The complete legacy page remains available at :doc:`../../api/styles_numbering`.

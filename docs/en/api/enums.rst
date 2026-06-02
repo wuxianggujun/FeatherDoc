@@ -3,7 +3,7 @@ Enums And Common Option Types
 
 Common enum and option types are shared by document, paragraph, table, image,
 template, field, and review APIs. Use this page as the language-local map for
-parameter values before opening the complete legacy reference.
+parameter values.
 
 Formatting
 ----------
@@ -86,7 +86,3 @@ Templates And Review
      - Footnote, endnote, or comment note kind.
    * - ``revision_kind``
      - Insertion, deletion, and related revision kinds.
-
-The complete legacy page remains available at :doc:`../../api/enums`.
-
-.. FDOC_API_ENUMS_EN_MARKER

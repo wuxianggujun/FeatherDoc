@@ -2,7 +2,6 @@ Getting Started
 ===============
 
 This page is the English quick-start path for the ``/en/`` documentation tree.
-The legacy quick-start page remains available at :doc:`../getting_started`.
 
 Install And Build
 -----------------
@@ -38,8 +37,8 @@ Where To Go Next
 
 * Use :doc:`api/document` for open/save, sections, headers, footers,
   inspection, and document-wide editing.
-* Use :doc:`../api/content_blocks` for paragraphs and runs.
-* Use :doc:`../api/tables` for tables, rows, and cells.
-* Use :doc:`../api/templates` for bookmarks, content controls, template slots,
+* Use :doc:`api/paragraph_run` for paragraphs and runs.
+* Use :doc:`api/table` for tables, rows, and cells.
+* Use :doc:`api/template_part` for bookmarks, content controls, template slots,
   and schema validation.
-* Use :doc:`../pdf_export` and :doc:`../pdf_import` for PDF workflows.
+* Use :doc:`api/pdf_workflow` for experimental PDF import and export workflows.

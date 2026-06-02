@@ -147,5 +147,3 @@ Example
    }
 
    return doc.save_as("filled.docx") ? 1 : 0;
-
-The complete legacy page remains available at :doc:`../../api/templates`.

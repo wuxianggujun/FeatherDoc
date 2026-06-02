@@ -147,5 +147,3 @@
    auto &paragraph = doc.paragraphs();
    doc.set_paragraph_list(paragraph, featherdoc::list_kind::bullet);
    doc.set_default_run_language("zh-CN");
-
-旧版完整页面仍保留在 :doc:`../../api/styles_numbering`。

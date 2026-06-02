@@ -22,6 +22,7 @@ Quick Links
 
 * :doc:`getting_started`
 * :doc:`api/index`
+* :doc:`api/pdf_workflow`
 
 .. toctree::
    :maxdepth: 2

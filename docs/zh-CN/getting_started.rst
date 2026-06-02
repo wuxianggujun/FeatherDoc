@@ -1,8 +1,7 @@
 快速开始
 ========
 
-这是中文文档树下的快速开始页。旧英文快速开始仍保留在
-:doc:`../getting_started`，用于兼容已有链接。
+这是 ``/zh-CN/`` 文档树下的中文快速开始页。
 
 安装与构建
 ----------
@@ -37,7 +36,7 @@
 ----------
 
 * :doc:`api/document`：了解 ``Document`` 如何打开、保存、检查和修改文档。
-* :doc:`../api/content_blocks`：查看段落与 run 的英文完整 API。
-* :doc:`../api/tables`：查看表格、行、单元格的英文完整 API。
-* :doc:`../api/templates`：查看书签、内容控件和模板槽位的英文完整 API。
-* :doc:`../pdf_export` 和 :doc:`../pdf_import`：查看 PDF 导入导出工作流。
+* :doc:`api/paragraph_run`：查看段落与 run API。
+* :doc:`api/table`：查看表格、行和单元格 API。
+* :doc:`api/template_part`：查看书签、内容控件、模板槽位和 schema 校验 API。
+* :doc:`api/pdf_workflow`：查看实验性 PDF 导入导出工作流。

@@ -41,6 +41,10 @@ Object Map
    * - Edit plan operations
      - JSON operation names accepted by ``scripts/edit_document_from_plan.ps1``.
      - :doc:`edit_plan_operations`
+   * - PDF workflows
+     - Experimental ``export-pdf`` and ``import-pdf`` CLI workflows, JSON
+       diagnostics, and supported-scope limits.
+     - :doc:`pdf_workflow`
    * - Inspection summaries
      - Read-only results and shared enum/option types used by content controls,
        tables, fields, images, and diffs.
@@ -59,4 +63,5 @@ Object Map
    styles_numbering
    template_part
    edit_plan_operations
+   pdf_workflow
    enums

@@ -107,7 +107,7 @@ $buildingPdfDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "BUILDI
 $releaseChecklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_release_readiness_checklist_zh.rst"
 $releaseArtifactTemplateEn = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "RELEASE_ARTIFACT_TEMPLATE.md"
 $releaseArtifactTemplateZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
-$pdfImportScopeDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_import_scope.rst"
+$pdfWorkflowDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\pdf_workflow.rst"
 $dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
 $preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
 $releaseReadinessScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_release_readiness.ps1"
@@ -638,7 +638,8 @@ $pdfExportSupportMatrixMarkers = @(
     "sectioned-report-text",
     "header-footer-text",
     "--expand-header-footer-page-placeholders",
-    "docs/pdf_export.rst",
+    "docs/zh-CN/api/pdf_workflow.rst",
+    "docs/en/api/pdf_workflow.rst",
     "document-cjk-table-wrap-page-flow-text",
     "pdf_real_business_sample_release_entry_trace",
     "release checklist"
@@ -674,8 +675,8 @@ $pdfImportBoundaryMarkers = @(
 )
 
 foreach ($marker in $pdfImportBoundaryMarkers) {
-    Assert-ContainsText -Text $pdfImportScopeDoc -ExpectedText $marker `
-        -Message "docs/pdf_import_scope.rst should preserve PDF import boundary marker '$marker'."
+    Assert-ContainsText -Text $pdfWorkflowDoc -ExpectedText $marker `
+        -Message "docs/en/api/pdf_workflow.rst should preserve PDF import boundary marker '$marker'."
 }
 
 $pdfPackageManifestMarkers = @(

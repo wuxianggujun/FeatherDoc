@@ -158,5 +158,3 @@
    auto header = doc.section_header_template(
        0, featherdoc::section_reference_kind::default_reference);
    header.append_paragraph("Quarterly report");
-
-旧版完整页面仍保留在 :doc:`../../api/images_sections`。

@@ -473,8 +473,3 @@ Tables And Numbering
 * ``merge_table_cell``
 * ``unmerge_table_cells``
 * ``unmerge_table_cell``
-
-The complete legacy page remains available for compatibility at
-:doc:`../../api/edit_plan_operations`.
-
-.. FDOC_API_EDIT_PLAN_EN_MARKER
