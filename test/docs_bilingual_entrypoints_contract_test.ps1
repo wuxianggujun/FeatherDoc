@@ -44,6 +44,8 @@ $englishApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\
 $englishDocumentApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\document.rst"
 $englishParagraphRunApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\paragraph_run.rst"
 $englishTableApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\table.rst"
+$englishImagesApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\images.rst"
+$englishSectionsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\sections.rst"
 $englishTemplatePartApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\template_part.rst"
 $chineseIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\index.rst"
 $chineseGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\getting_started.rst"
@@ -51,6 +53,8 @@ $chineseApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\
 $chineseDocumentApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\document.rst"
 $chineseParagraphRunApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\paragraph_run.rst"
 $chineseTableApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\table.rst"
+$chineseImagesApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\images.rst"
+$chineseSectionsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\sections.rst"
 $chineseTemplatePartApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\template_part.rst"
 $readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
 $readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
@@ -101,8 +105,11 @@ foreach ($marker in @(
         "document",
         "paragraph_run",
         "table",
+        "images",
+        "sections",
         "template_part",
         "../../api/content_blocks",
+        "../../api/images_sections",
         "../../api/templates",
         "../../api/tables"
     )) {
@@ -157,6 +164,42 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+        "featherdoc::inline_image_info",
+        "featherdoc::drawing_image_info",
+        "floating_image_options",
+        "drawing_images",
+        "inline_images",
+        "append_image",
+        "append_floating_image",
+        "extract_drawing_image",
+        "replace_inline_image",
+        "remove_inline_image",
+        "../../api/images_sections"
+    )) {
+    Assert-ContainsText -Text $englishImagesApi -ExpectedText $marker `
+        -Message "English Images API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
+        "featherdoc::section_page_setup",
+        "featherdoc::page_margins",
+        "sections_inspection_summary",
+        "section_count",
+        "append_section",
+        "inspect_section",
+        "get_section_page_setup",
+        "set_section_page_setup",
+        "section_header_template",
+        "section_footer_template",
+        "replace_section_header_text",
+        "replace_section_footer_text",
+        "../../api/images_sections"
+    )) {
+    Assert-ContainsText -Text $englishSectionsApi -ExpectedText $marker `
+        -Message "English Sections API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
         "featherdoc::TemplatePart",
         "Part Basics",
         "Bookmarks",
@@ -201,9 +244,12 @@ foreach ($marker in @(
         "document",
         "paragraph_run",
         "table",
+        "images",
+        "sections",
         "template_part",
         "../../api/content_blocks",
         "../../api/document",
+        "../../api/images_sections",
         "../../api/templates",
         "../../api/tables"
     )) {
@@ -251,6 +297,42 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $chineseTableApi -ExpectedText $marker `
         -Message "Chinese Table API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
+        "featherdoc::inline_image_info",
+        "featherdoc::drawing_image_info",
+        "floating_image_options",
+        "drawing_images",
+        "inline_images",
+        "append_image",
+        "append_floating_image",
+        "extract_drawing_image",
+        "replace_inline_image",
+        "remove_inline_image",
+        "../../api/images_sections"
+    )) {
+    Assert-ContainsText -Text $chineseImagesApi -ExpectedText $marker `
+        -Message "Chinese Images API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
+        "featherdoc::section_page_setup",
+        "featherdoc::page_margins",
+        "sections_inspection_summary",
+        "section_count",
+        "append_section",
+        "inspect_section",
+        "get_section_page_setup",
+        "set_section_page_setup",
+        "section_header_template",
+        "section_footer_template",
+        "replace_section_header_text",
+        "replace_section_footer_text",
+        "../../api/images_sections"
+    )) {
+    Assert-ContainsText -Text $chineseSectionsApi -ExpectedText $marker `
+        -Message "Chinese Sections API page should preserve method-table marker."
 }
 
 foreach ($marker in @(

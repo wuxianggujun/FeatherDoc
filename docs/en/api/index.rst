@@ -24,6 +24,12 @@ Object Map
    * - ``featherdoc::Table`` / ``TableRow`` / ``TableCell``
      - Table structure, rows, cells, widths, borders, alignment, and merge state.
      - :doc:`table`
+   * - ``featherdoc::inline_image_info`` / ``drawing_image_info``
+     - Image metadata, inline and floating insertion, extraction, replacement, and removal.
+     - :doc:`images`
+   * - ``featherdoc::section_page_setup`` / ``page_margins``
+     - Section structure, page setup, and section-resolved header/footer editing.
+     - :doc:`sections`
    * - ``featherdoc::TemplatePart``
      - Shared operations over body, header, footer, and section-specific parts.
      - :doc:`template_part`
@@ -38,6 +44,8 @@ Object Map
    document
    paragraph_run
    table
+   images
+   sections
    template_part
 
 Complete API Groups

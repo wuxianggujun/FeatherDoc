@@ -29,6 +29,12 @@ API 参考
    * - ``featherdoc::Table`` / ``TableRow`` / ``TableCell``
      - 编辑表格结构、宽度、边框、合并状态和单元格内容。
      - :doc:`table`
+   * - ``featherdoc::inline_image_info`` / ``drawing_image_info``
+     - 检查图片元数据，追加行内或浮动图片，并提取、替换或删除图片。
+     - :doc:`images`
+   * - ``featherdoc::section_page_setup`` / ``page_margins``
+     - 管理分节结构、页面设置，以及分节解析后的页眉页脚。
+     - :doc:`sections`
    * - ``featherdoc::TemplatePart``
      - 把正文、页眉、页脚和分节部件统一纳入模板替换流程。
      - :doc:`template_part`
@@ -43,6 +49,8 @@ API 参考
    document
    paragraph_run
    table
+   images
+   sections
    template_part
 
 英文 API 页面
