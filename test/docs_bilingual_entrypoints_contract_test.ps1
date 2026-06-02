@@ -49,6 +49,8 @@ $englishSectionsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "do
 $englishFieldsLinksReviewsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\fields_links_reviews.rst"
 $englishStylesNumberingApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\styles_numbering.rst"
 $englishTemplatePartApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\template_part.rst"
+$englishEditPlanOperationsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\edit_plan_operations.rst"
+$englishEnumsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\enums.rst"
 $chineseIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\index.rst"
 $chineseGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\getting_started.rst"
 $chineseApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\index.rst"
@@ -60,6 +62,8 @@ $chineseSectionsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "do
 $chineseFieldsLinksReviewsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\fields_links_reviews.rst"
 $chineseStylesNumberingApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\styles_numbering.rst"
 $chineseTemplatePartApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\template_part.rst"
+$chineseEditPlanOperationsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\edit_plan_operations.rst"
+$chineseEnumsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\enums.rst"
 $readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
 $readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
@@ -114,6 +118,8 @@ foreach ($marker in @(
         "fields_links_reviews",
         "styles_numbering",
         "template_part",
+        "edit_plan_operations",
+        "enums",
         "../../api/content_blocks",
         "../../api/fields_links_reviews",
         "../../api/images_sections",
@@ -258,6 +264,54 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+        "FDOC_API_EDIT_PLAN_EN_MARKER",
+        "scripts/edit_document_from_plan.ps1",
+        "Review And Revision Operations",
+        "Notes And Fields",
+        "Template Slots And Content Controls",
+        "Images, Links, And OMML",
+        "Text And Paragraph Mutations",
+        "Tables And Numbering",
+        "accept_all_revisions",
+        "apply_review_mutation_plan",
+        "append_page_number_field",
+        "replace_content_control_text_by_tag",
+        "append_image",
+        "append_hyperlink",
+        "set_paragraph_alignment",
+        "apply_table_position_plan",
+        "import_numbering_catalog",
+        "unmerge_table_cell",
+        "../../api/edit_plan_operations"
+    )) {
+    Assert-ContainsText -Text $englishEditPlanOperationsApi -ExpectedText $marker `
+        -Message "English Edit Plan Operations API page should preserve operation marker."
+}
+
+foreach ($marker in @(
+        "FDOC_API_ENUMS_EN_MARKER",
+        "formatting_flag",
+        "section_reference_kind",
+        "page_orientation",
+        "paragraph_alignment",
+        "paragraph_line_spacing_rule",
+        "table_layout_mode",
+        "table_alignment",
+        "cell_vertical_alignment",
+        "table_border_edge",
+        "border_style",
+        "bookmark_kind",
+        "content_control_kind",
+        "field_kind",
+        "review_note_kind",
+        "revision_kind",
+        "../../api/enums"
+    )) {
+    Assert-ContainsText -Text $englishEnumsApi -ExpectedText $marker `
+        -Message "English Enums API page should preserve enum marker."
+}
+
+foreach ($marker in @(
         "../en/index",
         "getting_started",
         "api/index",
@@ -292,6 +346,8 @@ foreach ($marker in @(
         "fields_links_reviews",
         "styles_numbering",
         "template_part",
+        "edit_plan_operations",
+        "enums",
         "../../api/content_blocks",
         "../../api/document",
         "../../api/fields_links_reviews",
@@ -428,6 +484,48 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $chineseTemplatePartApi -ExpectedText $marker `
         -Message "Chinese TemplatePart API page should preserve method-table marker."
+}
+
+foreach ($marker in @(
+        "FDOC_API_EDIT_PLAN_ZH_CN_MARKER",
+        "scripts/edit_document_from_plan.ps1",
+        "accept_all_revisions",
+        "apply_review_mutation_plan",
+        "append_page_number_field",
+        "replace_content_control_text_by_tag",
+        "append_image",
+        "append_hyperlink",
+        "set_paragraph_alignment",
+        "apply_table_position_plan",
+        "import_numbering_catalog",
+        "unmerge_table_cell",
+        "../../api/edit_plan_operations"
+    )) {
+    Assert-ContainsText -Text $chineseEditPlanOperationsApi -ExpectedText $marker `
+        -Message "Chinese Edit Plan Operations API page should preserve operation marker."
+}
+
+foreach ($marker in @(
+        "FDOC_API_ENUMS_ZH_CN_MARKER",
+        "formatting_flag",
+        "section_reference_kind",
+        "page_orientation",
+        "paragraph_alignment",
+        "paragraph_line_spacing_rule",
+        "table_layout_mode",
+        "table_alignment",
+        "cell_vertical_alignment",
+        "table_border_edge",
+        "border_style",
+        "bookmark_kind",
+        "content_control_kind",
+        "field_kind",
+        "review_note_kind",
+        "revision_kind",
+        "../../api/enums"
+    )) {
+    Assert-ContainsText -Text $chineseEnumsApi -ExpectedText $marker `
+        -Message "Chinese Enums API page should preserve enum marker."
 }
 
 foreach ($marker in @(

@@ -39,9 +39,13 @@ Object Map
    * - ``featherdoc::TemplatePart``
      - Shared operations over body, header, footer, and section-specific parts.
      - :doc:`template_part`
+   * - Edit plan operations
+     - JSON operation names accepted by ``scripts/edit_document_from_plan.ps1``.
+     - :doc:`edit_plan_operations`
    * - Inspection summaries
-     - Read-only results for content controls, tables, fields, images, and diffs.
-     - :doc:`../../api/enums`
+     - Read-only results and shared enum/option types used by content controls,
+       tables, fields, images, and diffs.
+     - :doc:`enums`
 
 .. toctree::
    :maxdepth: 2
@@ -55,6 +59,8 @@ Object Map
    fields_links_reviews
    styles_numbering
    template_part
+   edit_plan_operations
+   enums
 
 Complete API Groups
 -------------------
@@ -63,8 +69,8 @@ Complete API Groups
 * :doc:`../../api/content_blocks`
 * :doc:`../../api/tables`
 * :doc:`../../api/templates`
-* :doc:`../../api/edit_plan_operations`
+* :doc:`edit_plan_operations`
 * :doc:`../../api/fields_links_reviews`
 * :doc:`../../api/styles_numbering`
 * :doc:`../../api/images_sections`
-* :doc:`../../api/enums`
+* :doc:`enums`

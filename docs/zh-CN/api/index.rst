@@ -44,9 +44,12 @@ API 参考
    * - ``featherdoc::TemplatePart``
      - 把正文、页眉、页脚和分节部件统一纳入模板替换流程。
      - :doc:`template_part`
+   * - 编辑计划操作
+     - ``scripts/edit_document_from_plan.ps1`` 接收的 JSON operation 名称索引。
+     - :doc:`edit_plan_operations`
    * - inspection summary 结构体
-     - 暴露内容控件、表格、字段、图片和语义差异等只读检查结果。
-     - :doc:`../../api/enums`
+     - 暴露内容控件、表格、字段、图片和语义差异等只读检查结果，以及通用枚举选项。
+     - :doc:`enums`
 
 .. toctree::
    :maxdepth: 2
@@ -60,6 +63,8 @@ API 参考
    fields_links_reviews
    styles_numbering
    template_part
+   edit_plan_operations
+   enums
 
 英文 API 页面
 -------------
@@ -68,8 +73,8 @@ API 参考
 * :doc:`../../api/content_blocks`
 * :doc:`../../api/tables`
 * :doc:`../../api/templates`
-* :doc:`../../api/edit_plan_operations`
+* :doc:`edit_plan_operations`
 * :doc:`../../api/fields_links_reviews`
 * :doc:`../../api/styles_numbering`
 * :doc:`../../api/images_sections`
-* :doc:`../../api/enums`
+* :doc:`enums`
