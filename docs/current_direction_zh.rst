@@ -107,7 +107,8 @@
 - ``check-template-schema``
 - schema patch review JSON、schema approval gate 与审批历史报表
 - project-template onboarding governance 聚合报告；其 blocker 和 action item
-  会经 delivery readiness 继续保留
+  会经 delivery readiness 继续保留，entry 级 ``next_action.reason`` /
+  ``next_action.blocker_id`` 也会进入聚合视图，
   ``featherdoc.project_template_onboarding_governance_report.v1``、
   ``source_json_display`` 与 reviewer ``open_command``，最终进入发布面板和
   reviewer-facing bundle

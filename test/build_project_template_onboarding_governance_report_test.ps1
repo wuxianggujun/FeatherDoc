@@ -109,11 +109,24 @@ Write-JsonFile -Path $onboardingSummaryPath -Value ([ordered]@{
             message = "Schema approval is not evaluated."
         }
     )
+    next_action = [ordered]@{
+        id = "run_project_template_smoke"
+        status = "open"
+        action = "run_project_template_smoke_then_review_schema_patch_approval"
+        title = "Run smoke"
+        reason = "schema approval evidence is missing."
+        blocker_id = "project_template_onboarding.schema_approval_not_evaluated"
+        command = "pwsh -File .\scripts\run_project_template_smoke.ps1"
+        source = "action_items"
+    }
     action_items = @(
         [ordered]@{
             id = "run_project_template_smoke"
+            status = "open"
             action = "run_project_template_smoke_then_review_schema_patch_approval"
             title = "Run smoke"
+            reason = "schema approval evidence is missing."
+            blocker_id = "project_template_onboarding.schema_approval_not_evaluated"
             command = "pwsh -File .\scripts\run_project_template_smoke.ps1"
         }
     )
@@ -151,11 +164,24 @@ Write-JsonFile -Path $onboardingPlanPath -Value ([ordered]@{
                     message = "Candidate needs smoke."
                 }
             )
+            next_action = [ordered]@{
+                id = "freeze_schema_baseline"
+                status = "open"
+                action = "freeze_schema_baseline"
+                title = "Freeze schema"
+                reason = "Schema approval needs a frozen baseline first."
+                blocker_id = "project_template_onboarding.schema_approval_not_evaluated"
+                command = "pwsh -File .\scripts\freeze_template_schema_baseline.ps1"
+                source = "action_items"
+            }
             action_items = @(
                 [ordered]@{
                     id = "freeze_schema_baseline"
+                    status = "open"
                     action = "freeze_schema_baseline"
                     title = "Freeze schema"
+                    reason = "Schema approval needs a frozen baseline first."
+                    blocker_id = "project_template_onboarding.schema_approval_not_evaluated"
                     command = "pwsh -File .\scripts\freeze_template_schema_baseline.ps1"
                 }
             )
@@ -256,6 +282,18 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "run_project_template_smoke.ps1" `
         -Message "Action items should expose the reviewer open command."
+    Assert-ContainsText -Text (($summary.entries | ForEach-Object { [string]$_.next_action.reason }) -join "`n") `
+        -ExpectedText "schema approval evidence is missing" `
+        -Message "Entries should preserve next_action.reason from onboarding evidence."
+    Assert-ContainsText -Text (($summary.entries | ForEach-Object { [string]$_.next_action.blocker_id }) -join "`n") `
+        -ExpectedText "project_template_onboarding.schema_approval_not_evaluated" `
+        -Message "Entries should preserve next_action.blocker_id from onboarding evidence."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.reason }) -join "`n") `
+        -ExpectedText "Schema approval needs a frozen baseline first" `
+        -Message "Aggregated action items should preserve reason."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.blocker_id }) -join "`n") `
+        -ExpectedText "project_template_onboarding.schema_approval_not_evaluated" `
+        -Message "Aggregated action items should preserve blocker_id."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Project Template Onboarding Governance Report" `
@@ -272,6 +310,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include source JSON display fields."
     Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
         -Message "Markdown should include source report display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "next_action_reason" `
+        -Message "Markdown should expose why the preferred next action was selected."
+    Assert-ContainsText -Text $markdown -ExpectedText "blocker_id:" `
+        -Message "Markdown should expose the blocker behind action items."
     Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
         -Message "Markdown should include action item open commands."
 }

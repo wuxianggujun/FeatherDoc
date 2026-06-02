@@ -370,6 +370,69 @@ function New-ReleaseBlocker {
     }
 }
 
+function New-GovernanceNextAction {
+    param(
+        $ExplicitNextAction,
+        [object[]]$ActionItems = @(),
+        [string]$FallbackAction,
+        [string]$FallbackBlockerId
+    )
+
+    $sourceAction = $ExplicitNextAction
+    $source = "next_action"
+    if ($null -eq $sourceAction) {
+        $openItems = @(
+            @($ActionItems) |
+                Where-Object { (Get-JsonString -Object $_ -Name "status") -eq "open" } |
+                Select-Object -First 1
+        )
+        if ($openItems.Count -gt 0) {
+            $sourceAction = $openItems[0]
+            $source = "action_items"
+        }
+    }
+
+    if ($null -ne $sourceAction) {
+        return [ordered]@{
+            id = Get-JsonString -Object $sourceAction -Name "id" -DefaultValue (Get-JsonString -Object $sourceAction -Name "action" -DefaultValue "next_action")
+            status = Get-JsonString -Object $sourceAction -Name "status" -DefaultValue "open"
+            action = Get-JsonString -Object $sourceAction -Name "action"
+            title = Get-JsonString -Object $sourceAction -Name "title"
+            reason = Get-JsonString -Object $sourceAction -Name "reason"
+            blocker_id = Get-JsonString -Object $sourceAction -Name "blocker_id" -DefaultValue $FallbackBlockerId
+            command = Get-JsonString -Object $sourceAction -Name "command" -DefaultValue (Get-JsonString -Object $sourceAction -Name "open_command")
+            source = $source
+            artifacts = @(Get-JsonArray -Object $sourceAction -Name "artifacts")
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($FallbackAction) -or $FallbackAction -eq "none") {
+        return [ordered]@{
+            id = "none"
+            status = "not_required"
+            action = "none"
+            title = "No onboarding action is required."
+            reason = "Schema approval is already release-ready or not required."
+            blocker_id = ""
+            command = ""
+            source = "schema_approval_state"
+            artifacts = @()
+        }
+    }
+
+    return [ordered]@{
+        id = $FallbackAction
+        status = "open"
+        action = $FallbackAction
+        title = "Review schema approval state."
+        reason = "Derived from schema_approval_state.action because no explicit next_action was supplied."
+        blocker_id = $FallbackBlockerId
+        command = ""
+        source = "schema_approval_state"
+        artifacts = @()
+    }
+}
+
 function New-GovernanceEntry {
     param(
         [string]$Name,
@@ -377,6 +440,7 @@ function New-GovernanceEntry {
         [string]$SourceJson,
         [string]$InputDocx,
         $SchemaApprovalState,
+        $NextAction = $null,
         [object[]]$ReleaseBlockers = @(),
         [object[]]$ActionItems = @(),
         [object[]]$ManualReviewRecommendations = @(),
@@ -403,6 +467,16 @@ function New-GovernanceEntry {
                 -Message "Schema approval is not release-ready for this template."
         )
     }
+    $nextActionBlockerId = if ($blockers.Count -gt 0) {
+        Get-JsonString -Object $blockers[0] -Name "id"
+    } else {
+        ""
+    }
+    $resolvedNextAction = New-GovernanceNextAction `
+        -ExplicitNextAction $NextAction `
+        -ActionItems $ActionItems `
+        -FallbackAction $stateAction `
+        -FallbackBlockerId $nextActionBlockerId
 
     return [ordered]@{
         name = $Name
@@ -416,6 +490,7 @@ function New-GovernanceEntry {
         release_blockers = @($blockers)
         release_blocker_count = @($blockers).Count
         action_items = @($ActionItems)
+        next_action = $resolvedNextAction
         manual_review_recommendations = @($ManualReviewRecommendations)
         schema_patch_approval_items = @($SchemaPatchApprovalItems)
     }
@@ -439,6 +514,7 @@ function Convert-OnboardingSummaryToEntries {
             -SourceJson $Path `
             -InputDocx (Get-JsonString -Object $Json -Name "input_docx") `
             -SchemaApprovalState (Get-JsonProperty -Object $Json -Name "schema_approval_state") `
+            -NextAction (Get-JsonProperty -Object $Json -Name "next_action") `
             -ReleaseBlockers (Get-JsonArray -Object $Json -Name "release_blockers") `
             -ActionItems (Get-JsonArray -Object $Json -Name "action_items") `
             -ManualReviewRecommendations (Get-JsonArray -Object $Json -Name "manual_review_recommendations") `
@@ -460,6 +536,7 @@ function Convert-OnboardingPlanToEntries {
                 -SourceJson $Path `
                 -InputDocx (Get-JsonString -Object $entry -Name "input_docx") `
                 -SchemaApprovalState (Get-JsonProperty -Object $entry -Name "schema_approval_state") `
+                -NextAction (Get-JsonProperty -Object $entry -Name "next_action") `
                 -ReleaseBlockers (Get-JsonArray -Object $entry -Name "release_blockers") `
                 -ActionItems (Get-JsonArray -Object $entry -Name "action_items") `
                 -ManualReviewRecommendations (Get-JsonArray -Object $entry -Name "manual_review_recommendations")
@@ -537,7 +614,10 @@ function New-ReportMarkdown {
     $lines.Add("## Entries") | Out-Null
     $lines.Add("") | Out-Null
     foreach ($entry in @($Summary.entries)) {
-        $lines.Add("- ``$($entry.name)``: status=``$($entry.schema_approval_status)`` blockers=``$($entry.release_blocker_count)`` source=``$($entry.source_kind)``") | Out-Null
+        $lines.Add("- ``$($entry.name)``: status=``$($entry.schema_approval_status)`` blockers=``$($entry.release_blocker_count)`` source=``$($entry.source_kind)`` next_action=``$($entry.next_action.id)`` next_action_blocker=``$($entry.next_action.blocker_id)``") | Out-Null
+        if (-not [string]::IsNullOrWhiteSpace([string]$entry.next_action.reason)) {
+            $lines.Add("  - next_action_reason: $($entry.next_action.reason)") | Out-Null
+        }
     }
     if (@($Summary.entries).Count -eq 0) {
         $lines.Add("- none") | Out-Null
@@ -563,6 +643,12 @@ function New-ReportMarkdown {
     } else {
         foreach ($item in @($Summary.action_items)) {
             $lines.Add("- ``$($item.entry_name)`` / ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.blocker_id)) {
+                $lines.Add("  - blocker_id: ``$($item.blocker_id)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.reason)) {
+                $lines.Add("  - reason: $($item.reason)") | Out-Null
+            }
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -679,6 +765,8 @@ foreach ($entry in @($entries.ToArray())) {
             id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
+            reason = Get-JsonString -Object $item -Name "reason"
+            blocker_id = Get-JsonString -Object $item -Name "blocker_id"
             command = Get-JsonString -Object $item -Name "command"
             open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command" -DefaultValue $onboardingGovernanceOpenCommand)
         }) | Out-Null
