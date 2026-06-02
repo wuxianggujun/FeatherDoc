@@ -1,14 +1,14 @@
 API 参考
 ========
 
-中文 API 参考会按英文 API 的对象分组逐步补齐。当前先提供稳定的中文导航，
-并保留到英文完整 API 页的直达链接，避免中文读者只能从 README 或长文本里查找对象能力。
+中文 API 参考按对象和脚本操作分组。请从下面的对象地图直接进入具体页面，
+避免在旧版根目录长文档里查找 API 能力。
 
 语言
 ----
 
-* :doc:`../../api/index`
 * :doc:`../index`
+* :doc:`../../en/api/index`
 
 对象地图
 --------
@@ -65,16 +65,3 @@ API 参考
    template_part
    edit_plan_operations
    enums
-
-英文 API 页面
--------------
-
-* :doc:`../../api/document`
-* :doc:`../../api/content_blocks`
-* :doc:`../../api/tables`
-* :doc:`../../api/templates`
-* :doc:`edit_plan_operations`
-* :doc:`../../api/fields_links_reviews`
-* :doc:`../../api/styles_numbering`
-* :doc:`../../api/images_sections`
-* :doc:`enums`

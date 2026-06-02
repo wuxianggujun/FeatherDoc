@@ -17,6 +17,18 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-DoesNotContainText {
+    param(
+        [string]$Text,
+        [string]$UnexpectedText,
+        [string]$Message
+    )
+
+    if ($Text.Contains($UnexpectedText)) {
+        throw "$Message Unexpected='$UnexpectedText'."
+    }
+}
+
 function Get-RepoFileText {
     param(
         [string]$Root,
@@ -70,30 +82,48 @@ $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMake
 
 foreach ($marker in @(
         "Choose a language entry point",
+        "Older root-level pages are still built",
         "en/index",
         "zh-CN/index",
         "Languages",
+        "Compatibility",
         "en/api/index",
         "zh-CN/api/index",
         "api/index",
         "getting_started",
         "pdf_export",
-        "project_template_release_readiness_checklist_zh",
-        "script_task_index_zh"
+        "pdf_import_scope"
     )) {
     Assert-ContainsText -Text $rootIndex -ExpectedText $marker `
         -Message "Root docs index should preserve bilingual landing markers."
 }
 
 foreach ($marker in @(
+        ':doc:`api/index`',
+        ':doc:`getting_started`',
+        ':doc:`pdf_export`',
+        ':doc:`pdf_import`'
+    )) {
+    Assert-DoesNotContainText -Text $rootIndex -UnexpectedText $marker `
+        -Message "Root docs index should keep legacy docs out of visible body links."
+}
+
+foreach ($marker in @(
         "../zh-CN/index",
         "getting_started",
-        "api/index",
-        "../api/index",
-        "../pdf_export"
+        "api/index"
     )) {
     Assert-ContainsText -Text $englishIndex -ExpectedText $marker `
         -Message "English docs entrypoint should preserve navigation marker."
+}
+
+foreach ($marker in @(
+        ':doc:`../api/index`',
+        ':doc:`../pdf_export`',
+        ':doc:`../pdf_import`'
+    )) {
+    Assert-DoesNotContainText -Text $englishIndex -UnexpectedText $marker `
+        -Message "English docs entrypoint should keep legacy docs in the hidden compatibility toctree."
 }
 
 foreach ($marker in @(
@@ -108,7 +138,6 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
-        "../../api/index",
         "featherdoc::Document",
         "document",
         "paragraph_run",
@@ -119,13 +148,7 @@ foreach ($marker in @(
         "styles_numbering",
         "template_part",
         "edit_plan_operations",
-        "enums",
-        "../../api/content_blocks",
-        "../../api/fields_links_reviews",
-        "../../api/images_sections",
-        "../../api/styles_numbering",
-        "../../api/templates",
-        "../../api/tables"
+        "enums"
     )) {
     Assert-ContainsText -Text $englishApiIndex -ExpectedText $marker `
         -Message "English API entrypoint should preserve language-local API marker."
@@ -266,6 +289,28 @@ foreach ($marker in @(
 foreach ($marker in @(
         "FDOC_API_EDIT_PLAN_EN_MARKER",
         "scripts/edit_document_from_plan.ps1",
+        "FDOC_EDIT_PLAN_PLAN_SHAPE",
+        "FDOC_EDIT_PLAN_EXECUTION_RESULT",
+        "FDOC_EDIT_PLAN_OPERATION_REFERENCE",
+        "FDOC_EDIT_PLAN_JSON_EXAMPLES",
+        "FDOC_EDIT_PLAN_REQUIRED_FIELDS",
+        "FDOC_EDIT_PLAN_OPTIONAL_FIELDS",
+        "Plan Shape",
+        "Execution Result",
+        "Operation Reference",
+        "JSON Examples",
+        "Required fields",
+        "Optional fields and aliases",
+        "operation_count",
+        "summary_json",
+        "input_docx",
+        "output_docx",
+        "selected_text",
+        "comment_text",
+        "image_path",
+        "target",
+        "catalog_file",
+        "font_size_points",
         "Review And Revision Operations",
         "Notes And Fields",
         "Template Slots And Content Controls",
@@ -324,6 +369,15 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+        ':doc:`../api/index`',
+        ':doc:`../pdf_export`',
+        ':doc:`../pdf_import`'
+    )) {
+    Assert-DoesNotContainText -Text $chineseIndex -UnexpectedText $marker `
+        -Message "Chinese docs entrypoint should keep legacy docs in the hidden compatibility toctree."
+}
+
+foreach ($marker in @(
         "cmake -S . -B build",
         "BUILD_CLI",
         "featherdoc::Document",
@@ -336,7 +390,7 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
-        "../../api/index",
+        "../../en/api/index",
         "featherdoc::Document",
         "document",
         "paragraph_run",
@@ -347,14 +401,7 @@ foreach ($marker in @(
         "styles_numbering",
         "template_part",
         "edit_plan_operations",
-        "enums",
-        "../../api/content_blocks",
-        "../../api/document",
-        "../../api/fields_links_reviews",
-        "../../api/images_sections",
-        "../../api/styles_numbering",
-        "../../api/templates",
-        "../../api/tables"
+        "enums"
     )) {
     Assert-ContainsText -Text $chineseApiIndex -ExpectedText $marker `
         -Message "Chinese API entrypoint should preserve mirrored API marker."
@@ -489,6 +536,22 @@ foreach ($marker in @(
 foreach ($marker in @(
         "FDOC_API_EDIT_PLAN_ZH_CN_MARKER",
         "scripts/edit_document_from_plan.ps1",
+        "FDOC_EDIT_PLAN_PLAN_SHAPE",
+        "FDOC_EDIT_PLAN_EXECUTION_RESULT",
+        "FDOC_EDIT_PLAN_OPERATION_REFERENCE",
+        "FDOC_EDIT_PLAN_JSON_EXAMPLES",
+        "FDOC_EDIT_PLAN_REQUIRED_FIELDS",
+        "FDOC_EDIT_PLAN_OPTIONAL_FIELDS",
+        "operation_count",
+        "summary_json",
+        "input_docx",
+        "output_docx",
+        "selected_text",
+        "comment_text",
+        "image_path",
+        "target",
+        "catalog_file",
+        "font_size_points",
         "accept_all_revisions",
         "apply_review_mutation_plan",
         "append_page_number_field",

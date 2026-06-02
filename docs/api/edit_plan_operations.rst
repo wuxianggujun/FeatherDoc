@@ -5,6 +5,13 @@ Edit Plan Operations
 document rewrites. This page is the contract index for operation names that are
 implemented by the dispatcher and covered by regression tests.
 
+This legacy root-level page is kept for compatibility. Use the structured
+language-local API references for fields, aliases, result shape, and JSON
+examples:
+
+* :doc:`../en/api/edit_plan_operations`
+* :doc:`../zh-CN/api/edit_plan_operations`
+
 Review And Revision Operations
 ------------------------------
 

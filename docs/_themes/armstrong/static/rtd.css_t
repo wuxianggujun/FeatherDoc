@@ -60,6 +60,42 @@ div.related {
     background-color: {{ theme_background }};
 }
 
+.featherdoc-language-switch {
+    display: flex;
+    align-items: center;
+    gap: 0.45em;
+    padding: 0.45em 1.3em;
+    background: {{ theme_almost_white }};
+    border-bottom: 1px solid {{ theme_lighter_gray }};
+    color: {{ theme_dark_gray }};
+    font-size: 0.92em;
+}
+
+.featherdoc-language-switch__label {
+    font-weight: bold;
+    color: {{ theme_gray_2 }};
+}
+
+.featherdoc-language-switch a {
+    display: inline-block;
+    padding: 0.15em 0.55em;
+    border: 1px solid {{ theme_lighter_gray }};
+    border-radius: 3px;
+    background: {{ theme_white }};
+    color: {{ theme_dark_gray }};
+    text-decoration: none;
+}
+
+.featherdoc-language-switch a:hover {
+    color: {{ theme_black }};
+    border-color: {{ theme_medium_color }};
+    background: {{ theme_light_medium_color }};
+}
+
+.featherdoc-language-switch__spacer {
+    width: 0.6em;
+}
+
 div.documentwrapper {
     float: left;
     width: 100%;
@@ -590,6 +626,15 @@ p {
 /* MOBILE LAYOUT -------------------------------------------------------------- */
 
 @media screen and (max-width: 600px) {
+
+    .featherdoc-language-switch {
+        flex-wrap: wrap;
+        padding: 0.5em 1em;
+    }
+
+    .featherdoc-language-switch__spacer {
+        display: none;
+    }
 
     h1, h2, h3, h4, h5 {
         position: relative;

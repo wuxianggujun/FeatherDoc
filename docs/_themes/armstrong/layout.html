@@ -9,6 +9,18 @@
 
 {% endblock %}
 
+{% block relbar1 %}
+{{ super() }}
+<div class="featherdoc-language-switch" role="navigation" aria-label="Documentation language">
+  <span class="featherdoc-language-switch__label">Language</span>
+  <a href="{{ pathto('en/index') }}">English</a>
+  <a href="{{ pathto('zh-CN/index') }}">简体中文</a>
+  <span class="featherdoc-language-switch__spacer"></span>
+  <a href="{{ pathto('en/api/index') }}">English API</a>
+  <a href="{{ pathto('zh-CN/api/index') }}">中文 API</a>
+</div>
+{% endblock %}
+
 {% block footer %}
 <div class="footer">
 {%- if show_copyright %}

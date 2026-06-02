@@ -707,8 +707,9 @@ Assert-RstToctreeContainsEntries `
     -Text $docsIndexText `
     -ExpectedEntries $pdfImportToctreeEntries `
     -Label "docs/index.rst"
-Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_export`' -Label "docs/index.rst"
-Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import`' -Label "docs/index.rst"
+Assert-ContainsText -Text $docsIndexText -ExpectedText ":hidden:" -Label "docs/index.rst"
+Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText ':doc:`pdf_export`' -Label "docs/index.rst"
+Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText ':doc:`pdf_import`' -Label "docs/index.rst"
 Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import JSON diagnostics" -Label "docs/index.rst"
 Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import supported scope and limits" -Label "docs/index.rst"
 

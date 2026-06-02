@@ -2,8 +2,7 @@ English API Reference
 =====================
 
 This language-local API entry gives the ``/en/api/`` path a stable structure.
-The complete legacy API reference remains available at :doc:`../../api/index`
-while the language tree gains dedicated object pages.
+Use the object map below to jump directly to focused API pages.
 
 Object Map
 ----------
@@ -61,16 +60,3 @@ Object Map
    template_part
    edit_plan_operations
    enums
-
-Complete API Groups
--------------------
-
-* :doc:`../../api/document`
-* :doc:`../../api/content_blocks`
-* :doc:`../../api/tables`
-* :doc:`../../api/templates`
-* :doc:`edit_plan_operations`
-* :doc:`../../api/fields_links_reviews`
-* :doc:`../../api/styles_numbering`
-* :doc:`../../api/images_sections`
-* :doc:`enums`

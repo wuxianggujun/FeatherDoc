@@ -9,8 +9,7 @@ rewriting Microsoft Word ``.docx`` files.
 This English entry keeps the public API and user guides easy to scan while the
 site grows a matching Simplified Chinese reference.
 
-The language-local pages provide the stable ``/en/`` browsing path. The older
-root-level API and guide URLs stay available for external links.
+The language-local pages provide the stable ``/en/`` browsing path.
 
 Language
 --------
@@ -23,9 +22,6 @@ Quick Links
 
 * :doc:`getting_started`
 * :doc:`api/index`
-* :doc:`../api/index`
-* :doc:`../pdf_export`
-* :doc:`../pdf_import`
 
 .. toctree::
    :maxdepth: 2
