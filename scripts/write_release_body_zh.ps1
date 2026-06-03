@@ -811,12 +811,12 @@ function Get-ValidationSummaryBullet {
         $VisualVerdict
     }
 
-    if ($ExecutionStatus -eq "pass" -and $resolvedVerdict -eq "pass") {
-        return '本地 full release-preflight 当前为 pass：MSVC configure/build、ctest、install smoke 和 Word visual gate 均已通过，visual verdict 为 `pass`。'
+    if ($VisualGateStatus -eq "skipped" -or $VisualGateStatus -eq "visual_gate_skipped") {
+        return 'CI 侧 release-preflight 当前跳过了 Word visual gate；最终截图级结论仍需在本地 Windows + Microsoft Word 环境补齐。'
     }
 
-    if ($VisualGateStatus -eq "skipped") {
-        return 'CI 侧 release-preflight 当前跳过了 Word visual gate；最终截图级结论仍需在本地 Windows + Microsoft Word 环境补齐。'
+    if ($ExecutionStatus -eq "pass" -and $resolvedVerdict -eq "pass") {
+        return '本地 full release-preflight 当前为 pass：MSVC configure/build、ctest、install smoke 和 Word visual gate 均已通过，visual verdict 为 `pass`。'
     }
 
     if ($ExecutionStatus -ne "pass") {
@@ -1008,7 +1008,7 @@ function Get-ValidationNote {
         return "当前 preflight 未完全通过，发布前先处理失败步骤，再重刷本文件。"
     }
 
-    if ($VisualGateStatus -eq "skipped") {
+    if ($VisualGateStatus -eq "skipped" -or $VisualGateStatus -eq "visual_gate_skipped") {
         return "这份结果来自 CI 或跳过 visual gate 的本地检查；Word 截图级复核仍需在本地 Windows + Microsoft Word 环境补齐。"
     }
 

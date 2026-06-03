@@ -13,6 +13,7 @@ $reportDir = Join-Path $summaryOutputDir "report"
 $summaryPath = Join-Path $reportDir "summary.json"
 $releaseBodyPath = Join-Path $reportDir "release_body.zh-CN.md"
 $fakeBinDir = Join-Path $resolvedWorkingDir "fake-bin"
+$fakeGhStatePath = Join-Path $resolvedWorkingDir "fake-gh-state.json"
 $fakeGhLogPath = Join-Path $resolvedWorkingDir "fake-gh.log"
 
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
@@ -39,6 +40,14 @@ $summary = [ordered]@{
     }
 }
 ($summary | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
+$fakeGhState = [ordered]@{
+    tagName = "v1.6.4"
+    name = "FeatherDoc v1.6.4"
+    url = "https://example.invalid/releases/v1.6.4"
+    isDraft = $true
+    body = "old body"
+}
+($fakeGhState | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $fakeGhStatePath -Encoding UTF8
 Set-Content -LiteralPath $fakeGhLogPath -Encoding UTF8 -Value ""
 
 $fakeGhPath = Join-Path $fakeBinDir "gh.ps1"
@@ -51,10 +60,57 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Add-Content -LiteralPath $env:FEATHERDOC_FAKE_GH_LOG -Value ($Args -join " ")
+$statePath = $env:FEATHERDOC_FAKE_GH_STATE
+$logPath = $env:FEATHERDOC_FAKE_GH_LOG
+Add-Content -LiteralPath $logPath -Value ($Args -join " ")
+
+if ($Args.Count -lt 2 -or $Args[0] -ne "release") {
+    throw "Unexpected gh invocation: $($Args -join ' ')"
+}
+
+$state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json
+switch ($Args[1]) {
+    "view" {
+        $payload = [ordered]@{
+            tagName = $state.tagName
+            name = $state.name
+            url = $state.url
+            isDraft = [bool]$state.isDraft
+            body = [string]$state.body
+        }
+        $payload | ConvertTo-Json -Compress
+    }
+    "edit" {
+        if ($Args[2] -ne $state.tagName) {
+            throw "Unexpected tag: $($Args[2])"
+        }
+
+        for ($index = 3; $index -lt $Args.Count; $index++) {
+            switch ($Args[$index]) {
+                "--notes-file" {
+                    $index++
+                    $state.body = [string](Get-Content -Raw -LiteralPath $Args[$index])
+                }
+                "--title" {
+                    $index++
+                    $state.name = $Args[$index]
+                }
+                "--draft=false" {
+                    $state.isDraft = $false
+                }
+            }
+        }
+
+        ($state | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $statePath -Encoding UTF8
+    }
+    default {
+        throw "Unexpected gh release subcommand: $($Args[1])"
+    }
+}
 '@
 
 $previousPath = $env:PATH
+$env:FEATHERDOC_FAKE_GH_STATE = $fakeGhStatePath
 $env:FEATHERDOC_FAKE_GH_LOG = $fakeGhLogPath
 $env:PATH = "$fakeBinDir;$previousPath"
 
@@ -68,6 +124,7 @@ try {
     $failedAsExpected = $_.Exception.Message -like "*Refusing to publish GitHub release*"
 } finally {
     $env:PATH = $previousPath
+    Remove-Item Env:FEATHERDOC_FAKE_GH_STATE -ErrorAction SilentlyContinue
     Remove-Item Env:FEATHERDOC_FAKE_GH_LOG -ErrorAction SilentlyContinue
 }
 
@@ -78,6 +135,35 @@ if (-not $failedAsExpected) {
 $logContent = Get-Content -Raw -LiteralPath $fakeGhLogPath
 if (-not [string]::IsNullOrWhiteSpace($logContent)) {
     throw "GitHub CLI should not be invoked when publish guard checks fail."
+}
+
+$env:FEATHERDOC_FAKE_GH_STATE = $fakeGhStatePath
+$env:FEATHERDOC_FAKE_GH_LOG = $fakeGhLogPath
+$env:PATH = "$fakeBinDir;$previousPath"
+Set-Content -LiteralPath $fakeGhLogPath -Encoding UTF8 -Value ""
+try {
+    $syncScript = Join-Path $resolvedRepoRoot "scripts\sync_github_release_notes.ps1"
+    & $syncScript -SummaryJson $summaryPath -AllowCiArtifactPublish -Publish
+} finally {
+    $env:PATH = $previousPath
+    Remove-Item Env:FEATHERDOC_FAKE_GH_STATE -ErrorAction SilentlyContinue
+    Remove-Item Env:FEATHERDOC_FAKE_GH_LOG -ErrorAction SilentlyContinue
+}
+
+$finalState = Get-Content -Raw -LiteralPath $fakeGhStatePath | ConvertFrom-Json
+$expectedBody = Get-Content -Raw -LiteralPath $releaseBodyPath
+$logContent = Get-Content -Raw -LiteralPath $fakeGhLogPath
+
+if ($finalState.body -ne $expectedBody) {
+    throw "Fake GitHub release body did not match the audited release body after CI artifact publish sync."
+}
+
+if ([bool]$finalState.isDraft) {
+    throw "Fake GitHub release was not published when -AllowCiArtifactPublish was explicitly provided."
+}
+
+if ($logContent -notmatch [regex]::Escape("release edit v1.6.4 --notes-file $releaseBodyPath --draft=false")) {
+    throw "Expected gh release edit invocation was not recorded for explicit CI artifact publish."
 }
 
 Write-Host "GitHub release publish guard regression passed."

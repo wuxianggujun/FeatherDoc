@@ -10,7 +10,8 @@ the matching GitHub Release body via `gh release edit --notes-file`.
 By default the script only syncs notes. When `-Publish` is set, it also passes
 `--draft=false` so an existing draft release is published with the same audited
 body. Publishing requires a final local pass verdict and refuses CI-only
-`visual_gate=skipped` summaries.
+`visual_gate=skipped` summaries unless `-AllowCiArtifactPublish` is explicitly
+set.
 
 .PARAMETER SummaryJson
 Path to the release-candidate summary JSON produced by
@@ -33,6 +34,12 @@ Optional explicit release title override.
 Allows syncing notes even when `execution_status` / `visual_verdict` are not
 final pass. This never relaxes the stricter `-Publish` checks.
 
+.PARAMETER AllowCiArtifactPublish
+Allows `-Publish` to use a CI-generated release-candidate summary whose build
+and install smoke passed while the local Word visual gate was intentionally
+skipped. This does not mark the visual gate as passed; release notes and
+reviewer material must continue to show the screenshot-review boundary.
+
 .PARAMETER Publish
 Also passes `--draft=false` so the target GitHub Release is published.
 
@@ -52,6 +59,7 @@ param(
     [string]$BodyPath = "",
     [string]$Title = "",
     [switch]$AllowIncomplete,
+    [switch]$AllowCiArtifactPublish,
     [switch]$Publish
 )
 
@@ -201,6 +209,26 @@ function Get-VisualGateStatus {
     return Get-OptionalPropertyValue -Object $visualGate -Name "status"
 }
 
+function Test-CiArtifactPublishBoundary {
+    param(
+        [string]$ExecutionStatus,
+        [string]$VisualVerdict,
+        [string]$VisualGateStatus
+    )
+
+    if ($ExecutionStatus -ne "pass") {
+        return $false
+    }
+
+    $skippedGateStatuses = @("skipped", "visual_gate_skipped")
+    if ($skippedGateStatuses -notcontains $VisualGateStatus) {
+        return $false
+    }
+
+    $ciOnlyVisualVerdicts = @("", "visual_gate_skipped", "pending_manual_review")
+    return $ciOnlyVisualVerdicts -contains $VisualVerdict
+}
+
 function Normalize-ReleaseText {
     param([string]$Value)
 
@@ -253,8 +281,12 @@ if ([string]::IsNullOrWhiteSpace($resolvedReleaseVersion)) {
 $executionStatus = Get-OptionalPropertyValue -Object $summary -Name "execution_status"
 $visualVerdict = Get-VisualVerdict -RepoRoot $repoRoot -Summary $summary
 $visualGateStatus = Get-VisualGateStatus -Summary $summary
+$ciArtifactPublishBoundary = Test-CiArtifactPublishBoundary `
+    -ExecutionStatus $executionStatus `
+    -VisualVerdict $visualVerdict `
+    -VisualGateStatus $visualGateStatus
 
-if (-not $AllowIncomplete) {
+if (-not $AllowIncomplete -and -not ($AllowCiArtifactPublish -and $ciArtifactPublishBoundary)) {
     if ($executionStatus -ne "pass") {
         throw "Refusing to sync GitHub release notes because execution_status is '$executionStatus'. Use -AllowIncomplete to override."
     }
@@ -269,11 +301,11 @@ if ($Publish) {
         throw "Refusing to publish GitHub release '$resolvedReleaseVersion' because execution_status is '$executionStatus'."
     }
 
-    if ([string]::IsNullOrWhiteSpace($visualVerdict) -or $visualVerdict -ne "pass") {
+    if ($AllowCiArtifactPublish -and $ciArtifactPublishBoundary) {
+        Write-Step "Publishing from CI artifact boundary: build evidence passed and Word visual gate remains explicitly skipped."
+    } elseif ([string]::IsNullOrWhiteSpace($visualVerdict) -or $visualVerdict -ne "pass") {
         throw "Refusing to publish GitHub release '$resolvedReleaseVersion' because visual_verdict is '$visualVerdict'."
-    }
-
-    if ($visualGateStatus -eq "skipped") {
+    } elseif ($visualGateStatus -eq "skipped" -or $visualGateStatus -eq "visual_gate_skipped") {
         throw "Refusing to publish GitHub release '$resolvedReleaseVersion' from a summary with visual_gate=status skipped."
     }
 }

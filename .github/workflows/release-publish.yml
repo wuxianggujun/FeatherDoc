@@ -2,6 +2,12 @@ name: Release Publish
 
 on:
   workflow_dispatch:
+    inputs:
+      allow-ci-artifact-publish:
+        description: Allow publishing a CI artifact bundle when Word visual gate was skipped
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -39,6 +45,27 @@ jobs:
               throw "Summary JSON not found: $summaryPath. This workflow expects a completed local release-preflight bundle to already exist in the self-hosted runner workspace."
           }
 
+          $summary = Get-Content -Raw -LiteralPath $summaryPath | ConvertFrom-Json
+          $executionStatus = [string]$summary.execution_status
+          $visualVerdict = [string]$summary.visual_verdict
+          $visualGateStatus = [string]$summary.steps.visual_gate.status
+          $allowCiArtifactPublish = [System.Convert]::ToBoolean("${{ inputs.allow-ci-artifact-publish }}")
+          $ciArtifactBoundary = $executionStatus -eq "pass" -and
+              $visualGateStatus -in @("skipped", "visual_gate_skipped") -and
+              $visualVerdict -in @("", "visual_gate_skipped", "pending_manual_review")
+
+          if ($executionStatus -ne "pass") {
+              throw "Refusing Release Publish because execution_status is '$executionStatus'."
+          }
+
+          if ($allowCiArtifactPublish -and $ciArtifactBoundary) {
+              Write-Host "Release Publish is using the explicit CI artifact boundary; Word visual gate remains skipped in the release notes."
+          } elseif ([string]::IsNullOrWhiteSpace($visualVerdict) -or $visualVerdict -ne "pass") {
+              throw "Refusing Release Publish because visual_verdict is '$visualVerdict'."
+          } elseif ($visualGateStatus -in @("skipped", "visual_gate_skipped")) {
+              throw "Refusing Release Publish because visual_gate.status is '$visualGateStatus'. Set allow-ci-artifact-publish only for an explicit CI artifact release."
+          }
+
       - name: Publish GitHub release assets and notes
         shell: pwsh
         env:
@@ -47,12 +74,18 @@ jobs:
           Set-StrictMode -Version Latest
           $ErrorActionPreference = "Stop"
 
-          & pwsh `
-              -ExecutionPolicy Bypass `
-              -File .\scripts\publish_github_release.ps1 `
-              -SummaryJson $env:RELEASE_SUMMARY_JSON `
-              -OutputRoot $env:RELEASE_OUTPUT_ROOT `
-              -Publish
+          $publishArgs = @(
+              "-ExecutionPolicy", "Bypass",
+              "-File", ".\scripts\publish_github_release.ps1",
+              "-SummaryJson", $env:RELEASE_SUMMARY_JSON,
+              "-OutputRoot", $env:RELEASE_OUTPUT_ROOT,
+              "-Publish"
+          )
+          if ([System.Convert]::ToBoolean("${{ inputs.allow-ci-artifact-publish }}")) {
+              $publishArgs += "-AllowCiArtifactPublish"
+          }
+
+          & pwsh @publishArgs
 
       - name: Upload release publish output
         if: always()

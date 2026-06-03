@@ -49,6 +49,25 @@ Release 元数据流水线（中文）
 ``sync_visual_review_verdict.ps1`` 执行真正的同步。
 
 
+CI artifact publish 边界
+------------------------
+
+Release metadata 管线需要区分正式公开发布和 CI artifact publish 两类消费场景。
+``Release Publish`` 默认必须消费完整本地 Word visual gate 通过后的 release
+candidate summary：``visual_verdict`` 应为 ``pass``，``steps.visual_gate.status``
+不能是 ``skipped`` / ``visual_gate_skipped``。只有这类 summary 才能代表
+Word 截图级 visual gate pass。
+
+当 release summary 来自 CI artifact 流水线，且 ``execution_status=pass`` 但
+``visual_gate`` 被跳过时，发布脚本必须要求操作者显式选择 CI artifact publish
+边界：workflow 输入为 ``allow-ci-artifact-publish``，PowerShell 脚本开关为
+``-AllowCiArtifactPublish``。该模式只把 CI build/test/install smoke 与 release
+metadata 审计视为构建产物依据；它不等同于完整本地 Word visual gate，也不能把
+``visual_gate=skipped``、``visual_gate_skipped`` 或 ``pending_manual_review``
+解释成截图级 visual pass。下游 release notes、handoff 和 manifest 仍应保留
+这个视觉证据边界，避免 reviewer 或发布面板误判。
+
+
 第一层：视觉 gate
 -----------------
 

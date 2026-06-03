@@ -44,6 +44,11 @@ Passes `-KeepStaging` through to `package_release_assets.ps1`.
 Also publishes the target GitHub Release by passing `-Publish` through to
 `sync_github_release_notes.ps1`.
 
+.PARAMETER AllowCiArtifactPublish
+Passes `-AllowCiArtifactPublish` through to `sync_github_release_notes.ps1` so
+an explicitly selected CI artifact release can publish even when the Word visual
+gate was skipped. The release notes still keep that visual-review boundary.
+
 .PARAMETER PackageScriptPath
 Optional explicit override for the packaging script path. Intended for
 tooling/tests; defaults to `scripts/package_release_assets.ps1`.
@@ -72,6 +77,7 @@ param(
     [string]$Title = "",
     [switch]$KeepStaging,
     [switch]$Publish,
+    [switch]$AllowCiArtifactPublish,
     [string]$PackageScriptPath = "",
     [string]$SyncNotesScriptPath = ""
 )
@@ -152,6 +158,62 @@ function Get-ResolvedReleaseVersion {
     return Get-ProjectVersion -RepoRoot $RepoRoot
 }
 
+function Get-VisualVerdict {
+    param(
+        [string]$RepoRoot,
+        $Summary
+    )
+
+    $summaryVerdict = Get-OptionalPropertyValue -Object $Summary -Name "visual_verdict"
+    if (-not [string]::IsNullOrWhiteSpace($summaryVerdict)) {
+        return $summaryVerdict
+    }
+
+    $visualGate = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $Summary -Name "steps") -Name "visual_gate"
+    $stepVerdict = Get-OptionalPropertyValue -Object $visualGate -Name "visual_verdict"
+    if (-not [string]::IsNullOrWhiteSpace($stepVerdict)) {
+        return $stepVerdict
+    }
+
+    $gateSummaryPath = Get-OptionalPropertyValue -Object $visualGate -Name "summary_json"
+    if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath)) {
+        $resolvedGateSummaryPath = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $gateSummaryPath
+        if (Test-Path -LiteralPath $resolvedGateSummaryPath) {
+            $gateSummary = Get-Content -Raw -LiteralPath $resolvedGateSummaryPath | ConvertFrom-Json
+            return Get-OptionalPropertyValue -Object $gateSummary -Name "visual_verdict"
+        }
+    }
+
+    return ""
+}
+
+function Get-VisualGateStatus {
+    param($Summary)
+
+    $visualGate = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $Summary -Name "steps") -Name "visual_gate"
+    return Get-OptionalPropertyValue -Object $visualGate -Name "status"
+}
+
+function Test-CiArtifactPublishBoundary {
+    param(
+        [string]$ExecutionStatus,
+        [string]$VisualVerdict,
+        [string]$VisualGateStatus
+    )
+
+    if ($ExecutionStatus -ne "pass") {
+        return $false
+    }
+
+    $skippedGateStatuses = @("skipped", "visual_gate_skipped")
+    if ($skippedGateStatuses -notcontains $VisualGateStatus) {
+        return $false
+    }
+
+    $ciOnlyVisualVerdicts = @("", "visual_gate_skipped", "pending_manual_review")
+    return $ciOnlyVisualVerdicts -contains $VisualVerdict
+}
+
 function Update-UploadedAssetManifest {
     param(
         [string]$RepoRoot,
@@ -221,6 +283,28 @@ $resolvedReleaseTag = if (-not [string]::IsNullOrWhiteSpace($ReleaseTag)) {
     "v{0}" -f $resolvedReleaseVersion
 }
 
+$executionStatus = Get-OptionalPropertyValue -Object $summary -Name "execution_status"
+$visualVerdict = Get-VisualVerdict -RepoRoot $repoRoot -Summary $summary
+$visualGateStatus = Get-VisualGateStatus -Summary $summary
+$ciArtifactPublishBoundary = Test-CiArtifactPublishBoundary `
+    -ExecutionStatus $executionStatus `
+    -VisualVerdict $visualVerdict `
+    -VisualGateStatus $visualGateStatus
+
+if ($Publish) {
+    if ($executionStatus -ne "pass") {
+        throw "Refusing to publish GitHub release '$resolvedReleaseVersion' because execution_status is '$executionStatus'."
+    }
+
+    if ($AllowCiArtifactPublish -and $ciArtifactPublishBoundary) {
+        Write-Step "Publishing from CI artifact boundary: build evidence passed and Word visual gate remains explicitly skipped."
+    } elseif ([string]::IsNullOrWhiteSpace($visualVerdict) -or $visualVerdict -ne "pass") {
+        throw "Refusing to publish GitHub release '$resolvedReleaseVersion' because visual_verdict is '$visualVerdict'."
+    } elseif ($visualGateStatus -eq "skipped" -or $visualGateStatus -eq "visual_gate_skipped") {
+        throw "Refusing to publish GitHub release '$resolvedReleaseVersion' from a summary with visual_gate=status skipped."
+    }
+}
+
 $resolvedPackageScriptPath = if ([string]::IsNullOrWhiteSpace($PackageScriptPath)) {
     Join-Path $repoRoot "scripts\package_release_assets.ps1"
 } else {
@@ -252,6 +336,9 @@ if (-not [string]::IsNullOrWhiteSpace($ReadmeAssetsDir)) {
 if ($KeepStaging) {
     $packageArgs.KeepStaging = $true
 }
+if ($AllowCiArtifactPublish -and $ciArtifactPublishBoundary) {
+    $packageArgs.AllowIncomplete = $true
+}
 
 $syncArgs = @{
     SummaryJson = $resolvedSummaryPath
@@ -266,6 +353,9 @@ if (-not [string]::IsNullOrWhiteSpace($Title)) {
 }
 if ($Publish) {
     $syncArgs.Publish = $true
+}
+if ($AllowCiArtifactPublish) {
+    $syncArgs.AllowCiArtifactPublish = $true
 }
 
 Write-Step "Uploading release assets to GitHub release $resolvedReleaseTag"

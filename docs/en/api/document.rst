@@ -8,6 +8,8 @@ and call document-wide editing APIs.
 Common Tasks
 ------------
 
+.. FDOC_EN_DOCUMENT_COMMON_TASKS
+
 Start here when you already know the workflow you need:
 
 * Open and save a document: use ``Document(path)``, ``open()``, ``save()``, and
@@ -25,6 +27,8 @@ Start here when you already know the workflow you need:
 
 Success And Failure Semantics
 -----------------------------
+
+.. FDOC_EN_DOCUMENT_SUCCESS_FAILURE_SEMANTICS
 
 .. list-table::
    :header-rows: 1
@@ -54,8 +58,10 @@ Success And Failure Semantics
        are the next editing entry point.
      - Check handle-specific validity rules before assuming the target exists.
 
-Short Example
--------------
+Short C++ Example
+-----------------
+
+.. FDOC_EN_DOCUMENT_SHORT_EXAMPLE
 
 .. code-block:: cpp
 
@@ -64,6 +70,62 @@ Short Example
 
    doc.replace_content_control_text_by_tag("customer", "Ada");
    return doc.save_as("filled.docx") ? 1 : 0;
+
+Typed Signature Guide
+---------------------
+
+.. FDOC_EN_DOCUMENT_TYPED_SIGNATURE_GUIDE
+
+``Document`` is a package-level handle. Call ``open()`` for an existing file or
+``create_empty()`` for a new package before using editing methods. Most indexes
+are zero-based. Path parameters are filesystem paths; text parameters are
+written into the resolved WordprocessingML target.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - Signature
+     - Parameters
+     - Return semantics
+   * - ``explicit Document(std::filesystem::path path)``
+     - ``path``: source or target ``.docx`` path.
+     - Creates a handle; no package is loaded until ``open()``.
+   * - ``std::error_code create_empty()``
+     - None.
+     - Empty error code means a new package was initialized.
+   * - ``std::error_code open()``
+     - None.
+     - Empty error code means the current path was loaded.
+   * - ``std::error_code save_as(std::filesystem::path path) const``
+     - ``path``: non-empty output ``.docx`` path.
+     - Empty error code means the package was written to the new path.
+   * - ``TemplatePart body_template()``
+     - None.
+     - Body template-part handle; check handle validity before editing.
+   * - ``TemplatePart header_template(std::size_t index = 0U)``
+     - ``index``: physical header part index.
+     - Header template-part handle for that physical part.
+   * - ``TemplatePart section_header_template(std::size_t section_index, section_reference_kind reference_kind = default_reference)``
+     - ``section_index``: target section. ``reference_kind``: default, first,
+       or even header reference.
+     - Template-part handle for the resolved section header.
+   * - ``bookmark_fill_result fill_bookmarks(std::span<const bookmark_text_binding> bindings)``
+     - ``bindings``: bookmark-name/text pairs.
+     - Matched, replaced, requested, and missing-bookmark counts.
+   * - ``std::size_t replace_content_control_text_by_tag(std::string_view tag, std::string_view replacement)``
+     - ``tag``: content-control tag. ``replacement``: inserted text.
+     - Number of matching controls replaced; ``0`` means no match.
+   * - ``Table append_table(std::size_t row_count = 1U, std::size_t column_count = 1U)``
+     - ``row_count`` and ``column_count``: initial body table shape.
+     - New body table handle.
+   * - ``bool set_section_page_setup(std::size_t section_index, const section_page_setup &setup)``
+     - ``section_index``: target section. ``setup``: page size, margins, and
+       orientation data.
+     - ``true`` when section page setup was written.
+   * - ``std::optional<section_page_setup> get_section_page_setup(std::size_t section_index) const``
+     - ``section_index``: target section.
+     - Empty when the section or setup cannot be resolved.
 
 Lifecycle
 ---------

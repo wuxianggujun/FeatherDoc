@@ -267,6 +267,22 @@ GitHub Actions 的 ``windows-msvc.yml`` 现在也会上传一个
 ``skipped`` 的 handoff；正式发版前，仍然要用本地 Windows preflight
 补齐最终截图级结论。
 
+Release Publish 发布边界
+------------------------
+
+``Release Publish``（``.github/workflows/release-publish.yml``）默认只接受完整
+本地 Word visual release gate 的 ``visual_verdict=pass``，并要求
+``steps.visual_gate.status`` 不能是 ``skipped`` / ``visual_gate_skipped``。
+这意味着正式公开发布前，必须先在本地 Windows + Microsoft Word 环境跑完整
+release candidate preflight，并把截图级 review verdict 回写到 release summary。
+
+如果本次只是发布 CI artifact 产物，而不是声明截图级 Word visual gate 已通过，
+必须显式开启 workflow 输入 ``allow-ci-artifact-publish``，或在脚本入口传入
+``-AllowCiArtifactPublish``。该模式只承认 CI build/test/install smoke 和
+release metadata 审计作为构建产物依据；它不会把 ``visual_gate=skipped``
+提升为 Word 截图级 visual gate pass，release notes / handoff 也必须继续保留
+skipped 或 pending boundary。
+
 Release metadata 管线参考
 -------------------------
 

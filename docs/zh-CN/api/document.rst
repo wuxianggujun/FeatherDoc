@@ -50,8 +50,8 @@ Document
      - 返回的 ``TemplatePart``、``Paragraph``、``Table`` 等句柄是下一步编辑入口。
      - 使用前应按对应对象页的有效性规则确认目标存在。
 
-短示例
-------
+短 C++ 示例
+------------
 
 .. FDOC_ZH_CN_DOCUMENT_SHORT_EXAMPLE
 
@@ -62,6 +62,60 @@ Document
 
    doc.replace_content_control_text_by_tag("customer", "Ada");
    return doc.save_as("filled.docx") ? 1 : 0;
+
+类型化签名导读
+--------------
+
+.. FDOC_ZH_CN_DOCUMENT_TYPED_SIGNATURE_GUIDE
+
+``Document`` 是文档包级句柄。处理已有文件时先调用 ``open()``，创建新包时
+先调用 ``create_empty()``，再使用编辑方法。大多数下标都从 0 开始。路径参数
+表示文件系统路径；文本参数会写入解析后的 WordprocessingML 目标。
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - 签名
+     - 参数
+     - 返回语义
+   * - ``explicit Document(std::filesystem::path path)``
+     - ``path``：源文件或目标 ``.docx`` 路径。
+     - 创建句柄；调用 ``open()`` 前不会加载文档包。
+   * - ``std::error_code create_empty()``
+     - 无。
+     - 空错误码表示新文档包已初始化。
+   * - ``std::error_code open()``
+     - 无。
+     - 空错误码表示当前路径已加载。
+   * - ``std::error_code save_as(std::filesystem::path path) const``
+     - ``path``：非空输出 ``.docx`` 路径。
+     - 空错误码表示文档包已写入新路径。
+   * - ``TemplatePart body_template()``
+     - 无。
+     - 返回正文模板部件句柄；编辑前应检查句柄有效性。
+   * - ``TemplatePart header_template(std::size_t index = 0U)``
+     - ``index``：物理页眉部件下标。
+     - 返回该物理部件的页眉模板部件句柄。
+   * - ``TemplatePart section_header_template(std::size_t section_index, section_reference_kind reference_kind = default_reference)``
+     - ``section_index``：目标分节。``reference_kind``：默认页、首页或
+       偶数页页眉引用。
+     - 返回解析后的分节页眉模板部件句柄。
+   * - ``bookmark_fill_result fill_bookmarks(std::span<const bookmark_text_binding> bindings)``
+     - ``bindings``：书签名和文本绑定。
+     - 返回匹配、替换、请求和缺失书签统计。
+   * - ``std::size_t replace_content_control_text_by_tag(std::string_view tag, std::string_view replacement)``
+     - ``tag``：内容控件 tag。``replacement``：插入文本。
+     - 返回被替换的匹配控件数量；``0`` 表示未命中。
+   * - ``Table append_table(std::size_t row_count = 1U, std::size_t column_count = 1U)``
+     - ``row_count`` 和 ``column_count``：初始正文表格形状。
+     - 返回新建的正文表格句柄。
+   * - ``bool set_section_page_setup(std::size_t section_index, const section_page_setup &setup)``
+     - ``section_index``：目标分节。``setup``：页面尺寸、边距和方向数据。
+     - 分节页面设置写入成功时返回 ``true``。
+   * - ``std::optional<section_page_setup> get_section_page_setup(std::size_t section_index) const``
+     - ``section_index``：目标分节。
+     - 分节或页面设置无法解析时返回空值。
 
 生命周期
 --------

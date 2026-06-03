@@ -132,4 +132,20 @@ foreach ($marker in @(
         -Message "Windows workflow should keep the release asset preview upload marker '$marker'."
 }
 
+$releasePublishWorkflow = $workflowTexts[".github\workflows\release-publish.yml"]
+foreach ($marker in @(
+        "allow-ci-artifact-publish:",
+        "Allow publishing a CI artifact bundle when Word visual gate was skipped",
+        '$visualGateStatus -in @("skipped", "visual_gate_skipped")',
+        '$visualVerdict -in @("", "visual_gate_skipped", "pending_manual_review")',
+        "Refusing Release Publish because visual_verdict is",
+        "Refusing Release Publish because visual_gate.status is",
+        '"-ExecutionPolicy", "Bypass"',
+        '"-File", ".\scripts\publish_github_release.ps1"',
+        "-AllowCiArtifactPublish"
+    )) {
+    Assert-ContainsText -Text $releasePublishWorkflow -ExpectedText $marker `
+        -Message "Release Publish workflow should keep the CI artifact boundary marker '$marker'."
+}
+
 Write-Host "GitHub Actions workflow maintenance contract passed."
