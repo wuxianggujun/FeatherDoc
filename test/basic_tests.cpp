@@ -19768,6 +19768,38 @@ TEST_CASE("append_image detects raster image dimensions through stb_image") {
     fs::remove(target);
 }
 
+TEST_CASE("append_image lets stb_image identify raster bytes while package metadata follows extension") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "stb_raster_extension_metadata.docx";
+    const fs::path image_path = fs::current_path() / "jpeg_bytes_named_png.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    const auto jpeg_bytes = tiny_jpeg_data();
+    write_binary_file(image_path, jpeg_bytes);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+    CHECK(doc.append_image(image_path));
+
+    const auto images = doc.drawing_images();
+    REQUIRE_EQ(images.size(), 1U);
+    CHECK_EQ(images[0].content_type, "image/png");
+    CHECK_EQ(images[0].width_px, 3U);
+    CHECK_EQ(images[0].height_px, 2U);
+    CHECK_NE(images[0].entry_name.find(".png"), std::string::npos);
+
+    CHECK_FALSE(doc.save());
+    const auto content_types = read_test_docx_entry(target, test_content_types_xml_entry);
+    CHECK_NE(content_types.find("Extension=\"png\""), std::string::npos);
+    CHECK_NE(content_types.find("ContentType=\"image/png\""), std::string::npos);
+    CHECK_EQ(read_test_docx_entry(target, images[0].entry_name.c_str()), jpeg_bytes);
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
 TEST_CASE("append_image supports SVG WebP and TIFF inputs") {
     namespace fs = std::filesystem;
 
@@ -19835,9 +19867,7 @@ TEST_CASE("append_image rejects supported extensions with unreadable image dimen
     namespace fs = std::filesystem;
 
     const fs::path corrupt_path = fs::current_path() / "corrupt_image.png";
-    const fs::path mismatched_path = fs::current_path() / "mismatched_image.png";
     fs::remove(corrupt_path);
-    fs::remove(mismatched_path);
 
     featherdoc::Document doc;
     CHECK_FALSE(doc.create_empty());
@@ -19848,14 +19878,7 @@ TEST_CASE("append_image rejects supported extensions with unreadable image dimen
     CHECK(doc.drawing_images().empty());
     CHECK(doc.inline_images().empty());
 
-    write_binary_file(mismatched_path, tiny_jpeg_data());
-    CHECK_FALSE(doc.append_image(mismatched_path));
-    CHECK_EQ(doc.last_error().code, featherdoc::document_errc::image_size_read_failed);
-    CHECK(doc.drawing_images().empty());
-    CHECK(doc.inline_images().empty());
-
     fs::remove(corrupt_path);
-    fs::remove(mismatched_path);
 }
 
 TEST_CASE("append_image reports unsupported image extensions explicitly") {

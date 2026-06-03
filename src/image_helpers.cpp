@@ -72,60 +72,9 @@ auto read_u32_endian(const std::string &data, std::size_t offset, bool little_en
     return little_endian ? read_u32_le(data, offset) : read_u32_be(data, offset);
 }
 
-auto has_png_signature(const std::string &data) -> bool {
-    constexpr unsigned char png_signature[] = {0x89U, 0x50U, 0x4EU, 0x47U,
-                                               0x0DU, 0x0AU, 0x1AU, 0x0AU};
-    if (data.size() < std::size(png_signature)) {
-        return false;
-    }
-
-    for (std::size_t i = 0; i < std::size(png_signature); ++i) {
-        if (static_cast<unsigned char>(data[i]) != png_signature[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-auto has_jpeg_signature(const std::string &data) -> bool {
-    return data.size() >= 2U && static_cast<unsigned char>(data[0]) == 0xFFU &&
-           static_cast<unsigned char>(data[1]) == 0xD8U;
-}
-
-auto has_gif_signature(const std::string &data) -> bool {
-    if (data.size() < 6U) {
-        return false;
-    }
-
-    const auto header = std::string_view{data.data(), 6U};
-    return header == "GIF87a" || header == "GIF89a";
-}
-
-auto has_bmp_signature(const std::string &data) -> bool {
-    return data.size() >= 2U && data[0] == 'B' && data[1] == 'M';
-}
-
-auto extension_matches_stb_raster_signature(const std::string &extension,
-                                            const std::string &data) -> bool {
-    if (extension == "png") {
-        return has_png_signature(data);
-    }
-    if (extension == "jpg" || extension == "jpeg") {
-        return has_jpeg_signature(data);
-    }
-    if (extension == "gif") {
-        return has_gif_signature(data);
-    }
-    if (extension == "bmp") {
-        return has_bmp_signature(data);
-    }
-    return false;
-}
-
-auto detect_stb_raster_dimensions(const std::string &extension,
-                                  const std::string &data, std::uint32_t &width,
+auto detect_stb_raster_dimensions(const std::string &data, std::uint32_t &width,
                                   std::uint32_t &height) -> bool {
-    if (data.empty() || !extension_matches_stb_raster_signature(extension, data) ||
+    if (data.empty() ||
         data.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
         return false;
     }
@@ -423,7 +372,7 @@ auto detect_image_dimensions(const std::string &extension, const std::string &da
                              std::uint32_t &width, std::uint32_t &height) -> bool {
     if (extension == "png" || extension == "jpg" || extension == "jpeg" ||
         extension == "gif" || extension == "bmp") {
-        return detect_stb_raster_dimensions(extension, data, width, height);
+        return detect_stb_raster_dimensions(data, width, height);
     }
     if (extension == "svg") {
         return detect_svg_dimensions(data, width, height);

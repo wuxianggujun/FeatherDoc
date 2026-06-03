@@ -73,14 +73,20 @@ Short Example
 Dimension Detection
 -------------------
 
-When an append or replace method needs source dimensions, FeatherDoc first uses
-the stb_image-backed raster probe for ``PNG``, ``JPEG``, ``GIF``, and ``BMP``
-files. ``SVG``, ``WebP``, and ``TIFF`` keep FeatherDoc's existing
-format-specific detection and fallback path.
+When an append or replace method needs source dimensions, FeatherDoc uses
+``stb_image`` as the authoritative byte probe for ``PNG``, ``JPEG``, ``GIF``,
+and ``BMP`` files. ``SVG``, ``WebP``, and ``TIFF`` keep FeatherDoc-specific
+dimension readers because they are outside the supported ``stb_image`` decode
+set used by this project.
 
 Explicit ``width_px`` and ``height_px`` values bypass source-size inference for
 layout size, but the image file still has to be readable and recognized so the
 package media part and content type can be written correctly.
+
+The package content type and media part extension are selected from the source
+file extension. Keep the extension aligned with the actual image bytes; for
+example, do not store JPEG bytes in a ``.png`` file when the generated DOCX
+should advertise ``image/png``.
 
 Typed Signature Guide
 ---------------------
