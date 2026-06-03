@@ -111,12 +111,13 @@ $releaseGovernanceHandoffTest = Get-RepoFileText -Root $resolvedRepoRoot -Relati
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 
 foreach ($marker in @(
-    "project_template_release_readiness_checklist_zh",
-    "template_schema_mutation_zh",
-    "release_metadata_pipeline_zh"
+    "en/index",
+    "zh-CN/index",
+    "en/api/index",
+    "zh-CN/api/index"
 )) {
     Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
-        -Message "Docs index should expose the project-template release readiness entry."
+        -Message "Docs index should preserve bilingual public docs entry '$marker'."
 }
 
 $governanceReleasePreflightStart = $governanceRoutesDoc.IndexOf(

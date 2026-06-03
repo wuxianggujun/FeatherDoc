@@ -57,12 +57,13 @@ $scriptIndexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\s
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 
 foreach ($marker in @(
-        "script_task_index_zh",
-        "documentation_maintenance_zh",
-        "project_score_assessment_zh"
+        "en/index",
+        "zh-CN/index",
+        "en/api/index",
+        "zh-CN/api/index"
     )) {
     Assert-ContainsText -Text $indexDoc -ExpectedText $marker `
-        -Message "Sphinx index should keep script task index and maintenance docs reachable."
+        -Message "Sphinx index should keep bilingual public docs entry '$marker' reachable."
 }
 
 foreach ($marker in @(

@@ -562,7 +562,13 @@ $indexPath = Join-Path $resolvedRepoRoot $indexRelativePath
 $maintenancePath = Join-Path $resolvedRepoRoot $maintenanceRelativePath
 $scorePath = Join-Path $resolvedRepoRoot $scoreRelativePath
 $cmakePath = Join-Path $resolvedRepoRoot $cmakeRelativePath
-$documentationEntryPointMarkers = @("documentation_maintenance_zh", "script_task_index_zh")
+$publicIndexEntryPointMarkers = @(
+    "en/index",
+    "zh-CN/index",
+    "en/api/index",
+    "zh-CN/api/index"
+)
+$repositoryMaintenanceEntryPointMarkers = @("documentation_maintenance_zh", "script_task_index_zh")
 
 Assert-FileExists -Path $scriptIndexPath -Label "script task index doc"
 Assert-FileExists -Path $indexPath -Label "sphinx index doc"
@@ -599,13 +605,13 @@ $checkedScripts = @(
 $documentationEntryPoints = @(
     [pscustomobject]@{
         relative_path = $indexRelativePath
-        marker_count = $documentationEntryPointMarkers.Count
-        markers = @($documentationEntryPointMarkers)
+        marker_count = $publicIndexEntryPointMarkers.Count
+        markers = @($publicIndexEntryPointMarkers)
     },
     [pscustomobject]@{
         relative_path = $maintenanceRelativePath
-        marker_count = $documentationEntryPointMarkers.Count
-        markers = @($documentationEntryPointMarkers)
+        marker_count = $repositoryMaintenanceEntryPointMarkers.Count
+        markers = @($repositoryMaintenanceEntryPointMarkers)
     }
 )
 $missingScripts = @(
@@ -619,18 +625,13 @@ $missingScripts = @(
 $requiredMarkerGroups = @(
     [pscustomobject]@{
         document = $indexRelativePath
-        markers = $documentationEntryPointMarkers
+        markers = $publicIndexEntryPointMarkers
         text = $indexText
     },
     [pscustomobject]@{
         document = $maintenanceRelativePath
-        markers = $documentationEntryPointMarkers
+        markers = $repositoryMaintenanceEntryPointMarkers
         text = $maintenanceText
-    },
-    [pscustomobject]@{
-        document = $indexRelativePath
-        markers = @("script_task_index_zh")
-        text = $indexText
     },
     [pscustomobject]@{
         document = $maintenanceRelativePath

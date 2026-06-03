@@ -253,8 +253,8 @@ Assert-ArrayContains `
 $passingEntryPointMarkerCount = [int](($passingSummary.documentation_entrypoints |
             ForEach-Object { $_.marker_count } |
             Measure-Object -Sum).Sum)
-if ($passingEntryPointMarkerCount -ne 4) {
-    throw "Expected four total documentation entrypoint markers, got: $passingEntryPointMarkerCount"
+if ($passingEntryPointMarkerCount -ne 6) {
+    throw "Expected six total documentation entrypoint markers, got: $passingEntryPointMarkerCount"
 }
 $passingGroupUniqueCount = [int](($passingSummary.script_reference_groups |
             ForEach-Object { $_.script_reference_count } |
@@ -540,7 +540,7 @@ foreach ($marker in @(
         '- report_markdown:',
         '## Checked Scripts',
         '## Documentation Entry Points',
-        '`docs\index.rst`: 2 markers',
+        '`docs\index.rst`: 4 markers',
         '`docs\documentation_maintenance_zh.rst`: 2 markers',
         '## Script Reference Groups',
         '## Script Reference Extensions',
@@ -583,7 +583,7 @@ Write-Utf8NoBomFile `
     ) -join "`n")
 Write-Utf8NoBomFile `
     -Path (Join-Path $unindexedRoot "docs\index.rst") `
-    -Text "documentation_maintenance_zh`nscript_task_index_zh"
+    -Text "en/index`nzh-CN/index`nen/api/index`nzh-CN/api/index"
 Write-Utf8NoBomFile `
     -Path (Join-Path $unindexedRoot "docs\documentation_maintenance_zh.rst") `
     -Text "documentation_maintenance_zh`nscript_task_index_zh`ndocs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
@@ -727,7 +727,7 @@ Write-Utf8NoBomFile `
     ) -join "`n")
 Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "docs\index.rst") `
-    -Text "documentation_maintenance_zh`nscript_task_index_zh"
+    -Text "en/index`nzh-CN/index`nen/api/index`nzh-CN/api/index"
 Write-Utf8NoBomFile `
     -Path (Join-Path $failingRoot "docs\documentation_maintenance_zh.rst") `
     -Text "script_task_index_zh`ndocs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
@@ -900,7 +900,7 @@ foreach ($marker in @(
         '[ok] `scripts\existing_helper.py`',
         '[missing] `scripts\missing_tool.ps1`',
         '## Documentation Entry Points',
-        '`docs\index.rst`: 2 markers',
+        '`docs\index.rst`: 4 markers',
         '`docs\documentation_maintenance_zh.rst`: 2 markers',
         '## Script Reference Groups',
         '`Script task index`: 4 unique / 5 total',
@@ -935,7 +935,7 @@ Write-Utf8NoBomFile `
     ) -join "`n")
 Write-Utf8NoBomFile `
     -Path (Join-Path $crossGroupRoot "docs\index.rst") `
-    -Text "documentation_maintenance_zh`nscript_task_index_zh"
+    -Text "en/index`nzh-CN/index`nen/api/index`nzh-CN/api/index"
 Write-Utf8NoBomFile `
     -Path (Join-Path $crossGroupRoot "docs\documentation_maintenance_zh.rst") `
     -Text "documentation_maintenance_zh`nscript_task_index_zh`ndocs/script_task_index_zh.rst`ncheck_script_task_index.ps1"
