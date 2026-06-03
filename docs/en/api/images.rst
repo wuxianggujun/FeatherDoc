@@ -6,6 +6,64 @@ are available on ``featherdoc::Document`` and ``featherdoc::TemplatePart``.
 Use them to append inline or floating images, inspect packaged image metadata,
 and extract, replace, or remove existing image parts.
 
+Common Tasks
+------------
+
+Use these entry points for image workflows:
+
+* Append an inline image to the body: call ``Document::append_image(...)``.
+* Append an image to a header, footer, or section part: call
+  ``TemplatePart::append_image(...)``.
+* Place a floating image: configure ``floating_image_options`` and call
+  ``append_floating_image(...)``.
+* Inspect packaged images before editing: call ``drawing_images()`` or
+  ``inline_images()``.
+* Preserve references while changing media: use ``replace_drawing_image(...)``
+  or ``replace_inline_image(...)``.
+* Export or delete media: use the matching ``extract_*`` or ``remove_*`` method
+  with an index from the corresponding list method.
+
+Success And Failure Semantics
+-----------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 36 40
+
+   * - Return shape
+     - Success
+     - Failure or no-op
+   * - ``std::vector<..._image_info>``
+     - Contains image metadata in the order used by image-index APIs.
+     - Empty means no matching image placement exists in the document.
+   * - ``bool`` append
+     - ``true`` means the image bytes, relationship, and drawing XML were added.
+     - ``false`` means the image file, target part, or dimensions were invalid.
+   * - ``bool`` extract
+     - ``true`` means image bytes were copied to the output path.
+     - ``false`` means the index was invalid or the output file could not be
+       written.
+   * - ``bool`` replace
+     - ``true`` means the image part changed while existing references stayed in
+       place.
+     - ``false`` means the index or replacement file could not be resolved.
+   * - ``bool`` remove
+     - ``true`` means the drawing and related package part were removed.
+     - ``false`` means the index was unavailable or the package could not be
+       updated.
+
+Short Example
+-------------
+
+.. code-block:: cpp
+
+   doc.append_image("logo.png", 240, 80);
+
+   auto images = doc.inline_images();
+   if (!images.empty()) {
+       doc.replace_inline_image(images.front().index, "logo-new.png");
+   }
+
 Typed Signature Guide
 ---------------------
 

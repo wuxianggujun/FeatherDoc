@@ -5,6 +5,64 @@ TemplatePart
 它把同一组模板操作应用到不同的 ``.docx`` 包部件上，适合处理书签填充、
 内容控件替换，以及部件级模板校验。
 
+常用任务入口
+------------
+
+.. FDOC_ZH_CN_TEMPLATE_PART_COMMON_TASKS
+
+可以把本页当作部件级参考手册使用：
+
+* 填充命名书签：调用 ``list_bookmarks()``、``find_bookmark(...)``、
+  ``replace_bookmark_text(...)`` 或 ``fill_bookmarks(...)``。
+* 填充内容控件：使用 ``find_content_controls_by_tag(...)`` 和
+  ``replace_content_control_text_by_tag(...)``。
+* 用生成内容替换模板槽位：使用书签或内容控件的段落、表格、表格行和图片替换方法。
+* 用同一套 API 编辑页眉/页脚：先从 ``Document`` 获取 ``TemplatePart``，
+  再调用 ``paragraphs()``、``tables()``、``append_paragraph(...)`` 或
+  ``append_table(...)``。
+* 校验局部模板表面：写入前调用 ``validate_template(...)``。
+
+成功/失败语义
+-------------
+
+.. FDOC_ZH_CN_TEMPLATE_PART_SUCCESS_FAILURE_SEMANTICS
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 36 40
+
+   * - 返回形态
+     - 成功含义
+     - 失败或无变化含义
+   * - ``operator bool()``
+     - ``true`` 表示当前部件指向可用的包内 XML 部件。
+     - ``false`` 表示正文、页眉或页脚部件无法解析。
+   * - ``std::size_t``
+     - 非零值表示匹配并修改或追加的槽位数量。
+     - ``0`` 表示没有匹配的书签、内容控件、超链接或图片插入目标。
+   * - ``bool``
+     - ``true`` 表示请求的 XML 修改已应用。
+     - ``false`` 表示目标不可用、不支持，或没有发生变化。
+   * - ``bookmark_fill_result``
+     - 查看 ``matched`` 和 ``replaced`` 判断填充是否命中。
+     - 在认为模板完整前，应检查 ``missing_bookmarks``。
+   * - ``template_validation_result``
+     - 结果为真表示必需槽位通过校验。
+     - 缺失或类型不匹配的槽位会记录在结果详情中。
+
+短示例
+------
+
+.. FDOC_ZH_CN_TEMPLATE_PART_SHORT_EXAMPLE
+
+.. code-block:: cpp
+
+   auto body = doc.body_template();
+   if (!body) return 1;
+
+   body.replace_bookmark_text("invoice_no", "INV-2026-001");
+   body.replace_content_control_text_by_tag("status", "approved");
+
 类型化签名导读
 --------------
 

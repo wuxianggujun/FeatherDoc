@@ -5,6 +5,54 @@ Paragraph And Run
 ``featherdoc::Run`` is the editing handle for text inside a paragraph with its
 own run-level formatting, language, and direction metadata.
 
+Common Tasks
+------------
+
+Use this page when editing text runs or paragraph layout:
+
+* Replace a whole paragraph: call ``Paragraph::set_text(...)``.
+* Add styled text inside a paragraph: call ``add_run(...)`` and then set run
+  font, color, language, or direction metadata.
+* Insert adjacent content: use ``insert_paragraph_before(...)``,
+  ``insert_paragraph_after(...)``, ``insert_run_before(...)``, or
+  ``insert_run_after(...)``.
+* Preserve nearby formatting: use the ``insert_*_like_*`` helpers before
+  changing text.
+* Tune layout: use paragraph alignment, bidirectional layout, and indent APIs.
+
+Success And Failure Semantics
+-----------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 36 40
+
+   * - Return shape
+     - Success
+     - Failure or no-op
+   * - ``bool``
+     - ``true`` means the current paragraph or run XML node changed.
+     - ``false`` means the current node was missing, unsupported, or unchanged.
+   * - ``std::optional<T>``
+     - Contains the requested formatting, layout, language, or direction value.
+     - Empty means the property is not explicitly set or cannot be resolved.
+   * - ``Paragraph`` / ``Run``
+     - Returned handles point at inserted or appended paragraph/run nodes.
+     - Use the returned handle for follow-up formatting.
+   * - Iterator references
+     - ``Paragraph &`` and ``Run &`` represent the current iterator position.
+     - Call ``has_next()`` before advancing when iterating existing content.
+
+Short Example
+-------------
+
+.. code-block:: cpp
+
+   auto paragraph = doc.body_template().append_paragraph("Status:");
+   auto value = paragraph.add_run(" approved", featherdoc::formatting_flag::bold);
+   value.set_font_family("Aptos");
+   paragraph.set_alignment(featherdoc::paragraph_alignment::center);
+
 Typed Signature Guide
 ---------------------
 

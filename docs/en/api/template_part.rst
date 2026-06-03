@@ -6,6 +6,61 @@ header, footer, and section-resolved parts. Use it when a workflow needs the
 same template operation to work outside the main body, especially bookmark
 filling, content-control replacement, and part-local template validation.
 
+Common Tasks
+------------
+
+Use this page as a part-local reference:
+
+* Fill named bookmarks: call ``list_bookmarks()``, ``find_bookmark(...)``,
+  ``replace_bookmark_text(...)``, or ``fill_bookmarks(...)``.
+* Fill content controls: use ``find_content_controls_by_tag(...)`` and
+  ``replace_content_control_text_by_tag(...)``.
+* Replace a template slot with generated content: use the bookmark or
+  content-control replacement methods for paragraphs, tables, rows, and images.
+* Edit header/footer content with the same API as the body: get a
+  ``TemplatePart`` from ``Document`` and then call ``paragraphs()``,
+  ``tables()``, ``append_paragraph(...)``, or ``append_table(...)``.
+* Validate a local template surface: use ``validate_template(...)`` before
+  writing values.
+
+Success And Failure Semantics
+-----------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 36 40
+
+   * - Return shape
+     - Success
+     - Failure or no-op
+   * - ``operator bool()``
+     - ``true`` means the part points at an available package XML part.
+     - ``false`` means the body/header/footer part could not be resolved.
+   * - ``std::size_t``
+     - Non-zero value is the count of matching slots changed or appended.
+     - ``0`` means no matching bookmark, content control, hyperlink, or image
+       insertion target was found.
+   * - ``bool``
+     - ``true`` means the requested XML mutation was applied.
+     - ``false`` means the target was unavailable, unsupported, or unchanged.
+   * - ``bookmark_fill_result``
+     - Inspect ``matched`` and ``replaced`` for successful fills.
+     - Inspect ``missing_bookmarks`` before treating the template as complete.
+   * - ``template_validation_result``
+     - Truthy result means required slots passed validation.
+     - Missing or mismatched slots are listed in the result details.
+
+Short Example
+-------------
+
+.. code-block:: cpp
+
+   auto body = doc.body_template();
+   if (!body) return 1;
+
+   body.replace_bookmark_text("invoice_no", "INV-2026-001");
+   body.replace_content_control_text_by_tag("status", "approved");
+
 Typed Signature Guide
 ---------------------
 

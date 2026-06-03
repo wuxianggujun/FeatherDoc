@@ -5,6 +5,59 @@ Paragraph 和 Run
 ``featherdoc::Run`` 是段落内部文本片段的编辑句柄，用于处理 run 级格式、
 语言和文字方向元数据。
 
+常用任务入口
+------------
+
+.. FDOC_ZH_CN_PARAGRAPH_RUN_COMMON_TASKS
+
+编辑文本 run 或段落布局时，可以从这里开始：
+
+* 替换整个段落：调用 ``Paragraph::set_text(...)``。
+* 在段落里追加带样式文本：调用 ``add_run(...)``，再设置 run 字体、颜色、
+  语言或文字方向元数据。
+* 插入相邻内容：使用 ``insert_paragraph_before(...)``、
+  ``insert_paragraph_after(...)``、``insert_run_before(...)`` 或
+  ``insert_run_after(...)``。
+* 保留附近格式：先使用 ``insert_*_like_*`` 辅助方法，再改文本。
+* 调整版式：使用段落对齐、双向布局和缩进 API。
+
+成功/失败语义
+-------------
+
+.. FDOC_ZH_CN_PARAGRAPH_RUN_SUCCESS_FAILURE_SEMANTICS
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 36 40
+
+   * - 返回形态
+     - 成功含义
+     - 失败或无变化含义
+   * - ``bool``
+     - ``true`` 表示当前段落或 run 的 XML 节点已修改。
+     - ``false`` 表示当前节点缺失、不支持，或没有发生变化。
+   * - ``std::optional<T>``
+     - 包含请求的格式、布局、语言或方向值。
+     - 空值表示该属性未显式设置或无法解析。
+   * - ``Paragraph`` / ``Run``
+     - 返回句柄指向插入或追加的段落/run 节点。
+     - 后续格式设置应使用该返回句柄。
+   * - 迭代器引用
+     - ``Paragraph &`` 和 ``Run &`` 表示当前迭代位置。
+     - 遍历已有内容时，推进前先调用 ``has_next()``。
+
+短示例
+------
+
+.. FDOC_ZH_CN_PARAGRAPH_RUN_SHORT_EXAMPLE
+
+.. code-block:: cpp
+
+   auto paragraph = doc.body_template().append_paragraph("Status:");
+   auto value = paragraph.add_run(" approved", featherdoc::formatting_flag::bold);
+   value.set_font_family("Aptos");
+   paragraph.set_alignment(featherdoc::paragraph_alignment::center);
+
 类型化签名导读
 --------------
 

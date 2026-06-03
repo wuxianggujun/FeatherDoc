@@ -16,6 +16,62 @@ and spacing values use twips. Methods returning ``std::optional<T>`` return an
 empty value when the target cannot be resolved; methods returning ``bool`` report
 whether the table XML was changed.
 
+Common Tasks
+------------
+
+Use these entry points for common table workflows:
+
+* Create a table: call ``Document::append_table(...)`` or
+  ``TemplatePart::append_table(...)``.
+* Locate cells safely: use ``find_row(...)``, ``find_cell(...)``, or
+  ``find_cell_by_grid_column(...)`` and check the returned ``std::optional``.
+* Fill a rectangular data region: use ``set_row_texts(...)``,
+  ``set_rows_texts(...)``, or ``set_cell_block_texts(...)``.
+* Make layout deterministic: set ``table_layout_mode::fixed``,
+  ``set_width_twips(...)``, and ``set_column_width_twips(...)``.
+* Format row or cell details: use ``TableRow`` for repeat-header and height
+  metadata, and ``TableCell`` for merge, shading, margins, borders, and
+  paragraph content.
+
+Success And Failure Semantics
+-----------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 36 40
+
+   * - Return shape
+     - Success
+     - Failure or no-op
+   * - ``std::optional<TableRow>``
+     - Contains a row handle for an existing visible row.
+     - Empty when the row index is outside the current table.
+   * - ``std::optional<TableCell>``
+     - Contains a cell handle after visible-cell or grid-column resolution.
+     - Empty when the row, visible cell, or resolved grid column is unavailable.
+   * - ``bool``
+     - ``true`` means every requested cell/layout/border mutation was applied.
+     - ``false`` means at least one target was missing, invalid, or unchanged.
+   * - ``TableRow`` / ``TableCell``
+     - Returned handles point at inserted or appended table nodes.
+     - Treat the returned handle as the editing entry for the new row or cell.
+   * - ``std::optional<T>`` inspection
+     - Contains existing table, row, or cell metadata.
+     - Empty means the requested metadata is not present or cannot be resolved.
+
+Short Example
+-------------
+
+.. code-block:: cpp
+
+   auto table = doc.body_template().append_table(2, 2);
+   table.set_row_texts(0, {"Name", "Status"});
+   table.set_row_texts(1, {"Ada", "Approved"});
+
+   if (auto cell = table.find_cell(1, 1)) {
+       cell->set_fill_color("D9EAF7");
+   }
+
 Typed Signature Guide
 ---------------------
 

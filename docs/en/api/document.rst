@@ -5,6 +5,66 @@ Document
 open and save files, access body/header/footer template parts, inspect sections,
 and call document-wide editing APIs.
 
+Common Tasks
+------------
+
+Start here when you already know the workflow you need:
+
+* Open and save a document: use ``Document(path)``, ``open()``, ``save()``, and
+  ``save_as(path)``.
+* Fill a body template: use ``body_template()`` or the document-level
+  ``replace_content_control_text_by_tag(...)`` shortcut.
+* Work on headers or footers: use ``header_template(...)``,
+  ``footer_template(...)``, ``section_header_template(...)``, or
+  ``section_footer_template(...)``.
+* Edit body content directly: use ``paragraphs()``, ``tables()``,
+  ``append_table(...)``, and the image append methods.
+* Inspect structure before changing it: use ``inspect_sections()``,
+  ``inspect_body_blocks()``, ``list_bookmarks()``, ``list_content_controls()``,
+  and ``last_error()``.
+
+Success And Failure Semantics
+-----------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 36 40
+
+   * - Return shape
+     - Success
+     - Failure or no-op
+   * - ``std::error_code``
+     - Empty error code means the package operation completed.
+     - Non-empty error code means the operation failed; inspect
+       ``last_error()`` for detail and package entry context.
+   * - ``bool``
+     - ``true`` means the requested document XML or package metadata changed.
+     - ``false`` means the target was unavailable, invalid, or already had no
+       applicable change.
+   * - ``std::size_t``
+     - Non-zero value is the number of matched items changed or appended.
+     - ``0`` means no matching bookmark, content control, comment target,
+       hyperlink, or note target was found.
+   * - ``std::optional<T>``
+     - Contains the requested inspection or settings value.
+     - Empty means the section, setting, or semantic comparison could not be
+       resolved.
+   * - Handle objects
+     - Returned handles such as ``TemplatePart``, ``Paragraph``, and ``Table``
+       are the next editing entry point.
+     - Check handle-specific validity rules before assuming the target exists.
+
+Short Example
+-------------
+
+.. code-block:: cpp
+
+   featherdoc::Document doc{"template.docx"};
+   if (doc.open()) return 1;
+
+   doc.replace_content_control_text_by_tag("customer", "Ada");
+   return doc.save_as("filled.docx") ? 1 : 0;
+
 Lifecycle
 ---------
 

@@ -17,6 +17,67 @@ Word 网格列。宽度、缩进、边距和间距都使用 twips。返回
 ``std::optional<T>`` 的方法在目标无法解析时返回空值；返回 ``bool`` 的方法
 表示表格 XML 是否成功修改。
 
+常用任务入口
+------------
+
+.. FDOC_ZH_CN_TABLE_COMMON_TASKS
+
+常见表格工作流可以从这些入口开始：
+
+* 创建表格：调用 ``Document::append_table(...)`` 或
+  ``TemplatePart::append_table(...)``。
+* 安全定位单元格：使用 ``find_row(...)``、``find_cell(...)`` 或
+  ``find_cell_by_grid_column(...)``，并检查返回的 ``std::optional``。
+* 填充矩形数据区域：使用 ``set_row_texts(...)``、``set_rows_texts(...)`` 或
+  ``set_cell_block_texts(...)``。
+* 固定布局：设置 ``table_layout_mode::fixed``、``set_width_twips(...)`` 和
+  ``set_column_width_twips(...)``。
+* 设置行和单元格细节：用 ``TableRow`` 管重复表头和行高，用 ``TableCell``
+  管合并、底色、边距、边框和内部段落。
+
+成功/失败语义
+-------------
+
+.. FDOC_ZH_CN_TABLE_SUCCESS_FAILURE_SEMANTICS
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 36 40
+
+   * - 返回形态
+     - 成功含义
+     - 失败或无变化含义
+   * - ``std::optional<TableRow>``
+     - 包含已经存在的可见行句柄。
+     - 行索引超出当前表格时为空。
+   * - ``std::optional<TableCell>``
+     - 通过可见单元格或网格列解析后，包含单元格句柄。
+     - 行、可见单元格或网格列无法解析时为空。
+   * - ``bool``
+     - ``true`` 表示请求的单元格、布局或边框修改全部应用。
+     - ``false`` 表示至少一个目标缺失、参数无效，或没有发生变化。
+   * - ``TableRow`` / ``TableCell``
+     - 返回句柄指向插入或追加的表格节点。
+     - 后续修改应继续使用该返回句柄。
+   * - ``std::optional<T>`` 检查值
+     - 包含已有的表格、行或单元格元数据。
+     - 空值表示该元数据不存在或无法解析。
+
+短示例
+------
+
+.. FDOC_ZH_CN_TABLE_SHORT_EXAMPLE
+
+.. code-block:: cpp
+
+   auto table = doc.body_template().append_table(2, 2);
+   table.set_row_texts(0, {"Name", "Status"});
+   table.set_row_texts(1, {"Ada", "Approved"});
+
+   if (auto cell = table.find_cell(1, 1)) {
+       cell->set_fill_color("D9EAF7");
+   }
+
 类型化签名导读
 --------------
 

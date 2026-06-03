@@ -4,6 +4,65 @@ Document
 ``featherdoc::Document`` 是 ``.docx`` 文档包的根对象。通常先用它打开或创建
 文档，再通过正文、页眉、页脚、分节和检查 API 完成编辑与验证。
 
+常用任务入口
+------------
+
+.. FDOC_ZH_CN_DOCUMENT_COMMON_TASKS
+
+已经知道目标工作流时，可以从这里开始：
+
+* 打开和保存文档：使用 ``Document(path)``、``open()``、``save()`` 和
+  ``save_as(path)``。
+* 填充正文模板：使用 ``body_template()``，或直接调用文档级
+  ``replace_content_control_text_by_tag(...)`` 快捷入口。
+* 修改页眉或页脚：使用 ``header_template(...)``、``footer_template(...)``、
+  ``section_header_template(...)`` 或 ``section_footer_template(...)``。
+* 直接编辑正文内容：使用 ``paragraphs()``、``tables()``、``append_table(...)``
+  和图片追加方法。
+* 修改前检查结构：使用 ``inspect_sections()``、``inspect_body_blocks()``、
+  ``list_bookmarks()``、``list_content_controls()`` 和 ``last_error()``。
+
+成功/失败语义
+-------------
+
+.. FDOC_ZH_CN_DOCUMENT_SUCCESS_FAILURE_SEMANTICS
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 36 40
+
+   * - 返回形态
+     - 成功含义
+     - 失败或无变化含义
+   * - ``std::error_code``
+     - 空错误码表示包操作完成。
+     - 非空错误码表示操作失败；用 ``last_error()`` 查看细节和包内条目。
+   * - ``bool``
+     - ``true`` 表示目标文档 XML 或包元数据已变更。
+     - ``false`` 表示目标不可用、参数无效，或没有可应用的变化。
+   * - ``std::size_t``
+     - 非零值表示匹配并修改或追加的项目数量。
+     - ``0`` 表示没有匹配的书签、内容控件、批注目标、超链接或脚注目标。
+   * - ``std::optional<T>``
+     - 包含请求的检查结果或设置值。
+     - 空值表示分节、设置或语义对比结果无法解析。
+   * - 句柄对象
+     - 返回的 ``TemplatePart``、``Paragraph``、``Table`` 等句柄是下一步编辑入口。
+     - 使用前应按对应对象页的有效性规则确认目标存在。
+
+短示例
+------
+
+.. FDOC_ZH_CN_DOCUMENT_SHORT_EXAMPLE
+
+.. code-block:: cpp
+
+   featherdoc::Document doc{"template.docx"};
+   if (doc.open()) return 1;
+
+   doc.replace_content_control_text_by_tag("customer", "Ada");
+   return doc.save_as("filled.docx") ? 1 : 0;
+
 生命周期
 --------
 
