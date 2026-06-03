@@ -111,25 +111,38 @@ $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMake
 
 foreach ($marker in @(
         'data-featherdoc-language-switch="global"',
+        'data-featherdoc-language-select="global"',
         'data-featherdoc-language="en"',
         'data-featherdoc-language="zh-CN"',
-        'data-featherdoc-api-language="en"',
-        'data-featherdoc-api-language="zh-CN"',
+        'featherdoc_language_peer_page',
+        'onchange="if (this.value) window.location.href = this.value;"',
         'data-featherdoc-language-nav="no-auto-relations"',
         '{% block linktags %}',
         '{% block sidebarrel %}{% endblock %}',
         'featherdoc_current_lang'
     )) {
     Assert-ContainsText -Text $themeLayout -ExpectedText $marker `
-        -Message "Theme layout should expose a stable global language/API switch marker."
+        -Message "Theme layout should expose a stable global language selector marker."
 }
 
 foreach ($marker in @(
-        ".featherdoc-language-switch a.is-active",
+        'data-featherdoc-api-language="en"',
+        'data-featherdoc-api-language="zh-CN"',
+        'English API</a>',
+        '中文 API</a>'
+    )) {
+    Assert-DoesNotContainText -Text $themeLayout -UnexpectedText $marker `
+        -Message "Theme layout should not expose API links as language switch buttons."
+}
+
+foreach ($marker in @(
+        ".featherdoc-language-switch select",
+        "position: absolute",
+        "right: 1.3em",
         "theme_medium_color"
     )) {
     Assert-ContainsText -Text $themeCss -ExpectedText $marker `
-        -Message "Theme CSS should highlight the active documentation language."
+        -Message "Theme CSS should place the language selector in the top navigation."
 }
 
 foreach ($marker in @(

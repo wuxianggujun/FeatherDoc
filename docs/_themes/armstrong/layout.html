@@ -9,7 +9,7 @@
 
 {% endblock %}
 
-{% macro featherdoc_relbar() %}
+{% macro featherdoc_relbar(show_language_switch=False) %}
     <div class="related" role="navigation" aria-label="Related" data-featherdoc-language-nav="no-auto-relations">
       <h3>{{ _('Navigation') }}</h3>
       <ul>
@@ -22,6 +22,31 @@
         <li class="nav-item nav-item-this"><a href="{{ link|e }}">{{ title }}</a></li>
         {% block relbaritems %} {% endblock %}
       </ul>
+      {% if show_language_switch %}
+        {% set featherdoc_current_lang = "zh-CN" if pagename.startswith("zh-CN/") else "en" if pagename.startswith("en/") else "root" %}
+        {% if featherdoc_current_lang == "zh-CN" %}
+          {% set featherdoc_language_peer_page = "en/" + pagename[6:] %}
+          {% set featherdoc_english_url = pathto(featherdoc_language_peer_page) if hasdoc(featherdoc_language_peer_page) else pathto("en/index") %}
+          {% set featherdoc_chinese_url = pathto(pagename) %}
+        {% elif featherdoc_current_lang == "en" %}
+          {% set featherdoc_language_peer_page = "zh-CN/" + pagename[3:] %}
+          {% set featherdoc_english_url = pathto(pagename) %}
+          {% set featherdoc_chinese_url = pathto(featherdoc_language_peer_page) if hasdoc(featherdoc_language_peer_page) else pathto("zh-CN/index") %}
+        {% else %}
+          {% set featherdoc_english_url = pathto("en/index") %}
+          {% set featherdoc_chinese_url = pathto("zh-CN/index") %}
+        {% endif %}
+        <div class="featherdoc-language-switch" role="navigation" aria-label="Documentation language" data-featherdoc-language-switch="global">
+          <label for="featherdoc-language-select">Language</label>
+          <select id="featherdoc-language-select" data-featherdoc-language-select="global" onchange="if (this.value) window.location.href = this.value;">
+            {% if featherdoc_current_lang == "root" %}
+            <option value="" selected disabled>Language</option>
+            {% endif %}
+            <option value="{{ featherdoc_english_url|e }}" data-featherdoc-language="en"{% if featherdoc_current_lang == "en" %} selected{% endif %}>English</option>
+            <option value="{{ featherdoc_chinese_url|e }}" data-featherdoc-language="zh-CN"{% if featherdoc_current_lang == "zh-CN" %} selected{% endif %}>简体中文</option>
+          </select>
+        </div>
+      {% endif %}
     </div>
 {% endmacro %}
 
@@ -43,20 +68,11 @@
 {% block sidebarrel %}{% endblock %}
 
 {% block relbar1 %}
-{{ featherdoc_relbar() }}
-{% set featherdoc_current_lang = "zh-CN" if pagename.startswith("zh-CN/") else "en" if pagename.startswith("en/") else "root" %}
-<div class="featherdoc-language-switch" role="navigation" aria-label="Documentation language" data-featherdoc-language-switch="global">
-  <span class="featherdoc-language-switch__label">Language</span>
-  <a href="{{ pathto('en/index') }}" data-featherdoc-language="en"{% if featherdoc_current_lang == "en" %} class="is-active"{% endif %}>English</a>
-  <a href="{{ pathto('zh-CN/index') }}" data-featherdoc-language="zh-CN"{% if featherdoc_current_lang == "zh-CN" %} class="is-active"{% endif %}>简体中文</a>
-  <span class="featherdoc-language-switch__spacer"></span>
-  <a href="{{ pathto('en/api/index') }}" data-featherdoc-api-language="en">English API</a>
-  <a href="{{ pathto('zh-CN/api/index') }}" data-featherdoc-api-language="zh-CN">中文 API</a>
-</div>
+{{ featherdoc_relbar(True) }}
 {% endblock %}
 
 {% block relbar2 %}
-{{ featherdoc_relbar() }}
+{{ featherdoc_relbar(False) }}
 {% endblock %}
 
 {% block footer %}
