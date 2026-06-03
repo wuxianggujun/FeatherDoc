@@ -675,6 +675,15 @@ target_include_directories(cli_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
 featherdoc_set_test_labels(cli_parse cli smoke cli_smoke)
 
 featherdoc_add_cpp_test(
+    cli_domain_parse_tests
+    cli_domain_parse
+    cli_domain_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+)
+target_include_directories(cli_domain_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_domain_parse cli smoke cli_smoke)
+
+featherdoc_add_cpp_test(
     cli_usage_tests
     cli_usage
     cli_usage_tests.cpp
