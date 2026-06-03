@@ -57,6 +57,16 @@ namespace featherdoc_cli {
     featherdoc::row_height_rule height_rule) noexcept -> std::string_view;
 [[nodiscard]] auto cell_text_direction_name(
     featherdoc::cell_text_direction direction) noexcept -> std::string_view;
+[[nodiscard]] auto cell_vertical_alignment_name(
+    featherdoc::cell_vertical_alignment alignment) noexcept -> std::string_view;
+[[nodiscard]] auto table_style_cell_vertical_alignment_name(
+    featherdoc::cell_vertical_alignment alignment) noexcept -> std::string_view;
+[[nodiscard]] auto table_style_cell_text_direction_name(
+    featherdoc::cell_text_direction direction) noexcept -> std::string_view;
+[[nodiscard]] auto table_style_paragraph_alignment_name(
+    featherdoc::paragraph_alignment alignment) noexcept -> std::string_view;
+[[nodiscard]] auto table_style_paragraph_line_spacing_rule_name(
+    featherdoc::paragraph_line_spacing_rule rule) noexcept -> std::string_view;
 [[nodiscard]] auto table_position_horizontal_reference_name(
     featherdoc::table_position_horizontal_reference reference) noexcept
     -> std::string_view;

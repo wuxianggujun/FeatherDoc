@@ -253,6 +253,35 @@ TEST_CASE("cli domain name helpers return documented style usage and table names
     CHECK(featherdoc_cli::cell_text_direction_name(
               featherdoc::cell_text_direction::top_to_bottom_left_to_right_rotated) ==
           "top_to_bottom_left_to_right_rotated");
+    CHECK(featherdoc_cli::cell_vertical_alignment_name(
+              featherdoc::cell_vertical_alignment::top) == "top");
+    CHECK(featherdoc_cli::cell_vertical_alignment_name(
+              featherdoc::cell_vertical_alignment::center) == "center");
+    CHECK(featherdoc_cli::cell_vertical_alignment_name(
+              featherdoc::cell_vertical_alignment::bottom) == "bottom");
+    CHECK(featherdoc_cli::cell_vertical_alignment_name(
+              featherdoc::cell_vertical_alignment::both) == "both");
+    CHECK(featherdoc_cli::table_style_cell_vertical_alignment_name(
+              featherdoc::cell_vertical_alignment::center) == "center");
+    CHECK(featherdoc_cli::table_style_cell_text_direction_name(
+              featherdoc::cell_text_direction::top_to_bottom_right_to_left) ==
+          "top_to_bottom_right_to_left");
+    CHECK(featherdoc_cli::table_style_paragraph_alignment_name(
+              featherdoc::paragraph_alignment::left) == "left");
+    CHECK(featherdoc_cli::table_style_paragraph_alignment_name(
+              featherdoc::paragraph_alignment::center) == "center");
+    CHECK(featherdoc_cli::table_style_paragraph_alignment_name(
+              featherdoc::paragraph_alignment::right) == "right");
+    CHECK(featherdoc_cli::table_style_paragraph_alignment_name(
+              featherdoc::paragraph_alignment::justified) == "justified");
+    CHECK(featherdoc_cli::table_style_paragraph_alignment_name(
+              featherdoc::paragraph_alignment::distribute) == "distribute");
+    CHECK(featherdoc_cli::table_style_paragraph_line_spacing_rule_name(
+              featherdoc::paragraph_line_spacing_rule::automatic) == "auto");
+    CHECK(featherdoc_cli::table_style_paragraph_line_spacing_rule_name(
+              featherdoc::paragraph_line_spacing_rule::at_least) == "at_least");
+    CHECK(featherdoc_cli::table_style_paragraph_line_spacing_rule_name(
+              featherdoc::paragraph_line_spacing_rule::exact) == "exact");
     CHECK(featherdoc_cli::table_position_horizontal_reference_name(
               featherdoc::table_position_horizontal_reference::margin) ==
           "margin");

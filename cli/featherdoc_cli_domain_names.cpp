@@ -418,6 +418,64 @@ auto cell_text_direction_name(featherdoc::cell_text_direction direction) noexcep
     return "left_to_right_top_to_bottom";
 }
 
+auto cell_vertical_alignment_name(
+    featherdoc::cell_vertical_alignment alignment) noexcept -> std::string_view {
+    switch (alignment) {
+    case featherdoc::cell_vertical_alignment::top:
+        return "top";
+    case featherdoc::cell_vertical_alignment::center:
+        return "center";
+    case featherdoc::cell_vertical_alignment::bottom:
+        return "bottom";
+    case featherdoc::cell_vertical_alignment::both:
+        return "both";
+    }
+
+    return "top";
+}
+
+auto table_style_cell_vertical_alignment_name(
+    featherdoc::cell_vertical_alignment alignment) noexcept -> std::string_view {
+    return cell_vertical_alignment_name(alignment);
+}
+
+auto table_style_cell_text_direction_name(
+    featherdoc::cell_text_direction direction) noexcept -> std::string_view {
+    return cell_text_direction_name(direction);
+}
+
+auto table_style_paragraph_alignment_name(
+    featherdoc::paragraph_alignment alignment) noexcept -> std::string_view {
+    switch (alignment) {
+    case featherdoc::paragraph_alignment::left:
+        return "left";
+    case featherdoc::paragraph_alignment::center:
+        return "center";
+    case featherdoc::paragraph_alignment::right:
+        return "right";
+    case featherdoc::paragraph_alignment::justified:
+        return "justified";
+    case featherdoc::paragraph_alignment::distribute:
+        return "distribute";
+    }
+
+    return "left";
+}
+
+auto table_style_paragraph_line_spacing_rule_name(
+    featherdoc::paragraph_line_spacing_rule rule) noexcept -> std::string_view {
+    switch (rule) {
+    case featherdoc::paragraph_line_spacing_rule::automatic:
+        return "auto";
+    case featherdoc::paragraph_line_spacing_rule::at_least:
+        return "at_least";
+    case featherdoc::paragraph_line_spacing_rule::exact:
+        return "exact";
+    }
+
+    return "auto";
+}
+
 auto table_position_horizontal_reference_name(
     featherdoc::table_position_horizontal_reference reference) noexcept
     -> std::string_view {

@@ -38,6 +38,7 @@ using featherdoc_cli::border_style_name;
 using featherdoc_cli::cell_border_edge_name;
 using featherdoc_cli::cell_margin_edge_name;
 using featherdoc_cli::cell_text_direction_name;
+using featherdoc_cli::cell_vertical_alignment_name;
 using featherdoc_cli::content_control_form_kind_name;
 using featherdoc_cli::content_control_kind_name;
 using featherdoc_cli::drawing_image_placement_name;
@@ -81,6 +82,10 @@ using featherdoc_cli::table_position_horizontal_reference_name;
 using featherdoc_cli::table_position_horizontal_spec_name;
 using featherdoc_cli::table_position_vertical_reference_name;
 using featherdoc_cli::table_position_vertical_spec_name;
+using featherdoc_cli::table_style_cell_text_direction_name;
+using featherdoc_cli::table_style_cell_vertical_alignment_name;
+using featherdoc_cli::table_style_paragraph_alignment_name;
+using featherdoc_cli::table_style_paragraph_line_spacing_rule_name;
 using featherdoc_cli::template_slot_kind_name;
 using featherdoc_cli::template_slot_source_json_name;
 using featherdoc_cli::template_slot_source_new_json_name;
@@ -17584,22 +17589,6 @@ void write_json_style_usage_summary(std::ostream &stream,
     stream << '}';
 }
 
-auto table_style_cell_vertical_alignment_name(
-    featherdoc::cell_vertical_alignment alignment) noexcept -> std::string_view {
-    switch (alignment) {
-    case featherdoc::cell_vertical_alignment::top:
-        return "top";
-    case featherdoc::cell_vertical_alignment::center:
-        return "center";
-    case featherdoc::cell_vertical_alignment::bottom:
-        return "bottom";
-    case featherdoc::cell_vertical_alignment::both:
-        return "both";
-    }
-
-    return "top";
-}
-
 void write_json_optional_table_style_cell_vertical_alignment(
     std::ostream &stream,
     const std::optional<featherdoc::cell_vertical_alignment> &alignment) {
@@ -17609,26 +17598,6 @@ void write_json_optional_table_style_cell_vertical_alignment(
     }
 
     write_json_string(stream, table_style_cell_vertical_alignment_name(*alignment));
-}
-
-auto table_style_cell_text_direction_name(
-    featherdoc::cell_text_direction direction) noexcept -> std::string_view {
-    switch (direction) {
-    case featherdoc::cell_text_direction::left_to_right_top_to_bottom:
-        return "left_to_right_top_to_bottom";
-    case featherdoc::cell_text_direction::top_to_bottom_right_to_left:
-        return "top_to_bottom_right_to_left";
-    case featherdoc::cell_text_direction::bottom_to_top_left_to_right:
-        return "bottom_to_top_left_to_right";
-    case featherdoc::cell_text_direction::left_to_right_top_to_bottom_rotated:
-        return "left_to_right_top_to_bottom_rotated";
-    case featherdoc::cell_text_direction::top_to_bottom_right_to_left_rotated:
-        return "top_to_bottom_right_to_left_rotated";
-    case featherdoc::cell_text_direction::top_to_bottom_left_to_right_rotated:
-        return "top_to_bottom_left_to_right_rotated";
-    }
-
-    return "left_to_right_top_to_bottom";
 }
 
 void write_json_optional_table_style_cell_text_direction(
@@ -17642,24 +17611,6 @@ void write_json_optional_table_style_cell_text_direction(
     write_json_string(stream, table_style_cell_text_direction_name(*direction));
 }
 
-auto table_style_paragraph_alignment_name(
-    featherdoc::paragraph_alignment alignment) noexcept -> std::string_view {
-    switch (alignment) {
-    case featherdoc::paragraph_alignment::left:
-        return "left";
-    case featherdoc::paragraph_alignment::center:
-        return "center";
-    case featherdoc::paragraph_alignment::right:
-        return "right";
-    case featherdoc::paragraph_alignment::justified:
-        return "justified";
-    case featherdoc::paragraph_alignment::distribute:
-        return "distribute";
-    }
-
-    return "left";
-}
-
 void write_json_optional_table_style_paragraph_alignment(
     std::ostream &stream,
     const std::optional<featherdoc::paragraph_alignment> &alignment) {
@@ -17669,20 +17620,6 @@ void write_json_optional_table_style_paragraph_alignment(
     }
 
     write_json_string(stream, table_style_paragraph_alignment_name(*alignment));
-}
-
-auto table_style_paragraph_line_spacing_rule_name(
-    featherdoc::paragraph_line_spacing_rule rule) noexcept -> std::string_view {
-    switch (rule) {
-    case featherdoc::paragraph_line_spacing_rule::automatic:
-        return "auto";
-    case featherdoc::paragraph_line_spacing_rule::at_least:
-        return "at_least";
-    case featherdoc::paragraph_line_spacing_rule::exact:
-        return "exact";
-    }
-
-    return "auto";
 }
 
 void write_json_optional_table_style_paragraph_line_spacing_rule(
@@ -18591,22 +18528,6 @@ void write_json_template_run_summary(
     stream << ",\"text\":";
     write_json_string(stream, run.text);
     stream << '}';
-}
-
-auto cell_vertical_alignment_name(
-    featherdoc::cell_vertical_alignment alignment) noexcept -> std::string_view {
-    switch (alignment) {
-    case featherdoc::cell_vertical_alignment::top:
-        return "top";
-    case featherdoc::cell_vertical_alignment::center:
-        return "center";
-    case featherdoc::cell_vertical_alignment::bottom:
-        return "bottom";
-    case featherdoc::cell_vertical_alignment::both:
-        return "both";
-    }
-
-    return "top";
 }
 
 void write_json_optional_table_overlap(
