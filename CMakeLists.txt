@@ -1180,6 +1180,7 @@ endif()
 if(BUILD_CLI)
     add_executable(featherdoc_cli
         cli/featherdoc_cli_main.cpp
+        cli/featherdoc_cli_domain_names.cpp
         cli/featherdoc_cli_domain_parse.cpp
         cli/featherdoc_cli_json.cpp
         cli/featherdoc_cli_parse.cpp
