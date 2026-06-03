@@ -86,6 +86,16 @@ using featherdoc_cli::template_slot_source_json_name;
 using featherdoc_cli::template_slot_source_new_json_name;
 using featherdoc_cli::template_slot_source_text_name;
 using featherdoc_cli::strip_utf8_bom;
+using featherdoc_cli::write_json_lines;
+using featherdoc_cli::write_json_optional_bool;
+using featherdoc_cli::write_json_optional_bool_value;
+using featherdoc_cli::write_json_optional_double;
+using featherdoc_cli::write_json_optional_size;
+using featherdoc_cli::write_json_optional_string;
+using featherdoc_cli::write_json_optional_u32;
+using featherdoc_cli::write_json_optional_u32_value;
+using featherdoc_cli::write_json_size_array;
+using featherdoc_cli::write_json_strings;
 using featherdoc_cli::write_json_string;
 using featherdoc_cli::yes_no;
 
@@ -6287,18 +6297,6 @@ auto table_positions_equal(const featherdoc::table_position &left,
            left.top_from_text_twips == right.top_from_text_twips &&
            left.bottom_from_text_twips == right.bottom_from_text_twips &&
            left.overlap == right.overlap;
-}
-
-void write_json_size_array(std::ostream &stream,
-                           const std::vector<std::size_t> &values) {
-    stream << '[';
-    for (std::size_t index = 0; index < values.size(); ++index) {
-        if (index > 0U) {
-            stream << ',';
-        }
-        stream << values[index];
-    }
-    stream << ']';
 }
 
 void write_text_size_array(std::ostream &stream,
@@ -17405,22 +17403,6 @@ auto load_body_run_summaries(const path_type &input_path, std::size_t paragraph_
     return true;
 }
 
-void write_json_strings(std::ostream &stream,
-                        const std::vector<std::string> &values) {
-    stream << '[';
-    for (std::size_t index = 0; index < values.size(); ++index) {
-        if (index != 0U) {
-            stream << ',';
-        }
-        write_json_string(stream, values[index]);
-    }
-    stream << ']';
-}
-
-void write_json_lines(std::ostream &stream, const std::vector<std::string> &lines) {
-    write_json_strings(stream, lines);
-}
-
 void write_json_section_flags(std::ostream &stream, featherdoc::Document &doc,
                               std::size_t section_index, section_part_family family) {
     const auto has_default =
@@ -17459,56 +17441,6 @@ void write_json_part_references(std::ostream &stream,
         stream << '}';
     }
     stream << ']';
-}
-
-void write_json_optional_string(std::ostream &stream,
-                                const std::optional<std::string> &value) {
-    if (value.has_value()) {
-        write_json_string(stream, *value);
-        return;
-    }
-
-    stream << "null";
-}
-
-void write_json_optional_u32(std::ostream &stream,
-                             const std::optional<std::uint32_t> &value) {
-    if (value.has_value()) {
-        stream << *value;
-        return;
-    }
-
-    stream << "null";
-}
-
-void write_json_optional_double(std::ostream &stream,
-                                const std::optional<double> &value) {
-    if (value.has_value()) {
-        stream << *value;
-        return;
-    }
-
-    stream << "null";
-}
-
-void write_json_optional_bool(std::ostream &stream,
-                              const std::optional<bool> &value) {
-    if (value.has_value()) {
-        stream << json_bool(*value);
-        return;
-    }
-
-    stream << "null";
-}
-
-void write_json_optional_size(std::ostream &stream,
-                              const std::optional<std::size_t> &value) {
-    if (value.has_value()) {
-        stream << *value;
-        return;
-    }
-
-    stream << "null";
 }
 
 void write_json_numbering_instance_summary(
@@ -18677,15 +18609,6 @@ auto cell_vertical_alignment_name(
     return "top";
 }
 
-void write_json_optional_u32_value(std::ostream &stream,
-                                   const std::optional<std::uint32_t> &value) {
-    if (value.has_value()) {
-        stream << *value;
-    } else {
-        stream << "null";
-    }
-}
-
 void write_json_optional_table_overlap(
     std::ostream &stream,
     const std::optional<featherdoc::table_overlap> &overlap) {
@@ -19199,15 +19122,6 @@ void write_json_table_style_look(std::ostream &stream,
            << ",\"banded_rows\":" << json_bool(style_look.banded_rows)
            << ",\"banded_columns\":" << json_bool(style_look.banded_columns)
            << '}';
-}
-
-void write_json_optional_bool_value(std::ostream &stream,
-                                    const std::optional<bool> &value) {
-    if (value.has_value()) {
-        stream << json_bool(*value);
-    } else {
-        stream << "null";
-    }
 }
 
 void write_json_table_style_look_issue(
