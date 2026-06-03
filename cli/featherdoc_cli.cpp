@@ -2,6 +2,7 @@
 #include "featherdoc_cli_domain_names.hpp"
 #include "featherdoc_cli_domain_parse.hpp"
 #include "featherdoc_cli_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 #include "featherdoc_cli_usage.hpp"
 
 #include <featherdoc.hpp>
@@ -40,11 +41,19 @@ using featherdoc_cli::cell_text_direction_name;
 using featherdoc_cli::content_control_form_kind_name;
 using featherdoc_cli::content_control_kind_name;
 using featherdoc_cli::drawing_image_placement_name;
+using featherdoc_cli::format_paragraph_text;
 using featherdoc_cli::floating_image_horizontal_reference_name;
 using featherdoc_cli::floating_image_vertical_reference_name;
 using featherdoc_cli::floating_image_wrap_mode_name;
 using featherdoc_cli::has_json_flag;
+using featherdoc_cli::is_docx_path;
+using featherdoc_cli::is_word_temporary_path;
+using featherdoc_cli::json_bool;
 using featherdoc_cli::list_kind_name;
+using featherdoc_cli::lower_ascii_copy;
+using featherdoc_cli::normalize_word_part_entry;
+using featherdoc_cli::optional_display_value;
+using featherdoc_cli::optional_size_display_value;
 using featherdoc_cli::page_orientation_name;
 using featherdoc_cli::parse_floating_image_horizontal_reference;
 using featherdoc_cli::parse_floating_image_vertical_reference;
@@ -57,6 +66,7 @@ using featherdoc_cli::parse_page_orientation;
 using featherdoc_cli::parse_reference_kind;
 using featherdoc_cli::parse_uint32;
 using featherdoc_cli::print_usage;
+using featherdoc_cli::quote_cli_argument;
 using featherdoc_cli::review_note_kind_name;
 using featherdoc_cli::revision_kind_name;
 using featherdoc_cli::row_height_rule_name;
@@ -75,7 +85,9 @@ using featherdoc_cli::template_slot_kind_name;
 using featherdoc_cli::template_slot_source_json_name;
 using featherdoc_cli::template_slot_source_new_json_name;
 using featherdoc_cli::template_slot_source_text_name;
+using featherdoc_cli::strip_utf8_bom;
 using featherdoc_cli::write_json_string;
+using featherdoc_cli::yes_no;
 
 using path_type = std::filesystem::path;
 
@@ -1832,25 +1844,6 @@ auto read_zip_entry_text(zip_t *archive, std::string_view entry_name,
     std::free(buffer);
     zip_entry_close(archive);
     return zip_entry_read_status::ok;
-}
-
-auto normalize_word_part_entry(std::string_view target) -> std::string {
-    std::string normalized(target);
-    for (auto &character : normalized) {
-        if (character == '\\') {
-            character = '/';
-        }
-    }
-
-    if (!normalized.empty() && normalized.front() == '/') {
-        normalized.erase(normalized.begin());
-    }
-
-    if (normalized.rfind("word/", 0U) == 0U) {
-        return normalized;
-    }
-
-    return "word/" + normalized;
 }
 
 auto parse_options(const std::vector<std::string_view> &arguments,
@@ -6318,32 +6311,6 @@ void write_text_size_array(std::ostream &stream,
         stream << values[index];
     }
     stream << ']';
-}
-
-auto quote_cli_argument(std::string_view value) -> std::string {
-    if (value.empty()) {
-        return "\"\"";
-    }
-
-    const auto needs_quotes = std::any_of(
-        value.begin(), value.end(), [](const char character) {
-            return std::isspace(static_cast<unsigned char>(character)) ||
-                   character == '"' || character == '\'';
-        });
-    if (!needs_quotes) {
-        return std::string(value);
-    }
-
-    auto quoted = std::string{"\""};
-    for (const auto character : value) {
-        if (character == '"') {
-            quoted += "\\\"";
-        } else {
-            quoted += character;
-        }
-    }
-    quoted += '"';
-    return quoted;
 }
 
 auto make_table_position_plan_output_path(
@@ -16085,14 +16052,6 @@ auto has_section_footer(featherdoc::Document &doc, std::size_t section_index,
     return doc.section_footer_paragraphs(section_index, reference_kind).has_next();
 }
 
-auto yes_no(bool value) -> const char * {
-    return value ? "yes" : "no";
-}
-
-auto json_bool(bool value) -> const char * {
-    return value ? "true" : "false";
-}
-
 auto section_part_name(section_part_family family) -> const char * {
     return family == section_part_family::header ? "header" : "footer";
 }
@@ -17241,32 +17200,6 @@ auto read_optional_font_size_points(pugi::xml_node node)
     }
 
     return static_cast<double>(half_points) / 2.0;
-}
-
-auto format_paragraph_text(std::string_view text) -> std::string {
-    if (text.empty()) {
-        return "<empty>";
-    }
-
-    std::string formatted;
-    formatted.reserve(text.size());
-    for (const auto character : text) {
-        switch (character) {
-        case '\n':
-            formatted += "\\n";
-            break;
-        case '\r':
-            formatted += "\\r";
-            break;
-        case '\t':
-            formatted += "\\t";
-            break;
-        default:
-            formatted.push_back(character);
-            break;
-        }
-    }
-    return formatted;
 }
 
 auto load_body_paragraph_summaries(const path_type &input_path,
@@ -20226,16 +20159,6 @@ void print_bookmark_summary(std::ostream &stream,
            << " occurrences=" << bookmark.occurrence_count
            << " kind=" << bookmark_kind_name(bookmark.kind)
            << " duplicate=" << yes_no(bookmark.is_duplicate());
-}
-
-auto optional_display_value(const std::optional<std::string> &value)
-    -> std::string {
-    return value.has_value() ? *value : std::string{"-"};
-}
-
-auto optional_size_display_value(const std::optional<std::size_t> &value)
-    -> std::string {
-    return value.has_value() ? std::to_string(*value) : std::string{"-"};
 }
 
 void print_content_control_summary(
@@ -26471,16 +26394,6 @@ void inspect_sections(featherdoc::Document &doc, bool json_output) {
                    featherdoc::section_reference_kind::even_page))
             << ")\n";
     }
-}
-
-auto strip_utf8_bom(std::string text) -> std::string {
-    if (text.size() >= 3 &&
-        static_cast<unsigned char>(text[0]) == 0xEF &&
-        static_cast<unsigned char>(text[1]) == 0xBB &&
-        static_cast<unsigned char>(text[2]) == 0xBF) {
-        text.erase(0, 3);
-    }
-    return text;
 }
 
 auto read_text_source_value(const std::optional<std::string> &inline_text,
@@ -40841,22 +40754,6 @@ auto require_run_recipe_input(
 
     value = entry->second;
     return true;
-}
-
-auto lower_ascii_copy(std::string value) -> std::string {
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-    return value;
-}
-
-auto is_docx_path(const path_type &path) -> bool {
-    return lower_ascii_copy(path.extension().string()) == ".docx";
-}
-
-auto is_word_temporary_path(const path_type &path) -> bool {
-    const auto filename = path.filename().string();
-    return filename.size() >= 2U && filename[0] == '~' && filename[1] == '$';
 }
 
 auto collect_run_recipe_docx_files(const path_type &source_dir,
