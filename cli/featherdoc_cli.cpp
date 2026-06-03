@@ -65,6 +65,13 @@ using featherdoc_cli::parse_int32;
 using featherdoc_cli::parse_list_kind;
 using featherdoc_cli::parse_page_orientation;
 using featherdoc_cli::parse_reference_kind;
+using featherdoc_cli::parse_table_style_border_edge_text;
+using featherdoc_cli::parse_table_style_border_style_text;
+using featherdoc_cli::parse_table_style_cell_text_direction_text;
+using featherdoc_cli::parse_table_style_cell_vertical_alignment_text;
+using featherdoc_cli::parse_table_style_margin_edge_text;
+using featherdoc_cli::parse_table_style_paragraph_alignment_text;
+using featherdoc_cli::parse_table_style_paragraph_line_spacing_rule_text;
 using featherdoc_cli::parse_uint32;
 using featherdoc_cli::print_usage;
 using featherdoc_cli::quote_cli_argument;
@@ -4676,88 +4683,6 @@ auto ensure_table_style_region_option(
     return &(**region);
 }
 
-auto parse_table_style_margin_edge_text(std::string_view text,
-                                        featherdoc::cell_margin_edge &edge) -> bool {
-    if (text == "top") {
-        edge = featherdoc::cell_margin_edge::top;
-        return true;
-    }
-    if (text == "left") {
-        edge = featherdoc::cell_margin_edge::left;
-        return true;
-    }
-    if (text == "bottom") {
-        edge = featherdoc::cell_margin_edge::bottom;
-        return true;
-    }
-    if (text == "right") {
-        edge = featherdoc::cell_margin_edge::right;
-        return true;
-    }
-
-    return false;
-}
-
-auto parse_table_style_border_edge_text(std::string_view text,
-                                        featherdoc::table_border_edge &edge) -> bool {
-    if (text == "top") {
-        edge = featherdoc::table_border_edge::top;
-        return true;
-    }
-    if (text == "left") {
-        edge = featherdoc::table_border_edge::left;
-        return true;
-    }
-    if (text == "bottom") {
-        edge = featherdoc::table_border_edge::bottom;
-        return true;
-    }
-    if (text == "right") {
-        edge = featherdoc::table_border_edge::right;
-        return true;
-    }
-    if (text == "inside_horizontal" || text == "inside-horizontal") {
-        edge = featherdoc::table_border_edge::inside_horizontal;
-        return true;
-    }
-    if (text == "inside_vertical" || text == "inside-vertical") {
-        edge = featherdoc::table_border_edge::inside_vertical;
-        return true;
-    }
-
-    return false;
-}
-
-auto parse_table_style_border_style_text(std::string_view text,
-                                         featherdoc::border_style &style) -> bool {
-    if (text == "none") {
-        style = featherdoc::border_style::none;
-        return true;
-    }
-    if (text == "single") {
-        style = featherdoc::border_style::single;
-        return true;
-    }
-    if (text == "double_line" || text == "double-line") {
-        style = featherdoc::border_style::double_line;
-        return true;
-    }
-    if (text == "dashed") {
-        style = featherdoc::border_style::dashed;
-        return true;
-    }
-    if (text == "dotted") {
-        style = featherdoc::border_style::dotted;
-        return true;
-    }
-    if (text == "thick") {
-        style = featherdoc::border_style::thick;
-        return true;
-    }
-
-    return false;
-}
-
 auto assign_table_style_margin(featherdoc::table_style_margins_definition &margins,
                                featherdoc::cell_margin_edge edge,
                                std::uint32_t value) -> void {
@@ -4939,28 +4864,6 @@ auto parse_table_style_font_family_option(
     return true;
 }
 
-auto parse_table_style_cell_vertical_alignment_text(
-    std::string_view text, featherdoc::cell_vertical_alignment &alignment) -> bool {
-    if (text == "top") {
-        alignment = featherdoc::cell_vertical_alignment::top;
-        return true;
-    }
-    if (text == "center") {
-        alignment = featherdoc::cell_vertical_alignment::center;
-        return true;
-    }
-    if (text == "bottom") {
-        alignment = featherdoc::cell_vertical_alignment::bottom;
-        return true;
-    }
-    if (text == "both") {
-        alignment = featherdoc::cell_vertical_alignment::both;
-        return true;
-    }
-
-    return false;
-}
-
 auto parse_table_style_cell_vertical_alignment_option(
     std::string_view text, featherdoc::table_style_definition &definition,
     std::string &error_message) -> bool {
@@ -4986,39 +4889,6 @@ auto parse_table_style_cell_vertical_alignment_option(
 
     region->cell_vertical_alignment = alignment;
     return true;
-}
-
-auto parse_table_style_cell_text_direction_text(
-    std::string_view text, featherdoc::cell_text_direction &direction) -> bool {
-    if (text == "left_to_right_top_to_bottom") {
-        direction = featherdoc::cell_text_direction::left_to_right_top_to_bottom;
-        return true;
-    }
-    if (text == "top_to_bottom_right_to_left") {
-        direction = featherdoc::cell_text_direction::top_to_bottom_right_to_left;
-        return true;
-    }
-    if (text == "bottom_to_top_left_to_right") {
-        direction = featherdoc::cell_text_direction::bottom_to_top_left_to_right;
-        return true;
-    }
-    if (text == "left_to_right_top_to_bottom_rotated") {
-        direction =
-            featherdoc::cell_text_direction::left_to_right_top_to_bottom_rotated;
-        return true;
-    }
-    if (text == "top_to_bottom_right_to_left_rotated") {
-        direction =
-            featherdoc::cell_text_direction::top_to_bottom_right_to_left_rotated;
-        return true;
-    }
-    if (text == "top_to_bottom_left_to_right_rotated") {
-        direction =
-            featherdoc::cell_text_direction::top_to_bottom_left_to_right_rotated;
-        return true;
-    }
-
-    return false;
 }
 
 auto parse_table_style_cell_text_direction_option(
@@ -5048,32 +4918,6 @@ auto parse_table_style_cell_text_direction_option(
     return true;
 }
 
-auto parse_table_style_paragraph_alignment_text(
-    std::string_view text, featherdoc::paragraph_alignment &alignment) -> bool {
-    if (text == "left") {
-        alignment = featherdoc::paragraph_alignment::left;
-        return true;
-    }
-    if (text == "center") {
-        alignment = featherdoc::paragraph_alignment::center;
-        return true;
-    }
-    if (text == "right") {
-        alignment = featherdoc::paragraph_alignment::right;
-        return true;
-    }
-    if (text == "justified" || text == "both") {
-        alignment = featherdoc::paragraph_alignment::justified;
-        return true;
-    }
-    if (text == "distribute") {
-        alignment = featherdoc::paragraph_alignment::distribute;
-        return true;
-    }
-
-    return false;
-}
-
 auto parse_table_style_paragraph_alignment_option(
     std::string_view text, featherdoc::table_style_definition &definition,
     std::string &error_message) -> bool {
@@ -5099,24 +4943,6 @@ auto parse_table_style_paragraph_alignment_option(
 
     region->paragraph_alignment = alignment;
     return true;
-}
-
-auto parse_table_style_paragraph_line_spacing_rule_text(
-    std::string_view text, featherdoc::paragraph_line_spacing_rule &rule) -> bool {
-    if (text == "auto" || text == "automatic") {
-        rule = featherdoc::paragraph_line_spacing_rule::automatic;
-        return true;
-    }
-    if (text == "at_least" || text == "at-least") {
-        rule = featherdoc::paragraph_line_spacing_rule::at_least;
-        return true;
-    }
-    if (text == "exact") {
-        rule = featherdoc::paragraph_line_spacing_rule::exact;
-        return true;
-    }
-
-    return false;
 }
 
 auto ensure_table_style_paragraph_spacing_option(
