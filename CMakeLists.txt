@@ -81,9 +81,13 @@ set(ZIP_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zip/miniz.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zip/zip.h"
 )
+set(STB_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/stb/stb_image.h"
+)
 set(THIRD_PARTY_SRC
     ${PUGIXML_SOURCES}
     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zip/zip.c"
+    ${STB_HEADERS}
 )
 
 add_library(FeatherDoc ${SOURCES} ${THIRD_PARTY_SRC})
@@ -379,9 +383,11 @@ target_include_directories(FeatherDoc
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pugixml>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zip>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/stb>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/thirdparty/pugixml>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/thirdparty/zip>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/thirdparty/stb>
 )
 
 if(WIN32)
@@ -1298,6 +1304,11 @@ install(
 install(
     FILES ${ZIP_HEADERS}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/thirdparty/zip
+)
+
+install(
+    FILES ${STB_HEADERS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/thirdparty/stb
 )
 
 install(

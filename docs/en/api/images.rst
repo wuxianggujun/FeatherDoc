@@ -11,7 +11,10 @@ Common Tasks
 
 Use these entry points for image workflows:
 
-* Append an inline image to the body: call ``Document::append_image(...)``.
+* Append an inline image with detected source dimensions: call
+  ``Document::append_image(image_path)``.
+* Append an inline image with explicit display size: call
+  ``Document::append_image(image_path, width_px, height_px)``.
 * Append an image to a header, footer, or section part: call
   ``TemplatePart::append_image(...)``.
 * Place a floating image: configure ``floating_image_options`` and call
@@ -38,7 +41,8 @@ Success And Failure Semantics
      - Empty means no matching image placement exists in the document.
    * - ``bool`` append
      - ``true`` means the image bytes, relationship, and drawing XML were added.
-     - ``false`` means the image file, target part, or dimensions were invalid.
+     - ``false`` means the image file, target part, dimensions, or format probe
+       were invalid.
    * - ``bool`` extract
      - ``true`` means image bytes were copied to the output path.
      - ``false`` means the index was invalid or the output file could not be
@@ -46,7 +50,8 @@ Success And Failure Semantics
    * - ``bool`` replace
      - ``true`` means the image part changed while existing references stayed in
        place.
-     - ``false`` means the index or replacement file could not be resolved.
+     - ``false`` means the index, replacement file, dimensions, or format probe
+       could not be resolved.
    * - ``bool`` remove
      - ``true`` means the drawing and related package part were removed.
      - ``false`` means the index was unavailable or the package could not be
@@ -57,12 +62,25 @@ Short Example
 
 .. code-block:: cpp
 
+   // PNG/JPEG/GIF/BMP dimensions are detected through the stb_image path.
    doc.append_image("logo.png", 240, 80);
 
    auto images = doc.inline_images();
    if (!images.empty()) {
        doc.replace_inline_image(images.front().index, "logo-new.png");
    }
+
+Dimension Detection
+-------------------
+
+When an append or replace method needs source dimensions, FeatherDoc first uses
+the stb_image-backed raster probe for ``PNG``, ``JPEG``, ``GIF``, and ``BMP``
+files. ``SVG``, ``WebP``, and ``TIFF`` keep FeatherDoc's existing
+format-specific detection and fallback path.
+
+Explicit ``width_px`` and ``height_px`` values bypass source-size inference for
+layout size, but the image file still has to be readable and recognized so the
+package media part and content type can be written correctly.
 
 Typed Signature Guide
 ---------------------
@@ -72,7 +90,8 @@ Typed Signature Guide
 Image APIs use zero-based ``image_index`` values from ``drawing_images()`` or
 ``inline_images()``. ``width_px`` and ``height_px`` are explicit pixel sizes.
 Methods returning ``bool`` report whether the package image part and its
-relationships were updated.
+relationships were updated. Methods that infer size may return ``false`` when
+dimension detection cannot identify a supported image format.
 
 .. list-table::
    :header-rows: 1
@@ -89,7 +108,8 @@ relationships were updated.
      - All inline images with package metadata and optional body location.
    * - ``bool append_image(const std::filesystem::path &image_path)``
      - ``image_path``: source image path.
-     - ``true`` when an inline image was appended with source dimensions.
+     - ``true`` when an inline image was appended with detected source
+       dimensions.
    * - ``bool append_image(const std::filesystem::path &image_path, std::uint32_t width_px, std::uint32_t height_px)``
      - ``image_path``: source image. ``width_px`` / ``height_px``: explicit size.
      - ``true`` when a sized inline image was appended.
@@ -101,7 +121,8 @@ relationships were updated.
      - ``true`` when the image bytes were copied.
    * - ``bool replace_drawing_image(std::size_t image_index, const std::filesystem::path &image_path)``
      - ``image_index``: item from ``drawing_images()``. ``image_path``: replacement image.
-     - ``true`` when the image part was replaced while references were preserved.
+     - ``true`` when the image part was replaced while references and placement
+       metadata were preserved.
    * - ``bool remove_inline_image(std::size_t image_index)``
      - ``image_index``: item from ``inline_images()``.
      - ``true`` when the inline drawing and related package part were removed.
@@ -141,7 +162,8 @@ Append Images
      - Purpose
    * - ``Document::append_image(image_path)``
      - ``bool``
-     - Append an inline image to the document body using source dimensions.
+     - Append an inline image to the document body using detected source
+       dimensions.
    * - ``Document::append_image(image_path, width_px, height_px)``
      - ``bool``
      - Append an inline image to the body with explicit pixel dimensions.
@@ -153,7 +175,8 @@ Append Images
      - Append a floating image to the body with explicit size.
    * - ``TemplatePart::append_image(image_path)``
      - ``bool``
-     - Append an inline image in a body, header, footer, or section part.
+     - Append an inline image in a body, header, footer, or section part using
+       detected source dimensions.
    * - ``TemplatePart::append_floating_image(image_path, options)``
      - ``bool``
      - Append a floating image in the selected template part.
@@ -201,6 +224,10 @@ Example
    featherdoc::Document doc{"template.docx"};
    doc.open();
 
+   // Uses detected PNG dimensions when no explicit size is supplied.
+   doc.append_image("logo.png");
+
+   // Uses explicit layout dimensions.
    doc.append_image("logo.png", 240, 80);
 
    featherdoc::floating_image_options options;

@@ -13,6 +13,9 @@ This repository contains material from multiple licensing sources.
 
 3. Bundled third-party dependencies
    These components continue to use their own original licenses.
+   - stb_image by Sean Barrett and contributors is bundled under
+     thirdparty/stb/stb_image.h. It is offered under the MIT License or public
+     domain dedication as stated at the end of that header.
 
 4. Optional PDF writer dependency
    When FeatherDoc is configured with FEATHERDOC_BUILD_PDF=ON, the experimental
