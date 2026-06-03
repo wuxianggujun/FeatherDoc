@@ -130,6 +130,32 @@ performance.
 - Fixed release short summaries so project-template readiness governance lines
   preserve `release_blocker_count` and `warning_count`.
 
+## [1.12.1] - 2026-06-03
+
+### Added
+
+- Added the bundled `stb_image` raster probe for PNG, JPEG, GIF, and BMP
+  dimension detection, with install/include handling and license notice
+  coverage.
+- Added raster image regression coverage for PNG, JPEG, GIF, BMP, corrupted
+  image bytes, and the package metadata boundary when raster bytes and file
+  extensions do not match.
+
+### Changed
+
+- Clarified the CI-artifact release boundary so GitHub release publishing can
+  proceed from explicit CI evidence while preserving the skipped Word visual
+  gate status in release-facing notes.
+- Updated the bilingual Images API reference to document that PNG/JPEG/GIF/BMP
+  dimensions are parsed by `stb_image`, while SVG/WebP/TIFF keep FeatherDoc
+  format-specific dimension readers.
+
+### Fixed
+
+- Removed FeatherDoc's hand-written PNG/JPEG/GIF/BMP signature gate from the
+  image append/replace path so supported raster dimensions are resolved by
+  `stb_image` instead of duplicate parser logic.
+
 ## [1.12.0] - 2026-05-28
 
 ### Added
