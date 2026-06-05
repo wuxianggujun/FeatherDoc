@@ -221,6 +221,13 @@ if(MSVC)
 endif()
 
 featherdoc_add_cpp_test(
+    public_header_entrypoint_tests
+    public_header_entrypoint
+    public_header_entrypoint_tests.cpp
+)
+featherdoc_set_test_labels(public_header_entrypoint core smoke)
+
+featherdoc_add_cpp_test(
     iterator_tests
     iterator
     iterator_tests.cpp

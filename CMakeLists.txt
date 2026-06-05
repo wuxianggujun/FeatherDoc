@@ -39,6 +39,10 @@ set(HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/constants.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc_iterator.hpp"
 )
+set(FEATHERDOC_MODULE_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/core.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/fwd.hpp"
+)
 set(PDF_COMMON_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_subset.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_resolver.hpp"
@@ -1180,6 +1184,7 @@ endif()
 if(BUILD_CLI)
     add_executable(featherdoc_cli
         cli/featherdoc_cli_main.cpp
+        cli/featherdoc_cli_command_support.cpp
         cli/featherdoc_cli_domain_names.cpp
         cli/featherdoc_cli_domain_parse.cpp
         cli/featherdoc_cli_errors.cpp
@@ -1214,6 +1219,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_validation_options_parse.cpp
         cli/featherdoc_cli_run_properties_options_parse.cpp
         cli/featherdoc_cli_parse.cpp
+        cli/featherdoc_cli_pdf_commands.cpp
         cli/featherdoc_cli_pdf_parse.cpp
         cli/featherdoc_cli_review_mutation_plan_parse.cpp
         cli/featherdoc_cli_run_recipe_parse.cpp
@@ -1318,6 +1324,11 @@ install(
 install(
     FILES ${HEADERS}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(
+    FILES ${FEATHERDOC_MODULE_HEADERS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/featherdoc
 )
 
 if(FEATHERDOC_BUILD_PDF OR FEATHERDOC_INSTALLS_PDF_IMPORT)

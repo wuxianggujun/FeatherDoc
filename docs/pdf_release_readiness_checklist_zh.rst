@@ -687,3 +687,5 @@ OCR 或任意视觉精确还原。
 图片 / 页眉页脚 / RTL 探针和 visual baseline 证据。导入侧当前发布边界是
 text-first、表格 opt-in 和保守失败；不支持 OCR、扫描件、任意 PDF 视觉精确
 还原或通用 PDF 转 Word。
+核心头入口调整只影响 C++ include 路径与安装布局，不扩大 PDF 导出 / 导入
+发布边界。

@@ -28,6 +28,10 @@
 
 文档自检 marker：``documentation_maintenance_zh``。
 
+公共 API 入口维护采用加法式策略：保留 ``include/featherdoc.hpp``，
+新增 ``include/featherdoc/fwd.hpp`` 与 ``include/featherdoc/core.hpp``
+时不得拆除旧入口。
+
 历史参考页可以继续保留，但不再作为首页主入口：
 
 1. ``docs/document_api_mainline_status_zh.rst``：文档 API 主线和旧分支复核快照。

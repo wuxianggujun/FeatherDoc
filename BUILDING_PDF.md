@@ -2,6 +2,8 @@
 
 > PDF 能力仍是实验性方向。默认构建不会启用 PDFio / PDFium，也不会拉取、
 > 编译或安装实验性 PDF 头文件。
+> 默认核心入口 `include/featherdoc/core.hpp` 与 `include/featherdoc/fwd.hpp`
+> 不启用 PDFio / PDFium；实验性 PDF 头仍只在对应构建选项和安装条件下暴露。
 
 ## 什么时候需要看这份文档
 
