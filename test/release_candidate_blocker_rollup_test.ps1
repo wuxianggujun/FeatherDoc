@@ -1,7 +1,16 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("rollup", "handoff")]
+    [ValidateSet(
+        "rollup",
+        "rollup_fail_on_blocker",
+        "rollup_fail_on_warning",
+        "rollup_auto_discover",
+        "rollup_empty_auto_discover",
+        "handoff",
+        "handoff_fail_on_blocker",
+        "handoff_fail_on_warning"
+    )]
     [string]$Scenario = "rollup"
 )
 
@@ -505,7 +514,7 @@ Write-JsonFile -Path $autoDiscoverDocxReadinessSummaryPath -Value ([ordered]@{
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
 
-if ($Scenario -eq "handoff") {
+if ($Scenario -in @("handoff", "handoff_fail_on_blocker", "handoff_fail_on_warning")) {
     $handoffOutputDir = Join-Path $resolvedWorkingDir "release-candidate-governance-handoff"
     $handoffArguments = @(
         "-NoProfile",
@@ -527,6 +536,7 @@ if ($Scenario -eq "handoff") {
         $autoDiscoverOutputRoot,
         "-ReleaseGovernanceHandoffIncludeRollup"
     )
+    if ($Scenario -eq "handoff") {
     $handoffResult = @(& (Get-Process -Id $PID).Path @handoffArguments 2>&1)
     $handoffExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
     $handoffText = (@($handoffResult | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
@@ -683,6 +693,11 @@ if ($Scenario -eq "handoff") {
     Assert-ContainsText -Text $handoffChecklist -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Reviewer checklist should include handoff open command."
 
+    Write-Host "Release candidate governance handoff regression passed."
+    exit 0
+    }
+
+    if ($Scenario -eq "handoff_fail_on_blocker") {
     $handoffFailOnOutputDir = Join-Path $resolvedWorkingDir "release-candidate-governance-handoff-fail-on-blocker"
     $handoffFailOnArguments = @($handoffArguments)
     $handoffSummaryOutputIndex = [Array]::IndexOf($handoffFailOnArguments, "-SummaryOutputDir")
@@ -735,6 +750,11 @@ if ($Scenario -eq "handoff") {
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Fail-on-blocker handoff step summary should keep action open commands."
 
+    Write-Host "Release candidate governance handoff fail-on-blocker regression passed."
+    exit 0
+    }
+
+    if ($Scenario -eq "handoff_fail_on_warning") {
     $handoffFailOnWarningOutputDir = Join-Path $resolvedWorkingDir "release-candidate-governance-handoff-fail-on-warning"
     $handoffFailOnWarningArguments = @($handoffArguments)
     $handoffWarningSummaryOutputIndex = [Array]::IndexOf($handoffFailOnWarningArguments, "-SummaryOutputDir")
@@ -769,10 +789,12 @@ if ($Scenario -eq "handoff") {
     Assert-Equal -Actual ([int]$handoffFailOnWarningSummary.steps.release_governance_handoff.warning_count) -Expected 2 `
         -Message "Fail-on-warning handoff step summary should mirror warning count."
 
-    Write-Host "Release candidate governance handoff regression passed."
+    Write-Host "Release candidate governance handoff fail-on-warning regression passed."
     exit 0
+    }
 }
 
+if ($Scenario -in @("rollup", "rollup_fail_on_blocker", "rollup_fail_on_warning")) {
 $scriptArguments = @(
     "-NoProfile",
     "-NonInteractive",
@@ -791,6 +813,7 @@ $scriptArguments = @(
     "-ReleaseBlockerRollupInputJson",
     "$documentSkeletonRollupPath,$numberingSummaryPath,$tableSummaryPath"
 )
+if ($Scenario -eq "rollup") {
 $result = @(& (Get-Process -Id $PID).Path @scriptArguments 2>&1)
 $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
 $text = (@($result | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
@@ -926,6 +949,11 @@ Assert-ContainsText -Text $finalReview -ExpectedText "source_schema=featherdoc.d
 Assert-ContainsText -Text $finalReview -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1" `
     -Message "Final review should include rollup action item open command."
 
+Write-Host "Release candidate blocker rollup regression passed."
+exit 0
+}
+
+if ($Scenario -eq "rollup_fail_on_blocker") {
 $gateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-fail-on-blocker"
 $gateArguments = @($scriptArguments)
 $summaryOutputIndex = [Array]::IndexOf($gateArguments, "-SummaryOutputDir")
@@ -971,6 +999,11 @@ Assert-ContainsText -Text (($gateSummary.steps.release_blocker_rollup.action_ite
     -ExpectedText "run_table_style_quality_visual_regression" `
     -Message "Fail-on-blocker step summary should keep rollup actions written before the child failure."
 
+Write-Host "Release candidate blocker rollup fail-on-blocker regression passed."
+exit 0
+}
+
+if ($Scenario -eq "rollup_fail_on_warning") {
 $warningGateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-fail-on-warning"
 $warningGateArguments = @($scriptArguments)
 $warningSummaryOutputIndex = [Array]::IndexOf($warningGateArguments, "-SummaryOutputDir")
@@ -1009,6 +1042,12 @@ Assert-Equal -Actual ([int]$warningGateSummary.steps.release_blocker_rollup.warn
 Assert-Equal -Actual ([int]$warningGateSummary.steps.release_blocker_rollup.governance_metric_count) -Expected 2 `
     -Message "Fail-on-warning step summary should mirror rollup governance metric count."
 
+Write-Host "Release candidate blocker rollup fail-on-warning regression passed."
+exit 0
+}
+}
+
+if ($Scenario -eq "rollup_auto_discover") {
 $autoDiscoverOutputDir = Join-Path $resolvedWorkingDir "release-candidate-auto-discover"
 $autoDiscoverArguments = @(
     "-NoProfile",
@@ -1217,6 +1256,11 @@ Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-
     -ExpectedText "docx-functional-smoke-readiness" `
     -Message "Auto-discovered rollup should include DOCX functional smoke readiness."
 
+    Write-Host "Release candidate blocker rollup auto-discovery regression passed."
+    exit 0
+}
+
+if ($Scenario -eq "rollup_empty_auto_discover") {
 $emptyAutoDiscoverRoot = Join-Path $resolvedWorkingDir "empty-auto-discover-output"
 $emptyAutoDiscoverOutputDir = Join-Path $resolvedWorkingDir "release-candidate-empty-auto-discover"
 New-Item -ItemType Directory -Path $emptyAutoDiscoverRoot -Force | Out-Null
@@ -1259,4 +1303,6 @@ Assert-Equal -Actual ([int]$emptyAutoDiscoverSummary.release_blocker_rollup.auto
 Assert-Equal -Actual ([string]$emptyAutoDiscoverSummary.release_blocker_rollup.status) -Expected "not_requested" `
     -Message "Empty auto-discovery should not request rollup when no fixed governance summaries are found."
 
-Write-Host "Release candidate blocker rollup regression passed."
+    Write-Host "Release candidate blocker rollup empty auto-discovery regression passed."
+    exit 0
+}

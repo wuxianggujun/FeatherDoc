@@ -60,6 +60,7 @@ $fixtureRoot = Join-Path $resolvedWorkingDir "fixtures"
 $inputDocxPath = Join-Path $fixtureRoot "fixtures\invoice.docx"
 $artifactDir = Join-Path $fixtureRoot "artifacts\invoice"
 $contactSheetPath = Join-Path $artifactDir "before_after_contact_sheet.png"
+$renderedDocxPath = Join-Path $artifactDir "invoice.rendered.docx"
 $manifestPath = Join-Path $fixtureRoot "project_template_smoke.manifest.json"
 $summaryPath = Join-Path $fixtureRoot "summary.json"
 $jsonOutputPath = Join-Path $resolvedWorkingDir "reports\manifest_description.json"
@@ -69,6 +70,7 @@ New-Item -ItemType Directory -Path (Split-Path -Parent $inputDocxPath) -Force | 
 New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
 Set-Content -LiteralPath $inputDocxPath -Encoding UTF8 -Value "placeholder docx fixture"
 Set-Content -LiteralPath $contactSheetPath -Encoding UTF8 -Value "placeholder image fixture"
+Set-Content -LiteralPath $renderedDocxPath -Encoding UTF8 -Value "placeholder rendered docx fixture"
 
 Write-JsonFile -Path $manifestPath -Value ([ordered]@{
     entries = @(
@@ -91,8 +93,14 @@ Write-JsonFile -Path $manifestPath -Value ([ordered]@{
                 target_mode = "default"
                 generated_output = "output/project-template-smoke/invoice.generated.schema.json"
             }
+            render_data_smoke = [ordered]@{
+                data_path = "samples/invoice.render_data.json"
+                mapping_path = "samples/invoice.render_data_mapping.json"
+                output_docx = "output/project-template-smoke/invoice.rendered.docx"
+            }
             visual_smoke = [ordered]@{
                 enabled = $true
+                input = "rendered_docx"
                 output_dir = "output/project-template-smoke/invoice-visual"
             }
         }
@@ -115,6 +123,11 @@ Write-JsonFile -Path $summaryPath -Value ([ordered]@{
             manual_review_pending = $true
             artifact_dir = $artifactDir
             checks = [ordered]@{
+                render_data = [ordered]@{
+                    status = "completed"
+                    output_docx = $renderedDocxPath
+                    remaining_placeholder_count = 0
+                }
                 visual_smoke = [ordered]@{
                     review_status = "pending"
                     review_verdict = "needs_review"
@@ -170,12 +183,20 @@ Assert-Equal -Actual ([int]$entry.schema_validation_target_count) -Expected 2 `
     -Message "Description JSON should count schema validation targets."
 Assert-Equal -Actual ([bool]$entry.schema_baseline_enabled) -Expected $true `
     -Message "Description JSON should expose schema baseline state."
+Assert-Equal -Actual ([bool]$entry.render_data_enabled) -Expected $true `
+    -Message "Description JSON should expose render data state."
+Assert-Equal -Actual ([string]$entry.visual_smoke_input) -Expected "rendered_docx" `
+    -Message "Description JSON should expose visual smoke input source."
 Assert-Equal -Actual ([bool]$entry.visual_smoke_enabled) -Expected $true `
     -Message "Description JSON should expose visual smoke state."
 Assert-Equal -Actual ([bool]$entry.latest_available) -Expected $true `
     -Message "Description JSON should join the latest summary entry."
 Assert-Equal -Actual ([string]$entry.latest_visual_review_status) -Expected "pending" `
     -Message "Description JSON should preserve latest visual review status."
+Assert-Equal -Actual ([string]$entry.latest_render_data_status) -Expected "completed" `
+    -Message "Description JSON should preserve latest render data status."
+Assert-Equal -Actual ([int]$entry.latest_render_data_remaining_placeholder_count) -Expected 0 `
+    -Message "Description JSON should preserve latest remaining placeholder count."
 Assert-Equal -Actual ([string]$entry.latest_visual_review_verdict) -Expected "needs_review" `
     -Message "Description JSON should preserve latest visual review verdict."
 Assert-Equal -Actual ([int]$entry.latest_visual_findings_count) -Expected 2 `
@@ -202,6 +223,10 @@ Assert-ContainsText -Text $textReport -ExpectedText "Latest visual verdict: need
     -Message "Text report should include latest visual verdict."
 Assert-ContainsText -Text $textReport -ExpectedText "latest_visual_review_status: pending" `
     -Message "Text report should include joined visual review status."
+Assert-ContainsText -Text $textReport -ExpectedText "render_data_enabled: True" `
+    -Message "Text report should include render data configuration."
+Assert-ContainsText -Text $textReport -ExpectedText "latest_render_data_status: completed" `
+    -Message "Text report should include latest render data status."
 Assert-ContainsText -Text $textReport -ExpectedText "latest_visual_findings_count: 2" `
     -Message "Text report should include joined findings count."
 Assert-ContainsText -Text $textReport -ExpectedText "latest_contact_sheet:" `

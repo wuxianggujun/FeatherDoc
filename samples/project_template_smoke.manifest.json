@@ -59,8 +59,19 @@
                                                 "target_mode":  "default",
                                                 "generated_output":  "./output/project-template-smoke-sample/chinese_invoice_template.generated.schema.json"
                                             },
+                        "render_data_smoke":  {
+                                                  "data_path":  "./samples/chinese_invoice_template.render_data.json",
+                                                  "mapping_path":  "./samples/chinese_invoice_template.render_data_mapping.json",
+                                                  "output_docx":  "./output/project-template-smoke-sample/chinese_invoice_template.rendered.docx",
+                                                  "summary_json":  "./output/project-template-smoke-sample/chinese_invoice_template.render_data.summary.json",
+                                                  "patch_plan_output":  "./output/project-template-smoke-sample/chinese_invoice_template.render_patch.generated.json",
+                                                  "draft_plan_output":  "./output/project-template-smoke-sample/chinese_invoice_template.render_plan.draft.json",
+                                                  "patched_plan_output":  "./output/project-template-smoke-sample/chinese_invoice_template.render_plan.patched.json",
+                                                  "export_target_mode":  "loaded-parts"
+                                              },
                         "visual_smoke":  {
                                              "enabled":  true,
+                                             "input":  "rendered_docx",
                                              "output_dir":  "./output/project-template-smoke-sample/chinese-invoice-visual"
                                          }
                     }

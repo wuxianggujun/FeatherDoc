@@ -43,6 +43,18 @@ cmake --build build
 cmake --install build --prefix install
 ```
 
+Run the project-template smoke path that validates the Chinese invoice
+template, renders it from business JSON, and writes review artifacts:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 `
+  -ManifestPath .\samples\project_template_smoke.manifest.json `
+  -BuildDir .\build `
+  -OutputDir .\output\project-template-smoke `
+  -SkipBuild `
+  -SkipVisualSmoke
+```
+
 Minimal C++ usage:
 
 ```cpp

@@ -666,6 +666,124 @@ target_include_directories(cli_json_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
 featherdoc_set_test_labels(cli_json cli smoke cli_smoke)
 
 featherdoc_add_cpp_test(
+    cli_json_parse_tests
+    cli_json_parse
+    cli_json_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(cli_json_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_json_parse cli smoke cli_smoke)
+
+featherdoc_add_cpp_test(
+    cli_table_position_plan_parse_tests
+    cli_table_position_plan_parse
+    cli_table_position_plan_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_plan_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_table_position_plan_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_table_position_plan_parse cli smoke cli_smoke table)
+
+featherdoc_add_cpp_test(
+    cli_table_position_plan_build_tests
+    cli_table_position_plan_build
+    cli_table_position_plan_build_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_plan_build.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_plan_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_text.cpp
+)
+target_include_directories(
+    cli_table_position_plan_build_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_table_position_plan_build cli smoke cli_smoke table)
+
+featherdoc_add_cpp_test(
+    cli_table_position_options_parse_tests
+    cli_table_position_options_parse
+    cli_table_position_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_plan_build.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_plan_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_text.cpp
+)
+target_include_directories(
+    cli_table_position_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_table_position_options_parse cli smoke cli_smoke table)
+
+featherdoc_add_cpp_test(
+    cli_style_refactor_plan_parse_tests
+    cli_style_refactor_plan_parse
+    cli_style_refactor_plan_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_plan_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_style_refactor_plan_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_style_refactor_plan_parse cli smoke cli_smoke styles)
+
+featherdoc_add_cpp_test(
+    cli_style_refactor_options_parse_tests
+    cli_style_refactor_options_parse
+    cli_style_refactor_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_plan.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_style_refactor_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_style_refactor_options_parse cli smoke cli_smoke styles)
+
+featherdoc_add_cpp_test(
+    cli_style_refactor_plan_tests
+    cli_style_refactor_plan
+    cli_style_refactor_plan_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_plan.cpp
+)
+target_include_directories(
+    cli_style_refactor_plan_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_style_refactor_plan cli smoke cli_smoke styles)
+
+featherdoc_add_cpp_test(
+    cli_style_refactor_rollback_parse_tests
+    cli_style_refactor_rollback_parse
+    cli_style_refactor_rollback_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_rollback_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_plan_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_style_refactor_rollback_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_style_refactor_rollback_parse cli smoke cli_smoke styles)
+
+featherdoc_add_cpp_test(
+    cli_review_mutation_plan_parse_tests
+    cli_review_mutation_plan_parse
+    cli_review_mutation_plan_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_review_mutation_plan_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_review_mutation_plan_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_review_mutation_plan_parse cli smoke cli_smoke review)
+
+featherdoc_add_cpp_test(
     cli_parse_tests
     cli_parse
     cli_parse_tests.cpp
@@ -673,6 +791,542 @@ featherdoc_add_cpp_test(
 )
 target_include_directories(cli_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
 featherdoc_set_test_labels(cli_parse cli smoke cli_smoke)
+
+featherdoc_add_cpp_test(
+    cli_page_setup_parse_tests
+    cli_page_setup_parse
+    cli_page_setup_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_page_setup_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_page_setup_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_page_setup_parse cli smoke cli_smoke page_setup)
+
+featherdoc_add_cpp_test(
+    cli_section_options_parse_tests
+    cli_section_options_parse
+    cli_section_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_section_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_section_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_section_options_parse cli smoke cli_smoke fields sections)
+
+featherdoc_add_cpp_test(
+    cli_paragraph_list_options_parse_tests
+    cli_paragraph_list_options_parse
+    cli_paragraph_list_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_paragraph_list_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_paragraph_list_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_paragraph_list_options_parse cli smoke cli_smoke numbering paragraphs)
+
+featherdoc_add_cpp_test(
+    cli_inspect_style_options_parse_tests
+    cli_inspect_style_options_parse
+    cli_inspect_style_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_inspect_style_options_parse.cpp
+)
+target_include_directories(
+    cli_inspect_style_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_inspect_style_options_parse cli smoke cli_smoke styles)
+
+featherdoc_add_cpp_test(
+    cli_style_options_parse_tests
+    cli_style_options_parse
+    cli_style_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_options_parse.cpp
+)
+target_include_directories(
+    cli_style_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_style_options_parse cli smoke cli_smoke styles)
+
+featherdoc_add_cpp_test(
+    cli_run_recipe_parse_tests
+    cli_run_recipe_parse
+    cli_run_recipe_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_run_recipe_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_run_recipe_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_run_recipe_parse cli smoke cli_smoke review)
+
+featherdoc_add_cpp_test(
+    cli_pdf_parse_tests
+    cli_pdf_parse
+    cli_pdf_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_pdf_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(cli_pdf_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_pdf_parse cli smoke cli_smoke pdf)
+
+featherdoc_add_cpp_test(
+    cli_domain_parse_tests
+    cli_domain_parse
+    cli_domain_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(cli_domain_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_domain_parse cli smoke cli_smoke)
+
+featherdoc_add_cpp_test(
+    cli_template_slot_parse_tests
+    cli_template_slot_parse
+    cli_template_slot_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_slot_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_template_slot_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_template_slot_parse cli smoke cli_smoke template)
+
+featherdoc_add_cpp_test(
+    cli_validation_part_parse_tests
+    cli_validation_part_parse
+    cli_validation_part_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_validation_part.cpp
+)
+target_include_directories(
+    cli_validation_part_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_validation_part_parse cli smoke cli_smoke template)
+
+featherdoc_add_cpp_test(
+    cli_field_parse_tests
+    cli_field_parse
+    cli_field_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_field_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_validation_part.cpp
+)
+target_include_directories(cli_field_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_field_parse cli smoke cli_smoke fields)
+
+featherdoc_add_cpp_test(
+    cli_template_schema_parse_tests
+    cli_template_schema_parse
+    cli_template_schema_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_slot_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_validation_part.cpp
+)
+target_include_directories(
+    cli_template_schema_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_template_schema_parse cli smoke cli_smoke template schema)
+
+featherdoc_add_cpp_test(
+    cli_template_schema_options_parse_tests
+    cli_template_schema_options_parse
+    cli_template_schema_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_options_parse.cpp
+)
+target_include_directories(
+    cli_template_schema_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_template_schema_options_parse cli smoke cli_smoke template schema)
+
+featherdoc_add_cpp_test(
+    cli_template_validation_options_parse_tests
+    cli_template_validation_options_parse
+    cli_template_validation_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_validation_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_slot_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_validation_part.cpp
+)
+target_include_directories(
+    cli_template_validation_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_template_validation_options_parse cli smoke cli_smoke template validation)
+
+featherdoc_add_cpp_test(
+    cli_template_schema_ops_tests
+    cli_template_schema_ops
+    cli_template_schema_ops_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_ops.cpp
+)
+target_include_directories(
+    cli_template_schema_ops_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_template_schema_ops cli smoke cli_smoke template schema)
+
+featherdoc_add_cpp_test(
+    cli_template_schema_patch_ops_tests
+    cli_template_schema_patch_ops
+    cli_template_schema_patch_ops_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_ops.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_ops.cpp
+)
+target_include_directories(
+    cli_template_schema_patch_ops_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_template_schema_patch_ops cli smoke cli_smoke template schema)
+
+featherdoc_add_cpp_test(
+    cli_template_schema_patch_parse_tests
+    cli_template_schema_patch_parse
+    cli_template_schema_patch_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_slot_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_validation_part.cpp
+)
+target_include_directories(
+    cli_template_schema_patch_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_template_schema_patch_parse cli smoke cli_smoke template schema)
+
+featherdoc_add_cpp_test(
+    cli_numbering_catalog_parse_tests
+    cli_numbering_catalog_parse
+    cli_numbering_catalog_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_numbering_catalog_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_numbering_catalog_parse cli smoke cli_smoke numbering)
+
+featherdoc_add_cpp_test(
+    cli_numbering_catalog_options_parse_tests
+    cli_numbering_catalog_options_parse
+    cli_numbering_catalog_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_options_parse.cpp
+)
+target_include_directories(
+    cli_numbering_catalog_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_numbering_catalog_options_parse cli smoke cli_smoke numbering)
+
+featherdoc_add_cpp_test(
+    cli_inspect_content_options_parse_tests
+    cli_inspect_content_options_parse
+    cli_inspect_content_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_inspect_content_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_inspect_content_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_inspect_content_options_parse cli smoke cli_smoke paragraphs table)
+
+featherdoc_add_cpp_test(
+    cli_image_options_parse_tests
+    cli_image_options_parse
+    cli_image_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_image_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_validation_part.cpp
+)
+target_include_directories(
+    cli_image_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_image_options_parse cli smoke cli_smoke images)
+
+featherdoc_add_cpp_test(
+    cli_bookmark_text_options_parse_tests
+    cli_bookmark_text_options_parse
+    cli_bookmark_text_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_text_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_image_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_inspect_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_validation_part.cpp
+)
+target_include_directories(
+    cli_bookmark_text_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_bookmark_text_options_parse cli smoke cli_smoke bookmarks content_controls images)
+
+featherdoc_add_cpp_test(
+    cli_paragraph_run_options_parse_tests
+    cli_paragraph_run_options_parse
+    cli_paragraph_run_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_paragraph_run_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_paragraph_run_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_paragraph_run_options_parse cli smoke cli_smoke paragraphs run styles)
+
+featherdoc_add_cpp_test(
+    cli_style_ensure_options_parse_tests
+    cli_style_ensure_options_parse
+    cli_style_ensure_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_ensure_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_style_ensure_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_style_ensure_options_parse cli smoke cli_smoke styles table)
+
+featherdoc_add_cpp_test(
+    cli_table_cell_options_parse_tests
+    cli_table_cell_options_parse
+    cli_table_cell_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_cell_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_table_cell_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_table_cell_options_parse cli smoke cli_smoke table)
+
+featherdoc_add_cpp_test(
+    cli_run_properties_options_parse_tests
+    cli_run_properties_options_parse
+    cli_run_properties_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_run_properties_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_run_properties_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_run_properties_options_parse cli smoke cli_smoke styles run)
+
+featherdoc_add_cpp_test(
+    cli_semantic_diff_options_parse_tests
+    cli_semantic_diff_options_parse
+    cli_semantic_diff_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_semantic_diff_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_semantic_diff_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_semantic_diff_options_parse cli smoke cli_smoke semantic_diff)
+
+featherdoc_add_cpp_test(
+    cli_document_mutation_options_parse_tests
+    cli_document_mutation_options_parse
+    cli_document_mutation_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_document_mutation_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_document_mutation_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_document_mutation_options_parse cli smoke cli_smoke documents mutations)
+
+featherdoc_add_cpp_test(
+    cli_template_inspect_options_parse_tests
+    cli_template_inspect_options_parse
+    cli_template_inspect_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_inspect_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_validation_part.cpp
+)
+target_include_directories(
+    cli_template_inspect_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_template_inspect_options_parse cli smoke cli_smoke template)
+
+featherdoc_add_cpp_test(
+    cli_template_table_options_parse_tests
+    cli_template_table_options_parse
+    cli_template_table_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_json_patch_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_inspect_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_validation_part.cpp
+)
+target_include_directories(
+    cli_template_table_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_template_table_options_parse cli smoke cli_smoke template table)
+
+featherdoc_add_cpp_test(
+    cli_template_table_mutation_options_parse_tests
+    cli_template_table_mutation_options_parse
+    cli_template_table_mutation_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_mutation_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_cell_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_inspect_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_validation_part.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_template_table_mutation_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_template_table_mutation_options_parse cli smoke cli_smoke template table)
+
+featherdoc_add_cpp_test(
+    cli_inspect_table_item_options_parse_tests
+    cli_inspect_table_item_options_parse
+    cli_inspect_table_item_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_inspect_table_item_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_inspect_table_item_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_inspect_table_item_options_parse cli smoke cli_smoke table)
+
+featherdoc_add_cpp_test(
+    cli_table_style_look_options_parse_tests
+    cli_table_style_look_options_parse
+    cli_table_style_look_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_style_look_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_table_style_look_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_table_style_look_options_parse cli smoke cli_smoke table)
+
+featherdoc_add_cpp_test(
+    cli_inspect_numbering_options_parse_tests
+    cli_inspect_numbering_options_parse
+    cli_inspect_numbering_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_inspect_numbering_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_inspect_numbering_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_inspect_numbering_options_parse cli smoke cli_smoke numbering)
+
+featherdoc_add_cpp_test(
+    cli_numbering_options_parse_tests
+    cli_numbering_options_parse
+    cli_numbering_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_numbering_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_numbering_options_parse cli smoke cli_smoke numbering styles)
+
+featherdoc_add_cpp_test(
+    cli_numbering_catalog_patch_parse_tests
+    cli_numbering_catalog_patch_parse
+    cli_numbering_catalog_patch_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_patch_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+)
+target_include_directories(
+    cli_numbering_catalog_patch_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_numbering_catalog_patch_parse cli smoke cli_smoke numbering)
+
+featherdoc_add_cpp_test(
+    cli_numbering_catalog_patch_apply_tests
+    cli_numbering_catalog_patch_apply
+    cli_numbering_catalog_patch_apply_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_patch_apply.cpp
+)
+target_include_directories(
+    cli_numbering_catalog_patch_apply_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_numbering_catalog_patch_apply cli smoke cli_smoke numbering)
+
+featherdoc_add_cpp_test(
+    cli_numbering_catalog_lint_tests
+    cli_numbering_catalog_lint
+    cli_numbering_catalog_lint_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_lint.cpp
+)
+target_include_directories(
+    cli_numbering_catalog_lint_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_numbering_catalog_lint cli smoke cli_smoke numbering)
+
+featherdoc_add_cpp_test(
+    cli_numbering_catalog_diff_tests
+    cli_numbering_catalog_diff
+    cli_numbering_catalog_diff_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_diff.cpp
+)
+target_include_directories(
+    cli_numbering_catalog_diff_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_numbering_catalog_diff cli smoke cli_smoke numbering)
+
+featherdoc_add_cpp_test(
+    cli_domain_name_tests
+    cli_domain_name
+    cli_domain_name_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_names.cpp
+)
+target_include_directories(cli_domain_name_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_domain_name cli smoke cli_smoke)
+
+featherdoc_add_cpp_test(
+    cli_text_tests
+    cli_text
+    cli_text_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_text.cpp
+)
+target_include_directories(cli_text_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_text cli smoke cli_smoke)
+
+featherdoc_add_cpp_test(
+    cli_errors_tests
+    cli_errors
+    cli_errors_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_errors.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_usage.cpp
+)
+target_include_directories(cli_errors_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_errors cli smoke cli_smoke)
 
 featherdoc_add_cpp_test(
     cli_usage_tests
@@ -2081,6 +2735,82 @@ if(WIN32)
 
         add_test(
             NAME
+            release_candidate_blocker_rollup_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_fail_on_blocker
+            -Scenario
+            rollup_fail_on_blocker
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_fail_on_blocker release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_fail_on_warning
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_fail_on_warning
+            -Scenario
+            rollup_fail_on_warning
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_fail_on_warning release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_auto_discover
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_auto_discover
+            -Scenario
+            rollup_auto_discover
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_auto_discover release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_empty_auto_discover
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_empty_auto_discover
+            -Scenario
+            rollup_empty_auto_discover
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_empty_auto_discover release smoke release_smoke)
+
+        add_test(
+            NAME
             release_candidate_governance_handoff
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
@@ -2096,6 +2826,44 @@ if(WIN32)
             handoff
         )
         featherdoc_set_test_labels(release_candidate_governance_handoff release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            release_candidate_governance_handoff_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_governance_handoff_fail_on_blocker
+            -Scenario
+            handoff_fail_on_blocker
+        )
+        featherdoc_set_test_labels(
+            release_candidate_governance_handoff_fail_on_blocker release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            release_candidate_governance_handoff_fail_on_warning
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_governance_handoff_fail_on_warning
+            -Scenario
+            handoff_fail_on_warning
+        )
+        featherdoc_set_test_labels(
+            release_candidate_governance_handoff_fail_on_warning release smoke release_smoke governance)
 
         add_test(
             NAME
@@ -4766,6 +5534,8 @@ if(WIN32)
                 ${PROJECT_BINARY_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan
+                -Scenario
+                core
             )
 
             add_test(
@@ -4863,6 +5633,82 @@ if(NOT WIN32)
 
         add_test(
             NAME
+            release_candidate_blocker_rollup_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_fail_on_blocker
+            -Scenario
+            rollup_fail_on_blocker
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_fail_on_blocker release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_fail_on_warning
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_fail_on_warning
+            -Scenario
+            rollup_fail_on_warning
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_fail_on_warning release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_auto_discover
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_auto_discover
+            -Scenario
+            rollup_auto_discover
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_auto_discover release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_empty_auto_discover
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_empty_auto_discover
+            -Scenario
+            rollup_empty_auto_discover
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_empty_auto_discover release smoke release_smoke)
+
+        add_test(
+            NAME
             release_candidate_governance_handoff
             COMMAND
             ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
@@ -4878,6 +5724,44 @@ if(NOT WIN32)
             handoff
         )
         featherdoc_set_test_labels(release_candidate_governance_handoff release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            release_candidate_governance_handoff_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_governance_handoff_fail_on_blocker
+            -Scenario
+            handoff_fail_on_blocker
+        )
+        featherdoc_set_test_labels(
+            release_candidate_governance_handoff_fail_on_blocker release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            release_candidate_governance_handoff_fail_on_warning
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_governance_handoff_fail_on_warning
+            -Scenario
+            handoff_fail_on_warning
+        )
+        featherdoc_set_test_labels(
+            release_candidate_governance_handoff_fail_on_warning release smoke release_smoke governance)
 
         add_test(
             NAME
@@ -5052,10 +5936,129 @@ if(TARGET featherdoc_cli)
         cli
         cli_tests.cpp
     )
-    if(FEATHERDOC_BUILD_PDF AND TARGET FeatherDocPdf)
-        target_compile_definitions(cli_tests PRIVATE FEATHERDOC_CLI_ENABLE_PDF=1)
-    endif()
     featherdoc_set_test_labels(cli cli heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_header_footer_tests
+        cli_header_footer
+        cli_header_footer_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_header_footer cli header footer heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_numbering_catalog_tests
+        cli_numbering_catalog
+        cli_numbering_catalog_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_numbering_catalog cli numbering heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_style_numbering_tests
+        cli_style_numbering
+        cli_style_numbering_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_style_numbering cli styles numbering heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_style_inheritance_tests
+        cli_style_inheritance
+        cli_style_inheritance_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_style_inheritance cli styles heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_style_properties_tests
+        cli_style_properties
+        cli_style_properties_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_style_properties cli styles heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_paragraph_run_tests
+        cli_paragraph_run
+        cli_paragraph_run_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_paragraph_run cli paragraph run styles heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_page_setup_tests
+        cli_page_setup
+        cli_page_setup_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_page_setup cli page_setup heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_content_controls_tests
+        cli_content_controls
+        cli_content_controls_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_content_controls cli content_controls heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_semantic_diff_tests
+        cli_semantic_diff
+        cli_semantic_diff_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_semantic_diff cli semantic_diff heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_template_table_tests
+        cli_template_table
+        cli_template_table_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_template_table cli template table heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_table_tests
+        cli_table
+        cli_table_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_table cli table heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_review_tests
+        cli_review
+        cli_review_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_review cli review heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_bookmark_content_tests
+        cli_bookmark_content
+        cli_bookmark_content_tests.cpp
+    )
+    featherdoc_set_test_labels(
+        cli_bookmark_content cli bookmark content_controls images heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_field_tests
+        cli_fields
+        cli_field_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_fields cli fields heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_image_tests
+        cli_images
+        cli_image_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_images cli images heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_template_schema_tests
+        cli_template_schema
+        cli_template_schema_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_template_schema cli template schema heavy)
+
+    if(NOT FEATHERDOC_BUILD_PDF OR NOT TARGET FeatherDocPdf)
+        featherdoc_add_cli_cpp_test(
+            cli_pdf_disabled_tests
+            cli_pdf_disabled
+            cli_pdf_disabled_tests.cpp
+        )
+        featherdoc_set_test_labels(cli_pdf_disabled cli smoke pdf heavy)
+    endif()
 
     featherdoc_add_cli_cpp_test(
         cli_styles_tests

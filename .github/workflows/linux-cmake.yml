@@ -14,7 +14,7 @@ on:
 jobs:
   minimal-build-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
 
     strategy:
       fail-fast: false
@@ -46,7 +46,7 @@ jobs:
           -DBUILD_SAMPLES=OFF
 
       - name: Build
-        run: cmake --build build-linux-${{ matrix.compiler }} --parallel
+        run: cmake --build build-linux-${{ matrix.compiler }} --parallel 2
 
       - name: Run tests
         run: >

@@ -156,7 +156,11 @@ foreach ($entry in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Na
     $templateValidations = @(Get-ProjectTemplateSmokeArrayProperty -Object $entry -Name "template_validations")
     $schemaValidation = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $entry -Name "schema_validation"
     $schemaBaseline = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $entry -Name "schema_baseline"
+    $renderDataSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $entry -Name "render_data_smoke"
     $visualSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $entry -Name "visual_smoke"
+    $latestChecks = if ($null -eq $summaryEntry) { $null } else { Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "checks" }
+    $latestRenderData = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $latestChecks -Name "render_data"
+    $latestVisualSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $latestChecks -Name "visual_smoke"
 
     $entries.Add([pscustomobject]@{
         name = $name
@@ -174,21 +178,31 @@ foreach ($entry in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Na
         schema_baseline_schema_file = if ($null -eq $schemaBaseline) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "schema_file" }
         schema_baseline_target_mode = if ($null -eq $schemaBaseline) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "target_mode" }
         schema_baseline_generated_output = if ($null -eq $schemaBaseline) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "generated_output" }
+        render_data_enabled = ($null -ne $renderDataSmoke)
+        render_data_path = if ($null -eq $renderDataSmoke) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $renderDataSmoke -Name "data_path" }
+        render_data_mapping_path = if ($null -eq $renderDataSmoke) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $renderDataSmoke -Name "mapping_path" }
+        render_data_output_docx = if ($null -eq $renderDataSmoke) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $renderDataSmoke -Name "output_docx" }
         visual_smoke_enabled = if ($visualSmoke -is [bool]) { [bool]$visualSmoke } elseif ($null -ne $visualSmoke) { [bool]$true } else { $false }
+        visual_smoke_input = if ($visualSmoke -isnot [bool] -and $null -ne $visualSmoke) { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $visualSmoke -Name "input" } else { "" }
         visual_smoke_output_dir = if ($visualSmoke -isnot [bool] -and $null -ne $visualSmoke) { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $visualSmoke -Name "output_dir" } else { "" }
         latest_available = ($null -ne $summaryEntry)
         latest_status = if ($null -eq $summaryEntry) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summaryEntry -Name "status" }
         latest_passed = if ($null -eq $summaryEntry) { $null } else { [bool](Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "passed") }
         latest_manual_review_pending = if ($null -eq $summaryEntry) { $null } else { [bool](Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "manual_review_pending") }
         latest_artifact_dir = if ($null -eq $summaryEntry) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summaryEntry -Name "artifact_dir" }
-        latest_visual_review_status = if ($null -eq $summaryEntry) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "checks") -Name "visual_smoke") -Name "review_status" }
-        latest_visual_review_verdict = if ($null -eq $summaryEntry) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "checks") -Name "visual_smoke") -Name "review_verdict" }
+        latest_render_data_status = if ($null -eq $latestRenderData) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $latestRenderData -Name "status" }
+        latest_render_data_output_docx = if ($null -eq $latestRenderData) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $latestRenderData -Name "output_docx" }
+        latest_render_data_remaining_placeholder_count = if ($null -eq $latestRenderData) { $null } else {
+            $remainingPlaceholderCount = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $latestRenderData -Name "remaining_placeholder_count"
+            if ([string]::IsNullOrWhiteSpace($remainingPlaceholderCount)) { $null } else { [int]$remainingPlaceholderCount }
+        }
+        latest_visual_review_status = if ($null -eq $latestVisualSmoke) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $latestVisualSmoke -Name "review_status" }
+        latest_visual_review_verdict = if ($null -eq $latestVisualSmoke) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $latestVisualSmoke -Name "review_verdict" }
         latest_visual_findings_count = if ($null -eq $summaryEntry) { $null } else {
-            $visualSmokeSummary = Get-ProjectTemplateSmokeOptionalPropertyObject -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "checks") -Name "visual_smoke"
-            $visualFindingsCount = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $visualSmokeSummary -Name "findings_count"
+            $visualFindingsCount = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $latestVisualSmoke -Name "findings_count"
             if ([string]::IsNullOrWhiteSpace($visualFindingsCount)) { $null } else { [int]$visualFindingsCount }
         }
-        latest_contact_sheet = if ($null -eq $summaryEntry) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "checks") -Name "visual_smoke") -Name "contact_sheet" }
+        latest_contact_sheet = if ($null -eq $latestVisualSmoke) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $latestVisualSmoke -Name "contact_sheet" }
     }) | Out-Null
 }
 
@@ -205,6 +219,7 @@ $report = [ordered]@{
     registered_entry_count = $entries.Count
     schema_validation_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.schema_validation_enabled }).Count
     schema_baseline_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.schema_baseline_enabled }).Count
+    render_data_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.render_data_enabled }).Count
     visual_smoke_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.visual_smoke_enabled }).Count
     latest_available_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.latest_available }).Count
     latest_missing_entry_count = @($entries.ToArray() | Where-Object { -not [bool]$_.latest_available }).Count
@@ -294,7 +309,20 @@ foreach ($entry in $entries) {
     if (-not [string]::IsNullOrWhiteSpace($entry.schema_baseline_generated_output)) {
         [void]$lines.Add("  schema_baseline_generated_output: $($entry.schema_baseline_generated_output)")
     }
+    [void]$lines.Add("  render_data_enabled: $($entry.render_data_enabled)")
+    if (-not [string]::IsNullOrWhiteSpace($entry.render_data_path)) {
+        [void]$lines.Add("  render_data_path: $($entry.render_data_path)")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($entry.render_data_mapping_path)) {
+        [void]$lines.Add("  render_data_mapping_path: $($entry.render_data_mapping_path)")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($entry.render_data_output_docx)) {
+        [void]$lines.Add("  render_data_output_docx: $($entry.render_data_output_docx)")
+    }
     [void]$lines.Add("  visual_smoke_enabled: $($entry.visual_smoke_enabled)")
+    if (-not [string]::IsNullOrWhiteSpace($entry.visual_smoke_input)) {
+        [void]$lines.Add("  visual_smoke_input: $($entry.visual_smoke_input)")
+    }
     if (-not [string]::IsNullOrWhiteSpace($entry.visual_smoke_output_dir)) {
         [void]$lines.Add("  visual_smoke_output_dir: $($entry.visual_smoke_output_dir)")
     }
@@ -303,6 +331,15 @@ foreach ($entry in $entries) {
         [void]$lines.Add("  latest_passed: $($entry.latest_passed)")
         [void]$lines.Add("  latest_manual_review_pending: $($entry.latest_manual_review_pending)")
         [void]$lines.Add("  latest_artifact_dir: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $entry.latest_artifact_dir)")
+        if (-not [string]::IsNullOrWhiteSpace($entry.latest_render_data_status)) {
+            [void]$lines.Add("  latest_render_data_status: $($entry.latest_render_data_status)")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($entry.latest_render_data_output_docx)) {
+            [void]$lines.Add("  latest_render_data_output_docx: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $entry.latest_render_data_output_docx)")
+        }
+        if ($null -ne $entry.latest_render_data_remaining_placeholder_count) {
+            [void]$lines.Add("  latest_render_data_remaining_placeholder_count: $($entry.latest_render_data_remaining_placeholder_count)")
+        }
         if (-not [string]::IsNullOrWhiteSpace($entry.latest_visual_review_status)) {
             [void]$lines.Add("  latest_visual_review_status: $($entry.latest_visual_review_status)")
         }

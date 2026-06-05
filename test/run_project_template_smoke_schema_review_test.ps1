@@ -54,7 +54,14 @@ $generatedOutput = Join-Path $resolvedWorkingDir "generated.template-schema.json
 $reuseManifestPath = Join-Path $resolvedWorkingDir "prepared-input-reuse.project-template-smoke.manifest.json"
 $reuseOutputDir = Join-Path $resolvedWorkingDir "prepared-input-reuse-output"
 $reuseGeneratedOutput = Join-Path $resolvedWorkingDir "prepared-input-reuse.generated.template-schema.json"
+$reuseRenderedDocx = Join-Path $resolvedWorkingDir "prepared-input-reuse.rendered.docx"
+$reuseRenderSummary = Join-Path $resolvedWorkingDir "prepared-input-reuse.render_data.summary.json"
+$reuseRenderPatch = Join-Path $resolvedWorkingDir "prepared-input-reuse.render_patch.json"
+$reuseDraftPlan = Join-Path $resolvedWorkingDir "prepared-input-reuse.render_plan.draft.json"
+$reusePatchedPlan = Join-Path $resolvedWorkingDir "prepared-input-reuse.render_plan.patched.json"
 $canonicalSchemaPath = Join-Path $resolvedRepoRoot "baselines\template-schema\chinese_invoice_template.schema.json"
+$renderDataPath = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.render_data.json"
+$renderMappingPath = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.render_data_mapping.json"
 
 Set-Content -LiteralPath $schemaPath -Encoding UTF8 -Value `
     '{"targets":[{"part":"body","slots":[{"bookmark":"customer_name","kind":"text"}]}]}'
@@ -179,6 +186,16 @@ if (Test-Path -LiteralPath $canonicalSchemaPath) {
                     generated_output = $reuseGeneratedOutput
                     target_mode = "default"
                 }
+                render_data_smoke = [ordered]@{
+                    data_path = $renderDataPath
+                    mapping_path = $renderMappingPath
+                    output_docx = $reuseRenderedDocx
+                    summary_json = $reuseRenderSummary
+                    patch_plan_output = $reuseRenderPatch
+                    draft_plan_output = $reuseDraftPlan
+                    patched_plan_output = $reusePatchedPlan
+                    export_target_mode = "loaded-parts"
+                }
             }
         )
     }
@@ -206,6 +223,17 @@ if (Test-Path -LiteralPath $canonicalSchemaPath) {
         -Message "Prepared input reuse should not create failed entries."
     Assert-Equal -Actual ([bool]$reuseSummary.entries[0].passed) -Expected $true `
         -Message "Prepared input reuse entry should pass."
+    $reuseRenderData = $reuseSummary.entries[0].checks.render_data
+    Assert-Equal -Actual ([bool]$reuseRenderData.enabled) -Expected $true `
+        -Message "Prepared input reuse should enable render data smoke."
+    Assert-Equal -Actual ([string]$reuseRenderData.status) -Expected "completed" `
+        -Message "Render data smoke should complete."
+    Assert-True -Condition (Test-Path -LiteralPath $reuseRenderData.output_docx) `
+        -Message "Render data smoke should write the rendered DOCX."
+    Assert-True -Condition (Test-Path -LiteralPath $reuseRenderData.summary_json) `
+        -Message "Render data smoke should write its summary JSON."
+    Assert-Equal -Actual ([int]$reuseRenderData.remaining_placeholder_count) -Expected 0 `
+        -Message "Render data smoke should leave no unresolved placeholders."
 }
 
 $summaryMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryMarkdownPath

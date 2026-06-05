@@ -41,6 +41,7 @@ $visualValidationDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "d
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 $basicTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\basic_tests.cpp"
 $cliTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\cli_tests.cpp"
+$cliSemanticDiffTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\cli_semantic_diff_tests.cpp"
 
 $visualEntrypoints = @(
     [ordered]@{
@@ -103,7 +104,7 @@ $visualEntrypoints = @(
             "Header AFTER",
             "SemanticDiffApprovedOutline"
         )
-        testText = $cliTests
+        testText = $cliTests + "`n" + $cliSemanticDiffTests
         testMarkers = @(
             "cli semantic-diff reports document changes and can fail on diff",
             "cli semantic-diff reports header and footer template part changes"
@@ -137,7 +138,7 @@ $visualEntrypoints = @(
             "append_sequence_field",
             "enable_update_fields_on_open"
         )
-        testText = $basicTests + "`n" + $cliTests
+        testText = $basicTests + "`n" + $cliTests + "`n" + $cliSemanticDiffTests
         testMarkers = @(
             "template part generic fields validate options and indexes",
             "cli semantic-diff reports TOC REF and SEQ field changes"

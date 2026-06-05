@@ -435,6 +435,45 @@ function Test-ProjectTemplateSmokeManifest {
             }
         }
 
+        $renderDataSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $entry -Name "render_data_smoke"
+        if ($null -ne $renderDataSmoke) {
+            $configuredChecks.Add("render_data") | Out-Null
+
+            $dataPath = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $renderDataSmoke -Name "data_path"
+            $mappingPath = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $renderDataSmoke -Name "mapping_path"
+            $exportTargetMode = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $renderDataSmoke -Name "export_target_mode"
+
+            if ([string]::IsNullOrWhiteSpace($dataPath)) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.render_data_smoke.data_path" -Message "must be a non-empty string"
+            } elseif ($CheckPaths) {
+                $resolvedDataPath = Resolve-ProjectTemplateSmokePath -RepoRoot $RepoRoot -InputPath $dataPath -AllowMissing
+                if (-not (Test-Path -LiteralPath $resolvedDataPath)) {
+                    Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.render_data_smoke.data_path" -Message "does not exist: $resolvedDataPath"
+                }
+            }
+
+            if ([string]::IsNullOrWhiteSpace($mappingPath)) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.render_data_smoke.mapping_path" -Message "must be a non-empty string"
+            } elseif ($CheckPaths) {
+                $resolvedMappingPath = Resolve-ProjectTemplateSmokePath -RepoRoot $RepoRoot -InputPath $mappingPath -AllowMissing
+                if (-not (Test-Path -LiteralPath $resolvedMappingPath)) {
+                    Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.render_data_smoke.mapping_path" -Message "does not exist: $resolvedMappingPath"
+                }
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($exportTargetMode) -and
+                $exportTargetMode -notin @("loaded-parts", "resolved-section-targets")) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.render_data_smoke.export_target_mode" -Message "must be one of: loaded-parts, resolved-section-targets"
+            }
+
+            foreach ($outputProperty in @("output_docx", "summary_json", "patch_plan_output", "draft_plan_output", "patched_plan_output")) {
+                $outputPath = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $renderDataSmoke -Name $outputProperty
+                if (-not [string]::IsNullOrWhiteSpace($outputPath)) {
+                    [void](Resolve-ProjectTemplateSmokePath -RepoRoot $RepoRoot -InputPath $outputPath -AllowMissing)
+                }
+            }
+        }
+
         $visualSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $entry -Name "visual_smoke"
         if ($null -ne $visualSmoke) {
             if ($visualSmoke -is [bool]) {
@@ -448,6 +487,11 @@ function Test-ProjectTemplateSmokeManifest {
                 }
                 if ($null -eq $enabledValue -or [bool]$enabledValue) {
                     $configuredChecks.Add("visual_smoke") | Out-Null
+                }
+                $inputValue = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $visualSmoke -Name "input"
+                if (-not [string]::IsNullOrWhiteSpace($inputValue) -and
+                    $inputValue -notin @("template", "rendered_docx")) {
+                    Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.visual_smoke.input" -Message "must be one of: template, rendered_docx"
                 }
             }
         }

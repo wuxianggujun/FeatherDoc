@@ -14,7 +14,7 @@ on:
 jobs:
   minimal-build-test:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -29,7 +29,7 @@ jobs:
           -DBUILD_SAMPLES=OFF
 
       - name: Build
-        run: cmake --build build-macos --parallel
+        run: cmake --build build-macos --parallel 2
 
       - name: Run tests
         run: >
