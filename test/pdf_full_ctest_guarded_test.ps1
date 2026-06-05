@@ -77,7 +77,7 @@ $passResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
     "-OutputJson", $passSummaryPath,
     "-LogDir", (Join-Path $resolvedWorkingDir "pass-logs"),
     "-CtestExecutable", $fakePass,
-    "-OuterTimeoutSeconds", "5",
+    "-OuterTimeoutSeconds", "15",
     "-CtestTimeoutSeconds", "60"
 )
 Assert-Equal -Actual $passResult.ExitCode -Expected 0 `

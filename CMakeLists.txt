@@ -1182,10 +1182,60 @@ if(BUILD_CLI)
         cli/featherdoc_cli_main.cpp
         cli/featherdoc_cli_domain_names.cpp
         cli/featherdoc_cli_domain_parse.cpp
+        cli/featherdoc_cli_errors.cpp
+        cli/featherdoc_cli_field_parse.cpp
+        cli/featherdoc_cli_inspect_content_options_parse.cpp
+        cli/featherdoc_cli_image_options_parse.cpp
+        cli/featherdoc_cli_bookmark_text_options_parse.cpp
+        cli/featherdoc_cli_document_mutation_options_parse.cpp
+        cli/featherdoc_cli_inspect_numbering_options_parse.cpp
+        cli/featherdoc_cli_inspect_style_options_parse.cpp
+        cli/featherdoc_cli_inspect_table_item_options_parse.cpp
         cli/featherdoc_cli_json.cpp
+        cli/featherdoc_cli_json_parse.cpp
+        cli/featherdoc_cli_numbering_catalog_diff.cpp
+        cli/featherdoc_cli_numbering_catalog_lint.cpp
+        cli/featherdoc_cli_numbering_catalog_options_parse.cpp
+        cli/featherdoc_cli_numbering_catalog_parse.cpp
+        cli/featherdoc_cli_numbering_catalog_patch_apply.cpp
+        cli/featherdoc_cli_numbering_catalog_patch_parse.cpp
+        cli/featherdoc_cli_numbering_options_parse.cpp
+        cli/featherdoc_cli_page_setup_parse.cpp
+        cli/featherdoc_cli_paragraph_list_options_parse.cpp
+        cli/featherdoc_cli_paragraph_run_options_parse.cpp
+        cli/featherdoc_cli_semantic_diff_options_parse.cpp
+        cli/featherdoc_cli_style_ensure_options_parse.cpp
+        cli/featherdoc_cli_table_cell_options_parse.cpp
+        cli/featherdoc_cli_template_inspect_options_parse.cpp
+        cli/featherdoc_cli_template_table_json_patch_apply.cpp
+        cli/featherdoc_cli_template_table_json_patch_parse.cpp
+        cli/featherdoc_cli_template_table_options_parse.cpp
+        cli/featherdoc_cli_template_table_mutation_options_parse.cpp
+        cli/featherdoc_cli_template_validation_options_parse.cpp
+        cli/featherdoc_cli_run_properties_options_parse.cpp
         cli/featherdoc_cli_parse.cpp
+        cli/featherdoc_cli_pdf_parse.cpp
+        cli/featherdoc_cli_review_mutation_plan_parse.cpp
+        cli/featherdoc_cli_run_recipe_parse.cpp
+        cli/featherdoc_cli_section_options_parse.cpp
+        cli/featherdoc_cli_style_options_parse.cpp
+        cli/featherdoc_cli_style_refactor_plan.cpp
+        cli/featherdoc_cli_style_refactor_plan_parse.cpp
+        cli/featherdoc_cli_style_refactor_options_parse.cpp
+        cli/featherdoc_cli_style_refactor_rollback_parse.cpp
+        cli/featherdoc_cli_table_style_look_options_parse.cpp
+        cli/featherdoc_cli_table_position_plan_build.cpp
+        cli/featherdoc_cli_table_position_options_parse.cpp
+        cli/featherdoc_cli_table_position_plan_parse.cpp
+        cli/featherdoc_cli_template_schema_ops.cpp
+        cli/featherdoc_cli_template_schema_options_parse.cpp
+        cli/featherdoc_cli_template_schema_patch_ops.cpp
+        cli/featherdoc_cli_template_schema_patch_parse.cpp
+        cli/featherdoc_cli_template_schema_parse.cpp
+        cli/featherdoc_cli_template_slot_parse.cpp
         cli/featherdoc_cli_text.cpp
         cli/featherdoc_cli_usage.cpp
+        cli/featherdoc_cli_validation_part.cpp
         cli/featherdoc_cli.cpp)
     target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::FeatherDoc)
     if(FEATHERDOC_BUILD_PDF AND TARGET FeatherDocPdf)

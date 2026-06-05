@@ -3,6 +3,9 @@
 
 #include "featherdoc_cli_domain_parse.hpp"
 
+#include <cstddef>
+#include <string>
+
 TEST_CASE("cli domain parsers accept documented enum tokens") {
     featherdoc::page_orientation orientation{};
     CHECK(featherdoc_cli::parse_page_orientation("portrait", orientation));
@@ -72,6 +75,31 @@ TEST_CASE("cli domain parsers accept documented enum tokens") {
     CHECK(featherdoc_cli::parse_floating_image_wrap_mode("top-bottom",
                                                         wrap_mode));
     CHECK(wrap_mode == featherdoc::floating_image_wrap_mode::top_bottom);
+}
+
+TEST_CASE("cli domain JSON parser accepts section reference kind values") {
+    const std::string text = " \"first\"";
+    std::size_t index = 0U;
+    featherdoc::section_reference_kind reference_kind{
+        featherdoc::section_reference_kind::default_reference};
+    std::string error_message;
+
+    CHECK(featherdoc_cli::parse_json_patch_reference_kind_value(
+        text, index, reference_kind, error_message));
+    CHECK(reference_kind == featherdoc::section_reference_kind::first_page);
+    CHECK_EQ(index, text.size());
+}
+
+TEST_CASE("cli domain JSON parser rejects invalid section reference kind values") {
+    const std::string text = "\"last\"";
+    std::size_t index = 0U;
+    featherdoc::section_reference_kind reference_kind{
+        featherdoc::section_reference_kind::default_reference};
+    std::string error_message;
+
+    CHECK_FALSE(featherdoc_cli::parse_json_patch_reference_kind_value(
+        text, index, reference_kind, error_message));
+    CHECK(error_message.find("default") != std::string::npos);
 }
 
 TEST_CASE("cli table style parsers accept documented enum tokens") {
@@ -219,6 +247,154 @@ TEST_CASE("cli table style parsers accept documented enum tokens") {
     CHECK(line_rule == featherdoc::paragraph_line_spacing_rule::exact);
 }
 
+TEST_CASE("cli table cell parsers accept documented enum tokens") {
+    featherdoc::cell_margin_edge margin_edge{};
+    CHECK(featherdoc_cli::parse_cell_margin_edge_text("top", margin_edge));
+    CHECK(margin_edge == featherdoc::cell_margin_edge::top);
+    CHECK(featherdoc_cli::parse_cell_margin_edge_text("left", margin_edge));
+    CHECK(margin_edge == featherdoc::cell_margin_edge::left);
+    CHECK(featherdoc_cli::parse_cell_margin_edge_text("bottom", margin_edge));
+    CHECK(margin_edge == featherdoc::cell_margin_edge::bottom);
+    CHECK(featherdoc_cli::parse_cell_margin_edge_text("right", margin_edge));
+    CHECK(margin_edge == featherdoc::cell_margin_edge::right);
+
+    featherdoc::cell_border_edge cell_border_edge{};
+    CHECK(featherdoc_cli::parse_cell_border_edge_text("top", cell_border_edge));
+    CHECK(cell_border_edge == featherdoc::cell_border_edge::top);
+    CHECK(featherdoc_cli::parse_cell_border_edge_text("left",
+                                                      cell_border_edge));
+    CHECK(cell_border_edge == featherdoc::cell_border_edge::left);
+    CHECK(featherdoc_cli::parse_cell_border_edge_text("bottom",
+                                                      cell_border_edge));
+    CHECK(cell_border_edge == featherdoc::cell_border_edge::bottom);
+    CHECK(featherdoc_cli::parse_cell_border_edge_text("right",
+                                                      cell_border_edge));
+    CHECK(cell_border_edge == featherdoc::cell_border_edge::right);
+
+    featherdoc::table_border_edge table_border_edge{};
+    CHECK(featherdoc_cli::parse_table_border_edge_text("inside_vertical",
+                                                       table_border_edge));
+    CHECK(table_border_edge == featherdoc::table_border_edge::inside_vertical);
+
+    featherdoc::border_style border_style{};
+    CHECK(featherdoc_cli::parse_border_style_text("double-line",
+                                                  border_style));
+    CHECK(border_style == featherdoc::border_style::double_line);
+
+    featherdoc::row_height_rule height_rule{};
+    CHECK(featherdoc_cli::parse_row_height_rule_text("automatic",
+                                                     height_rule));
+    CHECK(height_rule == featherdoc::row_height_rule::automatic);
+    CHECK(featherdoc_cli::parse_row_height_rule_text("at_least",
+                                                     height_rule));
+    CHECK(height_rule == featherdoc::row_height_rule::at_least);
+    CHECK(featherdoc_cli::parse_row_height_rule_text("exact", height_rule));
+    CHECK(height_rule == featherdoc::row_height_rule::exact);
+
+    featherdoc::cell_vertical_alignment vertical_alignment{};
+    CHECK(featherdoc_cli::parse_cell_vertical_alignment_text(
+        "bottom", vertical_alignment));
+    CHECK(vertical_alignment == featherdoc::cell_vertical_alignment::bottom);
+
+    featherdoc::table_layout_mode layout_mode{};
+    CHECK(featherdoc_cli::parse_table_layout_mode_text("autofit",
+                                                       layout_mode));
+    CHECK(layout_mode == featherdoc::table_layout_mode::autofit);
+    CHECK(featherdoc_cli::parse_table_layout_mode_text("fixed", layout_mode));
+    CHECK(layout_mode == featherdoc::table_layout_mode::fixed);
+
+    featherdoc::table_alignment table_alignment{};
+    CHECK(featherdoc_cli::parse_table_alignment_text("left",
+                                                     table_alignment));
+    CHECK(table_alignment == featherdoc::table_alignment::left);
+    CHECK(featherdoc_cli::parse_table_alignment_text("center",
+                                                     table_alignment));
+    CHECK(table_alignment == featherdoc::table_alignment::center);
+    CHECK(featherdoc_cli::parse_table_alignment_text("right",
+                                                     table_alignment));
+    CHECK(table_alignment == featherdoc::table_alignment::right);
+
+    featherdoc::cell_text_direction text_direction{};
+    CHECK(featherdoc_cli::parse_cell_text_direction_text(
+        "top_to_bottom_left_to_right_rotated", text_direction));
+    CHECK(text_direction ==
+          featherdoc::cell_text_direction::
+              top_to_bottom_left_to_right_rotated);
+}
+
+TEST_CASE("cli table position parsers accept documented enum tokens") {
+    featherdoc::table_position_horizontal_reference horizontal_reference{};
+    CHECK(featherdoc_cli::parse_table_position_horizontal_reference(
+        "margin", horizontal_reference));
+    CHECK(horizontal_reference ==
+          featherdoc::table_position_horizontal_reference::margin);
+    CHECK(featherdoc_cli::parse_table_position_horizontal_reference(
+        "page", horizontal_reference));
+    CHECK(horizontal_reference ==
+          featherdoc::table_position_horizontal_reference::page);
+    CHECK(featherdoc_cli::parse_table_position_horizontal_reference(
+        "column", horizontal_reference));
+    CHECK(horizontal_reference ==
+          featherdoc::table_position_horizontal_reference::column);
+
+    featherdoc::table_position_vertical_reference vertical_reference{};
+    CHECK(featherdoc_cli::parse_table_position_vertical_reference(
+        "margin", vertical_reference));
+    CHECK(vertical_reference ==
+          featherdoc::table_position_vertical_reference::margin);
+    CHECK(featherdoc_cli::parse_table_position_vertical_reference(
+        "page", vertical_reference));
+    CHECK(vertical_reference ==
+          featherdoc::table_position_vertical_reference::page);
+    CHECK(featherdoc_cli::parse_table_position_vertical_reference(
+        "paragraph", vertical_reference));
+    CHECK(vertical_reference ==
+          featherdoc::table_position_vertical_reference::paragraph);
+
+    featherdoc::table_position_horizontal_spec horizontal_spec{};
+    CHECK(featherdoc_cli::parse_table_position_horizontal_spec("left",
+                                                               horizontal_spec));
+    CHECK(horizontal_spec == featherdoc::table_position_horizontal_spec::left);
+    CHECK(featherdoc_cli::parse_table_position_horizontal_spec(
+        "center", horizontal_spec));
+    CHECK(horizontal_spec == featherdoc::table_position_horizontal_spec::center);
+    CHECK(featherdoc_cli::parse_table_position_horizontal_spec("right",
+                                                               horizontal_spec));
+    CHECK(horizontal_spec == featherdoc::table_position_horizontal_spec::right);
+    CHECK(featherdoc_cli::parse_table_position_horizontal_spec(
+        "inside", horizontal_spec));
+    CHECK(horizontal_spec == featherdoc::table_position_horizontal_spec::inside);
+    CHECK(featherdoc_cli::parse_table_position_horizontal_spec(
+        "outside", horizontal_spec));
+    CHECK(horizontal_spec ==
+          featherdoc::table_position_horizontal_spec::outside);
+
+    featherdoc::table_position_vertical_spec vertical_spec{};
+    CHECK(featherdoc_cli::parse_table_position_vertical_spec("top",
+                                                             vertical_spec));
+    CHECK(vertical_spec == featherdoc::table_position_vertical_spec::top);
+    CHECK(featherdoc_cli::parse_table_position_vertical_spec("center",
+                                                             vertical_spec));
+    CHECK(vertical_spec == featherdoc::table_position_vertical_spec::center);
+    CHECK(featherdoc_cli::parse_table_position_vertical_spec("bottom",
+                                                             vertical_spec));
+    CHECK(vertical_spec == featherdoc::table_position_vertical_spec::bottom);
+    CHECK(featherdoc_cli::parse_table_position_vertical_spec("inside",
+                                                             vertical_spec));
+    CHECK(vertical_spec == featherdoc::table_position_vertical_spec::inside);
+    CHECK(featherdoc_cli::parse_table_position_vertical_spec("outside",
+                                                             vertical_spec));
+    CHECK(vertical_spec == featherdoc::table_position_vertical_spec::outside);
+
+    featherdoc::table_overlap overlap{};
+    CHECK(featherdoc_cli::parse_table_overlap_text("allow", overlap));
+    CHECK(overlap == featherdoc::table_overlap::allow);
+    CHECK(featherdoc_cli::parse_table_overlap_text("overlap", overlap));
+    CHECK(overlap == featherdoc::table_overlap::allow);
+    CHECK(featherdoc_cli::parse_table_overlap_text("never", overlap));
+    CHECK(overlap == featherdoc::table_overlap::never);
+}
+
 TEST_CASE("cli domain parsers reject unknown enum tokens") {
     featherdoc::page_orientation orientation =
         featherdoc::page_orientation::portrait;
@@ -300,4 +476,93 @@ TEST_CASE("cli table style parsers reject unknown enum tokens") {
         featherdoc_cli::parse_table_style_paragraph_line_spacing_rule_text(
             "minimum", line_rule));
     CHECK(line_rule == featherdoc::paragraph_line_spacing_rule::exact);
+}
+
+TEST_CASE("cli table cell parsers reject unknown enum tokens") {
+    featherdoc::cell_margin_edge margin_edge =
+        featherdoc::cell_margin_edge::left;
+    CHECK_FALSE(featherdoc_cli::parse_cell_margin_edge_text("inside",
+                                                            margin_edge));
+    CHECK(margin_edge == featherdoc::cell_margin_edge::left);
+
+    featherdoc::cell_border_edge cell_border_edge =
+        featherdoc::cell_border_edge::top;
+    CHECK_FALSE(featherdoc_cli::parse_cell_border_edge_text(
+        "inside_vertical", cell_border_edge));
+    CHECK(cell_border_edge == featherdoc::cell_border_edge::top);
+
+    featherdoc::table_border_edge table_border_edge =
+        featherdoc::table_border_edge::top;
+    CHECK_FALSE(featherdoc_cli::parse_table_border_edge_text(
+        "diagonal", table_border_edge));
+    CHECK(table_border_edge == featherdoc::table_border_edge::top);
+
+    featherdoc::border_style border_style = featherdoc::border_style::single;
+    CHECK_FALSE(featherdoc_cli::parse_border_style_text("hairline",
+                                                        border_style));
+    CHECK(border_style == featherdoc::border_style::single);
+
+    featherdoc::row_height_rule height_rule =
+        featherdoc::row_height_rule::automatic;
+    CHECK_FALSE(featherdoc_cli::parse_row_height_rule_text("minimum",
+                                                           height_rule));
+    CHECK(height_rule == featherdoc::row_height_rule::automatic);
+
+    featherdoc::cell_vertical_alignment vertical_alignment =
+        featherdoc::cell_vertical_alignment::center;
+    CHECK_FALSE(featherdoc_cli::parse_cell_vertical_alignment_text(
+        "middle", vertical_alignment));
+    CHECK(vertical_alignment == featherdoc::cell_vertical_alignment::center);
+
+    featherdoc::table_layout_mode layout_mode =
+        featherdoc::table_layout_mode::autofit;
+    CHECK_FALSE(featherdoc_cli::parse_table_layout_mode_text("fluid",
+                                                             layout_mode));
+    CHECK(layout_mode == featherdoc::table_layout_mode::autofit);
+
+    featherdoc::table_alignment table_alignment =
+        featherdoc::table_alignment::center;
+    CHECK_FALSE(featherdoc_cli::parse_table_alignment_text("middle",
+                                                           table_alignment));
+    CHECK(table_alignment == featherdoc::table_alignment::center);
+
+    featherdoc::cell_text_direction text_direction =
+        featherdoc::cell_text_direction::left_to_right_top_to_bottom;
+    CHECK_FALSE(featherdoc_cli::parse_cell_text_direction_text(
+        "sideways", text_direction));
+    CHECK(text_direction ==
+          featherdoc::cell_text_direction::left_to_right_top_to_bottom);
+}
+
+TEST_CASE("cli table position parsers reject unknown enum tokens") {
+    featherdoc::table_position_horizontal_reference horizontal_reference =
+        featherdoc::table_position_horizontal_reference::page;
+    CHECK_FALSE(featherdoc_cli::parse_table_position_horizontal_reference(
+        "paragraph", horizontal_reference));
+    CHECK(horizontal_reference ==
+          featherdoc::table_position_horizontal_reference::page);
+
+    featherdoc::table_position_vertical_reference vertical_reference =
+        featherdoc::table_position_vertical_reference::page;
+    CHECK_FALSE(featherdoc_cli::parse_table_position_vertical_reference(
+        "column", vertical_reference));
+    CHECK(vertical_reference ==
+          featherdoc::table_position_vertical_reference::page);
+
+    featherdoc::table_position_horizontal_spec horizontal_spec =
+        featherdoc::table_position_horizontal_spec::center;
+    CHECK_FALSE(featherdoc_cli::parse_table_position_horizontal_spec(
+        "middle", horizontal_spec));
+    CHECK(horizontal_spec ==
+          featherdoc::table_position_horizontal_spec::center);
+
+    featherdoc::table_position_vertical_spec vertical_spec =
+        featherdoc::table_position_vertical_spec::center;
+    CHECK_FALSE(featherdoc_cli::parse_table_position_vertical_spec(
+        "middle", vertical_spec));
+    CHECK(vertical_spec == featherdoc::table_position_vertical_spec::center);
+
+    featherdoc::table_overlap overlap = featherdoc::table_overlap::never;
+    CHECK_FALSE(featherdoc_cli::parse_table_overlap_text("always", overlap));
+    CHECK(overlap == featherdoc::table_overlap::never);
 }

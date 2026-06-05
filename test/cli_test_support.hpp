@@ -126,6 +126,34 @@ auto json_quote(std::string_view value) -> std::string {
     return quoted;
 }
 
+auto json_escape_text(std::string_view text) -> std::string {
+    std::string escaped;
+    escaped.reserve(text.size());
+    for (const char ch : text) {
+        switch (ch) {
+        case '\\':
+            escaped += "\\\\";
+            break;
+        case '"':
+            escaped += "\\\"";
+            break;
+        case '\n':
+            escaped += "\\n";
+            break;
+        case '\r':
+            escaped += "\\r";
+            break;
+        case '\t':
+            escaped += "\\t";
+            break;
+        default:
+            escaped.push_back(ch);
+            break;
+        }
+    }
+    return escaped;
+}
+
 auto normalize_system_status(int status) -> int {
 #if defined(_WIN32)
     return status;
@@ -245,6 +273,20 @@ auto read_text_file(const fs::path &path) -> std::string {
     REQUIRE(stream.good());
     return std::string(std::istreambuf_iterator<char>(stream),
                        std::istreambuf_iterator<char>());
+}
+
+auto read_binary_file(const fs::path &path) -> std::string {
+    std::ifstream stream(path, std::ios::binary);
+    REQUIRE(stream.good());
+    return std::string(std::istreambuf_iterator<char>(stream),
+                       std::istreambuf_iterator<char>());
+}
+
+void write_binary_file(const fs::path &path, const std::string &data) {
+    std::ofstream stream(path, std::ios::binary);
+    REQUIRE(stream.good());
+    stream.write(data.data(), static_cast<std::streamsize>(data.size()));
+    REQUIRE(stream.good());
 }
 
 auto read_docx_entry(const fs::path &path, const char *entry_name) -> std::string {

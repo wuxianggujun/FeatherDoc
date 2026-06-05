@@ -40,6 +40,18 @@ cmake --build build
 cmake --install build --prefix install
 ```
 
+运行项目模板 smoke 路径，验证中文发票模板、按业务 JSON 渲染文档，
+并写出审查产物：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 `
+  -ManifestPath .\samples\project_template_smoke.manifest.json `
+  -BuildDir .\build `
+  -OutputDir .\output\project-template-smoke `
+  -SkipBuild `
+  -SkipVisualSmoke
+```
+
 最小 C++ 示例：
 
 ```cpp

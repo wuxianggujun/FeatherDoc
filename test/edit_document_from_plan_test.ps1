@@ -1,7 +1,9 @@
 param(
     [string]$RepoRoot,
     [string]$BuildDir,
-    [string]$WorkingDir
+    [string]$WorkingDir,
+    [ValidateSet("all", "core")]
+    [string]$Scenario = "all"
 )
 
 Set-StrictMode -Version Latest
@@ -2906,6 +2908,11 @@ Assert-Equal -Actual $styleListClearPageNumberSummary.operations[0].command -Exp
     -Message "Clear-page-number-start should use the CLI page-setup command."
 Assert-True -Condition ($null -eq $clearedSectionPageNumberNode) `
     -Message "Clear-page-number-start should remove the section page-number-start node."
+
+if ($Scenario -eq "core") {
+    Write-Host "Edit-from-plan core regression passed."
+    exit 0
+}
 
 $sectionPartsSourceDocx = Join-Path $resolvedWorkingDir "section_parts.source.docx"
 $sectionPartsPlanPath = Join-Path $resolvedWorkingDir "section_parts.edit_plan.json"

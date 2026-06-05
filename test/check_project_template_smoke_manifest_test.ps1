@@ -94,8 +94,14 @@ function New-ValidEntry {
                 }
             )
         }
+        render_data_smoke = [ordered]@{
+            data_path = $renderDataPath
+            mapping_path = $renderMappingPath
+            output_docx = "output/project-template-smoke/$Name-rendered.docx"
+        }
         visual_smoke = [ordered]@{
             enabled = $true
+            input = "rendered_docx"
             output_dir = "output/project-template-smoke/$Name-visual"
         }
     }
@@ -108,8 +114,12 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\check_project_template_smoke_manifest.ps1"
 $fixtureRoot = Join-Path $resolvedWorkingDir "fixtures"
 $inputDocxPath = Join-Path $fixtureRoot "invoice.docx"
+$renderDataPath = Join-Path $fixtureRoot "invoice.render_data.json"
+$renderMappingPath = Join-Path $fixtureRoot "invoice.render_data_mapping.json"
 New-Item -ItemType Directory -Path $fixtureRoot -Force | Out-Null
 Set-Content -LiteralPath $inputDocxPath -Encoding UTF8 -Value "placeholder docx fixture"
+Set-Content -LiteralPath $renderDataPath -Encoding UTF8 -Value "{ `"customer`": { `"name`": `"Acme`" } }"
+Set-Content -LiteralPath $renderMappingPath -Encoding UTF8 -Value "{ `"bookmark_text`": [] }"
 
 $validManifestPath = Join-Path $fixtureRoot "valid.manifest.json"
 $validOutputPath = Join-Path $resolvedWorkingDir "reports\valid_manifest_check.json"
@@ -145,6 +155,9 @@ Assert-ContainsText -Text ((@($validReport.entries[0].configured_checks) -join "
 Assert-ContainsText -Text ((@($validReport.entries[0].configured_checks) -join "`n")) `
     -ExpectedText "schema_validation" `
     -Message "Valid report should include schema validation checks."
+Assert-ContainsText -Text ((@($validReport.entries[0].configured_checks) -join "`n")) `
+    -ExpectedText "render_data" `
+    -Message "Valid report should include render data checks."
 Assert-ContainsText -Text ((@($validReport.entries[0].configured_checks) -join "`n")) `
     -ExpectedText "visual_smoke" `
     -Message "Valid report should include visual smoke checks."
@@ -257,5 +270,50 @@ Assert-ContainsText -Text $missingPathResult.Text -ExpectedText "entries[0].inpu
     -Message "CheckPaths failure should identify input_docx."
 Assert-ContainsText -Text $missingPathResult.Text -ExpectedText "does not exist:" `
     -Message "CheckPaths failure should explain the missing path."
+
+$missingRenderDataManifestPath = Join-Path $fixtureRoot "missing-render-data.manifest.json"
+$missingRenderDataPath = Join-Path $fixtureRoot "missing-data.json"
+Write-JsonFile -Path $missingRenderDataManifestPath -Value ([ordered]@{
+    entries = @(
+        [ordered]@{
+            name = "missing-render-data-template"
+            input_docx = $inputDocxPath
+            render_data_smoke = [ordered]@{
+                data_path = $missingRenderDataPath
+                mapping_path = $renderMappingPath
+            }
+        }
+    )
+})
+$missingRenderDataResult = Invoke-ManifestCheck -Arguments @("-ManifestPath", $missingRenderDataManifestPath, "-CheckPaths", "-Json")
+Assert-Equal -Actual $missingRenderDataResult.ExitCode -Expected 1 `
+    -Message "CheckPaths should fail for missing render data. Output: $($missingRenderDataResult.Text)"
+$missingRenderDataReport = $missingRenderDataResult.Text | ConvertFrom-Json
+Assert-ReportContainsIssue -Report $missingRenderDataReport `
+    -ExpectedPath "entries[0].render_data_smoke.data_path" `
+    -ExpectedMessage "does not exist: $missingRenderDataPath" `
+    -Message "Missing render data failure should identify data_path."
+
+$missingRenderMappingManifestPath = Join-Path $fixtureRoot "missing-render-mapping.manifest.json"
+Write-JsonFile -Path $missingRenderMappingManifestPath -Value ([ordered]@{
+    entries = @(
+        [ordered]@{
+            name = "missing-render-mapping-template"
+            input_docx = $inputDocxPath
+            render_data_smoke = [ordered]@{
+                data_path = $renderDataPath
+                mapping_path = ""
+            }
+        }
+    )
+})
+$missingRenderMappingResult = Invoke-ManifestCheck -Arguments @("-ManifestPath", $missingRenderMappingManifestPath, "-Json")
+Assert-Equal -Actual $missingRenderMappingResult.ExitCode -Expected 1 `
+    -Message "Manifest should fail when render mapping is missing. Output: $($missingRenderMappingResult.Text)"
+$missingRenderMappingReport = $missingRenderMappingResult.Text | ConvertFrom-Json
+Assert-ReportContainsIssue -Report $missingRenderMappingReport `
+    -ExpectedPath "entries[0].render_data_smoke.mapping_path" `
+    -ExpectedMessage "must be a non-empty string" `
+    -Message "Missing render mapping failure should identify mapping_path."
 
 Write-Host "Project template smoke manifest checker regression passed."

@@ -191,11 +191,63 @@
         "enabled": {
           "type": "boolean"
         },
+        "input": {
+          "type": "string",
+          "enum": [
+            "template",
+            "rendered_docx"
+          ]
+        },
         "output_dir": {
           "type": "string",
           "minLength": 1
         }
       }
+    },
+    "renderDataSmoke": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "data_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mapping_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "output_docx": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary_json": {
+          "type": "string",
+          "minLength": 1
+        },
+        "patch_plan_output": {
+          "type": "string",
+          "minLength": 1
+        },
+        "draft_plan_output": {
+          "type": "string",
+          "minLength": 1
+        },
+        "patched_plan_output": {
+          "type": "string",
+          "minLength": 1
+        },
+        "export_target_mode": {
+          "type": "string",
+          "enum": [
+            "loaded-parts",
+            "resolved-section-targets"
+          ]
+        }
+      },
+      "required": [
+        "data_path",
+        "mapping_path"
+      ]
     },
     "candidateExclusion": {
       "type": "object",
@@ -251,6 +303,9 @@
         },
         "schema_baseline": {
           "$ref": "#/$defs/schemaBaseline"
+        },
+        "render_data_smoke": {
+          "$ref": "#/$defs/renderDataSmoke"
         },
         "visual_smoke": {
           "oneOf": [

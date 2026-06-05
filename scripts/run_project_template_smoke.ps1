@@ -822,6 +822,84 @@ function Invoke-BaselineCheck {
     }
 }
 
+function Invoke-RenderDataSmoke {
+    param(
+        [string]$ScriptPath,
+        [string]$InputDocx,
+        [string]$DataPath,
+        [string]$MappingPath,
+        [string]$OutputDocx,
+        [string]$SummaryJson,
+        [string]$PatchPlanOutput,
+        [string]$DraftPlanOutput,
+        [string]$PatchedPlanOutput,
+        [string]$BuildDir,
+        [string]$Generator,
+        [string]$ExportTargetMode,
+        [bool]$SkipBuildRequested,
+        [string]$LogPath
+    )
+
+    $scriptArgs = @(
+        "-InputDocx"
+        $InputDocx
+        "-DataPath"
+        $DataPath
+        "-MappingPath"
+        $MappingPath
+        "-OutputDocx"
+        $OutputDocx
+        "-SummaryJson"
+        $SummaryJson
+        "-BuildDir"
+        $BuildDir
+        "-Generator"
+        $Generator
+        "-ExportTargetMode"
+        $ExportTargetMode
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($PatchPlanOutput)) {
+        $scriptArgs += @("-PatchPlanOutput", $PatchPlanOutput)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($DraftPlanOutput)) {
+        $scriptArgs += @("-DraftPlanOutput", $DraftPlanOutput)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PatchedPlanOutput)) {
+        $scriptArgs += @("-PatchedPlanOutput", $PatchedPlanOutput)
+    }
+    if ($SkipBuildRequested) {
+        $scriptArgs += "-SkipBuild"
+    }
+
+    $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $ScriptPath @scriptArgs 2>&1)
+    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+    $lines = @($commandOutput | ForEach-Object { $_.ToString() })
+    Write-CommandOutput -OutputPath $LogPath -Lines $lines
+
+    $summary = Read-JsonFileIfPresent -Path $SummaryJson
+    if ($exitCode -ne 0) {
+        $joined = if ($lines.Count -gt 0) {
+            $lines -join [System.Environment]::NewLine
+        } else {
+            "(no output)"
+        }
+        throw "render_template_document_from_data.ps1 failed with exit code $exitCode. Output:`n$joined"
+    }
+    if (-not (Test-Path -LiteralPath $OutputDocx)) {
+        throw "Render data smoke did not produce '$OutputDocx'."
+    }
+    if ($null -eq $summary) {
+        throw "Render data smoke summary was not created: $SummaryJson"
+    }
+
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Output = $lines
+        Summary = $summary
+    }
+}
+
 function Invoke-VisualSmoke {
     param(
         [string]$ScriptPath,
@@ -1013,6 +1091,17 @@ function Write-SummaryMarkdown {
             }
         }
 
+        $renderData = $entry.checks.render_data
+        if ($renderData.enabled) {
+            $remainingPlaceholderCount = Get-OptionalObjectPropertyValue -Object $renderData -Name "remaining_placeholder_count"
+            if ([string]::IsNullOrWhiteSpace($remainingPlaceholderCount)) {
+                $remainingPlaceholderCount = "(not available)"
+            }
+            $renderedDocx = Get-OptionalObjectPropertyValue -Object $renderData -Name "output_docx"
+            $renderLog = Get-OptionalObjectPropertyValue -Object $renderData -Name "log_path"
+            $lines.Add("- Render data: status=$($renderData.status) remaining_placeholders=$remainingPlaceholderCount output=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $renderedDocx) log=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $renderLog)")
+        }
+
         $visualSmoke = $entry.checks.visual_smoke
         if ($visualSmoke.enabled) {
             $contactSheet = Get-OptionalObjectPropertyValue -Object $visualSmoke -Name "contact_sheet"
@@ -1041,6 +1130,7 @@ $entriesOutputDir = Join-Path $resolvedOutputDir "entries"
 $summaryPath = Join-Path $resolvedOutputDir "summary.json"
 $summaryMarkdownPath = Join-Path $resolvedOutputDir "summary.md"
 $baselineScriptPath = Join-Path $PSScriptRoot "check_template_schema_baseline.ps1"
+$renderDataScriptPath = Join-Path $PSScriptRoot "render_template_document_from_data.ps1"
 $visualSmokeScriptPath = Join-Path $PSScriptRoot "run_word_visual_smoke.ps1"
 
 New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
@@ -1163,6 +1253,9 @@ foreach ($entry in $entries) {
         enabled = $false
     }
     $schemaBaselineResult = [ordered]@{
+        enabled = $false
+    }
+    $renderDataResult = [ordered]@{
         enabled = $false
     }
     $visualSmokeResult = [ordered]@{
@@ -1453,6 +1546,107 @@ foreach ($entry in $entries) {
             }
         }
 
+        $renderDataSmoke = $entry.PSObject.Properties["render_data_smoke"]
+        if ($null -ne $renderDataSmoke -and $null -ne $renderDataSmoke.Value) {
+            $renderDataResult.enabled = $true
+            try {
+                $renderDataBlock = $renderDataSmoke.Value
+                $dataPath = Resolve-OptionalManifestPropertyValue -Entry $renderDataBlock -Name "data_path"
+                $mappingPath = Resolve-OptionalManifestPropertyValue -Entry $renderDataBlock -Name "mapping_path"
+                if ([string]::IsNullOrWhiteSpace($dataPath)) {
+                    throw "render_data_smoke must provide a non-empty 'data_path'."
+                }
+                if ([string]::IsNullOrWhiteSpace($mappingPath)) {
+                    throw "render_data_smoke must provide a non-empty 'mapping_path'."
+                }
+
+                $resolvedDataPath = Resolve-ManifestPathValue -RepoRoot $repoRoot -InputPath $dataPath
+                $resolvedMappingPath = Resolve-ManifestPathValue -RepoRoot $repoRoot -InputPath $mappingPath
+                $outputDocx = Resolve-OptionalManifestPropertyValue -Entry $renderDataBlock -Name "output_docx"
+                if ([string]::IsNullOrWhiteSpace($outputDocx)) {
+                    $outputDocx = Join-Path $entryDir "rendered.docx"
+                }
+                $resolvedOutputDocx = Resolve-ManifestPathValue -RepoRoot $repoRoot -InputPath $outputDocx -AllowMissing
+                Ensure-PathParent -Path $resolvedOutputDocx
+                $summaryJson = Resolve-OptionalManifestPropertyValue -Entry $renderDataBlock -Name "summary_json"
+                if ([string]::IsNullOrWhiteSpace($summaryJson)) {
+                    $summaryJson = Join-Path $entryDir "render_data.summary.json"
+                }
+                $resolvedSummaryJson = Resolve-ManifestPathValue -RepoRoot $repoRoot -InputPath $summaryJson -AllowMissing
+                Ensure-PathParent -Path $resolvedSummaryJson
+
+                $patchPlanOutput = Resolve-OptionalManifestPropertyValue -Entry $renderDataBlock -Name "patch_plan_output"
+                if ([string]::IsNullOrWhiteSpace($patchPlanOutput)) {
+                    $patchPlanOutput = Join-Path $entryDir "render_patch.generated.json"
+                }
+                $resolvedPatchPlanOutput = Resolve-ManifestPathValue -RepoRoot $repoRoot -InputPath $patchPlanOutput -AllowMissing
+                Ensure-PathParent -Path $resolvedPatchPlanOutput
+                $draftPlanOutput = Resolve-OptionalManifestPropertyValue -Entry $renderDataBlock -Name "draft_plan_output"
+                if ([string]::IsNullOrWhiteSpace($draftPlanOutput)) {
+                    $draftPlanOutput = Join-Path $entryDir "render_plan.draft.json"
+                }
+                $resolvedDraftPlanOutput = Resolve-ManifestPathValue -RepoRoot $repoRoot -InputPath $draftPlanOutput -AllowMissing
+                Ensure-PathParent -Path $resolvedDraftPlanOutput
+                $patchedPlanOutput = Resolve-OptionalManifestPropertyValue -Entry $renderDataBlock -Name "patched_plan_output"
+                if ([string]::IsNullOrWhiteSpace($patchedPlanOutput)) {
+                    $patchedPlanOutput = Join-Path $entryDir "render_plan.patched.json"
+                }
+                $resolvedPatchedPlanOutput = Resolve-ManifestPathValue -RepoRoot $repoRoot -InputPath $patchedPlanOutput -AllowMissing
+                Ensure-PathParent -Path $resolvedPatchedPlanOutput
+
+                $exportTargetMode = Resolve-OptionalManifestPropertyValue -Entry $renderDataBlock -Name "export_target_mode"
+                if ([string]::IsNullOrWhiteSpace($exportTargetMode)) {
+                    $exportTargetMode = "loaded-parts"
+                }
+
+                $logPath = Join-Path $entryDir "render_data.log"
+                $result = Invoke-RenderDataSmoke `
+                    -ScriptPath $renderDataScriptPath `
+                    -InputDocx $resolvedInputDocx `
+                    -DataPath $resolvedDataPath `
+                    -MappingPath $resolvedMappingPath `
+                    -OutputDocx $resolvedOutputDocx `
+                    -SummaryJson $resolvedSummaryJson `
+                    -PatchPlanOutput $resolvedPatchPlanOutput `
+                    -DraftPlanOutput $resolvedDraftPlanOutput `
+                    -PatchedPlanOutput $resolvedPatchedPlanOutput `
+                    -BuildDir $BuildDir `
+                    -Generator $Generator `
+                    -ExportTargetMode $exportTargetMode `
+                    -SkipBuildRequested ([bool]$SkipBuild.IsPresent) `
+                    -LogPath $logPath
+
+                $renderDataResult.status = [string]$result.Summary.status
+                $renderDataResult.output_docx = $resolvedOutputDocx
+                $renderDataResult.data_path = $resolvedDataPath
+                $renderDataResult.mapping_path = $resolvedMappingPath
+                $renderDataResult.summary_json = $resolvedSummaryJson
+                $renderDataResult.patch_plan = $resolvedPatchPlanOutput
+                $renderDataResult.draft_plan = $resolvedDraftPlanOutput
+                $renderDataResult.patched_plan = $resolvedPatchedPlanOutput
+                $renderDataResult.export_target_mode = $exportTargetMode
+                $renderDataResult.log_path = $logPath
+                $renderDataResult.remaining_placeholder_count = if ($null -ne (Get-OptionalObjectPropertyObject -Object $result.Summary -Name "remaining_placeholder_count")) {
+                    [int]$result.Summary.remaining_placeholder_count
+                } else {
+                    $null
+                }
+                $renderDataResult.render_operation_count = if ($null -ne (Get-OptionalObjectPropertyObject -Object $result.Summary -Name "render_operation_count")) {
+                    [int]$result.Summary.render_operation_count
+                } else {
+                    $null
+                }
+                $renderDataResult.result = $result.Summary
+                if ([string]$result.Summary.status -ne "completed") {
+                    $entryPassed = $false
+                }
+            } catch {
+                $entryIssues.Add($_.Exception.Message) | Out-Null
+                $renderDataResult.status = "failed"
+                $entryPassed = $false
+            }
+        }
+
         $visualSmoke = $entry.PSObject.Properties["visual_smoke"]
         if ($null -ne $visualSmoke -and $null -ne $visualSmoke.Value) {
             $visualSmokeEnabled = $true
@@ -1484,17 +1678,29 @@ foreach ($entry in $entries) {
                                 Resolve-ManifestPathValue -RepoRoot $repoRoot -InputPath $configuredOutputDir -AllowMissing
                             }
                         }
+                        $visualInputDocx = $resolvedInputDocx
+                        if ($visualSmoke.Value -isnot [bool]) {
+                            $visualInput = Resolve-OptionalManifestPropertyValue -Entry $visualSmoke.Value -Name "input"
+                            if ($visualInput -eq "rendered_docx") {
+                                $renderedDocx = Get-OptionalObjectPropertyValue -Object $renderDataResult -Name "output_docx"
+                                if ([string]::IsNullOrWhiteSpace($renderedDocx)) {
+                                    throw "visual_smoke input 'rendered_docx' requires render_data_smoke to complete first."
+                                }
+                                $visualInputDocx = $renderedDocx
+                            }
+                        }
 
                         $logPath = Join-Path $entryDir "visual_smoke.log"
                         $result = Invoke-VisualSmoke `
                             -ScriptPath $visualSmokeScriptPath `
-                            -InputDocx $resolvedInputDocx `
+                            -InputDocx $visualInputDocx `
                             -OutputDir $visualOutputDir `
                             -Dpi $Dpi `
                             -KeepWordOpenRequested ([bool]$KeepWordOpen.IsPresent) `
                             -VisibleWordRequested ([bool]$VisibleWord.IsPresent) `
                             -LogPath $logPath
 
+                        $visualSmokeResult.input_docx = $visualInputDocx
                         $visualSmokeResult.output_dir = $visualOutputDir
                         $visualSmokeResult.log_path = $logPath
                         $visualSmokeResult.summary_json = $result.SummaryPath
@@ -1555,6 +1761,7 @@ foreach ($entry in $entries) {
             template_validations = $templateValidationResults.ToArray()
             schema_validation = $schemaValidationResult
             schema_baseline = $schemaBaselineResult
+            render_data = $renderDataResult
             visual_smoke = $visualSmokeResult
         }
         issues = $entryIssues.ToArray()

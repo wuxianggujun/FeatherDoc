@@ -7,6 +7,12 @@
 
 namespace featherdoc_cli {
 
+enum class option_parse_result {
+    not_matched,
+    matched,
+    error,
+};
+
 [[nodiscard]] auto has_json_flag(const std::vector<std::string_view> &arguments)
     -> bool;
 [[nodiscard]] auto parse_index(std::string_view text, std::size_t &value) -> bool;
