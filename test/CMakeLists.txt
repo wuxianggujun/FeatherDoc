@@ -2735,6 +2735,82 @@ if(WIN32)
 
         add_test(
             NAME
+            release_candidate_blocker_rollup_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_fail_on_blocker
+            -Scenario
+            rollup_fail_on_blocker
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_fail_on_blocker release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_fail_on_warning
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_fail_on_warning
+            -Scenario
+            rollup_fail_on_warning
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_fail_on_warning release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_auto_discover
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_auto_discover
+            -Scenario
+            rollup_auto_discover
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_auto_discover release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_empty_auto_discover
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_empty_auto_discover
+            -Scenario
+            rollup_empty_auto_discover
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_empty_auto_discover release smoke release_smoke)
+
+        add_test(
+            NAME
             release_candidate_governance_handoff
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
@@ -2750,6 +2826,44 @@ if(WIN32)
             handoff
         )
         featherdoc_set_test_labels(release_candidate_governance_handoff release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            release_candidate_governance_handoff_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_governance_handoff_fail_on_blocker
+            -Scenario
+            handoff_fail_on_blocker
+        )
+        featherdoc_set_test_labels(
+            release_candidate_governance_handoff_fail_on_blocker release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            release_candidate_governance_handoff_fail_on_warning
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_governance_handoff_fail_on_warning
+            -Scenario
+            handoff_fail_on_warning
+        )
+        featherdoc_set_test_labels(
+            release_candidate_governance_handoff_fail_on_warning release smoke release_smoke governance)
 
         add_test(
             NAME
@@ -5519,6 +5633,82 @@ if(NOT WIN32)
 
         add_test(
             NAME
+            release_candidate_blocker_rollup_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_fail_on_blocker
+            -Scenario
+            rollup_fail_on_blocker
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_fail_on_blocker release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_fail_on_warning
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_fail_on_warning
+            -Scenario
+            rollup_fail_on_warning
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_fail_on_warning release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_auto_discover
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_auto_discover
+            -Scenario
+            rollup_auto_discover
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_auto_discover release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_blocker_rollup_empty_auto_discover
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup_empty_auto_discover
+            -Scenario
+            rollup_empty_auto_discover
+        )
+        featherdoc_set_test_labels(
+            release_candidate_blocker_rollup_empty_auto_discover release smoke release_smoke)
+
+        add_test(
+            NAME
             release_candidate_governance_handoff
             COMMAND
             ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
@@ -5534,6 +5724,44 @@ if(NOT WIN32)
             handoff
         )
         featherdoc_set_test_labels(release_candidate_governance_handoff release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            release_candidate_governance_handoff_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_governance_handoff_fail_on_blocker
+            -Scenario
+            handoff_fail_on_blocker
+        )
+        featherdoc_set_test_labels(
+            release_candidate_governance_handoff_fail_on_blocker release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            release_candidate_governance_handoff_fail_on_warning
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_governance_handoff_fail_on_warning
+            -Scenario
+            handoff_fail_on_warning
+        )
+        featherdoc_set_test_labels(
+            release_candidate_governance_handoff_fail_on_warning release smoke release_smoke governance)
 
         add_test(
             NAME
