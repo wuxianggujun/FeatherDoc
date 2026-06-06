@@ -22,6 +22,8 @@
 #include "featherdoc_cli_template_table_json_patch_parse.hpp"
 #include "featherdoc_cli_template_table_options_parse.hpp"
 #include "featherdoc_cli_template_table_mutation_options_parse.hpp"
+#include "featherdoc_cli_template_table_output.hpp"
+#include "featherdoc_cli_template_part_selection.hpp"
 #include "featherdoc_cli_pdf_commands.hpp"
 #include "featherdoc_cli_table_position_options_parse.hpp"
 #include "featherdoc_cli_table_position_plan_build.hpp"
@@ -563,6 +565,13 @@ using featherdoc_cli::template_schema_patch_rename_slot;
 using featherdoc_cli::template_schema_patch_target_selector;
 using featherdoc_cli::template_schema_patch_update_slot;
 using featherdoc_cli::template_field_name;
+using featherdoc_cli::selected_template_part;
+using featherdoc_cli::applied_template_table_json_batch_operation;
+using featherdoc_cli::print_selected_template_part;
+using featherdoc_cli::print_template_table_cell_block_texts_result;
+using featherdoc_cli::print_template_table_from_json_result;
+using featherdoc_cli::print_template_table_row_texts_result;
+using featherdoc_cli::print_template_tables_from_json_result;
 using featherdoc_cli::numbering_catalog_level_patch;
 using featherdoc_cli::numbering_catalog_override_patch;
 using featherdoc_cli::numbering_catalog_patch_document;
@@ -582,9 +591,14 @@ using featherdoc_cli::write_json_optional_u32_value;
 using featherdoc_cli::write_json_drawing_image_summary;
 using featherdoc_cli::write_json_inspect_image_filters;
 using featherdoc_cli::write_json_section_page_setup;
+using featherdoc_cli::write_json_selected_template_part;
 using featherdoc_cli::write_json_size_array;
 using featherdoc_cli::write_json_strings;
 using featherdoc_cli::write_json_string;
+using featherdoc_cli::write_json_template_table_cell_block_texts_result;
+using featherdoc_cli::write_json_template_table_from_json_result;
+using featherdoc_cli::write_json_template_table_row_texts_result;
+using featherdoc_cli::write_json_template_tables_from_json_result;
 using featherdoc_cli::write_json_command_error;
 using featherdoc_cli::write_json_review_mutation_plan_document;
 using featherdoc_cli::write_review_mutation_plan_file;
@@ -742,22 +756,6 @@ struct table_row_inspection_summary {
     bool cant_split = false;
     bool repeats_header = false;
     std::vector<std::string> cell_texts;
-};
-
-struct selected_template_part {
-    featherdoc::TemplatePart part;
-    validation_part_family family = validation_part_family::body;
-    std::optional<std::size_t> part_index;
-    std::optional<std::size_t> section_index;
-    std::optional<featherdoc::section_reference_kind> reference_kind;
-};
-
-struct applied_template_table_json_batch_operation {
-    std::size_t operation_index = 0U;
-    selected_template_part selected;
-    std::size_t table_index = 0U;
-    featherdoc::template_table_selector selector;
-    template_table_json_patch patch;
 };
 
 enum class zip_entry_read_status {
@@ -922,42 +920,6 @@ auto validation_part_name(featherdoc::template_schema_part_kind part) -> const c
     }
 
     return "body";
-}
-
-void write_json_selected_template_part(std::ostream &stream,
-                                       const selected_template_part &selected) {
-    stream << "\"part\":";
-    write_json_string(stream, validation_part_name(selected.family));
-    if (selected.part_index.has_value()) {
-        stream << ",\"part_index\":" << *selected.part_index;
-    }
-    if (selected.section_index.has_value()) {
-        stream << ",\"section\":" << *selected.section_index;
-    }
-    if (selected.reference_kind.has_value()) {
-        stream << ",\"kind\":";
-        write_json_string(stream,
-                          featherdoc::to_xml_reference_type(*selected.reference_kind));
-    }
-    stream << ",\"entry_name\":";
-    write_json_string(stream, std::string(selected.part.entry_name()));
-}
-
-void print_selected_template_part(std::ostream &stream,
-                                  const selected_template_part &selected) {
-    stream << "part: " << validation_part_name(selected.family) << '\n';
-    if (selected.part_index.has_value()) {
-        stream << "part_index: " << *selected.part_index << '\n';
-    }
-    if (selected.section_index.has_value()) {
-        stream << "section: " << *selected.section_index << '\n';
-    }
-    if (selected.reference_kind.has_value()) {
-        stream << "kind: "
-               << featherdoc::to_xml_reference_type(*selected.reference_kind)
-               << '\n';
-    }
-    stream << "entry_name: " << selected.part.entry_name() << '\n';
 }
 
 auto section_reference_name(section_part_family family) -> const char * {
@@ -8008,282 +7970,6 @@ void print_bookmark_table_result(
             std::cout << rows[row_index][cell_index];
         }
         std::cout << '\n';
-    }
-}
-
-void write_json_row_texts_matrix(
-    std::ostream &stream, const std::vector<std::vector<std::string>> &rows) {
-    stream << '[';
-    for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
-        if (row_index != 0U) {
-            stream << ',';
-        }
-        stream << '[';
-        for (std::size_t cell_index = 0; cell_index < rows[row_index].size();
-             ++cell_index) {
-            if (cell_index != 0U) {
-                stream << ',';
-            }
-            write_json_string(stream, rows[row_index][cell_index]);
-        }
-        stream << ']';
-    }
-    stream << ']';
-}
-
-void write_json_template_table_row_texts_result(
-    std::ostream &stream, const selected_template_part &selected,
-    std::size_t table_index, std::size_t start_row_index,
-    const std::vector<std::vector<std::string>> &rows,
-    const std::optional<std::string> &bookmark_name) {
-    stream << ',';
-    write_json_selected_template_part(stream, selected);
-    if (bookmark_name.has_value()) {
-        stream << ",\"bookmark_name\":";
-        write_json_string(stream, *bookmark_name);
-    }
-    stream << ",\"table_index\":" << table_index
-           << ",\"start_row_index\":" << start_row_index
-           << ",\"row_count\":" << rows.size() << ",\"rows\":";
-    write_json_row_texts_matrix(stream, rows);
-}
-
-void print_template_table_row_texts_result(
-    const selected_template_part &selected, std::size_t table_index,
-    std::size_t start_row_index, const std::vector<std::vector<std::string>> &rows,
-    const std::optional<std::string> &bookmark_name,
-    const std::optional<path_type> &output_path) {
-    print_selected_template_part(std::cout, selected);
-    if (bookmark_name.has_value()) {
-        std::cout << "bookmark_name: " << *bookmark_name << '\n';
-    }
-    std::cout << "table_index: " << table_index << '\n'
-              << "start_row_index: " << start_row_index << '\n'
-              << "row_count: " << rows.size() << '\n';
-    if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
-    } else {
-        std::cout << "output_path: in_place\n";
-    }
-    for (std::size_t offset = 0U; offset < rows.size(); ++offset) {
-        std::cout << "row[" << (start_row_index + offset) << "]: ";
-        for (std::size_t cell_index = 0; cell_index < rows[offset].size();
-             ++cell_index) {
-            if (cell_index != 0U) {
-                std::cout << '\t';
-            }
-            std::cout << rows[offset][cell_index];
-        }
-        std::cout << '\n';
-    }
-}
-
-void write_json_template_table_cell_block_texts_result(
-    std::ostream &stream, const selected_template_part &selected,
-    std::size_t table_index, std::size_t start_row_index,
-    std::size_t start_cell_index, const std::vector<std::vector<std::string>> &rows,
-    const std::optional<std::string> &bookmark_name) {
-    stream << ',';
-    write_json_selected_template_part(stream, selected);
-    if (bookmark_name.has_value()) {
-        stream << ",\"bookmark_name\":";
-        write_json_string(stream, *bookmark_name);
-    }
-    stream << ",\"table_index\":" << table_index
-           << ",\"start_row_index\":" << start_row_index
-           << ",\"start_cell_index\":" << start_cell_index
-           << ",\"row_count\":" << rows.size() << ",\"rows\":";
-    write_json_row_texts_matrix(stream, rows);
-}
-
-void print_template_table_cell_block_texts_result(
-    const selected_template_part &selected, std::size_t table_index,
-    std::size_t start_row_index, std::size_t start_cell_index,
-    const std::vector<std::vector<std::string>> &rows,
-    const std::optional<std::string> &bookmark_name,
-    const std::optional<path_type> &output_path) {
-    print_selected_template_part(std::cout, selected);
-    if (bookmark_name.has_value()) {
-        std::cout << "bookmark_name: " << *bookmark_name << '\n';
-    }
-    std::cout << "table_index: " << table_index << '\n'
-              << "start_row_index: " << start_row_index << '\n'
-              << "start_cell_index: " << start_cell_index << '\n'
-              << "row_count: " << rows.size() << '\n';
-    if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
-    } else {
-        std::cout << "output_path: in_place\n";
-    }
-    for (std::size_t offset = 0U; offset < rows.size(); ++offset) {
-        std::cout << "row[" << (start_row_index + offset)
-                  << "] from cell[" << start_cell_index << "]: ";
-        for (std::size_t cell_offset = 0U; cell_offset < rows[offset].size();
-             ++cell_offset) {
-            if (cell_offset != 0U) {
-                std::cout << '\t';
-            }
-            std::cout << rows[offset][cell_offset];
-        }
-        std::cout << '\n';
-    }
-}
-
-auto template_table_json_patch_mode_name(template_table_json_patch_mode mode)
-    -> std::string_view {
-    switch (mode) {
-    case template_table_json_patch_mode::rows:
-        return "rows";
-    case template_table_json_patch_mode::block:
-        return "block";
-    }
-
-    return "rows";
-}
-
-void write_json_template_table_selector_fields(
-    std::ostream &stream, const featherdoc::template_table_selector &selector) {
-    if (selector.bookmark_name.has_value()) {
-        stream << ",\"bookmark_name\":";
-        write_json_string(stream, *selector.bookmark_name);
-    }
-    if (selector.after_paragraph_text.has_value()) {
-        stream << ",\"after_text\":";
-        write_json_string(stream, *selector.after_paragraph_text);
-    }
-    if (!selector.header_cell_texts.empty()) {
-        stream << ",\"header_cells\":";
-        write_json_strings(stream, selector.header_cell_texts);
-        stream << ",\"header_row_index\":" << selector.header_row_index;
-    }
-    if (template_table_selector_uses_text_matching(selector)) {
-        stream << ",\"occurrence\":" << selector.occurrence;
-    }
-}
-
-void print_template_table_selector_fields(
-    std::ostream &stream, const featherdoc::template_table_selector &selector) {
-    if (selector.bookmark_name.has_value()) {
-        stream << "bookmark_name: " << *selector.bookmark_name << '\n';
-    }
-    if (selector.after_paragraph_text.has_value()) {
-        stream << "after_text: " << *selector.after_paragraph_text << '\n';
-    }
-    if (!selector.header_cell_texts.empty()) {
-        stream << "header_row_index: " << selector.header_row_index << '\n'
-               << "header_cells: ";
-        for (std::size_t index = 0U; index < selector.header_cell_texts.size();
-             ++index) {
-            if (index != 0U) {
-                stream << '\t';
-            }
-            stream << selector.header_cell_texts[index];
-        }
-        stream << '\n';
-    }
-    if (template_table_selector_uses_text_matching(selector)) {
-        stream << "occurrence: " << selector.occurrence << '\n';
-    }
-}
-
-void write_json_template_table_from_json_result(
-    std::ostream &stream, const selected_template_part &selected,
-    std::size_t table_index, const template_table_json_patch &patch,
-    const featherdoc::template_table_selector &selector) {
-    stream << ',';
-    write_json_selected_template_part(stream, selected);
-    write_json_template_table_selector_fields(stream, selector);
-    stream << ",\"mode\":";
-    write_json_string(
-        stream, std::string(template_table_json_patch_mode_name(patch.mode)));
-    stream << ",\"table_index\":" << table_index
-           << ",\"start_row_index\":" << patch.start_row_index;
-    if (patch.mode == template_table_json_patch_mode::block) {
-        stream << ",\"start_cell_index\":" << patch.start_cell_index;
-    }
-    stream << ",\"row_count\":" << patch.rows.size() << ",\"rows\":";
-    write_json_row_texts_matrix(stream, patch.rows);
-}
-
-void print_template_table_from_json_result(
-    const selected_template_part &selected, std::size_t table_index,
-    const template_table_json_patch &patch,
-    const featherdoc::template_table_selector &selector,
-    const std::optional<path_type> &output_path) {
-    print_selected_template_part(std::cout, selected);
-    print_template_table_selector_fields(std::cout, selector);
-    std::cout << "mode: " << template_table_json_patch_mode_name(patch.mode)
-              << '\n'
-              << "table_index: " << table_index << '\n'
-              << "start_row_index: " << patch.start_row_index << '\n';
-    if (patch.mode == template_table_json_patch_mode::block) {
-        std::cout << "start_cell_index: " << patch.start_cell_index << '\n';
-    }
-    std::cout << "row_count: " << patch.rows.size() << '\n';
-    if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
-    } else {
-        std::cout << "output_path: in_place\n";
-    }
-
-    for (std::size_t offset = 0U; offset < patch.rows.size(); ++offset) {
-        if (patch.mode == template_table_json_patch_mode::block) {
-            std::cout << "row[" << (patch.start_row_index + offset)
-                      << "] from cell[" << patch.start_cell_index << "]: ";
-        } else {
-            std::cout << "row[" << (patch.start_row_index + offset) << "]: ";
-        }
-        for (std::size_t cell_index = 0U; cell_index < patch.rows[offset].size();
-             ++cell_index) {
-            if (cell_index != 0U) {
-                std::cout << '\t';
-            }
-            std::cout << patch.rows[offset][cell_index];
-        }
-        std::cout << '\n';
-    }
-}
-
-void write_json_template_tables_from_json_result(
-    std::ostream &stream,
-    const std::vector<applied_template_table_json_batch_operation> &operations) {
-    stream << ",\"operation_count\":" << operations.size() << ",\"operations\":[";
-    for (std::size_t index = 0U; index < operations.size(); ++index) {
-        if (index != 0U) {
-            stream << ',';
-        }
-
-        const auto &operation = operations[index];
-        stream << "{\"operation_index\":" << operation.operation_index;
-        write_json_template_table_from_json_result(
-            stream, operation.selected, operation.table_index, operation.patch,
-            operation.selector);
-        stream << '}';
-    }
-    stream << ']';
-}
-
-void print_template_tables_from_json_result(
-    const std::vector<applied_template_table_json_batch_operation> &operations,
-    const std::optional<path_type> &output_path) {
-    std::cout << "operation_count: " << operations.size() << '\n';
-    if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
-    } else {
-        std::cout << "output_path: in_place\n";
-    }
-
-    for (std::size_t index = 0U; index < operations.size(); ++index) {
-        if (index != 0U) {
-            std::cout << '\n';
-        }
-
-        std::cout << "operation_index: " << operations[index].operation_index
-                  << '\n';
-        print_template_table_from_json_result(
-            operations[index].selected, operations[index].table_index,
-            operations[index].patch, operations[index].selector,
-            std::nullopt);
     }
 }
 
