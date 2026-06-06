@@ -25,6 +25,7 @@
 #include "featherdoc_cli_template_table_mutation_options_parse.hpp"
 #include "featherdoc_cli_template_table_output.hpp"
 #include "featherdoc_cli_template_table_resolve.hpp"
+#include "featherdoc_cli_template_table_row_commands.hpp"
 #include "featherdoc_cli_template_part_selection.hpp"
 #include "featherdoc_cli_pdf_commands.hpp"
 #include "featherdoc_cli_table_position_options_parse.hpp"
@@ -194,16 +195,12 @@ using featherdoc_cli::parse_append_table_row_options;
 using featherdoc_cli::parse_table_cell_border_options;
 using featherdoc_cli::template_table_cell_text_options;
 using featherdoc_cli::template_table_cell_mutation_options;
-using featherdoc_cli::template_append_table_row_options;
-using featherdoc_cli::template_table_row_mutation_options;
 using featherdoc_cli::template_table_row_texts_options;
 using featherdoc_cli::template_merge_table_cells_options;
 using featherdoc_cli::template_unmerge_table_cells_options;
 using featherdoc_cli::parse_template_table_cell_text_options;
 using featherdoc_cli::parse_template_table_cell_mutation_options;
-using featherdoc_cli::parse_template_table_row_mutation_options;
 using featherdoc_cli::parse_template_table_row_texts_options;
-using featherdoc_cli::parse_template_append_table_row_options;
 using featherdoc_cli::parse_template_merge_table_cells_options;
 using featherdoc_cli::parse_template_unmerge_table_cells_options;
 using featherdoc_cli::validate_template_options;
@@ -612,6 +609,10 @@ using featherdoc_cli::write_review_mutation_plan_file;
 using featherdoc_cli::open_document;
 using featherdoc_cli::path_type;
 using featherdoc_cli::run_export_pdf_command;
+using featherdoc_cli::run_append_template_table_row_command;
+using featherdoc_cli::run_insert_template_table_row_after_command;
+using featherdoc_cli::run_insert_template_table_row_before_command;
+using featherdoc_cli::run_remove_template_table_row_command;
 using featherdoc_cli::run_set_template_table_from_json_command;
 using featherdoc_cli::run_set_template_tables_from_json_command;
 using featherdoc_cli::resolve_template_table;
@@ -20758,453 +20759,19 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "append-template-table-row") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "append-template-table-row expects an input path plus either a "
-                "table index, --bookmark <name>, or a text-based table "
-                "selector",
-                json_output);
-            return 2;
-        }
-
-        parsed_template_table_selector_target target;
-        template_append_table_row_options options;
-        std::string error_message;
-        if (!parse_template_table_selector_target_arguments(arguments, 2U, target,
-                                                            true,
-                                                            error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        options.bookmark_name = target.selector.bookmark_name;
-        if (!parse_template_append_table_row_options(arguments,
-                                                     target.options_start_index,
-                                                     options,
-                                                     error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-        if (!target.selector.bookmark_name.has_value() &&
-            options.bookmark_name.has_value()) {
-            target.selector.bookmark_name = options.bookmark_name;
-        }
-        if (!validate_template_table_selector(target.selector, false,
-                                              target.has_header_row_index,
-                                              target.has_occurrence,
-                                              error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        selected_template_part selected;
-        if (!select_mutable_template_part(doc, options.part, options.part_index,
-                                          options.section_index,
-                                          options.reference_kind, selected,
-                                          error_message)) {
-            report_operation_failure(command, "mutate", error_message,
-                                     doc.last_error(), options.json_output);
-            return 1;
-        }
-
-        std::size_t resolved_table_index = 0U;
-        if (!resolve_template_table_index(doc, selected, target.selector,
-                                          resolved_table_index, command,
-                                          options.json_output, "mutate")) {
-            return 1;
-        }
-
-        const auto inspected_table = selected.part.inspect_table(resolved_table_index);
-        if (!inspected_table.has_value()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "table index '" + std::to_string(resolved_table_index) +
-                "' is out of range";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "table index is out of range", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        featherdoc::Table table;
-        if (!resolve_template_table(selected, resolved_table_index, table, command,
-                                    options.json_output, "mutate")) {
-            return 1;
-        }
-
-        const auto cell_count =
-            options.cell_count.value_or(inspected_table->column_count);
-        if (cell_count == 0U) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail = "table row must contain at least one cell";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "failed to append table row", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        auto row = table.append_row(cell_count);
-        if (!row.has_next()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail = "target table handle is not valid";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "failed to append table row", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        const auto row_index = inspected_table->row_count;
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [&selected, resolved_table_index, row_index, cell_count](
-                    std::ostream &stream) {
-                    stream << ',';
-                    write_json_selected_template_part(stream, selected);
-                    stream << ",\"table_index\":" << resolved_table_index
-                           << ",\"row_index\":" << row_index
-                           << ",\"cell_count\":" << cell_count;
-                });
-        }
-
-        return 0;
+        return run_append_template_table_row_command(command, arguments);
     }
 
     if (command == "insert-template-table-row-before") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "insert-template-table-row-before expects an input path plus "
-                "either <table-index> <row-index>, --bookmark <name> "
-                "<row-index>, or a text-based table selector followed "
-                "by <row-index>",
-                json_output);
-            return 2;
-        }
-
-        parsed_template_table_selector_row_target target;
-        std::string error_message;
-        if (!parse_template_table_selector_row_target_arguments(
-                arguments, 2U, target, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        template_table_row_mutation_options options;
-        options.bookmark_name = target.selector.bookmark_name;
-        if (!parse_template_table_row_mutation_options(arguments,
-                                                       target.options_start_index,
-                                                       options,
-                                                       error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-        if (!target.selector.bookmark_name.has_value() &&
-            options.bookmark_name.has_value()) {
-            target.selector.bookmark_name = options.bookmark_name;
-        }
-        if (!validate_template_table_selector(target.selector, false,
-                                              target.has_header_row_index,
-                                              target.has_occurrence,
-                                              error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        selected_template_part selected;
-        if (!select_mutable_template_part(doc, options.part, options.part_index,
-                                          options.section_index,
-                                          options.reference_kind, selected,
-                                          error_message)) {
-            report_operation_failure(command, "mutate", error_message,
-                                     doc.last_error(), options.json_output);
-            return 1;
-        }
-
-        std::size_t resolved_table_index = 0U;
-        if (!resolve_template_table_index(doc, selected, target.selector,
-                                          resolved_table_index, command,
-                                          options.json_output, "mutate")) {
-            return 1;
-        }
-
-        featherdoc::TableRow row;
-        if (!resolve_template_table_row(selected, resolved_table_index,
-                                        target.row_index, row,
-                                        command, options.json_output, "mutate")) {
-            return 1;
-        }
-
-        auto inserted_row = row.insert_row_before();
-        if (!inserted_row.has_next()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "cannot insert a row adjacent to row index '" +
-                std::to_string(target.row_index) + "' in table index '" +
-                std::to_string(resolved_table_index) +
-                "' because the row participates in a vertical merge";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "failed to insert table row", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [&selected, resolved_table_index, &target](
-                    std::ostream &stream) {
-                    stream << ',';
-                    write_json_selected_template_part(stream, selected);
-                    stream << ",\"table_index\":" << resolved_table_index
-                           << ",\"row_index\":" << target.row_index
-                           << ",\"inserted_row_index\":"
-                           << target.row_index;
-                });
-        }
-
-        return 0;
+        return run_insert_template_table_row_before_command(command, arguments);
     }
 
     if (command == "insert-template-table-row-after") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "insert-template-table-row-after expects an input path plus "
-                "either <table-index> <row-index>, --bookmark <name> "
-                "<row-index>, or a text-based table selector followed "
-                "by <row-index>",
-                json_output);
-            return 2;
-        }
-
-        parsed_template_table_selector_row_target target;
-        std::string error_message;
-        if (!parse_template_table_selector_row_target_arguments(
-                arguments, 2U, target, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        template_table_row_mutation_options options;
-        options.bookmark_name = target.selector.bookmark_name;
-        if (!parse_template_table_row_mutation_options(arguments,
-                                                       target.options_start_index,
-                                                       options,
-                                                       error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-        if (!target.selector.bookmark_name.has_value() &&
-            options.bookmark_name.has_value()) {
-            target.selector.bookmark_name = options.bookmark_name;
-        }
-        if (!validate_template_table_selector(target.selector, false,
-                                              target.has_header_row_index,
-                                              target.has_occurrence,
-                                              error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        selected_template_part selected;
-        if (!select_mutable_template_part(doc, options.part, options.part_index,
-                                          options.section_index,
-                                          options.reference_kind, selected,
-                                          error_message)) {
-            report_operation_failure(command, "mutate", error_message,
-                                     doc.last_error(), options.json_output);
-            return 1;
-        }
-
-        std::size_t resolved_table_index = 0U;
-        if (!resolve_template_table_index(doc, selected, target.selector,
-                                          resolved_table_index, command,
-                                          options.json_output, "mutate")) {
-            return 1;
-        }
-
-        featherdoc::TableRow row;
-        if (!resolve_template_table_row(selected, resolved_table_index,
-                                        target.row_index,
-                                        row,
-                                        command, options.json_output, "mutate")) {
-            return 1;
-        }
-
-        auto inserted_row = row.insert_row_after();
-        if (!inserted_row.has_next()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "cannot insert a row adjacent to row index '" +
-                std::to_string(target.row_index) + "' in table index '" +
-                std::to_string(resolved_table_index) +
-                "' because the row participates in a vertical merge";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "failed to insert table row", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [&selected, resolved_table_index, &target](
-                    std::ostream &stream) {
-                    stream << ',';
-                    write_json_selected_template_part(stream, selected);
-                    stream << ",\"table_index\":" << resolved_table_index
-                           << ",\"row_index\":" << target.row_index
-                           << ",\"inserted_row_index\":"
-                           << (target.row_index + 1U);
-                });
-        }
-
-        return 0;
+        return run_insert_template_table_row_after_command(command, arguments);
     }
 
     if (command == "remove-template-table-row") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "remove-template-table-row expects an input path plus either "
-                "<table-index> <row-index>, --bookmark <name> <row-index>, "
-                "or a text-based table selector followed by <row-index>",
-                json_output);
-            return 2;
-        }
-
-        parsed_template_table_selector_row_target target;
-        std::string error_message;
-        if (!parse_template_table_selector_row_target_arguments(
-                arguments, 2U, target, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        template_table_row_mutation_options options;
-        options.bookmark_name = target.selector.bookmark_name;
-        if (!parse_template_table_row_mutation_options(arguments,
-                                                       target.options_start_index,
-                                                       options,
-                                                       error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-        if (!target.selector.bookmark_name.has_value() &&
-            options.bookmark_name.has_value()) {
-            target.selector.bookmark_name = options.bookmark_name;
-        }
-        if (!validate_template_table_selector(target.selector, false,
-                                              target.has_header_row_index,
-                                              target.has_occurrence,
-                                              error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        selected_template_part selected;
-        if (!select_mutable_template_part(doc, options.part, options.part_index,
-                                          options.section_index,
-                                          options.reference_kind, selected,
-                                          error_message)) {
-            report_operation_failure(command, "mutate", error_message,
-                                     doc.last_error(), options.json_output);
-            return 1;
-        }
-
-        std::size_t resolved_table_index = 0U;
-        if (!resolve_template_table_index(doc, selected, target.selector,
-                                          resolved_table_index, command,
-                                          options.json_output, "mutate")) {
-            return 1;
-        }
-
-        featherdoc::TableRow row;
-        if (!resolve_template_table_row(selected, resolved_table_index,
-                                        target.row_index,
-                                        row,
-                                        command, options.json_output, "mutate")) {
-            return 1;
-        }
-
-        if (!row.remove()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "cannot remove the last row from table index '" +
-                std::to_string(resolved_table_index) + "'";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "failed to remove table row", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [&selected, resolved_table_index, &target](
-                    std::ostream &stream) {
-                    stream << ',';
-                    write_json_selected_template_part(stream, selected);
-                    stream << ",\"table_index\":" << resolved_table_index
-                           << ",\"row_index\":" << target.row_index;
-                });
-        }
-
-        return 0;
+        return run_remove_template_table_row_command(command, arguments);
     }
 
     if (command == "merge-template-table-cells") {
