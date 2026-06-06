@@ -256,6 +256,12 @@ foreach ($marker in @(
 }
 foreach ($marker in @(
         "How To Read These Pages",
+        "Public Include Entry Points",
+        "featherdoc/document_core.hpp",
+        "featherdoc/tables.hpp",
+        "featherdoc/templates.hpp",
+        "featherdoc/styles_numbering.hpp",
+        "featherdoc/reviews_fields.hpp",
         "FDOC_EN_API_PUBLIC_SIGNATURES",
         "FDOC_EN_API_TYPED_PARAMETERS",
         "FDOC_EN_API_RETURN_SEMANTICS"
@@ -454,6 +460,12 @@ foreach ($marker in @(
 }
 foreach ($marker in @(
         "FDOC_ZH_CN_API_HOW_TO_READ",
+        "featherdoc.hpp",
+        "featherdoc/document_core.hpp",
+        "featherdoc/tables.hpp",
+        "featherdoc/templates.hpp",
+        "featherdoc/styles_numbering.hpp",
+        "featherdoc/reviews_fields.hpp",
         "FDOC_ZH_CN_API_PUBLIC_SIGNATURES",
         "FDOC_ZH_CN_API_TYPED_PARAMETERS",
         "FDOC_ZH_CN_API_RETURN_SEMANTICS"

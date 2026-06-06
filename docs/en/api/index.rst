@@ -27,6 +27,31 @@ README-style page. Each focused page should expose:
 * Return values with success/failure semantics.
 * Short examples that show the intended call shape.
 
+Public Include Entry Points
+---------------------------
+
+New C++ code should include the smallest public domain header that covers the
+types it uses. ``<featherdoc.hpp>`` remains the compatibility aggregate when a
+caller wants the full public API surface in one include.
+
+* ``<featherdoc/document.hpp>`` exposes the ``Document`` root handle.
+* ``<featherdoc/document_core.hpp>`` exposes shared document models, errors,
+  inspection summaries, sections, page setup, images, content controls, and
+  semantic diff data.
+* ``<featherdoc/tables.hpp>`` exposes ``Table``, ``TableRow``, ``TableCell``,
+  and table inspection summaries.
+* ``<featherdoc/templates.hpp>`` exposes template schema, validation,
+  onboarding, and related helper APIs.
+* ``<featherdoc/template_part.hpp>`` exposes ``TemplatePart``.
+* ``<featherdoc/styles_numbering.hpp>`` exposes style, numbering, and table
+  style quality models.
+* ``<featherdoc/reviews_fields.hpp>`` exposes fields, hyperlinks, notes,
+  comments, revisions, and OMML helpers.
+* ``<featherdoc/text.hpp>`` exposes ``Paragraph`` and ``Run``.
+* ``<featherdoc/fwd.hpp>`` exposes lightweight forward declarations.
+* ``<featherdoc/core.hpp>`` remains a compatibility aggregate for existing
+  callers that include the older grouped entry point.
+
 Object Map
 ----------
 

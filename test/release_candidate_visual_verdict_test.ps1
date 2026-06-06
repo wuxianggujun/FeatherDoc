@@ -1056,6 +1056,7 @@ $releaseGovernanceSourcePath = Join-Path $releaseGovernanceSourceDir "summary.js
 $candidateSummaryPath = Join-Path $candidateOutputDir "report\summary.json"
 $candidateReuseMarkerPath = Join-Path $resolvedWorkingDir "release-candidate-visual-verdict-marker.json"
 $candidateReuseKey = [ordered]@{
+    status = "complete"
     script_last_write_utc = (Get-Item -LiteralPath $scriptPath).LastWriteTimeUtc.Ticks
     test_last_write_utc = (Get-Item -LiteralPath $MyInvocation.MyCommand.Path).LastWriteTimeUtc.Ticks
 }
@@ -1375,13 +1376,24 @@ if ($Scenario -eq "candidate_reports" -and
     (Test-Path -LiteralPath $candidateSummaryPath -PathType Leaf) -and
     (Test-Path -LiteralPath $candidateReuseMarkerPath -PathType Leaf)) {
     $reuseMarker = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReuseMarkerPath | ConvertFrom-Json
-    if ([string]$reuseMarker.script_last_write_utc -eq [string]$candidateReuseKey.script_last_write_utc -and
+    $reuseStatusProperty = $reuseMarker.PSObject.Properties["status"]
+    $reuseStatus = if ($null -ne $reuseStatusProperty) { [string]$reuseStatusProperty.Value } else { "" }
+    if ($reuseStatus -eq "complete" -and
+        [string]$reuseMarker.script_last_write_utc -eq [string]$candidateReuseKey.script_last_write_utc -and
         [string]$reuseMarker.test_last_write_utc -eq [string]$candidateReuseKey.test_last_write_utc) {
         $shouldRunCandidate = $false
     }
 }
 
 if ($shouldRunCandidate) {
+    $candidateRunningKey = [ordered]@{
+        status = "running"
+        script_last_write_utc = $candidateReuseKey.script_last_write_utc
+        test_last_write_utc = $candidateReuseKey.test_last_write_utc
+        started_at_utc = [DateTime]::UtcNow.ToString("o")
+    }
+    Write-TestJson -Path $candidateReuseMarkerPath -Value $candidateRunningKey
+
     & $scriptPath `
         -SkipConfigure `
         -SkipBuild `

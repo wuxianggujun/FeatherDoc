@@ -228,6 +228,23 @@ featherdoc_add_cpp_test(
 featherdoc_set_test_labels(public_header_entrypoint core smoke)
 
 featherdoc_add_cpp_test(
+    public_header_self_contained_tests
+    public_header_self_contained
+    public_header_self_contained_main.cpp
+    public_header_self_contained_fwd_tests.cpp
+    public_header_self_contained_document_core_tests.cpp
+    public_header_self_contained_tables_tests.cpp
+    public_header_self_contained_templates_tests.cpp
+    public_header_self_contained_styles_numbering_tests.cpp
+    public_header_self_contained_reviews_fields_tests.cpp
+    public_header_self_contained_text_tests.cpp
+    public_header_self_contained_template_part_tests.cpp
+    public_header_self_contained_document_tests.cpp
+    public_header_self_contained_core_tests.cpp
+)
+featherdoc_set_test_labels(public_header_self_contained core smoke)
+
+featherdoc_add_cpp_test(
     iterator_tests
     iterator
     iterator_tests.cpp
