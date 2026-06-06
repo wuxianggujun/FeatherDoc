@@ -5,6 +5,7 @@
 #include "featherdoc_cli_errors.hpp"
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_parse.hpp"
+#include "featherdoc_cli_table_row_summary.hpp"
 #include "featherdoc_cli_template_inspect_options_parse.hpp"
 #include "featherdoc_cli_template_part_selection.hpp"
 #include "featherdoc_cli_template_table_options_parse.hpp"
