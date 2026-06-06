@@ -9,6 +9,7 @@
 #include "featherdoc_cli_numbering_options_parse.hpp"
 #include "featherdoc_cli_page_setup.hpp"
 #include "featherdoc_cli_page_setup_parse.hpp"
+#include "featherdoc_cli_paragraph_run_commands.hpp"
 #include "featherdoc_cli_paragraph_list_options_parse.hpp"
 #include "featherdoc_cli_paragraph_run_options_parse.hpp"
 #include "featherdoc_cli_document_mutation_options_parse.hpp"
@@ -564,6 +565,10 @@ using featherdoc_cli::read_text_source;
 using featherdoc_cli::run_export_pdf_command;
 using featherdoc_cli::run_append_table_row_command;
 using featherdoc_cli::run_append_template_table_row_command;
+using featherdoc_cli::run_clear_paragraph_style_command;
+using featherdoc_cli::run_clear_run_font_family_command;
+using featherdoc_cli::run_clear_run_language_command;
+using featherdoc_cli::run_clear_run_style_command;
 using featherdoc_cli::run_inspect_table_cells_command;
 using featherdoc_cli::run_inspect_table_rows_command;
 using featherdoc_cli::run_inspect_tables_command;
@@ -589,6 +594,10 @@ using featherdoc_cli::run_clear_table_row_height_command;
 using featherdoc_cli::run_clear_table_row_repeat_header_command;
 using featherdoc_cli::run_remove_table_column_command;
 using featherdoc_cli::run_remove_table_row_command;
+using featherdoc_cli::run_set_paragraph_style_command;
+using featherdoc_cli::run_set_run_font_family_command;
+using featherdoc_cli::run_set_run_language_command;
+using featherdoc_cli::run_set_run_style_command;
 using featherdoc_cli::run_set_table_row_cant_split_command;
 using featherdoc_cli::run_set_table_row_height_command;
 using featherdoc_cli::run_set_table_row_repeat_header_command;
@@ -17477,558 +17486,35 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "set-paragraph-style") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "set-paragraph-style expects an input path, a paragraph index, and a style id",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        const auto style_id = arguments[3];
-        set_paragraph_style_options options;
-        std::string error_message;
-        if (!parse_set_paragraph_style_options(arguments, 4U, options,
-                                               error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Paragraph paragraph;
-        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
-                                    options.json_output)) {
-            return 1;
-        }
-
-        if (!doc.set_paragraph_style(paragraph, style_id)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index, style_id](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index
-                           << ",\"style_id\":";
-                    write_json_string(stream, style_id);
-                });
-        }
-
-        return 0;
+        return run_set_paragraph_style_command(command, arguments);
     }
 
     if (command == "clear-paragraph-style") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "clear-paragraph-style expects an input path and a paragraph index",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        clear_paragraph_style_options options;
-        std::string error_message;
-        if (!parse_clear_paragraph_style_options(arguments, 3U, options,
-                                                 error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Paragraph paragraph;
-        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
-                                    options.json_output)) {
-            return 1;
-        }
-
-        if (!doc.clear_paragraph_style(paragraph)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index;
-                });
-        }
-
-        return 0;
+        return run_clear_paragraph_style_command(command, arguments);
     }
 
     if (command == "set-run-style") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 5U) {
-            print_parse_error(
-                command,
-                "set-run-style expects an input path, a paragraph index, a run index, and a style id",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::uint32_t run_index = 0U;
-        if (!parse_uint32(arguments[3], run_index)) {
-            print_parse_error(command,
-                              "invalid run index: " + std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        const auto style_id = arguments[4];
-        set_run_style_options options;
-        std::string error_message;
-        if (!parse_set_run_style_options(arguments, 5U, options, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Run run;
-        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
-                              options.json_output)) {
-            return 1;
-        }
-
-        if (!doc.set_run_style(run, style_id)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index, run_index, style_id](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index
-                           << ",\"run_index\":" << run_index << ",\"style_id\":";
-                    write_json_string(stream, style_id);
-                });
-        }
-
-        return 0;
+        return run_set_run_style_command(command, arguments);
     }
 
     if (command == "clear-run-style") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "clear-run-style expects an input path, a paragraph index, and a run index",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::uint32_t run_index = 0U;
-        if (!parse_uint32(arguments[3], run_index)) {
-            print_parse_error(command,
-                              "invalid run index: " + std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        clear_run_style_options options;
-        std::string error_message;
-        if (!parse_clear_run_style_options(arguments, 4U, options, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Run run;
-        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
-                              options.json_output)) {
-            return 1;
-        }
-
-        if (!doc.clear_run_style(run)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index, run_index](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index
-                           << ",\"run_index\":" << run_index;
-                });
-        }
-
-        return 0;
+        return run_clear_run_style_command(command, arguments);
     }
 
     if (command == "set-run-font-family") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 5U) {
-            print_parse_error(
-                command,
-                "set-run-font-family expects an input path, a paragraph index, a run index, and a font family",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::uint32_t run_index = 0U;
-        if (!parse_uint32(arguments[3], run_index)) {
-            print_parse_error(command,
-                              "invalid run index: " + std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        const auto font_family = arguments[4];
-        set_run_font_family_options options;
-        std::string error_message;
-        if (!parse_set_run_font_family_options(arguments, 5U, options,
-                                               error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Run run;
-        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
-                              options.json_output)) {
-            return 1;
-        }
-
-        if (!run.set_font_family(font_family)) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail = "run font family must not be empty";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "run font family must not be empty",
-                                     error_info, options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index, run_index, font_family](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index
-                           << ",\"run_index\":" << run_index
-                           << ",\"font_family\":";
-                    write_json_string(stream, font_family);
-                });
-        }
-
-        return 0;
+        return run_set_run_font_family_command(command, arguments);
     }
 
     if (command == "clear-run-font-family") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "clear-run-font-family expects an input path, a paragraph index, and a run index",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::uint32_t run_index = 0U;
-        if (!parse_uint32(arguments[3], run_index)) {
-            print_parse_error(command,
-                              "invalid run index: " + std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        clear_run_font_family_options options;
-        std::string error_message;
-        if (!parse_clear_run_font_family_options(arguments, 4U, options,
-                                                 error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Run run;
-        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
-                              options.json_output)) {
-            return 1;
-        }
-
-        if (!run.clear_font_family()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail = "target run handle is not valid";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "target run handle is not valid",
-                                     error_info, options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index, run_index](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index
-                           << ",\"run_index\":" << run_index;
-                });
-        }
-
-        return 0;
+        return run_clear_run_font_family_command(command, arguments);
     }
 
     if (command == "set-run-language") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 5U) {
-            print_parse_error(
-                command,
-                "set-run-language expects an input path, a paragraph index, a run index, and a language",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::uint32_t run_index = 0U;
-        if (!parse_uint32(arguments[3], run_index)) {
-            print_parse_error(command,
-                              "invalid run index: " + std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        const auto language = arguments[4];
-        set_run_language_options options;
-        std::string error_message;
-        if (!parse_set_run_language_options(arguments, 5U, options,
-                                            error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Run run;
-        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
-                              options.json_output)) {
-            return 1;
-        }
-
-        if (!run.set_language(language)) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail = "run language must not be empty";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "run language must not be empty",
-                                     error_info, options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index, run_index, language](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index
-                           << ",\"run_index\":" << run_index
-                           << ",\"language\":";
-                    write_json_string(stream, language);
-                });
-        }
-
-        return 0;
+        return run_set_run_language_command(command, arguments);
     }
 
     if (command == "clear-run-language") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "clear-run-language expects an input path, a paragraph index, and a run index",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::uint32_t run_index = 0U;
-        if (!parse_uint32(arguments[3], run_index)) {
-            print_parse_error(command,
-                              "invalid run index: " + std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        clear_run_language_options options;
-        std::string error_message;
-        if (!parse_clear_run_language_options(arguments, 4U, options,
-                                              error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Run run;
-        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
-                              options.json_output)) {
-            return 1;
-        }
-
-        if (!run.clear_language()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail = "target run handle is not valid";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "target run handle is not valid",
-                                     error_info, options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index, run_index](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index
-                           << ",\"run_index\":" << run_index;
-                });
-        }
-
-        return 0;
+        return run_clear_run_language_command(command, arguments);
     }
 
     if (command == "inspect-default-run-properties") {
