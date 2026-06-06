@@ -19,6 +19,7 @@
 #include "featherdoc_cli_table_cell_options_parse.hpp"
 #include "featherdoc_cli_table_inspect_commands.hpp"
 #include "featherdoc_cli_table_merge_commands.hpp"
+#include "featherdoc_cli_table_row_commands.hpp"
 #include "featherdoc_cli_table_row_summary.hpp"
 #include "featherdoc_cli_table_structure_validation.hpp"
 #include "featherdoc_cli_table_text_commands.hpp"
@@ -560,11 +561,14 @@ using featherdoc_cli::open_document;
 using featherdoc_cli::path_type;
 using featherdoc_cli::read_text_source;
 using featherdoc_cli::run_export_pdf_command;
+using featherdoc_cli::run_append_table_row_command;
 using featherdoc_cli::run_append_template_table_row_command;
 using featherdoc_cli::run_inspect_table_cells_command;
 using featherdoc_cli::run_inspect_table_rows_command;
 using featherdoc_cli::run_inspect_tables_command;
 using featherdoc_cli::run_insert_paragraph_after_table_command;
+using featherdoc_cli::run_insert_table_row_after_command;
+using featherdoc_cli::run_insert_table_row_before_command;
 using featherdoc_cli::run_inspect_template_table_cells_command;
 using featherdoc_cli::run_inspect_template_table_rows_command;
 using featherdoc_cli::run_inspect_template_tables_command;
@@ -577,6 +581,7 @@ using featherdoc_cli::run_insert_template_table_row_before_command;
 using featherdoc_cli::run_merge_template_table_cells_command;
 using featherdoc_cli::run_remove_template_table_column_command;
 using featherdoc_cli::run_remove_template_table_row_command;
+using featherdoc_cli::run_remove_table_row_command;
 using featherdoc_cli::run_set_template_table_cell_block_texts_command;
 using featherdoc_cli::run_set_template_table_cell_text_command;
 using featherdoc_cli::run_set_template_table_from_json_command;
@@ -16863,338 +16868,19 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "append-table-row") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "append-table-row expects an input path and a table index",
-                json_output);
-            return 2;
-        }
-
-        std::size_t table_index = 0U;
-        if (!parse_index(arguments[2], table_index)) {
-            print_parse_error(command,
-                              "invalid table index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        append_table_row_options options;
-        std::string error_message;
-        if (!parse_append_table_row_options(arguments, 3U, options,
-                                            error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        const auto inspected_table = doc.inspect_table(table_index);
-        if (const auto &error_info = doc.last_error(); error_info.code) {
-            report_document_error(command, "mutate", error_info,
-                                  options.json_output);
-            return 1;
-        }
-        if (!inspected_table.has_value()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "table index '" + std::to_string(table_index) + "' is out of range";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "table index is out of range", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        featherdoc::Table table;
-        if (!resolve_body_table(doc, table_index, table, command,
-                                options.json_output)) {
-            return 1;
-        }
-
-        const auto cell_count =
-            options.cell_count.value_or(inspected_table->column_count);
-        if (cell_count == 0U) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail = "table row must contain at least one cell";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "failed to append table row", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        auto row = table.append_row(cell_count);
-        if (!row.has_next()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail = "target table handle is not valid";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "failed to append table row", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        const auto row_index = inspected_table->row_count;
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [table_index, row_index, cell_count](std::ostream &stream) {
-                    stream << ",\"table_index\":" << table_index
-                           << ",\"row_index\":" << row_index
-                           << ",\"cell_count\":" << cell_count;
-                });
-        }
-
-        return 0;
+        return run_append_table_row_command(command, arguments);
     }
 
     if (command == "insert-table-row-before") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "insert-table-row-before expects an input path, a table index, and a row index",
-                json_output);
-            return 2;
-        }
-
-        std::size_t table_index = 0U;
-        if (!parse_index(arguments[2], table_index)) {
-            print_parse_error(command,
-                              "invalid table index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::size_t row_index = 0U;
-        if (!parse_index(arguments[3], row_index)) {
-            print_parse_error(command,
-                              "invalid row index: " +
-                                  std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        table_cell_style_options options;
-        std::string error_message;
-        if (!parse_table_cell_style_options(arguments, 4U, options,
-                                            error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::TableRow row;
-        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
-                                    options.json_output)) {
-            return 1;
-        }
-
-        auto inserted_row = row.insert_row_before();
-        if (!inserted_row.has_next()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "cannot insert a row adjacent to row index '" +
-                std::to_string(row_index) + "' in table index '" +
-                std::to_string(table_index) +
-                "' because the row participates in a vertical merge";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "failed to insert table row", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [table_index, row_index](std::ostream &stream) {
-                    stream << ",\"table_index\":" << table_index
-                           << ",\"row_index\":" << row_index
-                           << ",\"inserted_row_index\":" << row_index;
-                });
-        }
-
-        return 0;
+        return run_insert_table_row_before_command(command, arguments);
     }
 
     if (command == "insert-table-row-after") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "insert-table-row-after expects an input path, a table index, and a row index",
-                json_output);
-            return 2;
-        }
-
-        std::size_t table_index = 0U;
-        if (!parse_index(arguments[2], table_index)) {
-            print_parse_error(command,
-                              "invalid table index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::size_t row_index = 0U;
-        if (!parse_index(arguments[3], row_index)) {
-            print_parse_error(command,
-                              "invalid row index: " +
-                                  std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        table_cell_style_options options;
-        std::string error_message;
-        if (!parse_table_cell_style_options(arguments, 4U, options,
-                                            error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::TableRow row;
-        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
-                                    options.json_output)) {
-            return 1;
-        }
-
-        auto inserted_row = row.insert_row_after();
-        if (!inserted_row.has_next()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "cannot insert a row adjacent to row index '" +
-                std::to_string(row_index) + "' in table index '" +
-                std::to_string(table_index) +
-                "' because the row participates in a vertical merge";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "failed to insert table row", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [table_index, row_index](std::ostream &stream) {
-                    stream << ",\"table_index\":" << table_index
-                           << ",\"row_index\":" << row_index
-                           << ",\"inserted_row_index\":" << (row_index + 1U);
-                });
-        }
-
-        return 0;
+        return run_insert_table_row_after_command(command, arguments);
     }
 
     if (command == "remove-table-row") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "remove-table-row expects an input path, a table index, and a row index",
-                json_output);
-            return 2;
-        }
-
-        std::size_t table_index = 0U;
-        if (!parse_index(arguments[2], table_index)) {
-            print_parse_error(command,
-                              "invalid table index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::size_t row_index = 0U;
-        if (!parse_index(arguments[3], row_index)) {
-            print_parse_error(command,
-                              "invalid row index: " +
-                                  std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        table_cell_style_options options;
-        std::string error_message;
-        if (!parse_table_cell_style_options(arguments, 4U, options,
-                                            error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::TableRow row;
-        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
-                                    options.json_output)) {
-            return 1;
-        }
-
-        if (!row.remove()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "cannot remove the last row from table index '" +
-                std::to_string(table_index) + "'";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "failed to remove table row", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [table_index, row_index](std::ostream &stream) {
-                    stream << ",\"table_index\":" << table_index
-                           << ",\"row_index\":" << row_index;
-                });
-        }
-
-        return 0;
+        return run_remove_table_row_command(command, arguments);
     }
 
     if (command == "insert-table-before" || command == "insert-table-after") {
