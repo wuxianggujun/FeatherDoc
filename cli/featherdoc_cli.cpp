@@ -20,6 +20,7 @@
 #include "featherdoc_cli_table_inspect_commands.hpp"
 #include "featherdoc_cli_table_row_summary.hpp"
 #include "featherdoc_cli_table_structure_validation.hpp"
+#include "featherdoc_cli_table_text_commands.hpp"
 #include "featherdoc_cli_template_inspect_options_parse.hpp"
 #include "featherdoc_cli_template_table_inspect_commands.hpp"
 #include "featherdoc_cli_template_table_column_commands.hpp"
@@ -562,9 +563,11 @@ using featherdoc_cli::run_append_template_table_row_command;
 using featherdoc_cli::run_inspect_table_cells_command;
 using featherdoc_cli::run_inspect_table_rows_command;
 using featherdoc_cli::run_inspect_tables_command;
+using featherdoc_cli::run_insert_paragraph_after_table_command;
 using featherdoc_cli::run_inspect_template_table_cells_command;
 using featherdoc_cli::run_inspect_template_table_rows_command;
 using featherdoc_cli::run_inspect_template_tables_command;
+using featherdoc_cli::run_set_table_cell_text_command;
 using featherdoc_cli::run_insert_template_table_column_after_command;
 using featherdoc_cli::run_insert_template_table_column_before_command;
 using featherdoc_cli::run_insert_template_table_row_after_command;
@@ -14192,148 +14195,7 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "set-table-cell-text") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "set-table-cell-text expects an input path, a table index, "
-                "a row index, and either a cell index or --grid-column",
-                json_output);
-            return 2;
-        }
-
-        std::size_t table_index = 0U;
-        if (!parse_index(arguments[2], table_index)) {
-            print_parse_error(command,
-                              "invalid table index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::size_t row_index = 0U;
-        if (!parse_index(arguments[3], row_index)) {
-            print_parse_error(command,
-                              "invalid row index: " +
-                                  std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        auto cell_index = std::optional<std::size_t>{};
-        auto options_start_index = std::size_t{4U};
-        if (arguments.size() > 4U &&
-            !(arguments[4].size() >= 2U && arguments[4].substr(0U, 2U) == "--")) {
-            std::size_t parsed_cell_index = 0U;
-            if (!parse_index(arguments[4], parsed_cell_index)) {
-                print_parse_error(command,
-                                  "invalid cell index: " +
-                                      std::string(arguments[4]),
-                                  json_output);
-                return 2;
-            }
-            cell_index = parsed_cell_index;
-            options_start_index = 5U;
-        }
-
-        table_cell_text_options options;
-        std::string error_message;
-        if (!parse_table_cell_text_options(arguments, options_start_index, options,
-                                           error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-        if (!cell_index.has_value() && !options.grid_column.has_value()) {
-            print_parse_error(command,
-                              "expected a cell index or --grid-column <index>",
-                              json_output);
-            return 2;
-        }
-        if (cell_index.has_value() && options.grid_column.has_value()) {
-            print_parse_error(command,
-                              "cell index and --grid-column are mutually exclusive",
-                              json_output);
-            return 2;
-        }
-
-        std::string replacement_text;
-        if (!read_text_source(options, replacement_text, error_message)) {
-            if (options.json_output) {
-                write_json_command_error(std::cerr, command, "input",
-                                         error_message);
-            } else {
-                std::cerr << error_message << '\n';
-            }
-            return 1;
-        }
-
-        std::optional<featherdoc::table_cell_inspection_summary> resolved_cell_summary;
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::TableCell cell;
-        if (options.grid_column.has_value()) {
-            resolved_cell_summary = doc.inspect_table_cell_by_grid_column(
-                table_index, row_index, *options.grid_column);
-            if (const auto &error_info = doc.last_error(); error_info.code) {
-                report_document_error(command, "mutate", error_info,
-                                      options.json_output);
-                return 1;
-            }
-            if (!resolve_body_table_cell_by_grid_column(
-                    doc, table_index, row_index, *options.grid_column, cell,
-                    command, options.json_output)) {
-                return 1;
-            }
-        } else {
-            if (!resolve_body_table_cell(doc, table_index, row_index, *cell_index,
-                                         cell, command, options.json_output)) {
-                return 1;
-            }
-        }
-
-        if (!cell.set_text(replacement_text)) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::io_error);
-            error_info.detail =
-                "failed to set text for the requested table cell";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "failed to set table cell text", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [table_index, row_index, cell_index, &options,
-                 &resolved_cell_summary](std::ostream &stream) {
-                    stream << ",\"table_index\":" << table_index
-                            << ",\"row_index\":" << row_index;
-                    if (options.grid_column.has_value()) {
-                        stream << ",\"grid_column\":" << *options.grid_column;
-                        if (resolved_cell_summary.has_value()) {
-                            stream << ",\"cell_index\":"
-                                   << resolved_cell_summary->cell_index
-                                   << ",\"column_index\":"
-                                   << resolved_cell_summary->column_index
-                                   << ",\"column_span\":"
-                                   << resolved_cell_summary->column_span;
-                        }
-                    } else {
-                        stream << ",\"cell_index\":" << *cell_index;
-                    }
-                });
-        }
-
-        return 0;
+        return run_set_table_cell_text_command(command, arguments);
     }
 
     if (command == "merge-table-cells") {
@@ -17696,102 +17558,7 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "insert-paragraph-after-table") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "insert-paragraph-after-table expects an input path and a table index",
-                json_output);
-            return 2;
-        }
-
-        std::size_t table_index = 0U;
-        if (!parse_index(arguments[2], table_index)) {
-            print_parse_error(command,
-                              "invalid table index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        table_cell_text_options options;
-        std::string error_message;
-        if (!parse_table_cell_text_options(arguments, 3U, options,
-                                           error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-        if (options.grid_column.has_value()) {
-            print_parse_error(
-                command,
-                "insert-paragraph-after-table does not accept --grid-column",
-                json_output);
-            return 2;
-        }
-
-        std::string paragraph_text;
-        if (!read_text_source(options, paragraph_text, error_message)) {
-            print_parse_error(command, error_message, options.json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Table table;
-        if (!resolve_body_table(doc, table_index, table, command,
-                                options.json_output)) {
-            return 1;
-        }
-
-        auto inserted_paragraph = table.insert_paragraph_after(paragraph_text);
-        if (!inserted_paragraph.has_next()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail = "target table handle is not valid";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "failed to insert paragraph", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        std::optional<std::size_t> inserted_paragraph_index;
-        const auto body_blocks = doc.inspect_body_blocks();
-        for (std::size_t index = 0U; index + 1U < body_blocks.size(); ++index) {
-            if (body_blocks[index].kind == featherdoc::body_block_kind::table &&
-                body_blocks[index].item_index == table_index &&
-                body_blocks[index + 1U].kind ==
-                    featherdoc::body_block_kind::paragraph) {
-                inserted_paragraph_index = body_blocks[index + 1U].item_index;
-                break;
-            }
-        }
-
-        if (!save_document(doc, options.output_path, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [table_index, inserted_paragraph_index,
-                 text_length = paragraph_text.size()](std::ostream &stream) {
-                    stream << ",\"table_index\":" << table_index
-                           << ",\"paragraph_index\":";
-                    if (inserted_paragraph_index.has_value()) {
-                        stream << *inserted_paragraph_index;
-                    } else {
-                        stream << "null";
-                    }
-                    stream << ",\"text_length\":" << text_length;
-                });
-        }
-
-        return 0;
+        return run_insert_paragraph_after_table_command(command, arguments);
     }
 
     if (command == "remove-table") {
