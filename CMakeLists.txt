@@ -1219,6 +1219,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_paragraph_list_options_parse.cpp
         cli/featherdoc_cli_paragraph_run_commands.cpp
         cli/featherdoc_cli_paragraph_run_options_parse.cpp
+        cli/featherdoc_cli_run_style_properties_commands.cpp
         cli/featherdoc_cli_semantic_diff.cpp
         cli/featherdoc_cli_semantic_diff_options_parse.cpp
         cli/featherdoc_cli_style_ensure_options_parse.cpp
