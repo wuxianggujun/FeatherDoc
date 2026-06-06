@@ -18,6 +18,7 @@
 #include "featherdoc_cli_style_ensure_options_parse.hpp"
 #include "featherdoc_cli_table_cell_options_parse.hpp"
 #include "featherdoc_cli_table_inspect_commands.hpp"
+#include "featherdoc_cli_table_merge_commands.hpp"
 #include "featherdoc_cli_table_row_summary.hpp"
 #include "featherdoc_cli_table_structure_validation.hpp"
 #include "featherdoc_cli_table_text_commands.hpp"
@@ -568,6 +569,7 @@ using featherdoc_cli::run_inspect_template_table_cells_command;
 using featherdoc_cli::run_inspect_template_table_rows_command;
 using featherdoc_cli::run_inspect_template_tables_command;
 using featherdoc_cli::run_set_table_cell_text_command;
+using featherdoc_cli::run_merge_table_cells_command;
 using featherdoc_cli::run_insert_template_table_column_after_command;
 using featherdoc_cli::run_insert_template_table_column_before_command;
 using featherdoc_cli::run_insert_template_table_row_after_command;
@@ -580,6 +582,7 @@ using featherdoc_cli::run_set_template_table_cell_text_command;
 using featherdoc_cli::run_set_template_table_from_json_command;
 using featherdoc_cli::run_set_template_table_row_texts_command;
 using featherdoc_cli::run_set_template_tables_from_json_command;
+using featherdoc_cli::run_unmerge_table_cells_command;
 using featherdoc_cli::run_unmerge_template_table_cells_command;
 using featherdoc_cli::collect_table_row_summaries;
 using featherdoc_cli::table_row_inspection_summary;
@@ -14199,199 +14202,11 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "merge-table-cells") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 5U) {
-            print_parse_error(
-                command,
-                "merge-table-cells expects an input path, a table index, "
-                "a row index, and a cell index",
-                json_output);
-            return 2;
-        }
-
-        std::size_t table_index = 0U;
-        if (!parse_index(arguments[2], table_index)) {
-            print_parse_error(command,
-                              "invalid table index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::size_t row_index = 0U;
-        if (!parse_index(arguments[3], row_index)) {
-            print_parse_error(command,
-                              "invalid row index: " +
-                                  std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        std::size_t cell_index = 0U;
-        if (!parse_index(arguments[4], cell_index)) {
-            print_parse_error(command,
-                              "invalid cell index: " +
-                                  std::string(arguments[4]),
-                              json_output);
-            return 2;
-        }
-
-        merge_table_cells_options options;
-        std::string error_message;
-        if (!parse_merge_table_cells_options(arguments, 5U, options,
-                                             error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::TableCell cell;
-        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
-                                     command, options.json_output)) {
-            return 1;
-        }
-
-        const auto success =
-            options.direction == table_merge_direction::right
-                ? cell.merge_right(options.count)
-                : cell.merge_down(options.count);
-        if (!success) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "cell at table index '" + std::to_string(table_index) +
-                "', row index '" + std::to_string(row_index) +
-                "', and cell index '" + std::to_string(cell_index) +
-                "' could not be merged towards '" +
-                std::string(table_merge_direction_name(options.direction)) +
-                "' with count '" + std::to_string(options.count) + "'";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "failed to merge table cells", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [table_index, row_index, cell_index, &options](std::ostream &stream) {
-                    stream << ",\"table_index\":" << table_index
-                           << ",\"row_index\":" << row_index
-                           << ",\"cell_index\":" << cell_index
-                           << ",\"direction\":";
-                    write_json_string(stream,
-                                      table_merge_direction_name(options.direction));
-                    stream << ",\"count\":" << options.count;
-                });
-        }
-
-        return 0;
+        return run_merge_table_cells_command(command, arguments);
     }
 
     if (command == "unmerge-table-cells") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 5U) {
-            print_parse_error(
-                command,
-                "unmerge-table-cells expects an input path, a table index, "
-                "a row index, and a cell index",
-                json_output);
-            return 2;
-        }
-
-        std::size_t table_index = 0U;
-        if (!parse_index(arguments[2], table_index)) {
-            print_parse_error(command,
-                              "invalid table index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        std::size_t row_index = 0U;
-        if (!parse_index(arguments[3], row_index)) {
-            print_parse_error(command,
-                              "invalid row index: " +
-                                  std::string(arguments[3]),
-                              json_output);
-            return 2;
-        }
-
-        std::size_t cell_index = 0U;
-        if (!parse_index(arguments[4], cell_index)) {
-            print_parse_error(command,
-                              "invalid cell index: " +
-                                  std::string(arguments[4]),
-                              json_output);
-            return 2;
-        }
-
-        unmerge_table_cells_options options;
-        std::string error_message;
-        if (!parse_unmerge_table_cells_options(arguments, 5U, options,
-                                               error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::TableCell cell;
-        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
-                                     command, options.json_output)) {
-            return 1;
-        }
-
-        const auto success =
-            options.direction == table_merge_direction::right
-                ? cell.unmerge_right()
-                : cell.unmerge_down();
-        if (!success) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "cell at table index '" + std::to_string(table_index) +
-                "', row index '" + std::to_string(row_index) +
-                "', and cell index '" + std::to_string(cell_index) +
-                "' could not be unmerged towards '" +
-                std::string(table_merge_direction_name(options.direction)) + "'";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "mutate",
-                                     "failed to unmerge table cells", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [table_index, row_index, cell_index, &options](std::ostream &stream) {
-                    stream << ",\"table_index\":" << table_index
-                           << ",\"row_index\":" << row_index
-                           << ",\"cell_index\":" << cell_index
-                           << ",\"direction\":";
-                    write_json_string(stream,
-                                      table_merge_direction_name(options.direction));
-                });
-        }
-
-        return 0;
+        return run_unmerge_table_cells_command(command, arguments);
     }
 
     if (command == "set-table-cell-fill") {

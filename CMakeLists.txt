@@ -1223,6 +1223,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_style_ensure_options_parse.cpp
         cli/featherdoc_cli_table_cell_options_parse.cpp
         cli/featherdoc_cli_table_inspect_commands.cpp
+        cli/featherdoc_cli_table_merge_commands.cpp
         cli/featherdoc_cli_table_row_summary.cpp
         cli/featherdoc_cli_table_structure_validation.cpp
         cli/featherdoc_cli_table_text_commands.cpp
