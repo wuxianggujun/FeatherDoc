@@ -17,6 +17,7 @@
 #include "featherdoc_cli_run_properties_options_parse.hpp"
 #include "featherdoc_cli_style_ensure_options_parse.hpp"
 #include "featherdoc_cli_table_cell_options_parse.hpp"
+#include "featherdoc_cli_table_inspect_commands.hpp"
 #include "featherdoc_cli_table_row_summary.hpp"
 #include "featherdoc_cli_table_structure_validation.hpp"
 #include "featherdoc_cli_template_inspect_options_parse.hpp"
@@ -558,6 +559,9 @@ using featherdoc_cli::path_type;
 using featherdoc_cli::read_text_source;
 using featherdoc_cli::run_export_pdf_command;
 using featherdoc_cli::run_append_template_table_row_command;
+using featherdoc_cli::run_inspect_table_cells_command;
+using featherdoc_cli::run_inspect_table_rows_command;
+using featherdoc_cli::run_inspect_tables_command;
 using featherdoc_cli::run_inspect_template_table_cells_command;
 using featherdoc_cli::run_inspect_template_table_rows_command;
 using featherdoc_cli::run_inspect_template_tables_command;
@@ -13569,53 +13573,7 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "inspect-tables") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 2U) {
-            print_parse_error(command, "inspect-tables expects an input path",
-                              json_output);
-            return 2;
-        }
-
-        inspect_tables_options options;
-        std::string error_message;
-        if (!parse_inspect_tables_options(arguments, 2U, options, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        const auto input_path = path_type(std::string(arguments[1]));
-        if (!open_document(input_path, doc, command, options.json_output)) {
-            return 1;
-        }
-
-        const auto tables = doc.inspect_tables();
-        if (const auto &error_info = doc.last_error(); error_info.code) {
-            report_document_error(command, "inspect", error_info,
-                                  options.json_output);
-            return 1;
-        }
-
-        if (options.table_index.has_value()) {
-            if (*options.table_index >= tables.size()) {
-                featherdoc::document_error_info error_info{};
-                error_info.code =
-                    std::make_error_code(std::errc::invalid_argument);
-                error_info.detail =
-                    "table index '" + std::to_string(*options.table_index) +
-                    "' is out of range";
-                error_info.entry_name = "word/document.xml";
-                report_operation_failure(command, "inspect",
-                                         "table index is out of range",
-                                         error_info, options.json_output);
-                return 1;
-            }
-
-            inspect_table(tables[*options.table_index], options.json_output);
-            return 0;
-        }
-
-        inspect_tables(tables, options.json_output);
-        return 0;
+        return run_inspect_tables_command(command, arguments);
     }
 
     if (command == "plan-table-position-presets") {
@@ -14226,221 +14184,11 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "inspect-table-rows") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "inspect-table-rows expects an input path and a table index",
-                json_output);
-            return 2;
-        }
-
-        std::size_t table_index = 0U;
-        if (!parse_index(arguments[2], table_index)) {
-            print_parse_error(command,
-                              "invalid table index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        inspect_table_rows_options options;
-        std::string error_message;
-        if (!parse_inspect_table_rows_options(arguments, 3U, options,
-                                              error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Table table;
-        if (!resolve_body_table(doc, table_index, table, command,
-                                options.json_output, "inspect")) {
-            return 1;
-        }
-
-        if (options.row_index.has_value()) {
-            featherdoc::TableRow row;
-            if (!resolve_body_table_row(doc, table_index, *options.row_index, row,
-                                        command, options.json_output,
-                                        "inspect")) {
-                return 1;
-            }
-
-            inspect_table_row(table_index,
-                              make_table_row_summary(row, *options.row_index),
-                              options.json_output);
-            return 0;
-        }
-
-        inspect_table_rows(table_index, collect_table_row_summaries(table),
-                           options.json_output);
-        return 0;
+        return run_inspect_table_rows_command(command, arguments);
     }
 
     if (command == "inspect-table-cells") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "inspect-table-cells expects an input path and a table index",
-                json_output);
-            return 2;
-        }
-
-        std::size_t table_index = 0U;
-        if (!parse_index(arguments[2], table_index)) {
-            print_parse_error(command,
-                              "invalid table index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        inspect_table_cells_options options;
-        std::string error_message;
-        if (!parse_inspect_table_cells_options(arguments, 3U, options,
-                                               error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        const auto input_path = path_type(std::string(arguments[1]));
-        if (!open_document(input_path, doc, command, options.json_output)) {
-            return 1;
-        }
-
-        const auto table = doc.inspect_table(table_index);
-        if (const auto &error_info = doc.last_error(); error_info.code) {
-            report_document_error(command, "inspect", error_info,
-                                  options.json_output);
-            return 1;
-        }
-        if (!table.has_value()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "table index '" + std::to_string(table_index) +
-                "' is out of range";
-            error_info.entry_name = "word/document.xml";
-            report_operation_failure(command, "inspect",
-                                     "table index is out of range", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (options.row_index.has_value() && options.cell_index.has_value()) {
-            const auto cell =
-                doc.inspect_table_cell(table_index, *options.row_index,
-                                       *options.cell_index);
-            if (const auto &error_info = doc.last_error(); error_info.code) {
-                report_document_error(command, "inspect", error_info,
-                                      options.json_output);
-                return 1;
-            }
-            if (!cell.has_value()) {
-                featherdoc::document_error_info error_info{};
-                error_info.code =
-                    std::make_error_code(std::errc::invalid_argument);
-                if (*options.row_index >= table->row_count) {
-                    error_info.detail =
-                        "row index '" + std::to_string(*options.row_index) +
-                        "' is out of range for table index '" +
-                        std::to_string(table_index) + "'";
-                } else {
-                    error_info.detail =
-                        "cell index '" + std::to_string(*options.cell_index) +
-                        "' is out of range for row index '" +
-                        std::to_string(*options.row_index) +
-                        "' in table index '" + std::to_string(table_index) + "'";
-                }
-                error_info.entry_name = "word/document.xml";
-                report_operation_failure(command, "inspect",
-                                         "table cell selector is out of range",
-                                         error_info, options.json_output);
-                return 1;
-            }
-
-            inspect_table_cell(table_index, *cell, options.json_output);
-            return 0;
-        }
-
-        if (options.row_index.has_value() && options.grid_column.has_value()) {
-            const auto cell = doc.inspect_table_cell_by_grid_column(
-                table_index, *options.row_index, *options.grid_column);
-            if (const auto &error_info = doc.last_error(); error_info.code) {
-                report_document_error(command, "inspect", error_info,
-                                      options.json_output);
-                return 1;
-            }
-            if (!cell.has_value()) {
-                featherdoc::document_error_info error_info{};
-                error_info.code =
-                    std::make_error_code(std::errc::invalid_argument);
-                if (*options.row_index >= table->row_count) {
-                    error_info.detail =
-                        "row index '" + std::to_string(*options.row_index) +
-                        "' is out of range for table index '" +
-                        std::to_string(table_index) + "'";
-                } else {
-                    error_info.detail =
-                        "grid column '" + std::to_string(*options.grid_column) +
-                        "' is out of range for row index '" +
-                        std::to_string(*options.row_index) +
-                        "' in table index '" + std::to_string(table_index) + "'";
-                }
-                error_info.entry_name = "word/document.xml";
-                report_operation_failure(command, "inspect",
-                                         "table cell selector is out of range",
-                                         error_info, options.json_output);
-                return 1;
-            }
-
-            inspect_table_cell(table_index, *cell, options.json_output);
-            return 0;
-        }
-
-        auto cells = doc.inspect_table_cells(table_index);
-        if (const auto &error_info = doc.last_error(); error_info.code) {
-            report_document_error(command, "inspect", error_info,
-                                  options.json_output);
-            return 1;
-        }
-
-        if (options.row_index.has_value()) {
-            std::vector<featherdoc::table_cell_inspection_summary> row_cells;
-            for (const auto &cell : cells) {
-                if (cell.row_index == *options.row_index) {
-                    row_cells.push_back(cell);
-                }
-            }
-
-            if (row_cells.empty() && *options.row_index >= table->row_count) {
-                featherdoc::document_error_info error_info{};
-                error_info.code =
-                    std::make_error_code(std::errc::invalid_argument);
-                error_info.detail =
-                    "row index '" + std::to_string(*options.row_index) +
-                    "' is out of range for table index '" +
-                    std::to_string(table_index) + "'";
-                error_info.entry_name = "word/document.xml";
-                report_operation_failure(command, "inspect",
-                                         "row index is out of range",
-                                         error_info, options.json_output);
-                return 1;
-            }
-
-            inspect_table_cells(table_index, options.row_index, row_cells,
-                                options.json_output);
-            return 0;
-        }
-
-        inspect_table_cells(table_index, std::nullopt, cells, options.json_output);
-        return 0;
+        return run_inspect_table_cells_command(command, arguments);
     }
 
     if (command == "set-table-cell-text") {
