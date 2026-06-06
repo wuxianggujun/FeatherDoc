@@ -1225,6 +1225,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_table_structure_validation.cpp
         cli/featherdoc_cli_template_inspect_options_parse.cpp
         cli/featherdoc_cli_template_part_selection.cpp
+        cli/featherdoc_cli_template_table_inspect_commands.cpp
         cli/featherdoc_cli_template_table_json_patch_apply.cpp
         cli/featherdoc_cli_template_table_json_patch_commands.cpp
         cli/featherdoc_cli_template_table_json_patch_parse.cpp
