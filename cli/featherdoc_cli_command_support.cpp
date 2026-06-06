@@ -1,8 +1,45 @@
 #include "featherdoc_cli_command_support.hpp"
 
+#include "featherdoc_cli_bookmark_text_options_parse.hpp"
 #include "featherdoc_cli_errors.hpp"
+#include "featherdoc_cli_section_options_parse.hpp"
+#include "featherdoc_cli_table_cell_options_parse.hpp"
+
+#include <fstream>
+#include <iterator>
+#include <utility>
 
 namespace featherdoc_cli {
+namespace {
+
+auto read_text_source_value(const std::optional<std::string> &inline_text,
+                            const std::optional<path_type> &text_file,
+                            std::string_view expected_message,
+                            std::string &text,
+                            std::string &error_message) -> bool {
+    if (inline_text.has_value()) {
+        text = *inline_text;
+        return true;
+    }
+
+    if (!text_file.has_value()) {
+        error_message = std::string(expected_message);
+        return false;
+    }
+
+    std::ifstream stream(*text_file, std::ios::binary);
+    if (!stream.good()) {
+        error_message = "failed to read text file: " + text_file->string();
+        return false;
+    }
+
+    text.assign(std::istreambuf_iterator<char>(stream),
+                std::istreambuf_iterator<char>());
+    text = strip_utf8_bom(std::move(text));
+    return true;
+}
+
+} // namespace
 
 auto save_document(featherdoc::Document &doc,
                    const std::optional<path_type> &output_path,
@@ -25,6 +62,26 @@ auto open_document(const path_type &input_path, featherdoc::Document &doc,
     }
 
     return true;
+}
+
+auto read_text_source(const cli_text_source_options &options, std::string &text,
+                      std::string &error_message) -> bool {
+    return read_text_source_value(options.text, options.text_file,
+                                  "expected text input", text, error_message);
+}
+
+auto read_text_source(const section_text_options &options, std::string &text,
+                      std::string &error_message) -> bool {
+    return read_text_source_value(options.text, options.text_file,
+                                  "expected --text <text> or --text-file <path>",
+                                  text, error_message);
+}
+
+auto read_text_source(const table_cell_text_options &options, std::string &text,
+                      std::string &error_message) -> bool {
+    return read_text_source_value(options.text, options.text_file,
+                                  "expected --text <text> or --text-file <path>",
+                                  text, error_message);
 }
 
 void write_json_mutation_result(std::string_view command, featherdoc::Document &doc,

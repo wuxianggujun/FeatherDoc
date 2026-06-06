@@ -15,6 +15,10 @@ namespace featherdoc_cli {
 
 using path_type = std::filesystem::path;
 
+struct cli_text_source_options;
+struct section_text_options;
+struct table_cell_text_options;
+
 auto save_document(featherdoc::Document &doc,
                    const std::optional<path_type> &output_path,
                    std::string_view command = {},
@@ -23,6 +27,18 @@ auto save_document(featherdoc::Document &doc,
 auto open_document(const path_type &input_path, featherdoc::Document &doc,
                    std::string_view command = {},
                    bool json_output = false) -> bool;
+
+[[nodiscard]] auto read_text_source(const cli_text_source_options &options,
+                                    std::string &text,
+                                    std::string &error_message) -> bool;
+
+[[nodiscard]] auto read_text_source(const section_text_options &options,
+                                    std::string &text,
+                                    std::string &error_message) -> bool;
+
+[[nodiscard]] auto read_text_source(const table_cell_text_options &options,
+                                    std::string &text,
+                                    std::string &error_message) -> bool;
 
 template <typename ExtraWriter>
 void write_json_mutation_result(std::string_view command, featherdoc::Document &doc,

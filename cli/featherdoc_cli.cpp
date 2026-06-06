@@ -29,6 +29,7 @@
 #include "featherdoc_cli_template_table_output.hpp"
 #include "featherdoc_cli_template_table_resolve.hpp"
 #include "featherdoc_cli_template_table_row_commands.hpp"
+#include "featherdoc_cli_template_table_text_commands.hpp"
 #include "featherdoc_cli_template_part_selection.hpp"
 #include "featherdoc_cli_pdf_commands.hpp"
 #include "featherdoc_cli_table_position_options_parse.hpp"
@@ -573,6 +574,7 @@ using featherdoc_cli::print_template_tables_from_json_result;
 using featherdoc_cli::load_template_table_cell_summary;
 using featherdoc_cli::load_template_table_cells_summary;
 using featherdoc_cli::load_template_table_summary;
+using featherdoc_cli::make_table_row_summary;
 using featherdoc_cli::numbering_catalog_level_patch;
 using featherdoc_cli::numbering_catalog_override_patch;
 using featherdoc_cli::numbering_catalog_patch_document;
@@ -605,6 +607,7 @@ using featherdoc_cli::write_json_review_mutation_plan_document;
 using featherdoc_cli::write_review_mutation_plan_file;
 using featherdoc_cli::open_document;
 using featherdoc_cli::path_type;
+using featherdoc_cli::read_text_source;
 using featherdoc_cli::run_export_pdf_command;
 using featherdoc_cli::run_append_template_table_row_command;
 using featherdoc_cli::run_insert_template_table_column_after_command;
@@ -614,10 +617,15 @@ using featherdoc_cli::run_insert_template_table_row_before_command;
 using featherdoc_cli::run_merge_template_table_cells_command;
 using featherdoc_cli::run_remove_template_table_column_command;
 using featherdoc_cli::run_remove_template_table_row_command;
+using featherdoc_cli::run_set_template_table_cell_block_texts_command;
+using featherdoc_cli::run_set_template_table_cell_text_command;
 using featherdoc_cli::run_set_template_table_from_json_command;
+using featherdoc_cli::run_set_template_table_row_texts_command;
 using featherdoc_cli::run_set_template_tables_from_json_command;
 using featherdoc_cli::run_unmerge_template_table_cells_command;
+using featherdoc_cli::collect_table_row_summaries;
 using featherdoc_cli::resolve_template_table;
+using featherdoc_cli::table_row_inspection_summary;
 using featherdoc_cli::resolve_template_table_cell;
 using featherdoc_cli::resolve_template_table_cell_by_grid_column;
 using featherdoc_cli::resolve_template_table_for_batch;
@@ -767,16 +775,6 @@ struct inspected_body_run {
     std::optional<double> font_size_points;
     std::optional<std::string> language;
     std::string text;
-};
-
-struct table_row_inspection_summary {
-    std::size_t row_index = 0U;
-    std::size_t cell_count = 0U;
-    std::optional<std::uint32_t> height_twips;
-    std::optional<featherdoc::row_height_rule> height_rule;
-    bool cant_split = false;
-    bool repeats_header = false;
-    std::vector<std::string> cell_texts;
 };
 
 enum class zip_entry_read_status {
@@ -5533,37 +5531,6 @@ void print_table_cell_summary(
     stream << " text=" << format_paragraph_text(cell.text);
 }
 
-auto make_table_row_summary(featherdoc::TableRow &row, std::size_t row_index)
-    -> table_row_inspection_summary {
-    table_row_inspection_summary summary;
-    summary.row_index = row_index;
-    summary.height_twips = row.height_twips();
-    summary.height_rule = row.height_rule();
-    summary.cant_split = row.cant_split();
-    summary.repeats_header = row.repeats_header();
-
-    auto cell = row.cells();
-    while (cell.has_next()) {
-        summary.cell_texts.push_back(cell.get_text());
-        ++summary.cell_count;
-        cell.next();
-    }
-
-    return summary;
-}
-
-auto collect_table_row_summaries(featherdoc::Table &table)
-    -> std::vector<table_row_inspection_summary> {
-    std::vector<table_row_inspection_summary> summaries;
-    auto row = table.rows();
-    for (std::size_t row_index = 0U; row.has_next(); ++row_index) {
-        summaries.push_back(make_table_row_summary(row, row_index));
-        row.next();
-    }
-
-    return summaries;
-}
-
 void print_table_row_summary(std::ostream &stream,
                              const table_row_inspection_summary &row) {
     stream << "row[" << row.row_index << "]: cells=" << row.cell_count
@@ -8188,53 +8155,6 @@ void inspect_sections(featherdoc::Document &doc, bool json_output) {
                    featherdoc::section_reference_kind::even_page))
             << ")\n";
     }
-}
-
-auto read_text_source_value(const std::optional<std::string> &inline_text,
-                            const std::optional<path_type> &text_file,
-                            std::string_view expected_message,
-                            std::string &text,
-                            std::string &error_message) -> bool {
-    if (inline_text.has_value()) {
-        text = *inline_text;
-        return true;
-    }
-
-    if (!text_file.has_value()) {
-        error_message = std::string(expected_message);
-        return false;
-    }
-
-    std::ifstream stream(*text_file, std::ios::binary);
-    if (!stream.good()) {
-        error_message = "failed to read text file: " + text_file->string();
-        return false;
-    }
-
-    text.assign(std::istreambuf_iterator<char>(stream),
-                std::istreambuf_iterator<char>());
-    text = strip_utf8_bom(std::move(text));
-    return true;
-}
-
-auto read_text_source(const cli_text_source_options &options, std::string &text,
-                      std::string &error_message) -> bool {
-    return read_text_source_value(options.text, options.text_file,
-                                  "expected text input", text, error_message);
-}
-
-auto read_text_source(const section_text_options &options, std::string &text,
-                      std::string &error_message) -> bool {
-    return read_text_source_value(options.text, options.text_file,
-                                  "expected --text <text> or --text-file <path>",
-                                  text, error_message);
-}
-
-auto read_text_source(const table_cell_text_options &options, std::string &text,
-                      std::string &error_message) -> bool {
-    return read_text_source_value(options.text, options.text_file,
-                                  "expected --text <text> or --text-file <path>",
-                                  text, error_message);
 }
 
 auto resolve_text_sources(const std::vector<cli_text_source_options> &sources,
@@ -19797,478 +19717,16 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "set-template-table-cell-text") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "set-template-table-cell-text expects an input path plus either "
-                "<table-index> <row-index> (<cell-index>|--grid-column <index>), "
-                "--bookmark <name> <row-index> (<cell-index>|--grid-column <index>), "
-                "or a text-based table selector followed by <row-index> "
-                "(<cell-index>|--grid-column <index>)",
-                json_output);
-            return 2;
-        }
-
-        parsed_template_table_selector_optional_cell_target target;
-        std::string error_message;
-        if (!parse_template_table_selector_optional_cell_target_arguments(
-                arguments, 2U, target, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        template_table_cell_text_options options;
-        options.bookmark_name = target.selector.bookmark_name;
-        if (!parse_template_table_cell_text_options(arguments,
-                                                    target.options_start_index,
-                                                    options,
-                                                    error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-        if (!target.cell_index.has_value() && !options.grid_column.has_value()) {
-            print_parse_error(command,
-                              "expected a cell index or --grid-column <index>",
-                              json_output);
-            return 2;
-        }
-        if (target.cell_index.has_value() && options.grid_column.has_value()) {
-            print_parse_error(command,
-                              "cell index and --grid-column are mutually exclusive",
-                              json_output);
-            return 2;
-        }
-        if (!target.selector.bookmark_name.has_value() &&
-            options.bookmark_name.has_value()) {
-            target.selector.bookmark_name = options.bookmark_name;
-        }
-        if (!validate_template_table_selector(target.selector, false,
-                                              target.has_header_row_index,
-                                              target.has_occurrence,
-                                              error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        std::string replacement_text;
-        if (!read_text_source(options, replacement_text, error_message)) {
-            if (options.json_output) {
-                write_json_command_error(std::cerr, command, "input",
-                                         error_message);
-            } else {
-                std::cerr << error_message << '\n';
-            }
-            return 1;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        selected_template_part selected;
-        if (!select_mutable_template_part(doc, options.part, options.part_index,
-                                          options.section_index,
-                                          options.reference_kind, selected,
-                                          error_message)) {
-            report_operation_failure(command, "mutate", error_message,
-                                     doc.last_error(), options.json_output);
-            return 1;
-        }
-
-        std::size_t resolved_table_index = 0U;
-        if (!resolve_template_table_index(doc, selected, target.selector,
-                                          resolved_table_index, command,
-                                          options.json_output, "mutate")) {
-            return 1;
-        }
-
-        std::optional<featherdoc::table_cell_inspection_summary> resolved_cell_summary;
-        featherdoc::TableCell cell;
-        if (options.grid_column.has_value()) {
-            resolved_cell_summary =
-                selected.part.inspect_table_cell_by_grid_column(
-                    resolved_table_index, target.row_index,
-                    *options.grid_column);
-            if (!resolve_template_table_cell_by_grid_column(
-                    selected, resolved_table_index, target.row_index,
-                    *options.grid_column, cell, command,
-                    options.json_output)) {
-                return 1;
-            }
-        } else {
-            if (!resolve_template_table_cell(selected, resolved_table_index,
-                                             target.row_index,
-                                             *target.cell_index, cell, command,
-                                             options.json_output)) {
-                return 1;
-            }
-        }
-
-        if (!cell.set_text(replacement_text)) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::io_error);
-            error_info.detail =
-                "failed to set text for the requested table cell";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "failed to set table cell text", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [&selected, resolved_table_index, &target, &options,
-                 &resolved_cell_summary](
-                    std::ostream &stream) {
-                    stream << ',';
-                    write_json_selected_template_part(stream, selected);
-                    stream << ",\"table_index\":" << resolved_table_index
-                           << ",\"row_index\":" << target.row_index;
-                    if (options.grid_column.has_value()) {
-                        stream << ",\"grid_column\":" << *options.grid_column;
-                        if (resolved_cell_summary.has_value()) {
-                            stream << ",\"cell_index\":"
-                                   << resolved_cell_summary->cell_index
-                                   << ",\"column_index\":"
-                                   << resolved_cell_summary->column_index
-                                   << ",\"column_span\":"
-                                   << resolved_cell_summary->column_span;
-                        }
-                    } else {
-                        stream << ",\"cell_index\":" << *target.cell_index;
-                    }
-                });
-        }
-
-        return 0;
+        return run_set_template_table_cell_text_command(command, arguments);
     }
 
     if (command == "set-template-table-row-texts") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 4U) {
-            print_parse_error(
-                command,
-                "set-template-table-row-texts expects an input path plus either "
-                "<table-index> <start-row-index>, --bookmark <name> "
-                "<start-row-index>, or a text-based table selector "
-                "followed by <start-row-index>",
-                json_output);
-            return 2;
-        }
-
-        parsed_template_table_selector_row_target target;
-        std::string error_message;
-        if (!parse_template_table_selector_row_target_arguments(
-                arguments, 2U, target, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        template_table_row_texts_options options;
-        options.bookmark_name = target.selector.bookmark_name;
-        if (!parse_template_table_row_texts_options(arguments,
-                                                    target.options_start_index,
-                                                    options, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-        if (!target.selector.bookmark_name.has_value() &&
-            options.bookmark_name.has_value()) {
-            target.selector.bookmark_name = options.bookmark_name;
-        }
-        if (!validate_template_table_selector(target.selector, false,
-                                              target.has_header_row_index,
-                                              target.has_occurrence,
-                                              error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        selected_template_part selected;
-        if (!select_mutable_template_part(doc, options.part, options.part_index,
-                                          options.section_index,
-                                          options.reference_kind, selected,
-                                          error_message)) {
-            report_operation_failure(command, "mutate", error_message,
-                                     doc.last_error(), options.json_output);
-            return 1;
-        }
-
-        std::size_t resolved_table_index = 0U;
-        if (!resolve_template_table_index(doc, selected, target.selector,
-                                          resolved_table_index, command,
-                                          options.json_output, "mutate")) {
-            return 1;
-        }
-
-        featherdoc::Table table;
-        if (!resolve_template_table(selected, resolved_table_index, table, command,
-                                    options.json_output, "mutate")) {
-            return 1;
-        }
-
-        const auto row_summaries = collect_table_row_summaries(table);
-        if (target.row_index >= row_summaries.size()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "row index '" + std::to_string(target.row_index) +
-                "' is out of range for table index '" +
-                std::to_string(resolved_table_index) + "'";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "row index is out of range", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (options.rows.size() > row_summaries.size() - target.row_index) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "row range starting at row index '" +
-                std::to_string(target.row_index) + "' with count '" +
-                std::to_string(options.rows.size()) + "' exceeds table index '" +
-                std::to_string(resolved_table_index) + "' row count '" +
-                std::to_string(row_summaries.size()) + "'";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "row range exceeds table bounds", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        for (std::size_t offset = 0U; offset < options.rows.size(); ++offset) {
-            const auto target_row_index = target.row_index + offset;
-            const auto replacement_cell_count = options.rows[offset].size();
-            const auto target_cell_count =
-                row_summaries[target_row_index].cell_count;
-            if (replacement_cell_count != target_cell_count) {
-                featherdoc::document_error_info error_info{};
-                error_info.code = std::make_error_code(std::errc::invalid_argument);
-                error_info.detail =
-                    "replacement row at offset '" + std::to_string(offset) +
-                    "' contains '" + std::to_string(replacement_cell_count) +
-                    "' cells but target row index '" +
-                    std::to_string(target_row_index) + "' contains '" +
-                    std::to_string(target_cell_count) + "' cells";
-                error_info.entry_name = std::string(selected.part.entry_name());
-                report_operation_failure(
-                    command, "mutate",
-                    "replacement row cell count does not match target row",
-                    error_info, options.json_output);
-                return 1;
-            }
-        }
-
-        if (!table.set_rows_texts(target.row_index, options.rows)) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::io_error);
-            error_info.detail =
-                "failed to set text for the requested table row range";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "failed to set template table row texts",
-                                     error_info, options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [&selected, resolved_table_index, &target, &options](
-                    std::ostream &stream) {
-                    write_json_template_table_row_texts_result(
-                        stream, selected, resolved_table_index,
-                        target.row_index,
-                        options.rows, options.bookmark_name);
-                });
-        } else {
-            print_template_table_row_texts_result(
-                selected, resolved_table_index, target.row_index,
-                options.rows,
-                options.bookmark_name, options.output_path);
-        }
-
-        return 0;
+        return run_set_template_table_row_texts_command(command, arguments);
     }
 
     if (command == "set-template-table-cell-block-texts") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 5U) {
-            print_parse_error(
-                command,
-                "set-template-table-cell-block-texts expects an input path plus "
-                "either <table-index> <start-row-index> <start-cell-index>, "
-                "--bookmark <name> <start-row-index> <start-cell-index>, or "
-                "a text-based table selector followed by "
-                "<start-row-index> <start-cell-index>",
-                json_output);
-            return 2;
-        }
-
-        parsed_template_table_selector_cell_target target;
-        std::string error_message;
-        if (!parse_template_table_selector_cell_target_arguments(
-                arguments, 2U, target, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        template_table_row_texts_options options;
-        options.bookmark_name = target.selector.bookmark_name;
-        if (!parse_template_table_row_texts_options(arguments,
-                                                    target.options_start_index,
-                                                    options, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-        if (!target.selector.bookmark_name.has_value() &&
-            options.bookmark_name.has_value()) {
-            target.selector.bookmark_name = options.bookmark_name;
-        }
-        if (!validate_template_table_selector(target.selector, false,
-                                              target.has_header_row_index,
-                                              target.has_occurrence,
-                                              error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        selected_template_part selected;
-        if (!select_mutable_template_part(doc, options.part, options.part_index,
-                                          options.section_index,
-                                          options.reference_kind, selected,
-                                          error_message)) {
-            report_operation_failure(command, "mutate", error_message,
-                                     doc.last_error(), options.json_output);
-            return 1;
-        }
-
-        std::size_t resolved_table_index = 0U;
-        if (!resolve_template_table_index(doc, selected, target.selector,
-                                          resolved_table_index, command,
-                                          options.json_output, "mutate")) {
-            return 1;
-        }
-
-        featherdoc::Table table;
-        if (!resolve_template_table(selected, resolved_table_index, table, command,
-                                    options.json_output, "mutate")) {
-            return 1;
-        }
-
-        const auto row_summaries = collect_table_row_summaries(table);
-        if (target.row_index >= row_summaries.size()) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "row index '" + std::to_string(target.row_index) +
-                "' is out of range for table index '" +
-                std::to_string(resolved_table_index) + "'";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "row index is out of range", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (options.rows.size() > row_summaries.size() - target.row_index) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "row range starting at row index '" +
-                std::to_string(target.row_index) + "' with count '" +
-                std::to_string(options.rows.size()) + "' exceeds table index '" +
-                std::to_string(resolved_table_index) + "' row count '" +
-                std::to_string(row_summaries.size()) + "'";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "row range exceeds table bounds", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        for (std::size_t offset = 0U; offset < options.rows.size(); ++offset) {
-            const auto target_row_index = target.row_index + offset;
-            const auto replacement_cell_count = options.rows[offset].size();
-            const auto target_cell_count = row_summaries[target_row_index].cell_count;
-            if (target.cell_index >= target_cell_count ||
-                replacement_cell_count > target_cell_count - target.cell_index) {
-                featherdoc::document_error_info error_info{};
-                error_info.code = std::make_error_code(std::errc::invalid_argument);
-                error_info.detail =
-                    "replacement row at offset '" + std::to_string(offset) +
-                    "' starting at cell index '" +
-                    std::to_string(target.cell_index) + "' with count '" +
-                    std::to_string(replacement_cell_count) +
-                    "' exceeds target row index '" +
-                    std::to_string(target_row_index) + "' cell count '" +
-                    std::to_string(target_cell_count) + "'";
-                error_info.entry_name = std::string(selected.part.entry_name());
-                report_operation_failure(command, "mutate",
-                                         "cell block exceeds target row bounds",
-                                         error_info, options.json_output);
-                return 1;
-            }
-        }
-
-        if (!table.set_cell_block_texts(target.row_index, target.cell_index,
-                                        options.rows)) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::io_error);
-            error_info.detail =
-                "failed to set text for the requested table cell block";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "failed to set template table cell block texts",
-                                     error_info, options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [&selected, resolved_table_index, &target,
-                 &options](std::ostream &stream) {
-                    write_json_template_table_cell_block_texts_result(
-                        stream, selected, resolved_table_index, target.row_index,
-                        target.cell_index, options.rows, options.bookmark_name);
-                });
-        } else {
-            print_template_table_cell_block_texts_result(
-                selected, resolved_table_index, target.row_index,
-                target.cell_index, options.rows, options.bookmark_name,
-                options.output_path);
-        }
-
-        return 0;
+        return run_set_template_table_cell_block_texts_command(command,
+                                                               arguments);
     }
 
     if (command == "set-template-table-from-json") {
