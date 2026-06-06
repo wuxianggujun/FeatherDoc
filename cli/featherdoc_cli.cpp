@@ -7,10 +7,12 @@
 #include "featherdoc_cli_numbering_catalog_patch_apply.hpp"
 #include "featherdoc_cli_numbering_catalog_patch_parse.hpp"
 #include "featherdoc_cli_numbering_options_parse.hpp"
+#include "featherdoc_cli_page_setup.hpp"
 #include "featherdoc_cli_page_setup_parse.hpp"
 #include "featherdoc_cli_paragraph_list_options_parse.hpp"
 #include "featherdoc_cli_paragraph_run_options_parse.hpp"
 #include "featherdoc_cli_document_mutation_options_parse.hpp"
+#include "featherdoc_cli_semantic_diff.hpp"
 #include "featherdoc_cli_semantic_diff_options_parse.hpp"
 #include "featherdoc_cli_run_properties_options_parse.hpp"
 #include "featherdoc_cli_style_ensure_options_parse.hpp"
@@ -28,6 +30,7 @@
 #include "featherdoc_cli_style_refactor_plan_parse.hpp"
 #include "featherdoc_cli_style_refactor_options_parse.hpp"
 #include "featherdoc_cli_style_refactor_rollback_parse.hpp"
+#include "featherdoc_cli_style_numbering_audit.hpp"
 #include "featherdoc_cli_table_style_look_options_parse.hpp"
 #include "featherdoc_cli_review_mutation_plan_parse.hpp"
 #include "featherdoc_cli_run_recipe_parse.hpp"
@@ -45,6 +48,7 @@
 #include "featherdoc_cli_errors.hpp"
 #include "featherdoc_cli_field_parse.hpp"
 #include "featherdoc_cli_inspect_content_options_parse.hpp"
+#include "featherdoc_cli_image_output.hpp"
 #include "featherdoc_cli_image_options_parse.hpp"
 #include "featherdoc_cli_bookmark_text_options_parse.hpp"
 #include "featherdoc_cli_inspect_numbering_options_parse.hpp"
@@ -85,6 +89,7 @@ using featherdoc_cli::apply_template_table_json_patch;
 using featherdoc_cli::apply_table_style_quality_fixes_options;
 using featherdoc_cli::annotate_template_table_json_batch_error;
 using featherdoc_cli::append_field_options;
+using featherdoc_cli::audit_style_numbering;
 using featherdoc_cli::audit_style_numbering_options;
 using featherdoc_cli::audit_table_style_inheritance_options;
 using featherdoc_cli::audit_table_style_quality_options;
@@ -109,6 +114,7 @@ using featherdoc_cli::changed_template_schema_target;
 using featherdoc_cli::build_table_position_preset_plan;
 using featherdoc_cli::build_template_schema_patch_options;
 using featherdoc_cli::check_template_schema_options;
+using featherdoc_cli::collect_applyable_style_numbering_repair_suggestions;
 using featherdoc_cli::compare_template_schema_target;
 using featherdoc_cli::compare_template_schema_target_identity;
 using featherdoc_cli::compare_template_schema_target_selector;
@@ -134,13 +140,18 @@ using featherdoc_cli::style_merge_restore_options;
 using featherdoc_cli::floating_image_horizontal_reference_name;
 using featherdoc_cli::floating_image_vertical_reference_name;
 using featherdoc_cli::floating_image_wrap_mode_name;
+using featherdoc_cli::filter_drawing_images;
 using featherdoc_cli::has_json_flag;
+using featherdoc_cli::has_drawing_image_selector;
+using featherdoc_cli::has_inspect_image_filters;
 using featherdoc_cli::is_docx_path;
 using featherdoc_cli::is_append_field_command;
 using featherdoc_cli::is_word_temporary_path;
 using featherdoc_cli::inspect_numbering_options;
 using featherdoc_cli::inspect_options;
+using featherdoc_cli::inspect_page_setup;
 using featherdoc_cli::inspect_page_setup_options;
+using featherdoc_cli::inspect_page_setups;
 using featherdoc_cli::inspect_paragraphs_options;
 using featherdoc_cli::inspect_style_inheritance_options;
 using featherdoc_cli::inspect_styles_options;
@@ -236,6 +247,8 @@ using featherdoc_cli::replace_image_options;
 using featherdoc_cli::extract_image_options;
 using featherdoc_cli::remove_image_options;
 using featherdoc_cli::append_image_options;
+using featherdoc_cli::describe_inspect_image_filters;
+using featherdoc_cli::drawing_image_matches_filters;
 using featherdoc_cli::ensure_character_style_options;
 using featherdoc_cli::ensure_paragraph_style_options;
 using featherdoc_cli::ensure_table_style_options;
@@ -263,6 +276,7 @@ using featherdoc_cli::numbering_catalog_diff_result;
 using featherdoc_cli::numbering_catalog_instance_diff_result;
 using featherdoc_cli::optional_display_value;
 using featherdoc_cli::optional_size_display_value;
+using featherdoc_cli::output_semantic_diff_result;
 using featherdoc_cli::page_orientation_name;
 using featherdoc_cli::paragraph_list_options;
 using featherdoc_cli::parse_border_style_text;
@@ -354,6 +368,8 @@ using featherdoc_cli::parse_replace_image_options;
 using featherdoc_cli::parse_extract_image_options;
 using featherdoc_cli::parse_remove_image_options;
 using featherdoc_cli::parse_append_image_options;
+using featherdoc_cli::print_drawing_image_summary;
+using featherdoc_cli::print_inspect_image_filters;
 using featherdoc_cli::parse_semantic_diff_options;
 using featherdoc_cli::parse_bookmark_image_command_options;
 using featherdoc_cli::parse_validate_template_options;
@@ -440,6 +456,8 @@ using featherdoc_cli::print_parse_error;
 using featherdoc_cli::print_usage;
 using featherdoc_cli::report_document_error;
 using featherdoc_cli::report_operation_failure;
+using featherdoc_cli::resolve_selected_drawing_image;
+using featherdoc_cli::resolve_section_page_setup;
 using featherdoc_cli::read_numbering_catalog_file;
 using featherdoc_cli::read_numbering_catalog_patch_file;
 using featherdoc_cli::read_review_mutation_plan_build_request_file;
@@ -461,6 +479,15 @@ using featherdoc_cli::rename_style_options;
 using featherdoc_cli::repair_style_numbering_options;
 using featherdoc_cli::repair_table_style_look_options;
 using featherdoc_cli::repair_template_schema_options;
+using featherdoc_cli::style_numbering_audit_clean;
+using featherdoc_cli::style_numbering_audit_issue;
+using featherdoc_cli::style_numbering_audit_issue_kind_name;
+using featherdoc_cli::style_numbering_audit_result;
+using featherdoc_cli::style_numbering_repair_action;
+using featherdoc_cli::style_numbering_repair_action_name;
+using featherdoc_cli::style_numbering_repair_result;
+using featherdoc_cli::style_numbering_repair_suggestion;
+using featherdoc_cli::style_numbering_repair_suggestion_applyable;
 using featherdoc_cli::table_style_look_options;
 using featherdoc_cli::table_style_look_options_have_flag;
 using featherdoc_cli::section_text_options;
@@ -552,6 +579,9 @@ using featherdoc_cli::write_json_optional_size;
 using featherdoc_cli::write_json_optional_string;
 using featherdoc_cli::write_json_optional_u32;
 using featherdoc_cli::write_json_optional_u32_value;
+using featherdoc_cli::write_json_drawing_image_summary;
+using featherdoc_cli::write_json_inspect_image_filters;
+using featherdoc_cli::write_json_section_page_setup;
 using featherdoc_cli::write_json_size_array;
 using featherdoc_cli::write_json_strings;
 using featherdoc_cli::write_json_string;
@@ -729,8 +759,6 @@ struct applied_template_table_json_batch_operation {
     featherdoc::template_table_selector selector;
     template_table_json_patch patch;
 };
-
-auto has_inspect_image_filters(const inspect_images_options &options) -> bool;
 
 enum class zip_entry_read_status {
     missing,
@@ -2145,33 +2173,6 @@ void write_json_style_numbering_summary(
     stream << ",\"instance\":";
     if (numbering.instance.has_value()) {
         write_json_numbering_instance_summary(stream, *numbering.instance);
-    } else {
-        stream << "null";
-    }
-    stream << '}';
-}
-
-void write_json_page_margins(std::ostream &stream,
-                             const featherdoc::page_margins &margins) {
-    stream << "{\"top_twips\":" << margins.top_twips
-           << ",\"bottom_twips\":" << margins.bottom_twips
-           << ",\"left_twips\":" << margins.left_twips
-           << ",\"right_twips\":" << margins.right_twips
-           << ",\"header_twips\":" << margins.header_twips
-           << ",\"footer_twips\":" << margins.footer_twips << '}';
-}
-
-void write_json_section_page_setup(
-    std::ostream &stream, const featherdoc::section_page_setup &page_setup) {
-    stream << "{\"orientation\":";
-    write_json_string(stream, page_orientation_name(page_setup.orientation));
-    stream << ",\"width_twips\":" << page_setup.width_twips
-           << ",\"height_twips\":" << page_setup.height_twips
-           << ",\"margins\":";
-    write_json_page_margins(stream, page_setup.margins);
-    stream << ",\"page_number_start\":";
-    if (page_setup.page_number_start.has_value()) {
-        stream << *page_setup.page_number_start;
     } else {
         stream << "null";
     }
@@ -4122,433 +4123,6 @@ void write_json_omml_summary(std::ostream &stream,
     stream << '}';
 }
 
-void write_json_floating_image_crop(
-    std::ostream &stream, const featherdoc::floating_image_crop &crop) {
-    stream << "{\"left_per_mille\":" << crop.left_per_mille
-           << ",\"top_per_mille\":" << crop.top_per_mille
-           << ",\"right_per_mille\":" << crop.right_per_mille
-           << ",\"bottom_per_mille\":" << crop.bottom_per_mille << '}';
-}
-
-void write_json_floating_image_options(
-    std::ostream &stream, const featherdoc::floating_image_options &options) {
-    stream << "{\"horizontal_reference\":";
-    write_json_string(stream,
-                      floating_image_horizontal_reference_name(
-                          options.horizontal_reference));
-    stream << ",\"horizontal_offset_px\":" << options.horizontal_offset_px
-           << ",\"vertical_reference\":";
-    write_json_string(stream,
-                      floating_image_vertical_reference_name(
-                          options.vertical_reference));
-    stream << ",\"vertical_offset_px\":" << options.vertical_offset_px
-           << ",\"behind_text\":" << json_bool(options.behind_text)
-           << ",\"allow_overlap\":" << json_bool(options.allow_overlap)
-           << ",\"z_order\":" << options.z_order
-           << ",\"wrap_mode\":";
-    write_json_string(stream, floating_image_wrap_mode_name(options.wrap_mode));
-    stream << ",\"wrap_distance_left_px\":" << options.wrap_distance_left_px
-           << ",\"wrap_distance_right_px\":" << options.wrap_distance_right_px
-           << ",\"wrap_distance_top_px\":" << options.wrap_distance_top_px
-           << ",\"wrap_distance_bottom_px\":" << options.wrap_distance_bottom_px
-           << ",\"crop\":";
-    if (options.crop.has_value()) {
-        write_json_floating_image_crop(stream, *options.crop);
-    } else {
-        stream << "null";
-    }
-    stream << '}';
-}
-
-void write_json_drawing_image_summary(
-    std::ostream &stream, const featherdoc::drawing_image_info &image) {
-    stream << "{\"index\":" << image.index << ",\"placement\":";
-    write_json_string(stream, drawing_image_placement_name(image.placement));
-    stream << ",\"relationship_id\":";
-    write_json_string(stream, image.relationship_id);
-    stream << ",\"entry_name\":";
-    write_json_string(stream, image.entry_name);
-    stream << ",\"display_name\":";
-    write_json_string(stream, image.display_name);
-    stream << ",\"content_type\":";
-    write_json_string(stream, image.content_type);
-    stream << ",\"width_px\":" << image.width_px
-           << ",\"height_px\":" << image.height_px
-           << ",\"floating_options\":";
-    if (image.floating_options.has_value()) {
-        write_json_floating_image_options(stream, *image.floating_options);
-    } else {
-        stream << "null";
-    }
-    stream << '}';
-}
-
-auto semantic_diff_change_kind_name(
-    featherdoc::document_semantic_diff_change_kind kind) -> const char * {
-    switch (kind) {
-    case featherdoc::document_semantic_diff_change_kind::added:
-        return "added";
-    case featherdoc::document_semantic_diff_change_kind::removed:
-        return "removed";
-    case featherdoc::document_semantic_diff_change_kind::changed:
-        return "changed";
-    }
-
-    return "changed";
-}
-
-void write_json_semantic_diff_category_summary(
-    std::ostream &stream,
-    const featherdoc::document_semantic_diff_category_summary &summary) {
-    stream << "{\"left_count\":" << summary.left_count
-           << ",\"right_count\":" << summary.right_count
-           << ",\"added_count\":" << summary.added_count
-           << ",\"removed_count\":" << summary.removed_count
-           << ",\"changed_count\":" << summary.changed_count
-           << ",\"unchanged_count\":" << summary.unchanged_count
-           << ",\"change_count\":" << summary.change_count()
-           << ",\"different\":" << json_bool(summary.different()) << '}';
-}
-
-void write_json_semantic_diff_field_change(
-    std::ostream &stream,
-    const featherdoc::document_semantic_diff_field_change &change) {
-    stream << "{\"field_path\":";
-    write_json_string(stream, change.field_path);
-    stream << ",\"left_value\":";
-    write_json_string(stream, change.left_value);
-    stream << ",\"right_value\":";
-    write_json_string(stream, change.right_value);
-    stream << '}';
-}
-
-void write_json_semantic_diff_field_changes(
-    std::ostream &stream,
-    const std::vector<featherdoc::document_semantic_diff_field_change> &changes) {
-    stream << '[';
-    for (std::size_t index = 0; index < changes.size(); ++index) {
-        if (index != 0U) {
-            stream << ',';
-        }
-        write_json_semantic_diff_field_change(stream, changes[index]);
-    }
-    stream << ']';
-}
-
-void write_json_semantic_diff_change(
-    std::ostream &stream,
-    const featherdoc::document_semantic_diff_change &change) {
-    stream << "{\"kind\":";
-    write_json_string(stream, semantic_diff_change_kind_name(change.kind));
-    stream << ",\"left_index\":";
-    write_json_optional_size(stream, change.left_index);
-    stream << ",\"right_index\":";
-    write_json_optional_size(stream, change.right_index);
-    stream << ",\"field\":";
-    write_json_string(stream, change.field);
-    stream << ",\"left_value\":";
-    write_json_string(stream, change.left_value);
-    stream << ",\"right_value\":";
-    write_json_string(stream, change.right_value);
-    stream << ",\"field_changes\":";
-    write_json_semantic_diff_field_changes(stream, change.field_changes);
-    stream << '}';
-}
-
-void write_json_semantic_diff_changes(
-    std::ostream &stream,
-    const std::vector<featherdoc::document_semantic_diff_change> &changes) {
-    stream << '[';
-    for (std::size_t index = 0; index < changes.size(); ++index) {
-        if (index != 0U) {
-            stream << ',';
-        }
-        write_json_semantic_diff_change(stream, changes[index]);
-    }
-    stream << ']';
-}
-
-auto semantic_diff_part_kind_name(featherdoc::template_schema_part_kind kind)
-    -> const char * {
-    switch (kind) {
-    case featherdoc::template_schema_part_kind::body:
-        return "body";
-    case featherdoc::template_schema_part_kind::header:
-        return "header";
-    case featherdoc::template_schema_part_kind::footer:
-        return "footer";
-    case featherdoc::template_schema_part_kind::section_header:
-        return "section-header";
-    case featherdoc::template_schema_part_kind::section_footer:
-        return "section-footer";
-    }
-
-    return "body";
-}
-
-void write_json_semantic_diff_part_result(
-    std::ostream &stream,
-    const featherdoc::document_semantic_diff_part_result &part_result) {
-    stream << "{\"part\":\"" << semantic_diff_part_kind_name(part_result.target.part)
-           << "\"";
-    if (part_result.target.part_index.has_value()) {
-        stream << ",\"part_index\":" << *part_result.target.part_index;
-    }
-    if (part_result.target.section_index.has_value()) {
-        stream << ",\"section_index\":" << *part_result.target.section_index;
-    }
-    if (part_result.target.part == featherdoc::template_schema_part_kind::section_header ||
-        part_result.target.part == featherdoc::template_schema_part_kind::section_footer) {
-        stream << ",\"reference_kind\":";
-        write_json_string(stream, featherdoc::to_xml_reference_type(
-                                      part_result.target.reference_kind));
-    }
-    if (part_result.left_resolved_from_section_index.has_value()) {
-        stream << ",\"left_resolved_from_section_index\":"
-               << *part_result.left_resolved_from_section_index;
-    }
-    if (part_result.right_resolved_from_section_index.has_value()) {
-        stream << ",\"right_resolved_from_section_index\":"
-               << *part_result.right_resolved_from_section_index;
-    }
-    stream << ",\"entry_name\":";
-    write_json_string(stream, part_result.entry_name);
-    stream << ",\"different\":" << json_bool(part_result.different())
-           << ",\"change_count\":" << part_result.change_count()
-           << ",\"summary\":{\"paragraphs\":";
-    write_json_semantic_diff_category_summary(stream, part_result.paragraphs);
-    stream << ",\"tables\":";
-    write_json_semantic_diff_category_summary(stream, part_result.tables);
-    stream << ",\"images\":";
-    write_json_semantic_diff_category_summary(stream, part_result.images);
-    stream << ",\"content_controls\":";
-    write_json_semantic_diff_category_summary(stream, part_result.content_controls);
-    stream << ",\"fields\":";
-    write_json_semantic_diff_category_summary(stream, part_result.fields);
-    stream << "},\"paragraph_changes\":";
-    write_json_semantic_diff_changes(stream, part_result.paragraph_changes);
-    stream << ",\"table_changes\":";
-    write_json_semantic_diff_changes(stream, part_result.table_changes);
-    stream << ",\"image_changes\":";
-    write_json_semantic_diff_changes(stream, part_result.image_changes);
-    stream << ",\"content_control_changes\":";
-    write_json_semantic_diff_changes(stream, part_result.content_control_changes);
-    stream << ",\"field_changes\":";
-    write_json_semantic_diff_changes(stream, part_result.field_changes);
-    stream << '}';
-}
-
-void write_json_semantic_diff_part_results(
-    std::ostream &stream,
-    const std::vector<featherdoc::document_semantic_diff_part_result> &part_results) {
-    stream << '[';
-    for (std::size_t index = 0; index < part_results.size(); ++index) {
-        if (index != 0U) {
-            stream << ',';
-        }
-        write_json_semantic_diff_part_result(stream, part_results[index]);
-    }
-    stream << ']';
-}
-
-void write_json_semantic_diff_result(
-    std::ostream &stream, const featherdoc::document_semantic_diff_result &result,
-    const semantic_diff_options &options) {
-    stream << "{\"command\":\"semantic-diff\",\"ok\":true"
-           << ",\"different\":" << json_bool(result.different())
-           << ",\"change_count\":" << result.change_count()
-           << ",\"fail_on_diff\":" << json_bool(options.fail_on_diff)
-           << ",\"align_sequences_by_content\":"
-           << json_bool(options.diff_options.align_sequences_by_content)
-           << ",\"alignment_cell_limit\":"
-           << options.diff_options.alignment_cell_limit << ",\"summary\":{";
-    stream << "\"paragraphs\":";
-    write_json_semantic_diff_category_summary(stream, result.paragraphs);
-    stream << ",\"tables\":";
-    write_json_semantic_diff_category_summary(stream, result.tables);
-    stream << ",\"images\":";
-    write_json_semantic_diff_category_summary(stream, result.images);
-    stream << ",\"content_controls\":";
-    write_json_semantic_diff_category_summary(stream, result.content_controls);
-    stream << ",\"fields\":";
-    write_json_semantic_diff_category_summary(stream, result.fields);
-    stream << ",\"styles\":";
-    write_json_semantic_diff_category_summary(stream, result.styles);
-    stream << ",\"numbering\":";
-    write_json_semantic_diff_category_summary(stream, result.numbering);
-    stream << ",\"footnotes\":";
-    write_json_semantic_diff_category_summary(stream, result.footnotes);
-    stream << ",\"endnotes\":";
-    write_json_semantic_diff_category_summary(stream, result.endnotes);
-    stream << ",\"comments\":";
-    write_json_semantic_diff_category_summary(stream, result.comments);
-    stream << ",\"revisions\":";
-    write_json_semantic_diff_category_summary(stream, result.revisions);
-    stream << ",\"sections\":";
-    write_json_semantic_diff_category_summary(stream, result.sections);
-    stream << ",\"template_parts\":";
-    write_json_semantic_diff_category_summary(stream, result.template_parts);
-    stream << "},\"paragraph_changes\":";
-    write_json_semantic_diff_changes(stream, result.paragraph_changes);
-    stream << ",\"table_changes\":";
-    write_json_semantic_diff_changes(stream, result.table_changes);
-    stream << ",\"image_changes\":";
-    write_json_semantic_diff_changes(stream, result.image_changes);
-    stream << ",\"content_control_changes\":";
-    write_json_semantic_diff_changes(stream, result.content_control_changes);
-    stream << ",\"field_changes\":";
-    write_json_semantic_diff_changes(stream, result.field_changes);
-    stream << ",\"style_changes\":";
-    write_json_semantic_diff_changes(stream, result.style_changes);
-    stream << ",\"numbering_changes\":";
-    write_json_semantic_diff_changes(stream, result.numbering_changes);
-    stream << ",\"footnote_changes\":";
-    write_json_semantic_diff_changes(stream, result.footnote_changes);
-    stream << ",\"endnote_changes\":";
-    write_json_semantic_diff_changes(stream, result.endnote_changes);
-    stream << ",\"comment_changes\":";
-    write_json_semantic_diff_changes(stream, result.comment_changes);
-    stream << ",\"revision_changes\":";
-    write_json_semantic_diff_changes(stream, result.revision_changes);
-    stream << ",\"section_changes\":";
-    write_json_semantic_diff_changes(stream, result.section_changes);
-    stream << ",\"template_part_results\":";
-    write_json_semantic_diff_part_results(stream, result.template_part_results);
-    stream << "}\n";
-}
-
-void print_semantic_diff_category(
-    std::ostream &stream, std::string_view name,
-    const featherdoc::document_semantic_diff_category_summary &summary) {
-    stream << name << ": left=" << summary.left_count
-           << " right=" << summary.right_count
-           << " added=" << summary.added_count
-           << " removed=" << summary.removed_count
-           << " changed=" << summary.changed_count
-           << " unchanged=" << summary.unchanged_count << '\n';
-}
-
-void print_semantic_diff_changes(
-    std::ostream &stream, std::string_view name,
-    const std::vector<featherdoc::document_semantic_diff_change> &changes) {
-    for (std::size_t index = 0; index < changes.size(); ++index) {
-        const auto &change = changes[index];
-        stream << name << '[' << index << "]: "
-               << semantic_diff_change_kind_name(change.kind) << ' ';
-        if (change.left_index.has_value()) {
-            stream << "left=" << *change.left_index << ' ';
-        }
-        if (change.right_index.has_value()) {
-            stream << "right=" << *change.right_index << ' ';
-        }
-        stream << "field=" << change.field
-               << " field_changes=" << change.field_changes.size() << '\n';
-        for (std::size_t field_index = 0U;
-             field_index < change.field_changes.size(); ++field_index) {
-            const auto &field_change = change.field_changes[field_index];
-            stream << "  " << name << '[' << index << "].field[" << field_index
-                   << "]: " << field_change.field_path << '\n';
-        }
-    }
-}
-
-void print_semantic_diff_part_results(
-    std::ostream &stream,
-    const std::vector<featherdoc::document_semantic_diff_part_result> &part_results) {
-    for (std::size_t index = 0U; index < part_results.size(); ++index) {
-        const auto &part_result = part_results[index];
-        stream << "template_part[" << index << "]: part="
-               << semantic_diff_part_kind_name(part_result.target.part);
-        if (part_result.target.part_index.has_value()) {
-            stream << " index=" << *part_result.target.part_index;
-        }
-        if (part_result.target.section_index.has_value()) {
-            stream << " section=" << *part_result.target.section_index;
-        }
-        if (part_result.target.part == featherdoc::template_schema_part_kind::section_header ||
-            part_result.target.part == featherdoc::template_schema_part_kind::section_footer) {
-            stream << " kind="
-                   << featherdoc::to_xml_reference_type(part_result.target.reference_kind);
-        }
-        if (part_result.left_resolved_from_section_index.has_value()) {
-            stream << " left_resolved_from="
-                   << *part_result.left_resolved_from_section_index;
-        }
-        if (part_result.right_resolved_from_section_index.has_value()) {
-            stream << " right_resolved_from="
-                   << *part_result.right_resolved_from_section_index;
-        }
-        stream << " entry=" << part_result.entry_name
-               << " change_count=" << part_result.change_count() << '\n';
-        print_semantic_diff_category(stream, "  paragraphs", part_result.paragraphs);
-        print_semantic_diff_category(stream, "  tables", part_result.tables);
-        print_semantic_diff_category(stream, "  images", part_result.images);
-        print_semantic_diff_category(stream, "  content_controls",
-                                     part_result.content_controls);
-        print_semantic_diff_category(stream, "  fields", part_result.fields);
-        print_semantic_diff_changes(stream, "  template_part_paragraph_change",
-                                    part_result.paragraph_changes);
-        print_semantic_diff_changes(stream, "  template_part_table_change",
-                                    part_result.table_changes);
-        print_semantic_diff_changes(stream, "  template_part_image_change",
-                                    part_result.image_changes);
-        print_semantic_diff_changes(stream, "  template_part_content_control_change",
-                                    part_result.content_control_changes);
-        print_semantic_diff_changes(stream, "  template_part_field_change",
-                                    part_result.field_changes);
-    }
-}
-
-void print_semantic_diff_result(
-    std::ostream &stream, const featherdoc::document_semantic_diff_result &result,
-    const semantic_diff_options &options) {
-    stream << "different: " << yes_no(result.different()) << '\n'
-           << "change_count: " << result.change_count() << '\n'
-           << "fail_on_diff: " << yes_no(options.fail_on_diff) << '\n'
-           << "align_sequences_by_content: "
-           << yes_no(options.diff_options.align_sequences_by_content) << '\n'
-           << "alignment_cell_limit: "
-           << options.diff_options.alignment_cell_limit << '\n';
-    print_semantic_diff_category(stream, "paragraphs", result.paragraphs);
-    print_semantic_diff_category(stream, "tables", result.tables);
-    print_semantic_diff_category(stream, "images", result.images);
-    print_semantic_diff_category(stream, "content_controls", result.content_controls);
-    print_semantic_diff_category(stream, "fields", result.fields);
-    print_semantic_diff_category(stream, "styles", result.styles);
-    print_semantic_diff_category(stream, "numbering", result.numbering);
-    print_semantic_diff_category(stream, "footnotes", result.footnotes);
-    print_semantic_diff_category(stream, "endnotes", result.endnotes);
-    print_semantic_diff_category(stream, "comments", result.comments);
-    print_semantic_diff_category(stream, "revisions", result.revisions);
-    print_semantic_diff_category(stream, "sections", result.sections);
-    print_semantic_diff_category(stream, "template_parts", result.template_parts);
-    print_semantic_diff_changes(stream, "paragraph_change", result.paragraph_changes);
-    print_semantic_diff_changes(stream, "table_change", result.table_changes);
-    print_semantic_diff_changes(stream, "image_change", result.image_changes);
-    print_semantic_diff_changes(stream, "content_control_change",
-                                result.content_control_changes);
-    print_semantic_diff_changes(stream, "field_change", result.field_changes);
-    print_semantic_diff_changes(stream, "style_change", result.style_changes);
-    print_semantic_diff_changes(stream, "numbering_change", result.numbering_changes);
-    print_semantic_diff_changes(stream, "footnote_change", result.footnote_changes);
-    print_semantic_diff_changes(stream, "endnote_change", result.endnote_changes);
-    print_semantic_diff_changes(stream, "comment_change", result.comment_changes);
-    print_semantic_diff_changes(stream, "revision_change", result.revision_changes);
-    print_semantic_diff_changes(stream, "section_change", result.section_changes);
-    print_semantic_diff_part_results(stream, result.template_part_results);
-}
-
-void output_semantic_diff_result(
-    const featherdoc::document_semantic_diff_result &result,
-    const semantic_diff_options &options) {
-    if (options.json_output) {
-        write_json_semantic_diff_result(std::cout, result, options);
-        return;
-    }
-
-    print_semantic_diff_result(std::cout, result, options);
-}
-
 void print_style_summary(std::ostream &stream,
                          const featherdoc::style_summary &style) {
     stream << "id=" << style.style_id << " name=" << style.name
@@ -4683,726 +4257,6 @@ void print_omml_summary(std::ostream &stream,
     stream << "index=" << formula.index
            << " display=" << yes_no(formula.display) << " text=";
     write_json_string(stream, formula.text);
-}
-
-void print_drawing_image_summary(std::ostream &stream,
-                                 const featherdoc::drawing_image_info &image) {
-    stream << "index=" << image.index
-           << " placement=" << drawing_image_placement_name(image.placement)
-           << " relationship_id=" << image.relationship_id
-           << " entry_name=" << image.entry_name
-           << " display_name=" << image.display_name
-           << " content_type=" << image.content_type
-           << " width_px=" << image.width_px
-           << " height_px=" << image.height_px;
-    if (!image.floating_options.has_value()) {
-        stream << " floating=no";
-        return;
-    }
-
-    const auto &floating_options = *image.floating_options;
-    stream << " floating=yes"
-           << " horizontal_reference="
-           << floating_image_horizontal_reference_name(
-                  floating_options.horizontal_reference)
-           << " horizontal_offset_px=" << floating_options.horizontal_offset_px
-           << " vertical_reference="
-           << floating_image_vertical_reference_name(
-                  floating_options.vertical_reference)
-           << " vertical_offset_px=" << floating_options.vertical_offset_px
-           << " behind_text=" << yes_no(floating_options.behind_text)
-           << " allow_overlap=" << yes_no(floating_options.allow_overlap)
-           << " z_order=" << floating_options.z_order
-           << " wrap_mode="
-           << floating_image_wrap_mode_name(floating_options.wrap_mode)
-           << " wrap_distance_left_px="
-           << floating_options.wrap_distance_left_px
-           << " wrap_distance_right_px="
-           << floating_options.wrap_distance_right_px
-           << " wrap_distance_top_px=" << floating_options.wrap_distance_top_px
-           << " wrap_distance_bottom_px="
-           << floating_options.wrap_distance_bottom_px;
-    if (floating_options.crop.has_value()) {
-        stream << " crop=(" << floating_options.crop->left_per_mille << ','
-               << floating_options.crop->top_per_mille << ','
-               << floating_options.crop->right_per_mille << ','
-               << floating_options.crop->bottom_per_mille << ')';
-    } else {
-        stream << " crop=none";
-    }
-}
-
-auto has_inspect_image_filters(const inspect_images_options &options) -> bool {
-    return options.relationship_id.has_value() ||
-           options.image_entry_name.has_value();
-}
-
-auto has_drawing_image_selector(const inspect_images_options &options) -> bool {
-    return options.image_index.has_value() || has_inspect_image_filters(options);
-}
-
-auto drawing_image_matches_filters(const featherdoc::drawing_image_info &image,
-                                   const inspect_images_options &options) -> bool {
-    if (options.relationship_id.has_value() &&
-        image.relationship_id != *options.relationship_id) {
-        return false;
-    }
-    if (options.image_entry_name.has_value() &&
-        image.entry_name != *options.image_entry_name) {
-        return false;
-    }
-    return true;
-}
-
-auto filter_drawing_images(const std::vector<featherdoc::drawing_image_info> &images,
-                           const inspect_images_options &options)
-    -> std::vector<featherdoc::drawing_image_info> {
-    if (!has_inspect_image_filters(options)) {
-        return images;
-    }
-
-    std::vector<featherdoc::drawing_image_info> filtered_images;
-    filtered_images.reserve(images.size());
-    for (const auto &image : images) {
-        if (drawing_image_matches_filters(image, options)) {
-            filtered_images.push_back(image);
-        }
-    }
-    return filtered_images;
-}
-
-auto describe_inspect_image_filters(const inspect_images_options &options)
-    -> std::string {
-    std::string description;
-    if (options.relationship_id.has_value()) {
-        description += "relationship_id '" + *options.relationship_id + "'";
-    }
-    if (options.image_entry_name.has_value()) {
-        if (!description.empty()) {
-            description += " and ";
-        }
-        description += "image_entry_name '" + *options.image_entry_name + "'";
-    }
-    return description;
-}
-
-void write_json_inspect_image_filters(std::ostream &stream,
-                                      const inspect_images_options &options) {
-    if (!has_inspect_image_filters(options)) {
-        return;
-    }
-
-    stream << ",\"filters\":{";
-    bool needs_separator = false;
-    if (options.relationship_id.has_value()) {
-        stream << "\"relationship_id\":";
-        write_json_string(stream, *options.relationship_id);
-        needs_separator = true;
-    }
-    if (options.image_entry_name.has_value()) {
-        if (needs_separator) {
-            stream << ',';
-        }
-        stream << "\"image_entry_name\":";
-        write_json_string(stream, *options.image_entry_name);
-    }
-    stream << '}';
-}
-
-void print_inspect_image_filters(std::ostream &stream,
-                                 const inspect_images_options &options) {
-    if (options.relationship_id.has_value()) {
-        stream << "relationship_id_filter: " << *options.relationship_id << '\n';
-    }
-    if (options.image_entry_name.has_value()) {
-        stream << "image_entry_name_filter: " << *options.image_entry_name << '\n';
-    }
-}
-
-auto resolve_selected_drawing_image(
-    const std::vector<featherdoc::drawing_image_info> &images,
-    const inspect_images_options &options, std::string_view part_entry_name,
-    featherdoc::drawing_image_info &selected_image,
-    featherdoc::document_error_info &error_info) -> bool {
-    error_info.clear();
-
-    if (options.image_index.has_value()) {
-        const auto image_it = std::find_if(
-            images.begin(), images.end(),
-            [&options](const featherdoc::drawing_image_info &image) {
-                return image.index == *options.image_index;
-            });
-        if (image_it == images.end() ||
-            !drawing_image_matches_filters(*image_it, options)) {
-            error_info.code = std::make_error_code(std::errc::result_out_of_range);
-            error_info.detail = "drawing image index " +
-                                std::to_string(*options.image_index) +
-                                " was not found in " + std::string(part_entry_name);
-            if (has_inspect_image_filters(options)) {
-                error_info.detail += " for " +
-                                     describe_inspect_image_filters(options);
-            }
-            error_info.entry_name = std::string(part_entry_name);
-            return false;
-        }
-
-        selected_image = *image_it;
-        return true;
-    }
-
-    const auto filtered_images = filter_drawing_images(images, options);
-    if (filtered_images.empty()) {
-        error_info.code = std::make_error_code(std::errc::result_out_of_range);
-        error_info.detail = "drawing image";
-        if (has_inspect_image_filters(options)) {
-            error_info.detail += " matching " + describe_inspect_image_filters(options);
-        }
-        error_info.detail += " was not found in " + std::string(part_entry_name);
-        error_info.entry_name = std::string(part_entry_name);
-        return false;
-    }
-
-    if (filtered_images.size() > 1U) {
-        error_info.code = std::make_error_code(std::errc::invalid_argument);
-        error_info.detail = "drawing image selection matched " +
-                            std::to_string(filtered_images.size()) + " images in " +
-                            std::string(part_entry_name) +
-                            "; refine with --image, --relationship-id, or "
-                            "--image-entry-name";
-        error_info.entry_name = std::string(part_entry_name);
-        return false;
-    }
-
-    selected_image = filtered_images.front();
-    return true;
-}
-
-void print_section_page_setup_summary(
-    std::ostream &stream, const featherdoc::section_page_setup &page_setup) {
-    stream << "orientation=" << page_orientation_name(page_setup.orientation)
-           << " width_twips=" << page_setup.width_twips
-           << " height_twips=" << page_setup.height_twips
-           << " margins(top=" << page_setup.margins.top_twips
-           << ", bottom=" << page_setup.margins.bottom_twips
-           << ", left=" << page_setup.margins.left_twips
-           << ", right=" << page_setup.margins.right_twips
-           << ", header=" << page_setup.margins.header_twips
-           << ", footer=" << page_setup.margins.footer_twips
-           << ") page_number_start=";
-    if (page_setup.page_number_start.has_value()) {
-        stream << *page_setup.page_number_start;
-    } else {
-        stream << "none";
-    }
-}
-
-void print_section_page_setup_details(
-    std::ostream &stream, const featherdoc::section_page_setup &page_setup) {
-    stream << "orientation: " << page_orientation_name(page_setup.orientation) << '\n';
-    stream << "width_twips: " << page_setup.width_twips << '\n';
-    stream << "height_twips: " << page_setup.height_twips << '\n';
-    stream << "top_twips: " << page_setup.margins.top_twips << '\n';
-    stream << "bottom_twips: " << page_setup.margins.bottom_twips << '\n';
-    stream << "left_twips: " << page_setup.margins.left_twips << '\n';
-    stream << "right_twips: " << page_setup.margins.right_twips << '\n';
-    stream << "header_twips: " << page_setup.margins.header_twips << '\n';
-    stream << "footer_twips: " << page_setup.margins.footer_twips << '\n';
-    stream << "page_number_start: ";
-    if (page_setup.page_number_start.has_value()) {
-        stream << *page_setup.page_number_start;
-    } else {
-        stream << "none";
-    }
-    stream << '\n';
-}
-
-enum class style_numbering_audit_issue_kind {
-    non_paragraph_numbering,
-    missing_num_id,
-    missing_level,
-    orphan_instance,
-    missing_definition,
-    missing_level_definition,
-    duplicate_definition_name,
-    based_on_definition_mismatch,
-};
-
-struct style_numbering_audit_issue {
-    style_numbering_audit_issue_kind kind{};
-    std::string style_id;
-    std::string style_name;
-    std::optional<std::string> based_on;
-    std::optional<std::uint32_t> num_id;
-    std::optional<std::uint32_t> level;
-    std::optional<std::uint32_t> definition_id;
-    std::optional<std::string> definition_name;
-    std::string message;
-};
-
-enum class style_numbering_repair_action {
-    clear_style_numbering,
-    relink_style_numbering,
-    add_numbering_level,
-    rename_numbering_definition,
-    align_with_based_on_numbering,
-    manual_review,
-};
-
-struct style_numbering_repair_target {
-    std::optional<std::uint32_t> definition_id;
-    std::optional<std::string> definition_name;
-    std::optional<std::uint32_t> level;
-};
-
-struct style_numbering_repair_suggestion {
-    style_numbering_repair_action action{};
-    style_numbering_audit_issue_kind issue_kind{};
-    std::string style_id;
-    std::string rationale;
-    std::string command_template;
-    std::optional<std::uint32_t> target_definition_id;
-    std::optional<std::string> target_definition_name;
-    std::optional<std::uint32_t> target_level;
-};
-
-struct style_numbering_audit_result {
-    std::size_t paragraph_style_count{};
-    std::vector<featherdoc::style_summary> numbered_styles;
-    std::vector<style_numbering_audit_issue> issues;
-    std::vector<style_numbering_repair_suggestion> suggestions;
-};
-
-struct style_numbering_repair_result {
-    bool apply = false;
-    std::optional<path_type> catalog_path;
-    std::optional<featherdoc::numbering_catalog_import_summary> catalog_import;
-    std::optional<path_type> output_path;
-    style_numbering_audit_result before;
-    std::optional<style_numbering_audit_result> after;
-    std::vector<style_numbering_repair_suggestion> applyable_suggestions;
-    std::size_t applied_count{};
-};
-
-auto style_numbering_audit_clean(
-    const style_numbering_audit_result &result) -> bool {
-    return result.issues.empty();
-}
-
-auto style_numbering_audit_issue_kind_name(
-    style_numbering_audit_issue_kind kind) -> std::string_view {
-    switch (kind) {
-    case style_numbering_audit_issue_kind::non_paragraph_numbering:
-        return "non_paragraph_numbering";
-    case style_numbering_audit_issue_kind::missing_num_id:
-        return "missing_num_id";
-    case style_numbering_audit_issue_kind::missing_level:
-        return "missing_level";
-    case style_numbering_audit_issue_kind::orphan_instance:
-        return "orphan_instance";
-    case style_numbering_audit_issue_kind::missing_definition:
-        return "missing_definition";
-    case style_numbering_audit_issue_kind::missing_level_definition:
-        return "missing_level_definition";
-    case style_numbering_audit_issue_kind::duplicate_definition_name:
-        return "duplicate_definition_name";
-    case style_numbering_audit_issue_kind::based_on_definition_mismatch:
-        return "based_on_definition_mismatch";
-    }
-
-    return "unknown";
-}
-
-auto style_numbering_repair_action_name(
-    style_numbering_repair_action action) -> std::string_view {
-    switch (action) {
-    case style_numbering_repair_action::clear_style_numbering:
-        return "clear_style_numbering";
-    case style_numbering_repair_action::relink_style_numbering:
-        return "relink_style_numbering";
-    case style_numbering_repair_action::add_numbering_level:
-        return "add_numbering_level";
-    case style_numbering_repair_action::rename_numbering_definition:
-        return "rename_numbering_definition";
-    case style_numbering_repair_action::align_with_based_on_numbering:
-        return "align_with_based_on_numbering";
-    case style_numbering_repair_action::manual_review:
-        return "manual_review";
-    }
-
-    return "manual_review";
-}
-
-auto style_numbering_repair_suggestion_applyable(
-    const style_numbering_repair_suggestion &suggestion) -> bool {
-    switch (suggestion.action) {
-    case style_numbering_repair_action::clear_style_numbering:
-        return true;
-    case style_numbering_repair_action::align_with_based_on_numbering:
-    case style_numbering_repair_action::relink_style_numbering:
-        return suggestion.target_definition_id.has_value() &&
-               suggestion.target_level.has_value();
-    case style_numbering_repair_action::add_numbering_level:
-    case style_numbering_repair_action::rename_numbering_definition:
-    case style_numbering_repair_action::manual_review:
-        return false;
-    }
-
-    return false;
-}
-
-auto style_numbering_repair_command_template(
-    style_numbering_repair_action action, const featherdoc::style_summary &style)
-    -> std::string {
-    switch (action) {
-    case style_numbering_repair_action::clear_style_numbering:
-        return "featherdoc_cli clear-paragraph-style-numbering <input.docx> " +
-               style.style_id + " --output <output.docx> --json";
-    case style_numbering_repair_action::relink_style_numbering:
-        return "featherdoc_cli set-paragraph-style-numbering <input.docx> " +
-               style.style_id +
-               " --definition-name <name> --numbering-level <level>:<kind>:<start>:<text-pattern> --style-level <level> --output <output.docx> --json";
-    case style_numbering_repair_action::add_numbering_level:
-        return "featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file <patch-with-upsert_levels.json> --output numbering-catalog.patched.json --json";
-    case style_numbering_repair_action::rename_numbering_definition:
-        return "featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file <patch.json> --output numbering-catalog.patched.json --json";
-    case style_numbering_repair_action::align_with_based_on_numbering:
-        return "featherdoc_cli set-paragraph-style-numbering <input.docx> " +
-               style.style_id +
-               " --definition-name <based-on-definition-name> --numbering-level <level>:<kind>:<start>:<text-pattern> --style-level <level> --output <output.docx> --json";
-    case style_numbering_repair_action::manual_review:
-        return "featherdoc_cli inspect-style-numbering <input.docx> --json";
-    }
-
-    return "featherdoc_cli inspect-style-numbering <input.docx> --json";
-}
-
-auto style_numbering_repair_action_for_issue(
-    style_numbering_audit_issue_kind kind) -> style_numbering_repair_action {
-    switch (kind) {
-    case style_numbering_audit_issue_kind::missing_num_id:
-    case style_numbering_audit_issue_kind::missing_level:
-    case style_numbering_audit_issue_kind::orphan_instance:
-    case style_numbering_audit_issue_kind::missing_definition:
-        return style_numbering_repair_action::clear_style_numbering;
-    case style_numbering_audit_issue_kind::missing_level_definition:
-        return style_numbering_repair_action::add_numbering_level;
-    case style_numbering_audit_issue_kind::duplicate_definition_name:
-        return style_numbering_repair_action::rename_numbering_definition;
-    case style_numbering_audit_issue_kind::based_on_definition_mismatch:
-        return style_numbering_repair_action::align_with_based_on_numbering;
-    case style_numbering_audit_issue_kind::non_paragraph_numbering:
-        return style_numbering_repair_action::manual_review;
-    }
-
-    return style_numbering_repair_action::manual_review;
-}
-
-auto style_numbering_repair_rationale(
-    style_numbering_audit_issue_kind kind) -> std::string_view {
-    switch (kind) {
-    case style_numbering_audit_issue_kind::missing_num_id:
-        return "remove incomplete style numbering or relink the style to a known numbering definition";
-    case style_numbering_audit_issue_kind::missing_level:
-        return "remove incomplete style numbering or relink the style with an explicit style level";
-    case style_numbering_audit_issue_kind::orphan_instance:
-        return "clear the orphan numId binding before relinking the style to a valid numbering definition";
-    case style_numbering_audit_issue_kind::missing_definition:
-        return "clear the missing definition binding before importing or recreating the target numbering catalog";
-    case style_numbering_audit_issue_kind::missing_level_definition:
-        return "add the missing level to the numbering catalog or relink the style to a defined level";
-    case style_numbering_audit_issue_kind::duplicate_definition_name:
-        return "rename or merge duplicate numbering definitions before relying on definition_name based automation";
-    case style_numbering_audit_issue_kind::based_on_definition_mismatch:
-        return "align the style with its based-on numbering definition or intentionally rebase the style";
-    case style_numbering_audit_issue_kind::non_paragraph_numbering:
-        return "review the non-paragraph style XML before applying paragraph numbering commands";
-    }
-
-    return "review the style numbering binding before applying mutations";
-}
-
-auto build_style_numbering_repair_suggestion(
-    style_numbering_audit_issue_kind kind,
-    const featherdoc::style_summary &style,
-    const style_numbering_repair_target *target = nullptr)
-    -> style_numbering_repair_suggestion {
-    const auto has_relink_target =
-        target != nullptr && target->definition_id.has_value() &&
-        target->level.has_value();
-    auto action = style_numbering_repair_action_for_issue(kind);
-    if (kind == style_numbering_audit_issue_kind::missing_level_definition &&
-        has_relink_target) {
-        action = style_numbering_repair_action::relink_style_numbering;
-    }
-
-    auto suggestion = style_numbering_repair_suggestion{};
-    suggestion.action = action;
-    suggestion.issue_kind = kind;
-    suggestion.style_id = style.style_id;
-    suggestion.rationale = std::string{style_numbering_repair_rationale(kind)};
-    suggestion.command_template =
-        style_numbering_repair_command_template(action, style);
-    if (target != nullptr) {
-        suggestion.target_definition_id = target->definition_id;
-        suggestion.target_definition_name = target->definition_name;
-        suggestion.target_level = target->level;
-    }
-    return suggestion;
-}
-
-auto collect_applyable_style_numbering_repair_suggestions(
-    const std::vector<style_numbering_repair_suggestion> &suggestions)
-    -> std::vector<style_numbering_repair_suggestion> {
-    auto applyable = std::vector<style_numbering_repair_suggestion>{};
-    for (const auto &suggestion : suggestions) {
-        if (!style_numbering_repair_suggestion_applyable(suggestion)) {
-            continue;
-        }
-
-        const auto duplicate = std::find_if(
-            applyable.begin(), applyable.end(), [&suggestion](const auto &existing) {
-                return existing.action == suggestion.action &&
-                       existing.style_id == suggestion.style_id;
-            });
-        if (duplicate == applyable.end()) {
-            applyable.push_back(suggestion);
-        }
-    }
-    return applyable;
-}
-
-auto find_numbering_definition_summary_by_id(
-    const std::vector<featherdoc::numbering_definition_summary> &definitions,
-    std::uint32_t definition_id)
-    -> const featherdoc::numbering_definition_summary * {
-    const auto found = std::find_if(
-        definitions.begin(), definitions.end(),
-        [definition_id](const auto &definition) {
-            return definition.definition_id == definition_id;
-        });
-    return found == definitions.end() ? nullptr : &(*found);
-}
-
-auto find_style_summary_by_id(
-    const std::vector<featherdoc::style_summary> &styles,
-    std::string_view style_id) -> const featherdoc::style_summary * {
-    const auto found = std::find_if(styles.begin(), styles.end(),
-                                    [style_id](const auto &style) {
-                                        return std::string_view{style.style_id} ==
-                                               style_id;
-                                    });
-    return found == styles.end() ? nullptr : &(*found);
-}
-
-auto numbering_definition_has_level(
-    const featherdoc::numbering_definition_summary &definition,
-    std::uint32_t level) -> bool {
-    return std::find_if(definition.levels.begin(), definition.levels.end(),
-                        [level](const auto &candidate) {
-                            return candidate.level == level;
-                        }) != definition.levels.end();
-}
-
-style_numbering_repair_target make_style_numbering_repair_target(
-    const featherdoc::style_summary::numbering_summary &numbering) {
-    auto target = style_numbering_repair_target{};
-    target.definition_id = numbering.definition_id;
-    target.definition_name = numbering.definition_name;
-    target.level = numbering.level;
-    return target;
-}
-
-style_numbering_repair_target make_style_numbering_repair_target(
-    const featherdoc::numbering_definition_summary &definition,
-    std::uint32_t level) {
-    auto target = style_numbering_repair_target{};
-    target.definition_id = definition.definition_id;
-    target.definition_name = definition.name;
-    target.level = level;
-    return target;
-}
-
-auto find_unique_numbering_definition_summary_by_name_and_level(
-    const std::vector<featherdoc::numbering_definition_summary> &definitions,
-    std::string_view name, std::uint32_t level,
-    std::optional<std::uint32_t> excluded_definition_id)
-    -> const featherdoc::numbering_definition_summary * {
-    const auto *candidate = static_cast<const featherdoc::numbering_definition_summary *>(nullptr);
-    for (const auto &definition : definitions) {
-        if (excluded_definition_id.has_value() &&
-            definition.definition_id == *excluded_definition_id) {
-            continue;
-        }
-        if (std::string_view{definition.name} != name ||
-            !numbering_definition_has_level(definition, level)) {
-            continue;
-        }
-        if (candidate != nullptr) {
-            return nullptr;
-        }
-        candidate = &definition;
-    }
-    return candidate;
-}
-
-auto numbering_instance_has_level_definition_override(
-    const std::optional<featherdoc::numbering_instance_summary> &instance,
-    std::uint32_t level) -> bool {
-    if (!instance.has_value()) {
-        return false;
-    }
-
-    return std::find_if(
-               instance->level_overrides.begin(), instance->level_overrides.end(),
-               [level](const auto &level_override) {
-                   return level_override.level == level &&
-                          level_override.level_definition.has_value();
-               }) != instance->level_overrides.end();
-}
-
-auto numbering_definition_name_is_duplicate(
-    const std::vector<featherdoc::numbering_definition_summary> &definitions,
-    std::string_view name) -> bool {
-    if (name.empty()) {
-        return false;
-    }
-
-    std::size_t count = 0U;
-    for (const auto &definition : definitions) {
-        if (std::string_view{definition.name} == name) {
-            ++count;
-            if (count > 1U) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-void append_style_numbering_audit_issue(
-    style_numbering_audit_result &result,
-    style_numbering_audit_issue_kind kind,
-    const featherdoc::style_summary &style, std::string message,
-    const style_numbering_repair_target *target = nullptr) {
-    auto issue = style_numbering_audit_issue{};
-    issue.kind = kind;
-    issue.style_id = style.style_id;
-    issue.style_name = style.name;
-    issue.based_on = style.based_on;
-    issue.message = std::move(message);
-    if (style.numbering.has_value()) {
-        issue.num_id = style.numbering->num_id;
-        issue.level = style.numbering->level;
-        issue.definition_id = style.numbering->definition_id;
-        issue.definition_name = style.numbering->definition_name;
-    }
-    result.issues.push_back(std::move(issue));
-    result.suggestions.push_back(
-        build_style_numbering_repair_suggestion(kind, style, target));
-}
-
-auto audit_style_numbering(
-    const std::vector<featherdoc::style_summary> &styles,
-    const std::vector<featherdoc::numbering_definition_summary> &definitions)
-    -> style_numbering_audit_result {
-    auto result = style_numbering_audit_result{};
-    for (const auto &style : styles) {
-        if (style.kind == featherdoc::style_kind::paragraph) {
-            ++result.paragraph_style_count;
-            if (style.numbering.has_value()) {
-                result.numbered_styles.push_back(style);
-            }
-        }
-
-        if (!style.numbering.has_value()) {
-            continue;
-        }
-
-        if (style.kind != featherdoc::style_kind::paragraph) {
-            append_style_numbering_audit_issue(
-                result, style_numbering_audit_issue_kind::non_paragraph_numbering,
-                style, "non-paragraph style carries paragraph numbering metadata");
-            continue;
-        }
-
-        const auto &numbering = *style.numbering;
-        if (!numbering.num_id.has_value()) {
-            append_style_numbering_audit_issue(
-                result, style_numbering_audit_issue_kind::missing_num_id, style,
-                "style numbering has w:numPr but no valid w:numId");
-        }
-        if (!numbering.level.has_value()) {
-            append_style_numbering_audit_issue(
-                result, style_numbering_audit_issue_kind::missing_level, style,
-                "style numbering has w:numPr but no valid w:ilvl");
-        }
-        if (numbering.num_id.has_value() && !numbering.instance.has_value()) {
-            append_style_numbering_audit_issue(
-                result, style_numbering_audit_issue_kind::orphan_instance, style,
-                "style numbering references a numId that is not present in word/numbering.xml");
-        }
-
-        if (numbering.definition_id.has_value()) {
-            const auto *definition = find_numbering_definition_summary_by_id(
-                definitions, *numbering.definition_id);
-            if (definition == nullptr) {
-                append_style_numbering_audit_issue(
-                    result, style_numbering_audit_issue_kind::missing_definition,
-                    style,
-                    "style numbering instance resolves to a missing numbering definition");
-            } else if (numbering.level.has_value() &&
-                       !numbering_definition_has_level(*definition,
-                                                       *numbering.level) &&
-                       !numbering_instance_has_level_definition_override(
-                           numbering.instance, *numbering.level)) {
-                auto relink_target = std::optional<style_numbering_repair_target>{};
-                if (!definition->name.empty()) {
-                    const auto *target_definition =
-                        find_unique_numbering_definition_summary_by_name_and_level(
-                            definitions, definition->name, *numbering.level,
-                            numbering.definition_id);
-                    if (target_definition != nullptr) {
-                        relink_target = make_style_numbering_repair_target(
-                            *target_definition, *numbering.level);
-                    }
-                }
-                append_style_numbering_audit_issue(
-                    result,
-                    style_numbering_audit_issue_kind::missing_level_definition,
-                    style,
-                    "style numbering level is not defined by its numbering definition or lvlOverride",
-                    relink_target.has_value() ? &(*relink_target) : nullptr);
-            }
-        }
-
-        if (numbering.definition_name.has_value() &&
-            numbering_definition_name_is_duplicate(definitions,
-                                                   *numbering.definition_name)) {
-            append_style_numbering_audit_issue(
-                result,
-                style_numbering_audit_issue_kind::duplicate_definition_name,
-                style,
-                "style uses a numbering definition name that appears on multiple definitions");
-        }
-
-        if (style.based_on.has_value() && numbering.definition_id.has_value()) {
-            const auto *base_style = find_style_summary_by_id(styles, *style.based_on);
-            if (base_style != nullptr && base_style->numbering.has_value() &&
-                base_style->numbering->definition_id.has_value() &&
-                *base_style->numbering->definition_id != *numbering.definition_id) {
-                const auto target =
-                    make_style_numbering_repair_target(*base_style->numbering);
-                append_style_numbering_audit_issue(
-                    result,
-                    style_numbering_audit_issue_kind::based_on_definition_mismatch,
-                    style,
-                    "style and based-on style use different numbering definitions",
-                    &target);
-            }
-        }
-    }
-
-    return result;
 }
 
 auto filter_numbered_paragraph_styles(
@@ -9836,187 +8690,6 @@ void print_remove_image_result(const selected_template_part &selected,
     std::cout << "removed_image: ";
     print_drawing_image_summary(std::cout, image);
     std::cout << '\n';
-}
-
-auto inspect_page_setup(featherdoc::Document &doc, std::size_t section_index,
-                        std::string_view command, bool json_output) -> bool {
-    const auto page_setup = doc.get_section_page_setup(section_index);
-    if (!page_setup.has_value() && doc.last_error().code) {
-        return report_document_error(command, "inspect", doc.last_error(),
-                                     json_output);
-    }
-
-    if (json_output) {
-        std::cout << "{\"section\":" << section_index
-                  << ",\"present\":" << json_bool(page_setup.has_value())
-                  << ",\"page_setup\":";
-        if (page_setup.has_value()) {
-            write_json_section_page_setup(std::cout, *page_setup);
-        } else {
-            std::cout << "null";
-        }
-        std::cout << "}\n";
-        return true;
-    }
-
-    std::cout << "section: " << section_index << '\n';
-    std::cout << "present: " << yes_no(page_setup.has_value()) << '\n';
-    if (page_setup.has_value()) {
-        print_section_page_setup_details(std::cout, *page_setup);
-    }
-    return true;
-}
-
-auto inspect_page_setups(featherdoc::Document &doc, std::string_view command,
-                         bool json_output) -> bool {
-    std::vector<std::optional<featherdoc::section_page_setup>> page_setups;
-    page_setups.reserve(doc.section_count());
-    for (std::size_t section_index = 0; section_index < doc.section_count();
-         ++section_index) {
-        auto page_setup = doc.get_section_page_setup(section_index);
-        if (!page_setup.has_value() && doc.last_error().code) {
-            return report_document_error(command, "inspect", doc.last_error(),
-                                         json_output);
-        }
-
-        page_setups.push_back(std::move(page_setup));
-    }
-
-    if (json_output) {
-        std::cout << "{\"count\":" << page_setups.size() << ",\"sections\":[";
-        for (std::size_t section_index = 0; section_index < page_setups.size();
-             ++section_index) {
-            if (section_index != 0U) {
-                std::cout << ',';
-            }
-
-            std::cout << "{\"section\":" << section_index
-                      << ",\"present\":"
-                      << json_bool(page_setups[section_index].has_value())
-                      << ",\"page_setup\":";
-            if (page_setups[section_index].has_value()) {
-                write_json_section_page_setup(std::cout,
-                                              *page_setups[section_index]);
-            } else {
-                std::cout << "null";
-            }
-            std::cout << '}';
-        }
-        std::cout << "]}\n";
-        return true;
-    }
-
-    std::cout << "sections: " << page_setups.size() << '\n';
-    for (std::size_t section_index = 0; section_index < page_setups.size();
-         ++section_index) {
-        std::cout << "section[" << section_index
-                  << "]: present=" << yes_no(page_setups[section_index].has_value());
-        if (page_setups[section_index].has_value()) {
-            std::cout << ' ';
-            print_section_page_setup_summary(std::cout, *page_setups[section_index]);
-        }
-        std::cout << '\n';
-    }
-
-    return true;
-}
-
-auto resolve_section_page_setup(featherdoc::Document &doc, std::size_t section_index,
-                                const set_section_page_setup_options &options,
-                                std::string_view command, bool json_output,
-                                featherdoc::section_page_setup &setup) -> bool {
-    const auto existing = doc.get_section_page_setup(section_index);
-    if (!existing.has_value() && doc.last_error().code) {
-        return report_document_error(command, "inspect", doc.last_error(), json_output);
-    }
-
-    std::vector<std::string> missing_options;
-    auto use_existing_or_require =
-        [&]<typename T>(const std::optional<T> &specified, const T *existing_value,
-                        T &target, const char *option_name) {
-            if (specified.has_value()) {
-                target = *specified;
-                return;
-            }
-            if (existing_value != nullptr) {
-                target = *existing_value;
-                return;
-            }
-            missing_options.emplace_back(option_name);
-        };
-
-    const auto *existing_setup = existing.has_value() ? &*existing : nullptr;
-    use_existing_or_require(options.orientation,
-                            existing_setup != nullptr ? &existing_setup->orientation
-                                                      : nullptr,
-                            setup.orientation, "--orientation");
-    use_existing_or_require(options.width_twips,
-                            existing_setup != nullptr ? &existing_setup->width_twips
-                                                      : nullptr,
-                            setup.width_twips, "--width");
-    use_existing_or_require(options.height_twips,
-                            existing_setup != nullptr ? &existing_setup->height_twips
-                                                      : nullptr,
-                            setup.height_twips, "--height");
-    use_existing_or_require(options.margin_top_twips,
-                            existing_setup != nullptr
-                                ? &existing_setup->margins.top_twips
-                                : nullptr,
-                            setup.margins.top_twips, "--margin-top");
-    use_existing_or_require(options.margin_bottom_twips,
-                            existing_setup != nullptr
-                                ? &existing_setup->margins.bottom_twips
-                                : nullptr,
-                            setup.margins.bottom_twips, "--margin-bottom");
-    use_existing_or_require(options.margin_left_twips,
-                            existing_setup != nullptr
-                                ? &existing_setup->margins.left_twips
-                                : nullptr,
-                            setup.margins.left_twips, "--margin-left");
-    use_existing_or_require(options.margin_right_twips,
-                            existing_setup != nullptr
-                                ? &existing_setup->margins.right_twips
-                                : nullptr,
-                            setup.margins.right_twips, "--margin-right");
-    use_existing_or_require(options.margin_header_twips,
-                            existing_setup != nullptr
-                                ? &existing_setup->margins.header_twips
-                                : nullptr,
-                            setup.margins.header_twips, "--margin-header");
-    use_existing_or_require(options.margin_footer_twips,
-                            existing_setup != nullptr
-                                ? &existing_setup->margins.footer_twips
-                                : nullptr,
-                            setup.margins.footer_twips, "--margin-footer");
-
-    if (!missing_options.empty()) {
-        std::string detail =
-            "section does not expose explicit page setup; supply ";
-        for (std::size_t index = 0; index < missing_options.size(); ++index) {
-            if (index != 0U) {
-                detail += index + 1U == missing_options.size() ? ", and " : ", ";
-            }
-            detail += missing_options[index];
-        }
-
-        featherdoc::document_error_info error_info{};
-        error_info.code = std::make_error_code(std::errc::invalid_argument);
-        error_info.detail = std::move(detail);
-        return report_operation_failure(command, "input", "invalid page setup input",
-                                        error_info, json_output);
-    }
-
-    if (options.clear_page_number_start) {
-        setup.page_number_start = std::nullopt;
-    } else if (options.page_number_start.has_value()) {
-        setup.page_number_start = options.page_number_start;
-    } else if (existing_setup != nullptr) {
-        setup.page_number_start = existing_setup->page_number_start;
-    } else {
-        setup.page_number_start = std::nullopt;
-    }
-
-    return true;
 }
 
 void inspect_related_parts(const std::vector<inspected_part_entry> &parts,

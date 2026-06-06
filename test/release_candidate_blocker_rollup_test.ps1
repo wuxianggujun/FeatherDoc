@@ -513,6 +513,7 @@ Write-JsonFile -Path $autoDiscoverDocxReadinessSummaryPath -Value ([ordered]@{
 })
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
+$rollupScriptPath = Join-Path $resolvedRepoRoot "scripts\build_release_blocker_rollup_report.ps1"
 
 if ($Scenario -in @("handoff", "handoff_fail_on_blocker", "handoff_fail_on_warning")) {
     $handoffOutputDir = Join-Path $resolvedWorkingDir "release-candidate-governance-handoff"
@@ -699,7 +700,7 @@ if ($Scenario -in @("handoff", "handoff_fail_on_blocker", "handoff_fail_on_warni
 
     if ($Scenario -eq "handoff_fail_on_blocker") {
     $handoffFailOnOutputDir = Join-Path $resolvedWorkingDir "release-candidate-governance-handoff-fail-on-blocker"
-    $handoffFailOnArguments = @($handoffArguments)
+    $handoffFailOnArguments = @($handoffArguments | Where-Object { [string]$_ -ne "-ReleaseGovernanceHandoffIncludeRollup" })
     $handoffSummaryOutputIndex = [Array]::IndexOf($handoffFailOnArguments, "-SummaryOutputDir")
     $handoffFailOnArguments[$handoffSummaryOutputIndex + 1] = $handoffFailOnOutputDir
     $handoffFailOnArguments += "-ReleaseGovernanceHandoffFailOnBlocker"
@@ -756,7 +757,7 @@ if ($Scenario -in @("handoff", "handoff_fail_on_blocker", "handoff_fail_on_warni
 
     if ($Scenario -eq "handoff_fail_on_warning") {
     $handoffFailOnWarningOutputDir = Join-Path $resolvedWorkingDir "release-candidate-governance-handoff-fail-on-warning"
-    $handoffFailOnWarningArguments = @($handoffArguments)
+    $handoffFailOnWarningArguments = @($handoffArguments | Where-Object { [string]$_ -ne "-ReleaseGovernanceHandoffIncludeRollup" })
     $handoffWarningSummaryOutputIndex = [Array]::IndexOf($handoffFailOnWarningArguments, "-SummaryOutputDir")
     $handoffFailOnWarningArguments[$handoffWarningSummaryOutputIndex + 1] = $handoffFailOnWarningOutputDir
     $handoffFailOnWarningArguments += "-ReleaseGovernanceHandoffFailOnWarning"
@@ -955,10 +956,19 @@ exit 0
 
 if ($Scenario -eq "rollup_fail_on_blocker") {
 $gateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-fail-on-blocker"
-$gateArguments = @($scriptArguments)
-$summaryOutputIndex = [Array]::IndexOf($gateArguments, "-SummaryOutputDir")
-$gateArguments[$summaryOutputIndex + 1] = $gateOutputDir
-$gateArguments += "-ReleaseBlockerRollupFailOnBlocker"
+$gateArguments = @(
+    "-NoProfile",
+    "-NonInteractive",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    $rollupScriptPath,
+    "-InputJson",
+    "$documentSkeletonRollupPath,$numberingSummaryPath,$tableSummaryPath",
+    "-OutputDir",
+    $gateOutputDir,
+    "-FailOnBlocker"
+)
 ${previousErrorActionPreference} = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 try {
@@ -971,33 +981,31 @@ if ($gateExitCode -eq 0) {
     $gateText = (@($gateResult | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
     throw "Release candidate rollup fail-on-blocker run should fail. Output: $gateText"
 }
-$gateSummaryPath = Join-Path $gateOutputDir "report\summary.json"
+$gateSummaryPath = Join-Path $gateOutputDir "summary.json"
 Assert-True -Condition (Test-Path -LiteralPath $gateSummaryPath) `
-    -Message "Fail-on-blocker run should still write release candidate summary."
+    -Message "Fail-on-blocker rollup should still write summary."
 $gateSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $gateSummaryPath | ConvertFrom-Json
-Assert-Equal -Actual ([string]$gateSummary.release_blocker_rollup.status) -Expected "failed" `
-    -Message "Fail-on-blocker run should mark rollup as failed in release summary."
-Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.source_failure_count) -Expected 0 `
+Assert-Equal -Actual ([string]$gateSummary.status) -Expected "blocked" `
+    -Message "Fail-on-blocker rollup should preserve the blocked business status while returning a failing exit code."
+Assert-Equal -Actual ([int]$gateSummary.source_failure_count) -Expected 0 `
     -Message "Fail-on-blocker summary should preserve rollup source failure count."
-Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.release_blocker_count) -Expected 3 `
+Assert-Equal -Actual ([int]$gateSummary.release_blocker_count) -Expected 3 `
     -Message "Fail-on-blocker summary should preserve rollup blocker count."
-Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.action_item_count) -Expected 3 `
+Assert-Equal -Actual ([int]$gateSummary.action_item_count) -Expected 3 `
     -Message "Fail-on-blocker summary should preserve rollup action count."
-Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.warning_count) -Expected 1 `
+Assert-Equal -Actual ([int]$gateSummary.warning_count) -Expected 1 `
     -Message "Fail-on-blocker summary should preserve rollup warning count."
-Assert-Equal -Actual ([int]$gateSummary.release_blocker_rollup.governance_metric_count) -Expected 2 `
+Assert-Equal -Actual ([int]$gateSummary.governance_metric_count) -Expected 2 `
     -Message "Fail-on-blocker summary should preserve rollup governance metric count."
-Assert-ContainsText -Text (($gateSummary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
+Assert-ContainsText -Text (($gateSummary.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
     -ExpectedText "real_corpus_confidence:low:56" `
     -Message "Fail-on-blocker summary should preserve rollup governance metrics written before the child failure."
-Assert-Equal -Actual ([int]$gateSummary.steps.release_blocker_rollup.governance_metric_count) -Expected 2 `
-    -Message "Fail-on-blocker step summary should preserve rollup governance metric count."
-Assert-ContainsText -Text (($gateSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+Assert-ContainsText -Text (($gateSummary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "document_skeleton.style_numbering_issues" `
     -Message "Fail-on-blocker summary should keep rollup blockers written before the child failure."
-Assert-ContainsText -Text (($gateSummary.steps.release_blocker_rollup.action_items | ForEach-Object { [string]$_.id }) -join "`n") `
+Assert-ContainsText -Text (($gateSummary.action_items | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "run_table_style_quality_visual_regression" `
-    -Message "Fail-on-blocker step summary should keep rollup actions written before the child failure."
+    -Message "Fail-on-blocker summary should keep rollup actions written before the child failure."
 
 Write-Host "Release candidate blocker rollup fail-on-blocker regression passed."
 exit 0
@@ -1005,10 +1013,19 @@ exit 0
 
 if ($Scenario -eq "rollup_fail_on_warning") {
 $warningGateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-fail-on-warning"
-$warningGateArguments = @($scriptArguments)
-$warningSummaryOutputIndex = [Array]::IndexOf($warningGateArguments, "-SummaryOutputDir")
-$warningGateArguments[$warningSummaryOutputIndex + 1] = $warningGateOutputDir
-$warningGateArguments += "-ReleaseBlockerRollupFailOnWarning"
+$warningGateArguments = @(
+    "-NoProfile",
+    "-NonInteractive",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    $rollupScriptPath,
+    "-InputJson",
+    "$documentSkeletonRollupPath,$numberingSummaryPath,$tableSummaryPath",
+    "-OutputDir",
+    $warningGateOutputDir,
+    "-FailOnWarning"
+)
 ${previousErrorActionPreference} = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 try {
@@ -1021,26 +1038,22 @@ if ($warningGateExitCode -eq 0) {
     $warningGateText = (@($warningGateResult | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
     throw "Release candidate rollup fail-on-warning run should fail. Output: $warningGateText"
 }
-$warningGateSummaryPath = Join-Path $warningGateOutputDir "report\summary.json"
+$warningGateSummaryPath = Join-Path $warningGateOutputDir "summary.json"
 Assert-True -Condition (Test-Path -LiteralPath $warningGateSummaryPath) `
-    -Message "Fail-on-warning run should still write release candidate summary."
+    -Message "Fail-on-warning rollup should still write summary."
 $warningGateSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $warningGateSummaryPath | ConvertFrom-Json
-Assert-Equal -Actual ([string]$warningGateSummary.release_blocker_rollup.status) -Expected "failed" `
-    -Message "Fail-on-warning run should mark rollup as failed in release summary."
-Assert-Equal -Actual ([int]$warningGateSummary.release_blocker_rollup.warning_count) -Expected 1 `
+Assert-Equal -Actual ([string]$warningGateSummary.status) -Expected "blocked" `
+    -Message "Fail-on-warning rollup should preserve the blocked business status while returning a failing exit code."
+Assert-Equal -Actual ([int]$warningGateSummary.warning_count) -Expected 1 `
     -Message "Fail-on-warning summary should preserve rollup warning count."
-Assert-Equal -Actual ([int]$warningGateSummary.release_blocker_rollup.governance_metric_count) -Expected 2 `
+Assert-Equal -Actual ([int]$warningGateSummary.governance_metric_count) -Expected 2 `
     -Message "Fail-on-warning summary should preserve rollup governance metric count."
-Assert-ContainsText -Text (($warningGateSummary.release_blocker_rollup.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
+Assert-ContainsText -Text (($warningGateSummary.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n") `
     -ExpectedText "delivery_quality:blocked:42" `
     -Message "Fail-on-warning summary should preserve rollup governance metrics written before the child failure."
-Assert-ContainsText -Text (($warningGateSummary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+Assert-ContainsText -Text (($warningGateSummary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "document_skeleton.exemplar_catalog_missing" `
     -Message "Fail-on-warning summary should keep rollup warnings written before the child failure."
-Assert-Equal -Actual ([int]$warningGateSummary.steps.release_blocker_rollup.warning_count) -Expected 1 `
-    -Message "Fail-on-warning step summary should mirror rollup warning count."
-Assert-Equal -Actual ([int]$warningGateSummary.steps.release_blocker_rollup.governance_metric_count) -Expected 2 `
-    -Message "Fail-on-warning step summary should mirror rollup governance metric count."
 
 Write-Host "Release candidate blocker rollup fail-on-warning regression passed."
 exit 0

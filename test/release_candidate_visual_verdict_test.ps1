@@ -1,6 +1,8 @@
 param(
     [string]$RepoRoot,
-    [string]$WorkingDir
+    [string]$WorkingDir,
+    [ValidateSet("all", "contract", "candidate", "candidate_core", "candidate_reports")]
+    [string]$Scenario = "all"
 )
 
 Set-StrictMode -Version Latest
@@ -228,6 +230,7 @@ $metadataHelpersText = Get-Content -Raw -LiteralPath $metadataHelpersPath
 $templateSchemaCommonPath = Join-Path $resolvedRepoRoot "scripts\template_schema_cli_common.ps1"
 . $templateSchemaCommonPath
 
+if ($Scenario -ne "candidate") {
 foreach ($name in @(
         "SmokeReviewVerdict",
         "FixedGridReviewVerdict",
@@ -535,6 +538,7 @@ Assert-ContainsText -Text $metadataHelpersText -ExpectedText '$($sectionInfo.Con
 
 Assert-ContainsText -Text $scriptText -ExpectedText 'Invoke-ProjectTemplateSchemaApprovalHistory' `
     -Message "Release preflight should isolate schema approval history generation."
+}
 
 $parseTokens = $null
 $parseErrors = $null
@@ -1034,6 +1038,11 @@ if ($expandedRollupPaths.Count -ne 3 -or
     throw "Release blocker rollup path expansion should support comma-delimited and repeated arguments."
 }
 
+if ($Scenario -eq "contract") {
+    Write-Host "Release candidate visual verdict contract regression passed."
+    return
+}
+
 $candidateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-checks"
 $candidateBuildDir = Join-Path $resolvedWorkingDir "build"
 $candidateInstallDir = Join-Path $resolvedWorkingDir "install"
@@ -1044,6 +1053,12 @@ $releaseGovernanceHandoffInputRoot = Join-Path $resolvedWorkingDir "release-gove
 $releaseGovernanceHandoffOutputDir = Join-Path $resolvedWorkingDir "release-governance-handoff"
 $releaseGovernanceSourceDir = Join-Path $resolvedWorkingDir "release-candidate-checks-source"
 $releaseGovernanceSourcePath = Join-Path $releaseGovernanceSourceDir "summary.json"
+$candidateSummaryPath = Join-Path $candidateOutputDir "report\summary.json"
+$candidateReuseMarkerPath = Join-Path $resolvedWorkingDir "release-candidate-visual-verdict-marker.json"
+$candidateReuseKey = [ordered]@{
+    script_last_write_utc = (Get-Item -LiteralPath $scriptPath).LastWriteTimeUtc.Ticks
+    test_last_write_utc = (Get-Item -LiteralPath $MyInvocation.MyCommand.Path).LastWriteTimeUtc.Ticks
+}
 New-Item -ItemType Directory -Path $releaseGovernanceHandoffInputRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $releaseGovernanceSourceDir -Force | Out-Null
 Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "numbering-catalog-governance\summary.json") -Value ([ordered]@{
@@ -1355,34 +1370,49 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "docx-functio
         warnings = @()
     } | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $releaseGovernanceSourcePath -Encoding UTF8
 
-& $scriptPath `
-    -SkipConfigure `
-    -SkipBuild `
-    -SkipTests `
-    -SkipInstallSmoke `
-    -SkipVisualGate `
-    -SkipReviewTasks `
-    -BuildDir $candidateBuildDir `
-    -InstallDir $candidateInstallDir `
-    -ConsumerBuildDir $candidateConsumerBuildDir `
-    -GateOutputDir $candidateGateOutputDir `
-    -TaskOutputRoot $candidateTaskOutputRoot `
-    -SummaryOutputDir $candidateOutputDir `
-    -ReleaseGovernanceHandoff `
-    -ReleaseGovernanceHandoffInputRoot $releaseGovernanceHandoffInputRoot `
-    -ReleaseGovernanceHandoffInputJson $releaseGovernanceSourcePath `
-    -ReleaseGovernanceHandoffOutputDir $releaseGovernanceHandoffOutputDir `
-    -ReleaseGovernanceHandoffIncludeRollup `
-    -PdfVisualGateSummaryJson $pdfSummaryPath `
-    -PdfVisualGateAttemptSummaryJson $pdfAttemptSummaryPath `
-    -PdfVisualSegmentedGateSummaryJson $pdfSegmentedSummaryPath `
-    -PdfBoundedCtestSummaryJson @($boundedSmokePath, $boundedBusinessPath) `
-    -PdfReleaseReadinessSummaryJson $pdfReadinessSummaryPath
-if ($LASTEXITCODE -ne 0) {
-    throw "Release candidate dry run with PDF visual gate summary failed with exit code $LASTEXITCODE."
+$shouldRunCandidate = $true
+if ($Scenario -eq "candidate_reports" -and
+    (Test-Path -LiteralPath $candidateSummaryPath -PathType Leaf) -and
+    (Test-Path -LiteralPath $candidateReuseMarkerPath -PathType Leaf)) {
+    $reuseMarker = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReuseMarkerPath | ConvertFrom-Json
+    if ([string]$reuseMarker.script_last_write_utc -eq [string]$candidateReuseKey.script_last_write_utc -and
+        [string]$reuseMarker.test_last_write_utc -eq [string]$candidateReuseKey.test_last_write_utc) {
+        $shouldRunCandidate = $false
+    }
 }
 
-$candidateSummaryPath = Join-Path $candidateOutputDir "report\summary.json"
+if ($shouldRunCandidate) {
+    & $scriptPath `
+        -SkipConfigure `
+        -SkipBuild `
+        -SkipTests `
+        -SkipInstallSmoke `
+        -SkipVisualGate `
+        -SkipReviewTasks `
+        -BuildDir $candidateBuildDir `
+        -InstallDir $candidateInstallDir `
+        -ConsumerBuildDir $candidateConsumerBuildDir `
+        -GateOutputDir $candidateGateOutputDir `
+        -TaskOutputRoot $candidateTaskOutputRoot `
+        -SummaryOutputDir $candidateOutputDir `
+        -ReleaseGovernanceHandoff `
+        -ReleaseGovernanceHandoffInputRoot $releaseGovernanceHandoffInputRoot `
+        -ReleaseGovernanceHandoffInputJson $releaseGovernanceSourcePath `
+        -ReleaseGovernanceHandoffOutputDir $releaseGovernanceHandoffOutputDir `
+        -ReleaseGovernanceHandoffIncludeRollup `
+        -PdfVisualGateSummaryJson $pdfSummaryPath `
+        -PdfVisualGateAttemptSummaryJson $pdfAttemptSummaryPath `
+        -PdfVisualSegmentedGateSummaryJson $pdfSegmentedSummaryPath `
+        -PdfBoundedCtestSummaryJson @($boundedSmokePath, $boundedBusinessPath) `
+        -PdfReleaseReadinessSummaryJson $pdfReadinessSummaryPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Release candidate dry run with PDF visual gate summary failed with exit code $LASTEXITCODE."
+    }
+    Write-TestJson -Path $candidateReuseMarkerPath -Value $candidateReuseKey
+} else {
+    Write-Host "Reusing release candidate visual verdict artifacts from candidate_core."
+}
+
 if (-not (Test-Path -LiteralPath $candidateSummaryPath)) {
     throw "Release candidate dry run did not write summary.json."
 }
@@ -1397,6 +1427,7 @@ $expectedFullPdfCtestSummaryPath = ".\pdf-bounded-ctest\full-pdf-ctest-summary.j
 $expectedReleaseEntryChecklistSourceReport = ".\release-candidate-checks\report\summary.json"
 $expectedReleaseEntryPackagedAuditSummaryReport = ".\release-candidate-checks-source\summary.json"
 $expectedReleaseEntryPackagedAuditSourceReport = ".\release-governance-handoff\release-blocker-rollup\release_blocker_rollup.md"
+if ($Scenario -ne "candidate_reports") {
 if ($candidateSummary.execution_status -ne "pass") {
     throw "Release candidate dry run should pass when all heavy flows are skipped."
 }
@@ -1705,6 +1736,11 @@ foreach ($entrypointId in @("start_here", "artifact_guide", "reviewer_checklist"
     if ($null -eq $entrypoint -or -not [bool]$entrypoint.required -or [string]::IsNullOrWhiteSpace([string]$entrypoint.path_display)) {
         throw "Release candidate summary did not declare required project-template checklist entrypoint '$entrypointId'."
     }
+}
+if ($Scenario -eq "candidate_core") {
+    Write-Host "Release candidate visual verdict core regression passed."
+    return
+}
 }
 
 $candidateFinalReviewPath = Join-Path $candidateOutputDir "report\final_review.md"

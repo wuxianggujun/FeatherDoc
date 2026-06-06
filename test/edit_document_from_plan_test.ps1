@@ -2,7 +2,7 @@ param(
     [string]$RepoRoot,
     [string]$BuildDir,
     [string]$WorkingDir,
-    [ValidateSet("all", "core")]
+    [ValidateSet("all", "core", "core_invoice", "core_content", "core_fields_style", "core_fields", "core_style_page")]
     [string]$Scenario = "all"
 )
 
@@ -1449,6 +1449,7 @@ $sampleDocx = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.docx
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
+if ($Scenario -in @("all", "core", "core_invoice")) {
 $editPlanPath = Join-Path $resolvedWorkingDir "invoice.edit_plan.json"
 $editedDocx = Join-Path $resolvedWorkingDir "invoice.edited.docx"
 $summaryPath = Join-Path $resolvedWorkingDir "invoice.edit.summary.json"
@@ -1896,7 +1897,13 @@ Assert-NotContainsText -Text $documentXml -UnexpectedText "12,800.00" -Label "Ed
 Assert-NotContainsText -Text $documentXml -UnexpectedText $unexpectedReplacementText -Label "Edited document.xml"
 Assert-NotContainsText -Text $documentXml -UnexpectedText $deletedParagraphText -Label "Edited document.xml"
 Assert-NotContainsText -Text $documentXml -UnexpectedText "TODO:" -Label "Edited document.xml"
+if ($Scenario -eq "core_invoice") {
+    Write-Host "Edit-from-plan invoice core regression passed."
+    exit 0
+}
+}
 
+if ($Scenario -in @("all", "core", "core_content")) {
 $contentControlSourceDocx = Join-Path $resolvedWorkingDir "content_control.source.docx"
 $contentControlPlanPath = Join-Path $resolvedWorkingDir "content_control.edit_plan.json"
 $contentControlEditedDocx = Join-Path $resolvedWorkingDir "content_control.edited.docx"
@@ -2321,7 +2328,13 @@ Assert-Equal -Actual $genericImageRemoveSummary.operation_count -Expected 1 `
 Assert-Equal -Actual $genericImageRemoveSummary.operations[0].command -Expected "remove-image" `
     -Message "Generic remove_image should use the CLI remove-image command."
 Assert-NotContainsText -Text $genericImageRemovedXml -UnexpectedText "w:drawing" -Label "Generic-image removed document.xml"
+if ($Scenario -eq "core_content") {
+    Write-Host "Edit-from-plan content core regression passed."
+    exit 0
+}
+}
 
+if ($Scenario -in @("all", "core", "core_fields_style", "core_fields")) {
 $fieldSourceDocx = Join-Path $resolvedWorkingDir "fields.source.docx"
 $fieldPlanPath = Join-Path $resolvedWorkingDir "fields.edit_plan.json"
 $fieldEditedDocx = Join-Path $resolvedWorkingDir "fields.edited.docx"
@@ -2628,7 +2641,13 @@ Assert-ContainsText -Text $advancedFieldXml -ExpectedText "Ada Lovelace" -Label 
 Assert-ContainsText -Text $advancedFieldXml -ExpectedText "PAGE" -Label "Advanced-fields document.xml"
 Assert-ContainsText -Text $advancedFieldXml -ExpectedText "one" -Label "Advanced-fields document.xml"
 Assert-ContainsText -Text $advancedFieldXml -ExpectedText 'w:fldLock="true"' -Label "Advanced-fields document.xml"
+if ($Scenario -eq "core_fields") {
+    Write-Host "Edit-from-plan fields core regression passed."
+    exit 0
+}
+}
 
+if ($Scenario -in @("all", "core", "core_fields_style", "core_style_page")) {
 $styleListSourceDocx = Join-Path $resolvedWorkingDir "style_list.source.docx"
 $styleListPlanPath = Join-Path $resolvedWorkingDir "style_list.edit_plan.json"
 $styleListEditedDocx = Join-Path $resolvedWorkingDir "style_list.edited.docx"
@@ -2909,9 +2928,10 @@ Assert-Equal -Actual $styleListClearPageNumberSummary.operations[0].command -Exp
 Assert-True -Condition ($null -eq $clearedSectionPageNumberNode) `
     -Message "Clear-page-number-start should remove the section page-number-start node."
 
-if ($Scenario -eq "core") {
+if ($Scenario -in @("core", "core_fields_style", "core_style_page")) {
     Write-Host "Edit-from-plan core regression passed."
     exit 0
+}
 }
 
 $sectionPartsSourceDocx = Join-Path $resolvedWorkingDir "section_parts.source.docx"

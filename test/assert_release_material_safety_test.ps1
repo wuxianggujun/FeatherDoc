@@ -1,7 +1,9 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [string[]]$CasePattern = @()
+    [string[]]$CasePattern = @(),
+    [int]$ShardIndex = 0,
+    [int]$ShardCount = 1
 )
 
 Set-StrictMode -Version Latest
@@ -13,6 +15,13 @@ if (-not $RepoRoot) {
 
 if (-not $WorkingDir) {
     $WorkingDir = Join-Path $RepoRoot "build\assert_release_material_safety_test"
+}
+
+if ($ShardCount -lt 1) {
+    throw "ShardCount must be at least 1."
+}
+if ($ShardIndex -lt 0 -or $ShardIndex -ge $ShardCount) {
+    throw "ShardIndex must be between 0 and ShardCount - 1."
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
@@ -54,6 +63,7 @@ $materialSafetyPassDir = [System.IO.Path]::GetFullPath($passDir).TrimEnd('\', '/
 $materialSafetyFailDir = [System.IO.Path]::GetFullPath($failDir).TrimEnd('\', '/')
 $materialSafetyAuditRunCount = 0
 $materialSafetyAuditSkipCount = 0
+$materialSafetySelectedAuditCaseCount = 0
 
 # Optional filters keep targeted slices of this large regression runnable under
 # bounded CI/test runners. The default path still executes every audit case.
@@ -148,6 +158,16 @@ function Invoke-MaterialSafetyAuditCase {
     )
 
     if (-not (Test-MaterialSafetyAuditCaseSelected -Path $Path)) {
+        $script:materialSafetyAuditSkipCount++
+        if (Test-MaterialSafetyAuditCaseExpectsFailure -Path $Path) {
+            throw "Skipped filtered release material safety negative case."
+        }
+
+        return
+    }
+
+    $script:materialSafetySelectedAuditCaseCount++
+    if ($script:ShardCount -gt 1 -and (($script:materialSafetySelectedAuditCaseCount - 1) % $script:ShardCount) -ne $script:ShardIndex) {
         $script:materialSafetyAuditSkipCount++
         if (Test-MaterialSafetyAuditCaseExpectsFailure -Path $Path) {
             throw "Skipped filtered release material safety negative case."
@@ -6564,8 +6584,8 @@ if ($materialSafetyCaseFilterEnabled -and $materialSafetyAuditRunCount -eq 0) {
     throw "assert_release_material_safety_test.ps1 CasePattern did not match any audit case."
 }
 
-if ($materialSafetyCaseFilterEnabled) {
-    Write-Host "Release material safety filtered audit cases: ran $materialSafetyAuditRunCount, skipped $materialSafetyAuditSkipCount."
+if ($materialSafetyCaseFilterEnabled -or $ShardCount -gt 1) {
+    Write-Host "Release material safety filtered audit cases: ran $materialSafetyAuditRunCount, skipped $materialSafetyAuditSkipCount, shard $ShardIndex/$ShardCount."
 }
 
 Write-Host "Release material safety audit regression passed."

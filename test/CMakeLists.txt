@@ -2131,11 +2131,36 @@ if(WIN32)
             ${PROJECT_SOURCE_DIR}
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_release_gate_preflight
+            -Scenario
+            synthetic
         )
         set_tests_properties(pdf_visual_release_gate_preflight
             PROPERTIES
                 TIMEOUT 60
                 LABELS "pdf;smoke;regression;visual")
+
+        foreach(pdf_preflight_scenario IN ITEMS plain malformed disabled contract)
+            add_test(
+                NAME
+                pdf_visual_release_gate_preflight_${pdf_preflight_scenario}
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/pdf_visual_release_gate_preflight_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/pdf_visual_release_gate_preflight_${pdf_preflight_scenario}
+                -Scenario
+                ${pdf_preflight_scenario}
+            )
+            set_tests_properties(pdf_visual_release_gate_preflight_${pdf_preflight_scenario}
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "pdf;smoke;regression;visual")
+        endforeach()
 
         add_test(
             NAME
@@ -2413,20 +2438,35 @@ if(WIN32)
             ${CMAKE_CURRENT_BINARY_DIR}/publish_github_release
         )
 
-        add_test(
-            NAME
-            assert_release_material_safety
-            COMMAND
-            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
-            -ExecutionPolicy
-            Bypass
-            -File
-            ${CMAKE_CURRENT_SOURCE_DIR}/assert_release_material_safety_test.ps1
-            -RepoRoot
-            ${PROJECT_SOURCE_DIR}
-            -WorkingDir
-            ${CMAKE_CURRENT_BINARY_DIR}/assert_release_material_safety
-        )
+        foreach(material_safety_shard RANGE 0 39)
+            if(material_safety_shard EQUAL 0)
+                set(material_safety_test_name assert_release_material_safety)
+            else()
+                set(material_safety_test_name assert_release_material_safety_shard_${material_safety_shard})
+            endif()
+            add_test(
+                NAME
+                ${material_safety_test_name}
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/assert_release_material_safety_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/${material_safety_test_name}
+                -ShardIndex
+                ${material_safety_shard}
+                -ShardCount
+                40
+            )
+            set_tests_properties(${material_safety_test_name}
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "release;smoke;release_smoke;material-safety")
+        endforeach()
 
         add_test(
             NAME
@@ -2722,6 +2762,45 @@ if(WIN32)
             ${PROJECT_SOURCE_DIR}
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_visual_verdict
+            -Scenario
+            candidate_core
+        )
+
+        add_test(
+            NAME
+            release_candidate_visual_verdict_reports
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_visual_verdict_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_visual_verdict
+            -Scenario
+            candidate_reports
+        )
+        set_tests_properties(release_candidate_visual_verdict_reports
+            PROPERTIES
+                DEPENDS release_candidate_visual_verdict)
+
+        add_test(
+            NAME
+            release_candidate_visual_verdict_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_visual_verdict_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_visual_verdict_contract
+            -Scenario
+            contract
         )
 
         add_test(
@@ -5490,6 +5569,27 @@ if(WIN32)
                 ${PROJECT_BINARY_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/prepare_template_render_data_workspace
+                -Scenario
+                invoice
+            )
+
+            add_test(
+                NAME
+                prepare_template_render_data_workspace_section
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/prepare_template_render_data_workspace_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/prepare_template_render_data_workspace_section
+                -Scenario
+                section
             )
 
             add_test(
@@ -5507,6 +5607,46 @@ if(WIN32)
                 ${PROJECT_BINARY_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_workspace
+                -Scenario
+                invoice_success
+            )
+
+            add_test(
+                NAME
+                render_template_document_from_workspace_failures
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/render_template_document_from_workspace_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_workspace_failures
+                -Scenario
+                invoice_failures
+            )
+
+            add_test(
+                NAME
+                render_template_document_from_workspace_section_targets
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/render_template_document_from_workspace_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_workspace_section_targets
+                -Scenario
+                section
             )
 
             add_test(
@@ -5542,7 +5682,64 @@ if(WIN32)
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan
                 -Scenario
-                core
+                core_invoice
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_core_content
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_core_content
+                -Scenario
+                core_content
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_core_fields
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_core_fields
+                -Scenario
+                core_fields
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan_core_style_page
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_core_style_page
+                -Scenario
+                core_style_page
             )
 
             add_test(
@@ -5590,6 +5787,46 @@ if(WIN32)
                 ${PROJECT_BINARY_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_patch
+                -Scenario
+                invoice
+            )
+
+            add_test(
+                NAME
+                render_template_document_from_patch_visibility
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/render_template_document_from_patch_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_patch_visibility
+                -Scenario
+                visibility
+            )
+
+            add_test(
+                NAME
+                render_template_document_from_patch_parts
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/render_template_document_from_patch_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_patch_parts
+                -Scenario
+                parts
             )
 
             add_test(
@@ -5607,6 +5844,65 @@ if(WIN32)
                 ${PROJECT_BINARY_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_data
+                -Scenario
+                invoice
+            )
+
+            add_test(
+                NAME
+                render_template_document_from_data_incomplete
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/render_template_document_from_data_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_data_incomplete
+                -Scenario
+                incomplete
+            )
+
+            add_test(
+                NAME
+                render_template_document_from_data_visibility
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/render_template_document_from_data_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_data_visibility
+                -Scenario
+                visibility
+            )
+
+            add_test(
+                NAME
+                render_template_document_from_data_parts
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/render_template_document_from_data_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_data_parts
+                -Scenario
+                parts
             )
         endif()
 

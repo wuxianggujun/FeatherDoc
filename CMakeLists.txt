@@ -1198,6 +1198,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_errors.cpp
         cli/featherdoc_cli_field_parse.cpp
         cli/featherdoc_cli_inspect_content_options_parse.cpp
+        cli/featherdoc_cli_image_output.cpp
         cli/featherdoc_cli_image_options_parse.cpp
         cli/featherdoc_cli_bookmark_text_options_parse.cpp
         cli/featherdoc_cli_document_mutation_options_parse.cpp
@@ -1213,9 +1214,11 @@ if(BUILD_CLI)
         cli/featherdoc_cli_numbering_catalog_patch_apply.cpp
         cli/featherdoc_cli_numbering_catalog_patch_parse.cpp
         cli/featherdoc_cli_numbering_options_parse.cpp
+        cli/featherdoc_cli_page_setup.cpp
         cli/featherdoc_cli_page_setup_parse.cpp
         cli/featherdoc_cli_paragraph_list_options_parse.cpp
         cli/featherdoc_cli_paragraph_run_options_parse.cpp
+        cli/featherdoc_cli_semantic_diff.cpp
         cli/featherdoc_cli_semantic_diff_options_parse.cpp
         cli/featherdoc_cli_style_ensure_options_parse.cpp
         cli/featherdoc_cli_table_cell_options_parse.cpp
@@ -1237,6 +1240,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_style_refactor_plan_parse.cpp
         cli/featherdoc_cli_style_refactor_options_parse.cpp
         cli/featherdoc_cli_style_refactor_rollback_parse.cpp
+        cli/featherdoc_cli_style_numbering_audit.cpp
         cli/featherdoc_cli_table_style_look_options_parse.cpp
         cli/featherdoc_cli_table_position_plan_build.cpp
         cli/featherdoc_cli_table_position_options_parse.cpp

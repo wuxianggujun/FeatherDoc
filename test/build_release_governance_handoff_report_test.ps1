@@ -1156,6 +1156,9 @@ if (Test-Scenario -Name "fail_on_blocker") {
         -Message "Fail-on-blocker handoff Markdown should summarize the blocker count."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery.pending_schema_approval" `
         -Message "Fail-on-blocker handoff Markdown should include blocker ids."
+    if ($Scenario -ne "all") {
+        return
+    }
 }
 
 if (Test-Scenario -Name "fail_on_warning") {
@@ -1199,6 +1202,9 @@ if (Test-Scenario -Name "fail_on_warning") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
         -Message "Fail-on-warning handoff should preserve PDF preflight warnings in summary output."
+    if ($Scenario -ne "all") {
+        return
+    }
 }
 
 if (Test-Scenario -Name "explicit_input") {

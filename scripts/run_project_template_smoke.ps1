@@ -786,7 +786,8 @@ function Invoke-BaselineCheck {
         default { throw "Unsupported schema baseline target_mode '$TargetMode'." }
     }
 
-    $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $ScriptPath @scriptArgs 2>&1)
+    $powerShellPath = (Get-Process -Id $PID).Path
+    $commandOutput = @(& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $ScriptPath @scriptArgs 2>&1)
     $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
     $lines = @($commandOutput | ForEach-Object { $_.ToString() })
     Write-CommandOutput -OutputPath $LogPath -Lines $lines
@@ -872,7 +873,8 @@ function Invoke-RenderDataSmoke {
         $scriptArgs += "-SkipBuild"
     }
 
-    $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $ScriptPath @scriptArgs 2>&1)
+    $powerShellPath = (Get-Process -Id $PID).Path
+    $commandOutput = @(& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $ScriptPath @scriptArgs 2>&1)
     $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
     $lines = @($commandOutput | ForEach-Object { $_.ToString() })
     Write-CommandOutput -OutputPath $LogPath -Lines $lines
@@ -926,7 +928,8 @@ function Invoke-VisualSmoke {
         $scriptArgs += "-VisibleWord"
     }
 
-    $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $ScriptPath @scriptArgs 2>&1)
+    $powerShellPath = (Get-Process -Id $PID).Path
+    $commandOutput = @(& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $ScriptPath @scriptArgs 2>&1)
     $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
     $lines = @($commandOutput | ForEach-Object { $_.ToString() })
     Write-CommandOutput -OutputPath $LogPath -Lines $lines

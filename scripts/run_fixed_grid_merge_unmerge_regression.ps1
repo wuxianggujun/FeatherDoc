@@ -71,6 +71,29 @@ function Find-SampleExecutable {
         [string]$TargetName
     )
 
+    $directSearchRoots = @(
+        $BuildRoot,
+        (Join-Path $BuildRoot "Debug"),
+        (Join-Path $BuildRoot "Release"),
+        (Join-Path $BuildRoot "RelWithDebInfo"),
+        (Join-Path $BuildRoot "MinSizeRel"),
+        (Join-Path $BuildRoot "bin")
+    )
+
+    foreach ($root in $directSearchRoots) {
+        if ([string]::IsNullOrWhiteSpace($root) -or
+            -not (Test-Path -LiteralPath $root -PathType Container)) {
+            continue
+        }
+
+        foreach ($name in @("$TargetName.exe", $TargetName)) {
+            $candidatePath = Join-Path $root $name
+            if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                return [System.IO.Path]::GetFullPath($candidatePath)
+            }
+        }
+    }
+
     $candidates = Get-ChildItem -Path $BuildRoot -Recurse -File -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -ieq "$TargetName.exe" -or $_.Name -ieq $TargetName } |
         Sort-Object LastWriteTime -Descending

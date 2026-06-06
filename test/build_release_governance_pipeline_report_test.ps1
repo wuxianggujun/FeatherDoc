@@ -704,8 +704,10 @@ $arguments = @(
     $inputRoot
     "-OutputRoot"
     $outputRoot
-    "-IncludeHandoffRollup"
 )
+if ($Scenario -eq "aggregate") {
+    $arguments += "-IncludeHandoffRollup"
+}
 if ($Scenario -eq "fail_on_blocker") {
     $arguments += "-FailOnBlocker"
 }
@@ -718,10 +720,26 @@ if ($Scenario -eq "fail_on_blocker") {
     if ($result.ExitCode -eq 0) {
         throw "Pipeline fail-on-blocker run should fail. Output: $($result.Text)"
     }
+    $summaryPath = Join-Path $outputRoot "summary.json"
+    Assert-True -Condition (Test-Path -LiteralPath $summaryPath) `
+        -Message "Pipeline fail-on-blocker run should still write a summary."
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    Assert-True -Condition ([int]$summary.release_blocker_count -gt 0) `
+        -Message "Pipeline fail-on-blocker run should report release blockers."
+    Write-Host "Release governance pipeline fail-on-blocker regression passed."
+    return
 } elseif ($Scenario -eq "fail_on_warning") {
     if ($result.ExitCode -eq 0) {
         throw "Pipeline fail-on-warning run should fail. Output: $($result.Text)"
     }
+    $summaryPath = Join-Path $outputRoot "summary.json"
+    Assert-True -Condition (Test-Path -LiteralPath $summaryPath) `
+        -Message "Pipeline fail-on-warning run should still write a summary."
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    Assert-True -Condition ([int]$summary.warning_count -gt 0) `
+        -Message "Pipeline fail-on-warning run should report warnings."
+    Write-Host "Release governance pipeline fail-on-warning regression passed."
+    return
 } else {
     Assert-Equal -Actual $result.ExitCode -Expected 0 `
         -Message "Pipeline aggregate run should pass. Output: $($result.Text)"

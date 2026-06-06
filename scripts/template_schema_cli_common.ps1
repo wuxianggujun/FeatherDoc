@@ -167,6 +167,33 @@ function Find-TemplateSchemaBinaryByName {
         return $null
     }
 
+    $directSearchRoots = @(
+        $SearchRoot,
+        (Join-Path $SearchRoot "Debug"),
+        (Join-Path $SearchRoot "Release"),
+        (Join-Path $SearchRoot "RelWithDebInfo"),
+        (Join-Path $SearchRoot "MinSizeRel"),
+        (Join-Path $SearchRoot "bin")
+    )
+
+    foreach ($root in $directSearchRoots) {
+        if ([string]::IsNullOrWhiteSpace($root) -or
+            -not (Test-Path -LiteralPath $root -PathType Container)) {
+            continue
+        }
+
+        foreach ($name in @($Names)) {
+            if ([string]::IsNullOrWhiteSpace($name)) {
+                continue
+            }
+
+            $candidatePath = Join-Path $root $name
+            if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                return [System.IO.Path]::GetFullPath($candidatePath)
+            }
+        }
+    }
+
     $candidates = Get-ChildItem -Path $SearchRoot -Recurse -File -ErrorAction SilentlyContinue |
         Where-Object { $lookup.ContainsKey($_.Name) } |
         Sort-Object LastWriteTimeUtc -Descending
