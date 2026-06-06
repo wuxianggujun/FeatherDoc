@@ -75,6 +75,8 @@
 #include <utility>
 #include <vector>
 
+#include <zip.h>
+
 namespace {
 using featherdoc_cli::json_escape;
 using featherdoc_cli::apply_numbering_catalog_patch;

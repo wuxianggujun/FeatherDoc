@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+#include <zip.h>
+
 namespace {
 constexpr auto document_xml_entry = std::string_view{"word/document.xml"};
 constexpr auto document_relationships_xml_entry =

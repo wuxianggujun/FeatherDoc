@@ -41,7 +41,15 @@ set(HEADERS
 )
 set(FEATHERDOC_MODULE_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/core.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_core.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/fwd.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/reviews_fields.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/styles_numbering.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/tables.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/template_part.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/templates.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/text.hpp"
 )
 set(PDF_COMMON_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_subset.hpp"

@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <zip.h>
 
 namespace fs = std::filesystem;
 

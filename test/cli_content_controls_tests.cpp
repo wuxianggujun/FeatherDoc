@@ -1,6 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "cli_test_support.hpp"
 
+#include <zip.h>
+
 namespace {
 void create_cli_content_controls_fixture(const fs::path &path) {
     remove_if_exists(path);

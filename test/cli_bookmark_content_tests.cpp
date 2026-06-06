@@ -1,6 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "cli_test_support.hpp"
 
+#include <zip.h>
+
 namespace {
 auto tiny_png_data() -> std::string {
     constexpr unsigned char tiny_png_bytes[] = {

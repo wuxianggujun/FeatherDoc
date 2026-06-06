@@ -25,6 +25,7 @@
 
 #include "doctest.h"
 #include <featherdoc.hpp>
+#include <zip.h>
 
 namespace {
 namespace fs = std::filesystem;

@@ -25,6 +25,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include <featherdoc.hpp>
+#include <zip.h>
 
 namespace {
 template <class T, class = void>

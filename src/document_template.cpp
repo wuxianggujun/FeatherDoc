@@ -20,6 +20,8 @@
 #include <unordered_set>
 #include <utility>
 
+#include <zip.h>
+
 namespace featherdoc {
 auto find_table_index_by_bookmark_in_part(
     featherdoc::document_error_info &last_error_info,
