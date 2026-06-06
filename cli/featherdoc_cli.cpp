@@ -23,6 +23,7 @@
 #include "featherdoc_cli_template_table_json_patch_apply.hpp"
 #include "featherdoc_cli_template_table_json_patch_commands.hpp"
 #include "featherdoc_cli_template_table_json_patch_parse.hpp"
+#include "featherdoc_cli_template_table_merge_commands.hpp"
 #include "featherdoc_cli_template_table_options_parse.hpp"
 #include "featherdoc_cli_template_table_mutation_options_parse.hpp"
 #include "featherdoc_cli_template_table_output.hpp"
@@ -197,12 +198,8 @@ using featherdoc_cli::parse_append_table_row_options;
 using featherdoc_cli::parse_table_cell_border_options;
 using featherdoc_cli::template_table_cell_text_options;
 using featherdoc_cli::template_table_row_texts_options;
-using featherdoc_cli::template_merge_table_cells_options;
-using featherdoc_cli::template_unmerge_table_cells_options;
 using featherdoc_cli::parse_template_table_cell_text_options;
 using featherdoc_cli::parse_template_table_row_texts_options;
-using featherdoc_cli::parse_template_merge_table_cells_options;
-using featherdoc_cli::parse_template_unmerge_table_cells_options;
 using featherdoc_cli::validate_template_options;
 using featherdoc_cli::validate_template_schema_options;
 using featherdoc_cli::validate_template_schema_target_options;
@@ -614,10 +611,12 @@ using featherdoc_cli::run_insert_template_table_column_after_command;
 using featherdoc_cli::run_insert_template_table_column_before_command;
 using featherdoc_cli::run_insert_template_table_row_after_command;
 using featherdoc_cli::run_insert_template_table_row_before_command;
+using featherdoc_cli::run_merge_template_table_cells_command;
 using featherdoc_cli::run_remove_template_table_column_command;
 using featherdoc_cli::run_remove_template_table_row_command;
 using featherdoc_cli::run_set_template_table_from_json_command;
 using featherdoc_cli::run_set_template_tables_from_json_command;
+using featherdoc_cli::run_unmerge_template_table_cells_command;
 using featherdoc_cli::resolve_template_table;
 using featherdoc_cli::resolve_template_table_cell;
 using featherdoc_cli::resolve_template_table_cell_by_grid_column;
@@ -20309,236 +20308,11 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "merge-template-table-cells") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 5U) {
-            print_parse_error(
-                command,
-                "merge-template-table-cells expects an input path plus either "
-                "<table-index> <row-index> <cell-index> or "
-                "--bookmark <name> <row-index> <cell-index>, or a "
-                "text-based table selector followed by <row-index> "
-                "<cell-index>",
-                json_output);
-            return 2;
-        }
-
-        parsed_template_table_selector_cell_target target;
-        std::string error_message;
-        if (!parse_template_table_selector_cell_target_arguments(
-                arguments, 2U, target, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        template_merge_table_cells_options options;
-        options.bookmark_name = target.selector.bookmark_name;
-        if (!parse_template_merge_table_cells_options(arguments,
-                                                      target.options_start_index,
-                                                      options,
-                                                      error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-        if (!target.selector.bookmark_name.has_value() &&
-            options.bookmark_name.has_value()) {
-            target.selector.bookmark_name = options.bookmark_name;
-        }
-        if (!validate_template_table_selector(target.selector, false,
-                                              target.has_header_row_index,
-                                              target.has_occurrence,
-                                              error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        selected_template_part selected;
-        if (!select_mutable_template_part(doc, options.part, options.part_index,
-                                          options.section_index,
-                                          options.reference_kind, selected,
-                                          error_message)) {
-            report_operation_failure(command, "mutate", error_message,
-                                     doc.last_error(), options.json_output);
-            return 1;
-        }
-
-        std::size_t resolved_table_index = 0U;
-        if (!resolve_template_table_index(doc, selected, target.selector,
-                                          resolved_table_index, command,
-                                          options.json_output, "mutate")) {
-            return 1;
-        }
-
-        featherdoc::TableCell cell;
-        if (!resolve_template_table_cell(selected, resolved_table_index,
-                                         target.row_index, target.cell_index,
-                                         cell, command,
-                                         options.json_output)) {
-            return 1;
-        }
-
-        const auto success =
-            options.direction == table_merge_direction::right
-                ? cell.merge_right(options.count)
-                : cell.merge_down(options.count);
-        if (!success) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "cell at table index '" + std::to_string(resolved_table_index) +
-                "', row index '" + std::to_string(target.row_index) +
-                "', and cell index '" + std::to_string(target.cell_index) +
-                "' could not be merged towards '" +
-                std::string(table_merge_direction_name(options.direction)) +
-                "' with count '" + std::to_string(options.count) + "'";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "failed to merge table cells", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [&selected, resolved_table_index, &target, &options](
-                    std::ostream &stream) {
-                    stream << ',';
-                    write_json_selected_template_part(stream, selected);
-                    stream << ",\"table_index\":" << resolved_table_index
-                           << ",\"row_index\":" << target.row_index
-                           << ",\"cell_index\":" << target.cell_index
-                           << ",\"direction\":";
-                    write_json_string(stream,
-                                      table_merge_direction_name(options.direction));
-                    stream << ",\"count\":" << options.count;
-                });
-        }
-
-        return 0;
+        return run_merge_template_table_cells_command(command, arguments);
     }
 
     if (command == "unmerge-template-table-cells") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 5U) {
-            print_parse_error(
-                command,
-                "unmerge-template-table-cells expects an input path plus either "
-                "<table-index> <row-index> <cell-index> or "
-                "--bookmark <name> <row-index> <cell-index>, or a "
-                "text-based table selector followed by <row-index> "
-                "<cell-index>",
-                json_output);
-            return 2;
-        }
-
-        std::string error_message;
-        parsed_template_table_selector_cell_target target;
-        if (!parse_template_table_selector_cell_target_arguments(
-                arguments, 2U, target, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        template_unmerge_table_cells_options options;
-        options.bookmark_name = target.selector.bookmark_name;
-        if (!parse_template_unmerge_table_cells_options(arguments,
-                                                        target.options_start_index,
-                                                        options, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-        if (!target.selector.bookmark_name.has_value() &&
-            options.bookmark_name.has_value()) {
-            target.selector.bookmark_name = options.bookmark_name;
-        }
-        if (!validate_template_table_selector(target.selector, false,
-                                              target.has_header_row_index,
-                                              target.has_occurrence,
-                                              error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        selected_template_part selected;
-        if (!select_mutable_template_part(doc, options.part, options.part_index,
-                                          options.section_index,
-                                          options.reference_kind, selected,
-                                          error_message)) {
-            report_operation_failure(command, "mutate", error_message,
-                                     doc.last_error(), options.json_output);
-            return 1;
-        }
-
-        std::size_t resolved_table_index = 0U;
-        if (!resolve_template_table_index(doc, selected, target.selector,
-                                          resolved_table_index, command,
-                                          options.json_output, "mutate")) {
-            return 1;
-        }
-
-        featherdoc::TableCell cell;
-        if (!resolve_template_table_cell(selected, resolved_table_index,
-                                         target.row_index, target.cell_index,
-                                         cell, command,
-                                         options.json_output)) {
-            return 1;
-        }
-
-        const auto success =
-            options.direction == table_merge_direction::right
-                ? cell.unmerge_right()
-                : cell.unmerge_down();
-        if (!success) {
-            featherdoc::document_error_info error_info{};
-            error_info.code = std::make_error_code(std::errc::invalid_argument);
-            error_info.detail =
-                "cell at table index '" + std::to_string(resolved_table_index) +
-                "', row index '" + std::to_string(target.row_index) +
-                "', and cell index '" + std::to_string(target.cell_index) +
-                "' could not be unmerged towards '" +
-                std::string(table_merge_direction_name(options.direction)) + "'";
-            error_info.entry_name = std::string(selected.part.entry_name());
-            report_operation_failure(command, "mutate",
-                                     "failed to unmerge table cells", error_info,
-                                     options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [&selected, resolved_table_index, &target, &options](
-                    std::ostream &stream) {
-                    stream << ',';
-                    write_json_selected_template_part(stream, selected);
-                    stream << ",\"table_index\":" << resolved_table_index
-                           << ",\"row_index\":" << target.row_index
-                           << ",\"cell_index\":" << target.cell_index
-                           << ",\"direction\":";
-                    write_json_string(stream,
-                                      table_merge_direction_name(options.direction));
-                });
-        }
-
-        return 0;
+        return run_unmerge_template_table_cells_command(command, arguments);
     }
 
     if (command == "set-paragraph-style") {
