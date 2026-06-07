@@ -1240,6 +1240,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_table_merge_commands.cpp
         cli/featherdoc_cli_table_row_commands.cpp
         cli/featherdoc_cli_table_row_summary.cpp
+        cli/featherdoc_cli_table_structure_commands.cpp
         cli/featherdoc_cli_table_structure_validation.cpp
         cli/featherdoc_cli_table_style_commands.cpp
         cli/featherdoc_cli_table_style_output.cpp
