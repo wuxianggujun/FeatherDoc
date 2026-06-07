@@ -1,6 +1,7 @@
 param(
     [string]$BuildDir = "build-template-validation-regression-nmake",
     [string]$OutputDir = "output/template-validation-regression",
+    [string[]]$CaseId = @(),
     [switch]$SkipBuild
 )
 
@@ -61,6 +62,20 @@ function Find-BuildExecutable {
         [string]$BuildRoot,
         [string]$TargetName
     )
+
+    $directCandidates = @(
+        (Join-Path $BuildRoot "$TargetName.exe"),
+        (Join-Path $BuildRoot $TargetName),
+        (Join-Path $BuildRoot (Join-Path "Debug" "$TargetName.exe")),
+        (Join-Path $BuildRoot (Join-Path "Release" "$TargetName.exe")),
+        (Join-Path $BuildRoot (Join-Path "RelWithDebInfo" "$TargetName.exe")),
+        (Join-Path $BuildRoot (Join-Path "MinSizeRel" "$TargetName.exe"))
+    )
+    foreach ($candidate in $directCandidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return $candidate
+        }
+    }
 
     $candidates = Get-ChildItem -Path $BuildRoot -Recurse -File -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -ieq "$TargetName.exe" -or $_.Name -ieq $TargetName } |
@@ -159,6 +174,12 @@ function Assert-ValidationResultMatches {
     }
 }
 
+function Test-CaseRequested {
+    param([string]$Id)
+
+    return $CaseId.Count -eq 0 -or $CaseId -contains $Id
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir
@@ -210,6 +231,14 @@ $bodySampleReportMarkdownPath = Join-Path $bodySampleOutputDir "validation_summa
 $bodyCliValidJsonPath = Join-Path $bodyCaseDir "cli_valid.json"
 $bodyCliInvalidJsonPath = Join-Path $bodyCaseDir "cli_invalid.json"
 
+$knownCaseIds = @("body-template", "part-template")
+foreach ($requestedCaseId in $CaseId) {
+    if ($knownCaseIds -notcontains $requestedCaseId) {
+        throw "Unknown template validation regression case '$requestedCaseId'."
+    }
+}
+
+if (Test-CaseRequested "body-template") {
 New-Item -ItemType Directory -Path $bodyCaseDir -Force | Out-Null
 
 Write-Step "Generating body template validation samples via $bodySampleExecutable"
@@ -295,6 +324,7 @@ $bodyCaseSummary = [ordered]@{
 
 $summary.cases += $bodyCaseSummary
 $reviewManifest.cases += $bodyCaseSummary
+}
 
 $partCaseDir = Join-Path $resolvedOutputDir "part-template"
 $partSampleOutputDir = Join-Path $partCaseDir "sample-output"
@@ -304,6 +334,7 @@ $partSampleReportMarkdownPath = Join-Path $partSampleOutputDir "validation_summa
 $partCliHeaderJsonPath = Join-Path $partCaseDir "cli_header.json"
 $partCliFooterJsonPath = Join-Path $partCaseDir "cli_footer.json"
 
+if (Test-CaseRequested "part-template") {
 New-Item -ItemType Directory -Path $partCaseDir -Force | Out-Null
 
 Write-Step "Generating part template validation samples via $partSampleExecutable"
@@ -386,6 +417,7 @@ $partCaseSummary = [ordered]@{
 
 $summary.cases += $partCaseSummary
 $reviewManifest.cases += $partCaseSummary
+}
 
 $summaryPath = Join-Path $resolvedOutputDir "summary.json"
 ($summary | ConvertTo-Json -Depth 8) | Set-Content -Path $summaryPath -Encoding UTF8
@@ -419,15 +451,14 @@ $finalReviewLines = @(
     "- Notes:",
     "",
     "## Case findings",
-    "",
-    "- body-template:",
-    "  Verdict:",
-    "  Notes:",
-    "",
-    "- part-template:",
-    "  Verdict:",
-    "  Notes:"
+    ""
 )
+foreach ($case in $summary.cases) {
+    $finalReviewLines += "- $($case.id):"
+    $finalReviewLines += "  Verdict:"
+    $finalReviewLines += "  Notes:"
+    $finalReviewLines += ""
+}
 $finalReviewLines | Set-Content -Path $finalReviewPath -Encoding UTF8
 
 Write-Step "Completed template validation regression run"

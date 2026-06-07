@@ -2,6 +2,7 @@ param(
     [string]$BuildDir = "build-page-number-fields-regression-nmake",
     [string]$OutputDir = "output/page-number-fields-visual-regression",
     [int]$Dpi = 144,
+    [string[]]$CaseId = @(),
     [switch]$SkipBuild,
     [switch]$SkipVisual,
     [switch]$KeepWordOpen,
@@ -65,6 +66,20 @@ function Find-BuildExecutable {
         [string]$BuildRoot,
         [string]$TargetName
     )
+
+    $directCandidates = @(
+        (Join-Path $BuildRoot "$TargetName.exe"),
+        (Join-Path $BuildRoot $TargetName),
+        (Join-Path $BuildRoot (Join-Path "Debug" "$TargetName.exe")),
+        (Join-Path $BuildRoot (Join-Path "Release" "$TargetName.exe")),
+        (Join-Path $BuildRoot (Join-Path "RelWithDebInfo" "$TargetName.exe")),
+        (Join-Path $BuildRoot (Join-Path "MinSizeRel" "$TargetName.exe"))
+    )
+    foreach ($candidate in $directCandidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return $candidate
+        }
+    }
 
     $candidates = Get-ChildItem -Path $BuildRoot -Recurse -File -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -ieq "$TargetName.exe" -or $_.Name -ieq $TargetName } |
@@ -222,6 +237,12 @@ function Invoke-CommandCapture {
     if ($exitCode -ne 0) {
         throw $FailureMessage
     }
+}
+
+function Test-CaseRequested {
+    param([string]$Id)
+
+    return $CaseId.Count -eq 0 -or $CaseId -contains $Id
 }
 
 function Get-DocxFieldSummary {
@@ -398,6 +419,13 @@ $cases = @(
     }
 )
 
+$knownCaseIds = @($cases | ForEach-Object { $_.id })
+foreach ($requestedCaseId in $CaseId) {
+    if ($knownCaseIds -notcontains $requestedCaseId) {
+        throw "Unknown page number fields regression case '$requestedCaseId'."
+    }
+}
+
 New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
 
 $aggregateEvidenceDir = Join-Path $resolvedOutputDir "aggregate-evidence"
@@ -464,6 +492,7 @@ $apiFieldSummaryPath = Join-Path $apiCaseDir "field_summary.json"
 $apiVisualDir = Join-Path $apiCaseDir "visual"
 $apiVisualRelativeDir = Join-Path $OutputDir (Join-Path "api-sample" "visual")
 
+if (Test-CaseRequested "api-sample") {
 New-Item -ItemType Directory -Path $apiCaseDir -Force | Out-Null
 
 Write-Step "Generating API sample document via $pageNumberSampleExecutable"
@@ -513,6 +542,7 @@ if (-not $SkipVisual) {
 
 $summary.cases += $apiCaseSummary
 $reviewManifest.cases += $apiCaseSummary
+}
 
 $cliCaseDir = Join-Path $resolvedOutputDir "cli-append"
 $cliBaseDocxPath = Join-Path $cliCaseDir "section_page_setup_base.docx"
@@ -529,6 +559,7 @@ $cliAppendSection0TotalJson = Join-Path $cliCaseDir "append_total_pages_section_
 $cliAppendSection1PageJson = Join-Path $cliCaseDir "append_page_number_section_1.json"
 $cliAppendSection1TotalJson = Join-Path $cliCaseDir "append_total_pages_section_1.json"
 
+if (Test-CaseRequested "cli-append") {
 New-Item -ItemType Directory -Path $cliCaseDir -Force | Out-Null
 
 Write-Step "Generating two-section base document via $sectionSampleExecutable"
@@ -615,6 +646,7 @@ if (-not $SkipVisual) {
 
 $summary.cases += $cliCaseSummary
 $reviewManifest.cases += $cliCaseSummary
+}
 
 if (-not $SkipVisual) {
     $contactSheetPaths = @()

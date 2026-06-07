@@ -3710,22 +3710,26 @@ if(WIN32)
             TARGET featherdoc_sample_section_page_setup
             AND TARGET featherdoc_cli
         )
-            add_test(
-                NAME
-                section_page_setup_regression_bundle
-                COMMAND
-                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
-                -ExecutionPolicy
-                Bypass
-                -File
-                ${CMAKE_CURRENT_SOURCE_DIR}/section_page_setup_regression_bundle_test.ps1
-                -RepoRoot
-                ${PROJECT_SOURCE_DIR}
-                -BuildDir
-                ${PROJECT_BINARY_DIR}
-                -WorkingDir
-                ${CMAKE_CURRENT_BINARY_DIR}/section_page_setup_regression_bundle
-            )
+            foreach(section_page_setup_regression_case IN ITEMS api-sample cli-rewrite)
+                add_test(
+                    NAME
+                    section_page_setup_regression_bundle_${section_page_setup_regression_case}
+                    COMMAND
+                    ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                    -ExecutionPolicy
+                    Bypass
+                    -File
+                    ${CMAKE_CURRENT_SOURCE_DIR}/section_page_setup_regression_bundle_test.ps1
+                    -RepoRoot
+                    ${PROJECT_SOURCE_DIR}
+                    -BuildDir
+                    ${PROJECT_BINARY_DIR}
+                    -WorkingDir
+                    ${CMAKE_CURRENT_BINARY_DIR}/section_page_setup_regression_bundle_${section_page_setup_regression_case}
+                    -CaseId
+                    ${section_page_setup_regression_case}
+                )
+            endforeach()
         endif()
 
         if(
@@ -3733,22 +3737,26 @@ if(WIN32)
             AND TARGET featherdoc_sample_section_page_setup
             AND TARGET featherdoc_cli
         )
-            add_test(
-                NAME
-                page_number_fields_regression_bundle
-                COMMAND
-                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
-                -ExecutionPolicy
-                Bypass
-                -File
-                ${CMAKE_CURRENT_SOURCE_DIR}/page_number_fields_regression_bundle_test.ps1
-                -RepoRoot
-                ${PROJECT_SOURCE_DIR}
-                -BuildDir
-                ${PROJECT_BINARY_DIR}
-                -WorkingDir
-                ${CMAKE_CURRENT_BINARY_DIR}/page_number_fields_regression_bundle
-            )
+            foreach(page_number_fields_regression_case IN ITEMS api-sample cli-append)
+                add_test(
+                    NAME
+                    page_number_fields_regression_bundle_${page_number_fields_regression_case}
+                    COMMAND
+                    ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                    -ExecutionPolicy
+                    Bypass
+                    -File
+                    ${CMAKE_CURRENT_SOURCE_DIR}/page_number_fields_regression_bundle_test.ps1
+                    -RepoRoot
+                    ${PROJECT_SOURCE_DIR}
+                    -BuildDir
+                    ${PROJECT_BINARY_DIR}
+                    -WorkingDir
+                    ${CMAKE_CURRENT_BINARY_DIR}/page_number_fields_regression_bundle_${page_number_fields_regression_case}
+                    -CaseId
+                    ${page_number_fields_regression_case}
+                )
+            endforeach()
         endif()
 
         if(
@@ -3756,22 +3764,26 @@ if(WIN32)
             AND TARGET featherdoc_sample_part_template_validation
             AND TARGET featherdoc_cli
         )
-            add_test(
-                NAME
-                template_validation_regression_bundle
-                COMMAND
-                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
-                -ExecutionPolicy
-                Bypass
-                -File
-                ${CMAKE_CURRENT_SOURCE_DIR}/template_validation_regression_bundle_test.ps1
-                -RepoRoot
-                ${PROJECT_SOURCE_DIR}
-                -BuildDir
-                ${PROJECT_BINARY_DIR}
-                -WorkingDir
-                ${CMAKE_CURRENT_BINARY_DIR}/template_validation_regression_bundle
-            )
+            foreach(template_validation_regression_case IN ITEMS body-template part-template)
+                add_test(
+                    NAME
+                    template_validation_regression_bundle_${template_validation_regression_case}
+                    COMMAND
+                    ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                    -ExecutionPolicy
+                    Bypass
+                    -File
+                    ${CMAKE_CURRENT_SOURCE_DIR}/template_validation_regression_bundle_test.ps1
+                    -RepoRoot
+                    ${PROJECT_SOURCE_DIR}
+                    -BuildDir
+                    ${PROJECT_BINARY_DIR}
+                    -WorkingDir
+                    ${CMAKE_CURRENT_BINARY_DIR}/template_validation_regression_bundle_${template_validation_regression_case}
+                    -CaseId
+                    ${template_validation_regression_case}
+                )
+            endforeach()
         endif()
 
         if(TARGET featherdoc_cli)

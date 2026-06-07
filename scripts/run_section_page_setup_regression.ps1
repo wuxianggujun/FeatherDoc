@@ -2,6 +2,7 @@ param(
     [string]$BuildDir = "build-section-page-setup-regression-nmake",
     [string]$OutputDir = "output/section-page-setup-regression",
     [int]$Dpi = 144,
+    [string[]]$CaseId = @(),
     [switch]$SkipBuild,
     [switch]$SkipVisual,
     [switch]$KeepWordOpen,
@@ -15,6 +16,9 @@ $parameters = @{
     Dpi = $Dpi
 }
 
+if ($CaseId.Count -gt 0) {
+    $parameters.CaseId = $CaseId
+}
 if ($SkipBuild) {
     $parameters.SkipBuild = $true
 }
