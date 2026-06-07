@@ -23,17 +23,9 @@
 #include "featherdoc_cli_style_ensure_commands.hpp"
 #include "featherdoc_cli_style_inspect_commands.hpp"
 #include "featherdoc_cli_table_cell_options_parse.hpp"
-#include "featherdoc_cli_table_cell_style_commands.hpp"
-#include "featherdoc_cli_table_column_commands.hpp"
-#include "featherdoc_cli_table_format_commands.hpp"
-#include "featherdoc_cli_table_inspect_commands.hpp"
-#include "featherdoc_cli_table_merge_commands.hpp"
-#include "featherdoc_cli_table_row_commands.hpp"
+#include "featherdoc_cli_table_commands.hpp"
 #include "featherdoc_cli_table_row_summary.hpp"
 #include "featherdoc_cli_table_structure_validation.hpp"
-#include "featherdoc_cli_table_structure_commands.hpp"
-#include "featherdoc_cli_table_style_commands.hpp"
-#include "featherdoc_cli_table_text_commands.hpp"
 #include "featherdoc_cli_template_table_commands.hpp"
 #include "featherdoc_cli_pdf_commands.hpp"
 #include "featherdoc_cli_table_position_options_parse.hpp"
@@ -138,11 +130,7 @@ using featherdoc_cli::is_review_command;
 using featherdoc_cli::is_style_inspect_command;
 using featherdoc_cli::is_style_numbering_command;
 using featherdoc_cli::is_style_refactor_command;
-using featherdoc_cli::is_table_cell_style_command;
-using featherdoc_cli::is_table_format_command;
-using featherdoc_cli::is_table_position_command;
-using featherdoc_cli::is_table_style_command;
-using featherdoc_cli::is_table_structure_command;
+using featherdoc_cli::is_table_command;
 using featherdoc_cli::is_template_schema_command;
 using featherdoc_cli::is_paragraph_inspect_command;
 using featherdoc_cli::inspect_table_cells_options;
@@ -293,11 +281,7 @@ using featherdoc_cli::review_note_kind_name;
 using featherdoc_cli::revision_kind_name;
 using featherdoc_cli::row_height_rule_name;
 using featherdoc_cli::run_style_refactor_command;
-using featherdoc_cli::run_table_cell_style_command;
-using featherdoc_cli::run_table_format_command;
-using featherdoc_cli::run_table_position_command;
-using featherdoc_cli::run_table_style_command;
-using featherdoc_cli::run_table_structure_command;
+using featherdoc_cli::run_table_command;
 using featherdoc_cli::run_recipe_command;
 using featherdoc_cli::style_usage_hit_kind_name;
 using featherdoc_cli::style_usage_part_kind_name;
@@ -373,7 +357,6 @@ using featherdoc_cli::open_document;
 using featherdoc_cli::path_type;
 using featherdoc_cli::read_text_source;
 using featherdoc_cli::run_export_pdf_command;
-using featherdoc_cli::run_append_table_row_command;
 using featherdoc_cli::run_clear_paragraph_style_command;
 using featherdoc_cli::run_clear_paragraph_list_command;
 using featherdoc_cli::run_clear_default_run_properties_command;
@@ -386,26 +369,11 @@ using featherdoc_cli::run_clear_style_run_properties_command;
 using featherdoc_cli::run_inspect_default_run_properties_command;
 using featherdoc_cli::run_inspect_paragraph_style_properties_command;
 using featherdoc_cli::run_inspect_style_run_properties_command;
-using featherdoc_cli::run_inspect_table_cells_command;
-using featherdoc_cli::run_inspect_table_rows_command;
-using featherdoc_cli::run_inspect_tables_command;
 using featherdoc_cli::run_materialize_style_run_properties_command;
 using featherdoc_cli::run_rebase_character_style_based_on_command;
 using featherdoc_cli::run_rebase_paragraph_style_based_on_command;
 using featherdoc_cli::run_ensure_numbering_definition_command;
 using featherdoc_cli::run_ensure_style_linked_numbering_command;
-using featherdoc_cli::run_insert_paragraph_after_table_command;
-using featherdoc_cli::run_insert_table_column_after_command;
-using featherdoc_cli::run_insert_table_column_before_command;
-using featherdoc_cli::run_insert_table_row_after_command;
-using featherdoc_cli::run_insert_table_row_before_command;
-using featherdoc_cli::run_set_table_cell_text_command;
-using featherdoc_cli::run_merge_table_cells_command;
-using featherdoc_cli::run_clear_table_row_cant_split_command;
-using featherdoc_cli::run_clear_table_row_height_command;
-using featherdoc_cli::run_clear_table_row_repeat_header_command;
-using featherdoc_cli::run_remove_table_column_command;
-using featherdoc_cli::run_remove_table_row_command;
 using featherdoc_cli::run_restart_paragraph_list_command;
 using featherdoc_cli::run_set_paragraph_style_command;
 using featherdoc_cli::run_set_default_run_properties_command;
@@ -417,10 +385,6 @@ using featherdoc_cli::run_set_run_font_family_command;
 using featherdoc_cli::run_set_run_language_command;
 using featherdoc_cli::run_set_run_style_command;
 using featherdoc_cli::run_set_style_run_properties_command;
-using featherdoc_cli::run_set_table_row_cant_split_command;
-using featherdoc_cli::run_set_table_row_height_command;
-using featherdoc_cli::run_set_table_row_repeat_header_command;
-using featherdoc_cli::run_unmerge_table_cells_command;
 using featherdoc_cli::collect_table_row_summaries;
 using featherdoc_cli::table_row_inspection_summary;
 #if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
@@ -518,16 +482,8 @@ int featherdoc_cli_main(int argc, char **argv) {
         return run_style_numbering_command(command, arguments, doc);
     }
 
-    if (is_table_style_command(command)) {
-        return run_table_style_command(command, arguments, doc);
-    }
-
-    if (is_table_cell_style_command(command)) {
-        return run_table_cell_style_command(command, arguments, doc);
-    }
-
-    if (is_table_format_command(command)) {
-        return run_table_format_command(command, arguments, doc);
+    if (is_table_command(command)) {
+        return run_table_command(command, arguments, doc);
     }
 
     if (is_style_refactor_command(command)) {
@@ -544,94 +500,6 @@ int featherdoc_cli_main(int argc, char **argv) {
 
     if (is_paragraph_inspect_command(command)) {
         return run_paragraph_inspect_command(command, arguments);
-    }
-
-    if (command == "inspect-tables") {
-        return run_inspect_tables_command(command, arguments);
-    }
-
-    if (is_table_position_command(command)) {
-        return run_table_position_command(command, arguments);
-    }
-
-    if (command == "inspect-table-rows") {
-        return run_inspect_table_rows_command(command, arguments);
-    }
-
-    if (command == "inspect-table-cells") {
-        return run_inspect_table_cells_command(command, arguments);
-    }
-
-    if (command == "set-table-cell-text") {
-        return run_set_table_cell_text_command(command, arguments);
-    }
-
-    if (command == "merge-table-cells") {
-        return run_merge_table_cells_command(command, arguments);
-    }
-
-    if (command == "unmerge-table-cells") {
-        return run_unmerge_table_cells_command(command, arguments);
-    }
-
-    if (is_table_structure_command(command)) {
-        return run_table_structure_command(command, arguments);
-    }
-
-    if (command == "append-table-row") {
-        return run_append_table_row_command(command, arguments);
-    }
-
-    if (command == "insert-table-row-before") {
-        return run_insert_table_row_before_command(command, arguments);
-    }
-
-    if (command == "insert-table-row-after") {
-        return run_insert_table_row_after_command(command, arguments);
-    }
-
-    if (command == "remove-table-row") {
-        return run_remove_table_row_command(command, arguments);
-    }
-
-    if (command == "insert-paragraph-after-table") {
-        return run_insert_paragraph_after_table_command(command, arguments);
-    }
-
-    if (command == "insert-table-column-before") {
-        return run_insert_table_column_before_command(command, arguments);
-    }
-
-    if (command == "insert-table-column-after") {
-        return run_insert_table_column_after_command(command, arguments);
-    }
-
-    if (command == "remove-table-column") {
-        return run_remove_table_column_command(command, arguments);
-    }
-
-    if (command == "set-table-row-height") {
-        return run_set_table_row_height_command(command, arguments);
-    }
-
-    if (command == "clear-table-row-height") {
-        return run_clear_table_row_height_command(command, arguments);
-    }
-
-    if (command == "set-table-row-cant-split") {
-        return run_set_table_row_cant_split_command(command, arguments);
-    }
-
-    if (command == "clear-table-row-cant-split") {
-        return run_clear_table_row_cant_split_command(command, arguments);
-    }
-
-    if (command == "set-table-row-repeat-header") {
-        return run_set_table_row_repeat_header_command(command, arguments);
-    }
-
-    if (command == "clear-table-row-repeat-header") {
-        return run_clear_table_row_repeat_header_command(command, arguments);
     }
 
     if (is_template_table_command(command)) {
