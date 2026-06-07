@@ -1269,6 +1269,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_pdf_commands.cpp
         cli/featherdoc_cli_pdf_parse.cpp
         cli/featherdoc_cli_review_mutation_plan_parse.cpp
+        cli/featherdoc_cli_run_recipe_commands.cpp
         cli/featherdoc_cli_run_recipe_parse.cpp
         cli/featherdoc_cli_section_options_parse.cpp
         cli/featherdoc_cli_style_options_parse.cpp
