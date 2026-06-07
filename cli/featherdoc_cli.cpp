@@ -21,7 +21,7 @@
 #include "featherdoc_cli_semantic_diff.hpp"
 #include "featherdoc_cli_semantic_diff_options_parse.hpp"
 #include "featherdoc_cli_run_style_properties_commands.hpp"
-#include "featherdoc_cli_style_ensure_options_parse.hpp"
+#include "featherdoc_cli_style_ensure_commands.hpp"
 #include "featherdoc_cli_style_inspect_commands.hpp"
 #include "featherdoc_cli_table_cell_options_parse.hpp"
 #include "featherdoc_cli_table_cell_style_commands.hpp"
@@ -180,10 +180,6 @@ using featherdoc_cli::revision_metadata_mutation_options;
 using featherdoc_cli::semantic_diff_options;
 using featherdoc_cli::cli_text_source_options;
 using featherdoc_cli::bookmark_text_binding_source;
-using featherdoc_cli::ensure_character_style_options;
-using featherdoc_cli::ensure_paragraph_style_options;
-using featherdoc_cli::parse_ensure_character_style_options;
-using featherdoc_cli::parse_ensure_paragraph_style_options;
 using featherdoc_cli::import_numbering_catalog_options;
 using featherdoc_cli::json_bool;
 using featherdoc_cli::list_kind_name;
@@ -470,6 +466,8 @@ using featherdoc_cli::run_review_command;
 using featherdoc_cli::run_template_schema_command;
 using featherdoc_cli::save_document;
 using featherdoc_cli::run_section_part_command;
+using featherdoc_cli::run_ensure_character_style_command;
+using featherdoc_cli::run_ensure_paragraph_style_command;
 using featherdoc_cli::run_style_inspect_command;
 using featherdoc_cli::run_style_numbering_command;
 using featherdoc_cli::write_json_mutation_result;
@@ -478,9 +476,6 @@ using featherdoc_cli::write_json_numbering_instance_summary;
 using featherdoc_cli::write_json_numbering_level_override_summary;
 using featherdoc_cli::write_json_numbering_level_definition;
 using featherdoc_cli::write_json_paragraph_style_numbering_link;
-using featherdoc_cli::write_json_style_summary;
-using featherdoc_cli::print_style_summary;
-using featherdoc_cli::inspect_style;
 using featherdoc_cli::yes_no;
 
 enum class section_part_family {
@@ -507,22 +502,6 @@ void print_bookmark_summary(std::ostream &stream,
            << " duplicate=" << yes_no(bookmark.is_duplicate());
 }
 
-
-void print_style_mutation_result(std::string_view command, featherdoc::Document &doc,
-                                 const std::optional<path_type> &output_path,
-                                 const featherdoc::style_summary &style,
-                                 bool json_output) {
-    if (json_output) {
-        write_json_mutation_result(command, doc, output_path,
-                                   [&style](std::ostream &stream) {
-                                       stream << ",\"style\":";
-                                       write_json_style_summary(stream, style);
-                                   });
-        return;
-    }
-
-    inspect_style(style, std::nullopt, false);
-}
 
 } // namespace
 
@@ -862,93 +841,11 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "ensure-paragraph-style") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command, "ensure-paragraph-style expects an input path and a style id",
-                json_output);
-            return 2;
-        }
-
-        const auto style_id = arguments[2];
-        ensure_paragraph_style_options options;
-        std::string error_message;
-        if (!parse_ensure_paragraph_style_options(arguments, 3U, options,
-                                                  error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        if (!doc.ensure_paragraph_style(style_id, options.definition)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        const auto style = doc.find_style(style_id);
-        if (!style.has_value()) {
-            report_document_error(command, "inspect", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        print_style_mutation_result(command, doc, options.output_path, *style,
-                                    options.json_output);
-        return 0;
+        return run_ensure_paragraph_style_command(command, arguments);
     }
 
     if (command == "ensure-character-style") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command, "ensure-character-style expects an input path and a style id",
-                json_output);
-            return 2;
-        }
-
-        const auto style_id = arguments[2];
-        ensure_character_style_options options;
-        std::string error_message;
-        if (!parse_ensure_character_style_options(arguments, 3U, options,
-                                                  error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        if (!doc.ensure_character_style(style_id, options.definition)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        const auto style = doc.find_style(style_id);
-        if (!style.has_value()) {
-            report_document_error(command, "inspect", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        print_style_mutation_result(command, doc, options.output_path, *style,
-                                    options.json_output);
-        return 0;
+        return run_ensure_character_style_command(command, arguments);
     }
 
     if (is_page_setup_command(command)) {
