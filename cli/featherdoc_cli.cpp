@@ -6,11 +6,12 @@
 #include "featherdoc_cli_numbering_catalog_parse.hpp"
 #include "featherdoc_cli_numbering_catalog_patch_apply.hpp"
 #include "featherdoc_cli_numbering_catalog_patch_parse.hpp"
+#include "featherdoc_cli_numbering_json.hpp"
 #include "featherdoc_cli_numbering_options_parse.hpp"
 #include "featherdoc_cli_page_setup.hpp"
 #include "featherdoc_cli_page_setup_parse.hpp"
+#include "featherdoc_cli_paragraph_numbering_commands.hpp"
 #include "featherdoc_cli_paragraph_run_commands.hpp"
-#include "featherdoc_cli_paragraph_list_options_parse.hpp"
 #include "featherdoc_cli_paragraph_run_options_parse.hpp"
 #include "featherdoc_cli_document_mutation_options_parse.hpp"
 #include "featherdoc_cli_semantic_diff.hpp"
@@ -114,8 +115,6 @@ using featherdoc_cli::changed_numbering_catalog_level;
 using featherdoc_cli::changed_numbering_catalog_override;
 using featherdoc_cli::check_numbering_catalog_options;
 using featherdoc_cli::check_table_style_look_options;
-using featherdoc_cli::clear_paragraph_style_numbering_options;
-using featherdoc_cli::clear_paragraph_list_options;
 using featherdoc_cli::clear_paragraph_style_options;
 using featherdoc_cli::content_control_form_kind_name;
 using featherdoc_cli::content_control_kind_name;
@@ -137,8 +136,6 @@ using featherdoc_cli::exported_template_schema_skipped_bookmark;
 using featherdoc_cli::exported_template_schema_target;
 using featherdoc_cli::export_numbering_catalog_options;
 using featherdoc_cli::export_template_schema_options;
-using featherdoc_cli::ensure_numbering_definition_options;
-using featherdoc_cli::ensure_style_linked_numbering_options;
 using featherdoc_cli::format_paragraph_text;
 using featherdoc_cli::filter_style_refactor_plan_by_min_confidence;
 using featherdoc_cli::filter_style_refactor_plan_by_style_ids;
@@ -250,7 +247,6 @@ using featherdoc_cli::optional_display_value;
 using featherdoc_cli::optional_size_display_value;
 using featherdoc_cli::output_semantic_diff_result;
 using featherdoc_cli::page_orientation_name;
-using featherdoc_cli::paragraph_list_options;
 using featherdoc_cli::parse_border_style_text;
 using featherdoc_cli::parse_cell_border_edge_text;
 using featherdoc_cli::parse_cell_margin_edge_text;
@@ -324,8 +320,6 @@ using featherdoc_cli::parse_int32;
 using featherdoc_cli::parse_build_template_schema_patch_options;
 using featherdoc_cli::parse_check_numbering_catalog_options;
 using featherdoc_cli::parse_check_table_style_look_options;
-using featherdoc_cli::parse_clear_paragraph_style_numbering_options;
-using featherdoc_cli::parse_clear_paragraph_list_options;
 using featherdoc_cli::parse_clear_paragraph_style_options;
 using featherdoc_cli::parse_check_template_schema_options;
 using featherdoc_cli::parse_diff_template_schema_options;
@@ -333,15 +327,10 @@ using featherdoc_cli::parse_export_numbering_catalog_options;
 using featherdoc_cli::parse_import_numbering_catalog_options;
 using featherdoc_cli::parse_lint_template_schema_options;
 using featherdoc_cli::parse_merge_template_schema_options;
-using featherdoc_cli::parse_ensure_numbering_definition_options;
-using featherdoc_cli::parse_ensure_style_linked_numbering_options;
 using featherdoc_cli::parse_normalize_template_schema_options;
 using featherdoc_cli::parse_patch_numbering_catalog_options;
 using featherdoc_cli::parse_patch_template_schema_options;
-using featherdoc_cli::parse_paragraph_list_options;
 using featherdoc_cli::parse_set_paragraph_style_options;
-using featherdoc_cli::parse_set_paragraph_numbering_options;
-using featherdoc_cli::parse_set_paragraph_style_numbering_options;
 using featherdoc_cli::parse_clear_run_font_family_options;
 using featherdoc_cli::parse_clear_run_language_options;
 using featherdoc_cli::parse_clear_run_style_options;
@@ -442,8 +431,6 @@ using featherdoc_cli::clear_run_style_options;
 using featherdoc_cli::set_run_font_family_options;
 using featherdoc_cli::set_run_language_options;
 using featherdoc_cli::set_run_style_options;
-using featherdoc_cli::set_paragraph_numbering_options;
-using featherdoc_cli::set_paragraph_style_numbering_options;
 using featherdoc_cli::set_section_page_setup_options;
 using featherdoc_cli::set_update_fields_on_open_options;
 using featherdoc_cli::review_mutation_plan_build_request_operation;
@@ -544,8 +531,10 @@ using featherdoc_cli::run_export_pdf_command;
 using featherdoc_cli::run_append_table_row_command;
 using featherdoc_cli::run_append_template_table_row_command;
 using featherdoc_cli::run_clear_paragraph_style_command;
+using featherdoc_cli::run_clear_paragraph_list_command;
 using featherdoc_cli::run_clear_default_run_properties_command;
 using featherdoc_cli::run_clear_paragraph_style_properties_command;
+using featherdoc_cli::run_clear_paragraph_style_numbering_command;
 using featherdoc_cli::run_clear_run_font_family_command;
 using featherdoc_cli::run_clear_run_language_command;
 using featherdoc_cli::run_clear_run_style_command;
@@ -559,6 +548,8 @@ using featherdoc_cli::run_inspect_tables_command;
 using featherdoc_cli::run_materialize_style_run_properties_command;
 using featherdoc_cli::run_rebase_character_style_based_on_command;
 using featherdoc_cli::run_rebase_paragraph_style_based_on_command;
+using featherdoc_cli::run_ensure_numbering_definition_command;
+using featherdoc_cli::run_ensure_style_linked_numbering_command;
 using featherdoc_cli::run_insert_paragraph_after_table_command;
 using featherdoc_cli::run_insert_table_column_after_command;
 using featherdoc_cli::run_insert_table_column_before_command;
@@ -581,9 +572,13 @@ using featherdoc_cli::run_clear_table_row_height_command;
 using featherdoc_cli::run_clear_table_row_repeat_header_command;
 using featherdoc_cli::run_remove_table_column_command;
 using featherdoc_cli::run_remove_table_row_command;
+using featherdoc_cli::run_restart_paragraph_list_command;
 using featherdoc_cli::run_set_paragraph_style_command;
 using featherdoc_cli::run_set_default_run_properties_command;
+using featherdoc_cli::run_set_paragraph_list_command;
+using featherdoc_cli::run_set_paragraph_numbering_command;
 using featherdoc_cli::run_set_paragraph_style_properties_command;
+using featherdoc_cli::run_set_paragraph_style_numbering_command;
 using featherdoc_cli::run_set_run_font_family_command;
 using featherdoc_cli::run_set_run_language_command;
 using featherdoc_cli::run_set_run_style_command;
@@ -605,6 +600,8 @@ using featherdoc_cli::run_import_pdf_command;
 #endif
 using featherdoc_cli::save_document;
 using featherdoc_cli::write_json_mutation_result;
+using featherdoc_cli::write_json_numbering_level_definition;
+using featherdoc_cli::write_json_paragraph_style_numbering_link;
 using featherdoc_cli::yes_no;
 
 struct command_options {
@@ -2126,22 +2123,6 @@ void print_style_numbering_inline(
                << numbering->instance->level_overrides.size();
     }
     stream << ')';
-}
-
-void write_json_numbering_level_definition(
-    std::ostream &stream, const featherdoc::numbering_level_definition &definition) {
-    stream << "{\"level\":" << definition.level << ",\"kind\":";
-    write_json_string(stream, list_kind_name(definition.kind));
-    stream << ",\"start\":" << definition.start << ",\"text_pattern\":";
-    write_json_string(stream, definition.text_pattern);
-    stream << '}';
-}
-
-void write_json_paragraph_style_numbering_link(
-    std::ostream &stream, const featherdoc::paragraph_style_numbering_link &style_link) {
-    stream << "{\"style_id\":";
-    write_json_string(stream, style_link.style_id);
-    stream << ",\"level\":" << style_link.level << '}';
 }
 
 void write_json_numbering_level_override_summary(
@@ -17285,493 +17266,35 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "ensure-style-linked-numbering") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 2U) {
-            print_parse_error(command,
-                              "ensure-style-linked-numbering expects an input path",
-                              json_output);
-            return 2;
-        }
-
-        ensure_style_linked_numbering_options options;
-        std::string error_message;
-        if (!parse_ensure_style_linked_numbering_options(arguments, 2U, options,
-                                                         error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::numbering_definition definition;
-        definition.name = *options.definition_name;
-        definition.levels = options.levels;
-
-        const auto definition_id =
-            doc.ensure_style_linked_numbering(definition, options.style_links);
-        if (!definition_id.has_value()) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [definition_id, &definition, &options](std::ostream &stream) {
-                    stream << ",\"definition_id\":" << *definition_id
-                           << ",\"definition_name\":";
-                    write_json_string(stream, definition.name);
-                    stream << ",\"definition_levels\":";
-                    stream << '[';
-                    for (std::size_t index = 0; index < definition.levels.size(); ++index) {
-                        if (index != 0U) {
-                            stream << ',';
-                        }
-                        write_json_numbering_level_definition(stream,
-                                                              definition.levels[index]);
-                    }
-                    stream << "],\"style_links\":[";
-                    for (std::size_t index = 0; index < options.style_links.size(); ++index) {
-                        if (index != 0U) {
-                            stream << ',';
-                        }
-                        write_json_paragraph_style_numbering_link(stream,
-                                                                  options.style_links[index]);
-                    }
-                    stream << ']';
-                });
-        }
-
-        return 0;
+        return run_ensure_style_linked_numbering_command(command, arguments);
     }
 
     if (command == "set-paragraph-style-numbering") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "set-paragraph-style-numbering expects an input path and a style id",
-                json_output);
-            return 2;
-        }
-
-        const auto style_id = arguments[2];
-        set_paragraph_style_numbering_options options;
-        std::string error_message;
-        if (!parse_set_paragraph_style_numbering_options(arguments, 3U, options,
-                                                         error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::numbering_definition definition;
-        definition.name = *options.definition_name;
-        definition.levels = options.levels;
-
-        const auto numbering_id = doc.ensure_numbering_definition(definition);
-        if (!numbering_id.has_value()) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        const auto style_level = options.style_level.value_or(0U);
-        if (!doc.set_paragraph_style_numbering(style_id, *numbering_id, style_level)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [style_id, style_level, &definition](std::ostream &stream) {
-                    stream << ",\"style_id\":";
-                    write_json_string(stream, style_id);
-                    stream << ",\"definition_name\":";
-                    write_json_string(stream, definition.name);
-                    stream << ",\"style_level\":" << style_level
-                           << ",\"definition_levels\":[";
-                    for (std::size_t index = 0; index < definition.levels.size();
-                         ++index) {
-                        if (index != 0U) {
-                            stream << ',';
-                        }
-                        write_json_numbering_level_definition(stream,
-                                                              definition.levels[index]);
-                    }
-                    stream << ']';
-                });
-        }
-
-        return 0;
+        return run_set_paragraph_style_numbering_command(command, arguments);
     }
 
     if (command == "clear-paragraph-style-numbering") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "clear-paragraph-style-numbering expects an input path and a style id",
-                json_output);
-            return 2;
-        }
-
-        const auto style_id = arguments[2];
-        clear_paragraph_style_numbering_options options;
-        std::string error_message;
-        if (!parse_clear_paragraph_style_numbering_options(arguments, 3U, options,
-                                                           error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        if (!doc.clear_paragraph_style_numbering(style_id)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(command, doc, options.output_path,
-                                       [style_id](std::ostream &stream) {
-                                           stream << ",\"style_id\":";
-                                           write_json_string(stream, style_id);
-                                       });
-        }
-
-        return 0;
+        return run_clear_paragraph_style_numbering_command(command, arguments);
     }
 
     if (command == "ensure-numbering-definition") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 2U) {
-            print_parse_error(command,
-                              "ensure-numbering-definition expects an input path",
-                              json_output);
-            return 2;
-        }
-
-        ensure_numbering_definition_options options;
-        std::string error_message;
-        if (!parse_ensure_numbering_definition_options(arguments, 2U, options,
-                                                       error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::numbering_definition definition;
-        definition.name = *options.definition_name;
-        definition.levels = options.levels;
-
-        const auto numbering_id = doc.ensure_numbering_definition(definition);
-        if (!numbering_id.has_value()) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [numbering_id, &definition](std::ostream &stream) {
-                    stream << ",\"definition_id\":" << *numbering_id
-                           << ",\"definition_name\":";
-                    write_json_string(stream, definition.name);
-                    stream << ",\"definition_levels\":[";
-                    for (std::size_t index = 0; index < definition.levels.size();
-                         ++index) {
-                        if (index != 0U) {
-                            stream << ',';
-                        }
-                        write_json_numbering_level_definition(stream,
-                                                              definition.levels[index]);
-                    }
-                    stream << ']';
-                });
-        }
-
-        return 0;
+        return run_ensure_numbering_definition_command(command, arguments);
     }
 
     if (command == "set-paragraph-numbering") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "set-paragraph-numbering expects an input path and a paragraph index",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        set_paragraph_numbering_options options;
-        std::string error_message;
-        if (!parse_set_paragraph_numbering_options(arguments, 3U, options,
-                                                   error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Paragraph paragraph;
-        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
-                                    options.json_output)) {
-            return 1;
-        }
-
-        const auto level = options.level.value_or(0U);
-        if (!doc.set_paragraph_numbering(paragraph, *options.definition_id, level)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index, level, &options](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index
-                           << ",\"definition_id\":" << *options.definition_id
-                           << ",\"level\":" << level;
-                });
-        }
-
-        return 0;
+        return run_set_paragraph_numbering_command(command, arguments);
     }
 
     if (command == "set-paragraph-list") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "set-paragraph-list expects an input path and a paragraph index",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        paragraph_list_options options;
-        std::string error_message;
-        if (!parse_paragraph_list_options(arguments, 3U, options, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Paragraph paragraph;
-        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
-                                    options.json_output)) {
-            return 1;
-        }
-
-        const auto level = options.level.value_or(0U);
-        if (!doc.set_paragraph_list(paragraph, options.kind, level)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index, level, &options](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index
-                           << ",\"kind\":";
-                    write_json_string(stream, list_kind_name(options.kind));
-                    stream << ",\"level\":" << level;
-                });
-        }
-
-        return 0;
+        return run_set_paragraph_list_command(command, arguments);
     }
 
     if (command == "restart-paragraph-list") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "restart-paragraph-list expects an input path and a paragraph index",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        paragraph_list_options options;
-        std::string error_message;
-        if (!parse_paragraph_list_options(arguments, 3U, options, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Paragraph paragraph;
-        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
-                                    options.json_output)) {
-            return 1;
-        }
-
-        const auto level = options.level.value_or(0U);
-        if (!doc.restart_paragraph_list(paragraph, options.kind, level)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index, level, &options](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index
-                           << ",\"kind\":";
-                    write_json_string(stream, list_kind_name(options.kind));
-                    stream << ",\"level\":" << level;
-                });
-        }
-
-        return 0;
+        return run_restart_paragraph_list_command(command, arguments);
     }
 
     if (command == "clear-paragraph-list") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(
-                command,
-                "clear-paragraph-list expects an input path and a paragraph index",
-                json_output);
-            return 2;
-        }
-
-        std::uint32_t paragraph_index = 0U;
-        if (!parse_uint32(arguments[2], paragraph_index)) {
-            print_parse_error(command,
-                              "invalid paragraph index: " +
-                                  std::string(arguments[2]),
-                              json_output);
-            return 2;
-        }
-
-        clear_paragraph_list_options options;
-        std::string error_message;
-        if (!parse_clear_paragraph_list_options(arguments, 3U, options,
-                                                error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Paragraph paragraph;
-        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
-                                    options.json_output)) {
-            return 1;
-        }
-
-        if (!doc.clear_paragraph_list(paragraph)) {
-            report_document_error(command, "mutate", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [paragraph_index](std::ostream &stream) {
-                    stream << ",\"paragraph_index\":" << paragraph_index;
-                });
-        }
-
-        return 0;
+        return run_clear_paragraph_list_command(command, arguments);
     }
 
     if (command == "ensure-paragraph-style") {
