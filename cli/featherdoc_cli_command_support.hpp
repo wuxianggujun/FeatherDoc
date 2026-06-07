@@ -28,6 +28,11 @@ auto open_document(const path_type &input_path, featherdoc::Document &doc,
                    std::string_view command = {},
                    bool json_output = false) -> bool;
 
+auto resolve_body_table(featherdoc::Document &doc, std::size_t table_index,
+                        featherdoc::Table &table, std::string_view command,
+                        bool json_output,
+                        std::string_view stage = "mutate") -> bool;
+
 [[nodiscard]] auto read_text_source(const cli_text_source_options &options,
                                     std::string &text,
                                     std::string &error_message) -> bool;

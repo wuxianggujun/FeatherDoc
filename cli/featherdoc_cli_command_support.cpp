@@ -7,6 +7,8 @@
 
 #include <fstream>
 #include <iterator>
+#include <string>
+#include <system_error>
 #include <utility>
 
 namespace featherdoc_cli {
@@ -59,6 +61,29 @@ auto open_document(const path_type &input_path, featherdoc::Document &doc,
     const auto error = doc.open();
     if (error) {
         return report_document_error(command, "open", doc.last_error(), json_output);
+    }
+
+    return true;
+}
+
+auto resolve_body_table(featherdoc::Document &doc, std::size_t table_index,
+                        featherdoc::Table &table, std::string_view command,
+                        bool json_output, std::string_view stage) -> bool {
+    table = doc.tables();
+    for (std::size_t current_index = 0;
+         current_index < table_index && table.has_next(); ++current_index) {
+        table.next();
+    }
+
+    if (!table.has_next()) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail =
+            "table index '" + std::to_string(table_index) + "' is out of range";
+        error_info.entry_name = "word/document.xml";
+        return report_operation_failure(command, stage,
+                                        "table index is out of range", error_info,
+                                        json_output);
     }
 
     return true;
