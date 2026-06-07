@@ -44,6 +44,7 @@ set(FEATHERDOC_MODULE_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_core.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_reviews_fields_members.inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_styles_numbering_members.inc"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_templates_members.inc"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/fwd.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/reviews_fields.hpp"
