@@ -1307,6 +1307,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_options_parse.cpp
         cli/featherdoc_cli_template_schema_patch_ops.cpp
         cli/featherdoc_cli_template_schema_patch_parse.cpp
+        cli/featherdoc_cli_template_schema_patch_parse_detail.cpp
         cli/featherdoc_cli_template_schema_parse.cpp
         cli/featherdoc_cli_template_slot_parse.cpp
         cli/featherdoc_cli_text.cpp

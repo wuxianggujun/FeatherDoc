@@ -1019,6 +1019,7 @@ featherdoc_add_cpp_test(
     cli_template_schema_patch_parse
     cli_template_schema_patch_parse_tests.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_parse_detail.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
