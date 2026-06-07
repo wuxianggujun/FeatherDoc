@@ -19,7 +19,6 @@
 #include "featherdoc_cli_document_mutation_options_parse.hpp"
 #include "featherdoc_cli_document_content_commands.hpp"
 #include "featherdoc_cli_semantic_diff.hpp"
-#include "featherdoc_cli_semantic_diff_options_parse.hpp"
 #include "featherdoc_cli_run_style_properties_commands.hpp"
 #include "featherdoc_cli_style_ensure_commands.hpp"
 #include "featherdoc_cli_style_inspect_commands.hpp"
@@ -177,7 +176,6 @@ using featherdoc_cli::comment_mutation_options;
 using featherdoc_cli::comment_metadata_mutation_options;
 using featherdoc_cli::revision_authoring_options;
 using featherdoc_cli::revision_metadata_mutation_options;
-using featherdoc_cli::semantic_diff_options;
 using featherdoc_cli::cli_text_source_options;
 using featherdoc_cli::bookmark_text_binding_source;
 using featherdoc_cli::import_numbering_catalog_options;
@@ -201,7 +199,6 @@ using featherdoc_cli::numbering_catalog_diff_result;
 using featherdoc_cli::numbering_catalog_instance_diff_result;
 using featherdoc_cli::optional_display_value;
 using featherdoc_cli::optional_size_display_value;
-using featherdoc_cli::output_semantic_diff_result;
 using featherdoc_cli::page_orientation_name;
 using featherdoc_cli::parse_border_style_text;
 using featherdoc_cli::parse_cell_border_edge_text;
@@ -223,7 +220,6 @@ using featherdoc_cli::parse_comment_mutation_options;
 using featherdoc_cli::parse_comment_metadata_mutation_options;
 using featherdoc_cli::parse_revision_authoring_options;
 using featherdoc_cli::parse_revision_metadata_mutation_options;
-using featherdoc_cli::parse_semantic_diff_options;
 using featherdoc_cli::parse_validate_template_options;
 using featherdoc_cli::parse_validate_template_schema_options;
 using featherdoc_cli::parse_int32;
@@ -463,6 +459,7 @@ using featherdoc_cli::run_numbering_inspect_command;
 using featherdoc_cli::run_page_setup_command;
 using featherdoc_cli::run_paragraph_inspect_command;
 using featherdoc_cli::run_review_command;
+using featherdoc_cli::run_semantic_diff_command;
 using featherdoc_cli::run_template_schema_command;
 using featherdoc_cli::save_document;
 using featherdoc_cli::run_section_part_command;
@@ -873,41 +870,7 @@ int featherdoc_cli_main(int argc, char **argv) {
     }
 
     if (command == "semantic-diff") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 3U) {
-            print_parse_error(command,
-                              "semantic-diff expects left and right input paths",
-                              json_output);
-            return 2;
-        }
-
-        semantic_diff_options options;
-        std::string error_message;
-        if (!parse_semantic_diff_options(arguments, 3U, options, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        featherdoc::Document right_doc;
-        if (!open_document(path_type(std::string(arguments[2])), right_doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        const auto result = doc.compare_semantic(right_doc, options.diff_options);
-        if (!result.has_value()) {
-            report_document_error(command, "compare", doc.last_error(),
-                                  options.json_output);
-            return 1;
-        }
-
-        output_semantic_diff_result(*result, options);
-        return options.fail_on_diff && result->different() ? 1 : 0;
+        return run_semantic_diff_command(command, arguments, doc);
     }
 
     if (is_image_command(command)) {
