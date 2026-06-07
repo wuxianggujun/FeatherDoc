@@ -7,6 +7,7 @@
 #include "featherdoc_cli_numbering_catalog_patch_apply.hpp"
 #include "featherdoc_cli_numbering_catalog_patch_parse.hpp"
 #include "featherdoc_cli_numbering_catalog_commands.hpp"
+#include "featherdoc_cli_numbering_inspect_commands.hpp"
 #include "featherdoc_cli_numbering_json.hpp"
 #include "featherdoc_cli_numbering_options_parse.hpp"
 #include "featherdoc_cli_bookmark_commands.hpp"
@@ -72,7 +73,6 @@
 #include "featherdoc_cli_image_output.hpp"
 #include "featherdoc_cli_image_options_parse.hpp"
 #include "featherdoc_cli_bookmark_text_options_parse.hpp"
-#include "featherdoc_cli_inspect_numbering_options_parse.hpp"
 #include "featherdoc_cli_inspect_style_options_parse.hpp"
 #include "featherdoc_cli_inspect_table_item_options_parse.hpp"
 #include "featherdoc_cli_parse.hpp"
@@ -145,6 +145,7 @@ using featherdoc_cli::is_document_content_command;
 using featherdoc_cli::is_field_command;
 using featherdoc_cli::is_image_command;
 using featherdoc_cli::is_numbering_catalog_command;
+using featherdoc_cli::is_numbering_inspect_command;
 using featherdoc_cli::is_review_command;
 using featherdoc_cli::is_style_refactor_command;
 using featherdoc_cli::is_table_cell_style_command;
@@ -154,7 +155,6 @@ using featherdoc_cli::is_table_style_command;
 using featherdoc_cli::is_table_structure_command;
 using featherdoc_cli::is_template_schema_command;
 using featherdoc_cli::is_word_temporary_path;
-using featherdoc_cli::inspect_numbering_options;
 using featherdoc_cli::inspect_options;
 using featherdoc_cli::inspect_page_setup;
 using featherdoc_cli::inspect_page_setup_options;
@@ -231,7 +231,6 @@ using featherdoc_cli::option_parse_result;
 using featherdoc_cli::parse_audit_style_numbering_options;
 using featherdoc_cli::parse_export_template_schema_options;
 using featherdoc_cli::parse_index;
-using featherdoc_cli::parse_inspect_numbering_options;
 using featherdoc_cli::parse_inspect_options;
 using featherdoc_cli::parse_inspect_page_setup_options;
 using featherdoc_cli::parse_inspect_style_inheritance_options;
@@ -504,6 +503,7 @@ using featherdoc_cli::run_content_control_command;
 using featherdoc_cli::run_document_content_command;
 using featherdoc_cli::run_field_command;
 using featherdoc_cli::run_numbering_catalog_command;
+using featherdoc_cli::run_numbering_inspect_command;
 using featherdoc_cli::run_paragraph_inspect_command;
 using featherdoc_cli::run_review_command;
 using featherdoc_cli::run_template_schema_command;
@@ -647,34 +647,6 @@ auto load_body_table_cells_summary(
     }
 
     return true;
-}
-
-void write_json_numbering_definition_summary(
-    std::ostream &stream, const featherdoc::numbering_definition_summary &definition) {
-    stream << "{\"definition_id\":" << definition.definition_id << ",\"name\":";
-    write_json_string(stream, definition.name);
-    stream << ",\"levels\":[";
-    for (std::size_t index = 0; index < definition.levels.size(); ++index) {
-        if (index != 0U) {
-            stream << ',';
-        }
-        write_json_numbering_level_definition(stream, definition.levels[index]);
-    }
-    stream << "],\"instance_ids\":[";
-    for (std::size_t index = 0; index < definition.instance_ids.size(); ++index) {
-        if (index != 0U) {
-            stream << ',';
-        }
-        stream << definition.instance_ids[index];
-    }
-    stream << "],\"instances\":[";
-    for (std::size_t index = 0; index < definition.instances.size(); ++index) {
-        if (index != 0U) {
-            stream << ',';
-        }
-        write_json_numbering_instance_summary(stream, definition.instances[index]);
-    }
-    stream << "]}";
 }
 
 void write_json_resolved_style_string_property(
@@ -938,58 +910,6 @@ void write_json_table_row_summary(std::ostream &stream,
         write_json_string(stream, row.cell_texts[index]);
     }
     stream << "]}";
-}
-
-void print_numbering_instance_ids(std::ostream &stream,
-                                  const std::vector<std::uint32_t> &instance_ids) {
-    if (instance_ids.empty()) {
-        stream << "none";
-        return;
-    }
-
-    for (std::size_t index = 0; index < instance_ids.size(); ++index) {
-        if (index != 0U) {
-            stream << ',';
-        }
-        stream << instance_ids[index];
-    }
-}
-
-void print_numbering_definition_summary(
-    std::ostream &stream, const featherdoc::numbering_definition_summary &definition) {
-    stream << "id=" << definition.definition_id << " name=" << definition.name
-           << " levels=" << definition.levels.size() << " instances=";
-    print_numbering_instance_ids(stream, definition.instance_ids);
-}
-
-void print_numbering_level_override_summary(
-    std::ostream &stream, const featherdoc::numbering_level_override_summary &level_override) {
-    stream << "level=" << level_override.level << " start_override=";
-    if (level_override.start_override.has_value()) {
-        stream << *level_override.start_override;
-    } else {
-        stream << "none";
-    }
-
-    if (level_override.level_definition.has_value()) {
-        stream << " definition_kind="
-               << list_kind_name(level_override.level_definition->kind)
-               << " definition_start=" << level_override.level_definition->start
-               << " definition_text_pattern="
-               << level_override.level_definition->text_pattern;
-    }
-}
-
-void print_numbering_instance_summary(
-    std::ostream &stream, const featherdoc::numbering_instance_summary &instance,
-    std::string_view indent = {}) {
-    stream << indent << "instance[" << instance.instance_id
-           << "]: override_count=" << instance.level_overrides.size() << '\n';
-    for (std::size_t index = 0; index < instance.level_overrides.size(); ++index) {
-        stream << indent << "  override[" << index << "]: ";
-        print_numbering_level_override_summary(stream, instance.level_overrides[index]);
-        stream << '\n';
-    }
 }
 
 void write_json_bookmark_summary(std::ostream &stream,
@@ -1396,80 +1316,6 @@ void print_style_mutation_result(std::string_view command, featherdoc::Document 
     }
 
     inspect_style(style, std::nullopt, false);
-}
-
-void inspect_numbering(const std::vector<featherdoc::numbering_definition_summary> &definitions,
-                       bool json_output) {
-    if (json_output) {
-        std::cout << "{\"count\":" << definitions.size() << ",\"definitions\":[";
-        for (std::size_t index = 0; index < definitions.size(); ++index) {
-            if (index != 0U) {
-                std::cout << ',';
-            }
-            write_json_numbering_definition_summary(std::cout, definitions[index]);
-        }
-        std::cout << "]}\n";
-        return;
-    }
-
-    std::cout << "definitions: " << definitions.size() << '\n';
-    for (std::size_t index = 0; index < definitions.size(); ++index) {
-        std::cout << "definition[" << index << "]: ";
-        print_numbering_definition_summary(std::cout, definitions[index]);
-        std::cout << '\n';
-        for (const auto &level : definitions[index].levels) {
-            std::cout << "  level[" << level.level << "]: kind="
-                      << list_kind_name(level.kind) << " start=" << level.start
-                      << " text_pattern=" << level.text_pattern << '\n';
-        }
-        for (const auto &instance : definitions[index].instances) {
-            print_numbering_instance_summary(std::cout, instance, "  ");
-        }
-    }
-}
-
-void inspect_numbering(const featherdoc::numbering_definition_summary &definition,
-                       bool json_output) {
-    if (json_output) {
-        std::cout << "{\"definition\":";
-        write_json_numbering_definition_summary(std::cout, definition);
-        std::cout << "}\n";
-        return;
-    }
-
-    std::cout << "definition_id: " << definition.definition_id << '\n';
-    std::cout << "name: " << definition.name << '\n';
-    std::cout << "instances: ";
-    print_numbering_instance_ids(std::cout, definition.instance_ids);
-    std::cout << '\n';
-    std::cout << "levels: " << definition.levels.size() << '\n';
-    for (const auto &level : definition.levels) {
-        std::cout << "level[" << level.level << "]: kind=" << list_kind_name(level.kind)
-                  << " start=" << level.start
-                  << " text_pattern=" << level.text_pattern << '\n';
-    }
-    std::cout << "instance_count: " << definition.instances.size() << '\n';
-    for (const auto &instance : definition.instances) {
-        print_numbering_instance_summary(std::cout, instance);
-    }
-}
-
-void inspect_numbering(const featherdoc::numbering_instance_lookup_summary &instance_lookup,
-                       bool json_output) {
-    if (json_output) {
-        std::cout << "{\"instance\":{\"definition_id\":"
-                  << instance_lookup.definition_id
-                  << ",\"definition_name\":";
-        write_json_string(std::cout, instance_lookup.definition_name);
-        std::cout << ",\"instance\":";
-        write_json_numbering_instance_summary(std::cout, instance_lookup.instance);
-        std::cout << "}}\n";
-        return;
-    }
-
-    std::cout << "definition_id: " << instance_lookup.definition_id << '\n';
-    std::cout << "name: " << instance_lookup.definition_name << '\n';
-    print_numbering_instance_summary(std::cout, instance_lookup.instance);
 }
 
 void print_optional_table_border(
@@ -2331,74 +2177,8 @@ int featherdoc_cli_main(int argc, char **argv) {
         return run_numbering_catalog_command(command, arguments, doc);
     }
 
-    if (command == "inspect-numbering") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 2U) {
-            print_parse_error(command, "inspect-numbering expects an input path",
-                              json_output);
-            return 2;
-        }
-
-        inspect_numbering_options options;
-        std::string error_message;
-        if (!parse_inspect_numbering_options(arguments, 2U, options, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        if (options.instance_id.has_value()) {
-            const auto instance = doc.find_numbering_instance(*options.instance_id);
-            if (!instance.has_value()) {
-                report_document_error(command, "inspect", doc.last_error(),
-                                      options.json_output);
-                return 1;
-            }
-
-            if (options.definition_id.has_value() &&
-                instance->definition_id != *options.definition_id) {
-                featherdoc::document_error_info error_info{};
-                error_info.code = std::make_error_code(std::errc::invalid_argument);
-                error_info.detail =
-                    "numbering instance id '" + std::to_string(*options.instance_id) +
-                    "' was not found under definition id '" +
-                    std::to_string(*options.definition_id) + "' in word/numbering.xml";
-                error_info.entry_name = "word/numbering.xml";
-                report_operation_failure(command, "inspect",
-                                         "numbering instance was not found", error_info,
-                                         options.json_output);
-                return 1;
-            }
-
-            inspect_numbering(*instance, options.json_output);
-            return 0;
-        }
-
-        if (options.definition_id.has_value()) {
-            const auto definition = doc.find_numbering_definition(*options.definition_id);
-            if (!definition.has_value()) {
-                report_document_error(command, "inspect", doc.last_error(),
-                                      options.json_output);
-                return 1;
-            }
-
-            inspect_numbering(*definition, options.json_output);
-            return 0;
-        }
-
-        const auto definitions = doc.list_numbering_definitions();
-        if (const auto &error_info = doc.last_error(); error_info.code) {
-            report_document_error(command, "inspect", error_info,
-                                  options.json_output);
-            return 1;
-        }
-
-        inspect_numbering(definitions, options.json_output);
-        return 0;
+    if (is_numbering_inspect_command(command)) {
+        return run_numbering_inspect_command(command, arguments, doc);
     }
 
     if (command == "inspect-style-numbering") {

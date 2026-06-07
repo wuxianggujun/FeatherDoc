@@ -1219,6 +1219,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_numbering_catalog_patch_apply.cpp
         cli/featherdoc_cli_numbering_catalog_patch_parse.cpp
         cli/featherdoc_cli_numbering_catalog_commands.cpp
+        cli/featherdoc_cli_numbering_inspect_commands.cpp
         cli/featherdoc_cli_numbering_json.cpp
         cli/featherdoc_cli_numbering_options_parse.cpp
         cli/featherdoc_cli_page_setup.cpp
