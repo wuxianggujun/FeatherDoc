@@ -1277,7 +1277,9 @@ if(BUILD_CLI)
         cli/featherdoc_cli_style_numbering_audit.cpp
         cli/featherdoc_cli_table_style_look_options_parse.cpp
         cli/featherdoc_cli_table_position_plan_build.cpp
+        cli/featherdoc_cli_table_position_commands.cpp
         cli/featherdoc_cli_table_position_options_parse.cpp
+        cli/featherdoc_cli_table_position_output.cpp
         cli/featherdoc_cli_table_position_plan_parse.cpp
         cli/featherdoc_cli_review_commands.cpp
         cli/featherdoc_cli_review_mutation_plan.cpp
