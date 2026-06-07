@@ -55,67 +55,8 @@ class Document {
         const std::vector<featherdoc::style_refactor_rollback_entry>
             &rollback_entries,
         bool apply_changes);
-    [[nodiscard]] std::error_code ensure_even_and_odd_headers_enabled();
-    [[nodiscard]] std::optional<bool> inspect_even_and_odd_headers_enabled();
     [[nodiscard]] std::optional<bool> inspect_update_fields_on_open_enabled();
-    [[nodiscard]] pugi::xml_node
-    section_properties(std::size_t section_index) const;
-    [[nodiscard]] pugi::xml_node
-    ensure_section_properties(std::size_t section_index);
-    [[nodiscard]] bool
-    ensure_title_page_enabled(pugi::xml_node section_properties);
-    Paragraph &related_part_paragraphs_by_relationship_id(
-        std::string_view relationship_id,
-        std::vector<std::unique_ptr<xml_part_state>> &parts,
-        const char *part_root_name);
-    Paragraph &section_related_part_paragraphs(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind,
-        std::vector<std::unique_ptr<xml_part_state>> &parts,
-        const char *reference_name, const char *part_root_name);
-    [[nodiscard]] xml_part_state *section_related_part_state(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind,
-        std::vector<std::unique_ptr<xml_part_state>> &parts,
-        const char *reference_name);
-    Paragraph &ensure_section_related_part_paragraphs(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind,
-        std::vector<std::unique_ptr<xml_part_state>> &parts,
-        const char *part_root_name, const char *reference_name,
-        const char *relationship_type, const char *content_type);
-    Paragraph &assign_section_related_part_paragraphs(
-        std::size_t section_index, std::size_t part_index,
-        featherdoc::section_reference_kind reference_kind,
-        std::vector<std::unique_ptr<xml_part_state>> &parts,
-        const char *part_root_name, const char *reference_name);
-    [[nodiscard]] bool remove_section_related_part_reference(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind,
-        const char *reference_name);
-    [[nodiscard]] std::error_code ensure_removal_prerequisites_loaded();
-    void cleanup_first_page_section_markers();
-    [[nodiscard]] std::error_code cleanup_even_and_odd_headers_setting();
-    [[nodiscard]] bool
-    remove_related_part(std::size_t part_index,
-                        std::vector<std::unique_ptr<xml_part_state>> &parts,
-                        const char *reference_name);
-    [[nodiscard]] bool
-    move_related_part(std::size_t source_index, std::size_t target_index,
-                      std::vector<std::unique_ptr<xml_part_state>> &parts,
-                      const char *relationship_type);
-    [[nodiscard]] bool
-    copy_section_related_part_references(std::size_t source_section_index,
-                                         std::size_t target_section_index,
-                                         const char *reference_name);
-    Paragraph &ensure_related_part_paragraphs(
-        std::vector<std::unique_ptr<xml_part_state>> &parts,
-        const char *part_root_name, const char *reference_name,
-        const char *relationship_type, const char *content_type);
-    [[nodiscard]] xml_part_state *
-    find_related_part_state(std::string_view entry_name);
-    [[nodiscard]] const xml_part_state *
-    find_related_part_state(std::string_view entry_name) const;
+#include <featherdoc/document_sections_private_members.inc>
     [[nodiscard]] std::vector<featherdoc::hyperlink_summary>
     list_hyperlinks_in_part(pugi::xml_document &xml_document,
                             std::string_view entry_name) const;
@@ -192,12 +133,6 @@ class Document {
     Document();
     explicit Document(std::filesystem::path);
     [[nodiscard]] std::error_code create_empty();
-    [[nodiscard]] bool append_section(bool inherit_header_footer = true);
-    [[nodiscard]] bool insert_section(std::size_t section_index,
-                                      bool inherit_header_footer = true);
-    [[nodiscard]] bool remove_section(std::size_t section_index);
-    [[nodiscard]] bool move_section(std::size_t source_section_index,
-                                    std::size_t target_section_index);
     void set_path(std::filesystem::path);
     [[nodiscard]] const std::filesystem::path &path() const;
     [[nodiscard]] std::error_code open();
@@ -208,83 +143,7 @@ class Document {
     [[nodiscard]] std::error_code save_as(std::filesystem::path) const;
     [[nodiscard]] bool is_open() const;
     [[nodiscard]] const document_error_info &last_error() const noexcept;
-    [[nodiscard]] std::size_t section_count() const noexcept;
-    [[nodiscard]] std::size_t header_count() const noexcept;
-    [[nodiscard]] std::size_t footer_count() const noexcept;
-    [[nodiscard]] featherdoc::sections_inspection_summary inspect_sections();
-    [[nodiscard]] std::optional<featherdoc::section_inspection_summary>
-    inspect_section(std::size_t section_index);
-    [[nodiscard]] std::optional<section_page_setup>
-    get_section_page_setup(std::size_t section_index) const;
-    [[nodiscard]] bool set_section_page_setup(std::size_t section_index,
-                                              const section_page_setup &setup);
-    [[nodiscard]] TemplatePart body_template();
-    [[nodiscard]] TemplatePart header_template(std::size_t index = 0U);
-    [[nodiscard]] TemplatePart footer_template(std::size_t index = 0U);
-    [[nodiscard]] TemplatePart section_header_template(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    [[nodiscard]] TemplatePart section_footer_template(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    Paragraph &header_paragraphs(std::size_t index = 0U);
-    Paragraph &footer_paragraphs(std::size_t index = 0U);
-    Paragraph &section_header_paragraphs(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    Paragraph &section_footer_paragraphs(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    Paragraph &ensure_section_header_paragraphs(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    Paragraph &ensure_section_footer_paragraphs(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    Paragraph &assign_section_header_paragraphs(
-        std::size_t section_index, std::size_t header_index,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    Paragraph &assign_section_footer_paragraphs(
-        std::size_t section_index, std::size_t footer_index,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    [[nodiscard]] bool remove_section_header_reference(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    [[nodiscard]] bool remove_section_footer_reference(
-        std::size_t section_index,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    [[nodiscard]] bool remove_header_part(std::size_t index);
-    [[nodiscard]] bool remove_footer_part(std::size_t index);
-    [[nodiscard]] bool move_header_part(std::size_t source_index,
-                                        std::size_t target_index);
-    [[nodiscard]] bool move_footer_part(std::size_t source_index,
-                                        std::size_t target_index);
-    [[nodiscard]] bool
-    copy_section_header_references(std::size_t source_section_index,
-                                   std::size_t target_section_index);
-    [[nodiscard]] bool
-    copy_section_footer_references(std::size_t source_section_index,
-                                   std::size_t target_section_index);
-    [[nodiscard]] bool replace_section_header_text(
-        std::size_t section_index, std::string_view replacement_text,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    [[nodiscard]] bool replace_section_footer_text(
-        std::size_t section_index, std::string_view replacement_text,
-        featherdoc::section_reference_kind reference_kind =
-            featherdoc::section_reference_kind::default_reference);
-    Paragraph &ensure_header_paragraphs();
-    Paragraph &ensure_footer_paragraphs();
+#include <featherdoc/document_sections_members.inc>
 #include <featherdoc/document_reviews_fields_members.inc>
 #include <featherdoc/document_templates_members.inc>
 #include <featherdoc/document_styles_numbering_members.inc>
