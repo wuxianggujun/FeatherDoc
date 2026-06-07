@@ -1198,6 +1198,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_errors.cpp
         cli/featherdoc_cli_field_parse.cpp
         cli/featherdoc_cli_field_commands.cpp
+        cli/featherdoc_cli_formatting_commands.cpp
         cli/featherdoc_cli_bookmark_commands.cpp
         cli/featherdoc_cli_content_control_commands.cpp
         cli/featherdoc_cli_image_commands.cpp

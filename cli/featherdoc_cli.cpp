@@ -14,13 +14,9 @@
 #include "featherdoc_cli_content_control_commands.hpp"
 #include "featherdoc_cli_page_setup_commands.hpp"
 #include "featherdoc_cli_paragraph_inspect_commands.hpp"
-#include "featherdoc_cli_paragraph_numbering_commands.hpp"
-#include "featherdoc_cli_paragraph_run_commands.hpp"
 #include "featherdoc_cli_document_mutation_options_parse.hpp"
 #include "featherdoc_cli_document_content_commands.hpp"
 #include "featherdoc_cli_semantic_diff.hpp"
-#include "featherdoc_cli_run_style_properties_commands.hpp"
-#include "featherdoc_cli_style_ensure_commands.hpp"
 #include "featherdoc_cli_style_inspect_commands.hpp"
 #include "featherdoc_cli_table_cell_options_parse.hpp"
 #include "featherdoc_cli_table_commands.hpp"
@@ -55,6 +51,7 @@
 #include "featherdoc_cli_domain_parse.hpp"
 #include "featherdoc_cli_errors.hpp"
 #include "featherdoc_cli_field_commands.hpp"
+#include "featherdoc_cli_formatting_commands.hpp"
 #include "featherdoc_cli_image_commands.hpp"
 #include "featherdoc_cli_image_output.hpp"
 #include "featherdoc_cli_image_options_parse.hpp"
@@ -122,6 +119,7 @@ using featherdoc_cli::is_bookmark_command;
 using featherdoc_cli::is_content_control_command;
 using featherdoc_cli::is_document_content_command;
 using featherdoc_cli::is_field_command;
+using featherdoc_cli::is_formatting_command;
 using featherdoc_cli::is_image_command;
 using featherdoc_cli::is_numbering_catalog_command;
 using featherdoc_cli::is_numbering_inspect_command;
@@ -357,34 +355,7 @@ using featherdoc_cli::open_document;
 using featherdoc_cli::path_type;
 using featherdoc_cli::read_text_source;
 using featherdoc_cli::run_export_pdf_command;
-using featherdoc_cli::run_clear_paragraph_style_command;
-using featherdoc_cli::run_clear_paragraph_list_command;
-using featherdoc_cli::run_clear_default_run_properties_command;
-using featherdoc_cli::run_clear_paragraph_style_properties_command;
-using featherdoc_cli::run_clear_paragraph_style_numbering_command;
-using featherdoc_cli::run_clear_run_font_family_command;
-using featherdoc_cli::run_clear_run_language_command;
-using featherdoc_cli::run_clear_run_style_command;
-using featherdoc_cli::run_clear_style_run_properties_command;
-using featherdoc_cli::run_inspect_default_run_properties_command;
-using featherdoc_cli::run_inspect_paragraph_style_properties_command;
-using featherdoc_cli::run_inspect_style_run_properties_command;
-using featherdoc_cli::run_materialize_style_run_properties_command;
-using featherdoc_cli::run_rebase_character_style_based_on_command;
-using featherdoc_cli::run_rebase_paragraph_style_based_on_command;
-using featherdoc_cli::run_ensure_numbering_definition_command;
-using featherdoc_cli::run_ensure_style_linked_numbering_command;
-using featherdoc_cli::run_restart_paragraph_list_command;
-using featherdoc_cli::run_set_paragraph_style_command;
-using featherdoc_cli::run_set_default_run_properties_command;
-using featherdoc_cli::run_set_paragraph_list_command;
-using featherdoc_cli::run_set_paragraph_numbering_command;
-using featherdoc_cli::run_set_paragraph_style_properties_command;
-using featherdoc_cli::run_set_paragraph_style_numbering_command;
-using featherdoc_cli::run_set_run_font_family_command;
-using featherdoc_cli::run_set_run_language_command;
-using featherdoc_cli::run_set_run_style_command;
-using featherdoc_cli::run_set_style_run_properties_command;
+using featherdoc_cli::run_formatting_command;
 using featherdoc_cli::collect_table_row_summaries;
 using featherdoc_cli::table_row_inspection_summary;
 #if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
@@ -407,8 +378,6 @@ using featherdoc_cli::run_template_schema_command;
 using featherdoc_cli::run_template_table_command;
 using featherdoc_cli::save_document;
 using featherdoc_cli::run_section_part_command;
-using featherdoc_cli::run_ensure_character_style_command;
-using featherdoc_cli::run_ensure_paragraph_style_command;
 using featherdoc_cli::run_style_inspect_command;
 using featherdoc_cli::run_style_numbering_command;
 using featherdoc_cli::write_json_mutation_result;
@@ -506,126 +475,8 @@ int featherdoc_cli_main(int argc, char **argv) {
         return run_template_table_command(command, arguments);
     }
 
-    if (command == "set-paragraph-style") {
-        return run_set_paragraph_style_command(command, arguments);
-    }
-
-    if (command == "clear-paragraph-style") {
-        return run_clear_paragraph_style_command(command, arguments);
-    }
-
-    if (command == "set-run-style") {
-        return run_set_run_style_command(command, arguments);
-    }
-
-    if (command == "clear-run-style") {
-        return run_clear_run_style_command(command, arguments);
-    }
-
-    if (command == "set-run-font-family") {
-        return run_set_run_font_family_command(command, arguments);
-    }
-
-    if (command == "clear-run-font-family") {
-        return run_clear_run_font_family_command(command, arguments);
-    }
-
-    if (command == "set-run-language") {
-        return run_set_run_language_command(command, arguments);
-    }
-
-    if (command == "clear-run-language") {
-        return run_clear_run_language_command(command, arguments);
-    }
-
-    if (command == "inspect-default-run-properties") {
-        return run_inspect_default_run_properties_command(command, arguments);
-    }
-
-    if (command == "set-default-run-properties") {
-        return run_set_default_run_properties_command(command, arguments);
-    }
-
-    if (command == "clear-default-run-properties") {
-        return run_clear_default_run_properties_command(command, arguments);
-    }
-
-    if (command == "inspect-style-run-properties") {
-        return run_inspect_style_run_properties_command(command, arguments);
-    }
-
-    if (command == "inspect-paragraph-style-properties") {
-        return run_inspect_paragraph_style_properties_command(command,
-                                                              arguments);
-    }
-
-    if (command == "materialize-style-run-properties") {
-        return run_materialize_style_run_properties_command(command, arguments);
-    }
-
-    if (command == "rebase-character-style-based-on") {
-        return run_rebase_character_style_based_on_command(command, arguments);
-    }
-
-    if (command == "rebase-paragraph-style-based-on") {
-        return run_rebase_paragraph_style_based_on_command(command, arguments);
-    }
-
-    if (command == "set-paragraph-style-properties") {
-        return run_set_paragraph_style_properties_command(command, arguments);
-    }
-
-    if (command == "clear-paragraph-style-properties") {
-        return run_clear_paragraph_style_properties_command(command,
-                                                            arguments);
-    }
-
-    if (command == "set-style-run-properties") {
-        return run_set_style_run_properties_command(command, arguments);
-    }
-
-    if (command == "clear-style-run-properties") {
-        return run_clear_style_run_properties_command(command, arguments);
-    }
-
-    if (command == "ensure-style-linked-numbering") {
-        return run_ensure_style_linked_numbering_command(command, arguments);
-    }
-
-    if (command == "set-paragraph-style-numbering") {
-        return run_set_paragraph_style_numbering_command(command, arguments);
-    }
-
-    if (command == "clear-paragraph-style-numbering") {
-        return run_clear_paragraph_style_numbering_command(command, arguments);
-    }
-
-    if (command == "ensure-numbering-definition") {
-        return run_ensure_numbering_definition_command(command, arguments);
-    }
-
-    if (command == "set-paragraph-numbering") {
-        return run_set_paragraph_numbering_command(command, arguments);
-    }
-
-    if (command == "set-paragraph-list") {
-        return run_set_paragraph_list_command(command, arguments);
-    }
-
-    if (command == "restart-paragraph-list") {
-        return run_restart_paragraph_list_command(command, arguments);
-    }
-
-    if (command == "clear-paragraph-list") {
-        return run_clear_paragraph_list_command(command, arguments);
-    }
-
-    if (command == "ensure-paragraph-style") {
-        return run_ensure_paragraph_style_command(command, arguments);
-    }
-
-    if (command == "ensure-character-style") {
-        return run_ensure_character_style_command(command, arguments);
+    if (is_formatting_command(command)) {
+        return run_formatting_command(command, arguments);
     }
 
     if (is_page_setup_command(command)) {
