@@ -89,6 +89,71 @@ auto resolve_body_table(featherdoc::Document &doc, std::size_t table_index,
     return true;
 }
 
+auto resolve_body_table_row(featherdoc::Document &doc, std::size_t table_index,
+                            std::size_t row_index, featherdoc::TableRow &row,
+                            std::string_view command, bool json_output,
+                            std::string_view stage) -> bool {
+    featherdoc::Table table;
+    if (!resolve_body_table(doc, table_index, table, command, json_output,
+                            stage)) {
+        return false;
+    }
+
+    row = table.rows();
+    for (std::size_t current_index = 0;
+         current_index < row_index && row.has_next(); ++current_index) {
+        row.next();
+    }
+
+    if (!row.has_next()) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail =
+            "row index '" + std::to_string(row_index) +
+            "' is out of range for table index '" + std::to_string(table_index) +
+            "'";
+        error_info.entry_name = "word/document.xml";
+        return report_operation_failure(command, stage,
+                                        "row index is out of range", error_info,
+                                        json_output);
+    }
+
+    return true;
+}
+
+auto resolve_body_table_cell(featherdoc::Document &doc, std::size_t table_index,
+                             std::size_t row_index, std::size_t cell_index,
+                             featherdoc::TableCell &cell,
+                             std::string_view command, bool json_output)
+    -> bool {
+    featherdoc::TableRow row;
+    if (!resolve_body_table_row(doc, table_index, row_index, row, command,
+                                json_output)) {
+        return false;
+    }
+
+    cell = row.cells();
+    for (std::size_t current_index = 0;
+         current_index < cell_index && cell.has_next(); ++current_index) {
+        cell.next();
+    }
+
+    if (cell.has_next()) {
+        return true;
+    }
+
+    featherdoc::document_error_info error_info{};
+    error_info.code = std::make_error_code(std::errc::invalid_argument);
+    error_info.detail =
+        "cell index '" + std::to_string(cell_index) +
+        "' is out of range for row index '" + std::to_string(row_index) +
+        "' in table index '" + std::to_string(table_index) + "'";
+    error_info.entry_name = "word/document.xml";
+    return report_operation_failure(command, "mutate",
+                                    "cell index is out of range", error_info,
+                                    json_output);
+}
+
 auto read_text_source(const cli_text_source_options &options, std::string &text,
                       std::string &error_message) -> bool {
     return read_text_source_value(options.text, options.text_file,

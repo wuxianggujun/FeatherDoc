@@ -33,6 +33,16 @@ auto resolve_body_table(featherdoc::Document &doc, std::size_t table_index,
                         bool json_output,
                         std::string_view stage = "mutate") -> bool;
 
+auto resolve_body_table_row(featherdoc::Document &doc, std::size_t table_index,
+                            std::size_t row_index, featherdoc::TableRow &row,
+                            std::string_view command, bool json_output,
+                            std::string_view stage = "mutate") -> bool;
+
+auto resolve_body_table_cell(featherdoc::Document &doc, std::size_t table_index,
+                             std::size_t row_index, std::size_t cell_index,
+                             featherdoc::TableCell &cell,
+                             std::string_view command, bool json_output) -> bool;
+
 [[nodiscard]] auto read_text_source(const cli_text_source_options &options,
                                     std::string &text,
                                     std::string &error_message) -> bool;
