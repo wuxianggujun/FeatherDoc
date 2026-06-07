@@ -34,12 +34,7 @@
 #include "featherdoc_cli_table_structure_commands.hpp"
 #include "featherdoc_cli_table_style_commands.hpp"
 #include "featherdoc_cli_table_text_commands.hpp"
-#include "featherdoc_cli_template_table_inspect_commands.hpp"
-#include "featherdoc_cli_template_table_column_commands.hpp"
-#include "featherdoc_cli_template_table_json_patch_commands.hpp"
-#include "featherdoc_cli_template_table_merge_commands.hpp"
-#include "featherdoc_cli_template_table_row_commands.hpp"
-#include "featherdoc_cli_template_table_text_commands.hpp"
+#include "featherdoc_cli_template_table_commands.hpp"
 #include "featherdoc_cli_pdf_commands.hpp"
 #include "featherdoc_cli_table_position_options_parse.hpp"
 #include "featherdoc_cli_table_position_commands.hpp"
@@ -379,7 +374,6 @@ using featherdoc_cli::path_type;
 using featherdoc_cli::read_text_source;
 using featherdoc_cli::run_export_pdf_command;
 using featherdoc_cli::run_append_table_row_command;
-using featherdoc_cli::run_append_template_table_row_command;
 using featherdoc_cli::run_clear_paragraph_style_command;
 using featherdoc_cli::run_clear_paragraph_list_command;
 using featherdoc_cli::run_clear_default_run_properties_command;
@@ -405,18 +399,8 @@ using featherdoc_cli::run_insert_table_column_after_command;
 using featherdoc_cli::run_insert_table_column_before_command;
 using featherdoc_cli::run_insert_table_row_after_command;
 using featherdoc_cli::run_insert_table_row_before_command;
-using featherdoc_cli::run_inspect_template_table_cells_command;
-using featherdoc_cli::run_inspect_template_table_rows_command;
-using featherdoc_cli::run_inspect_template_tables_command;
 using featherdoc_cli::run_set_table_cell_text_command;
 using featherdoc_cli::run_merge_table_cells_command;
-using featherdoc_cli::run_insert_template_table_column_after_command;
-using featherdoc_cli::run_insert_template_table_column_before_command;
-using featherdoc_cli::run_insert_template_table_row_after_command;
-using featherdoc_cli::run_insert_template_table_row_before_command;
-using featherdoc_cli::run_merge_template_table_cells_command;
-using featherdoc_cli::run_remove_template_table_column_command;
-using featherdoc_cli::run_remove_template_table_row_command;
 using featherdoc_cli::run_clear_table_row_cant_split_command;
 using featherdoc_cli::run_clear_table_row_height_command;
 using featherdoc_cli::run_clear_table_row_repeat_header_command;
@@ -436,19 +420,14 @@ using featherdoc_cli::run_set_style_run_properties_command;
 using featherdoc_cli::run_set_table_row_cant_split_command;
 using featherdoc_cli::run_set_table_row_height_command;
 using featherdoc_cli::run_set_table_row_repeat_header_command;
-using featherdoc_cli::run_set_template_table_cell_block_texts_command;
-using featherdoc_cli::run_set_template_table_cell_text_command;
-using featherdoc_cli::run_set_template_table_from_json_command;
-using featherdoc_cli::run_set_template_table_row_texts_command;
-using featherdoc_cli::run_set_template_tables_from_json_command;
 using featherdoc_cli::run_unmerge_table_cells_command;
-using featherdoc_cli::run_unmerge_template_table_cells_command;
 using featherdoc_cli::collect_table_row_summaries;
 using featherdoc_cli::table_row_inspection_summary;
 #if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
 using featherdoc_cli::run_import_pdf_command;
 #endif
 using featherdoc_cli::is_section_part_command;
+using featherdoc_cli::is_template_table_command;
 using featherdoc_cli::run_image_command;
 using featherdoc_cli::run_bookmark_command;
 using featherdoc_cli::run_content_control_command;
@@ -461,6 +440,7 @@ using featherdoc_cli::run_paragraph_inspect_command;
 using featherdoc_cli::run_review_command;
 using featherdoc_cli::run_semantic_diff_command;
 using featherdoc_cli::run_template_schema_command;
+using featherdoc_cli::run_template_table_command;
 using featherdoc_cli::save_document;
 using featherdoc_cli::run_section_part_command;
 using featherdoc_cli::run_ensure_character_style_command;
@@ -654,73 +634,8 @@ int featherdoc_cli_main(int argc, char **argv) {
         return run_clear_table_row_repeat_header_command(command, arguments);
     }
 
-    if (command == "inspect-template-tables") {
-        return run_inspect_template_tables_command(command, arguments);
-    }
-
-    if (command == "inspect-template-table-rows") {
-        return run_inspect_template_table_rows_command(command, arguments);
-    }
-
-    if (command == "inspect-template-table-cells") {
-        return run_inspect_template_table_cells_command(command, arguments);
-    }
-
-    if (command == "set-template-table-cell-text") {
-        return run_set_template_table_cell_text_command(command, arguments);
-    }
-
-    if (command == "set-template-table-row-texts") {
-        return run_set_template_table_row_texts_command(command, arguments);
-    }
-
-    if (command == "set-template-table-cell-block-texts") {
-        return run_set_template_table_cell_block_texts_command(command,
-                                                               arguments);
-    }
-
-    if (command == "set-template-table-from-json") {
-        return run_set_template_table_from_json_command(command, arguments);
-    }
-
-    if (command == "set-template-tables-from-json") {
-        return run_set_template_tables_from_json_command(command, arguments);
-    }
-
-    if (command == "insert-template-table-column-before") {
-        return run_insert_template_table_column_before_command(command, arguments);
-    }
-
-    if (command == "insert-template-table-column-after") {
-        return run_insert_template_table_column_after_command(command, arguments);
-    }
-
-    if (command == "remove-template-table-column") {
-        return run_remove_template_table_column_command(command, arguments);
-    }
-
-    if (command == "append-template-table-row") {
-        return run_append_template_table_row_command(command, arguments);
-    }
-
-    if (command == "insert-template-table-row-before") {
-        return run_insert_template_table_row_before_command(command, arguments);
-    }
-
-    if (command == "insert-template-table-row-after") {
-        return run_insert_template_table_row_after_command(command, arguments);
-    }
-
-    if (command == "remove-template-table-row") {
-        return run_remove_template_table_row_command(command, arguments);
-    }
-
-    if (command == "merge-template-table-cells") {
-        return run_merge_template_table_cells_command(command, arguments);
-    }
-
-    if (command == "unmerge-template-table-cells") {
-        return run_unmerge_template_table_cells_command(command, arguments);
+    if (is_template_table_command(command)) {
+        return run_template_table_command(command, arguments);
     }
 
     if (command == "set-paragraph-style") {
