@@ -42,6 +42,7 @@ set(HEADERS
 set(FEATHERDOC_MODULE_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/core.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_body_content_members.inc"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_core.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_image_members.inc"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_image_private_members.inc"
