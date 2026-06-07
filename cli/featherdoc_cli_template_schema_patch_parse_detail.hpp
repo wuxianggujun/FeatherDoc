@@ -33,9 +33,4 @@ void rewrite_template_schema_patch_error(std::string &error_message);
     std::vector<template_schema_patch_target_selector> &selectors,
     std::string &error_message) -> bool;
 
-[[nodiscard]] auto parse_template_schema_patch_remove_slots_array(
-    std::string_view content, std::size_t &index,
-    std::vector<template_schema_patch_remove_slot> &slots,
-    std::string &error_message) -> bool;
-
 } // namespace featherdoc_cli::detail

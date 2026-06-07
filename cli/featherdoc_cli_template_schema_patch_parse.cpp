@@ -1,6 +1,7 @@
 ﻿#include "featherdoc_cli_template_schema_patch_parse.hpp"
 
 #include "featherdoc_cli_template_schema_patch_parse_detail.hpp"
+#include "featherdoc_cli_template_schema_patch_parse_remove_slot.hpp"
 #include "featherdoc_cli_template_schema_patch_parse_slot_mutation.hpp"
 
 #include "featherdoc_cli_domain_parse.hpp"
