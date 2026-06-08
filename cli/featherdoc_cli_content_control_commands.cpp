@@ -3,6 +3,8 @@
 #include "featherdoc_cli_bookmark_text_options_parse.hpp"
 #include "featherdoc_cli_command_support.hpp"
 #include "featherdoc_cli_content_control_inspect_commands.hpp"
+#include "featherdoc_cli_content_control_output.hpp"
+#include "featherdoc_cli_content_control_table_commands.hpp"
 #include "featherdoc_cli_errors.hpp"
 #include "featherdoc_cli_image_output.hpp"
 #include "featherdoc_cli_json.hpp"
@@ -83,38 +85,6 @@ void print_content_control_text_result(
     std::cout << "text: " << options.text << '\n';
 }
 
-void write_json_content_control_selector(
-    std::ostream &stream, const std::optional<std::string> &tag,
-    const std::optional<std::string> &alias) {
-    stream << ",\"selector\":{\"kind\":";
-    write_json_string(stream, tag.has_value() ? "tag" : "alias");
-    stream << ",\"value\":";
-    write_json_string(stream, tag.has_value() ? *tag : *alias);
-    stream << '}';
-}
-
-void write_json_content_control_part_result(
-    std::ostream &stream, const selected_template_part &selected,
-    const std::optional<std::string> &tag,
-    const std::optional<std::string> &alias) {
-    stream << ",\"part\":";
-    write_json_string(stream, validation_part_name(selected.family));
-    if (selected.part_index.has_value()) {
-        stream << ",\"part_index\":" << *selected.part_index;
-    }
-    if (selected.section_index.has_value()) {
-        stream << ",\"section\":" << *selected.section_index;
-    }
-    if (selected.reference_kind.has_value()) {
-        stream << ",\"kind\":";
-        write_json_string(stream,
-                          featherdoc::to_xml_reference_type(*selected.reference_kind));
-    }
-    stream << ",\"entry_name\":";
-    write_json_string(stream, std::string(selected.part.entry_name()));
-    write_json_content_control_selector(stream, tag, alias);
-}
-
 void write_json_content_control_paragraphs_result(
     std::ostream &stream, const selected_template_part &selected,
     const replace_content_control_paragraphs_options &options,
@@ -125,31 +95,6 @@ void write_json_content_control_paragraphs_result(
            << ",\"paragraph_count\":" << paragraphs.size()
            << ",\"paragraphs\":";
     write_json_strings(stream, paragraphs);
-}
-
-void write_json_content_control_table_result(
-    std::ostream &stream, const selected_template_part &selected,
-    const content_control_table_replacement_options &options,
-    const std::vector<std::vector<std::string>> &rows, std::size_t replaced) {
-    write_json_content_control_part_result(stream, selected, options.tag,
-                                           options.alias);
-    stream << ",\"replaced\":" << replaced << ",\"row_count\":"
-           << rows.size() << ",\"rows\":[";
-    for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
-        if (row_index != 0U) {
-            stream << ',';
-        }
-        stream << '[';
-        for (std::size_t cell_index = 0; cell_index < rows[row_index].size();
-             ++cell_index) {
-            if (cell_index != 0U) {
-                stream << ',';
-            }
-            write_json_string(stream, rows[row_index][cell_index]);
-        }
-        stream << ']';
-    }
-    stream << ']';
 }
 
 void write_json_content_control_image_result(
@@ -316,36 +261,6 @@ void print_custom_xml_sync_result(
     }
 }
 
-void print_content_control_common_result(
-    const selected_template_part &selected, const std::optional<std::string> &tag,
-    const std::optional<std::string> &alias,
-    const std::optional<path_type> &output_path, std::size_t replaced) {
-    const auto entry_name = std::string(selected.part.entry_name());
-    std::cout << "part: " << validation_part_name(selected.family) << '\n';
-    if (selected.part_index.has_value()) {
-        std::cout << "part_index: " << *selected.part_index << '\n';
-    }
-    if (selected.section_index.has_value()) {
-        std::cout << "section: " << *selected.section_index << '\n';
-    }
-    if (selected.reference_kind.has_value()) {
-        std::cout << "kind: "
-                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
-                  << '\n';
-    }
-    std::cout << "entry_name: " << entry_name << '\n';
-    std::cout << "selector_kind: " << (tag.has_value() ? "tag" : "alias")
-              << '\n';
-    std::cout << "selector_value: " << (tag.has_value() ? *tag : *alias)
-              << '\n';
-    if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
-    } else {
-        std::cout << "output_path: in_place\n";
-    }
-    std::cout << "replaced: " << replaced << '\n';
-}
-
 void print_content_control_paragraphs_result(
     const selected_template_part &selected,
     const replace_content_control_paragraphs_options &options,
@@ -355,24 +270,6 @@ void print_content_control_paragraphs_result(
     std::cout << "paragraph_count: " << paragraphs.size() << '\n';
     for (std::size_t index = 0; index < paragraphs.size(); ++index) {
         std::cout << "paragraph[" << index << "]: " << paragraphs[index] << '\n';
-    }
-}
-
-void print_content_control_table_result(
-    const selected_template_part &selected,
-    const content_control_table_replacement_options &options,
-    const std::vector<std::vector<std::string>> &rows, std::size_t replaced) {
-    print_content_control_common_result(selected, options.tag, options.alias,
-                                        options.output_path, replaced);
-    std::cout << "row_count: " << rows.size() << '\n';
-    for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
-        std::cout << "row[" << row_index << "]:";
-        for (std::size_t cell_index = 0; cell_index < rows[row_index].size();
-             ++cell_index) {
-            std::cout << (cell_index == 0U ? " " : " | ")
-                      << rows[row_index][cell_index];
-        }
-        std::cout << '\n';
     }
 }
 
@@ -497,31 +394,6 @@ auto resolve_text_sources(const std::vector<cli_text_source_options> &sources,
             return false;
         }
         texts.push_back(std::move(text));
-    }
-
-    return true;
-}
-
-auto resolve_bookmark_table_row_sources(
-    const content_control_table_replacement_options &options,
-    std::vector<std::vector<std::string>> &rows, std::string &error_message)
-    -> bool {
-    rows.clear();
-    rows.reserve(options.row_sources.size());
-
-    for (const auto &row_sources : options.row_sources) {
-        std::vector<std::string> row;
-        row.reserve(row_sources.size());
-
-        for (const auto &source : row_sources) {
-            std::string text;
-            if (!read_text_source(source, text, error_message)) {
-                return false;
-            }
-            row.push_back(std::move(text));
-        }
-
-        rows.push_back(std::move(row));
     }
 
     return true;
@@ -815,90 +687,7 @@ auto run_content_control_command(
 
     if (command == "replace-content-control-table" ||
         command == "replace-content-control-table-rows") {
-        const auto json_output = has_json_flag(arguments);
-        if (arguments.size() < 2U) {
-            print_parse_error(command,
-                              std::string(command) + " expects an input path",
-                              json_output);
-            return 2;
-        }
-
-        content_control_table_replacement_options options;
-        std::string error_message;
-        const bool allow_empty_rows =
-            command == "replace-content-control-table-rows";
-        if (!parse_content_control_table_replacement_options(
-                arguments, 2U, options, allow_empty_rows, error_message)) {
-            print_parse_error(command, error_message, json_output);
-            return 2;
-        }
-
-        std::vector<std::vector<std::string>> rows;
-        if (!resolve_bookmark_table_row_sources(options, rows, error_message)) {
-            if (options.json_output) {
-                write_json_command_error(std::cerr, command, "input",
-                                         error_message);
-            } else {
-                std::cerr << error_message << '\n';
-            }
-            return 1;
-        }
-
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                           options.json_output)) {
-            return 1;
-        }
-
-        selected_template_part selected;
-        if (!select_template_part(doc, options.part, options.part_index,
-                                  options.section_index, options.reference_kind,
-                                  selected, error_message)) {
-            report_operation_failure(command, "mutate", error_message,
-                                     doc.last_error(), options.json_output);
-            return 1;
-        }
-
-        const auto replaced =
-            command == "replace-content-control-table"
-                ? (options.tag.has_value()
-                       ? selected.part.replace_content_control_with_table_by_tag(
-                             *options.tag, rows)
-                       : selected.part.replace_content_control_with_table_by_alias(
-                             *options.alias, rows))
-                : (options.tag.has_value()
-                       ? selected.part.replace_content_control_with_table_rows_by_tag(
-                             *options.tag, rows)
-                       : selected.part.replace_content_control_with_table_rows_by_alias(
-                             *options.alias, rows));
-        if (replaced == 0U) {
-            if (const auto &error_info = doc.last_error(); error_info.code) {
-                report_document_error(command, "mutate", error_info,
-                                      options.json_output);
-            } else {
-                report_operation_failure(command, "mutate",
-                                         "matching content control not found",
-                                         doc.last_error(), options.json_output);
-            }
-            return 1;
-        }
-
-        if (!save_document(doc, options.output_path, command, options.json_output)) {
-            return 1;
-        }
-
-        if (options.json_output) {
-            write_json_mutation_result(
-                command, doc, options.output_path,
-                [&selected, &options, &rows,
-                 replaced](std::ostream &stream) {
-                    write_json_content_control_table_result(
-                        stream, selected, options, rows, replaced);
-                });
-        } else {
-            print_content_control_table_result(selected, options, rows, replaced);
-        }
-
-        return 0;
+        return run_replace_content_control_table_command(command, arguments, doc);
     }
 
     if (command == "replace-content-control-image") {
