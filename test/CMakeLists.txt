@@ -276,6 +276,17 @@ if(MSVC)
 endif()
 
 featherdoc_add_cpp_test(
+    direction_unit_tests
+    direction_unit
+    direction_unit_tests.cpp
+)
+featherdoc_set_test_labels(direction_unit core heavy direction styles)
+
+if(MSVC)
+    target_compile_options(direction_unit_tests PRIVATE /utf-8)
+endif()
+
+featherdoc_add_cpp_test(
     public_header_entrypoint_tests
     public_header_entrypoint
     public_header_entrypoint_tests.cpp
