@@ -1259,6 +1259,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_semantic_diff_options_parse.cpp
         cli/featherdoc_cli_style_ensure_commands.cpp
         cli/featherdoc_cli_style_ensure_options_parse.cpp
+        cli/featherdoc_cli_style_ensure_table_region_parse.cpp
         cli/featherdoc_cli_style_inspect_commands.cpp
         cli/featherdoc_cli_table_cell_options_parse.cpp
         cli/featherdoc_cli_table_cell_style_commands.cpp
