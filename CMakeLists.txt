@@ -1308,6 +1308,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_style_refactor_plan.cpp
         cli/featherdoc_cli_style_refactor_plan_parse.cpp
         cli/featherdoc_cli_style_refactor_options_parse.cpp
+        cli/featherdoc_cli_style_refactor_restore_output.cpp
         cli/featherdoc_cli_style_refactor_rollback_parse.cpp
         cli/featherdoc_cli_style_numbering_commands.cpp
         cli/featherdoc_cli_style_numbering_audit.cpp
