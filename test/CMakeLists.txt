@@ -353,6 +353,17 @@ if(MSVC)
 endif()
 
 featherdoc_add_cpp_test(
+    table_layout_unit_tests
+    table_layout_unit
+    table_layout_unit_tests.cpp
+)
+featherdoc_set_test_labels(table_layout_unit core heavy tables layout)
+
+if(MSVC)
+    target_compile_options(table_layout_unit_tests PRIVATE /utf-8)
+endif()
+
+featherdoc_add_cpp_test(
     public_header_entrypoint_tests
     public_header_entrypoint
     public_header_entrypoint_tests.cpp
