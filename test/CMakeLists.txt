@@ -342,6 +342,17 @@ if(MSVC)
 endif()
 
 featherdoc_add_cpp_test(
+    table_structure_unit_tests
+    table_structure_unit
+    table_structure_unit_tests.cpp
+)
+featherdoc_set_test_labels(table_structure_unit core heavy tables structure)
+
+if(MSVC)
+    target_compile_options(table_structure_unit_tests PRIVATE /utf-8)
+endif()
+
+featherdoc_add_cpp_test(
     table_style_unit_tests
     table_style_unit
     table_style_unit_tests.cpp
