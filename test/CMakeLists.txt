@@ -6719,6 +6719,14 @@ if(TARGET featherdoc_cli)
     featherdoc_set_test_labels(cli_review cli review heavy)
 
     featherdoc_add_cli_cpp_test(
+        cli_review_revision_tests
+        cli_review_revision
+        cli_review_revision_tests.cpp
+    )
+    featherdoc_set_test_labels(
+        cli_review_revision cli review revision heavy)
+
+    featherdoc_add_cli_cpp_test(
         cli_review_mutation_plan_tests
         cli_review_mutation_plan
         cli_review_mutation_plan_tests.cpp
