@@ -6755,6 +6755,14 @@ if(TARGET featherdoc_cli)
     featherdoc_set_test_labels(
         cli_template_schema_patch_build cli template schema patch heavy)
 
+    featherdoc_add_cli_cpp_test(
+        cli_template_schema_patch_tests
+        cli_template_schema_patch
+        cli_template_schema_patch_tests.cpp
+    )
+    featherdoc_set_test_labels(
+        cli_template_schema_patch cli template schema patch heavy)
+
     if(NOT FEATHERDOC_BUILD_PDF OR NOT TARGET FeatherDocPdf)
         featherdoc_add_cli_cpp_test(
             cli_pdf_disabled_tests
