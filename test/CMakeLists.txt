@@ -6589,6 +6589,14 @@ if(TARGET featherdoc_cli)
     featherdoc_set_test_labels(cli_paragraph_run cli paragraph run styles heavy)
 
     featherdoc_add_cli_cpp_test(
+        cli_run_properties_tests
+        cli_run_properties
+        cli_run_properties_tests.cpp
+    )
+    featherdoc_set_test_labels(
+        cli_run_properties cli run styles heavy)
+
+    featherdoc_add_cli_cpp_test(
         cli_page_setup_tests
         cli_page_setup
         cli_page_setup_tests.cpp
