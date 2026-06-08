@@ -6672,6 +6672,14 @@ if(TARGET featherdoc_cli)
     featherdoc_set_test_labels(cli_table cli table heavy)
 
     featherdoc_add_cli_cpp_test(
+        cli_table_position_tests
+        cli_table_position
+        cli_table_position_tests.cpp
+    )
+    featherdoc_set_test_labels(
+        cli_table_position cli table position heavy)
+
+    featherdoc_add_cli_cpp_test(
         cli_table_cell_content_tests
         cli_table_cell_content
         cli_table_cell_content_tests.cpp
