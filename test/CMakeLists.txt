@@ -342,6 +342,17 @@ if(MSVC)
 endif()
 
 featherdoc_add_cpp_test(
+    content_controls_unit_tests
+    content_controls_unit
+    content_controls_unit_tests.cpp
+)
+featherdoc_set_test_labels(content_controls_unit core heavy templates content-controls)
+
+if(MSVC)
+    target_compile_options(content_controls_unit_tests PRIVATE /utf-8)
+endif()
+
+featherdoc_add_cpp_test(
     section_inspection_unit_tests
     section_inspection_unit
     section_inspection_unit_tests.cpp
