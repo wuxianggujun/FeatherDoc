@@ -1306,6 +1306,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_table_position_plan_parse.cpp
         cli/featherdoc_cli_review_commands.cpp
         cli/featherdoc_cli_review_mutation_plan.cpp
+        cli/featherdoc_cli_review_mutation_plan_commands.cpp
         cli/featherdoc_cli_review_output.cpp
         cli/featherdoc_cli_template_schema_convert.cpp
         cli/featherdoc_cli_template_schema_export.cpp
