@@ -1,0 +1,433 @@
+#include "featherdoc_cli_template_schema_patch_parse_slot_mutation.hpp"
+
+#include "featherdoc_cli_domain_parse.hpp"
+#include "featherdoc_cli_json_parse.hpp"
+
+#include <cstddef>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+namespace featherdoc_cli {
+namespace detail {
+namespace {
+
+auto parse_template_schema_patch_rename_slot(
+    std::string_view content, std::size_t &index,
+    template_schema_patch_rename_slot &operation, std::string &error_message)
+    -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "expected rename-slot object", error_message);
+    }
+
+    std::optional<std::string> part_value;
+    std::optional<std::size_t> index_value;
+    std::optional<std::size_t> part_index_value;
+    std::optional<std::size_t> section_value;
+    std::optional<featherdoc::section_reference_kind> kind_value;
+    std::optional<std::size_t> resolved_from_section_value;
+    std::optional<bool> linked_to_previous_value;
+    std::optional<std::string> bookmark_value;
+    std::optional<std::string> bookmark_name_value;
+    std::optional<std::string> content_control_tag_value;
+    std::optional<std::string> content_control_alias_value;
+    std::optional<std::string> new_bookmark_value;
+    std::optional<std::string> new_bookmark_name_value;
+    std::optional<std::string> new_content_control_tag_value;
+    std::optional<std::string> new_content_control_alias_value;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "expected ':' after object member",
+                                               error_message);
+            }
+
+            ++index;
+            if (member_name == "part") {
+                if (part_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'part' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                part_value.emplace();
+                if (!parse_json_patch_string(content, index, *part_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "index") {
+                if (index_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index, "index",
+                                                  error_message)) {
+                    return false;
+                }
+                index_value = parsed_index;
+            } else if (member_name == "part_index") {
+                if (part_index_value.has_value()) {
+                    error_message = "JSON schema patch member 'part_index' must "
+                                    "not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "part_index", error_message)) {
+                    return false;
+                }
+                part_index_value = parsed_index;
+            } else if (member_name == "section") {
+                if (section_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "section", error_message)) {
+                    return false;
+                }
+                section_value = parsed_index;
+            } else if (member_name == "kind") {
+                if (kind_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'kind' must not be duplicated";
+                    return false;
+                }
+                featherdoc::section_reference_kind parsed_kind{};
+                if (!parse_json_patch_reference_kind_value(content, index,
+                                                           parsed_kind,
+                                                           error_message)) {
+                    return false;
+                }
+                kind_value = parsed_kind;
+            } else if (member_name == "linked_to_previous") {
+                if (linked_to_previous_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'linked_to_previous' must not be duplicated";
+                    return false;
+                }
+                bool parsed_value = false;
+                if (!parse_json_patch_bool_member_value(content, index, parsed_value,
+                                                        "linked_to_previous",
+                                                        error_message)) {
+                    return false;
+                }
+                linked_to_previous_value = parsed_value;
+            } else if (member_name == "resolved_from_section") {
+                if (resolved_from_section_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'resolved_from_section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_value = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_value,
+                                                  "resolved_from_section",
+                                                  error_message)) {
+                    return false;
+                }
+                resolved_from_section_value = parsed_value;
+            } else if (member_name == "bookmark") {
+                if (bookmark_value.has_value()) {
+                    error_message = "JSON schema patch member 'bookmark' must not "
+                                    "be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                bookmark_value.emplace();
+                if (!parse_json_patch_string(content, index, *bookmark_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "bookmark_name") {
+                if (bookmark_name_value.has_value()) {
+                    error_message = "JSON schema patch member 'bookmark_name' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                bookmark_name_value.emplace();
+                if (!parse_json_patch_string(content, index, *bookmark_name_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "content_control_tag") {
+                if (content_control_tag_value.has_value()) {
+                    error_message = "JSON schema patch member 'content_control_tag' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                content_control_tag_value.emplace();
+                if (!parse_json_patch_string(content, index,
+                                             *content_control_tag_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "content_control_alias") {
+                if (content_control_alias_value.has_value()) {
+                    error_message = "JSON schema patch member 'content_control_alias' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                content_control_alias_value.emplace();
+                if (!parse_json_patch_string(content, index,
+                                             *content_control_alias_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "new_bookmark") {
+                if (new_bookmark_value.has_value()) {
+                    error_message = "JSON schema patch member 'new_bookmark' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                new_bookmark_value.emplace();
+                if (!parse_json_patch_string(content, index, *new_bookmark_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "new_bookmark_name") {
+                if (new_bookmark_name_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'new_bookmark_name' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                new_bookmark_name_value.emplace();
+                if (!parse_json_patch_string(content, index,
+                                             *new_bookmark_name_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "new_content_control_tag") {
+                if (new_content_control_tag_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'new_content_control_tag' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                new_content_control_tag_value.emplace();
+                if (!parse_json_patch_string(content, index,
+                                             *new_content_control_tag_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "new_content_control_alias") {
+                if (new_content_control_alias_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'new_content_control_alias' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                new_content_control_alias_value.emplace();
+                if (!parse_json_patch_string(content, index,
+                                             *new_content_control_alias_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "entry_name") {
+                std::string ignored;
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(content, index, ignored, error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "unknown rename-slot member",
+                                               error_message);
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_input_error("JSON schema patch file", index,
+                                           "expected ',' or '}' after object member",
+                                           error_message);
+        }
+    }
+
+    operation = {};
+    if (!finalize_template_schema_patch_selector(
+            part_value, index_value, part_index_value, section_value, kind_value,
+            resolved_from_section_value, linked_to_previous_value, operation.target,
+            error_message)) {
+        return false;
+    }
+
+    std::optional<std::string> resolved_bookmark_name;
+    if (!resolve_json_patch_string_member(bookmark_value, bookmark_name_value,
+                                          "bookmark", "bookmark_name",
+                                          resolved_bookmark_name, error_message)) {
+        return false;
+    }
+    std::size_t selector_count = 0U;
+    selector_count += resolved_bookmark_name.has_value() ? 1U : 0U;
+    selector_count += content_control_tag_value.has_value() ? 1U : 0U;
+    selector_count += content_control_alias_value.has_value() ? 1U : 0U;
+    if (selector_count != 1U) {
+        error_message =
+            "JSON schema patch rename-slot object must contain exactly one of "
+            "'bookmark', 'bookmark_name', 'content_control_tag', or "
+            "'content_control_alias'";
+        return false;
+    }
+
+    std::optional<std::string> resolved_new_bookmark_name;
+    if (!resolve_json_patch_string_member(new_bookmark_value,
+                                          new_bookmark_name_value, "new_bookmark",
+                                          "new_bookmark_name",
+                                          resolved_new_bookmark_name,
+                                          error_message)) {
+        return false;
+    }
+
+    auto source = featherdoc::template_slot_source_kind::bookmark;
+    std::string resolved_slot_name;
+    if (resolved_bookmark_name.has_value()) {
+        resolved_slot_name = *resolved_bookmark_name;
+    } else if (content_control_tag_value.has_value()) {
+        source = featherdoc::template_slot_source_kind::content_control_tag;
+        resolved_slot_name = *content_control_tag_value;
+    } else {
+        source = featherdoc::template_slot_source_kind::content_control_alias;
+        resolved_slot_name = *content_control_alias_value;
+    }
+    if (resolved_slot_name.empty()) {
+        error_message = "JSON schema patch rename-slot selector must not be empty";
+        return false;
+    }
+
+    std::size_t new_selector_count = 0U;
+    new_selector_count += resolved_new_bookmark_name.has_value() ? 1U : 0U;
+    new_selector_count += new_content_control_tag_value.has_value() ? 1U : 0U;
+    new_selector_count += new_content_control_alias_value.has_value() ? 1U : 0U;
+    if (new_selector_count != 1U) {
+        if (source == featherdoc::template_slot_source_kind::bookmark &&
+            new_selector_count == 0U) {
+            error_message =
+                "JSON schema patch rename-slot object must contain "
+                "'new_bookmark' or 'new_bookmark_name'";
+        } else {
+            error_message =
+                "JSON schema patch rename-slot object must contain exactly one "
+                "matching new selector";
+        }
+        return false;
+    }
+
+    auto new_source = featherdoc::template_slot_source_kind::bookmark;
+    std::string resolved_new_slot_name;
+    if (resolved_new_bookmark_name.has_value()) {
+        resolved_new_slot_name = *resolved_new_bookmark_name;
+    } else if (new_content_control_tag_value.has_value()) {
+        new_source = featherdoc::template_slot_source_kind::content_control_tag;
+        resolved_new_slot_name = *new_content_control_tag_value;
+    } else {
+        new_source = featherdoc::template_slot_source_kind::content_control_alias;
+        resolved_new_slot_name = *new_content_control_alias_value;
+    }
+    if (new_source != source) {
+        error_message =
+            "JSON schema patch rename-slot cannot change slot source; use "
+            "remove_slots and upsert_targets instead";
+        return false;
+    }
+    if (resolved_new_slot_name.empty()) {
+        error_message =
+            "JSON schema patch rename-slot new selector must not be empty";
+        return false;
+    }
+
+    operation.bookmark_name = std::move(resolved_slot_name);
+    operation.new_bookmark_name = std::move(resolved_new_slot_name);
+    operation.source = source;
+    return true;
+}
+
+} // namespace
+
+auto parse_template_schema_patch_rename_slots_array(
+    std::string_view content, std::size_t &index,
+    std::vector<template_schema_patch_rename_slot> &operations,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "expected rename_slots array",
+                                       error_message);
+    }
+
+    operations.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        template_schema_patch_rename_slot operation;
+        if (!parse_template_schema_patch_rename_slot(content, index, operation,
+                                                     error_message)) {
+            return false;
+        }
+        operations.push_back(std::move(operation));
+
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size()) {
+            break;
+        }
+        if (content[index] == ',') {
+            ++index;
+            skip_json_patch_whitespace(content, index);
+            continue;
+        }
+        if (content[index] == ']') {
+            ++index;
+            return true;
+        }
+        return report_json_input_error(
+            "JSON schema patch file", index,
+            "expected ',' or ']' after rename-slot entry", error_message);
+    }
+
+    return report_json_input_error("JSON schema patch file", index,
+                                   "unterminated rename_slots array",
+                                   error_message);
+}
+
+} // namespace detail
+} // namespace featherdoc_cli

@@ -1344,6 +1344,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_patch_ops.cpp
         cli/featherdoc_cli_template_schema_patch_parse.cpp
         cli/featherdoc_cli_template_schema_patch_parse_detail.cpp
+        cli/featherdoc_cli_template_schema_patch_parse_rename_slot.cpp
         cli/featherdoc_cli_template_schema_patch_parse_remove_slot.cpp
         cli/featherdoc_cli_template_schema_patch_parse_slot_mutation.cpp
         cli/featherdoc_cli_template_schema_parse.cpp
