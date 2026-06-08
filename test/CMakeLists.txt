@@ -353,6 +353,17 @@ if(MSVC)
 endif()
 
 featherdoc_add_cpp_test(
+    review_revisions_unit_tests
+    review_revisions_unit
+    review_revisions_unit_tests.cpp
+)
+featherdoc_set_test_labels(review_revisions_unit core heavy reviews revisions)
+
+if(MSVC)
+    target_compile_options(review_revisions_unit_tests PRIVATE /utf-8)
+endif()
+
+featherdoc_add_cpp_test(
     section_inspection_unit_tests
     section_inspection_unit
     section_inspection_unit_tests.cpp
