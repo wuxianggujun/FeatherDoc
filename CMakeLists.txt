@@ -1211,6 +1211,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_formatting_commands.cpp
         cli/featherdoc_cli_bookmark_commands.cpp
         cli/featherdoc_cli_content_control_commands.cpp
+        cli/featherdoc_cli_content_control_options_parse.cpp
         cli/featherdoc_cli_image_commands.cpp
         cli/featherdoc_cli_inspect_content_options_parse.cpp
         cli/featherdoc_cli_image_output.cpp
