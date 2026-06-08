@@ -320,6 +320,17 @@ if(MSVC)
 endif()
 
 featherdoc_add_cpp_test(
+    template_table_handle_unit_tests
+    template_table_handle_unit
+    template_table_handle_unit_tests.cpp
+)
+featherdoc_set_test_labels(template_table_handle_unit core heavy templates tables)
+
+if(MSVC)
+    target_compile_options(template_table_handle_unit_tests PRIVATE /utf-8)
+endif()
+
+featherdoc_add_cpp_test(
     public_header_entrypoint_tests
     public_header_entrypoint
     public_header_entrypoint_tests.cpp
