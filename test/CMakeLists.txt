@@ -221,6 +221,17 @@ if(MSVC)
 endif()
 
 featherdoc_add_cpp_test(
+    document_core_unit_tests
+    document_core_unit
+    document_core_unit_tests.cpp
+)
+featherdoc_set_test_labels(document_core_unit core heavy document)
+
+if(MSVC)
+    target_compile_options(document_core_unit_tests PRIVATE /utf-8)
+endif()
+
+featherdoc_add_cpp_test(
     semantic_diff_unit_tests
     semantic_diff_unit
     semantic_diff_unit_tests.cpp
