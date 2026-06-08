@@ -6624,6 +6624,14 @@ if(TARGET featherdoc_cli)
     featherdoc_set_test_labels(cli_table cli table heavy)
 
     featherdoc_add_cli_cpp_test(
+        cli_table_row_structure_tests
+        cli_table_row_structure
+        cli_table_row_structure_tests.cpp
+    )
+    featherdoc_set_test_labels(
+        cli_table_row_structure cli table rows structure heavy)
+
+    featherdoc_add_cli_cpp_test(
         cli_review_tests
         cli_review
         cli_review_tests.cpp
