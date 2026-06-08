@@ -6632,6 +6632,14 @@ if(TARGET featherdoc_cli)
     featherdoc_set_test_labels(cli_table cli table heavy)
 
     featherdoc_add_cli_cpp_test(
+        cli_table_cell_content_tests
+        cli_table_cell_content
+        cli_table_cell_content_tests.cpp
+    )
+    featherdoc_set_test_labels(
+        cli_table_cell_content cli table cells content merge heavy)
+
+    featherdoc_add_cli_cpp_test(
         cli_table_border_margin_tests
         cli_table_border_margin
         cli_table_border_margin_tests.cpp
