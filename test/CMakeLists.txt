@@ -1357,6 +1357,7 @@ featherdoc_add_cpp_test(
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_errors.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_usage.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_usage_table.cpp
 )
 target_include_directories(cli_errors_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
 featherdoc_set_test_labels(cli_errors cli smoke cli_smoke)
@@ -1366,6 +1367,7 @@ featherdoc_add_cpp_test(
     cli_usage
     cli_usage_tests.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_usage.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_usage_table.cpp
 )
 target_include_directories(cli_usage_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
 if(TARGET FeatherDocPdfImport)
