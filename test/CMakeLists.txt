@@ -6743,6 +6743,14 @@ if(TARGET featherdoc_cli)
         cli_bookmark_content cli bookmark content_controls images heavy)
 
     featherdoc_add_cli_cpp_test(
+        cli_content_control_tests
+        cli_content_control_mutation
+        cli_content_control_tests.cpp
+    )
+    featherdoc_set_test_labels(
+        cli_content_control_mutation cli content_controls heavy)
+
+    featherdoc_add_cli_cpp_test(
         cli_field_tests
         cli_fields
         cli_field_tests.cpp
