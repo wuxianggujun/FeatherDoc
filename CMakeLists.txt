@@ -1239,6 +1239,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_page_setup_commands.cpp
         cli/featherdoc_cli_page_setup_parse.cpp
         cli/featherdoc_cli_paragraph_inspect_commands.cpp
+        cli/featherdoc_cli_template_paragraph_inspect_commands.cpp
         cli/featherdoc_cli_paragraph_numbering_commands.cpp
         cli/featherdoc_cli_paragraph_list_options_parse.cpp
         cli/featherdoc_cli_paragraph_run_commands.cpp
