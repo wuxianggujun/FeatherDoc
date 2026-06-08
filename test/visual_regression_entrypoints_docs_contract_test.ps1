@@ -40,6 +40,7 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $visualValidationDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\visual_validation_zh.rst"
 $cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
 $basicTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\basic_tests.cpp"
+$templatePartContentTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\template_part_content_unit_tests.cpp"
 $cliTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\cli_tests.cpp"
 $cliSemanticDiffTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\cli_semantic_diff_tests.cpp"
 
@@ -70,7 +71,7 @@ $visualEntrypoints = @(
             "make_omml_nary",
             "make_omml_delimiter"
         )
-        testText = $basicTests
+        testText = $basicTests + "`n" + $templatePartContentTests
         testMarkers = @(
             "document and template part can inspect append replace and remove OMML",
             "OMML builder helpers create appendable formulas"
@@ -138,7 +139,8 @@ $visualEntrypoints = @(
             "append_sequence_field",
             "enable_update_fields_on_open"
         )
-        testText = $basicTests + "`n" + $cliTests + "`n" + $cliSemanticDiffTests
+        testText = $basicTests + "`n" + $templatePartContentTests + "`n" +
+            $cliTests + "`n" + $cliSemanticDiffTests
         testMarkers = @(
             "template part generic fields validate options and indexes",
             "cli semantic-diff reports TOC REF and SEQ field changes"
@@ -166,7 +168,7 @@ $visualEntrypoints = @(
             "Current page",
             "Total pages"
         )
-        testText = $basicTests
+        testText = $basicTests + "`n" + $templatePartContentTests
         testMarkers = @(
             "header and footer template parts can append page number fields",
             "template part page number fields report unavailable parts"
