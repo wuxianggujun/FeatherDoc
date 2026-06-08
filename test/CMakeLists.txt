@@ -309,6 +309,17 @@ if(MSVC)
 endif()
 
 featherdoc_add_cpp_test(
+    inspection_unit_tests
+    inspection_unit
+    inspection_unit_tests.cpp
+)
+featherdoc_set_test_labels(inspection_unit core heavy inspection)
+
+if(MSVC)
+    target_compile_options(inspection_unit_tests PRIVATE /utf-8)
+endif()
+
+featherdoc_add_cpp_test(
     public_header_entrypoint_tests
     public_header_entrypoint
     public_header_entrypoint_tests.cpp
