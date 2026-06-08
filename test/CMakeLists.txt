@@ -331,6 +331,17 @@ if(MSVC)
 endif()
 
 featherdoc_add_cpp_test(
+    template_schema_unit_tests
+    template_schema_unit
+    template_schema_unit_tests.cpp
+)
+featherdoc_set_test_labels(template_schema_unit core heavy templates schema)
+
+if(MSVC)
+    target_compile_options(template_schema_unit_tests PRIVATE /utf-8)
+endif()
+
+featherdoc_add_cpp_test(
     section_inspection_unit_tests
     section_inspection_unit
     section_inspection_unit_tests.cpp
