@@ -514,6 +514,8 @@ std::error_code Document::ensure_styles_part_attached() {
 
 #include "document_styles_property_write_methods.inc"
 
+#include "document_styles_property_clear_methods.inc"
+
 #include "document_styles_applied_style_methods.inc"
 
 #include "document_styles_inspection_methods.inc"
