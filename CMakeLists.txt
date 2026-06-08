@@ -1327,6 +1327,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_export.cpp
         cli/featherdoc_cli_template_schema_ops.cpp
         cli/featherdoc_cli_template_schema_commands.cpp
+        cli/featherdoc_cli_template_schema_diff_output.cpp
         cli/featherdoc_cli_template_schema_options_parse.cpp
         cli/featherdoc_cli_template_schema_output.cpp
         cli/featherdoc_cli_template_schema_patch_ops.cpp
@@ -1335,6 +1336,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_patch_parse_remove_slot.cpp
         cli/featherdoc_cli_template_schema_patch_parse_slot_mutation.cpp
         cli/featherdoc_cli_template_schema_parse.cpp
+        cli/featherdoc_cli_template_schema_target_output.cpp
         cli/featherdoc_cli_template_schema_validation_output.cpp
         cli/featherdoc_cli_template_slot_parse.cpp
         cli/featherdoc_cli_text.cpp
