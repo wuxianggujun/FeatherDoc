@@ -4,6 +4,16 @@
 
 namespace featherdoc_cli {
 
+auto section_part_name(section_part_family family) -> const char * {
+    return family == section_part_family::header ? "header" : "footer";
+}
+
+auto part_family_for_command(std::string_view command) -> section_part_family {
+    return command.find("header") != std::string_view::npos
+               ? section_part_family::header
+               : section_part_family::footer;
+}
+
 auto parse_section_part_command_options(
     const std::vector<std::string_view> &arguments, std::size_t start_index,
     bool allow_no_inherit, section_part_command_options &options,

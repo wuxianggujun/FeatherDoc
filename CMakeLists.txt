@@ -1249,6 +1249,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_run_style_properties_commands.cpp
         cli/featherdoc_cli_section_management_commands.cpp
         cli/featherdoc_cli_section_part_commands.cpp
+        cli/featherdoc_cli_section_part_reference_commands.cpp
         cli/featherdoc_cli_section_part_support.cpp
         cli/featherdoc_cli_semantic_diff.cpp
         cli/featherdoc_cli_semantic_diff_options_parse.cpp
