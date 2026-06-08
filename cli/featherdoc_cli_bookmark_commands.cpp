@@ -1,5 +1,6 @@
 #include "featherdoc_cli_bookmark_commands.hpp"
 
+#include "featherdoc_cli_bookmark_support.hpp"
 #include "featherdoc_cli_bookmark_text_options_parse.hpp"
 #include "featherdoc_cli_command_support.hpp"
 #include "featherdoc_cli_domain_names.hpp"
@@ -7,8 +8,6 @@
 #include "featherdoc_cli_image_output.hpp"
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_parse.hpp"
-#include "featherdoc_cli_template_part_selection.hpp"
-#include "featherdoc_cli_validation_part.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -23,60 +22,6 @@
 
 namespace featherdoc_cli {
 namespace {
-
-void write_json_bookmark_summary(std::ostream &stream,
-                                 const featherdoc::bookmark_summary &bookmark) {
-    stream << "{\"bookmark_name\":";
-    write_json_string(stream, bookmark.bookmark_name);
-    stream << ",\"occurrence_count\":" << bookmark.occurrence_count
-           << ",\"kind\":";
-    write_json_string(stream, bookmark_kind_name(bookmark.kind));
-    stream << ",\"is_duplicate\":" << json_bool(bookmark.is_duplicate()) << '}';
-}
-
-void print_bookmark_summary(std::ostream &stream,
-                            const featherdoc::bookmark_summary &bookmark) {
-    stream << "name=" << bookmark.bookmark_name
-           << " occurrences=" << bookmark.occurrence_count
-           << " kind=" << bookmark_kind_name(bookmark.kind)
-           << " duplicate=" << yes_no(bookmark.is_duplicate());
-}
-
-void write_json_selected_bookmark_part(std::ostream &stream,
-                                       const selected_template_part &selected) {
-    stream << ",\"part\":";
-    write_json_string(stream, validation_part_name(selected.family));
-    if (selected.part_index.has_value()) {
-        stream << ",\"part_index\":" << *selected.part_index;
-    }
-    if (selected.section_index.has_value()) {
-        stream << ",\"section\":" << *selected.section_index;
-    }
-    if (selected.reference_kind.has_value()) {
-        stream << ",\"kind\":";
-        write_json_string(
-            stream, featherdoc::to_xml_reference_type(*selected.reference_kind));
-    }
-    stream << ",\"entry_name\":";
-    write_json_string(stream, std::string(selected.part.entry_name()));
-}
-
-void print_selected_bookmark_part(const selected_template_part &selected) {
-    const auto entry_name = std::string(selected.part.entry_name());
-    std::cout << "part: " << validation_part_name(selected.family) << '\n';
-    if (selected.part_index.has_value()) {
-        std::cout << "part_index: " << *selected.part_index << '\n';
-    }
-    if (selected.section_index.has_value()) {
-        std::cout << "section: " << *selected.section_index << '\n';
-    }
-    if (selected.reference_kind.has_value()) {
-        std::cout << "kind: "
-                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
-                  << '\n';
-    }
-    std::cout << "entry_name: " << entry_name << '\n';
-}
 
 void inspect_bookmarks(const selected_template_part &selected,
                        const std::vector<featherdoc::bookmark_summary> &bookmarks,
@@ -103,7 +48,7 @@ void inspect_bookmarks(const selected_template_part &selected,
             if (index != 0U) {
                 std::cout << ',';
             }
-            write_json_bookmark_summary(std::cout, bookmarks[index]);
+            write_json_bookmark_support_summary(std::cout, bookmarks[index]);
         }
         std::cout << "]}\n";
         return;
@@ -113,7 +58,7 @@ void inspect_bookmarks(const selected_template_part &selected,
     std::cout << "bookmarks: " << bookmarks.size() << '\n';
     for (std::size_t index = 0; index < bookmarks.size(); ++index) {
         std::cout << "bookmark[" << index << "]: ";
-        print_bookmark_summary(std::cout, bookmarks[index]);
+        print_bookmark_support_summary(std::cout, bookmarks[index]);
         std::cout << '\n';
     }
 }
@@ -139,7 +84,7 @@ void inspect_bookmark(const selected_template_part &selected,
         std::cout << ",\"entry_name\":";
         write_json_string(std::cout, std::string(selected.part.entry_name()));
         std::cout << ",\"bookmark\":";
-        write_json_bookmark_summary(std::cout, bookmark);
+        write_json_bookmark_support_summary(std::cout, bookmark);
         std::cout << "}\n";
         return;
     }
@@ -255,7 +200,7 @@ void write_json_bookmark_image_result(
     const std::vector<featherdoc::drawing_image_info> &inserted_images) {
     write_json_selected_bookmark_part(stream, selected);
     stream << ",\"bookmark\":";
-    write_json_bookmark_summary(stream, bookmark);
+    write_json_bookmark_support_summary(stream, bookmark);
     stream << ",\"image_path\":";
     write_json_string(stream, image_path.string());
     stream << ",\"replaced\":" << inserted_images.size() << ",\"images\":[";
@@ -266,15 +211,6 @@ void write_json_bookmark_image_result(
         write_json_drawing_image_summary(stream, inserted_images[index]);
     }
     stream << ']';
-}
-
-void print_bookmark_identity(const selected_template_part &selected,
-                             const featherdoc::bookmark_summary &bookmark) {
-    print_selected_bookmark_part(selected);
-    std::cout << "bookmark_name: " << bookmark.bookmark_name << '\n';
-    std::cout << "bookmark_kind: " << bookmark_kind_name(bookmark.kind) << '\n';
-    std::cout << "bookmark_occurrence_count: " << bookmark.occurrence_count << '\n';
-    std::cout << "bookmark_duplicate: " << yes_no(bookmark.is_duplicate()) << '\n';
 }
 
 void print_bookmark_image_result(
@@ -303,7 +239,7 @@ void write_json_bookmark_paragraphs_result(
     const std::vector<std::string> &paragraphs, std::size_t replaced) {
     write_json_selected_bookmark_part(stream, selected);
     stream << ",\"bookmark\":";
-    write_json_bookmark_summary(stream, bookmark);
+    write_json_bookmark_support_summary(stream, bookmark);
     stream << ",\"replaced\":" << replaced
            << ",\"paragraph_count\":" << paragraphs.size()
            << ",\"paragraphs\":[";
@@ -340,7 +276,7 @@ void write_json_bookmark_table_result(
     const std::vector<std::vector<std::string>> &rows, std::size_t replaced) {
     write_json_selected_bookmark_part(stream, selected);
     stream << ",\"bookmark\":";
-    write_json_bookmark_summary(stream, bookmark);
+    write_json_bookmark_support_summary(stream, bookmark);
     stream << ",\"replaced\":" << replaced << ",\"row_count\":" << rows.size()
            << ",\"rows\":[";
     for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
@@ -391,7 +327,7 @@ void write_json_bookmark_block_removal_result(
     const featherdoc::bookmark_summary &bookmark, std::size_t removed) {
     write_json_selected_bookmark_part(stream, selected);
     stream << ",\"bookmark\":";
-    write_json_bookmark_summary(stream, bookmark);
+    write_json_bookmark_support_summary(stream, bookmark);
     stream << ",\"removed\":" << removed;
 }
 
@@ -414,7 +350,7 @@ void write_json_bookmark_text_result(
     std::size_t replaced) {
     write_json_selected_bookmark_part(stream, selected);
     stream << ",\"bookmark\":";
-    write_json_bookmark_summary(stream, bookmark);
+    write_json_bookmark_support_summary(stream, bookmark);
     stream << ",\"replaced\":" << replaced << ",\"text\":";
     write_json_string(stream, text);
 }
@@ -507,7 +443,7 @@ void write_json_bookmark_block_visibility_result(
     std::size_t changed) {
     write_json_selected_bookmark_part(stream, selected);
     stream << ",\"bookmark\":";
-    write_json_bookmark_summary(stream, bookmark);
+    write_json_bookmark_support_summary(stream, bookmark);
     stream << ",\"visible\":" << json_bool(visible)
            << ",\"changed\":" << changed;
 }
@@ -592,33 +528,6 @@ void print_applied_bookmark_block_visibility_result(
         }
         std::cout << '\n';
     }
-}
-
-auto select_bookmark_part(std::string_view command, featherdoc::Document &doc,
-                          validation_part_family part,
-                          const std::optional<std::size_t> &part_index,
-                          const std::optional<std::size_t> &section_index,
-                          featherdoc::section_reference_kind reference_kind,
-                          bool json_output, selected_template_part &selected,
-                          std::string &error_message) -> bool {
-    if (select_template_part(doc, part, part_index, section_index,
-                             reference_kind, selected, error_message)) {
-        return true;
-    }
-
-    report_operation_failure(command, "mutate", error_message, doc.last_error(),
-                             json_output);
-    return false;
-}
-
-auto report_bookmark_input_error(std::string_view command, bool json_output,
-                                 const std::string &error_message) -> int {
-    if (json_output) {
-        write_json_command_error(std::cerr, command, "input", error_message);
-    } else {
-        std::cerr << error_message << '\n';
-    }
-    return 1;
 }
 
 auto run_inspect_bookmarks_command(
