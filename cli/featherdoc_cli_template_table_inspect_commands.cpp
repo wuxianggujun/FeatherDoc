@@ -9,6 +9,7 @@
 #include "featherdoc_cli_template_inspect_options_parse.hpp"
 #include "featherdoc_cli_template_part_selection.hpp"
 #include "featherdoc_cli_template_table_options_parse.hpp"
+#include "featherdoc_cli_table_position_output.hpp"
 #include "featherdoc_cli_template_table_resolve.hpp"
 #include "featherdoc_cli_text.hpp"
 
@@ -25,115 +26,6 @@
 
 namespace featherdoc_cli {
 namespace {
-
-void write_json_optional_table_overlap(
-    std::ostream &stream,
-    const std::optional<featherdoc::table_overlap> &overlap) {
-    if (overlap.has_value()) {
-        write_json_string(stream, table_overlap_name(*overlap));
-    } else {
-        stream << "null";
-    }
-}
-
-void write_json_optional_table_position_horizontal_spec(
-    std::ostream &stream,
-    const std::optional<featherdoc::table_position_horizontal_spec> &spec) {
-    if (spec.has_value()) {
-        write_json_string(stream, table_position_horizontal_spec_name(*spec));
-    } else {
-        stream << "null";
-    }
-}
-
-void write_json_optional_table_position_vertical_spec(
-    std::ostream &stream,
-    const std::optional<featherdoc::table_position_vertical_spec> &spec) {
-    if (spec.has_value()) {
-        write_json_string(stream, table_position_vertical_spec_name(*spec));
-    } else {
-        stream << "null";
-    }
-}
-
-void write_json_table_position(std::ostream &stream,
-                               const featherdoc::table_position &position) {
-    stream << "{\"horizontal_reference\":";
-    write_json_string(
-        stream,
-        table_position_horizontal_reference_name(position.horizontal_reference));
-    stream << ",\"horizontal_offset_twips\":"
-           << position.horizontal_offset_twips << ",\"horizontal_spec\":";
-    write_json_optional_table_position_horizontal_spec(stream,
-                                                       position.horizontal_spec);
-    stream << ",\"vertical_reference\":";
-    write_json_string(stream,
-                      table_position_vertical_reference_name(
-                          position.vertical_reference));
-    stream << ",\"vertical_offset_twips\":" << position.vertical_offset_twips
-           << ",\"vertical_spec\":";
-    write_json_optional_table_position_vertical_spec(stream, position.vertical_spec);
-    stream << ",\"left_from_text_twips\":";
-    write_json_optional_u32_value(stream, position.left_from_text_twips);
-    stream << ",\"right_from_text_twips\":";
-    write_json_optional_u32_value(stream, position.right_from_text_twips);
-    stream << ",\"top_from_text_twips\":";
-    write_json_optional_u32_value(stream, position.top_from_text_twips);
-    stream << ",\"bottom_from_text_twips\":";
-    write_json_optional_u32_value(stream, position.bottom_from_text_twips);
-    stream << ",\"overlap\":";
-    write_json_optional_table_overlap(stream, position.overlap);
-    stream << '}';
-}
-
-void write_json_optional_table_position(
-    std::ostream &stream,
-    const std::optional<featherdoc::table_position> &position) {
-    if (position.has_value()) {
-        write_json_table_position(stream, *position);
-    } else {
-        stream << "null";
-    }
-}
-
-void write_table_position_text(
-    std::ostream &stream,
-    const std::optional<featherdoc::table_position> &position) {
-    if (!position.has_value()) {
-        stream << "none";
-        return;
-    }
-
-    stream << table_position_horizontal_reference_name(
-                  position->horizontal_reference)
-           << ':' << position->horizontal_offset_twips;
-    if (position->horizontal_spec.has_value()) {
-        stream << ':' << table_position_horizontal_spec_name(
-                              *position->horizontal_spec);
-    }
-    stream << ','
-           << table_position_vertical_reference_name(position->vertical_reference)
-           << ':' << position->vertical_offset_twips;
-    if (position->vertical_spec.has_value()) {
-        stream << ':' << table_position_vertical_spec_name(*position->vertical_spec);
-    }
-    if (position->left_from_text_twips.has_value() ||
-        position->right_from_text_twips.has_value() ||
-        position->top_from_text_twips.has_value() ||
-        position->bottom_from_text_twips.has_value()) {
-        stream << " wrap=";
-        write_json_optional_u32_value(stream, position->left_from_text_twips);
-        stream << '/';
-        write_json_optional_u32_value(stream, position->right_from_text_twips);
-        stream << '/';
-        write_json_optional_u32_value(stream, position->top_from_text_twips);
-        stream << '/';
-        write_json_optional_u32_value(stream, position->bottom_from_text_twips);
-    }
-    if (position->overlap.has_value()) {
-        stream << " overlap=" << table_overlap_name(*position->overlap);
-    }
-}
 
 void write_json_border_summary(
     std::ostream &stream, const featherdoc::border_inspection_summary &border) {
