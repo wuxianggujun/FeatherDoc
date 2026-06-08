@@ -5,7 +5,9 @@
 #include "featherdoc_cli_inspect_style_options_parse.hpp"
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_parse.hpp"
+#include "featherdoc_cli_section_management_commands.hpp"
 #include "featherdoc_cli_section_options_parse.hpp"
+#include "featherdoc_cli_section_part_support.hpp"
 #include "featherdoc_cli_text.hpp"
 
 #include <pugixml.hpp>
@@ -13,7 +15,6 @@
 #include <cstddef>
 #include <cstdlib>
 #include <iostream>
-#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -33,12 +34,6 @@ enum class zip_entry_read_status {
     missing,
     read_failed,
     ok,
-};
-
-struct command_options {
-    bool inherit_header_footer = true;
-    std::optional<path_type> output_path;
-    bool json_output = false;
 };
 
 struct inspected_part_reference {
@@ -112,43 +107,6 @@ struct inspected_part_entry {
         lines.push_back(collect_paragraph_text(paragraph));
     }
     return lines;
-}
-
-[[nodiscard]] auto parse_options(
-    const std::vector<std::string_view> &arguments, std::size_t start_index,
-    bool allow_no_inherit, command_options &options,
-    std::string &error_message) -> bool {
-    for (std::size_t index = start_index; index < arguments.size(); ++index) {
-        const auto argument = arguments[index];
-        if (allow_no_inherit && argument == "--no-inherit") {
-            options.inherit_header_footer = false;
-            continue;
-        }
-
-        if (argument == "--output") {
-            if (options.output_path.has_value()) {
-                error_message = "duplicate --output option";
-                return false;
-            }
-            if (index + 1 >= arguments.size()) {
-                error_message = "missing path after --output";
-                return false;
-            }
-
-            options.output_path = path_type(std::string(arguments[index + 1]));
-            ++index;
-            continue;
-        }
-        if (argument == "--json") {
-            options.json_output = true;
-            continue;
-        }
-
-        error_message = "unknown option: " + std::string(argument);
-        return false;
-    }
-
-    return true;
 }
 
 [[nodiscard]] auto read_zip_entry_text(zip_t *archive,
@@ -708,236 +666,6 @@ void inspect_related_parts(const std::vector<inspected_part_entry> &parts,
     return 0;
 }
 
-[[nodiscard]] auto run_insert_section_command(
-    std::string_view command, const std::vector<std::string_view> &arguments,
-    featherdoc::Document &doc) -> int {
-    const auto json_output = has_json_flag(arguments);
-    if (arguments.size() < 3U) {
-        print_parse_error(command,
-                          "insert-section expects an input path and a section index",
-                          json_output);
-        return 2;
-    }
-
-    std::size_t section_index = 0;
-    if (!parse_index(arguments[2], section_index)) {
-        print_parse_error(command,
-                          "invalid section index: " + std::string(arguments[2]),
-                          json_output);
-        return 2;
-    }
-
-    command_options options;
-    std::string error_message;
-    if (!parse_options(arguments, 3U, true, options, error_message)) {
-        print_parse_error(command, error_message, json_output);
-        return 2;
-    }
-
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                       options.json_output)) {
-        return 1;
-    }
-
-    if (!doc.insert_section(section_index, options.inherit_header_footer)) {
-        report_document_error(command, "mutate", doc.last_error(),
-                              options.json_output);
-        return 1;
-    }
-
-    if (!save_document(doc, options.output_path, command, options.json_output)) {
-        return 1;
-    }
-
-    if (options.json_output) {
-        const auto inserted_section = section_index + 1U;
-        write_json_mutation_result(
-            command, doc, options.output_path,
-            [inserted_section, &options](std::ostream &stream) {
-                stream << ",\"section\":" << inserted_section
-                       << ",\"inherit_header_footer\":"
-                       << json_bool(options.inherit_header_footer);
-            });
-    }
-
-    return 0;
-}
-
-[[nodiscard]] auto run_remove_section_command(
-    std::string_view command, const std::vector<std::string_view> &arguments,
-    featherdoc::Document &doc) -> int {
-    const auto json_output = has_json_flag(arguments);
-    if (arguments.size() < 3U) {
-        print_parse_error(command,
-                          "remove-section expects an input path and a section index",
-                          json_output);
-        return 2;
-    }
-
-    std::size_t section_index = 0;
-    if (!parse_index(arguments[2], section_index)) {
-        print_parse_error(command,
-                          "invalid section index: " + std::string(arguments[2]),
-                          json_output);
-        return 2;
-    }
-
-    command_options options;
-    std::string error_message;
-    if (!parse_options(arguments, 3U, false, options, error_message)) {
-        print_parse_error(command, error_message, json_output);
-        return 2;
-    }
-
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                       options.json_output)) {
-        return 1;
-    }
-
-    if (!doc.remove_section(section_index)) {
-        report_document_error(command, "mutate", doc.last_error(),
-                              options.json_output);
-        return 1;
-    }
-
-    if (!save_document(doc, options.output_path, command, options.json_output)) {
-        return 1;
-    }
-
-    if (options.json_output) {
-        write_json_mutation_result(command, doc, options.output_path,
-                                   [section_index](std::ostream &stream) {
-                                       stream << ",\"section\":"
-                                              << section_index;
-                                   });
-    }
-
-    return 0;
-}
-
-[[nodiscard]] auto run_move_section_command(
-    std::string_view command, const std::vector<std::string_view> &arguments,
-    featherdoc::Document &doc) -> int {
-    const auto json_output = has_json_flag(arguments);
-    if (arguments.size() < 4U) {
-        print_parse_error(command,
-                          "move-section expects an input path, a source index, "
-                          "and a target index",
-                          json_output);
-        return 2;
-    }
-
-    std::size_t source_index = 0;
-    std::size_t target_index = 0;
-    if (!parse_index(arguments[2], source_index)) {
-        print_parse_error(command,
-                          "invalid source index: " + std::string(arguments[2]),
-                          json_output);
-        return 2;
-    }
-    if (!parse_index(arguments[3], target_index)) {
-        print_parse_error(command,
-                          "invalid target index: " + std::string(arguments[3]),
-                          json_output);
-        return 2;
-    }
-
-    command_options options;
-    std::string error_message;
-    if (!parse_options(arguments, 4U, false, options, error_message)) {
-        print_parse_error(command, error_message, json_output);
-        return 2;
-    }
-
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                       options.json_output)) {
-        return 1;
-    }
-
-    if (!doc.move_section(source_index, target_index)) {
-        report_document_error(command, "mutate", doc.last_error(),
-                              options.json_output);
-        return 1;
-    }
-
-    if (!save_document(doc, options.output_path, command, options.json_output)) {
-        return 1;
-    }
-
-    if (options.json_output) {
-        write_json_mutation_result(
-            command, doc, options.output_path,
-            [source_index, target_index](std::ostream &stream) {
-                stream << ",\"source\":" << source_index
-                       << ",\"target\":" << target_index;
-            });
-    }
-
-    return 0;
-}
-
-[[nodiscard]] auto run_copy_section_layout_command(
-    std::string_view command, const std::vector<std::string_view> &arguments,
-    featherdoc::Document &doc) -> int {
-    const auto json_output = has_json_flag(arguments);
-    if (arguments.size() < 4U) {
-        print_parse_error(command,
-                          "copy-section-layout expects an input path, a source "
-                          "index, and a target index",
-                          json_output);
-        return 2;
-    }
-
-    std::size_t source_index = 0;
-    std::size_t target_index = 0;
-    if (!parse_index(arguments[2], source_index)) {
-        print_parse_error(command,
-                          "invalid source index: " + std::string(arguments[2]),
-                          json_output);
-        return 2;
-    }
-    if (!parse_index(arguments[3], target_index)) {
-        print_parse_error(command,
-                          "invalid target index: " + std::string(arguments[3]),
-                          json_output);
-        return 2;
-    }
-
-    command_options options;
-    std::string error_message;
-    if (!parse_options(arguments, 4U, false, options, error_message)) {
-        print_parse_error(command, error_message, json_output);
-        return 2;
-    }
-
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
-                       options.json_output)) {
-        return 1;
-    }
-
-    if (!doc.copy_section_header_references(source_index, target_index) ||
-        !doc.copy_section_footer_references(source_index, target_index)) {
-        report_document_error(command, "mutate", doc.last_error(),
-                              options.json_output);
-        return 1;
-    }
-
-    if (!save_document(doc, options.output_path, command, options.json_output)) {
-        return 1;
-    }
-
-    if (options.json_output) {
-        write_json_mutation_result(
-            command, doc, options.output_path,
-            [source_index, target_index](std::ostream &stream) {
-                stream << ",\"source\":" << source_index
-                       << ",\"target\":" << target_index;
-            });
-    }
-
-    return 0;
-}
-
 [[nodiscard]] auto run_assign_section_part_command(
     std::string_view command, const std::vector<std::string_view> &arguments,
     featherdoc::Document &doc) -> int {
@@ -1084,9 +812,10 @@ void inspect_related_parts(const std::vector<inspected_part_entry> &parts,
         return 2;
     }
 
-    command_options options;
+    section_part_command_options options;
     std::string error_message;
-    if (!parse_options(arguments, 3U, false, options, error_message)) {
+    if (!parse_section_part_command_options(arguments, 3U, false, options,
+                                            error_message)) {
         print_parse_error(command, error_message, json_output);
         return 2;
     }
@@ -1145,9 +874,10 @@ void inspect_related_parts(const std::vector<inspected_part_entry> &parts,
         return 2;
     }
 
-    command_options options;
+    section_part_command_options options;
     std::string error_message;
-    if (!parse_options(arguments, 4U, false, options, error_message)) {
+    if (!parse_section_part_command_options(arguments, 4U, false, options,
+                                            error_message)) {
         print_parse_error(command, error_message, json_output);
         return 2;
     }
@@ -1295,8 +1025,7 @@ auto is_section_part_command(std::string_view command) -> bool {
     return command == "inspect-sections" ||
            command == "inspect-header-parts" ||
            command == "inspect-footer-parts" ||
-           command == "insert-section" || command == "remove-section" ||
-           command == "move-section" || command == "copy-section-layout" ||
+           is_section_management_command(command) ||
            command == "assign-section-header" ||
            command == "assign-section-footer" ||
            command == "remove-section-header" ||
@@ -1319,17 +1048,8 @@ auto run_section_part_command(
     if (command == "inspect-header-parts" || command == "inspect-footer-parts") {
         return run_inspect_related_parts_command(command, arguments, doc);
     }
-    if (command == "insert-section") {
-        return run_insert_section_command(command, arguments, doc);
-    }
-    if (command == "remove-section") {
-        return run_remove_section_command(command, arguments, doc);
-    }
-    if (command == "move-section") {
-        return run_move_section_command(command, arguments, doc);
-    }
-    if (command == "copy-section-layout") {
-        return run_copy_section_layout_command(command, arguments, doc);
+    if (is_section_management_command(command)) {
+        return run_section_management_command(command, arguments, doc);
     }
     if (command == "assign-section-header" ||
         command == "assign-section-footer") {
