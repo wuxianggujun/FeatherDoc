@@ -6625,6 +6625,14 @@ if(TARGET featherdoc_cli)
         cli_template_table_selector cli template table selector heavy)
 
     featherdoc_add_cli_cpp_test(
+        cli_template_table_bookmark_tests
+        cli_template_table_bookmark
+        cli_template_table_bookmark_tests.cpp
+    )
+    featherdoc_set_test_labels(
+        cli_template_table_bookmark cli template table bookmark json heavy)
+
+    featherdoc_add_cli_cpp_test(
         cli_template_table_section_kind_tests
         cli_template_table_section_kind
         cli_template_table_section_kind_tests.cpp
