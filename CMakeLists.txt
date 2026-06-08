@@ -1215,6 +1215,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_content_control_commands.cpp
         cli/featherdoc_cli_content_control_inspect_commands.cpp
         cli/featherdoc_cli_content_control_options_parse.cpp
+        cli/featherdoc_cli_default_run_properties_commands.cpp
         cli/featherdoc_cli_image_commands.cpp
         cli/featherdoc_cli_inspect_content_options_parse.cpp
         cli/featherdoc_cli_image_output.cpp
@@ -1248,6 +1249,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_paragraph_run_commands.cpp
         cli/featherdoc_cli_paragraph_run_options_parse.cpp
         cli/featherdoc_cli_run_style_properties_commands.cpp
+        cli/featherdoc_cli_run_style_properties_support.cpp
         cli/featherdoc_cli_section_management_commands.cpp
         cli/featherdoc_cli_section_part_commands.cpp
         cli/featherdoc_cli_section_part_management_commands.cpp
