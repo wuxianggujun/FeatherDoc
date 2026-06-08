@@ -386,6 +386,17 @@ if(MSVC)
 endif()
 
 featherdoc_add_cpp_test(
+    table_properties_unit_tests
+    table_properties_unit
+    table_properties_unit_tests.cpp
+)
+featherdoc_set_test_labels(table_properties_unit core heavy tables properties)
+
+if(MSVC)
+    target_compile_options(table_properties_unit_tests PRIVATE /utf-8)
+endif()
+
+featherdoc_add_cpp_test(
     public_header_entrypoint_tests
     public_header_entrypoint
     public_header_entrypoint_tests.cpp
