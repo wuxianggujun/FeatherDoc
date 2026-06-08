@@ -1577,6 +1577,8 @@ complex_field_nested_fragment(std::string_view instruction,
 
 #include "document_template_hyperlink_methods.inc"
 
+#include "document_template_review_note_methods.inc"
+
 #include "document_template_review_revision_methods.inc"
 
 #include "document_template_omml_methods.inc"
