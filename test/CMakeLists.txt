@@ -6858,6 +6858,14 @@ if(TARGET featherdoc_cli)
         cli_styles_tests.cpp
     )
     featherdoc_set_test_labels(cli_styles cli styles heavy)
+
+    featherdoc_add_cli_cpp_test(
+        cli_style_refactor_workflow_tests
+        cli_style_refactor_workflow
+        cli_style_refactor_workflow_tests.cpp
+    )
+    featherdoc_set_test_labels(
+        cli_style_refactor_workflow cli styles heavy)
 endif()
 
 configure_file(my_test.docx ${CMAKE_CURRENT_BINARY_DIR}/my_test.docx COPYONLY)
