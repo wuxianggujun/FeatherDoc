@@ -1213,6 +1213,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_bookmark_support.cpp
         cli/featherdoc_cli_bookmark_visibility_commands.cpp
         cli/featherdoc_cli_content_control_commands.cpp
+        cli/featherdoc_cli_content_control_inspect_commands.cpp
         cli/featherdoc_cli_content_control_options_parse.cpp
         cli/featherdoc_cli_image_commands.cpp
         cli/featherdoc_cli_inspect_content_options_parse.cpp
