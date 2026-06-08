@@ -36,14 +36,14 @@
         }
     }
 
-    auto paragraph = featherdoc::detail::append_paragraph_node(body);
-    auto revision = paragraph.append_child("w:ins");
+    auto paragraph_node = featherdoc::detail::append_paragraph_node(body);
+    auto revision = paragraph_node.append_child("w:ins");
     auto run = revision.append_child("w:r");
-    if (paragraph == pugi::xml_node{} || revision == pugi::xml_node{} ||
+    if (paragraph_node == pugi::xml_node{} || revision == pugi::xml_node{} ||
         run == pugi::xml_node{} ||
         !set_revision_run_text_content(run, "w:t", text)) {
-        if (paragraph != pugi::xml_node{}) {
-            body.remove_child(paragraph);
+        if (paragraph_node != pugi::xml_node{}) {
+            body.remove_child(paragraph_node);
         }
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -101,14 +101,14 @@ std::size_t Document::append_deletion_revision(
         }
     }
 
-    auto paragraph = featherdoc::detail::append_paragraph_node(body);
-    auto revision = paragraph.append_child("w:del");
+    auto paragraph_node = featherdoc::detail::append_paragraph_node(body);
+    auto revision = paragraph_node.append_child("w:del");
     auto run = revision.append_child("w:r");
-    if (paragraph == pugi::xml_node{} || revision == pugi::xml_node{} ||
+    if (paragraph_node == pugi::xml_node{} || revision == pugi::xml_node{} ||
         run == pugi::xml_node{} ||
         !set_revision_run_text_content(run, "w:delText", text)) {
-        if (paragraph != pugi::xml_node{}) {
-            body.remove_child(paragraph);
+        if (paragraph_node != pugi::xml_node{}) {
+            body.remove_child(paragraph_node);
         }
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -151,15 +151,15 @@ bool Document::insert_run_revision_after(
          ++current_index) {
         paragraph_handle.next();
     }
-    auto paragraph = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
-    if (paragraph == pugi::xml_node{}) {
+    auto paragraph_node = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
+    if (paragraph_node == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "paragraph index is out of range",
                        std::string{document_xml_entry});
         return false;
     }
-    auto anchor_run = paragraph_run_by_index(paragraph, run_index);
+    auto anchor_run = paragraph_run_by_index(paragraph_node, run_index);
     if (anchor_run == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
@@ -170,12 +170,12 @@ bool Document::insert_run_revision_after(
 
     const auto next_run = featherdoc::detail::next_named_sibling(anchor_run, "w:r");
     auto revision = next_run == pugi::xml_node{}
-                        ? paragraph.append_child("w:ins")
-                        : paragraph.insert_child_before("w:ins", next_run);
+                        ? paragraph_node.append_child("w:ins")
+                        : paragraph_node.insert_child_before("w:ins", next_run);
     if (revision == pugi::xml_node{} ||
         append_revision_run(revision, anchor_run, "w:t", text) == pugi::xml_node{}) {
         if (revision != pugi::xml_node{}) {
-            paragraph.remove_child(revision);
+            paragraph_node.remove_child(revision);
         }
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -216,15 +216,15 @@ bool Document::delete_run_revision(
          ++current_index) {
         paragraph_handle.next();
     }
-    auto paragraph = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
-    if (paragraph == pugi::xml_node{}) {
+    auto paragraph_node = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
+    if (paragraph_node == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "paragraph index is out of range",
                        std::string{document_xml_entry});
         return false;
     }
-    auto target_run = paragraph_run_by_index(paragraph, run_index);
+    auto target_run = paragraph_run_by_index(paragraph_node, run_index);
     if (target_run == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
@@ -242,13 +242,13 @@ bool Document::delete_run_revision(
         return false;
     }
 
-    auto revision = paragraph.insert_child_before("w:del", target_run);
+    auto revision = paragraph_node.insert_child_before("w:del", target_run);
     if (revision == pugi::xml_node{} ||
         append_revision_run(revision, target_run, "w:delText", original_text) ==
             pugi::xml_node{} ||
-        !paragraph.remove_child(target_run)) {
+        !paragraph_node.remove_child(target_run)) {
         if (revision != pugi::xml_node{}) {
-            paragraph.remove_child(revision);
+            paragraph_node.remove_child(revision);
         }
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -296,15 +296,15 @@ bool Document::replace_run_revision(
          ++current_index) {
         paragraph_handle.next();
     }
-    auto paragraph = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
-    if (paragraph == pugi::xml_node{}) {
+    auto paragraph_node = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
+    if (paragraph_node == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "paragraph index is out of range",
                        std::string{document_xml_entry});
         return false;
     }
-    auto target_run = paragraph_run_by_index(paragraph, run_index);
+    auto target_run = paragraph_run_by_index(paragraph_node, run_index);
     if (target_run == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
@@ -334,20 +334,20 @@ bool Document::replace_run_revision(
             collect_revision_ids(part->xml, revision_id);
         }
     }
-    auto deletion = paragraph.insert_child_before("w:del", target_run);
+    auto deletion = paragraph_node.insert_child_before("w:del", target_run);
     auto insertion = deletion == pugi::xml_node{}
                          ? pugi::xml_node{}
-                         : paragraph.insert_child_before("w:ins", target_run);
+                         : paragraph_node.insert_child_before("w:ins", target_run);
     if (deletion == pugi::xml_node{} || insertion == pugi::xml_node{} ||
         append_revision_run(deletion, target_run, "w:delText", original_text) ==
             pugi::xml_node{} ||
         append_revision_run(insertion, target_run, "w:t", text) == pugi::xml_node{} ||
-        !paragraph.remove_child(target_run)) {
+        !paragraph_node.remove_child(target_run)) {
         if (deletion != pugi::xml_node{}) {
-            paragraph.remove_child(deletion);
+            paragraph_node.remove_child(deletion);
         }
         if (insertion != pugi::xml_node{}) {
-            paragraph.remove_child(insertion);
+            paragraph_node.remove_child(insertion);
         }
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -384,8 +384,8 @@ bool Document::insert_paragraph_text_revision(
          ++current_index) {
         paragraph_handle.next();
     }
-    auto paragraph = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
-    if (paragraph == pugi::xml_node{}) {
+    auto paragraph_node = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
+    if (paragraph_node == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "paragraph index is out of range",
@@ -393,7 +393,7 @@ bool Document::insert_paragraph_text_revision(
         return false;
     }
 
-    const auto spans = collect_paragraph_revision_run_spans(paragraph);
+    const auto spans = collect_paragraph_revision_run_spans(paragraph_node);
     const auto paragraph_text_length = paragraph_revision_text_length(spans);
     if (text_offset > paragraph_text_length) {
         set_last_error(this->last_error_info,
@@ -402,7 +402,7 @@ bool Document::insert_paragraph_text_revision(
                        std::string{document_xml_entry});
         return false;
     }
-    if (!split_paragraph_revision_text_at(paragraph, text_offset)) {
+    if (!split_paragraph_revision_text_at(paragraph_node, text_offset)) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::operation_not_supported),
                        "paragraph text revision range requires plain text runs",
@@ -411,13 +411,13 @@ bool Document::insert_paragraph_text_revision(
     }
 
     const auto insert_before =
-        paragraph_revision_insert_before(paragraph, text_offset);
-    const auto style_run = paragraph_revision_style_run(paragraph, text_offset);
-    auto revision = insert_revision_node(paragraph, "w:ins", insert_before);
+        paragraph_revision_insert_before(paragraph_node, text_offset);
+    const auto style_run = paragraph_revision_style_run(paragraph_node, text_offset);
+    auto revision = insert_revision_node(paragraph_node, "w:ins", insert_before);
     if (revision == pugi::xml_node{} ||
         append_revision_run(revision, style_run, "w:t", text) == pugi::xml_node{}) {
         if (revision != pugi::xml_node{}) {
-            paragraph.remove_child(revision);
+            paragraph_node.remove_child(revision);
         }
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -493,8 +493,8 @@ bool Document::delete_paragraph_text_revision(
          ++current_index) {
         paragraph_handle.next();
     }
-    auto paragraph = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
-    if (paragraph == pugi::xml_node{}) {
+    auto paragraph_node = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
+    if (paragraph_node == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "paragraph index is out of range",
@@ -502,7 +502,7 @@ bool Document::delete_paragraph_text_revision(
         return false;
     }
 
-    const auto spans = collect_paragraph_revision_run_spans(paragraph);
+    const auto spans = collect_paragraph_revision_run_spans(paragraph_node);
     const auto paragraph_text_length = paragraph_revision_text_length(spans);
     if (text_offset > paragraph_text_length ||
         text_length > paragraph_text_length - text_offset) {
@@ -512,8 +512,8 @@ bool Document::delete_paragraph_text_revision(
                        std::string{document_xml_entry});
         return false;
     }
-    if (!split_paragraph_revision_text_at(paragraph, text_offset + text_length) ||
-        !split_paragraph_revision_text_at(paragraph, text_offset)) {
+    if (!split_paragraph_revision_text_at(paragraph_node, text_offset + text_length) ||
+        !split_paragraph_revision_text_at(paragraph_node, text_offset)) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::operation_not_supported),
                        "paragraph text revision range requires plain text runs",
@@ -522,7 +522,7 @@ bool Document::delete_paragraph_text_revision(
     }
 
     const auto selected =
-        paragraph_revision_spans_in_range(paragraph, text_offset, text_length);
+        paragraph_revision_spans_in_range(paragraph_node, text_offset, text_length);
     if (selected.empty()) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
@@ -531,11 +531,11 @@ bool Document::delete_paragraph_text_revision(
         return false;
     }
 
-    auto revision = paragraph.insert_child_before("w:del", selected.front().run);
+    auto revision = paragraph_node.insert_child_before("w:del", selected.front().run);
     if (revision == pugi::xml_node{} ||
         !append_revision_runs_from_spans(revision, selected, "w:delText")) {
         if (revision != pugi::xml_node{}) {
-            paragraph.remove_child(revision);
+            paragraph_node.remove_child(revision);
         }
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -545,8 +545,8 @@ bool Document::delete_paragraph_text_revision(
     }
 
     for (const auto &span : selected) {
-        if (!paragraph.remove_child(span.run)) {
-            paragraph.remove_child(revision);
+        if (!paragraph_node.remove_child(span.run)) {
+            paragraph_node.remove_child(revision);
             set_last_error(this->last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
                            "failed to delete paragraph text revision",
@@ -631,8 +631,8 @@ bool Document::replace_paragraph_text_revision(
          ++current_index) {
         paragraph_handle.next();
     }
-    auto paragraph = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
-    if (paragraph == pugi::xml_node{}) {
+    auto paragraph_node = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
+    if (paragraph_node == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "paragraph index is out of range",
@@ -640,7 +640,7 @@ bool Document::replace_paragraph_text_revision(
         return false;
     }
 
-    const auto spans = collect_paragraph_revision_run_spans(paragraph);
+    const auto spans = collect_paragraph_revision_run_spans(paragraph_node);
     const auto paragraph_text_length = paragraph_revision_text_length(spans);
     if (text_offset > paragraph_text_length ||
         text_length > paragraph_text_length - text_offset) {
@@ -650,8 +650,8 @@ bool Document::replace_paragraph_text_revision(
                        std::string{document_xml_entry});
         return false;
     }
-    if (!split_paragraph_revision_text_at(paragraph, text_offset + text_length) ||
-        !split_paragraph_revision_text_at(paragraph, text_offset)) {
+    if (!split_paragraph_revision_text_at(paragraph_node, text_offset + text_length) ||
+        !split_paragraph_revision_text_at(paragraph_node, text_offset)) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::operation_not_supported),
                        "paragraph text revision range requires plain text runs",
@@ -660,7 +660,7 @@ bool Document::replace_paragraph_text_revision(
     }
 
     const auto selected =
-        paragraph_revision_spans_in_range(paragraph, text_offset, text_length);
+        paragraph_revision_spans_in_range(paragraph_node, text_offset, text_length);
     if (selected.empty()) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
@@ -682,19 +682,19 @@ bool Document::replace_paragraph_text_revision(
         }
     }
 
-    auto deletion = paragraph.insert_child_before("w:del", selected.front().run);
+    auto deletion = paragraph_node.insert_child_before("w:del", selected.front().run);
     auto insertion = deletion == pugi::xml_node{}
                          ? pugi::xml_node{}
-                         : paragraph.insert_child_before("w:ins", selected.front().run);
+                         : paragraph_node.insert_child_before("w:ins", selected.front().run);
     if (deletion == pugi::xml_node{} || insertion == pugi::xml_node{} ||
         !append_revision_runs_from_spans(deletion, selected, "w:delText") ||
         append_revision_run(insertion, selected.front().run, "w:t", text) ==
             pugi::xml_node{}) {
         if (deletion != pugi::xml_node{}) {
-            paragraph.remove_child(deletion);
+            paragraph_node.remove_child(deletion);
         }
         if (insertion != pugi::xml_node{}) {
-            paragraph.remove_child(insertion);
+            paragraph_node.remove_child(insertion);
         }
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -704,9 +704,9 @@ bool Document::replace_paragraph_text_revision(
     }
 
     for (const auto &span : selected) {
-        if (!paragraph.remove_child(span.run)) {
-            paragraph.remove_child(deletion);
-            paragraph.remove_child(insertion);
+        if (!paragraph_node.remove_child(span.run)) {
+            paragraph_node.remove_child(deletion);
+            paragraph_node.remove_child(insertion);
             set_last_error(this->last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
                            "failed to replace paragraph text revision",
@@ -813,13 +813,13 @@ bool Document::delete_text_range_revision(
 
     for (std::size_t segment_index = 0U; segment_index < plan.segments.size();
          ++segment_index) {
-        auto paragraph = plan.segments[segment_index].paragraph;
+        auto paragraph_node = plan.segments[segment_index].paragraph;
         const auto &selected = selected_segments[segment_index];
-        auto revision = paragraph.insert_child_before("w:del", selected.front().run);
+        auto revision = paragraph_node.insert_child_before("w:del", selected.front().run);
         if (revision == pugi::xml_node{} ||
             !append_revision_runs_from_spans(revision, selected, "w:delText")) {
             if (revision != pugi::xml_node{}) {
-                paragraph.remove_child(revision);
+                paragraph_node.remove_child(revision);
             }
             set_last_error(this->last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
@@ -829,8 +829,8 @@ bool Document::delete_text_range_revision(
         }
 
         for (const auto &span : selected) {
-            if (!paragraph.remove_child(span.run)) {
-                paragraph.remove_child(revision);
+            if (!paragraph_node.remove_child(span.run)) {
+                paragraph_node.remove_child(revision);
                 set_last_error(this->last_error_info,
                                std::make_error_code(std::errc::not_enough_memory),
                                "failed to delete text range revision",
@@ -946,13 +946,13 @@ bool Document::replace_text_range_revision(
 
     for (std::size_t segment_index = 0U; segment_index < plan.segments.size();
          ++segment_index) {
-        auto paragraph = plan.segments[segment_index].paragraph;
+        auto paragraph_node = plan.segments[segment_index].paragraph;
         const auto &selected = selected_segments[segment_index];
-        auto deletion = paragraph.insert_child_before("w:del", selected.front().run);
+        auto deletion = paragraph_node.insert_child_before("w:del", selected.front().run);
         if (deletion == pugi::xml_node{} ||
             !append_revision_runs_from_spans(deletion, selected, "w:delText")) {
             if (deletion != pugi::xml_node{}) {
-                paragraph.remove_child(deletion);
+                paragraph_node.remove_child(deletion);
             }
             set_last_error(this->last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
@@ -967,14 +967,14 @@ bool Document::replace_text_range_revision(
         if (!inserted_replacement &&
             plan.segments[segment_index].paragraph == start_paragraph) {
             auto insertion =
-                paragraph.insert_child_before("w:ins", selected.front().run);
+                paragraph_node.insert_child_before("w:ins", selected.front().run);
             if (insertion == pugi::xml_node{} ||
                 append_revision_run(insertion, selected.front().run, "w:t", text) ==
                     pugi::xml_node{}) {
                 if (insertion != pugi::xml_node{}) {
-                    paragraph.remove_child(insertion);
+                    paragraph_node.remove_child(insertion);
                 }
-                paragraph.remove_child(deletion);
+                paragraph_node.remove_child(deletion);
                 set_last_error(this->last_error_info,
                                std::make_error_code(std::errc::not_enough_memory),
                                "failed to replace text range revision",
@@ -988,8 +988,8 @@ bool Document::replace_text_range_revision(
         }
 
         for (const auto &span : selected) {
-            if (!paragraph.remove_child(span.run)) {
-                paragraph.remove_child(deletion);
+            if (!paragraph_node.remove_child(span.run)) {
+                paragraph_node.remove_child(deletion);
                 set_last_error(this->last_error_info,
                                std::make_error_code(std::errc::not_enough_memory),
                                "failed to replace text range revision",

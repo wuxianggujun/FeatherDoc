@@ -81,10 +81,10 @@ std::size_t Document::append_footnote(std::string_view reference_text,
         return 0U;
     }
 
-    auto paragraph = featherdoc::detail::append_paragraph_node(body);
-    if (paragraph == pugi::xml_node{} ||
+    auto paragraph_node = featherdoc::detail::append_paragraph_node(body);
+    if (paragraph_node == pugi::xml_node{} ||
         (!reference_text.empty() &&
-         !featherdoc::detail::append_plain_text_run(paragraph, reference_text))) {
+         !featherdoc::detail::append_plain_text_run(paragraph_node, reference_text))) {
         root.remove_child(note);
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -92,11 +92,11 @@ std::size_t Document::append_footnote(std::string_view reference_text,
                        std::string{document_xml_entry});
         return 0U;
     }
-    auto reference_run = paragraph.append_child("w:r");
+    auto reference_run = paragraph_node.append_child("w:r");
     auto reference = reference_run.append_child("w:footnoteReference");
     if (reference_run == pugi::xml_node{} || reference == pugi::xml_node{}) {
         root.remove_child(note);
-        body.remove_child(paragraph);
+        body.remove_child(paragraph_node);
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to append footnote reference",
@@ -269,10 +269,10 @@ std::size_t Document::append_endnote(std::string_view reference_text,
         return 0U;
     }
 
-    auto paragraph = featherdoc::detail::append_paragraph_node(body);
-    if (paragraph == pugi::xml_node{} ||
+    auto paragraph_node = featherdoc::detail::append_paragraph_node(body);
+    if (paragraph_node == pugi::xml_node{} ||
         (!reference_text.empty() &&
-         !featherdoc::detail::append_plain_text_run(paragraph, reference_text))) {
+         !featherdoc::detail::append_plain_text_run(paragraph_node, reference_text))) {
         root.remove_child(note);
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -280,11 +280,11 @@ std::size_t Document::append_endnote(std::string_view reference_text,
                        std::string{document_xml_entry});
         return 0U;
     }
-    auto reference_run = paragraph.append_child("w:r");
+    auto reference_run = paragraph_node.append_child("w:r");
     auto reference = reference_run.append_child("w:endnoteReference");
     if (reference_run == pugi::xml_node{} || reference == pugi::xml_node{}) {
         root.remove_child(note);
-        body.remove_child(paragraph);
+        body.remove_child(paragraph_node);
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to append endnote reference",
@@ -515,10 +515,10 @@ std::size_t Document::append_comment(std::string_view selected_text,
         return 0U;
     }
 
-    auto paragraph = featherdoc::detail::append_paragraph_node(body);
-    auto range_start = paragraph.append_child("w:commentRangeStart");
-    if (paragraph == pugi::xml_node{} || range_start == pugi::xml_node{} ||
-        !featherdoc::detail::append_plain_text_run(paragraph, selected_text)) {
+    auto paragraph_node = featherdoc::detail::append_paragraph_node(body);
+    auto range_start = paragraph_node.append_child("w:commentRangeStart");
+    if (paragraph_node == pugi::xml_node{} || range_start == pugi::xml_node{} ||
+        !featherdoc::detail::append_plain_text_run(paragraph_node, selected_text)) {
         root.remove_child(comment);
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -526,13 +526,13 @@ std::size_t Document::append_comment(std::string_view selected_text,
                        std::string{document_xml_entry});
         return 0U;
     }
-    auto range_end = paragraph.append_child("w:commentRangeEnd");
-    auto reference_run = paragraph.append_child("w:r");
+    auto range_end = paragraph_node.append_child("w:commentRangeEnd");
+    auto reference_run = paragraph_node.append_child("w:r");
     auto reference = reference_run.append_child("w:commentReference");
     if (range_end == pugi::xml_node{} || reference_run == pugi::xml_node{} ||
         reference == pugi::xml_node{}) {
         root.remove_child(comment);
-        body.remove_child(paragraph);
+        body.remove_child(paragraph_node);
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to append comment reference",
