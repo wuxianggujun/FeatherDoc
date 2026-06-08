@@ -152,16 +152,16 @@ std::optional<featherdoc::style_usage_report> Document::list_style_usage() {
         return std::nullopt;
     }
 
-    auto styles = this->list_styles();
+    auto style_summaries = this->list_styles();
     if (const auto &error_info = this->last_error(); error_info.code) {
         return std::nullopt;
     }
 
     auto report = featherdoc::style_usage_report{};
-    report.style_count = styles.size();
-    report.entries.reserve(styles.size());
+    report.style_count = style_summaries.size();
+    report.entries.reserve(style_summaries.size());
 
-    for (auto &style : styles) {
+    for (auto &style : style_summaries) {
         auto usage = featherdoc::style_usage_summary{};
         usage.style_id = style.style_id;
 
