@@ -1317,6 +1317,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_style_options_parse.cpp
         cli/featherdoc_cli_style_output.cpp
         cli/featherdoc_cli_style_refactor_commands.cpp
+        cli/featherdoc_cli_style_refactor_output.cpp
         cli/featherdoc_cli_style_refactor_plan.cpp
         cli/featherdoc_cli_style_refactor_plan_parse.cpp
         cli/featherdoc_cli_style_refactor_options_parse.cpp
