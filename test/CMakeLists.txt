@@ -6767,6 +6767,14 @@ if(TARGET featherdoc_cli)
         cli_bookmark_content cli bookmark content_controls images heavy)
 
     featherdoc_add_cli_cpp_test(
+        cli_bookmark_table_tests
+        cli_bookmark_tables
+        cli_bookmark_table_tests.cpp
+    )
+    featherdoc_set_test_labels(
+        cli_bookmark_tables cli bookmark tables heavy)
+
+    featherdoc_add_cli_cpp_test(
         cli_bookmark_image_tests
         cli_bookmark_images
         cli_bookmark_image_tests.cpp
