@@ -1091,6 +1091,7 @@ featherdoc_add_cpp_test(
     cli_bookmark_text_options_parse
     cli_bookmark_text_options_parse_tests.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_text_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_visibility_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_image_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_inspect_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
