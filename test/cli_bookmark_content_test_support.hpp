@@ -125,4 +125,79 @@ void create_cli_content_controls_fixture(const fs::path &path) {
     zip_close(archive);
 }
 
+
+void create_cli_bookmark_image_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>before</w:t></w:r></w:p>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="body_logo"/>
+      <w:r><w:t>body placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p><w:r><w:t>after</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+    constexpr auto document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+</Relationships>
+)";
+    constexpr auto header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>header before</w:t></w:r></w:p>
+  <w:p>
+    <w:bookmarkStart w:id="1" w:name="header_logo"/>
+    <w:r><w:t>header placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="1"/>
+  </w:p>
+</w:hdr>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
+                                document_relationships_xml));
+    REQUIRE(write_archive_entry(archive, "word/header1.xml", header_xml));
+    zip_close(archive);
+}
 } // namespace
