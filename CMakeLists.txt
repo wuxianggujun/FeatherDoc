@@ -80,6 +80,7 @@ set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/constants.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_image.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_image_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_numbering.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_section_xml_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_semantic_diff.cpp"
