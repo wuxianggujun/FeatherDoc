@@ -85,6 +85,7 @@ set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_styles.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_table_style_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_template.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_template_content_control_replacement.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/image_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/paragraph.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/run.cpp"
