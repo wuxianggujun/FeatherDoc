@@ -95,6 +95,7 @@ set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/paragraph.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/run.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_cell_xml_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_column_edit_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_xml_conversion_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_xml_helpers.cpp"
