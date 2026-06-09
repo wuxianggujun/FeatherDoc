@@ -87,6 +87,7 @@ set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_semantic_diff_values.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_styles.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_table_style_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_table_style_read_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_template.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_template_content_control_replacement.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/image_helpers.cpp"
