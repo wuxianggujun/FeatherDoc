@@ -1,9 +1,9 @@
 #include "featherdoc.hpp"
+#include "table_column_edit_helpers.hpp"
 #include "table_xml_helpers.hpp"
 #include "xml_helpers.hpp"
 
 #include <algorithm>
-#include <limits>
 
 namespace featherdoc {
 
@@ -13,7 +13,10 @@ using detail::apply_border_definition;
 using detail::cell_column_span;
 using detail::cell_vertical_merge_state;
 using detail::cell_vertical_merge_state_for;
+using detail::cell_column_index;
+using detail::clear_cell_contents_for_vertical_merge;
 using detail::clear_cell_width_node;
+using detail::clear_fixed_layout_cell_widths_covering_column;
 using detail::count_named_children;
 using detail::current_table_column_count;
 using detail::decode_table_style_look_flag;
@@ -51,9 +54,13 @@ using detail::ensure_table_properties_node;
 using detail::ensure_table_style_node;
 using detail::ensure_table_width_node;
 using detail::find_table_grid_column;
+using detail::find_row_cell_at_columns;
+using detail::find_row_cell_covering_column;
 using detail::format_short_hex;
+using detail::insert_empty_clone_cell;
 using detail::insert_empty_clone_row;
 using detail::insert_empty_clone_table;
+using detail::insert_table_grid_column;
 using detail::on_off_node_enabled;
 using detail::parse_border_style;
 using detail::parse_cell_text_direction;
@@ -70,9 +77,18 @@ using detail::parse_table_position_vertical_reference;
 using detail::parse_table_position_vertical_spec;
 using detail::parse_unsigned_attribute;
 using detail::parse_xml_on_off_value;
+using detail::plan_table_column_insertion;
+using detail::plan_table_column_removal;
+using detail::plan_vertical_merge_chain;
 using detail::read_border_inspection_summary;
+using detail::remove_empty_cell_properties;
 using detail::remove_empty_container;
+using detail::remove_table_grid_column;
+using detail::replace_cell_body_contents;
+using detail::rollback_inserted_table_cells;
 using detail::string_matrix_from_initializer_list;
+using detail::successor_vertical_merge_promotions_for_row_removal;
+using detail::synchronize_fixed_layout_cell_widths_from_grid;
 using detail::table_style_look_first_column_bit;
 using detail::table_style_look_first_row_bit;
 using detail::table_style_look_last_column_bit;
@@ -93,11 +109,6 @@ using detail::to_xml_table_position_horizontal_spec;
 using detail::to_xml_table_position_vertical_reference;
 using detail::to_xml_table_position_vertical_spec;
 
-namespace {
-
-#include "table_column_edit_helpers.inc"
-
-} // namespace
 #include "table_cell_methods.inc"
 
 #include "table_row_methods.inc"
