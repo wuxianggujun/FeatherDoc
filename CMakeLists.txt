@@ -1221,6 +1221,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_content_control_table_commands.cpp
         cli/featherdoc_cli_content_control_form_state_options_parse.cpp
         cli/featherdoc_cli_content_control_options_parse.cpp
+        cli/featherdoc_cli_content_control_rich_options_parse.cpp
         cli/featherdoc_cli_default_run_properties_commands.cpp
         cli/featherdoc_cli_image_commands.cpp
         cli/featherdoc_cli_inspect_content_options_parse.cpp

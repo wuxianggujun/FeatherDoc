@@ -1363,6 +1363,7 @@ featherdoc_add_cpp_test(
     cli_bookmark_text_options_parse_tests.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_content_control_form_state_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_content_control_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_content_control_rich_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_table_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_text_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_visibility_options_parse.cpp
