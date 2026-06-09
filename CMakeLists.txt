@@ -82,6 +82,7 @@ set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_image.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_image_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_numbering.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_section_inspection_methods.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_section_xml_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_semantic_diff.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_semantic_diff_values.cpp"
