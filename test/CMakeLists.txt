@@ -1207,6 +1207,7 @@ featherdoc_add_cpp_test(
     cli_field_parse_tests
     cli_field_parse
     cli_field_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_field_complex_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_field_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp

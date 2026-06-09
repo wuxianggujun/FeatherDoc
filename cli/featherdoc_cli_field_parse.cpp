@@ -1,6 +1,7 @@
 #include "featherdoc_cli_field_parse.hpp"
 
 #include "featherdoc_cli_domain_parse.hpp"
+#include "featherdoc_cli_field_complex_options_parse.hpp"
 #include "featherdoc_cli_parse.hpp"
 
 #include <filesystem>
@@ -167,93 +168,13 @@ auto parse_append_field_options(std::string_view command,
             continue;
         }
 
-        if (argument == "--instruction") {
-            if (!is_complex) {
-                error_message = std::string(command) + " does not support --instruction";
-                return false;
-            }
-            if (options.instruction.has_value()) {
-                error_message = "duplicate --instruction option";
-                return false;
-            }
-            if (index + 1U >= arguments.size()) {
-                error_message = "missing text after --instruction";
-                return false;
-            }
-            options.instruction = std::string(arguments[index + 1U]);
-            ++index;
-            continue;
+        const auto complex_option_result =
+            parse_complex_field_option(command, argument, arguments, index,
+                                       options, is_complex, error_message);
+        if (complex_option_result == field_complex_option_parse_result::error) {
+            return false;
         }
-
-        if (argument == "--instruction-before") {
-            if (!is_complex) {
-                error_message = std::string(command) +
-                                " does not support --instruction-before";
-                return false;
-            }
-            if (options.instruction_before.has_value()) {
-                error_message = "duplicate --instruction-before option";
-                return false;
-            }
-            if (index + 1U >= arguments.size()) {
-                error_message = "missing text after --instruction-before";
-                return false;
-            }
-            options.instruction_before = std::string(arguments[index + 1U]);
-            ++index;
-            continue;
-        }
-
-        if (argument == "--instruction-after") {
-            if (!is_complex) {
-                error_message = std::string(command) +
-                                " does not support --instruction-after";
-                return false;
-            }
-            if (options.instruction_after.has_value()) {
-                error_message = "duplicate --instruction-after option";
-                return false;
-            }
-            if (index + 1U >= arguments.size()) {
-                error_message = "missing text after --instruction-after";
-                return false;
-            }
-            options.instruction_after = std::string(arguments[index + 1U]);
-            ++index;
-            continue;
-        }
-
-        if (argument == "--nested-instruction") {
-            if (!is_complex) {
-                error_message = std::string(command) +
-                                " does not support --nested-instruction";
-                return false;
-            }
-            if (options.nested_instruction.has_value()) {
-                error_message = "duplicate --nested-instruction option";
-                return false;
-            }
-            if (index + 1U >= arguments.size()) {
-                error_message = "missing text after --nested-instruction";
-                return false;
-            }
-            options.nested_instruction = std::string(arguments[index + 1U]);
-            ++index;
-            continue;
-        }
-
-        if (argument == "--nested-result-text") {
-            if (!is_complex) {
-                error_message = std::string(command) +
-                                " does not support --nested-result-text";
-                return false;
-            }
-            if (index + 1U >= arguments.size()) {
-                error_message = "missing text after --nested-result-text";
-                return false;
-            }
-            options.nested_result_text = std::string(arguments[index + 1U]);
-            ++index;
+        if (complex_option_result == field_complex_option_parse_result::handled) {
             continue;
         }
 
@@ -710,27 +631,8 @@ auto parse_append_field_options(std::string_view command,
         return false;
     }
 
-    if (is_complex) {
-        const auto has_plain_instruction = options.instruction.has_value();
-        const auto has_nested_instruction = options.nested_instruction.has_value();
-        if (has_plain_instruction &&
-            (options.instruction_before.has_value() || has_nested_instruction ||
-             options.instruction_after.has_value())) {
-            error_message =
-                "append-complex-field --instruction cannot be combined with nested instruction options";
-            return false;
-        }
-        if (!has_plain_instruction && !has_nested_instruction) {
-            error_message =
-                "append-complex-field requires --instruction or --nested-instruction";
-            return false;
-        }
-        if (has_nested_instruction && (!options.instruction_before.has_value() ||
-                                       !options.instruction_after.has_value())) {
-            error_message =
-                "append-complex-field nested mode requires --instruction-before and --instruction-after";
-            return false;
-        }
+    if (is_complex && !validate_complex_field_options(options, error_message)) {
+        return false;
     }
 
     if (is_table_of_contents &&

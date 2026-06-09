@@ -1206,6 +1206,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_domain_names.cpp
         cli/featherdoc_cli_domain_parse.cpp
         cli/featherdoc_cli_errors.cpp
+        cli/featherdoc_cli_field_complex_options_parse.cpp
         cli/featherdoc_cli_field_parse.cpp
         cli/featherdoc_cli_field_commands.cpp
         cli/featherdoc_cli_formatting_commands.cpp
