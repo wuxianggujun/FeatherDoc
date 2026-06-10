@@ -1477,6 +1477,8 @@ featherdoc_add_cpp_test(
     cli_template_table_options_parse_tests
     cli_template_table_options_parse
     cli_template_table_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_json_batch_operation_finalize.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_json_batch_operation_member_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_json_batch_operation_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_json_batch_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_json_patch_parse.cpp

@@ -1310,6 +1310,8 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_table_commands.cpp
         cli/featherdoc_cli_template_table_inspect_commands.cpp
         cli/featherdoc_cli_template_table_inspect_output.cpp
+        cli/featherdoc_cli_template_table_json_batch_operation_finalize.cpp
+        cli/featherdoc_cli_template_table_json_batch_operation_member_parse.cpp
         cli/featherdoc_cli_template_table_json_batch_operation_parse.cpp
         cli/featherdoc_cli_template_table_json_batch_parse.cpp
         cli/featherdoc_cli_template_table_json_patch_apply.cpp
