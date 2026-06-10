@@ -1249,6 +1249,9 @@ if(BUILD_CLI)
         cli/featherdoc_cli_bookmark_visibility_options_parse.cpp
         cli/featherdoc_cli_document_content_commands.cpp
         cli/featherdoc_cli_document_mutation_options_parse.cpp
+        cli/featherdoc_cli_document_revision_options_parse.cpp
+        cli/featherdoc_cli_document_review_options_parse.cpp
+        cli/featherdoc_cli_document_rich_content_options_parse.cpp
         cli/featherdoc_cli_inspect_numbering_options_parse.cpp
         cli/featherdoc_cli_inspect_style_options_parse.cpp
         cli/featherdoc_cli_inspect_table_item_options_parse.cpp
