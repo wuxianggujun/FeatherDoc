@@ -1375,6 +1375,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_patch_parse_remove_slot.cpp
         cli/featherdoc_cli_template_schema_patch_parse_slot_mutation.cpp
         cli/featherdoc_cli_template_schema_parse.cpp
+        cli/featherdoc_cli_template_schema_slot_parse.cpp
         cli/featherdoc_cli_template_schema_target_output.cpp
         cli/featherdoc_cli_template_schema_validation_output.cpp
         cli/featherdoc_cli_template_slot_parse.cpp
