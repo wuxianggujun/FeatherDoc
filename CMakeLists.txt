@@ -1242,6 +1242,8 @@ if(BUILD_CLI)
         cli/featherdoc_cli_inspect_content_options_parse.cpp
         cli/featherdoc_cli_image_output.cpp
         cli/featherdoc_cli_image_options_parse.cpp
+        cli/featherdoc_cli_bookmark_image_options_parse.cpp
+        cli/featherdoc_cli_bookmark_paragraph_options_parse.cpp
         cli/featherdoc_cli_bookmark_table_options_parse.cpp
         cli/featherdoc_cli_bookmark_text_options_parse.cpp
         cli/featherdoc_cli_bookmark_visibility_options_parse.cpp
