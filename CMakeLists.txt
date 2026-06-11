@@ -1412,6 +1412,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_table_json_patch_commands.cpp
         cli/featherdoc_cli_template_table_json_patch_parse.cpp
         cli/featherdoc_cli_template_table_json_patch_parse_detail.cpp
+        cli/featherdoc_cli_template_table_json_patch_parse_values.cpp
         cli/featherdoc_cli_template_table_column_commands.cpp
         cli/featherdoc_cli_template_table_merge_commands.cpp
         cli/featherdoc_cli_template_table_merge_mutation_options_parse.cpp
