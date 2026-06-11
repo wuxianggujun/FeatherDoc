@@ -1329,6 +1329,10 @@ if(BUILD_CLI)
         cli/featherdoc_cli_style_inspect_commands.cpp
         cli/featherdoc_cli_append_table_row_options_parse.cpp
         cli/featherdoc_cli_table_border_margin_commands.cpp
+        cli/featherdoc_cli_table_border_margin_default_margin_commands.cpp
+        cli/featherdoc_cli_table_border_margin_table_border_commands.cpp
+        cli/featherdoc_cli_table_border_margin_cell_margin_commands.cpp
+        cli/featherdoc_cli_table_border_margin_cell_border_commands.cpp
         cli/featherdoc_cli_table_cell_merge_options_parse.cpp
         cli/featherdoc_cli_table_cell_style_options_parse.cpp
         cli/featherdoc_cli_table_cell_style_commands.cpp
