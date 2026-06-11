@@ -1027,6 +1027,8 @@ featherdoc_add_cpp_test(
     cli_style_refactor_plan_parse_tests
     cli_style_refactor_plan_parse
     cli_style_refactor_plan_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_plan_file_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_plan_operations_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_plan_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
