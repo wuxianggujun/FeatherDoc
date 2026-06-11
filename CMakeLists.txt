@@ -1219,6 +1219,10 @@ if(BUILD_CLI)
         cli/featherdoc_cli_command_support.cpp
         cli/featherdoc_cli_domain_image_parse.cpp
         cli/featherdoc_cli_domain_names.cpp
+        cli/featherdoc_cli_domain_names_core.cpp
+        cli/featherdoc_cli_domain_names_table.cpp
+        cli/featherdoc_cli_domain_names_table_style_position.cpp
+        cli/featherdoc_cli_domain_names_template_image.cpp
         cli/featherdoc_cli_domain_parse.cpp
         cli/featherdoc_cli_domain_table_border_parse.cpp
         cli/featherdoc_cli_domain_table_layout_parse.cpp

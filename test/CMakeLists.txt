@@ -1706,6 +1706,10 @@ featherdoc_add_cpp_test(
     cli_domain_name
     cli_domain_name_tests.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_names.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_names_core.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_names_table.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_names_table_style_position.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_names_template_image.cpp
 )
 target_include_directories(cli_domain_name_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
 featherdoc_set_test_labels(cli_domain_name cli smoke cli_smoke)
