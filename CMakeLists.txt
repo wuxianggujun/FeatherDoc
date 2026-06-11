@@ -1458,6 +1458,8 @@ if(BUILD_CLI)
         cli/featherdoc_cli_table_position_commands_support.cpp
         cli/featherdoc_cli_review_commands.cpp
         cli/featherdoc_cli_review_comment_commands.cpp
+        cli/featherdoc_cli_review_comment_range_commands.cpp
+        cli/featherdoc_cli_review_comment_thread_commands.cpp
         cli/featherdoc_cli_review_mutation_plan.cpp
         cli/featherdoc_cli_review_mutation_plan_apply.cpp
         cli/featherdoc_cli_review_mutation_plan_build.cpp
