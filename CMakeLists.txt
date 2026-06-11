@@ -1256,6 +1256,9 @@ if(BUILD_CLI)
         cli/featherdoc_cli_content_control_sync_options_parse.cpp
         cli/featherdoc_cli_content_control_text_options_parse.cpp
         cli/featherdoc_cli_default_run_properties_commands.cpp
+        cli/featherdoc_cli_image_append_options_parse.cpp
+        cli/featherdoc_cli_image_append_options_parse_floating.cpp
+        cli/featherdoc_cli_image_append_options_parse_support.cpp
         cli/featherdoc_cli_image_commands.cpp
         cli/featherdoc_cli_inspect_content_options_parse.cpp
         cli/featherdoc_cli_image_output.cpp

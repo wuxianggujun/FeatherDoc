@@ -9,6 +9,4 @@ namespace featherdoc_cli {
 
 #include "featherdoc_cli_image_options_selection_parse.inc"
 
-#include "featherdoc_cli_image_options_append_parse.inc"
-
 } // namespace featherdoc_cli
