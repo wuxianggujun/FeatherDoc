@@ -1508,7 +1508,9 @@ featherdoc_add_cpp_test(
     cli_template_table_mutation_options_parse_tests
     cli_template_table_mutation_options_parse
     cli_template_table_mutation_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_merge_mutation_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_mutation_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_row_mutation_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_cell_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_inspect_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_selector_options_parse.cpp
