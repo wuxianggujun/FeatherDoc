@@ -1541,6 +1541,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_patch_parse_slot_mutation.cpp
         cli/featherdoc_cli_template_schema_patch_parse_update_slot_finalize.cpp
         cli/featherdoc_cli_template_schema_patch_parse_update_slot_member.cpp
+        cli/featherdoc_cli_template_schema_patch_parse_update_slot_member_helpers.cpp
         cli/featherdoc_cli_template_schema_parse.cpp
         cli/featherdoc_cli_template_schema_parse_target.cpp
         cli/featherdoc_cli_template_schema_parse_target_member.cpp

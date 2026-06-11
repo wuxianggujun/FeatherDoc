@@ -1339,6 +1339,7 @@ featherdoc_add_cpp_test(
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_parse_slot_mutation.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_parse_update_slot_finalize.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_parse_update_slot_member.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_parse_update_slot_member_helpers.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse_target.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse_target_member.cpp
