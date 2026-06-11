@@ -1,59 +1,16 @@
 #include "featherdoc_cli_image_append_options_parse_support.hpp"
+#include "featherdoc_cli_image_append_options_parse_floating_support.hpp"
 
 #include "featherdoc_cli_domain_parse.hpp"
 
 namespace featherdoc_cli {
-namespace {
-
-auto read_required_floating_option_value(
-    const std::vector<std::string_view> &arguments, std::size_t index,
-    std::string_view missing_message, std::string &error_message)
-    -> std::optional<std::string_view> {
-    if (index + 1U >= arguments.size()) {
-        error_message = std::string{missing_message};
-        return std::nullopt;
-    }
-    return arguments[index + 1U];
-}
-
-auto parse_floating_uint32_option_value(std::string_view value,
-                                        std::string_view invalid_message_prefix,
-                                        std::uint32_t &parsed_value,
-                                        std::string &error_message) -> bool {
-    if (parse_uint32(value, parsed_value)) {
-        return true;
-    }
-
-    error_message = std::string{invalid_message_prefix} + std::string{value};
-    return false;
-}
-
-} // namespace
-
-auto parse_append_image_floating_flag_option(
-    std::string_view argument, bool &floating_flag_seen,
-    append_image_options &options, std::string &error_message)
-    -> option_parse_result {
-    if (argument != "--floating") {
-        return option_parse_result::not_matched;
-    }
-
-    if (floating_flag_seen) {
-        error_message = "duplicate --floating option";
-        return option_parse_result::error;
-    }
-
-    options.floating = true;
-    floating_flag_seen = true;
-    return option_parse_result::matched;
-}
 
 auto parse_append_image_floating_layout_option(
     std::string_view argument, const std::vector<std::string_view> &arguments,
     std::size_t &index, append_image_options &options,
     std::string &error_message) -> option_parse_result {
     if (argument == "--horizontal-reference") {
-        const auto value = read_required_floating_option_value(
+        const auto value = read_image_append_floating_option_value(
             arguments, index, "missing value after --horizontal-reference",
             error_message);
         if (!value.has_value()) {
@@ -73,7 +30,7 @@ auto parse_append_image_floating_layout_option(
     }
 
     if (argument == "--horizontal-offset") {
-        const auto value = read_required_floating_option_value(
+        const auto value = read_image_append_floating_option_value(
             arguments, index, "missing value after --horizontal-offset",
             error_message);
         if (!value.has_value()) {
@@ -93,7 +50,7 @@ auto parse_append_image_floating_layout_option(
     }
 
     if (argument == "--vertical-reference") {
-        const auto value = read_required_floating_option_value(
+        const auto value = read_image_append_floating_option_value(
             arguments, index, "missing value after --vertical-reference",
             error_message);
         if (!value.has_value()) {
@@ -112,7 +69,7 @@ auto parse_append_image_floating_layout_option(
     }
 
     if (argument == "--vertical-offset") {
-        const auto value = read_required_floating_option_value(
+        const auto value = read_image_append_floating_option_value(
             arguments, index, "missing value after --vertical-offset",
             error_message);
         if (!value.has_value()) {
@@ -132,7 +89,7 @@ auto parse_append_image_floating_layout_option(
     }
 
     if (argument == "--behind-text") {
-        const auto value = read_required_floating_option_value(
+        const auto value = read_image_append_floating_option_value(
             arguments, index, "missing value after --behind-text",
             error_message);
         if (!value.has_value()) {
@@ -152,7 +109,7 @@ auto parse_append_image_floating_layout_option(
     }
 
     if (argument == "--allow-overlap") {
-        const auto value = read_required_floating_option_value(
+        const auto value = read_image_append_floating_option_value(
             arguments, index, "missing value after --allow-overlap",
             error_message);
         if (!value.has_value()) {
@@ -173,16 +130,15 @@ auto parse_append_image_floating_layout_option(
     }
 
     if (argument == "--z-order") {
-        const auto value = read_required_floating_option_value(
+        const auto value = read_image_append_floating_option_value(
             arguments, index, "missing value after --z-order", error_message);
         if (!value.has_value()) {
             return option_parse_result::error;
         }
 
         std::uint32_t z_order = 0U;
-        if (!parse_floating_uint32_option_value(*value,
-                                                "invalid z-order value: ",
-                                                z_order, error_message)) {
+        if (!parse_image_append_floating_uint32_option_value(
+                *value, "invalid z-order value: ", z_order, error_message)) {
             return option_parse_result::error;
         }
 
@@ -193,7 +149,7 @@ auto parse_append_image_floating_layout_option(
     }
 
     if (argument == "--wrap-mode") {
-        const auto value = read_required_floating_option_value(
+        const auto value = read_image_append_floating_option_value(
             arguments, index, "missing value after --wrap-mode", error_message);
         if (!value.has_value()) {
             return option_parse_result::error;
@@ -224,15 +180,15 @@ auto parse_append_image_floating_layout_option(
             : argument == "--wrap-distance-right" ? "invalid wrap distance right: "
             : argument == "--wrap-distance-top"   ? "invalid wrap distance top: "
                                                    : "invalid wrap distance bottom: ";
-        const auto value = read_required_floating_option_value(
+        const auto value = read_image_append_floating_option_value(
             arguments, index, missing_message, error_message);
         if (!value.has_value()) {
             return option_parse_result::error;
         }
 
         std::uint32_t distance_px = 0U;
-        if (!parse_floating_uint32_option_value(*value, invalid_message,
-                                                distance_px, error_message)) {
+        if (!parse_image_append_floating_uint32_option_value(
+                *value, invalid_message, distance_px, error_message)) {
             return option_parse_result::error;
         }
 

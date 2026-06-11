@@ -1259,20 +1259,25 @@ if(BUILD_CLI)
         cli/featherdoc_cli_content_control_text_options_parse.cpp
         cli/featherdoc_cli_default_run_properties_commands.cpp
         cli/featherdoc_cli_image_append_options_parse.cpp
-        cli/featherdoc_cli_image_append_options_parse_floating.cpp
+        cli/featherdoc_cli_image_append_options_parse_crop.cpp
+        cli/featherdoc_cli_image_append_options_parse_floating_flag.cpp
+        cli/featherdoc_cli_image_append_options_parse_floating_layout.cpp
+        cli/featherdoc_cli_image_append_options_parse_floating_support.cpp
         cli/featherdoc_cli_image_append_options_parse_support.cpp
         cli/featherdoc_cli_image_commands.cpp
         cli/featherdoc_cli_inspect_content_options_parse.cpp
         cli/featherdoc_cli_image_output.cpp
         cli/featherdoc_cli_image_options_parse.cpp
         cli/featherdoc_cli_bookmark_image_options_parse.cpp
-        cli/featherdoc_cli_bookmark_paragraph_options_parse.cpp
+        cli/featherdoc_cli_bookmark_block_options_parse.cpp
+        cli/featherdoc_cli_bookmark_paragraph_replace_options_parse.cpp
         cli/featherdoc_cli_bookmark_table_options_parse.cpp
         cli/featherdoc_cli_bookmark_text_fill_options_parse.cpp
         cli/featherdoc_cli_bookmark_text_inspect_options_parse.cpp
         cli/featherdoc_cli_bookmark_text_options_parse_support.cpp
         cli/featherdoc_cli_bookmark_text_replace_options_parse.cpp
-        cli/featherdoc_cli_bookmark_visibility_options_parse.cpp
+        cli/featherdoc_cli_bookmark_visibility_apply_options_parse.cpp
+        cli/featherdoc_cli_bookmark_visibility_set_options_parse.cpp
         cli/featherdoc_cli_document_content_commands.cpp
         cli/featherdoc_cli_document_mutation_options_parse.cpp
         cli/featherdoc_cli_document_revision_options_parse.cpp
@@ -1302,6 +1307,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_numbering_catalog_parse_support.cpp
         cli/featherdoc_cli_numbering_catalog_patch_apply.cpp
         cli/featherdoc_cli_numbering_catalog_patch_level_parse.cpp
+        cli/featherdoc_cli_numbering_catalog_patch_override_entry_parse.cpp
         cli/featherdoc_cli_numbering_catalog_patch_override_parse.cpp
         cli/featherdoc_cli_numbering_catalog_patch_parse.cpp
         cli/featherdoc_cli_numbering_catalog_patch_parse_support.cpp
@@ -1398,11 +1404,16 @@ if(BUILD_CLI)
         cli/featherdoc_cli_table_style_output.cpp
         cli/featherdoc_cli_table_text_commands.cpp
         cli/featherdoc_cli_template_inspect_options_parse.cpp
-        cli/featherdoc_cli_template_table_inspect_options_parse.cpp
+        cli/featherdoc_cli_template_table_inspect_table_cells_options_parse.cpp
+        cli/featherdoc_cli_template_table_inspect_table_rows_options_parse.cpp
+        cli/featherdoc_cli_template_table_inspect_tables_options_parse.cpp
         cli/featherdoc_cli_template_table_selector_options_parse.cpp
         cli/featherdoc_cli_template_part_selection.cpp
         cli/featherdoc_cli_template_table_commands.cpp
-        cli/featherdoc_cli_template_table_inspect_commands.cpp
+        cli/featherdoc_cli_template_table_inspect_commands_detail.cpp
+        cli/featherdoc_cli_template_table_inspect_tables_command.cpp
+        cli/featherdoc_cli_template_table_inspect_rows_command.cpp
+        cli/featherdoc_cli_template_table_inspect_cells_command.cpp
         cli/featherdoc_cli_template_table_inspect_output.cpp
         cli/featherdoc_cli_template_table_json_batch_operation_finalize.cpp
         cli/featherdoc_cli_template_table_json_batch_operation_member_parse.cpp
@@ -1417,7 +1428,9 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_table_merge_commands.cpp
         cli/featherdoc_cli_template_table_merge_mutation_options_parse.cpp
         cli/featherdoc_cli_template_table_json_options_parse.cpp
-        cli/featherdoc_cli_template_table_row_cell_target_options_parse.cpp
+        cli/featherdoc_cli_template_table_row_target_options_parse.cpp
+        cli/featherdoc_cli_template_table_cell_target_options_parse.cpp
+        cli/featherdoc_cli_template_table_optional_cell_target_options_parse.cpp
         cli/featherdoc_cli_template_table_target_options_parse.cpp
         cli/featherdoc_cli_template_table_output.cpp
         cli/featherdoc_cli_template_table_mutation_options_parse.cpp
@@ -1429,6 +1442,9 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_table_text_support.cpp
         cli/featherdoc_cli_template_validation_schema_options_parse.cpp
         cli/featherdoc_cli_template_validation_options_parse.cpp
+        cli/featherdoc_cli_inspect_style_audit_options_parse.cpp
+        cli/featherdoc_cli_inspect_style_quality_fixes_options_parse.cpp
+        cli/featherdoc_cli_inspect_style_repair_numbering_options_parse.cpp
         cli/featherdoc_cli_run_properties_clear_options_parse.cpp
         cli/featherdoc_cli_run_properties_common_options_parse.cpp
         cli/featherdoc_cli_run_properties_mutation_options_parse.cpp
@@ -1533,6 +1549,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_patch_parse.cpp
         cli/featherdoc_cli_template_schema_patch_parse_detail.cpp
         cli/featherdoc_cli_template_schema_patch_parse_target_selector.cpp
+        cli/featherdoc_cli_template_schema_patch_parse_target_selectors_array.cpp
         cli/featherdoc_cli_template_schema_patch_parse_rename_slot_finalize.cpp
         cli/featherdoc_cli_template_schema_patch_parse_rename_slot_member.cpp
         cli/featherdoc_cli_template_schema_patch_parse_rename_slot_members.cpp
@@ -1543,6 +1560,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_patch_parse_remove_slot.cpp
         cli/featherdoc_cli_template_schema_patch_parse_slot_mutation.cpp
         cli/featherdoc_cli_template_schema_patch_parse_update_slot_finalize.cpp
+        cli/featherdoc_cli_template_schema_patch_parse_update_slot_finalize_detail.cpp
         cli/featherdoc_cli_template_schema_patch_parse_update_slot_member.cpp
         cli/featherdoc_cli_template_schema_patch_parse_update_slot_member_helpers.cpp
         cli/featherdoc_cli_template_schema_parse.cpp
