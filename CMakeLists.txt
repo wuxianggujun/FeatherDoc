@@ -1384,10 +1384,14 @@ if(BUILD_CLI)
         cli/featherdoc_cli_style_options_parse.cpp
         cli/featherdoc_cli_style_output.cpp
         cli/featherdoc_cli_style_refactor_commands.cpp
+        cli/featherdoc_cli_style_merge_restore_options_parse.cpp
+        cli/featherdoc_cli_style_merge_suggestion_options_parse.cpp
+        cli/featherdoc_cli_style_refactor_apply_options_parse.cpp
         cli/featherdoc_cli_style_refactor_output.cpp
+        cli/featherdoc_cli_style_refactor_pair_parse.cpp
         cli/featherdoc_cli_style_refactor_plan.cpp
+        cli/featherdoc_cli_style_refactor_plan_options_parse.cpp
         cli/featherdoc_cli_style_refactor_plan_parse.cpp
-        cli/featherdoc_cli_style_refactor_options_parse.cpp
         cli/featherdoc_cli_style_refactor_restore_output.cpp
         cli/featherdoc_cli_style_refactor_rollback_parse.cpp
         cli/featherdoc_cli_style_numbering_commands.cpp

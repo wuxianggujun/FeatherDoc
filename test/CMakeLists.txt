@@ -1036,7 +1036,11 @@ featherdoc_add_cpp_test(
     cli_style_refactor_options_parse_tests
     cli_style_refactor_options_parse
     cli_style_refactor_options_parse_tests.cpp
-    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_merge_restore_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_merge_suggestion_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_apply_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_pair_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_plan_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_refactor_plan.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
 )
