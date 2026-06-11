@@ -1299,7 +1299,10 @@ if(BUILD_CLI)
         cli/featherdoc_cli_style_ensure_common_options_parse.cpp
         cli/featherdoc_cli_style_ensure_options_parse.cpp
         cli/featherdoc_cli_style_ensure_table_options_parse.cpp
-        cli/featherdoc_cli_style_ensure_table_region_parse.cpp
+        cli/featherdoc_cli_style_ensure_table_region_basic_parse.cpp
+        cli/featherdoc_cli_style_ensure_table_region_box_parse.cpp
+        cli/featherdoc_cli_style_ensure_table_region_paragraph_parse.cpp
+        cli/featherdoc_cli_style_ensure_table_region_parse_support.cpp
         cli/featherdoc_cli_style_inspect_commands.cpp
         cli/featherdoc_cli_table_cell_options_parse.cpp
         cli/featherdoc_cli_table_border_margin_commands.cpp
