@@ -1375,6 +1375,8 @@ if(BUILD_CLI)
         cli/featherdoc_cli_pdf_commands.cpp
         cli/featherdoc_cli_pdf_parse.cpp
         cli/featherdoc_cli_review_mutation_plan_build_request_parse.cpp
+        cli/featherdoc_cli_review_mutation_plan_build_request_operation_finalize.cpp
+        cli/featherdoc_cli_review_mutation_plan_build_request_operation_member_parse.cpp
         cli/featherdoc_cli_review_mutation_plan_build_request_operation_parse.cpp
         cli/featherdoc_cli_review_mutation_plan_build_request_parse_support.cpp
         cli/featherdoc_cli_review_mutation_plan_kind_parse.cpp
