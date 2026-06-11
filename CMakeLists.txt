@@ -1518,6 +1518,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_usage.cpp
         cli/featherdoc_cli_usage_table.cpp
         cli/featherdoc_cli_validation_part.cpp
+        cli/featherdoc_cli_dispatch.cpp
         cli/featherdoc_cli.cpp)
     target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::FeatherDoc)
     if(FEATHERDOC_BUILD_PDF AND TARGET FeatherDocPdf)
