@@ -1449,6 +1449,9 @@ if(BUILD_CLI)
         cli/featherdoc_cli_table_position_set_options_parse.cpp
         cli/featherdoc_cli_table_position_set_preset_defaults.cpp
         cli/featherdoc_cli_table_position_set_spacing_options_parse.cpp
+        cli/featherdoc_cli_table_position_commands_plan.cpp
+        cli/featherdoc_cli_table_position_commands_mutate.cpp
+        cli/featherdoc_cli_table_position_commands_support.cpp
         cli/featherdoc_cli_review_commands.cpp
         cli/featherdoc_cli_review_comment_commands.cpp
         cli/featherdoc_cli_review_mutation_plan.cpp
