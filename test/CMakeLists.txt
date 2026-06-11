@@ -1504,6 +1504,7 @@ featherdoc_add_cpp_test(
     cli_run_properties_options_parse
     cli_run_properties_options_parse_tests.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_paragraph_style_properties_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_run_properties_clear_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_run_properties_common_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_run_properties_mutation_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_run_properties_options_parse.cpp
