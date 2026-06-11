@@ -1438,7 +1438,10 @@ featherdoc_add_cpp_test(
     cli_table_cell_options_parse_tests
     cli_table_cell_options_parse
     cli_table_cell_options_parse_tests.cpp
-    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_cell_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_append_table_row_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_cell_merge_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_cell_style_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_cell_text_options_parse.cpp
     ${FEATHERDOC_CLI_DOMAIN_PARSE_SOURCES}
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
@@ -1537,7 +1540,10 @@ featherdoc_add_cpp_test(
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_merge_mutation_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_mutation_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_row_mutation_options_parse.cpp
-    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_cell_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_append_table_row_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_cell_merge_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_cell_style_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_cell_text_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_inspect_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_table_selector_options_parse.cpp
     ${FEATHERDOC_CLI_DOMAIN_PARSE_SOURCES}
