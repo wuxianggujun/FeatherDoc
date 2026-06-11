@@ -1171,7 +1171,10 @@ featherdoc_add_cpp_test(
     cli_run_recipe_parse_tests
     cli_run_recipe_parse
     cli_run_recipe_parse_tests.cpp
-    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_run_recipe_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_run_recipe_inputs_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_run_recipe_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_run_recipe_parse_support.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_run_recipe_recipe_id_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
 )
