@@ -1217,8 +1217,12 @@ if(BUILD_CLI)
     add_executable(featherdoc_cli
         cli/featherdoc_cli_main.cpp
         cli/featherdoc_cli_command_support.cpp
+        cli/featherdoc_cli_domain_image_parse.cpp
         cli/featherdoc_cli_domain_names.cpp
         cli/featherdoc_cli_domain_parse.cpp
+        cli/featherdoc_cli_domain_table_border_parse.cpp
+        cli/featherdoc_cli_domain_table_layout_parse.cpp
+        cli/featherdoc_cli_domain_table_text_parse.cpp
         cli/featherdoc_cli_errors.cpp
         cli/featherdoc_cli_field_complex_options_parse.cpp
         cli/featherdoc_cli_field_parse.cpp
