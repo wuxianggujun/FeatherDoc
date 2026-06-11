@@ -1418,6 +1418,8 @@ featherdoc_add_cpp_test(
     cli_bookmark_text_options_parse
     cli_bookmark_text_options_parse_tests.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_content_control_form_state_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_content_control_form_state_options_parse_state.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_content_control_form_state_options_parse_support.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_content_control_inspect_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_content_control_options_parse_support.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_content_control_rich_options_parse.cpp

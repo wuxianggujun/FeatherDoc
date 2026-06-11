@@ -1250,6 +1250,8 @@ if(BUILD_CLI)
         cli/featherdoc_cli_content_control_table_commands.cpp
         cli/featherdoc_cli_content_control_text_commands.cpp
         cli/featherdoc_cli_content_control_form_state_options_parse.cpp
+        cli/featherdoc_cli_content_control_form_state_options_parse_state.cpp
+        cli/featherdoc_cli_content_control_form_state_options_parse_support.cpp
         cli/featherdoc_cli_content_control_inspect_options_parse.cpp
         cli/featherdoc_cli_content_control_options_parse_support.cpp
         cli/featherdoc_cli_content_control_rich_options_parse.cpp
