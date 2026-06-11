@@ -1332,6 +1332,11 @@ if(BUILD_CLI)
         cli/featherdoc_cli_table_cell_merge_options_parse.cpp
         cli/featherdoc_cli_table_cell_style_options_parse.cpp
         cli/featherdoc_cli_table_cell_style_commands.cpp
+        cli/featherdoc_cli_table_cell_style_fill_commands.cpp
+        cli/featherdoc_cli_table_cell_style_support.cpp
+        cli/featherdoc_cli_table_cell_style_text_direction_commands.cpp
+        cli/featherdoc_cli_table_cell_style_vertical_alignment_commands.cpp
+        cli/featherdoc_cli_table_cell_style_width_commands.cpp
         cli/featherdoc_cli_table_commands.cpp
         cli/featherdoc_cli_table_column_commands.cpp
         cli/featherdoc_cli_table_format_commands.cpp
