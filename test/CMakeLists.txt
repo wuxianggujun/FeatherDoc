@@ -1249,6 +1249,8 @@ featherdoc_add_cpp_test(
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse_target.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse_target_member.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_slot_parse_finalize.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_slot_parse_member.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_slot_parse.cpp
     ${FEATHERDOC_CLI_DOMAIN_PARSE_SOURCES}
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
@@ -1332,6 +1334,8 @@ featherdoc_add_cpp_test(
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse_target.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_parse_target_member.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_slot_parse_finalize.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_slot_parse_member.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_slot_parse.cpp
     ${FEATHERDOC_CLI_DOMAIN_PARSE_SOURCES}
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp

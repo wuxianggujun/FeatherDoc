@@ -1452,6 +1452,8 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_parse.cpp
         cli/featherdoc_cli_template_schema_parse_target.cpp
         cli/featherdoc_cli_template_schema_parse_target_member.cpp
+        cli/featherdoc_cli_template_schema_slot_parse_finalize.cpp
+        cli/featherdoc_cli_template_schema_slot_parse_member.cpp
         cli/featherdoc_cli_template_schema_slot_parse.cpp
         cli/featherdoc_cli_template_schema_target_output.cpp
         cli/featherdoc_cli_template_schema_validation_output.cpp
