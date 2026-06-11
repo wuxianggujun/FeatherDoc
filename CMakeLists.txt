@@ -1417,7 +1417,11 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_ops.cpp
         cli/featherdoc_cli_template_schema_commands.cpp
         cli/featherdoc_cli_template_schema_diff_output.cpp
-        cli/featherdoc_cli_template_schema_options_parse.cpp
+        cli/featherdoc_cli_template_schema_diff_options_parse.cpp
+        cli/featherdoc_cli_template_schema_export_check_options_parse.cpp
+        cli/featherdoc_cli_template_schema_maintenance_options_parse.cpp
+        cli/featherdoc_cli_template_schema_options_parse_support.cpp
+        cli/featherdoc_cli_template_schema_patch_options_parse.cpp
         cli/featherdoc_cli_template_schema_output.cpp
         cli/featherdoc_cli_template_schema_patch_output.cpp
         cli/featherdoc_cli_template_schema_patch_ops.cpp

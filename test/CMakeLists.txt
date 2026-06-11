@@ -1255,7 +1255,11 @@ featherdoc_add_cpp_test(
     cli_template_schema_options_parse_tests
     cli_template_schema_options_parse
     cli_template_schema_options_parse_tests.cpp
-    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_diff_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_export_check_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_maintenance_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_options_parse_support.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_options_parse.cpp
 )
 target_include_directories(
     cli_template_schema_options_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
