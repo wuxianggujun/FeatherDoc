@@ -1274,6 +1274,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_page_setup_parse.cpp
         cli/featherdoc_cli_paragraph_inspect_commands.cpp
         cli/featherdoc_cli_paragraph_inspect_output.cpp
+        cli/featherdoc_cli_paragraph_style_properties_options_parse.cpp
         cli/featherdoc_cli_template_paragraph_inspect_commands.cpp
         cli/featherdoc_cli_paragraph_numbering_commands.cpp
         cli/featherdoc_cli_paragraph_list_options_parse.cpp
@@ -1341,6 +1342,8 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_table_row_commands.cpp
         cli/featherdoc_cli_template_table_text_commands.cpp
         cli/featherdoc_cli_template_validation_options_parse.cpp
+        cli/featherdoc_cli_run_properties_common_options_parse.cpp
+        cli/featherdoc_cli_run_properties_mutation_options_parse.cpp
         cli/featherdoc_cli_run_properties_options_parse.cpp
         cli/featherdoc_cli_parse.cpp
         cli/featherdoc_cli_pdf_commands.cpp
