@@ -1602,7 +1602,10 @@ featherdoc_add_cpp_test(
     cli_numbering_catalog_patch_parse_tests
     cli_numbering_catalog_patch_parse
     cli_numbering_catalog_patch_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_patch_level_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_patch_override_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_patch_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_patch_parse_support.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_definition_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_instance_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_level_parse.cpp

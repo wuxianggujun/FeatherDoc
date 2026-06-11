@@ -1274,7 +1274,10 @@ if(BUILD_CLI)
         cli/featherdoc_cli_numbering_catalog_parse.cpp
         cli/featherdoc_cli_numbering_catalog_parse_support.cpp
         cli/featherdoc_cli_numbering_catalog_patch_apply.cpp
+        cli/featherdoc_cli_numbering_catalog_patch_level_parse.cpp
+        cli/featherdoc_cli_numbering_catalog_patch_override_parse.cpp
         cli/featherdoc_cli_numbering_catalog_patch_parse.cpp
+        cli/featherdoc_cli_numbering_catalog_patch_parse_support.cpp
         cli/featherdoc_cli_numbering_catalog_commands.cpp
         cli/featherdoc_cli_numbering_inspect_commands.cpp
         cli/featherdoc_cli_numbering_json.cpp
