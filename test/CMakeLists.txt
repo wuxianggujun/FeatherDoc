@@ -1315,8 +1315,11 @@ featherdoc_add_cpp_test(
     cli_numbering_catalog_parse_tests
     cli_numbering_catalog_parse
     cli_numbering_catalog_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_definition_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_instance_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_level_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_parse_support.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
@@ -1589,8 +1592,11 @@ featherdoc_add_cpp_test(
     cli_numbering_catalog_patch_parse
     cli_numbering_catalog_patch_parse_tests.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_patch_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_definition_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_instance_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_level_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_catalog_parse_support.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
