@@ -1063,6 +1063,8 @@ featherdoc_add_cpp_test(
     cli_review_mutation_plan_parse
     cli_review_mutation_plan_parse_tests.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_review_mutation_plan_build_request_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_review_mutation_plan_build_request_operation_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_review_mutation_plan_build_request_parse_support.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_review_mutation_plan_kind_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_review_mutation_plan_operation_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_review_mutation_plan_parse.cpp
