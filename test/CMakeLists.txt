@@ -1590,7 +1590,10 @@ featherdoc_add_cpp_test(
     cli_numbering_options_parse_tests
     cli_numbering_options_parse
     cli_numbering_options_parse_tests.cpp
-    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_definition_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_numbering_level_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_paragraph_numbering_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_paragraph_style_numbering_options_parse.cpp
     ${FEATHERDOC_CLI_DOMAIN_PARSE_SOURCES}
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp

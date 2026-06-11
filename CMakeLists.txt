@@ -1279,9 +1279,10 @@ if(BUILD_CLI)
         cli/featherdoc_cli_numbering_catalog_patch_parse.cpp
         cli/featherdoc_cli_numbering_catalog_patch_parse_support.cpp
         cli/featherdoc_cli_numbering_catalog_commands.cpp
+        cli/featherdoc_cli_numbering_definition_options_parse.cpp
+        cli/featherdoc_cli_numbering_level_options_parse.cpp
         cli/featherdoc_cli_numbering_inspect_commands.cpp
         cli/featherdoc_cli_numbering_json.cpp
-        cli/featherdoc_cli_numbering_options_parse.cpp
         cli/featherdoc_cli_page_setup.cpp
         cli/featherdoc_cli_page_setup_commands.cpp
         cli/featherdoc_cli_page_setup_parse.cpp
@@ -1290,7 +1291,9 @@ if(BUILD_CLI)
         cli/featherdoc_cli_paragraph_style_properties_options_parse.cpp
         cli/featherdoc_cli_template_paragraph_inspect_commands.cpp
         cli/featherdoc_cli_paragraph_numbering_commands.cpp
+        cli/featherdoc_cli_paragraph_numbering_options_parse.cpp
         cli/featherdoc_cli_paragraph_list_options_parse.cpp
+        cli/featherdoc_cli_paragraph_style_numbering_options_parse.cpp
         cli/featherdoc_cli_paragraph_run_commands.cpp
         cli/featherdoc_cli_paragraph_run_options_parse.cpp
         cli/featherdoc_cli_run_style_properties_commands.cpp
