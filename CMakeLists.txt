@@ -1369,8 +1369,11 @@ if(BUILD_CLI)
         cli/featherdoc_cli_table_row_summary.cpp
         cli/featherdoc_cli_table_row_support.cpp
         cli/featherdoc_cli_table_cell_text_options_parse.cpp
+        cli/featherdoc_cli_table_column_width_commands.cpp
+        cli/featherdoc_cli_table_insert_remove_commands.cpp
         cli/featherdoc_cli_table_row_toggle_commands.cpp
         cli/featherdoc_cli_table_structure_commands.cpp
+        cli/featherdoc_cli_table_structure_support.cpp
         cli/featherdoc_cli_table_structure_validation.cpp
         cli/featherdoc_cli_table_style_commands.cpp
         cli/featherdoc_cli_table_style_audit_output.cpp
