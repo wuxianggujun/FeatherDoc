@@ -1309,6 +1309,10 @@ if(BUILD_CLI)
         cli/featherdoc_cli_paragraph_style_numbering_options_parse.cpp
         cli/featherdoc_cli_paragraph_run_commands_support.cpp
         cli/featherdoc_cli_paragraph_run_commands.cpp
+        cli/featherdoc_cli_paragraph_numbering_commands_support.cpp
+        cli/featherdoc_cli_paragraph_numbering_definition_commands.cpp
+        cli/featherdoc_cli_paragraph_numbering_list_commands.cpp
+        cli/featherdoc_cli_paragraph_numbering_style_commands.cpp
         cli/featherdoc_cli_paragraph_run_font_family_commands.cpp
         cli/featherdoc_cli_paragraph_run_language_commands.cpp
         cli/featherdoc_cli_paragraph_run_style_commands.cpp
