@@ -1257,6 +1257,9 @@ if(BUILD_CLI)
         cli/featherdoc_cli_inspect_table_item_options_parse.cpp
         cli/featherdoc_cli_json.cpp
         cli/featherdoc_cli_json_parse.cpp
+        cli/featherdoc_cli_json_parse_members.cpp
+        cli/featherdoc_cli_json_parse_string.cpp
+        cli/featherdoc_cli_json_parse_value.cpp
         cli/featherdoc_cli_numbering_catalog_diff.cpp
         cli/featherdoc_cli_numbering_catalog_lint.cpp
         cli/featherdoc_cli_numbering_catalog_options_parse.cpp
