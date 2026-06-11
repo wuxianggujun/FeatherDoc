@@ -1302,8 +1302,11 @@ if(BUILD_CLI)
         cli/featherdoc_cli_table_inspect_commands.cpp
         cli/featherdoc_cli_table_inspect_output.cpp
         cli/featherdoc_cli_table_merge_commands.cpp
+        cli/featherdoc_cli_table_row_height_commands.cpp
         cli/featherdoc_cli_table_row_commands.cpp
         cli/featherdoc_cli_table_row_summary.cpp
+        cli/featherdoc_cli_table_row_support.cpp
+        cli/featherdoc_cli_table_row_toggle_commands.cpp
         cli/featherdoc_cli_table_structure_commands.cpp
         cli/featherdoc_cli_table_structure_validation.cpp
         cli/featherdoc_cli_table_style_commands.cpp
