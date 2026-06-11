@@ -1444,6 +1444,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_style_refactor_rollback_parse.cpp
         cli/featherdoc_cli_style_numbering_commands.cpp
         cli/featherdoc_cli_style_numbering_audit.cpp
+        cli/featherdoc_cli_style_numbering_output.cpp
         cli/featherdoc_cli_table_style_look_options_parse.cpp
         cli/featherdoc_cli_table_position_plan_build.cpp
         cli/featherdoc_cli_table_position_commands.cpp
