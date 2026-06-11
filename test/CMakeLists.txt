@@ -1398,7 +1398,10 @@ featherdoc_add_cpp_test(
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_image_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_paragraph_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_table_options_parse.cpp
-    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_text_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_text_fill_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_text_inspect_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_text_options_parse_support.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_text_replace_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_bookmark_visibility_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_image_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_inspect_options_parse.cpp

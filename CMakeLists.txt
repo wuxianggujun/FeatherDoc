@@ -1249,7 +1249,10 @@ if(BUILD_CLI)
         cli/featherdoc_cli_bookmark_image_options_parse.cpp
         cli/featherdoc_cli_bookmark_paragraph_options_parse.cpp
         cli/featherdoc_cli_bookmark_table_options_parse.cpp
-        cli/featherdoc_cli_bookmark_text_options_parse.cpp
+        cli/featherdoc_cli_bookmark_text_fill_options_parse.cpp
+        cli/featherdoc_cli_bookmark_text_inspect_options_parse.cpp
+        cli/featherdoc_cli_bookmark_text_options_parse_support.cpp
+        cli/featherdoc_cli_bookmark_text_replace_options_parse.cpp
         cli/featherdoc_cli_bookmark_visibility_options_parse.cpp
         cli/featherdoc_cli_document_content_commands.cpp
         cli/featherdoc_cli_document_mutation_options_parse.cpp
