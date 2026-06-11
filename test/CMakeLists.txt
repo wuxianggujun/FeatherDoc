@@ -996,8 +996,11 @@ featherdoc_add_cpp_test(
     cli_table_position_options_parse
     cli_table_position_options_parse_tests.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_options_parse_support.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_plan_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_plan_build.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_plan_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_table_position_set_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp

@@ -1376,8 +1376,11 @@ if(BUILD_CLI)
         cli/featherdoc_cli_table_position_plan_build.cpp
         cli/featherdoc_cli_table_position_commands.cpp
         cli/featherdoc_cli_table_position_options_parse.cpp
+        cli/featherdoc_cli_table_position_options_parse_support.cpp
         cli/featherdoc_cli_table_position_output.cpp
+        cli/featherdoc_cli_table_position_plan_options_parse.cpp
         cli/featherdoc_cli_table_position_plan_parse.cpp
+        cli/featherdoc_cli_table_position_set_options_parse.cpp
         cli/featherdoc_cli_review_commands.cpp
         cli/featherdoc_cli_review_comment_commands.cpp
         cli/featherdoc_cli_review_mutation_plan.cpp
