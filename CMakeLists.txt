@@ -1241,10 +1241,14 @@ if(BUILD_CLI)
         cli/featherdoc_cli_bookmark_text_commands.cpp
         cli/featherdoc_cli_bookmark_visibility_commands.cpp
         cli/featherdoc_cli_content_control_commands.cpp
+        cli/featherdoc_cli_content_control_image_commands.cpp
         cli/featherdoc_cli_content_control_inspect_commands.cpp
         cli/featherdoc_cli_content_control_mutation_output.cpp
         cli/featherdoc_cli_content_control_output.cpp
+        cli/featherdoc_cli_content_control_paragraph_commands.cpp
+        cli/featherdoc_cli_content_control_sync_commands.cpp
         cli/featherdoc_cli_content_control_table_commands.cpp
+        cli/featherdoc_cli_content_control_text_commands.cpp
         cli/featherdoc_cli_content_control_form_state_options_parse.cpp
         cli/featherdoc_cli_content_control_inspect_options_parse.cpp
         cli/featherdoc_cli_content_control_options_parse_support.cpp
