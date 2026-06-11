@@ -1531,6 +1531,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_patch_repair_ops.cpp
         cli/featherdoc_cli_template_schema_patch_parse.cpp
         cli/featherdoc_cli_template_schema_patch_parse_detail.cpp
+        cli/featherdoc_cli_template_schema_patch_parse_target_selector.cpp
         cli/featherdoc_cli_template_schema_patch_parse_rename_slot_finalize.cpp
         cli/featherdoc_cli_template_schema_patch_parse_rename_slot_member.cpp
         cli/featherdoc_cli_template_schema_patch_parse_rename_slot_members.cpp
