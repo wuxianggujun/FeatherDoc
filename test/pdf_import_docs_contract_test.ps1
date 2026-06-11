@@ -294,7 +294,7 @@ $chineseApiIndexPath = Join-Path $resolvedRepoRoot "docs\zh-CN\api\index.rst"
 $changelogPath = Join-Path $resolvedRepoRoot "CHANGELOG.md"
 $cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
 $pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf_document_importer.hpp"
-$pdfCliCommandsPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli_pdf_commands.cpp"
+$pdfCliImportOutputPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli_pdf_import_output.cpp"
 $pdfCliImportTestsPath = Join-Path $resolvedRepoRoot "test\pdf_cli_import_tests.cpp"
 $pdfImportStructureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_structure_tests.cpp"
 $pdfImportFailureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_failure_tests.cpp"
@@ -307,7 +307,7 @@ $chineseApiIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $chineseApiI
 $changelogText = Get-Content -Raw -Encoding UTF8 -LiteralPath $changelogPath
 $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
-$pdfCliCommandsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliCommandsPath
+$pdfCliImportOutputText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportOutputPath
 $pdfCliImportTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportTestsPath
 $pdfImportStructureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportStructureTestsPath
 $pdfImportFailureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportFailureTestsPath
@@ -683,21 +683,21 @@ Assert-DocumentedEnumMembers `
     -Label "docs/en/api/pdf_workflow.rst"
 
 Assert-CliMapsEnumMembers `
-    -Text $pdfCliCommandsText `
+    -Text $pdfCliImportOutputText `
     -Members $failureKindMembers `
-    -Label "cli/featherdoc_cli_pdf_commands.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
 Assert-CliMapsEnumMembers `
-    -Text $pdfCliCommandsText `
+    -Text $pdfCliImportOutputText `
     -Members $dispositionMembers `
-    -Label "cli/featherdoc_cli_pdf_commands.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
 Assert-CliMapsEnumMembers `
-    -Text $pdfCliCommandsText `
+    -Text $pdfCliImportOutputText `
     -Members $blockerMembers `
-    -Label "cli/featherdoc_cli_pdf_commands.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
 Assert-CliMapsEnumMembers `
-    -Text $pdfCliCommandsText `
+    -Text $pdfCliImportOutputText `
     -Members $headerMatchKindMembers `
-    -Label "cli/featherdoc_cli_pdf_commands.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
 
 $cliJsonBlockerMembers = Get-CliJsonBlockerMembers -Text $pdfCliImportTestsText
 foreach ($blockerMember in $blockerMembers) {
