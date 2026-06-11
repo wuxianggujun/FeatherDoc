@@ -1400,7 +1400,9 @@ featherdoc_add_cpp_test(
     cli_style_ensure_options_parse_tests
     cli_style_ensure_options_parse
     cli_style_ensure_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_ensure_common_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_ensure_options_parse.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_ensure_table_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_style_ensure_table_region_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp
