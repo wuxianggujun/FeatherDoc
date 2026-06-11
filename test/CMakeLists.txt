@@ -1284,6 +1284,7 @@ featherdoc_add_cpp_test(
     cli_template_validation_options_parse_tests
     cli_template_validation_options_parse
     cli_template_validation_options_parse_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_validation_schema_options_parse.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_validation_options_parse.cpp
     ${FEATHERDOC_CLI_DOMAIN_PARSE_SOURCES}
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp

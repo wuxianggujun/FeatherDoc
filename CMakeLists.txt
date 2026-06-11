@@ -1427,6 +1427,7 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_table_row_commands.cpp
         cli/featherdoc_cli_template_table_text_commands.cpp
         cli/featherdoc_cli_template_table_text_support.cpp
+        cli/featherdoc_cli_template_validation_schema_options_parse.cpp
         cli/featherdoc_cli_template_validation_options_parse.cpp
         cli/featherdoc_cli_run_properties_clear_options_parse.cpp
         cli/featherdoc_cli_run_properties_common_options_parse.cpp
