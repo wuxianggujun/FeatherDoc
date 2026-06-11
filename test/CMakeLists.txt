@@ -1310,6 +1310,9 @@ featherdoc_add_cpp_test(
     cli_template_schema_patch_ops
     cli_template_schema_patch_ops_tests.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_ops.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_apply_ops.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_diff_ops.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_patch_repair_ops.cpp
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_template_schema_ops.cpp
 )
 target_include_directories(
