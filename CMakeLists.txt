@@ -1280,7 +1280,9 @@ if(BUILD_CLI)
         cli/featherdoc_cli_numbering_catalog_diff.cpp
         cli/featherdoc_cli_numbering_catalog_lint.cpp
         cli/featherdoc_cli_numbering_catalog_options_parse.cpp
+        cli/featherdoc_cli_numbering_catalog_diff_output.cpp
         cli/featherdoc_cli_numbering_catalog_output.cpp
+        cli/featherdoc_cli_numbering_catalog_output_json.cpp
         cli/featherdoc_cli_numbering_catalog_definition_parse.cpp
         cli/featherdoc_cli_numbering_catalog_instance_parse.cpp
         cli/featherdoc_cli_numbering_catalog_level_parse.cpp
