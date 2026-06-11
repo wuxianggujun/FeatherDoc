@@ -1458,6 +1458,9 @@ if(BUILD_CLI)
         cli/featherdoc_cli_review_mutation_plan_preview.cpp
         cli/featherdoc_cli_review_mutation_plan_ranges.cpp
         cli/featherdoc_cli_review_output.cpp
+        cli/featherdoc_cli_review_output_inspect.cpp
+        cli/featherdoc_cli_review_output_mutation_plan.cpp
+        cli/featherdoc_cli_review_output_text_range.cpp
         cli/featherdoc_cli_review_revision_commands.cpp
         cli/featherdoc_cli_template_schema_convert.cpp
         cli/featherdoc_cli_template_schema_export.cpp
