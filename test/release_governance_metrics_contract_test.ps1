@@ -99,7 +99,12 @@ $safetyAuditTest = @(
         Sort-Object FullName |
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
-$contentControlReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
+$contentControlReportScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "build_content_control_data_binding_governance_report_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $numberingCatalogReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_numbering_catalog_governance_report.ps1"
 $tableLayoutDeliveryReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_table_layout_delivery_governance_report.ps1"
 $projectTemplateReadinessReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_project_template_delivery_readiness_report.ps1"

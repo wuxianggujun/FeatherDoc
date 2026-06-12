@@ -50,7 +50,12 @@ $cmakeLists = @(
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
 
-$governanceScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
+$governanceScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "build_content_control_data_binding_governance_report_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $releaseSafetyScript = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
     Get-ChildItem -LiteralPath $scriptRoot -Filter "assert_release_material_safety_*.ps1" |
