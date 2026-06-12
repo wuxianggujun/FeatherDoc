@@ -107,7 +107,12 @@ $contentControlReportScript = @(
 ) -join "`n"
 $numberingCatalogReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_numbering_catalog_governance_report.ps1"
 $tableLayoutDeliveryReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_table_layout_delivery_governance_report.ps1"
-$projectTemplateReadinessReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_project_template_delivery_readiness_report.ps1"
+$projectTemplateReadinessReportScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_project_template_delivery_readiness_report.ps1"
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "build_project_template_delivery_readiness_report_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $acceptanceDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\document_governance_acceptance_zh.rst"
 
 foreach ($text in @($reviewFocusText)) {
