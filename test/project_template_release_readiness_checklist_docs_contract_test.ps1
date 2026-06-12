@@ -134,7 +134,12 @@ $materialSafetyScript = @(
 $startHereScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_metadata_start_here.ps1"
 $artifactGuideScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_artifact_guide.ps1"
 $reviewerChecklistScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_reviewer_checklist.ps1"
-$releaseBodyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_body_zh.ps1"
+$releaseBodyScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_body_zh.ps1"
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "write_release_body_zh_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $releaseBundleVersionTest = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_note_bundle_version_test.ps1"
     Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "release_note_bundle_version_*.ps1" |

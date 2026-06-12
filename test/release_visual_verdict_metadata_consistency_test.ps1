@@ -331,7 +331,12 @@ foreach ($scriptInfo in $metadataScripts) {
 
 $bodyScriptPath = Join-Path $resolvedRepoRoot "scripts\write_release_body_zh.ps1"
 Assert-ScriptParses -Path $bodyScriptPath
-$bodyScriptText = Get-Content -Raw -LiteralPath $bodyScriptPath
+$bodyScriptText = @(
+    Get-Content -Raw -LiteralPath $bodyScriptPath
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "write_release_body_zh_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 Assert-ContainsText -Text $bodyScriptText `
     -ExpectedText '. (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")' `
     -Message "write_release_body_zh.ps1 should use the shared release visual metadata helper."
