@@ -67,14 +67,17 @@ $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
+$scriptHelperPath = Join-Path $resolvedRepoRoot "scripts\write_pdf_visual_release_gate_preflight_governance_report_helpers.ps1"
 $preflightScriptPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1"
 $rollupScriptPath = Join-Path $resolvedRepoRoot "scripts\build_release_blocker_rollup_report.ps1"
 
-$tokens = $null
-$errors = $null
-[System.Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$tokens, [ref]$errors) | Out-Null
-if ($errors.Count -gt 0) {
-    throw "PDF visual preflight governance report script has parse errors."
+foreach ($pathToParse in @($scriptPath, $scriptHelperPath)) {
+    $tokens = $null
+    $errors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($pathToParse, [ref]$tokens, [ref]$errors) | Out-Null
+    if ($errors.Count -gt 0) {
+        throw "PDF visual preflight governance report script has parse errors: $pathToParse"
+    }
 }
 
 $notReadyPreflightPath = Join-Path $resolvedWorkingDir "fixtures\not-ready-preflight.json"
@@ -601,6 +604,7 @@ $missingHelperScriptsDir = Join-Path $missingHelperRepoRoot "scripts"
 New-Item -ItemType Directory -Path $missingHelperScriptsDir -Force | Out-Null
 $missingHelperScriptPath = Join-Path $missingHelperScriptsDir "write_pdf_visual_release_gate_preflight_governance_report.ps1"
 Copy-Item -LiteralPath $scriptPath -Destination $missingHelperScriptPath -Force
+Copy-Item -LiteralPath $scriptHelperPath -Destination (Join-Path $missingHelperScriptsDir "write_pdf_visual_release_gate_preflight_governance_report_helpers.ps1") -Force
 $missingHelperOutputDir = Join-Path $resolvedWorkingDir "missing-helper-report"
 $missingHelperResult = Invoke-PowerShellScript -ScriptPath $missingHelperScriptPath -Arguments @(
     "-OutputDir", $missingHelperOutputDir,
@@ -1318,7 +1322,10 @@ Assert-ContainsText -Text $syntheticMarkerText `
 Assert-Equal -Actual ([int]$syntheticReadySummary.blocking_summary.blocking_check_count) -Expected 1 `
     -Message "Synthetic-ready governance report should update blocking summary count."
 
-$governanceScriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
+$governanceScriptText = @(
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptHelperPath
+) -join "`n"
 foreach ($expectedText in @(
     "[int]`$MinFreeMemoryMB = 2048",
     "[switch]`$SkipMemoryGuard",

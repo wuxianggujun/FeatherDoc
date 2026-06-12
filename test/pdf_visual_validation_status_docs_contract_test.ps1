@@ -114,7 +114,12 @@ $releaseReadinessScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath
 $visualFullGateGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_visual_full_gate_guarded.ps1"
 $fullCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_full_ctest_guarded.ps1"
 $remainingCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_ctest_remaining_guarded.ps1"
-$governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
+$governanceReportScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "write_pdf_visual_release_gate_preflight_governance_report_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $materialSafetyScript = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
     Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "assert_release_material_safety_*.ps1" |
