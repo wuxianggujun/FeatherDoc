@@ -58,7 +58,12 @@ $auditRestoreScript = @(
         Sort-Object FullName |
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
-$calibrationScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_schema_patch_confidence_calibration_report.ps1"
+$calibrationScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_schema_patch_confidence_calibration_report.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "write_schema_patch_confidence_calibration_report_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 $writeReviewTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\write_style_merge_suggestion_review_test.ps1"
 $applyReviewTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\apply_reviewed_style_merge_suggestions_test.ps1"
