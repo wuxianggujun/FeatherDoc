@@ -1,6 +1,7 @@
 #include "featherdoc_cli_pdf_commands.hpp"
 
 #include "featherdoc_cli_command_support.hpp"
+#include "featherdoc_cli_errors.hpp"
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_parse.hpp"
 #include "featherdoc_cli_pdf_import_output.hpp"

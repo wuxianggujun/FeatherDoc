@@ -311,7 +311,10 @@ $pdfCliImportOutputText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliIm
 $pdfCliImportTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportTestsPath
 $pdfImportStructureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportStructureTestsPath
 $pdfImportFailureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportFailureTestsPath
-$pdfImportTableHeuristicTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportTableHeuristicTestsPath
+$pdfImportTableHeuristicTestsTextParts = Get-ChildItem -LiteralPath (Split-Path -Parent $pdfImportTableHeuristicTestsPath) -Filter "pdf_import_table_heuristic*.cpp" |
+    Sort-Object Name |
+    ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+$pdfImportTableHeuristicTestsText = $pdfImportTableHeuristicTestsTextParts -join "`n"
 
 $englishPdfInstalledDocs = @('docs/en/api/pdf_workflow.rst')
 $chinesePdfInstalledDocs = @('docs/zh-CN/api/pdf_workflow.rst')

@@ -41,7 +41,13 @@ $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
 $manifestTestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest_test.cpp"
 $cmakePath = Join-Path $resolvedRepoRoot "test\CMakeLists.txt"
 
-$sampleText = Get-Content -Raw -LiteralPath $samplePath
+$sampleTextParts = @(
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $samplePath
+)
+$sampleTextParts += Get-ChildItem -LiteralPath (Split-Path -Parent $samplePath) -Filter "pdf_regression_sample_*.inc" |
+    Sort-Object Name |
+    ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+$sampleText = $sampleTextParts -join "`n"
 $manifestText = Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath
 $manifestTestText = Get-Content -Raw -LiteralPath $manifestTestPath
 $cmakeText = Get-Content -Raw -LiteralPath $cmakePath
