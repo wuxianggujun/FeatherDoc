@@ -63,6 +63,8 @@ $releaseGovernanceFiles = @(
     "scripts\check_release_metadata_docs.ps1",
     "scripts\check_script_task_index.ps1",
     "scripts\check_word_visual_release_gate_preflight.ps1",
+    "scripts\run_word_visual_release_gate.ps1",
+    "scripts\run_word_visual_release_gate_helpers.ps1",
     "scripts\check_docx_functional_smoke_readiness.ps1",
     "test\check_release_metadata_docs_test.ps1",
     "test\release_governance_warning_helper_contract_test.ps1",
