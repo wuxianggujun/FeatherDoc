@@ -105,7 +105,8 @@ $documentGovernanceFiles = @(
     "test\build_table_layout_delivery_governance_report_test.ps1",
     "test\build_numbering_catalog_governance_report_test.ps1",
     "test\build_document_skeleton_governance_rollup_report_test.ps1",
-    "test\pdf_visual_release_gate_preflight_governance_report_test.ps1"
+    "test\pdf_visual_release_gate_preflight_governance_report_test.ps1",
+    "test\pdf_visual_release_gate_preflight_governance_report_test_helpers.ps1"
 )
 
 $filesToParse = @(
