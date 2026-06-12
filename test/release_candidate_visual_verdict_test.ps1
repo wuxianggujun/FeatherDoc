@@ -222,9 +222,17 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
-$scriptPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
-$scriptText = Get-Content -Raw -LiteralPath $scriptPath
-$metadataHelpersPath = Join-Path $resolvedRepoRoot "scripts\release_blocker_metadata_helpers.ps1"
+$scriptRoot = Join-Path $resolvedRepoRoot "scripts"
+$scriptPath = Join-Path $scriptRoot "run_release_candidate_checks.ps1"
+$releaseCandidateScriptPaths = @($scriptPath) + @(
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "run_release_candidate_checks_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { $_.FullName }
+)
+$scriptText = @(
+    $releaseCandidateScriptPaths | ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_ }
+) -join "`n"
+$metadataHelpersPath = Join-Path $scriptRoot "release_blocker_metadata_helpers.ps1"
 $metadataHelpersText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $metadataHelpersPath
     Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "release_blocker_metadata_*.ps1" |
@@ -545,11 +553,15 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'Invoke-ProjectTemplateSchem
     -Message "Release preflight should isolate schema approval history generation."
 }
 
-$parseTokens = $null
-$parseErrors = $null
-$scriptAst = [System.Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$parseTokens, [ref]$parseErrors)
-if ($parseErrors.Count -gt 0) {
-    throw "Release preflight script has parse errors."
+$scriptAsts = foreach ($releaseCandidateScriptPath in $releaseCandidateScriptPaths) {
+    $parseTokens = $null
+    $parseErrors = $null
+    $scriptAst = [System.Management.Automation.Language.Parser]::ParseFile($releaseCandidateScriptPath, [ref]$parseTokens, [ref]$parseErrors)
+    if ($parseErrors.Count -gt 0) {
+        throw "Release preflight script has parse errors: $releaseCandidateScriptPath"
+    }
+
+    $scriptAst
 }
 
 $functionNames = @(
@@ -582,11 +594,13 @@ $functionNames = @(
     "Convert-ReleaseMaterialString",
     "Convert-ReleaseMaterialObject"
 )
-$functionAsts = $scriptAst.FindAll({
-        param($Node)
-        $Node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
-            $functionNames -contains $Node.Name
-    }, $true)
+$functionAsts = foreach ($scriptAst in $scriptAsts) {
+    $scriptAst.FindAll({
+            param($Node)
+            $Node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                $functionNames -contains $Node.Name
+        }, $true)
+}
 foreach ($functionName in $functionNames) {
     $functionAst = $functionAsts | Where-Object { $_.Name -eq $functionName } | Select-Object -First 1
     if ($null -eq $functionAst) {

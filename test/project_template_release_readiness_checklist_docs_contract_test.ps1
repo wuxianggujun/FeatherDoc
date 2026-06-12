@@ -81,6 +81,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+$scriptRoot = Join-Path $resolvedRepoRoot "scripts"
 
 $checklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\project_template_release_readiness_checklist_zh.rst"
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
@@ -91,14 +92,19 @@ $governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "d
 $changelogDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "CHANGELOG.md"
 $deliveryScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_project_template_delivery_readiness_report.ps1"
 $contentControlScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
-$releaseChecksScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_release_candidate_checks.ps1"
+$releaseChecksScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_release_candidate_checks.ps1"
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "run_release_candidate_checks_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $releaseBlockerRollupScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_blocker_rollup_report.ps1"
 $releaseGovernancePipelineScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_governance_pipeline_report.ps1"
 $releaseGovernanceHandoffScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_governance_handoff_report.ps1"
 $docxReadinessScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_docx_functional_smoke_readiness.ps1"
 $releaseBlockerMetadataHelpersScript = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\release_blocker_metadata_helpers.ps1"
-    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "release_blocker_metadata_*.ps1" |
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "release_blocker_metadata_*.ps1" |
         Sort-Object FullName |
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
@@ -106,7 +112,7 @@ $releaseVisualMetadataHelpersScript = Get-RepoFileText -Root $resolvedRepoRoot -
 $packageAssetsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\package_release_assets.ps1"
 $materialSafetyScript = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
-    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "assert_release_material_safety_*.ps1" |
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "assert_release_material_safety_*.ps1" |
         Sort-Object FullName |
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
