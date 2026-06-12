@@ -66,10 +66,20 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
-$inventoryDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\stale_codex_branch_inventory_zh.rst"
+$inventoryDoc = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\stale_codex_branch_inventory_zh.rst"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "docs") -Filter "stale_codex_branch_inventory_archive_*.rst" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $maintenanceDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\documentation_maintenance_zh.rst"
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
-$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+$cmakeLists = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test\cmake") -Filter "*.cmake" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 $branchMarkers = @(
     "origin/codex/pdf-cjk-copy-search-gate",
