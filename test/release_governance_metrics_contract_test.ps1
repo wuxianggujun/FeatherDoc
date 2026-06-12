@@ -92,7 +92,12 @@ $packageSafetyTest = @(
         Sort-Object FullName |
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
-$packageAllowIncompleteTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_allow_incomplete_test.ps1"
+$packageAllowIncompleteTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_allow_incomplete_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "package_release_assets_allow_incomplete_test_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $safetyAuditTest = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
     Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "assert_release_material_safety_*.ps1" |
