@@ -46,7 +46,12 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $cmakePath = Join-Path $resolvedRepoRoot "test\CMakeLists.txt"
-$cmakeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakePath
+$cmakeText = @(
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakePath
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test\cmake") -Filter "*.cmake" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 $contracts = @(
     [ordered]@{
