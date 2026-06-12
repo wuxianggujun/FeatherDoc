@@ -64,6 +64,27 @@ function Read-Utf8Text {
     return [System.Text.Encoding]::UTF8.GetString($bytes)
 }
 
+function Read-CMakeTestRegistrationText {
+    param(
+        [string]$Root,
+        [string]$MainCMakePath
+    )
+
+    $texts = New-Object 'System.Collections.Generic.List[string]'
+    $texts.Add((Read-Utf8Text -Path $MainCMakePath))
+
+    $cmakeModuleRoot = Join-Path $Root "test\cmake"
+    if (Test-Path -LiteralPath $cmakeModuleRoot -PathType Container) {
+        Get-ChildItem -LiteralPath $cmakeModuleRoot -Filter "*.cmake" |
+            Sort-Object FullName |
+            ForEach-Object {
+                $texts.Add((Read-Utf8Text -Path $_.FullName))
+            }
+    }
+
+    return ($texts.ToArray() -join [Environment]::NewLine)
+}
+
 function Get-RepoRelativePath {
     param(
         [string]$BaseRoot,
@@ -286,9 +307,39 @@ function Get-UnindexedScripts {
 
     return @(
         $RepositoryScripts | Where-Object {
-            $IndexedScripts -notcontains $_
+            $IndexedScripts -notcontains $_ -and
+                -not (Test-IndexedHelperScript -RelativePath $_ -IndexedScripts $IndexedScripts)
         }
     )
+}
+
+function Test-IndexedHelperScript {
+    param(
+        [string]$RelativePath,
+        [string[]]$IndexedScripts
+    )
+
+    $relativeDirectory = [System.IO.Path]::GetDirectoryName($RelativePath)
+    $fileName = [System.IO.Path]::GetFileNameWithoutExtension($RelativePath)
+    foreach ($indexedScript in $IndexedScripts) {
+        if ([System.IO.Path]::GetDirectoryName($indexedScript) -ne $relativeDirectory) {
+            continue
+        }
+
+        $indexedName = [System.IO.Path]::GetFileNameWithoutExtension($indexedScript)
+        $indexedHelperPrefixes = @($indexedName)
+        if ($indexedName.EndsWith("_helpers", [System.StringComparison]::OrdinalIgnoreCase)) {
+            $indexedHelperPrefixes += $indexedName.Substring(0, $indexedName.Length - "_helpers".Length)
+        }
+
+        foreach ($indexedHelperPrefix in $indexedHelperPrefixes) {
+            if ($fileName.StartsWith(("{0}_" -f $indexedHelperPrefix), [System.StringComparison]::OrdinalIgnoreCase)) {
+                return $true
+            }
+        }
+    }
+
+    return $false
 }
 
 function Get-ScriptNamePrefix {
@@ -580,7 +631,7 @@ $scriptIndexText = Read-Utf8Text -Path $scriptIndexPath
 $indexText = Read-Utf8Text -Path $indexPath
 $maintenanceText = Read-Utf8Text -Path $maintenancePath
 $scoreText = Read-Utf8Text -Path $scorePath
-$cmakeText = Read-Utf8Text -Path $cmakePath
+$cmakeText = Read-CMakeTestRegistrationText -Root $resolvedRepoRoot -MainCMakePath $cmakePath
 
 $scriptReferenceLocations = @(Get-ScriptReferenceLocations -Text $scriptIndexText)
 $allScriptReferences = @($scriptReferenceLocations | ForEach-Object { [string]$_.relative_path })
@@ -592,7 +643,13 @@ if ($scriptReferences.Count -eq 0) {
 $duplicateScriptReferences = @(Get-DuplicateScriptReferences -References $allScriptReferences -Locations $scriptReferenceLocations)
 $scriptReferenceGroups = @(Get-ScriptReferenceGroups -Text $scriptIndexText)
 $scriptReferenceExtensions = @(Get-ScriptReferenceExtensionSummary -References $allScriptReferences -Locations $scriptReferenceLocations)
-$repositoryScripts = @(Get-RepositoryScripts -Root $resolvedRepoRoot)
+$repositoryScripts = @(
+    Get-RepositoryScripts -Root $resolvedRepoRoot |
+        Where-Object {
+            $scriptReferences -contains $_ -or
+                -not (Test-IndexedHelperScript -RelativePath $_ -IndexedScripts $scriptReferences)
+        }
+)
 $unindexedScripts = @(Get-UnindexedScripts -RepositoryScripts $repositoryScripts -IndexedScripts $scriptReferences)
 $unindexedScriptPrefixes = @(Get-ScriptNamePrefixSummary -Scripts $unindexedScripts)
 $unindexedScriptFamilies = @(Get-ScriptNameFamilySummary -Scripts $unindexedScripts)

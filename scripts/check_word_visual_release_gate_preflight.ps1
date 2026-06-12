@@ -94,6 +94,17 @@ function Get-RepoFileText {
     return Get-Content -Raw -Encoding UTF8 -LiteralPath $path
 }
 
+function Get-CMakeTestRegistrationText {
+    param([string]$Root)
+
+    return @(
+        Get-RepoFileText -Root $Root -RelativePath "test\CMakeLists.txt"
+        Get-ChildItem -LiteralPath (Join-Path $Root "test\cmake") -Filter "*.cmake" -ErrorAction SilentlyContinue |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+    ) -join "`n"
+}
+
 function Add-Check {
     param(
         [System.Collections.ArrayList]$Checks,
@@ -261,7 +272,7 @@ Add-Check -Checks $checks `
         missing_markers = @($missingFloatingImageFlowMarkers)
     })
 
-$cmakeListsText = Get-RepoFileText -Root $repoRoot -RelativePath "test\CMakeLists.txt"
+$cmakeListsText = Get-CMakeTestRegistrationText -Root $repoRoot
 $cmakeMarkers = @(
     "word_visual_release_gate_smoke_verdict",
     "word_visual_release_gate_smoke_verdict_test.ps1",

@@ -55,7 +55,12 @@ $workflowDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\auto
 $governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\governance_routes_zh.rst"
 $scriptText = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_word_visual_release_gate_preflight.ps1"
 $regressionText = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\check_word_visual_release_gate_preflight_test.ps1"
-$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+$cmakeLists = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test\cmake") -Filter "*.cmake" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 foreach ($assertion in @(
         [ordered]@{

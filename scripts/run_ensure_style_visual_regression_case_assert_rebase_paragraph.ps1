@@ -1,0 +1,135 @@
+        Assert-StyleCatalogState `
+            -JsonPath $reviewParaStyleJsonPath `
+            -ExpectedStyleId "ReviewPara" `
+            -ExpectedName "Review Paragraph" `
+            -ExpectedBasedOn "Normal" `
+            -ExpectedKind "paragraph" `
+            -ExpectedType "paragraph" `
+            -ExpectedCustom $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedQuickFormat $true `
+            -Label "$($case.id)-review-para-style"
+        Assert-StyleCatalogState `
+            -JsonPath $reviewParaChildStyleJsonPath `
+            -ExpectedStyleId "ReviewParaChild" `
+            -ExpectedName "Review Paragraph Child" `
+            -ExpectedBasedOn "Normal" `
+            -ExpectedKind "paragraph" `
+            -ExpectedType "paragraph" `
+            -ExpectedCustom $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedQuickFormat $true `
+            -Label "$($case.id)-review-para-child-style"
+        Assert-StyleCatalogState `
+            -JsonPath $accentMarkerStyleJsonPath `
+            -ExpectedStyleId "AccentMarker" `
+            -ExpectedName "Accent Marker" `
+            -ExpectedBasedOn "DefaultParagraphFont" `
+            -ExpectedKind "character" `
+            -ExpectedType "character" `
+            -ExpectedCustom $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedQuickFormat $true `
+            -Label "$($case.id)-accent-marker-style"
+        Assert-StyleCatalogState `
+            -JsonPath $reviewTableStyleJsonPath `
+            -ExpectedStyleId $reviewTableStyleId `
+            -ExpectedName $reviewTableStyleName `
+            -ExpectedBasedOn "TableGrid" `
+            -ExpectedKind "table" `
+            -ExpectedType "table" `
+            -ExpectedCustom $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedQuickFormat $true `
+            -Label "$($case.id)-review-table-style"
+
+        Assert-StyleXmlState `
+            -State $reviewParaXmlState `
+            -ExpectedType "paragraph" `
+            -ExpectedName "Review Paragraph" `
+            -ExpectedBasedOn "Normal" `
+            -ExpectedNextStyle "ReviewPara" `
+            -ExpectedQFormat $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedParagraphBidi $false `
+            -ExpectedOutlineLevel $null `
+            -ExpectedFontAscii "Times New Roman" `
+            -ExpectedLangValue $null `
+            -ExpectedLangBidi $null `
+            -ExpectedRtlValue $null `
+            -Label "$($case.id)-review-para-xml"
+        Assert-StyleXmlState `
+            -State $reviewParaChildXmlState `
+            -ExpectedType "paragraph" `
+            -ExpectedName "Review Paragraph Child" `
+            -ExpectedBasedOn "Normal" `
+            -ExpectedNextStyle "ReviewParaChild" `
+            -ExpectedQFormat $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedParagraphBidi $false `
+            -ExpectedOutlineLevel $null `
+            -ExpectedFontAscii "Courier New" `
+            -ExpectedLangValue $null `
+            -ExpectedLangBidi $null `
+            -ExpectedRtlValue $null `
+            -Label "$($case.id)-review-para-child-xml"
+        Assert-StyleInheritanceState `
+            -JsonPath $reviewParaChildInheritanceJsonPath `
+            -ExpectedStyleId "ReviewParaChild" `
+            -ExpectedType "paragraph" `
+            -ExpectedKind "paragraph" `
+            -ExpectedBasedOn "Normal" `
+            -ExpectedInheritanceChain @("ReviewParaChild", "Normal") `
+            -ExpectedFontFamilyValue "Courier New" `
+            -ExpectedFontFamilySource "ReviewParaChild" `
+            -ExpectedEastAsiaFontFamilyValue $null `
+            -ExpectedEastAsiaFontFamilySource $null `
+            -ExpectedLanguageValue $null `
+            -ExpectedLanguageSource $null `
+            -ExpectedEastAsiaLanguageValue $null `
+            -ExpectedEastAsiaLanguageSource $null `
+            -ExpectedBidiLanguageValue $null `
+            -ExpectedBidiLanguageSource $null `
+            -ExpectedRtlValue $null `
+            -ExpectedRtlSource $null `
+            -ExpectedParagraphBidiValue $null `
+            -ExpectedParagraphBidiSource $null `
+            -Label "$($case.id)-review-para-child-inheritance"
+        Assert-StyleXmlState `
+            -State $accentMarkerXmlState `
+            -ExpectedType "character" `
+            -ExpectedName "Accent Marker" `
+            -ExpectedBasedOn "DefaultParagraphFont" `
+            -ExpectedNextStyle $null `
+            -ExpectedQFormat $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedParagraphBidi $false `
+            -ExpectedOutlineLevel $null `
+            -ExpectedFontAscii "Courier New" `
+            -ExpectedLangValue $null `
+            -ExpectedLangBidi $null `
+            -ExpectedRtlValue "0" `
+            -Label "$($case.id)-accent-marker-xml"
+        Assert-StyleXmlState `
+            -State $reviewTableXmlState `
+            -ExpectedType "table" `
+            -ExpectedName $reviewTableStyleName `
+            -ExpectedBasedOn "TableGrid" `
+            -ExpectedNextStyle $null `
+            -ExpectedQFormat $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedParagraphBidi $false `
+            -ExpectedOutlineLevel $null `
+            -ExpectedFontAscii $null `
+            -ExpectedLangValue $null `
+            -ExpectedLangBidi $null `
+            -ExpectedRtlValue $null `
+            -Label "$($case.id)-review-table-xml"
