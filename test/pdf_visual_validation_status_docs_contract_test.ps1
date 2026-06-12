@@ -128,7 +128,13 @@ $materialSafetyTest = @(
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
 $packageAssetsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\package_release_assets.ps1"
-$packageAssetsSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_safety_test.ps1"
+$packageAssetsSafetyTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_safety_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "package_release_assets_safety_*.ps1" |
+        Where-Object { $_.Name -ne "package_release_assets_safety_test.ps1" } |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $cmakeLists = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
     Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test\cmake") -Filter "*.cmake" |

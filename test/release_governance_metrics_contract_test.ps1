@@ -80,7 +80,13 @@ $rollupTest = @(
         Sort-Object FullName |
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
-$packageSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_safety_test.ps1"
+$packageSafetyTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_safety_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "package_release_assets_safety_*.ps1" |
+        Where-Object { $_.Name -ne "package_release_assets_safety_test.ps1" } |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $packageAllowIncompleteTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_allow_incomplete_test.ps1"
 $safetyAuditTest = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
