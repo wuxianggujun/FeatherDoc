@@ -88,7 +88,12 @@ $handoffTest = @(
         Sort-Object FullName |
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
-$candidateTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_candidate_blocker_rollup_test.ps1"
+$candidateTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_candidate_blocker_rollup_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "release_candidate_blocker_rollup_test_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $bundleTest = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_note_bundle_version_test.ps1"
     Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "release_note_bundle_version_*.ps1" |
