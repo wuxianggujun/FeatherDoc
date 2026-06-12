@@ -33,6 +33,7 @@ function Get-RepoFileText {
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+$scriptRoot = Join-Path $resolvedRepoRoot "scripts"
 [void][System.IO.Path]::GetFullPath($WorkingDir)
 
 $requiredMetrics = @(
@@ -46,15 +47,30 @@ $reviewFocusText = @(
 )
 
 $handoffScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_governance_handoff_report.ps1"
-$rollupScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_blocker_rollup_report.ps1"
+$rollupScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_blocker_rollup_report.ps1"
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "build_release_blocker_rollup_report_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $packageScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\package_release_assets.ps1"
-$safetyAuditScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
+$safetyAuditScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "assert_release_material_safety_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 $handoffTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_handoff_report_test.ps1"
 $rollupTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
 $packageSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_safety_test.ps1"
 $packageAllowIncompleteTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_allow_incomplete_test.ps1"
-$safetyAuditTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
+$safetyAuditTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "assert_release_material_safety_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $contentControlReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_content_control_data_binding_governance_report.ps1"
 $numberingCatalogReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_numbering_catalog_governance_report.ps1"
 $tableLayoutDeliveryReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_table_layout_delivery_governance_report.ps1"
