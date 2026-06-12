@@ -75,7 +75,12 @@ $releaseRollupTest = @(
         Sort-Object FullName |
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
-$warningHelperTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_governance_warning_helper_contract_test.ps1"
+$warningHelperTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_governance_warning_helper_contract_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "release_governance_warning_helper_contract_test_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 foreach ($marker in @(
         "scripts/build_document_skeleton_governance_report.ps1",
