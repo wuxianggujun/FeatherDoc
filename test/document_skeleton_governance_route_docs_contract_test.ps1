@@ -68,7 +68,13 @@ $releaseHandoffScript = @(
 
 $singleReportTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_document_skeleton_governance_report_test.ps1"
 $rollupReportTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_document_skeleton_governance_rollup_report_test.ps1"
-$releaseRollupTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
+$releaseRollupTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "build_release_blocker_rollup_report_*.ps1" |
+        Where-Object { $_.Name -ne "build_release_blocker_rollup_report_test.ps1" } |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $warningHelperTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_governance_warning_helper_contract_test.ps1"
 
 foreach ($marker in @(

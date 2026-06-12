@@ -60,7 +60,13 @@ $releaseHandoffScript = @(
 ) -join "`n"
 
 $calibrationTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\write_schema_patch_confidence_calibration_report_test.ps1"
-$releaseRollupTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
+$releaseRollupTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "build_release_blocker_rollup_report_*.ps1" |
+        Where-Object { $_.Name -ne "build_release_blocker_rollup_report_test.ps1" } |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $releasePipelineTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_pipeline_report_test.ps1"
 $releaseHandoffTest = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_handoff_report_test.ps1"

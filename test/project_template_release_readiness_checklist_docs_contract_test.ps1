@@ -132,7 +132,13 @@ $reviewerChecklistScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePat
 $releaseBodyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_release_body_zh.ps1"
 $releaseBundleVersionTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_note_bundle_version_test.ps1"
 $releaseCandidateVisualTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_candidate_visual_verdict_test.ps1"
-$releaseBlockerRollupTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
+$releaseBlockerRollupTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "build_release_blocker_rollup_report_*.ps1" |
+        Where-Object { $_.Name -ne "build_release_blocker_rollup_report_test.ps1" } |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $releaseGovernanceHandoffTest = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_handoff_report_test.ps1"
     Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "build_release_governance_handoff_report_*.ps1" |
