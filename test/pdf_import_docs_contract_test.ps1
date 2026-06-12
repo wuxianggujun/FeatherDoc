@@ -308,7 +308,10 @@ $changelogText = Get-Content -Raw -Encoding UTF8 -LiteralPath $changelogPath
 $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
 $pdfCliImportOutputText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportOutputPath
-$pdfCliImportTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportTestsPath
+$pdfCliImportTestsTextParts = Get-ChildItem -LiteralPath (Split-Path -Parent $pdfCliImportTestsPath) -Filter "pdf_cli_import*.cpp" |
+    Sort-Object Name |
+    ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+$pdfCliImportTestsText = $pdfCliImportTestsTextParts -join "`n"
 $pdfImportStructureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportStructureTestsPath
 $pdfImportFailureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportFailureTestsPath
 $pdfImportTableHeuristicTestsTextParts = Get-ChildItem -LiteralPath (Split-Path -Parent $pdfImportTableHeuristicTestsPath) -Filter "pdf_import_table_heuristic*.cpp" |

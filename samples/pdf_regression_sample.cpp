@@ -568,11 +568,13 @@ void append_span_to_fragment(
     featherdoc::character_style_definition definition);
 
 #include "pdf_regression_sample_basic_text.inc"
+#include "pdf_regression_sample_contract_text_tail.inc"
 #include "pdf_regression_sample_style_matrix.inc"
 #include "pdf_regression_sample_primitives.inc"
 #include "pdf_regression_sample_document_tables.inc"
 #include "pdf_regression_sample_document_table_cjk_repeat.inc"
 #include "pdf_regression_sample_table_merges.inc"
+#include "pdf_regression_sample_report_rtl_tail.inc"
 #include "pdf_regression_sample_sections_lists.inc"
 #include "pdf_regression_sample_cjk_lite.inc"
 #include "pdf_regression_sample_cjk_complex.inc"
@@ -583,6 +585,7 @@ void append_span_to_fragment(
 #include "pdf_regression_sample_cjk_page_flow_tail.inc"
 
 #include "pdf_regression_sample_runner_support.inc"
+#include "pdf_regression_sample_runner_validation.inc"
 #include "pdf_regression_sample_runner.inc"
 
 #if defined(_WIN32)

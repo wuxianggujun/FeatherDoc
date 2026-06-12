@@ -418,6 +418,7 @@ featherdoc_add_cpp_test(
     content_controls_unit_tests
     content_controls_unit
     content_controls_unit_tests.cpp
+    content_controls_image_replacement_tests.cpp
 )
 featherdoc_set_test_labels(content_controls_unit core heavy templates content-controls)
 
@@ -467,6 +468,7 @@ featherdoc_add_cpp_test(
     table_structure_unit
     table_structure_unit_tests.cpp
     table_structure_cell_column_tests.cpp
+    table_structure_column_removal_tests.cpp
     table_structure_row_table_tests.cpp
     table_structure_merge_tests.cpp
     table_structure_unmerge_tests.cpp
@@ -494,6 +496,7 @@ featherdoc_add_cpp_test(
     table_layout_unit_tests.cpp
     table_layout_properties_tests.cpp
     table_layout_fixed_grid_tests.cpp
+    table_layout_fixed_grid_remove_tests.cpp
     table_layout_reopened_workflow_tests.cpp
 )
 featherdoc_set_test_labels(table_layout_unit core heavy tables layout)
@@ -679,6 +682,7 @@ if(TARGET FeatherDocPdf)
             pdf_cli_import_tests
             pdf_cli_import
             pdf_cli_import_tests.cpp
+            pdf_cli_import_threshold_tests.cpp
         )
         target_include_directories(
             pdf_cli_import_tests
@@ -758,6 +762,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
         pdf_import_table_heuristic_parser_summary_tests.cpp
         pdf_import_table_heuristic_parser_header_tests.cpp
         pdf_import_table_heuristic_import_basic_tests.cpp
+        pdf_import_table_heuristic_import_summary_tests.cpp
         pdf_import_table_heuristic_import_merged_subtotal_tests.cpp
         pdf_import_table_heuristic_import_merged_pagebreak_tests.cpp
         pdf_import_table_heuristic_import_merged_compact_tests.cpp
@@ -6773,6 +6778,7 @@ if(TARGET featherdoc_cli)
         cli_style_numbering_tests
         cli_style_numbering
         cli_style_numbering_tests.cpp
+        cli_style_numbering_linked_tests.cpp
         cli_style_numbering_error_tests.cpp
     )
     featherdoc_set_test_labels(cli_style_numbering cli styles numbering heavy)
@@ -6896,6 +6902,7 @@ if(TARGET featherdoc_cli)
         cli_table_position_tests
         cli_table_position
         cli_table_position_tests.cpp
+        cli_table_position_command_tests.cpp
     )
     featherdoc_set_test_labels(
         cli_table_position cli table position heavy)
@@ -6970,6 +6977,7 @@ if(TARGET featherdoc_cli)
         cli_review_comment_mutation_plan_tests
         cli_review_comment_mutation_plan
         cli_review_comment_mutation_plan_tests.cpp
+        cli_review_comment_mutation_metadata_tests.cpp
     )
     featherdoc_set_test_labels(
         cli_review_comment_mutation_plan cli review mutation_plan comments heavy)
@@ -7031,6 +7039,7 @@ if(TARGET featherdoc_cli)
         cli_template_schema_patch_build_tests
         cli_template_schema_patch_build
         cli_template_schema_patch_build_tests.cpp
+        cli_template_schema_patch_build_edge_tests.cpp
     )
     featherdoc_set_test_labels(
         cli_template_schema_patch_build cli template schema patch heavy)
@@ -7095,6 +7104,7 @@ if(TARGET featherdoc_cli)
         cli_style_refactor_workflow_tests
         cli_style_refactor_workflow
         cli_style_refactor_workflow_tests.cpp
+        cli_style_refactor_apply_workflow_tests.cpp
     )
     featherdoc_set_test_labels(
         cli_style_refactor_workflow cli styles heavy)
