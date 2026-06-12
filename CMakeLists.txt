@@ -1748,6 +1748,13 @@ install(
 
 install(
     FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/changelog_archive_1.9.0.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/changelog_archive_1.8.0_and_earlier.md"
+    DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/docs"
+)
+
+install(
+    FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/en/api/pdf_workflow.rst"
     DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/docs/en/api"
 )
