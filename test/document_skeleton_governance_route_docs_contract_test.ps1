@@ -59,7 +59,12 @@ $releaseRollupScript = @(
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
 $releasePipelineScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_governance_pipeline_report.ps1"
-$releaseHandoffScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_governance_handoff_report.ps1"
+$releaseHandoffScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_release_governance_handoff_report.ps1"
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "build_release_governance_handoff_report_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 $singleReportTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_document_skeleton_governance_report_test.ps1"
 $rollupReportTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_document_skeleton_governance_rollup_report_test.ps1"
