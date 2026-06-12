@@ -52,6 +52,11 @@ $scriptHelperPaths = Get-ChildItem `
     Sort-Object FullName |
     ForEach-Object { $_.FullName }
 $testPath = Join-Path $RepoRoot "test\edit_document_from_plan_test.ps1"
+$testHelperPaths = Get-ChildItem `
+    -LiteralPath (Join-Path $RepoRoot "test") `
+    -Filter "edit_document_from_plan_test_*.ps1" |
+    Sort-Object FullName |
+    ForEach-Object { $_.FullName }
 $tablePositionPlanTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_position_plan_test.ps1"
 $numberingCatalogTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_numbering_catalog_test.ps1"
 $contentControlSyncTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_content_control_sync_test.ps1"
@@ -73,6 +78,9 @@ $scriptText = @(
 ) -join "`n"
 $testText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $testPath
+    foreach ($testHelperPath in $testHelperPaths) {
+        Get-Content -Raw -Encoding UTF8 -LiteralPath $testHelperPath
+    }
     Get-Content -Raw -Encoding UTF8 -LiteralPath $tablePositionPlanTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $numberingCatalogTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlSyncTestPath
