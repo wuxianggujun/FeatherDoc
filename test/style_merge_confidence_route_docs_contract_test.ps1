@@ -43,18 +43,33 @@ $currentDirectionDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "d
 $featureGapDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\feature_gap_analysis_zh.rst"
 $releaseMetadataDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_metadata_pipeline_zh.rst"
 $documentApiStatusDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\document_api_mainline_status_zh.rst"
-$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+$cmakeLists = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test\cmake") -Filter "*.cmake" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 $writeReviewScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_style_merge_suggestion_review.ps1"
 $applyReviewScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\apply_reviewed_style_merge_suggestions.ps1"
-$auditRestoreScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\audit_style_merge_restore_plan.ps1"
+$auditRestoreScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\audit_style_merge_restore_plan.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "audit_style_merge_restore_plan_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $calibrationScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_schema_patch_confidence_calibration_report.ps1"
 
 $writeReviewTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\write_style_merge_suggestion_review_test.ps1"
 $applyReviewTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\apply_reviewed_style_merge_suggestions_test.ps1"
 $auditRestoreTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\audit_style_merge_restore_plan_test.ps1"
 $calibrationTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\write_schema_patch_confidence_calibration_report_test.ps1"
-$releaseSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
+$releaseSafetyTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "assert_release_material_safety_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 foreach ($marker in @(
         "suggest-style-merges",
