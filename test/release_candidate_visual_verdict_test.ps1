@@ -225,7 +225,12 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
 $scriptText = Get-Content -Raw -LiteralPath $scriptPath
 $metadataHelpersPath = Join-Path $resolvedRepoRoot "scripts\release_blocker_metadata_helpers.ps1"
-$metadataHelpersText = Get-Content -Raw -LiteralPath $metadataHelpersPath
+$metadataHelpersText = @(
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $metadataHelpersPath
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "release_blocker_metadata_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 . $metadataHelpersPath
 $templateSchemaCommonPath = Join-Path $resolvedRepoRoot "scripts\template_schema_cli_common.ps1"
 . $templateSchemaCommonPath
