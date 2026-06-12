@@ -576,7 +576,9 @@ void append_span_to_fragment(
 #include "pdf_regression_sample_sections_lists.inc"
 #include "pdf_regression_sample_cjk_lite.inc"
 #include "pdf_regression_sample_cjk_complex.inc"
+#include "pdf_regression_sample_cjk_vertical_flow.inc"
 #include "pdf_regression_sample_cjk_anchor_boundary.inc"
+#include "pdf_regression_sample_cjk_repeated_vertical.inc"
 #include "pdf_regression_sample_cjk_tail.inc"
 #include "pdf_regression_sample_cjk_page_flow_tail.inc"
 

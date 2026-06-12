@@ -1,0 +1,505 @@
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "basic_docx_archive_test_support.hpp"
+#include "basic_document_xml_test_support.hpp"
+
+#include <featherdoc.hpp>
+
+TEST_CASE("table cells can unmerge right into standalone cells") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_cell_unmerge_right.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(1, 3);
+    auto row = table.rows();
+    REQUIRE(row.has_next());
+
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("A"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("B"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("C"));
+
+    auto merged = row.cells();
+    REQUIRE(merged.has_next());
+    CHECK(merged.merge_right(1U));
+    CHECK_EQ(merged.column_span(), 2U);
+    CHECK(merged.unmerge_right());
+    CHECK_EQ(merged.column_span(), 1U);
+    CHECK_FALSE(merged.unmerge_right());
+
+    auto restored = merged;
+    restored.next();
+    REQUIRE(restored.has_next());
+    CHECK_EQ(restored.column_span(), 1U);
+    CHECK_EQ(restored.get_text(), "");
+    CHECK(restored.set_text("restored"));
+
+    restored.next();
+    REQUIRE(restored.has_next());
+    CHECK_EQ(restored.get_text(), "C");
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+    const auto row_node = table_node.child("w:tr");
+    REQUIRE(row_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(row_node, "w:tc"), 3);
+
+    const auto first_cell = row_node.child("w:tc");
+    REQUIRE(first_cell != pugi::xml_node{});
+    CHECK(first_cell.child("w:tcPr").child("w:gridSpan") == pugi::xml_node{});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "A\nrestored\nC\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("table cells can unmerge down from a continuation cell") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_cell_unmerge_down.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(3, 2);
+    auto row = table.rows();
+    REQUIRE(row.has_next());
+
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("A"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("B"));
+
+    row.next();
+    REQUIRE(row.has_next());
+    cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("C"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("D"));
+
+    row.next();
+    REQUIRE(row.has_next());
+    cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("E"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("F"));
+
+    auto merged_anchor = table.rows().cells();
+    REQUIRE(merged_anchor.has_next());
+    CHECK(merged_anchor.merge_down(2U));
+
+    auto second_row = table.rows();
+    second_row.next();
+    REQUIRE(second_row.has_next());
+    auto continuation_cell = second_row.cells();
+    REQUIRE(continuation_cell.has_next());
+    CHECK(continuation_cell.unmerge_down());
+    CHECK_FALSE(continuation_cell.unmerge_down());
+    CHECK_EQ(continuation_cell.get_text(), "");
+    CHECK(continuation_cell.set_text("restored-middle"));
+
+    auto third_row = second_row;
+    third_row.next();
+    REQUIRE(third_row.has_next());
+    auto restored_bottom = third_row.cells();
+    REQUIRE(restored_bottom.has_next());
+    CHECK_EQ(restored_bottom.get_text(), "");
+    CHECK(restored_bottom.set_text("restored-bottom"));
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+    auto first_row = table_node.child("w:tr");
+    REQUIRE(first_row != pugi::xml_node{});
+    auto second_xml_row = first_row.next_sibling("w:tr");
+    REQUIRE(second_xml_row != pugi::xml_node{});
+    auto third_xml_row = second_xml_row.next_sibling("w:tr");
+    REQUIRE(third_xml_row != pugi::xml_node{});
+
+    CHECK(first_row.child("w:tc").child("w:tcPr").child("w:vMerge") == pugi::xml_node{});
+    CHECK(second_xml_row.child("w:tc").child("w:tcPr").child("w:vMerge") == pugi::xml_node{});
+    CHECK(third_xml_row.child("w:tc").child("w:tcPr").child("w:vMerge") == pugi::xml_node{});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "A\nB\nrestored-middle\nD\nrestored-bottom\nF\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("fixed-layout unmerge right splits merged cell widths back to tblGrid columns") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "table_cell_unmerge_right_fixed_widths.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(2, 3);
+    REQUIRE(table.has_next());
+    CHECK(table.set_layout_mode(featherdoc::table_layout_mode::fixed));
+
+    auto header_row = table.rows();
+    REQUIRE(header_row.has_next());
+    auto merged_header = header_row.cells();
+    REQUIRE(merged_header.has_next());
+    CHECK(merged_header.set_text("merged"));
+    CHECK(merged_header.merge_right(1U));
+    auto header_tail = merged_header;
+    header_tail.next();
+    REQUIRE(header_tail.has_next());
+    CHECK(header_tail.set_text("tail"));
+
+    auto body_row = header_row;
+    body_row.next();
+    REQUIRE(body_row.has_next());
+    auto body_cell = body_row.cells();
+    REQUIRE(body_cell.has_next());
+    CHECK(body_cell.set_text("r2c1"));
+    body_cell.next();
+    REQUIRE(body_cell.has_next());
+    CHECK(body_cell.set_text("r2c2"));
+    body_cell.next();
+    REQUIRE(body_cell.has_next());
+    CHECK(body_cell.set_text("r2c3"));
+
+    CHECK(table.set_column_width_twips(0U, 1200U));
+    CHECK(table.set_column_width_twips(1U, 1800U));
+    CHECK(table.set_column_width_twips(2U, 2400U));
+
+    REQUIRE(merged_header.width_twips().has_value());
+    CHECK_EQ(*merged_header.width_twips(), 3000U);
+    REQUIRE(header_tail.width_twips().has_value());
+    CHECK_EQ(*header_tail.width_twips(), 2400U);
+
+    CHECK(merged_header.unmerge_right());
+    CHECK_EQ(merged_header.column_span(), 1U);
+    REQUIRE(merged_header.width_twips().has_value());
+    CHECK_EQ(*merged_header.width_twips(), 1200U);
+
+    auto restored_header = merged_header;
+    restored_header.next();
+    REQUIRE(restored_header.has_next());
+    CHECK_EQ(restored_header.column_span(), 1U);
+    REQUIRE(restored_header.width_twips().has_value());
+    CHECK_EQ(*restored_header.width_twips(), 1800U);
+    CHECK_EQ(restored_header.get_text(), "");
+    CHECK(restored_header.set_text("restored"));
+
+    header_tail = restored_header;
+    header_tail.next();
+    REQUIRE(header_tail.has_next());
+    CHECK_EQ(header_tail.get_text(), "tail");
+    REQUIRE(header_tail.width_twips().has_value());
+    CHECK_EQ(*header_tail.width_twips(), 2400U);
+
+    REQUIRE(table.column_width_twips(0U).has_value());
+    CHECK_EQ(*table.column_width_twips(0U), 1200U);
+    REQUIRE(table.column_width_twips(1U).has_value());
+    CHECK_EQ(*table.column_width_twips(1U), 1800U);
+    REQUIRE(table.column_width_twips(2U).has_value());
+    CHECK_EQ(*table.column_width_twips(2U), 2400U);
+
+    body_cell = body_row.cells();
+    REQUIRE(body_cell.has_next());
+    REQUIRE(body_cell.width_twips().has_value());
+    CHECK_EQ(*body_cell.width_twips(), 1200U);
+    body_cell.next();
+    REQUIRE(body_cell.has_next());
+    REQUIRE(body_cell.width_twips().has_value());
+    CHECK_EQ(*body_cell.width_twips(), 1800U);
+    body_cell.next();
+    REQUIRE(body_cell.has_next());
+    REQUIRE(body_cell.width_twips().has_value());
+    CHECK_EQ(*body_cell.width_twips(), 2400U);
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+
+    const auto grid_widths = collect_table_grid_width_values(table_node);
+    REQUIRE_EQ(grid_widths.size(), 3U);
+    CHECK_EQ(grid_widths[0], "1200");
+    CHECK_EQ(grid_widths[1], "1800");
+    CHECK_EQ(grid_widths[2], "2400");
+
+    const auto first_row = table_node.child("w:tr");
+    REQUIRE(first_row != pugi::xml_node{});
+    const auto second_row = first_row.next_sibling("w:tr");
+    REQUIRE(second_row != pugi::xml_node{});
+    CHECK_EQ(count_named_children(first_row, "w:tc"), 3U);
+    CHECK(first_row.child("w:tc").child("w:tcPr").child("w:gridSpan") == pugi::xml_node{});
+
+    const auto first_row_widths = collect_row_cell_width_values(first_row);
+    REQUIRE_EQ(first_row_widths.size(), 3U);
+    CHECK_EQ(first_row_widths[0], "1200");
+    CHECK_EQ(first_row_widths[1], "1800");
+    CHECK_EQ(first_row_widths[2], "2400");
+
+    const auto second_row_widths = collect_row_cell_width_values(second_row);
+    REQUIRE_EQ(second_row_widths.size(), 3U);
+    CHECK_EQ(second_row_widths[0], "1200");
+    CHECK_EQ(second_row_widths[1], "1800");
+    CHECK_EQ(second_row_widths[2], "2400");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "merged\nrestored\ntail\nr2c1\nr2c2\nr2c3\n");
+
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    auto reopened_header = reopened_table.rows().cells();
+    REQUIRE(reopened_header.has_next());
+    REQUIRE(reopened_header.width_twips().has_value());
+    CHECK_EQ(*reopened_header.width_twips(), 1200U);
+    reopened_header.next();
+    REQUIRE(reopened_header.has_next());
+    REQUIRE(reopened_header.width_twips().has_value());
+    CHECK_EQ(*reopened_header.width_twips(), 1800U);
+    reopened_header.next();
+    REQUIRE(reopened_header.has_next());
+    REQUIRE(reopened_header.width_twips().has_value());
+    CHECK_EQ(*reopened_header.width_twips(), 2400U);
+
+    REQUIRE(reopened_table.column_width_twips(0U).has_value());
+    CHECK_EQ(*reopened_table.column_width_twips(0U), 1200U);
+    REQUIRE(reopened_table.column_width_twips(1U).has_value());
+    CHECK_EQ(*reopened_table.column_width_twips(1U), 1800U);
+    REQUIRE(reopened_table.column_width_twips(2U).has_value());
+    CHECK_EQ(*reopened_table.column_width_twips(2U), 2400U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("fixed-layout unmerge down preserves spanning cell widths from tblGrid") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "table_cell_unmerge_down_fixed_widths.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(3, 3);
+    REQUIRE(table.has_next());
+    CHECK(table.set_layout_mode(featherdoc::table_layout_mode::fixed));
+
+    auto row = table.rows();
+    REQUIRE(row.has_next());
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("top-span"));
+    CHECK(cell.merge_right(1U));
+    auto row_tail = cell;
+    row_tail.next();
+    REQUIRE(row_tail.has_next());
+    CHECK(row_tail.set_text("top-tail"));
+
+    row.next();
+    REQUIRE(row.has_next());
+    cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("middle-span"));
+    CHECK(cell.merge_right(1U));
+    row_tail = cell;
+    row_tail.next();
+    REQUIRE(row_tail.has_next());
+    CHECK(row_tail.set_text("middle-tail"));
+
+    row.next();
+    REQUIRE(row.has_next());
+    cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("bottom-span"));
+    CHECK(cell.merge_right(1U));
+    row_tail = cell;
+    row_tail.next();
+    REQUIRE(row_tail.has_next());
+    CHECK(row_tail.set_text("bottom-tail"));
+
+    CHECK(table.set_column_width_twips(0U, 1200U));
+    CHECK(table.set_column_width_twips(1U, 1800U));
+    CHECK(table.set_column_width_twips(2U, 2400U));
+
+    auto merged_anchor = table.rows().cells();
+    REQUIRE(merged_anchor.has_next());
+    REQUIRE(merged_anchor.width_twips().has_value());
+    CHECK_EQ(*merged_anchor.width_twips(), 3000U);
+    CHECK(merged_anchor.merge_down(2U));
+
+    auto second_row = table.rows();
+    second_row.next();
+    REQUIRE(second_row.has_next());
+    auto continuation_cell = second_row.cells();
+    REQUIRE(continuation_cell.has_next());
+    REQUIRE(continuation_cell.width_twips().has_value());
+    CHECK_EQ(*continuation_cell.width_twips(), 3000U);
+    CHECK(continuation_cell.unmerge_down());
+    CHECK_FALSE(continuation_cell.unmerge_down());
+    REQUIRE(continuation_cell.width_twips().has_value());
+    CHECK_EQ(*continuation_cell.width_twips(), 3000U);
+    CHECK_EQ(continuation_cell.get_text(), "");
+    CHECK(continuation_cell.set_text("restored-middle"));
+
+    auto third_row = second_row;
+    third_row.next();
+    REQUIRE(third_row.has_next());
+    auto restored_bottom = third_row.cells();
+    REQUIRE(restored_bottom.has_next());
+    REQUIRE(restored_bottom.width_twips().has_value());
+    CHECK_EQ(*restored_bottom.width_twips(), 3000U);
+    CHECK_EQ(restored_bottom.get_text(), "");
+    CHECK(restored_bottom.set_text("restored-bottom"));
+
+    auto top_tail = table.rows().cells();
+    top_tail.next();
+    REQUIRE(top_tail.has_next());
+    REQUIRE(top_tail.width_twips().has_value());
+    CHECK_EQ(*top_tail.width_twips(), 2400U);
+
+    auto middle_tail = second_row.cells();
+    middle_tail.next();
+    REQUIRE(middle_tail.has_next());
+    REQUIRE(middle_tail.width_twips().has_value());
+    CHECK_EQ(*middle_tail.width_twips(), 2400U);
+
+    auto bottom_tail = third_row.cells();
+    bottom_tail.next();
+    REQUIRE(bottom_tail.has_next());
+    REQUIRE(bottom_tail.width_twips().has_value());
+    CHECK_EQ(*bottom_tail.width_twips(), 2400U);
+
+    REQUIRE(table.column_width_twips(0U).has_value());
+    CHECK_EQ(*table.column_width_twips(0U), 1200U);
+    REQUIRE(table.column_width_twips(1U).has_value());
+    CHECK_EQ(*table.column_width_twips(1U), 1800U);
+    REQUIRE(table.column_width_twips(2U).has_value());
+    CHECK_EQ(*table.column_width_twips(2U), 2400U);
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+
+    const auto grid_widths = collect_table_grid_width_values(table_node);
+    REQUIRE_EQ(grid_widths.size(), 3U);
+    CHECK_EQ(grid_widths[0], "1200");
+    CHECK_EQ(grid_widths[1], "1800");
+    CHECK_EQ(grid_widths[2], "2400");
+
+    auto first_row = table_node.child("w:tr");
+    REQUIRE(first_row != pugi::xml_node{});
+    auto second_xml_row = first_row.next_sibling("w:tr");
+    REQUIRE(second_xml_row != pugi::xml_node{});
+    auto third_xml_row = second_xml_row.next_sibling("w:tr");
+    REQUIRE(third_xml_row != pugi::xml_node{});
+
+    CHECK(first_row.child("w:tc").child("w:tcPr").child("w:vMerge") == pugi::xml_node{});
+    CHECK(second_xml_row.child("w:tc").child("w:tcPr").child("w:vMerge") ==
+          pugi::xml_node{});
+    CHECK(third_xml_row.child("w:tc").child("w:tcPr").child("w:vMerge") == pugi::xml_node{});
+
+    const auto first_row_widths = collect_row_cell_width_values(first_row);
+    REQUIRE_EQ(first_row_widths.size(), 2U);
+    CHECK_EQ(first_row_widths[0], "3000");
+    CHECK_EQ(first_row_widths[1], "2400");
+
+    const auto second_row_widths = collect_row_cell_width_values(second_xml_row);
+    REQUIRE_EQ(second_row_widths.size(), 2U);
+    CHECK_EQ(second_row_widths[0], "3000");
+    CHECK_EQ(second_row_widths[1], "2400");
+
+    const auto third_row_widths = collect_row_cell_width_values(third_xml_row);
+    REQUIRE_EQ(third_row_widths.size(), 2U);
+    CHECK_EQ(third_row_widths[0], "3000");
+    CHECK_EQ(third_row_widths[1], "2400");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened),
+             "top-span\ntop-tail\nrestored-middle\nmiddle-tail\nrestored-bottom\nbottom-tail\n");
+
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    auto reopened_row = reopened_table.rows();
+    REQUIRE(reopened_row.has_next());
+    auto reopened_cell = reopened_row.cells();
+    REQUIRE(reopened_cell.has_next());
+    REQUIRE(reopened_cell.width_twips().has_value());
+    CHECK_EQ(*reopened_cell.width_twips(), 3000U);
+    reopened_cell.next();
+    REQUIRE(reopened_cell.has_next());
+    REQUIRE(reopened_cell.width_twips().has_value());
+    CHECK_EQ(*reopened_cell.width_twips(), 2400U);
+
+    reopened_row.next();
+    REQUIRE(reopened_row.has_next());
+    reopened_cell = reopened_row.cells();
+    REQUIRE(reopened_cell.has_next());
+    REQUIRE(reopened_cell.width_twips().has_value());
+    CHECK_EQ(*reopened_cell.width_twips(), 3000U);
+    reopened_cell.next();
+    REQUIRE(reopened_cell.has_next());
+    REQUIRE(reopened_cell.width_twips().has_value());
+    CHECK_EQ(*reopened_cell.width_twips(), 2400U);
+
+    reopened_row.next();
+    REQUIRE(reopened_row.has_next());
+    reopened_cell = reopened_row.cells();
+    REQUIRE(reopened_cell.has_next());
+    REQUIRE(reopened_cell.width_twips().has_value());
+    CHECK_EQ(*reopened_cell.width_twips(), 3000U);
+    reopened_cell.next();
+    REQUIRE(reopened_cell.has_next());
+    REQUIRE(reopened_cell.width_twips().has_value());
+    CHECK_EQ(*reopened_cell.width_twips(), 2400U);
+
+    fs::remove(target);
+}

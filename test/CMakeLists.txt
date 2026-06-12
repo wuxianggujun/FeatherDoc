@@ -269,6 +269,7 @@ featherdoc_add_cpp_test(
     numbering_unit_tests
     numbering_unit
     numbering_unit_tests.cpp
+    numbering_catalog_edge_tests.cpp
 )
 featherdoc_set_test_labels(numbering_unit core heavy numbering)
 
@@ -379,6 +380,7 @@ featherdoc_add_cpp_test(
     template_part_content_unit_tests
     template_part_content_unit
     template_part_content_unit_tests.cpp
+    template_part_content_review_omml_tests.cpp
 )
 featherdoc_set_test_labels(template_part_content_unit core heavy templates fields)
 
@@ -404,6 +406,7 @@ featherdoc_add_cpp_test(
     template_validation_unit_tests
     template_validation_unit
     template_validation_unit_tests.cpp
+    template_validation_media_block_tests.cpp
 )
 featherdoc_set_test_labels(template_validation_unit core heavy templates validation)
 
@@ -466,6 +469,7 @@ featherdoc_add_cpp_test(
     table_structure_cell_column_tests.cpp
     table_structure_row_table_tests.cpp
     table_structure_merge_tests.cpp
+    table_structure_unmerge_tests.cpp
 )
 featherdoc_set_test_labels(table_structure_unit core heavy tables structure)
 
@@ -599,6 +603,7 @@ if(TARGET FeatherDocPdf)
         pdf_document_adapter_image_tests.cpp
         pdf_document_adapter_table_layout_tests.cpp
         pdf_document_adapter_table_style_tests.cpp
+        pdf_document_adapter_table_border_style_tests.cpp
         pdf_document_adapter_table_roundtrip_tests.cpp
     )
     target_link_libraries(
@@ -6819,6 +6824,7 @@ if(TARGET featherdoc_cli)
         cli_semantic_diff_tests
         cli_semantic_diff
         cli_semantic_diff_tests.cpp
+        cli_semantic_diff_alignment_tests.cpp
     )
     featherdoc_set_test_labels(cli_semantic_diff cli semantic_diff heavy)
 
