@@ -109,7 +109,12 @@ $releaseArtifactTemplateEn = Get-RepoFileText -Root $resolvedRepoRoot -RelativeP
 $releaseArtifactTemplateZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
 $pdfWorkflowDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\pdf_workflow.rst"
 $dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
-$preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
+$preflightScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "check_pdf_visual_release_gate_preflight_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $releaseReadinessScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_release_readiness.ps1"
 $visualFullGateGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_visual_full_gate_guarded.ps1"
 $fullCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_full_ctest_guarded.ps1"

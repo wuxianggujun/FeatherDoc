@@ -69,9 +69,10 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
 $scriptHelperPath = Join-Path $resolvedRepoRoot "scripts\write_pdf_visual_release_gate_preflight_governance_report_helpers.ps1"
 $preflightScriptPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1"
+$preflightScriptHelperPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_visual_release_gate_preflight_helpers.ps1"
 $rollupScriptPath = Join-Path $resolvedRepoRoot "scripts\build_release_blocker_rollup_report.ps1"
 
-foreach ($pathToParse in @($scriptPath, $scriptHelperPath)) {
+foreach ($pathToParse in @($scriptPath, $scriptHelperPath, $preflightScriptPath, $preflightScriptHelperPath)) {
     $tokens = $null
     $errors = $null
     [System.Management.Automation.Language.Parser]::ParseFile($pathToParse, [ref]$tokens, [ref]$errors) | Out-Null
@@ -1348,7 +1349,10 @@ foreach ($expectedText in @(
         -Message "Governance report should keep memory guard passthrough marker '$expectedText'."
 }
 
-$preflightScriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $preflightScriptPath
+$preflightScriptText = @(
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $preflightScriptPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $preflightScriptHelperPath
+) -join "`n"
 foreach ($expectedText in @(
     "[int]`$MinFreeMemoryMB = 2048",
     "[switch]`$SkipMemoryGuard",

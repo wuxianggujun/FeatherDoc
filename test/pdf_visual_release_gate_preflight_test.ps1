@@ -79,6 +79,7 @@ $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1"
+$scriptHelperPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_visual_release_gate_preflight_helpers.ps1"
 $visualGatePath = Join-Path $resolvedRepoRoot "scripts\run_pdf_visual_release_gate.ps1"
 $renderPdfPagesPath = Join-Path $resolvedRepoRoot "scripts\render_pdf_pages.py"
 $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
@@ -103,6 +104,7 @@ New-Item -ItemType Directory -Path (Join-Path $plainBuildRepoRoot "build\tmp") -
 New-Item -ItemType Directory -Path (Join-Path $plainBuildRepoRoot "scripts") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $plainBuildRepoRoot "test") -Force | Out-Null
 Copy-Item -LiteralPath $scriptPath -Destination (Join-Path $plainBuildRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1")
+Copy-Item -LiteralPath $scriptHelperPath -Destination (Join-Path $plainBuildRepoRoot "scripts\check_pdf_visual_release_gate_preflight_helpers.ps1")
 Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $plainBuildRepoRoot "test\pdf_regression_manifest.json")
 & $powerShellExe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
     -File (Join-Path $plainBuildRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1") `
@@ -184,6 +186,7 @@ if (Test-Scenario -Names @("malformed")) {
 New-Item -ItemType Directory -Path (Join-Path $malformedManifestRepoRoot "scripts") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $malformedManifestRepoRoot "test") -Force | Out-Null
 Copy-Item -LiteralPath $scriptPath -Destination (Join-Path $malformedManifestRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1")
+Copy-Item -LiteralPath $scriptHelperPath -Destination (Join-Path $malformedManifestRepoRoot "scripts\check_pdf_visual_release_gate_preflight_helpers.ps1")
 "{ invalid json" | Set-Content -LiteralPath (Join-Path $malformedManifestRepoRoot "test\pdf_regression_manifest.json") -Encoding UTF8
 & $powerShellExe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
     -File (Join-Path $malformedManifestRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1") `
@@ -645,7 +648,10 @@ foreach ($forbiddenText in @(
         -Message "PDF visual release gate should not create or install render Python dependencies during the full gate: '$forbiddenText'."
 }
 
-$preflightText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
+$preflightText = @(
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptHelperPath
+) -join "`n"
 foreach ($expectedText in @(
     '[string]$OutputJson = "output/pdf-visual-release-gate-preflight-current/summary.json"',
     'schema = "featherdoc.pdf_visual_release_gate_preflight.v1"',
