@@ -93,6 +93,7 @@ $releaseGovernanceFiles = @(
     "test\release_candidate_blocker_rollup_test_helpers.ps1",
     "test\release_candidate_blocker_rollup_test_fixtures.ps1",
     "test\build_release_governance_pipeline_report_test.ps1",
+    "test\build_release_governance_pipeline_report_test_helpers.ps1",
     "test\write_schema_patch_confidence_calibration_report_test.ps1"
 )
 

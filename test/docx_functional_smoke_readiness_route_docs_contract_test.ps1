@@ -60,7 +60,12 @@ $releaseHandoffScript = @(
 ) -join "`n"
 
 $docxReadinessRegression = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\docx_functional_smoke_readiness_test.ps1"
-$releasePipelineRegression = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_pipeline_report_test.ps1"
+$releasePipelineRegression = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_pipeline_report_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "build_release_governance_pipeline_report_test_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $releaseHandoffRegression = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_handoff_report_test.ps1"
     Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "build_release_governance_handoff_report_*.ps1" |
