@@ -94,6 +94,26 @@ function Get-RepoFileText {
     return Get-Content -Raw -Encoding UTF8 -LiteralPath $path
 }
 
+function Get-RepoRelativePath {
+    param(
+        [string]$BaseRoot,
+        [string]$Path
+    )
+
+    $root = [System.IO.Path]::GetFullPath($BaseRoot)
+    if (-not $root.EndsWith([System.IO.Path]::DirectorySeparatorChar) -and
+        -not $root.EndsWith([System.IO.Path]::AltDirectorySeparatorChar)) {
+        $root += [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($resolvedPath.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $resolvedPath.Substring($root.Length).TrimStart('\', '/')
+    }
+
+    return $resolvedPath
+}
+
 function Get-CMakeTestRegistrationText {
     param([string]$Root)
 
@@ -145,12 +165,31 @@ $resolvedOutputJson = Resolve-RepoPath -Root $repoRoot -InputPath $OutputJson
 $resolvedReportMarkdown = Resolve-RepoPath -Root $repoRoot -InputPath $ReportMarkdown
 $checks = New-Object System.Collections.ArrayList
 
-$gateScriptRelativePath = "scripts\run_word_visual_release_gate.ps1"
-$gateScriptPath = Join-Path $repoRoot $gateScriptRelativePath
-$gateScriptText = Get-RepoFileText -Root $repoRoot -RelativePath $gateScriptRelativePath
+$gateScriptRoot = Join-Path $repoRoot "scripts"
+$gateScriptRelativePaths = @(
+    "scripts\run_word_visual_release_gate.ps1"
+    Get-ChildItem -LiteralPath $gateScriptRoot -Filter "run_word_visual_release_gate_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-RepoRelativePath -BaseRoot $repoRoot -Path $_.FullName }
+)
+$gateScriptPaths = @(
+    foreach ($relativePath in @($gateScriptRelativePaths)) {
+        Join-Path $repoRoot $relativePath
+    }
+)
+$gateScriptText = @(
+    foreach ($relativePath in @($gateScriptRelativePaths)) {
+        Get-RepoFileText -Root $repoRoot -RelativePath $relativePath
+    }
+) -join [Environment]::NewLine
 
 $requiredScripts = @(
     "scripts\run_word_visual_release_gate.ps1",
+    "scripts\run_word_visual_release_gate_helpers.ps1",
+    "scripts\run_word_visual_release_gate_setup.ps1",
+    "scripts\run_word_visual_release_gate_descriptors.ps1",
+    "scripts\run_word_visual_release_gate_standard_flows.ps1",
+    "scripts\run_word_visual_release_gate_curated_report.ps1",
     "scripts\run_word_visual_smoke.ps1",
     "scripts\run_fixed_grid_merge_unmerge_regression.ps1",
     "scripts\run_section_page_setup_visual_regression.ps1",
@@ -177,13 +216,15 @@ Add-Check -Checks $checks `
     })
 
 $parseErrors = @()
-if (Test-Path -LiteralPath $gateScriptPath -PathType Leaf) {
-    $parseTokens = $null
-    $parseErrorRef = $null
-    [System.Management.Automation.Language.Parser]::ParseFile($gateScriptPath, [ref]$parseTokens, [ref]$parseErrorRef) | Out-Null
-    $parseErrors = @($parseErrorRef | ForEach-Object { $_.Message })
-} else {
-    $parseErrors = @("Gate script is missing.")
+foreach ($gateScriptFilePath in @($gateScriptPaths)) {
+    if (Test-Path -LiteralPath $gateScriptFilePath -PathType Leaf) {
+        $parseTokens = $null
+        $parseErrorRef = $null
+        [System.Management.Automation.Language.Parser]::ParseFile($gateScriptFilePath, [ref]$parseTokens, [ref]$parseErrorRef) | Out-Null
+        $parseErrors += @($parseErrorRef | ForEach-Object { $_.Message })
+    } else {
+        $parseErrors += @("Gate script is missing: $gateScriptFilePath")
+    }
 }
 Add-Check -Checks $checks `
     -Name "word_visual_gate_parseable" `
@@ -191,7 +232,7 @@ Add-Check -Checks $checks `
     -Required $true `
     -Message $(if ($parseErrors.Count -eq 0) { "Word visual release gate script parses successfully." } else { "Word visual release gate script has parse errors or is missing." }) `
     -Details ([ordered]@{
-        script = $gateScriptRelativePath
+        script = "scripts\run_word_visual_release_gate.ps1"
         parse_error_count = $parseErrors.Count
         parse_errors = @($parseErrors)
     })
