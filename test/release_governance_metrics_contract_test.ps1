@@ -105,7 +105,12 @@ $contentControlReportScript = @(
         Sort-Object FullName |
         ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
 ) -join "`n"
-$numberingCatalogReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_numbering_catalog_governance_report.ps1"
+$numberingCatalogReportScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_numbering_catalog_governance_report.ps1"
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "build_numbering_catalog_governance_report_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $tableLayoutDeliveryReportScript = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\build_table_layout_delivery_governance_report.ps1"
     Get-ChildItem -LiteralPath $scriptRoot -Filter "build_table_layout_delivery_governance_report_*.ps1" |
