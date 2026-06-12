@@ -74,6 +74,17 @@ $releaseGovernanceFiles = @(
     "test\release_governance_warning_helper_contract_test.ps1",
     "test\build_release_blocker_rollup_report_test.ps1",
     "test\build_release_governance_handoff_report_test.ps1",
+    "test\build_release_governance_handoff_report_aggregate_scenario.ps1",
+    "test\build_release_governance_handoff_report_basic_scenarios.ps1",
+    "test\build_release_governance_handoff_report_explicit_only_scenario.ps1",
+    "test\build_release_governance_handoff_report_fixtures.ps1",
+    "test\build_release_governance_handoff_report_helpers.ps1",
+    "test\build_release_governance_handoff_report_include_rollup_markdown_assertions.ps1",
+    "test\build_release_governance_handoff_report_include_rollup_rollup_assertions.ps1",
+    "test\build_release_governance_handoff_report_include_rollup_scenario.ps1",
+    "test\build_release_governance_handoff_report_include_rollup_setup.ps1",
+    "test\build_release_governance_handoff_report_include_rollup_summary_assertions.ps1",
+    "test\build_release_governance_handoff_report_informational_actions_scenario.ps1",
     "test\build_release_governance_pipeline_report_test.ps1",
     "test\write_schema_patch_confidence_calibration_report_test.ps1"
 )

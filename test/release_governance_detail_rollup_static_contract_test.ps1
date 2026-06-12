@@ -75,7 +75,13 @@ $cmakeLists = @(
 
 $rollupTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_blocker_rollup_report_test.ps1"
 $pipelineTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_pipeline_report_test.ps1"
-$handoffTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_handoff_report_test.ps1"
+$handoffTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\build_release_governance_handoff_report_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "build_release_governance_handoff_report_*.ps1" |
+        Where-Object { $_.Name -ne "build_release_governance_handoff_report_test.ps1" } |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $candidateTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_candidate_blocker_rollup_test.ps1"
 $bundleTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\release_note_bundle_version_test.ps1"
 
