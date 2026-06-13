@@ -130,7 +130,13 @@ Assert-ContainsText -Text $runScript -ExpectedText "Microsoft Word COM is unavai
     -Message "run_word_visual_smoke.ps1 should explain missing Word COM clearly."
 
 $releaseGateScriptPath = Join-Path (Join-Path $resolvedRepoRoot "scripts") "run_word_visual_release_gate.ps1"
-$releaseGateScript = Get-Content -Raw -LiteralPath $releaseGateScriptPath
+$releaseGateScriptRoot = Join-Path $resolvedRepoRoot "scripts"
+$releaseGateScript = @(
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseGateScriptPath
+    Get-ChildItem -LiteralPath $releaseGateScriptRoot -Filter "run_word_visual_release_gate_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 Assert-ContainsText -Text $releaseGateScript -ExpectedText '[switch]$IncludeTableStyleQuality' `
     -Message "Table style quality visual gate should be opt-in."
 Assert-ContainsText -Text $releaseGateScript -ExpectedText 'id = "table-style-quality"' `

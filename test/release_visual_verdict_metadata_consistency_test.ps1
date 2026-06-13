@@ -331,7 +331,12 @@ foreach ($scriptInfo in $metadataScripts) {
 
 $bodyScriptPath = Join-Path $resolvedRepoRoot "scripts\write_release_body_zh.ps1"
 Assert-ScriptParses -Path $bodyScriptPath
-$bodyScriptText = Get-Content -Raw -LiteralPath $bodyScriptPath
+$bodyScriptText = @(
+    Get-Content -Raw -LiteralPath $bodyScriptPath
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "write_release_body_zh_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 Assert-ContainsText -Text $bodyScriptText `
     -ExpectedText '. (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")' `
     -Message "write_release_body_zh.ps1 should use the shared release visual metadata helper."
@@ -385,9 +390,19 @@ Assert-LineContainsAll -Lines $bodyScriptLines `
     -Fragments @('Page number fields review status', 'Get-DisplayValue -Value $pageNumberFieldsReviewStatus') `
     -Message "write_release_body_zh.ps1 should render the page number fields visual review status in the full body."
 
-$releasePreflightPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
-Assert-ScriptParses -Path $releasePreflightPath
-$releasePreflightText = Get-Content -Raw -LiteralPath $releasePreflightPath
+$releasePreflightRoot = Join-Path $resolvedRepoRoot "scripts"
+$releasePreflightPath = Join-Path $releasePreflightRoot "run_release_candidate_checks.ps1"
+$releasePreflightScripts = @($releasePreflightPath) + @(
+    Get-ChildItem -LiteralPath $releasePreflightRoot -Filter "run_release_candidate_checks_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { $_.FullName }
+)
+foreach ($releasePreflightScript in $releasePreflightScripts) {
+    Assert-ScriptParses -Path $releasePreflightScript
+}
+$releasePreflightText = @(
+    $releasePreflightScripts | ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_ }
+) -join "`n"
 foreach ($label in @("Smoke", "Fixed grid", "Section page setup", "Page number fields")) {
     Assert-ContainsText -Text $releasePreflightText `
         -ExpectedText ('[pscustomobject]@{{ Label = "{0}";' -f $label) `

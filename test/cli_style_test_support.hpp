@@ -2,6 +2,8 @@
 
 #include "cli_test_support.hpp"
 
+#include <zip.h>
+
 namespace {
 
 void create_cli_style_defaults_fixture(const std::filesystem::path &path) {

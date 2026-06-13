@@ -89,6 +89,7 @@ function New-PassingFixture {
     New-Item -ItemType Directory -Path (Join-Path $Root "docs") -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $Root "test") -Force | Out-Null
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $Root "scripts\check_pdf_release_readiness.ps1")
+    Copy-Item -LiteralPath (Join-Path (Split-Path -Parent $ScriptPath) "check_pdf_release_readiness_helpers.ps1") -Destination (Join-Path $Root "scripts\check_pdf_release_readiness_helpers.ps1")
 
     $preflightPath = Join-Path $Root "output\pdf-visual-release-gate-preflight-current\summary.json"
     Write-JsonFile -Path $preflightPath -Value ([ordered]@{
@@ -257,11 +258,14 @@ $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_release_readiness.ps1"
-$tokens = $null
-$errors = $null
-[System.Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$tokens, [ref]$errors) | Out-Null
-if ($errors.Count -gt 0) {
-    throw "PDF release readiness check script has parse errors."
+$scriptHelperPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_release_readiness_helpers.ps1"
+foreach ($pathToParse in @($scriptPath, $scriptHelperPath)) {
+    $tokens = $null
+    $errors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($pathToParse, [ref]$tokens, [ref]$errors) | Out-Null
+    if ($errors.Count -gt 0) {
+        throw "PDF release readiness check script has parse errors."
+    }
 }
 
 $fixtureRoot = Join-Path $resolvedWorkingDir "fixture-pass"

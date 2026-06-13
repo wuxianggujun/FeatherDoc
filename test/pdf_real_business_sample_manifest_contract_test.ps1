@@ -106,7 +106,12 @@ foreach ($group in $businessSampleGroups.GetEnumerator()) {
 }
 
 $checklistText = Get-Content -Raw -Encoding UTF8 -LiteralPath $checklistPath
-$buildingPdfText = Get-Content -Raw -Encoding UTF8 -LiteralPath $buildingPdfPath
+$buildingPdfText = @(
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $buildingPdfPath
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "docs") -Filter "building_pdf*_archive.md" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $boundedSubsetScriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $boundedSubsetScriptPath
 
 foreach ($sampleId in @($allBusinessSampleIds.ToArray())) {

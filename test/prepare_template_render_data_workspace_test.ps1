@@ -1,7 +1,9 @@
 param(
     [string]$RepoRoot,
     [string]$BuildDir,
-    [string]$WorkingDir
+    [string]$WorkingDir,
+    [ValidateSet("all", "invoice", "section")]
+    [string]$Scenario = "all"
 )
 
 Set-StrictMode -Version Latest
@@ -54,6 +56,25 @@ function Find-ExecutableByName {
         [string]$TargetName
     )
 
+    $candidateNames = @($TargetName, "$TargetName.exe")
+    $candidateDirs = @(
+        $SearchRoot,
+        (Join-Path $SearchRoot "test"),
+        (Join-Path $SearchRoot "Debug"),
+        (Join-Path $SearchRoot "Release"),
+        (Join-Path $SearchRoot "RelWithDebInfo"),
+        (Join-Path $SearchRoot "MinSizeRel")
+    )
+
+    foreach ($candidateDir in $candidateDirs) {
+        foreach ($candidateName in $candidateNames) {
+            $candidatePath = Join-Path $candidateDir $candidateName
+            if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                return [System.IO.Path]::GetFullPath($candidatePath)
+            }
+        }
+    }
+
     $candidate = Get-ChildItem -Path $SearchRoot -Recurse -File |
         Where-Object { $_.Name -ieq $TargetName -or $_.Name -ieq ($TargetName + ".exe") } |
         Sort-Object LastWriteTimeUtc -Descending |
@@ -78,6 +99,7 @@ $partTemplateSampleExecutable = Find-ExecutableByName `
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
+if ($Scenario -in @("all", "invoice")) {
 $workspaceDir = Join-Path $resolvedWorkingDir "invoice_workspace"
 $summaryPath = Join-Path $workspaceDir "invoice.workspace.summary.json"
 
@@ -249,7 +271,13 @@ Assert-Equal -Actual $patch.bookmark_table_rows[0].rows[0][1] `
     -Expected "TODO: line_item_row.row[0].cell[1]" `
     -Message "Workspace patch did not preserve generated table cell placeholders."
 
+if ($Scenario -eq "invoice") {
+    Write-Host "Template render-data invoice workspace preparation regression passed."
+    exit 0
+}
+}
 
+if ($Scenario -in @("all", "section")) {
 $partTemplateDir = Join-Path $resolvedWorkingDir "part_template_validation_fixture"
 $partTemplateDocx = Join-Path $partTemplateDir "part_template_validation.docx"
 $sectionWorkspaceDir = Join-Path $resolvedWorkingDir "part_template_workspace"
@@ -314,5 +342,6 @@ Assert-Equal -Actual $sectionData.header_title -Expected "TODO: header_title" `
     -Message "Section workspace data skeleton did not include header_title."
 Assert-True -Condition ($null -ne $sectionData.footer_summary) `
     -Message "Section workspace data skeleton did not include footer_summary."
+}
 
 Write-Host "Template render-data workspace preparation regression passed."

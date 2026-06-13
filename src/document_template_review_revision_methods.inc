@@ -1,0 +1,11 @@
+#include "document_template_review_revision_append_methods.inc"
+
+#include "document_template_review_revision_run_methods.inc"
+
+#include "document_template_review_revision_paragraph_insert_methods.inc"
+
+#include "document_template_review_revision_paragraph_delete_methods.inc"
+
+#include "document_template_review_revision_paragraph_replace_methods.inc"
+
+#include "document_template_review_revision_text_range_methods.inc"

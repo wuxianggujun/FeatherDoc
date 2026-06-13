@@ -294,7 +294,7 @@ $chineseApiIndexPath = Join-Path $resolvedRepoRoot "docs\zh-CN\api\index.rst"
 $changelogPath = Join-Path $resolvedRepoRoot "CHANGELOG.md"
 $cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
 $pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf_document_importer.hpp"
-$cliPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli.cpp"
+$pdfCliImportOutputPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli_pdf_import_output.cpp"
 $pdfCliImportTestsPath = Join-Path $resolvedRepoRoot "test\pdf_cli_import_tests.cpp"
 $pdfImportStructureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_structure_tests.cpp"
 $pdfImportFailureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_failure_tests.cpp"
@@ -307,11 +307,17 @@ $chineseApiIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $chineseApiI
 $changelogText = Get-Content -Raw -Encoding UTF8 -LiteralPath $changelogPath
 $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
-$cliText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cliPath
-$pdfCliImportTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportTestsPath
+$pdfCliImportOutputText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportOutputPath
+$pdfCliImportTestsTextParts = Get-ChildItem -LiteralPath (Split-Path -Parent $pdfCliImportTestsPath) -Filter "pdf_cli_import*.cpp" |
+    Sort-Object Name |
+    ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+$pdfCliImportTestsText = $pdfCliImportTestsTextParts -join "`n"
 $pdfImportStructureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportStructureTestsPath
 $pdfImportFailureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportFailureTestsPath
-$pdfImportTableHeuristicTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportTableHeuristicTestsPath
+$pdfImportTableHeuristicTestsTextParts = Get-ChildItem -LiteralPath (Split-Path -Parent $pdfImportTableHeuristicTestsPath) -Filter "pdf_import_table_heuristic*.cpp" |
+    Sort-Object Name |
+    ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+$pdfImportTableHeuristicTestsText = $pdfImportTableHeuristicTestsTextParts -join "`n"
 
 $englishPdfInstalledDocs = @('docs/en/api/pdf_workflow.rst')
 $chinesePdfInstalledDocs = @('docs/zh-CN/api/pdf_workflow.rst')
@@ -683,21 +689,21 @@ Assert-DocumentedEnumMembers `
     -Label "docs/en/api/pdf_workflow.rst"
 
 Assert-CliMapsEnumMembers `
-    -Text $cliText `
+    -Text $pdfCliImportOutputText `
     -Members $failureKindMembers `
-    -Label "cli/featherdoc_cli.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
 Assert-CliMapsEnumMembers `
-    -Text $cliText `
+    -Text $pdfCliImportOutputText `
     -Members $dispositionMembers `
-    -Label "cli/featherdoc_cli.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
 Assert-CliMapsEnumMembers `
-    -Text $cliText `
+    -Text $pdfCliImportOutputText `
     -Members $blockerMembers `
-    -Label "cli/featherdoc_cli.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
 Assert-CliMapsEnumMembers `
-    -Text $cliText `
+    -Text $pdfCliImportOutputText `
     -Members $headerMatchKindMembers `
-    -Label "cli/featherdoc_cli.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
 
 $cliJsonBlockerMembers = Get-CliJsonBlockerMembers -Text $pdfCliImportTestsText
 foreach ($blockerMember in $blockerMembers) {

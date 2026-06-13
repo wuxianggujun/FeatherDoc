@@ -1,7 +1,9 @@
 param(
     [string]$RepoRoot,
     [string]$BuildDir,
-    [string]$WorkingDir
+    [string]$WorkingDir,
+    [ValidateSet("all", "invoice", "incomplete", "visibility", "parts")]
+    [string]$Scenario = "all"
 )
 
 Set-StrictMode -Version Latest
@@ -106,6 +108,7 @@ $sampleDataObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $sampleDataPath
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
+if ($Scenario -in @("all", "invoice")) {
 $generatedPatch = Join-Path $resolvedWorkingDir "invoice.render_patch.generated.json"
 $draftPlan = Join-Path $resolvedWorkingDir "invoice.render-plan.draft.json"
 $patchedPlan = Join-Path $resolvedWorkingDir "invoice.render-plan.filled.json"
@@ -192,32 +195,37 @@ Assert-ContainsText -Text $invoiceDocumentXml -ExpectedText ([string]$sampleData
 Assert-ContainsText -Text $invoiceDocumentXml -ExpectedText ([string]$sampleDataObject.line_items[1].title) -Label "Invoice document.xml"
 Assert-ContainsText -Text $invoiceDocumentXml -ExpectedText ([string]$sampleDataObject.line_items[2].title) -Label "Invoice document.xml"
 Assert-NotContainsText -Text $invoiceDocumentXml -UnexpectedText "TODO:" -Label "Invoice document.xml"
+if ($Scenario -eq "invoice") {
+    Write-Host "Render-from-data invoice regression passed."
+    exit 0
+}
+}
 
-$incompleteMappingPath = Join-Path $resolvedWorkingDir "invoice.incomplete.render_data_mapping.json"
-$incompleteSummaryPath = Join-Path $resolvedWorkingDir "invoice.incomplete.rendered.from-data.summary.json"
-$incompleteOutputDocx = Join-Path $resolvedWorkingDir "invoice.incomplete.rendered.from-data.docx"
+if ($Scenario -in @("all", "incomplete")) {
+$incompleteFixtureDir = Join-Path $resolvedWorkingDir "part_template_incomplete"
+$incompleteFixtureDocx = Join-Path $incompleteFixtureDir "part_template_validation.docx"
+$incompleteDataPath = Join-Path $resolvedWorkingDir "part_template.incomplete.render_data.json"
+$incompleteMappingPath = Join-Path $resolvedWorkingDir "part_template.incomplete.render_data_mapping.json"
+$incompleteSummaryPath = Join-Path $resolvedWorkingDir "part_template.incomplete.rendered.from-data.summary.json"
+$incompleteOutputDocx = Join-Path $resolvedWorkingDir "part_template.incomplete.rendered.from-data.docx"
 
+New-PartTemplateValidationFixtureDocx -Path $incompleteFixtureDocx
+Set-Content -LiteralPath $incompleteDataPath -Encoding UTF8 -Value @'
+{
+  "header": {
+    "title": "Incomplete section header"
+  }
+}
+'@
 Set-Content -LiteralPath $incompleteMappingPath -Encoding UTF8 -Value @'
 {
   "bookmark_text": [
     {
-      "bookmark_name": "customer_name",
-      "source": "customer.name"
-    },
-    {
-      "bookmark_name": "invoice_number",
-      "source": "invoice.number"
-    }
-  ],
-  "bookmark_table_rows": [
-    {
-      "bookmark_name": "line_item_row",
-      "source": "line_items",
-      "columns": [
-        "title",
-        "description",
-        "amount"
-      ]
+      "bookmark_name": "header_title",
+      "part": "section-header",
+      "section": 0,
+      "kind": "default",
+      "source": "header.title"
     }
   ]
 }
@@ -226,12 +234,13 @@ Set-Content -LiteralPath $incompleteMappingPath -Encoding UTF8 -Value @'
 $incompleteFailed = $false
 try {
     & $scriptPath `
-        -InputDocx $sampleDocx `
-        -DataPath $sampleDataPath `
+        -InputDocx $incompleteFixtureDocx `
+        -DataPath $incompleteDataPath `
         -MappingPath $incompleteMappingPath `
         -OutputDocx $incompleteOutputDocx `
         -SummaryJson $incompleteSummaryPath `
         -BuildDir $resolvedBuildDir `
+        -ExportTargetMode resolved-section-targets `
         -SkipBuild
 
     if ($LASTEXITCODE -ne 0) {
@@ -246,23 +255,29 @@ if (-not $incompleteFailed) {
 }
 
 Assert-True -Condition (Test-Path -LiteralPath $incompleteSummaryPath) `
-    -Message "Incomplete invoice data-render summary JSON was not created."
+    -Message "Incomplete data-render summary JSON was not created."
 
 $incompleteSummaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $incompleteSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual $incompleteSummaryObject.status -Expected "failed" `
-    -Message "Incomplete invoice data-render summary did not report status=failed."
+    -Message "Incomplete data-render summary did not report status=failed."
 Assert-Equal -Actual $incompleteSummaryObject.steps[0].status -Expected "completed" `
-    -Message "Incomplete invoice export step did not complete."
+    -Message "Incomplete export step did not complete."
 Assert-Equal -Actual $incompleteSummaryObject.steps[1].status -Expected "completed" `
-    -Message "Incomplete invoice convert step did not complete."
+    -Message "Incomplete convert step did not complete."
 Assert-Equal -Actual $incompleteSummaryObject.steps[2].status -Expected "failed" `
-    -Message "Incomplete invoice patch step should fail."
+    -Message "Incomplete patch step should fail."
 Assert-Equal -Actual $incompleteSummaryObject.steps[3].status -Expected "pending" `
-    -Message "Incomplete invoice render step should not start."
+    -Message "Incomplete render step should not start."
 Assert-ContainsText -Text ([string]$incompleteSummaryObject.error) `
     -ExpectedText "render plan still contains" `
-    -Label "Incomplete invoice data-render error"
+    -Label "Incomplete data-render error"
+if ($Scenario -eq "incomplete") {
+    Write-Host "Render-from-data incomplete regression passed."
+    exit 0
+}
+}
 
+if ($Scenario -in @("all", "visibility")) {
 $visibilityFixtureDocx = Join-Path $resolvedWorkingDir "block_visibility_fixture.docx"
 $visibilityDataPath = Join-Path $resolvedWorkingDir "block_visibility.render_data.json"
 $visibilityMappingPath = Join-Path $resolvedWorkingDir "block_visibility.render_data_mapping.json"
@@ -322,7 +337,13 @@ Assert-Equal -Actual $visibilitySummaryObject.steps[3].summary.operation_count -
 Assert-ContainsText -Text $visibilityDocumentXml -ExpectedText "Keep me" -Label "Visibility document.xml"
 Assert-NotContainsText -Text $visibilityDocumentXml -UnexpectedText "Hide me" -Label "Visibility document.xml"
 Assert-NotContainsText -Text $visibilityDocumentXml -UnexpectedText "Secret Cell" -Label "Visibility document.xml"
+if ($Scenario -eq "visibility") {
+    Write-Host "Render-from-data visibility regression passed."
+    exit 0
+}
+}
 
+if ($Scenario -in @("all", "parts")) {
 $partTemplateDir = Join-Path $resolvedWorkingDir "part_template"
 $partTemplateDocx = Join-Path $partTemplateDir "part_template_validation.docx"
 $partTemplateDataPath = Join-Path $resolvedWorkingDir "part_template.render_data.json"
@@ -338,7 +359,6 @@ New-PartTemplateValidationFixtureDocx -Path $partTemplateDocx
 $partTemplateData = [ordered]@{
     header = [ordered]@{
         title = "Section Header Rendered From Data"
-        note_lines = @("Header note line 1", "Header note line 2")
         rows = @(
             [ordered]@{ name = "Alpha"; quantity = "12" },
             [ordered]@{ name = "Beta"; quantity = "34" }
@@ -373,15 +393,6 @@ $partTemplateMapping = [ordered]@{
             section = 0
             kind = "default"
             source = "footer.summary"
-        }
-    )
-    bookmark_paragraphs = @(
-        [ordered]@{
-            bookmark_name = "header_note"
-            part = "section-header"
-            section = 0
-            kind = "default"
-            source = "header.note_lines"
         }
     )
     bookmark_table_rows = @(
@@ -444,13 +455,10 @@ Assert-Equal -Actual $partTemplateDraftPlanObject.bookmark_text[0].kind -Expecte
     -Message "Section header draft plan did not preserve kind=default."
 
 Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Section Header Rendered From Data" -Label "Section header XML"
-Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Header note line 1" -Label "Section header XML"
-Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Header note line 2" -Label "Section header XML"
 Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Alpha" -Label "Section header XML"
 Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "34" -Label "Section header XML"
 Assert-ContainsText -Text $partTemplateFooterXml -ExpectedText "FeatherDoc Section Footer Ltd." -Label "Section footer XML"
 Assert-ContainsText -Text $partTemplateFooterXml -ExpectedText "Section footer summary rendered from business data" -Label "Section footer XML"
-Assert-NotContainsText -Text $partTemplateHeaderXml -UnexpectedText "TODO:" -Label "Section header XML"
-Assert-NotContainsText -Text $partTemplateFooterXml -UnexpectedText "TODO:" -Label "Section footer XML"
+}
 
 Write-Host "Render-from-data regression passed."

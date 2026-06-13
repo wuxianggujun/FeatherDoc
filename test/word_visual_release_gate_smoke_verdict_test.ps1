@@ -34,8 +34,19 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
+$scriptRoot = Join-Path $resolvedRepoRoot "scripts"
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_word_visual_release_gate.ps1"
-$scriptText = Get-Content -Raw -LiteralPath $scriptPath
+$helperScriptPaths = @(
+    Get-ChildItem -LiteralPath $scriptRoot -Filter "run_word_visual_release_gate_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { $_.FullName }
+)
+$scriptText = @(
+    Get-Content -Raw -LiteralPath $scriptPath
+    foreach ($helperScriptPath in $helperScriptPaths) {
+        Get-Content -Raw -Encoding UTF8 -LiteralPath $helperScriptPath
+    }
+) -join "`n"
 
 Assert-ContainsText -Text $scriptText -ExpectedText '[string]$SmokeReviewVerdict = "undecided"' `
     -Message "Release gate should expose SmokeReviewVerdict."
@@ -116,23 +127,27 @@ Assert-ContainsText -Text $scriptText -ExpectedText '$gateSummary.review_task_su
 Assert-ContainsText -Text $scriptText -ExpectedText 'Review task count: $($gateSummary.review_task_summary.total_count) total' `
     -Message "Release gate final review should surface review task summary counts."
 
-$parseTokens = $null
-$parseErrors = $null
-$scriptAst = [System.Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$parseTokens, [ref]$parseErrors)
-if ($parseErrors.Count -gt 0) {
-    throw "Release gate script has parse errors."
-}
-
 $functionNames = @(
     "Get-OptionalPropertyValue",
     "Test-ReviewTaskPresent",
     "Get-ReviewTaskSummary"
 )
-$functionAsts = $scriptAst.FindAll({
-        param($Node)
-        $Node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
-            $functionNames -contains $Node.Name
-    }, $true)
+$functionAsts = @(
+    foreach ($path in @($scriptPath) + $helperScriptPaths) {
+        $parseTokens = $null
+        $parseErrors = $null
+        $scriptAst = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$parseTokens, [ref]$parseErrors)
+        if ($parseErrors.Count -gt 0) {
+            throw "Release gate script has parse errors: $path"
+        }
+
+        $scriptAst.FindAll({
+                param($Node)
+                $Node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $functionNames -contains $Node.Name
+            }, $true)
+    }
+)
 foreach ($functionName in $functionNames) {
     $functionAst = $functionAsts | Where-Object { $_.Name -eq $functionName } | Select-Object -First 1
     if ($null -eq $functionAst) {

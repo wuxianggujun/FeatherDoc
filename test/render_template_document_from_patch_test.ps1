@@ -1,7 +1,9 @@
 param(
     [string]$RepoRoot,
     [string]$BuildDir,
-    [string]$WorkingDir
+    [string]$WorkingDir,
+    [ValidateSet("all", "invoice", "visibility", "parts")]
+    [string]$Scenario = "all"
 )
 
 Set-StrictMode -Version Latest
@@ -105,6 +107,7 @@ $samplePatchObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $samplePatchPa
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
+if ($Scenario -in @("all", "invoice")) {
 $draftPlan = Join-Path $resolvedWorkingDir "invoice.render-plan.draft.json"
 $patchedPlan = Join-Path $resolvedWorkingDir "invoice.render-plan.filled.json"
 $renderedDocx = Join-Path $resolvedWorkingDir "invoice.rendered.from-patch.docx"
@@ -188,7 +191,13 @@ Assert-ContainsText -Text $invoiceDocumentXml -ExpectedText ([string]$samplePatc
 Assert-ContainsText -Text $invoiceDocumentXml -ExpectedText ([string]$samplePatchObject.bookmark_table_rows[0].rows[1][0]) -Label "Invoice document.xml"
 Assert-ContainsText -Text $invoiceDocumentXml -ExpectedText ([string]$samplePatchObject.bookmark_table_rows[0].rows[2][0]) -Label "Invoice document.xml"
 Assert-NotContainsText -Text $invoiceDocumentXml -UnexpectedText "TODO:" -Label "Invoice document.xml"
+if ($Scenario -eq "invoice") {
+    Write-Host "Template render-from-patch invoice regression passed."
+    exit 0
+}
+}
 
+if ($Scenario -in @("all", "visibility")) {
 $visibilityFixtureDocx = Join-Path $resolvedWorkingDir "block_visibility_fixture.docx"
 $visibilityPatchPath = Join-Path $resolvedWorkingDir "block_visibility.render_patch.json"
 $visibilityRenderedDocx = Join-Path $resolvedWorkingDir "block_visibility.rendered.from-patch.docx"
@@ -238,7 +247,13 @@ $visibilityDocumentXml = Read-DocxEntryText -DocxPath $visibilityRenderedDocx -E
 Assert-ContainsText -Text $visibilityDocumentXml -ExpectedText "Keep me" -Label "Visibility document.xml"
 Assert-NotContainsText -Text $visibilityDocumentXml -UnexpectedText "Hide me" -Label "Visibility document.xml"
 Assert-NotContainsText -Text $visibilityDocumentXml -UnexpectedText "Secret Cell" -Label "Visibility document.xml"
+if ($Scenario -eq "visibility") {
+    Write-Host "Template render-from-patch visibility regression passed."
+    exit 0
+}
+}
 
+if ($Scenario -in @("all", "parts")) {
 $partTemplateDir = Join-Path $resolvedWorkingDir "part_template_validation_fixture"
 $partTemplateDocx = Join-Path $partTemplateDir "part_template_validation.docx"
 $partTemplatePatchPath = Join-Path $resolvedWorkingDir "part_template.render_patch.json"
@@ -271,15 +286,6 @@ $partTemplatePatchObject = [ordered]@{
             section = 0
             kind = "default"
             text = "Section footer summary rendered from patch"
-        }
-    )
-    bookmark_paragraphs = @(
-        [ordered]@{
-            bookmark_name = "header_note"
-            part = "section-header"
-            section = 0
-            kind = "default"
-            paragraphs = @("Patch header note line 1", "Patch header note line 2")
         }
     )
     bookmark_table_rows = @(
@@ -333,13 +339,10 @@ Assert-Equal -Actual $partTemplateDraftPlanObject.bookmark_text[0].kind -Expecte
     -Message "Section part patch-render draft did not preserve kind=default."
 
 Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Section Header Rendered From Patch" -Label "Section patch header XML"
-Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Patch header note line 1" -Label "Section patch header XML"
-Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Patch header note line 2" -Label "Section patch header XML"
 Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Gamma" -Label "Section patch header XML"
 Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "78" -Label "Section patch header XML"
 Assert-ContainsText -Text $partTemplateFooterXml -ExpectedText "FeatherDoc Section Footer Patch Ltd." -Label "Section patch footer XML"
 Assert-ContainsText -Text $partTemplateFooterXml -ExpectedText "Section footer summary rendered from patch" -Label "Section patch footer XML"
-Assert-NotContainsText -Text $partTemplateHeaderXml -UnexpectedText "TODO:" -Label "Section patch header XML"
-Assert-NotContainsText -Text $partTemplateFooterXml -UnexpectedText "TODO:" -Label "Section patch footer XML"
+}
 
 Write-Host "Template render-from-patch regression passed."

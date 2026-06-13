@@ -85,6 +85,25 @@ function Find-ExecutableByName {
         [string]$TargetName
     )
 
+    $candidateNames = @($TargetName, "$TargetName.exe")
+    $candidateDirs = @(
+        $SearchRoot,
+        (Join-Path $SearchRoot "test"),
+        (Join-Path $SearchRoot "Debug"),
+        (Join-Path $SearchRoot "Release"),
+        (Join-Path $SearchRoot "RelWithDebInfo"),
+        (Join-Path $SearchRoot "MinSizeRel")
+    )
+
+    foreach ($candidateDir in $candidateDirs) {
+        foreach ($candidateName in $candidateNames) {
+            $candidatePath = Join-Path $candidateDir $candidateName
+            if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                return [System.IO.Path]::GetFullPath($candidatePath)
+            }
+        }
+    }
+
     $candidate = Get-ChildItem -Path $SearchRoot -Recurse -File |
         Where-Object { $_.Name -ieq $TargetName -or $_.Name -ieq ($TargetName + ".exe") } |
         Sort-Object LastWriteTimeUtc -Descending |

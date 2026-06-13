@@ -2,6 +2,8 @@
 #include "cli_test_support.hpp"
 #include "cli_style_test_support.hpp"
 
+#include <zip.h>
+
 namespace {
 void create_cli_page_setup_fixture(const fs::path &path) {
     remove_if_exists(path);

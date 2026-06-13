@@ -1,0 +1,7 @@
+#include "document_styles_character_inheritance_write_methods.inc"
+
+#include "document_styles_paragraph_inheritance_write_methods.inc"
+
+#include "document_styles_paragraph_next_write_methods.inc"
+
+#include "document_styles_paragraph_outline_write_methods.inc"

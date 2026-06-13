@@ -22,6 +22,9 @@
 ``style_numbering_governance_workflow`` 和 ``table_layout_delivery_workflow``
 的脚本索引锚点，供 ``current_direction_guardrails`` 契约测试交叉检查。
 
+新增公共头入口后，应通过安装 / ``find_package`` smoke 覆盖
+``include/featherdoc/core.hpp`` 和 ``include/featherdoc/fwd.hpp`` 的可安装性。
+
 
 脚本索引自检
 ------------

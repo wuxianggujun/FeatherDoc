@@ -1,7 +1,9 @@
 param(
     [string]$RepoRoot,
     [string]$BuildDir,
-    [string]$WorkingDir
+    [string]$WorkingDir,
+    [ValidateSet("all", "invoice", "invoice_failures", "invoice_success", "section")]
+    [string]$Scenario = "all"
 )
 
 Set-StrictMode -Version Latest
@@ -105,6 +107,7 @@ $sampleDocx = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.docx
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
+if ($Scenario -eq "all" -or $Scenario -eq "invoice" -or $Scenario -eq "invoice_failures" -or $Scenario -eq "invoice_success") {
 $workspaceDir = Join-Path $resolvedWorkingDir "invoice_workspace"
 $workspaceSummary = Join-Path $workspaceDir "invoice.workspace.summary.json"
 $validationFailureSummary = Join-Path $workspaceDir "invoice.workspace.validation.failed.summary.json"
@@ -128,6 +131,7 @@ if ($LASTEXITCODE -ne 0) {
 
 $workspace = Get-Content -Raw -Encoding UTF8 -LiteralPath $workspaceSummary | ConvertFrom-Json
 
+if ($Scenario -ne "invoice_success") {
 $validationFailed = $false
 try {
     & $validateWorkspaceScriptPath `
@@ -196,6 +200,11 @@ Assert-Equal -Actual $failureSummaryObject.status -Expected "failed" `
 Assert-ContainsText -Text ([string]$failureSummaryObject.error) `
     -ExpectedText "Edit" `
     -Label "Workspace render failure summary"
+if ($Scenario -eq "invoice_failures") {
+    Write-Host "Render-from-workspace invoice failure regression passed."
+    exit 0
+}
+}
 
 Set-Content -LiteralPath $workspace.data_skeleton -Encoding UTF8 -Value @'
 {
@@ -221,6 +230,7 @@ Set-Content -LiteralPath $workspace.data_skeleton -Encoding UTF8 -Value @'
 }
 '@
 
+if ($Scenario -ne "invoice_success") {
 & $validateWorkspaceScriptPath `
     -WorkspaceDir $workspaceDir `
     -SummaryJson $validationSummary `
@@ -254,6 +264,7 @@ Assert-ContainsText -Text $validationReportText `
 Assert-ContainsText -Text $validationReportText `
     -ExpectedText "You can continue with workspace rendering to produce the final .docx." `
     -Label "Workspace validation report"
+}
 
 & $renderWorkspaceScriptPath `
     -WorkspaceDir $workspaceDir `
@@ -291,7 +302,9 @@ Assert-ContainsText -Text $documentXml -ExpectedText "INV-2026-0410" -Label "Wor
 Assert-ContainsText -Text $documentXml -ExpectedText "Edit the data JSON first, then render the DOCX." -Label "Workspace document.xml"
 Assert-ContainsText -Text $documentXml -ExpectedText "Document generation" -Label "Workspace document.xml"
 Assert-NotContainsText -Text $documentXml -UnexpectedText "TODO:" -Label "Workspace document.xml"
+}
 
+if ($Scenario -eq "all" -or $Scenario -eq "section") {
 $partTemplateDir = Join-Path $resolvedWorkingDir "part_template_validation_fixture"
 $partTemplateDocx = Join-Path $partTemplateDir "part_template_validation.docx"
 $sectionWorkspaceDir = Join-Path $resolvedWorkingDir "part_template_workspace"
@@ -371,5 +384,6 @@ Assert-ContainsText -Text $sectionFooterXml -ExpectedText "FeatherDoc Section Wo
 Assert-ContainsText -Text $sectionFooterXml -ExpectedText "Section footer summary rendered from workspace" -Label "Section workspace footer XML"
 Assert-NotContainsText -Text $sectionHeaderXml -UnexpectedText "TODO:" -Label "Section workspace header XML"
 Assert-NotContainsText -Text $sectionFooterXml -UnexpectedText "TODO:" -Label "Section workspace footer XML"
+}
 
 Write-Host "Render-from-workspace regression passed."

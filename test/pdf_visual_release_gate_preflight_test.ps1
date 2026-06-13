@@ -1,6 +1,8 @@
 param(
     [string]$RepoRoot,
-    [string]$WorkingDir
+    [string]$WorkingDir,
+    [ValidateSet("all", "plain", "malformed", "disabled", "synthetic", "contract")]
+    [string]$Scenario = "all"
 )
 
 Set-StrictMode -Version Latest
@@ -57,6 +59,14 @@ function Assert-PdfPreflightOutputEncoding {
         -Message $Message
 }
 
+function Test-Scenario {
+    param(
+        [string[]]$Names
+    )
+
+    return $Scenario -eq "all" -or $Names -contains $Scenario
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     throw "RepoRoot is required."
 }
@@ -69,6 +79,7 @@ $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1"
+$scriptHelperPath = Join-Path $resolvedRepoRoot "scripts\check_pdf_visual_release_gate_preflight_helpers.ps1"
 $visualGatePath = Join-Path $resolvedRepoRoot "scripts\run_pdf_visual_release_gate.ps1"
 $renderPdfPagesPath = Join-Path $resolvedRepoRoot "scripts\render_pdf_pages.py"
 $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
@@ -86,22 +97,25 @@ $disabledCtestPath = Join-Path $resolvedWorkingDir "disabled-ctest.cmd"
 $fakeBuildDir = Join-Path $resolvedWorkingDir "fake-pdf-build"
 $fakeCtestPath = Join-Path $resolvedWorkingDir "fake-ctest.cmd"
 $fakePythonPath = Join-Path $resolvedWorkingDir "fake-python.cmd"
+$powerShellExe = (Get-Process -Id $PID).Path
 
+if (Test-Scenario -Names @("plain")) {
 New-Item -ItemType Directory -Path (Join-Path $plainBuildRepoRoot "build\tmp") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $plainBuildRepoRoot "scripts") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $plainBuildRepoRoot "test") -Force | Out-Null
 Copy-Item -LiteralPath $scriptPath -Destination (Join-Path $plainBuildRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1")
+Copy-Item -LiteralPath $scriptHelperPath -Destination (Join-Path $plainBuildRepoRoot "scripts\check_pdf_visual_release_gate_preflight_helpers.ps1")
 Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $plainBuildRepoRoot "test\pdf_regression_manifest.json")
-& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+& $powerShellExe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
     -File (Join-Path $plainBuildRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1") `
     -OutputJson $plainBuildSummaryPath `
-    -MinFreeMemoryMB 1 | Out-Host
+    -MinFreeMemoryMB 1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "PDF visual release gate preflight should report not_ready for a plain build directory without failing."
 }
-& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+& $powerShellExe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
     -File (Join-Path $plainBuildRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1") `
-    -MinFreeMemoryMB 1 | Out-Host
+    -MinFreeMemoryMB 1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "PDF visual release gate preflight should report not_ready and write the default summary without failing."
 }
@@ -126,18 +140,81 @@ Assert-True -Condition ([string]$plainBuildDefaultSummary.recommended_recovery_s
 Assert-True -Condition ([string]$plainBuildDefaultSummary.minimum_risk_next_action -match [regex]::Escape("Provide reusable PDFio/PDFium inputs first")) `
     -Message "Plain-build minimum-risk next action should explain that PDF dependency inputs come first."
 
+$plainBuildSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $plainBuildSummaryPath | ConvertFrom-Json
+Assert-FileHasNoBom -Path $plainBuildSummaryPath `
+    -Message "Plain build summary should be UTF-8 without BOM."
+Assert-PdfPreflightOutputEncoding -Summary $plainBuildSummary `
+    -Message "Plain build summary should expose UTF-8 without BOM output encoding."
+Assert-True -Condition ($plainBuildSummary.status -eq "not_ready") `
+    -Message "Plain build directory preflight should stay not_ready."
+Assert-True -Condition ([string]$plainBuildSummary.build_dir_source -eq "requested") `
+    -Message "Plain build directory preflight should not auto-select build without CMake metadata."
+Assert-True -Condition ([string]$plainBuildSummary.build_dir -like "*.bpdf-roundtrip-msvc") `
+    -Message "Plain build directory preflight should keep the requested default build directory."
+$plainBuildCandidates = @($plainBuildSummary.build_dir_auto_candidates)
+Assert-True -Condition ($plainBuildCandidates.Count -eq 2) `
+    -Message "Plain build directory preflight should record both automatic build directory candidates."
+$plainBuildCandidate = @($plainBuildCandidates | Where-Object { [string]$_.relative_path -eq "build" }) | Select-Object -First 1
+Assert-True -Condition ($null -ne $plainBuildCandidate) `
+    -Message "Plain build directory preflight should record the build auto-candidate."
+Assert-True -Condition ([bool]$plainBuildCandidate.exists -eq $true) `
+    -Message "Plain build auto-candidate should report the existing build directory."
+Assert-True -Condition ([bool]$plainBuildCandidate.cmake_cache_exists -eq $false) `
+    -Message "Plain build auto-candidate should report the missing CMakeCache.txt."
+Assert-True -Condition ([bool]$plainBuildCandidate.ctest_manifest_exists -eq $false) `
+    -Message "Plain build auto-candidate should report the missing CTest manifest."
+Assert-True -Condition ([bool]$plainBuildCandidate.looks_reusable -eq $false) `
+    -Message "Plain build auto-candidate should not look reusable without CMake metadata."
+Assert-True -Condition ([bool]$plainBuildCandidate.pdf_build_options_enabled -eq $false) `
+    -Message "Plain build auto-candidate should report PDF build options as not enabled."
+$plainOutBuildCandidate = @($plainBuildCandidates | Where-Object { [string]$_.relative_path -eq "out\build" }) | Select-Object -First 1
+Assert-True -Condition ($null -ne $plainOutBuildCandidate) `
+    -Message "Plain build directory preflight should record the out\build auto-candidate."
+Assert-True -Condition ([bool]$plainOutBuildCandidate.looks_reusable -eq $false) `
+    -Message "Plain out\build auto-candidate should not look reusable."
+Assert-True -Condition (($plainBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "build_dir_exists") `
+    -Message "Plain build directory preflight should report the missing requested build directory."
+Assert-True -Condition ([int]$plainBuildSummary.blocking_summary.build_dir_entry_count -eq 0) `
+    -Message "Plain build directory preflight should not count entries from an unrelated build directory."
+Assert-True -Condition ([int]$plainBuildSummary.output_gap_count -eq 3) `
+    -Message "Plain build directory preflight should report the three missing output groups."
+Assert-True -Condition ([int]$plainBuildSummary.missing_output_count -gt 0) `
+    -Message "Plain build directory preflight should report missing output totals."
+}
+
+if (Test-Scenario -Names @("malformed")) {
 New-Item -ItemType Directory -Path (Join-Path $malformedManifestRepoRoot "scripts") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $malformedManifestRepoRoot "test") -Force | Out-Null
 Copy-Item -LiteralPath $scriptPath -Destination (Join-Path $malformedManifestRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1")
+Copy-Item -LiteralPath $scriptHelperPath -Destination (Join-Path $malformedManifestRepoRoot "scripts\check_pdf_visual_release_gate_preflight_helpers.ps1")
 "{ invalid json" | Set-Content -LiteralPath (Join-Path $malformedManifestRepoRoot "test\pdf_regression_manifest.json") -Encoding UTF8
-& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+& $powerShellExe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
     -File (Join-Path $malformedManifestRepoRoot "scripts\check_pdf_visual_release_gate_preflight.ps1") `
     -OutputJson $malformedManifestSummaryPath `
-    -MinFreeMemoryMB 1 | Out-Host
+    -MinFreeMemoryMB 1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "PDF visual release gate preflight should report malformed manifest evidence without failing when -Strict is not set."
 }
 
+$malformedManifestSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $malformedManifestSummaryPath | ConvertFrom-Json
+Assert-FileHasNoBom -Path $malformedManifestSummaryPath `
+    -Message "Malformed manifest summary should be UTF-8 without BOM."
+Assert-PdfPreflightOutputEncoding -Summary $malformedManifestSummary `
+    -Message "Malformed manifest summary should expose UTF-8 without BOM output encoding."
+Assert-True -Condition ($malformedManifestSummary.status -eq "not_ready") `
+    -Message "Malformed manifest preflight should stay not_ready."
+Assert-True -Condition (($malformedManifestSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_regression_manifest_readable") `
+    -Message "Malformed manifest preflight should expose pdf_regression_manifest_readable as a blocker."
+$malformedManifestCheck = @($malformedManifestSummary.checks | Where-Object { [string]$_.name -eq "pdf_regression_manifest_readable" })[0]
+Assert-True -Condition ([string]$malformedManifestCheck.status -eq "missing") `
+    -Message "Malformed manifest readable check should be missing."
+Assert-True -Condition ([bool]$malformedManifestCheck.details.manifest_exists -eq $true) `
+    -Message "Malformed manifest readable check should preserve that the manifest file exists."
+Assert-True -Condition (-not [string]::IsNullOrWhiteSpace([string]$malformedManifestCheck.details.error_message)) `
+    -Message "Malformed manifest readable check should include a parse error message."
+}
+
+if (Test-Scenario -Names @("disabled")) {
 New-Item -ItemType Directory -Path $disabledBuildDir -Force | Out-Null
 @"
 FEATHERDOC_BUILD_PDF:BOOL=OFF
@@ -165,19 +242,19 @@ Set-Content -LiteralPath (Join-Path $overridePdfioSourceDir "pdfio.h") -Encoding
 Set-Content -LiteralPath (Join-Path $overridePdfiumIncludeDir "fpdfview.h") -Encoding UTF8 -Value "/* fake pdfium override */"
 Set-Content -LiteralPath (Join-Path $overridePdfiumLibraryDir "pdfium.dll.lib") -Encoding UTF8 -Value "fake import lib"
 Set-Content -LiteralPath (Join-Path $overridePdfiumBinDir "pdfium.dll") -Encoding UTF8 -Value "fake runtime"
-& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+& $powerShellExe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
     -File $scriptPath `
     -BuildDir $disabledBuildDir `
     -OutputJson $disabledBuildSummaryPath `
     -CTestExecutable $disabledCtestPath `
-    -MinFreeMemoryMB 1 | Out-Host
+    -MinFreeMemoryMB 1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "PDF visual release gate preflight should report not_ready for disabled PDF build options without failing."
 }
 if (Test-Path -LiteralPath $disabledCtestMarkerPath -PathType Leaf) {
     throw "PDF visual release gate preflight should skip ctest -N when PDF build options are disabled."
 }
-& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+& $powerShellExe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
     -File $scriptPath `
     -BuildDir $disabledBuildDir `
     -OutputJson $disabledOverrideSummaryPath `
@@ -185,11 +262,78 @@ if (Test-Path -LiteralPath $disabledCtestMarkerPath -PathType Leaf) {
     -PdfioSourceDir $overridePdfioSourceDir `
     -PdfiumProvider "prebuilt" `
     -PdfiumPrebuiltRoot $overridePdfiumPrebuiltDir `
-    -MinFreeMemoryMB 1 | Out-Host
+    -MinFreeMemoryMB 1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "PDF visual release gate preflight should accept dependency input overrides without failing."
 }
 
+$disabledBuildSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $disabledBuildSummaryPath | ConvertFrom-Json
+Assert-FileHasNoBom -Path $disabledBuildSummaryPath `
+    -Message "Disabled build summary should be UTF-8 without BOM."
+Assert-PdfPreflightOutputEncoding -Summary $disabledBuildSummary `
+    -Message "Disabled build summary should expose UTF-8 without BOM output encoding."
+Assert-True -Condition ($disabledBuildSummary.status -eq "not_ready") `
+    -Message "Disabled PDF build preflight should stay not_ready."
+Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_build_options_enabled") `
+    -Message "Disabled PDF build preflight should report the disabled PDF build options blocker."
+Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_dependency_inputs_ready") `
+    -Message "Disabled PDF build preflight should report missing PDF dependency inputs as a blocker."
+Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "ctest_list_contains_pdf_gate_tests") `
+    -Message "Disabled PDF build preflight should keep ctest registration as blocked until PDF options are enabled."
+$disabledPdfBuildOptionsCheck = @($disabledBuildSummary.checks | Where-Object { [string]$_.name -eq "pdf_build_options_enabled" })[0]
+Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.status -eq "missing") `
+    -Message "Disabled PDF build options check should be missing."
+Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("Prepare real PDFio/PDFium inputs")) `
+    -Message "Disabled PDF build options check should explain that real PDF dependencies must be prepared first."
+Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("-DFEATHERDOC_BUILD_PDF=ON")) `
+    -Message "Disabled PDF build options check should explain how to reconfigure FEATHERDOC_BUILD_PDF."
+Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("-DFEATHERDOC_BUILD_PDF_IMPORT=ON")) `
+    -Message "Disabled PDF build options check should explain how to reconfigure FEATHERDOC_BUILD_PDF_IMPORT."
+Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("before starting the full PDF visual gate")) `
+    -Message "Disabled PDF build options check should prevent starting the full PDF visual gate before preflight is repaired."
+$disabledDependencyCheck = @($disabledBuildSummary.checks | Where-Object { [string]$_.name -eq "pdf_dependency_inputs_ready" })[0]
+Assert-True -Condition ([string]$disabledDependencyCheck.status -eq "missing") `
+    -Message "Disabled PDF build dependency check should be missing."
+Assert-True -Condition ([string]$disabledDependencyCheck.details.status -eq "not_ready") `
+    -Message "Disabled PDF build dependency check should expose the dependency summary status."
+Assert-True -Condition ([int]$disabledDependencyCheck.details.missing_input_count -gt 0) `
+    -Message "Disabled PDF build dependency check should expose missing dependency input count."
+$disabledCtestCheck = @($disabledBuildSummary.checks | Where-Object { [string]$_.name -eq "ctest_list_contains_pdf_gate_tests" })[0]
+Assert-True -Condition ([string]$disabledCtestCheck.status -eq "skipped") `
+    -Message "Disabled PDF build preflight should skip ctest list enumeration."
+Assert-True -Condition ([string]$disabledCtestCheck.message -match "PDF build/import options") `
+    -Message "Disabled PDF build ctest check should explain that PDF options must be enabled first."
+Assert-True -Condition ([bool]$disabledCtestCheck.details.pdf_build_options_enabled -eq $false) `
+    -Message "Disabled PDF build ctest check should expose the PDF build option readiness flag."
+Assert-True -Condition ((@($disabledCtestCheck.details.disabled_pdf_build_options) | ForEach-Object { [string]$_ }) -contains "FEATHERDOC_BUILD_PDF") `
+    -Message "Disabled PDF build ctest check should expose FEATHERDOC_BUILD_PDF as disabled."
+Assert-True -Condition ((@($disabledCtestCheck.details.disabled_pdf_build_options) | ForEach-Object { [string]$_ }) -contains "FEATHERDOC_BUILD_PDF_IMPORT") `
+    -Message "Disabled PDF build ctest check should expose FEATHERDOC_BUILD_PDF_IMPORT as disabled."
+
+$disabledOverrideSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $disabledOverrideSummaryPath | ConvertFrom-Json
+Assert-FileHasNoBom -Path $disabledOverrideSummaryPath `
+    -Message "Disabled override summary should be UTF-8 without BOM."
+Assert-PdfPreflightOutputEncoding -Summary $disabledOverrideSummary `
+    -Message "Disabled override summary should expose UTF-8 without BOM output encoding."
+Assert-True -Condition ($disabledOverrideSummary.status -eq "not_ready") `
+    -Message "Disabled PDF build override preflight should still be not_ready because build options are disabled."
+Assert-True -Condition (($disabledOverrideSummary.blocking_checks | ForEach-Object { [string]$_ }) -notcontains "pdf_dependency_inputs_ready") `
+    -Message "Dependency overrides should clear the dependency input blocker."
+Assert-True -Condition (($disabledOverrideSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_build_options_enabled") `
+    -Message "Dependency overrides should not bypass disabled PDF build options."
+Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.status -eq "ready") `
+    -Message "Dependency overrides should make the dependency input summary ready."
+Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.selected_pdfium_provider -eq "prebuilt") `
+    -Message "Dependency overrides should select the prebuilt PDFium provider."
+Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.dependency_overrides.PdfiumProvider -eq "prebuilt") `
+    -Message "Dependency override summary should expose the provider override."
+Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.pdfium_prebuilt_root -eq [System.IO.Path]::GetFullPath($overridePdfiumPrebuiltDir)) `
+    -Message "Dependency overrides should replace CMakeCache dependency inputs for the dependency check."
+Assert-True -Condition ([string]$disabledOverrideSummary.recommended_recovery_steps[0].id -eq "restore_pdf_build_options") `
+    -Message "Disabled PDF build override recovery should focus on restoring PDF build options first."
+}
+
+if (Test-Scenario -Names @("synthetic")) {
 New-Item -ItemType Directory -Path $fakeBuildDir -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $fakeBuildDir "test\pdf_cli_export") -Force | Out-Null
 $fakePdfioSourceDir = Join-Path $resolvedWorkingDir "fake-pdfio-src"
@@ -257,23 +401,23 @@ exit /b 0
 $previousRenderPython = $env:FEATHERDOC_RENDER_PYTHON_EXECUTABLE
 $env:FEATHERDOC_RENDER_PYTHON_EXECUTABLE = $fakePythonPath
 try {
-    & powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    & $powerShellExe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
         -File $scriptPath `
         -BuildDir $fakeBuildDir `
         -OutputJson $summaryPath `
         -CTestExecutable $fakeCtestPath `
-        -MinFreeMemoryMB 1 | Out-Host
+        -MinFreeMemoryMB 1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw "PDF visual release gate preflight should write a not_ready summary for the contract-complete fake fixture."
     }
 
     $lowMemorySummaryPath = Join-Path $resolvedWorkingDir "preflight-low-memory-summary.json"
-    & powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    & $powerShellExe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
         -File $scriptPath `
         -BuildDir $fakeBuildDir `
         -OutputJson $lowMemorySummaryPath `
         -CTestExecutable $fakeCtestPath `
-        -MinFreeMemoryMB 999999 | Out-Host
+        -MinFreeMemoryMB 999999 | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw "PDF visual release gate preflight should report low-memory not_ready without failing when -Strict is not set."
     }
@@ -283,7 +427,7 @@ try {
     $previousErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $visualGatePreflightOnlyOutput = @(& powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+        $visualGatePreflightOnlyOutput = @(& $powerShellExe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
             -File $visualGatePath `
             -BuildDir $fakeBuildDir `
             -OutputDir $visualGateOutputDir `
@@ -294,8 +438,8 @@ try {
     } finally {
         $ErrorActionPreference = $previousErrorActionPreference
     }
-    $visualGatePreflightOnlyOutput | ForEach-Object { $_.ToString() } | Out-Host
     if ($visualGatePreflightOnlyExitCode -eq 0) {
+        $visualGatePreflightOnlyOutput | ForEach-Object { $_.ToString() } | Out-Host
         throw "PDF visual release gate -PreflightOnly should reject synthetic fake fixture evidence."
     }
     if (-not (Test-Path -LiteralPath $visualGatePreflightSummaryPath -PathType Leaf)) {
@@ -316,133 +460,10 @@ try {
 
 Assert-True -Condition (Test-Path -LiteralPath $summaryPath -PathType Leaf) `
     -Message "Preflight should write a JSON summary."
-Assert-FileHasNoBom -Path $plainBuildSummaryPath `
-    -Message "Plain build summary should be UTF-8 without BOM."
-Assert-FileHasNoBom -Path $malformedManifestSummaryPath `
-    -Message "Malformed manifest summary should be UTF-8 without BOM."
-Assert-FileHasNoBom -Path $disabledBuildSummaryPath `
-    -Message "Disabled build summary should be UTF-8 without BOM."
-Assert-FileHasNoBom -Path $disabledOverrideSummaryPath `
-    -Message "Disabled override summary should be UTF-8 without BOM."
 Assert-FileHasNoBom -Path $summaryPath `
     -Message "Synthetic fixture summary should be UTF-8 without BOM."
 Assert-FileHasNoBom -Path $lowMemorySummaryPath `
     -Message "Low-memory summary should be UTF-8 without BOM."
-
-$plainBuildSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $plainBuildSummaryPath | ConvertFrom-Json
-Assert-PdfPreflightOutputEncoding -Summary $plainBuildSummary `
-    -Message "Plain build summary should expose UTF-8 without BOM output encoding."
-Assert-True -Condition ($plainBuildSummary.status -eq "not_ready") `
-    -Message "Plain build directory preflight should stay not_ready."
-Assert-True -Condition ([string]$plainBuildSummary.build_dir_source -eq "requested") `
-    -Message "Plain build directory preflight should not auto-select build without CMake metadata."
-Assert-True -Condition ([string]$plainBuildSummary.build_dir -like "*.bpdf-roundtrip-msvc") `
-    -Message "Plain build directory preflight should keep the requested default build directory."
-$plainBuildCandidates = @($plainBuildSummary.build_dir_auto_candidates)
-Assert-True -Condition ($plainBuildCandidates.Count -eq 2) `
-    -Message "Plain build directory preflight should record both automatic build directory candidates."
-$plainBuildCandidate = @($plainBuildCandidates | Where-Object { [string]$_.relative_path -eq "build" }) | Select-Object -First 1
-Assert-True -Condition ($null -ne $plainBuildCandidate) `
-    -Message "Plain build directory preflight should record the build auto-candidate."
-Assert-True -Condition ([bool]$plainBuildCandidate.exists -eq $true) `
-    -Message "Plain build auto-candidate should report the existing build directory."
-Assert-True -Condition ([bool]$plainBuildCandidate.cmake_cache_exists -eq $false) `
-    -Message "Plain build auto-candidate should report the missing CMakeCache.txt."
-Assert-True -Condition ([bool]$plainBuildCandidate.ctest_manifest_exists -eq $false) `
-    -Message "Plain build auto-candidate should report the missing CTest manifest."
-Assert-True -Condition ([bool]$plainBuildCandidate.looks_reusable -eq $false) `
-    -Message "Plain build auto-candidate should not look reusable without CMake metadata."
-Assert-True -Condition ([bool]$plainBuildCandidate.pdf_build_options_enabled -eq $false) `
-    -Message "Plain build auto-candidate should report PDF build options as not enabled."
-$plainOutBuildCandidate = @($plainBuildCandidates | Where-Object { [string]$_.relative_path -eq "out\build" }) | Select-Object -First 1
-Assert-True -Condition ($null -ne $plainOutBuildCandidate) `
-    -Message "Plain build directory preflight should record the out\build auto-candidate."
-Assert-True -Condition ([bool]$plainOutBuildCandidate.looks_reusable -eq $false) `
-    -Message "Plain out\build auto-candidate should not look reusable."
-Assert-True -Condition (($plainBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "build_dir_exists") `
-    -Message "Plain build directory preflight should report the missing requested build directory."
-Assert-True -Condition ([int]$plainBuildSummary.blocking_summary.build_dir_entry_count -eq 0) `
-    -Message "Plain build directory preflight should not count entries from an unrelated build directory."
-Assert-True -Condition ([int]$plainBuildSummary.output_gap_count -eq 3) `
-    -Message "Plain build directory preflight should report the three missing output groups."
-Assert-True -Condition ([int]$plainBuildSummary.missing_output_count -gt 0) `
-    -Message "Plain build directory preflight should report missing output totals."
-
-$malformedManifestSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $malformedManifestSummaryPath | ConvertFrom-Json
-Assert-PdfPreflightOutputEncoding -Summary $malformedManifestSummary `
-    -Message "Malformed manifest summary should expose UTF-8 without BOM output encoding."
-Assert-True -Condition ($malformedManifestSummary.status -eq "not_ready") `
-    -Message "Malformed manifest preflight should stay not_ready."
-Assert-True -Condition (($malformedManifestSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_regression_manifest_readable") `
-    -Message "Malformed manifest preflight should expose pdf_regression_manifest_readable as a blocker."
-$malformedManifestCheck = @($malformedManifestSummary.checks | Where-Object { [string]$_.name -eq "pdf_regression_manifest_readable" })[0]
-Assert-True -Condition ([string]$malformedManifestCheck.status -eq "missing") `
-    -Message "Malformed manifest readable check should be missing."
-Assert-True -Condition ([bool]$malformedManifestCheck.details.manifest_exists -eq $true) `
-    -Message "Malformed manifest readable check should preserve that the manifest file exists."
-Assert-True -Condition (-not [string]::IsNullOrWhiteSpace([string]$malformedManifestCheck.details.error_message)) `
-    -Message "Malformed manifest readable check should include a parse error message."
-
-$disabledBuildSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $disabledBuildSummaryPath | ConvertFrom-Json
-Assert-PdfPreflightOutputEncoding -Summary $disabledBuildSummary `
-    -Message "Disabled build summary should expose UTF-8 without BOM output encoding."
-Assert-True -Condition ($disabledBuildSummary.status -eq "not_ready") `
-    -Message "Disabled PDF build preflight should stay not_ready."
-Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_build_options_enabled") `
-    -Message "Disabled PDF build preflight should report the disabled PDF build options blocker."
-Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_dependency_inputs_ready") `
-    -Message "Disabled PDF build preflight should report missing PDF dependency inputs as a blocker."
-Assert-True -Condition (($disabledBuildSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "ctest_list_contains_pdf_gate_tests") `
-    -Message "Disabled PDF build preflight should keep ctest registration as blocked until PDF options are enabled."
-$disabledPdfBuildOptionsCheck = @($disabledBuildSummary.checks | Where-Object { [string]$_.name -eq "pdf_build_options_enabled" })[0]
-Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.status -eq "missing") `
-    -Message "Disabled PDF build options check should be missing."
-Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("Prepare real PDFio/PDFium inputs")) `
-    -Message "Disabled PDF build options check should explain that real PDF dependencies must be prepared first."
-Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("-DFEATHERDOC_BUILD_PDF=ON")) `
-    -Message "Disabled PDF build options check should explain how to reconfigure FEATHERDOC_BUILD_PDF."
-Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("-DFEATHERDOC_BUILD_PDF_IMPORT=ON")) `
-    -Message "Disabled PDF build options check should explain how to reconfigure FEATHERDOC_BUILD_PDF_IMPORT."
-Assert-True -Condition ([string]$disabledPdfBuildOptionsCheck.message -match [regex]::Escape("before starting the full PDF visual gate")) `
-    -Message "Disabled PDF build options check should prevent starting the full PDF visual gate before preflight is repaired."
-$disabledDependencyCheck = @($disabledBuildSummary.checks | Where-Object { [string]$_.name -eq "pdf_dependency_inputs_ready" })[0]
-Assert-True -Condition ([string]$disabledDependencyCheck.status -eq "missing") `
-    -Message "Disabled PDF build dependency check should be missing."
-Assert-True -Condition ([string]$disabledDependencyCheck.details.status -eq "not_ready") `
-    -Message "Disabled PDF build dependency check should expose the dependency summary status."
-Assert-True -Condition ([int]$disabledDependencyCheck.details.missing_input_count -gt 0) `
-    -Message "Disabled PDF build dependency check should expose missing dependency input count."
-$disabledCtestCheck = @($disabledBuildSummary.checks | Where-Object { [string]$_.name -eq "ctest_list_contains_pdf_gate_tests" })[0]
-Assert-True -Condition ([string]$disabledCtestCheck.status -eq "skipped") `
-    -Message "Disabled PDF build preflight should skip ctest list enumeration."
-Assert-True -Condition ([string]$disabledCtestCheck.message -match "PDF build/import options") `
-    -Message "Disabled PDF build ctest check should explain that PDF options must be enabled first."
-Assert-True -Condition ([bool]$disabledCtestCheck.details.pdf_build_options_enabled -eq $false) `
-    -Message "Disabled PDF build ctest check should expose the PDF build option readiness flag."
-Assert-True -Condition ((@($disabledCtestCheck.details.disabled_pdf_build_options) | ForEach-Object { [string]$_ }) -contains "FEATHERDOC_BUILD_PDF") `
-    -Message "Disabled PDF build ctest check should expose FEATHERDOC_BUILD_PDF as disabled."
-Assert-True -Condition ((@($disabledCtestCheck.details.disabled_pdf_build_options) | ForEach-Object { [string]$_ }) -contains "FEATHERDOC_BUILD_PDF_IMPORT") `
-    -Message "Disabled PDF build ctest check should expose FEATHERDOC_BUILD_PDF_IMPORT as disabled."
-
-$disabledOverrideSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $disabledOverrideSummaryPath | ConvertFrom-Json
-Assert-PdfPreflightOutputEncoding -Summary $disabledOverrideSummary `
-    -Message "Disabled override summary should expose UTF-8 without BOM output encoding."
-Assert-True -Condition ($disabledOverrideSummary.status -eq "not_ready") `
-    -Message "Disabled PDF build override preflight should still be not_ready because build options are disabled."
-Assert-True -Condition (($disabledOverrideSummary.blocking_checks | ForEach-Object { [string]$_ }) -notcontains "pdf_dependency_inputs_ready") `
-    -Message "Dependency overrides should clear the dependency input blocker."
-Assert-True -Condition (($disabledOverrideSummary.blocking_checks | ForEach-Object { [string]$_ }) -contains "pdf_build_options_enabled") `
-    -Message "Dependency overrides should not bypass disabled PDF build options."
-Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.status -eq "ready") `
-    -Message "Dependency overrides should make the dependency input summary ready."
-Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.selected_pdfium_provider -eq "prebuilt") `
-    -Message "Dependency overrides should select the prebuilt PDFium provider."
-Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.dependency_overrides.PdfiumProvider -eq "prebuilt") `
-    -Message "Dependency override summary should expose the provider override."
-Assert-True -Condition ([string]$disabledOverrideSummary.pdf_dependency_inputs.pdfium_prebuilt_root -eq [System.IO.Path]::GetFullPath($overridePdfiumPrebuiltDir)) `
-    -Message "Dependency overrides should replace CMakeCache dependency inputs for the dependency check."
-Assert-True -Condition ([string]$disabledOverrideSummary.recommended_recovery_steps[0].id -eq "restore_pdf_build_options") `
-    -Message "Disabled PDF build override recovery should focus on restoring PDF build options first."
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-True -Condition ([string]$summary.schema -eq "featherdoc.pdf_visual_release_gate_preflight.v1") `
@@ -561,7 +582,9 @@ foreach ($name in @(
 )) {
     Assert-CheckPassed -Summary $summary -Name $name
 }
+}
 
+if (Test-Scenario -Names @("contract")) {
 $visualGateText = Get-Content -Raw -Encoding UTF8 -LiteralPath $visualGatePath
 $renderPdfPagesText = Get-Content -Raw -Encoding UTF8 -LiteralPath $renderPdfPagesPath
 foreach ($expectedText in @(
@@ -625,7 +648,10 @@ foreach ($forbiddenText in @(
         -Message "PDF visual release gate should not create or install render Python dependencies during the full gate: '$forbiddenText'."
 }
 
-$preflightText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
+$preflightText = @(
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptHelperPath
+) -join "`n"
 foreach ($expectedText in @(
     '[string]$OutputJson = "output/pdf-visual-release-gate-preflight-current/summary.json"',
     'schema = "featherdoc.pdf_visual_release_gate_preflight.v1"',
@@ -686,6 +712,7 @@ foreach ($expectedText in @(
 )) {
     Assert-True -Condition ($preflightText -match [regex]::Escape($expectedText)) `
         -Message "PDF visual release gate preflight should keep build-dir selection marker '$expectedText'."
+}
 }
 
 Write-Host "PDF visual release gate preflight contract passed."
