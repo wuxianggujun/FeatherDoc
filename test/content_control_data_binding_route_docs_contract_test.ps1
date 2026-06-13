@@ -42,7 +42,12 @@ $governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "d
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $featureGapDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\feature_gap_analysis_zh.rst"
 $releaseMetadataDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_metadata_pipeline_zh.rst"
-$documentApiStatusDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\document_api_mainline_status_zh.rst"
+$documentApiStatusDoc = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\document_api_mainline_status_zh.rst"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "docs") -Filter "document_api_mainline_status_zh_*.rst" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $cmakeLists = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
     Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test\cmake") -Filter "*.cmake" |
