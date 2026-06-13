@@ -18,7 +18,12 @@ $orphanMarker = ":orphan:"
 Assert-ContainsText -Text $statusDoc -ExpectedText $orphanMarker `
     -Message "PDF visual validation status should be kept as an orphaned reference page."
 
-$buildingPdfDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "BUILDING_PDF.md"
+$buildingPdfDoc = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "BUILDING_PDF.md"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "docs") -Filter "building_pdf*_archive.md" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $releaseChecklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_release_readiness_checklist_zh.rst"
 $releaseArtifactTemplateEn = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "RELEASE_ARTIFACT_TEMPLATE.md"
 $releaseArtifactTemplateZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
