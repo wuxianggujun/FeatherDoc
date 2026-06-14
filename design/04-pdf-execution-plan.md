@@ -866,16 +866,24 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   `source_row_offset`、`continuation_confidence`、`minimum_continuation_confidence`、
   `header_match_kind`、`blocker`、`disposition` 以及关键布尔判定字段，覆盖合并、
   阈值阻断、列锚点不匹配、页顶距离过低、中间段落重置和非页内首个 block 等路径。
+  当前 `dev` 还固定了 diagnostics 数组首个 table candidate 的
+  `created_new_table` / `no_previous_table` 契约，以及阈值参数在首条 diagnostic
+  上的 `minimum_continuation_confidence` 记录。
 - 已补强 CLI / 文档契约：CLI JSON 回归确认关键 diagnostic 字段可被用户看到；
+  当前 `dev` 进一步固定 `table_continuation_diagnostics` 中首个新建表诊断与续页合并
+  诊断的完整 JSON object 顺序；
   `pdf_import_docs_contract_test.ps1` 反向固定 CLI command / output writer 必须写出
   `table_continuation_diagnostics_count`、`table_continuation_diagnostics` 和每个
   diagnostic object key。
 - 已完成验证：
   `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 120`
   通过；
-  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import|pdf_import_docs_contract" --output-on-failure --timeout 120`
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_cli_import$" --output-on-failure --timeout 120`
   通过；
   `git diff --check` 通过。
+- 已提交并推送：
+  `6e3255f test: lock PDF import continuation diagnostics` 和
+  `9b824e4 test: expose PDF import CLI diagnostics contract`。
 - 已知边界：
   本轮不改变 importer 行为或 CLI JSON schema，不新增视觉 gate 产物；
   `inconsistent_source_rows` 继续作为内部一致性兜底，暂不新增用户稳定 fixture。
