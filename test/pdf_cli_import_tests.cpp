@@ -2,6 +2,8 @@
 
 #include "pdf_cli_import_test_support.hpp"
 
+#include <string>
+
 TEST_CASE("cli import-pdf writes a DOCX file and json summary") {
     const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
     std::error_code error;
@@ -144,10 +146,52 @@ TEST_CASE("cli import-pdf reports table continuation diagnostics") {
     CHECK_EQ(table->column_count, 3U);
 
     const auto json = read_text_file(json_output);
+    const std::string expected_initial_diagnostic =
+        R"({"page_index":0,"block_index":1,"source_row_offset":0)"
+        R"(,"continuation_confidence":0)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":false)"
+        R"(,"is_first_block_on_page":false)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":false)"
+        R"(,"column_anchors_match":false)"
+        R"(,"previous_has_repeating_header":false)"
+        R"(,"source_has_repeating_header":false)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"not_required")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"no_previous_table"})";
+    const std::string expected_merged_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":0)"
+        R"(,"continuation_confidence":85)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":true)"
+        R"(,"previous_has_repeating_header":false)"
+        R"(,"source_has_repeating_header":false)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"not_required")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"merged_with_previous_table")"
+        R"(,"blocker":"none"})";
+    const auto initial_diagnostic_position =
+        json.find(expected_initial_diagnostic);
+    const auto merged_diagnostic_position =
+        json.find(expected_merged_diagnostic);
+
     CHECK_NE(json.find(R"("table_continuation_diagnostics_count":2)"),
              std::string::npos);
     CHECK_NE(json.find(R"("table_continuation_diagnostics":[{)"),
              std::string::npos);
+    CHECK_NE(initial_diagnostic_position, std::string::npos);
+    CHECK_NE(merged_diagnostic_position, std::string::npos);
+    CHECK_LT(initial_diagnostic_position, merged_diagnostic_position);
     CHECK_NE(json.find(R"("disposition":"created_new_table")"),
              std::string::npos);
     CHECK_NE(json.find(R"("disposition":"merged_with_previous_table")"),
