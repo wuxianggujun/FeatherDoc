@@ -5,10 +5,98 @@
 #include <featherdoc/pdf/pdf_document_importer.hpp>
 #include <featherdoc/pdf/pdf_parser.hpp>
 
+#include <cstddef>
+#include <cstdint>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <numeric>
+
+namespace {
+
+struct ExpectedTableContinuationDiagnostic {
+    std::size_t source_row_offset{0U};
+    std::uint32_t continuation_confidence{0U};
+    std::uint32_t minimum_continuation_confidence{0U};
+    featherdoc::pdf::PdfTableContinuationHeaderMatchKind header_match_kind{
+        featherdoc::pdf::PdfTableContinuationHeaderMatchKind::none};
+    featherdoc::pdf::PdfTableContinuationBlocker blocker{
+        featherdoc::pdf::PdfTableContinuationBlocker::none};
+    featherdoc::pdf::PdfTableContinuationDisposition disposition{
+        featherdoc::pdf::PdfTableContinuationDisposition::none};
+    bool has_previous_table{false};
+    bool is_first_block_on_page{false};
+    bool is_near_page_top{false};
+    bool source_rows_consistent{false};
+    bool column_count_matches{false};
+    bool column_anchors_match{false};
+    bool previous_has_repeating_header{false};
+    bool source_has_repeating_header{false};
+    bool header_matches_previous{false};
+};
+
+[[nodiscard]] ExpectedTableContinuationDiagnostic
+expected_compatible_pagebreak_continuation() {
+    ExpectedTableContinuationDiagnostic expected;
+    expected.continuation_confidence = 85U;
+    expected.header_match_kind =
+        featherdoc::pdf::PdfTableContinuationHeaderMatchKind::not_required;
+    expected.disposition =
+        featherdoc::pdf::PdfTableContinuationDisposition::
+            merged_with_previous_table;
+    expected.has_previous_table = true;
+    expected.is_first_block_on_page = true;
+    expected.is_near_page_top = true;
+    expected.source_rows_consistent = true;
+    expected.column_count_matches = true;
+    expected.column_anchors_match = true;
+    expected.header_matches_previous = true;
+    return expected;
+}
+
+[[nodiscard]] ExpectedTableContinuationDiagnostic
+expected_no_previous_table_continuation() {
+    ExpectedTableContinuationDiagnostic expected;
+    expected.header_match_kind =
+        featherdoc::pdf::PdfTableContinuationHeaderMatchKind::not_required;
+    expected.blocker =
+        featherdoc::pdf::PdfTableContinuationBlocker::no_previous_table;
+    expected.disposition =
+        featherdoc::pdf::PdfTableContinuationDisposition::created_new_table;
+    expected.is_near_page_top = true;
+    expected.source_rows_consistent = true;
+    expected.header_matches_previous = true;
+    return expected;
+}
+
+void check_table_continuation_diagnostic(
+    const featherdoc::pdf::PdfTableContinuationDiagnostic &diagnostic,
+    const ExpectedTableContinuationDiagnostic &expected) {
+    CHECK_EQ(diagnostic.source_row_offset, expected.source_row_offset);
+    CHECK_EQ(diagnostic.continuation_confidence,
+             expected.continuation_confidence);
+    CHECK_EQ(diagnostic.minimum_continuation_confidence,
+             expected.minimum_continuation_confidence);
+    CHECK_EQ(diagnostic.header_match_kind, expected.header_match_kind);
+    CHECK_EQ(diagnostic.blocker, expected.blocker);
+    CHECK_EQ(diagnostic.disposition, expected.disposition);
+    CHECK_EQ(diagnostic.has_previous_table, expected.has_previous_table);
+    CHECK_EQ(diagnostic.is_first_block_on_page,
+             expected.is_first_block_on_page);
+    CHECK_EQ(diagnostic.is_near_page_top, expected.is_near_page_top);
+    CHECK_EQ(diagnostic.source_rows_consistent,
+             expected.source_rows_consistent);
+    CHECK_EQ(diagnostic.column_count_matches, expected.column_count_matches);
+    CHECK_EQ(diagnostic.column_anchors_match, expected.column_anchors_match);
+    CHECK_EQ(diagnostic.previous_has_repeating_header,
+             expected.previous_has_repeating_header);
+    CHECK_EQ(diagnostic.source_has_repeating_header,
+             expected.source_has_repeating_header);
+    CHECK_EQ(diagnostic.header_matches_previous,
+             expected.header_matches_previous);
+}
+
+}  // namespace
 
 TEST_CASE("PDF table import merges compatible table candidates across page boundary") {
     const auto input_path =
@@ -29,12 +117,9 @@ TEST_CASE("PDF table import merges compatible table candidates across page bound
     CHECK_EQ(import_result.paragraphs_imported, 2U);
     CHECK_EQ(import_result.tables_imported, 1U);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
-    CHECK_EQ(import_result.table_continuation_diagnostics[1].disposition,
-             featherdoc::pdf::PdfTableContinuationDisposition::merged_with_previous_table);
-    CHECK_EQ(import_result.table_continuation_diagnostics[1].blocker,
-             featherdoc::pdf::PdfTableContinuationBlocker::none);
-    CHECK_EQ(import_result.table_continuation_diagnostics[1].source_row_offset,
-             0U);
+    check_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics[1],
+        expected_compatible_pagebreak_continuation());
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 3U);
@@ -105,15 +190,14 @@ TEST_CASE(
     CHECK_EQ(import_result.tables_imported, 2U);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
     const auto &diagnostic = import_result.table_continuation_diagnostics[1];
-    CHECK_EQ(diagnostic.disposition,
-             featherdoc::pdf::PdfTableContinuationDisposition::created_new_table);
-    CHECK_EQ(
-        diagnostic.blocker,
+    auto expected_diagnostic = expected_compatible_pagebreak_continuation();
+    expected_diagnostic.minimum_continuation_confidence = 90U;
+    expected_diagnostic.blocker =
         featherdoc::pdf::PdfTableContinuationBlocker::
-            continuation_confidence_below_threshold);
-    CHECK_EQ(diagnostic.continuation_confidence, 85U);
-    CHECK_EQ(diagnostic.minimum_continuation_confidence, 90U);
-    CHECK_EQ(diagnostic.source_row_offset, 0U);
+            continuation_confidence_below_threshold;
+    expected_diagnostic.disposition =
+        featherdoc::pdf::PdfTableContinuationDisposition::created_new_table;
+    check_table_continuation_diagnostic(diagnostic, expected_diagnostic);
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 4U);
@@ -186,10 +270,15 @@ TEST_CASE("PDF table import does not merge cross-page tables with incompatible w
     CHECK_EQ(second_parsed_page.content_blocks[1].kind,
              featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
-    CHECK_EQ(import_result.table_continuation_diagnostics[1].disposition,
-             featherdoc::pdf::PdfTableContinuationDisposition::created_new_table);
-    CHECK_EQ(import_result.table_continuation_diagnostics[1].blocker,
-             featherdoc::pdf::PdfTableContinuationBlocker::column_anchors_mismatch);
+    auto expected_diagnostic = expected_compatible_pagebreak_continuation();
+    expected_diagnostic.continuation_confidence = 55U;
+    expected_diagnostic.column_anchors_match = false;
+    expected_diagnostic.blocker =
+        featherdoc::pdf::PdfTableContinuationBlocker::column_anchors_mismatch;
+    expected_diagnostic.disposition =
+        featherdoc::pdf::PdfTableContinuationDisposition::created_new_table;
+    check_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics[1], expected_diagnostic);
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 4U);
@@ -254,10 +343,15 @@ TEST_CASE("PDF table import does not merge cross-page tables that start too low 
     CHECK_EQ(import_result.paragraphs_imported, 2U);
     CHECK_EQ(import_result.tables_imported, 2U);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
-    CHECK_EQ(import_result.table_continuation_diagnostics[1].disposition,
-             featherdoc::pdf::PdfTableContinuationDisposition::created_new_table);
-    CHECK_EQ(import_result.table_continuation_diagnostics[1].blocker,
-             featherdoc::pdf::PdfTableContinuationBlocker::not_near_page_top);
+    auto expected_diagnostic = expected_compatible_pagebreak_continuation();
+    expected_diagnostic.continuation_confidence = 45U;
+    expected_diagnostic.is_near_page_top = false;
+    expected_diagnostic.blocker =
+        featherdoc::pdf::PdfTableContinuationBlocker::not_near_page_top;
+    expected_diagnostic.disposition =
+        featherdoc::pdf::PdfTableContinuationDisposition::created_new_table;
+    check_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics[1], expected_diagnostic);
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 4U);
@@ -320,10 +414,9 @@ TEST_CASE("PDF table import does not merge through an intervening paragraph") {
     CHECK_EQ(import_result.paragraphs_imported, 3U);
     CHECK_EQ(import_result.tables_imported, 2U);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
-    CHECK_EQ(import_result.table_continuation_diagnostics[1].disposition,
-             featherdoc::pdf::PdfTableContinuationDisposition::created_new_table);
-    CHECK_EQ(import_result.table_continuation_diagnostics[1].blocker,
-             featherdoc::pdf::PdfTableContinuationBlocker::no_previous_table);
+    auto expected_diagnostic = expected_no_previous_table_continuation();
+    check_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics[1], expected_diagnostic);
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 5U);
@@ -436,10 +529,16 @@ TEST_CASE("PDF table import preserves consecutive table body order") {
     CHECK_EQ(import_result.paragraphs_imported, 2U);
     CHECK_EQ(import_result.tables_imported, 2U);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
-    CHECK_EQ(import_result.table_continuation_diagnostics[1].disposition,
-             featherdoc::pdf::PdfTableContinuationDisposition::created_new_table);
-    CHECK_EQ(import_result.table_continuation_diagnostics[1].blocker,
-             featherdoc::pdf::PdfTableContinuationBlocker::not_first_block_on_page);
+    auto expected_diagnostic = expected_compatible_pagebreak_continuation();
+    expected_diagnostic.continuation_confidence = 35U;
+    expected_diagnostic.is_first_block_on_page = false;
+    expected_diagnostic.is_near_page_top = false;
+    expected_diagnostic.blocker =
+        featherdoc::pdf::PdfTableContinuationBlocker::not_first_block_on_page;
+    expected_diagnostic.disposition =
+        featherdoc::pdf::PdfTableContinuationDisposition::created_new_table;
+    check_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics[1], expected_diagnostic);
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 4U);
