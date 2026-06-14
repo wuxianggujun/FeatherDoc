@@ -130,11 +130,53 @@ PDF 导入 JSON 诊断
      "paragraphs_imported": 2,
      "tables_imported": 1,
      "table_continuation_diagnostics_count": 2,
-     "table_continuation_diagnostics": [],
-     "import_table_candidates_as_tables": true,
-     "min_table_continuation_confidence": 90
+     "table_continuation_diagnostics": [
+       {
+         "page_index": 0,
+         "block_index": 1,
+         "source_row_offset": 0,
+         "continuation_confidence": 0,
+         "minimum_continuation_confidence": 0,
+         "has_previous_table": false,
+         "is_first_block_on_page": false,
+         "is_near_page_top": true,
+         "source_rows_consistent": true,
+         "column_count_matches": false,
+         "column_anchors_match": false,
+         "previous_has_repeating_header": false,
+         "source_has_repeating_header": false,
+         "header_matches_previous": true,
+         "header_match_kind": "not_required",
+         "skipped_repeating_header": false,
+         "disposition": "created_new_table",
+         "blocker": "no_previous_table"
+       },
+       {
+         "page_index": 1,
+         "block_index": 0,
+         "source_row_offset": 0,
+         "continuation_confidence": 85,
+         "minimum_continuation_confidence": 0,
+         "has_previous_table": true,
+         "is_first_block_on_page": true,
+         "is_near_page_top": true,
+         "source_rows_consistent": true,
+         "column_count_matches": true,
+         "column_anchors_match": true,
+         "previous_has_repeating_header": false,
+         "source_has_repeating_header": false,
+         "header_matches_previous": true,
+         "header_match_kind": "not_required",
+         "skipped_repeating_header": false,
+         "disposition": "merged_with_previous_table",
+         "blocker": "none"
+       }
+     ],
+     "import_table_candidates_as_tables": true
    }
 
+命令行设置 ``--min-table-continuation-confidence`` 时会额外输出
+``min_table_continuation_confidence``。
 ``table_continuation_diagnostics`` 按表格候选发现顺序排列，用于解释候选表格为什么新建表格、
 为什么与上一页表格合并，或者为什么被阻止跨页合并。
 
