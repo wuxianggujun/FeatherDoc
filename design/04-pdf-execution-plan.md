@@ -1003,6 +1003,25 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮不改变 importer 决策、不改变 CLI JSON schema；bounded preflight 不替代 full
   visual gate verdict；不新增或提交 `output/` 视觉 gate 产物。
 
+2026-06-15 继续推进（PDF import prose / form 负样本契约）：
+
+- 已补强 importer 层负样本回归：`PDF text importer keeps short-label prose as paragraphs`
+  和 `PDF text importer keeps invoice summary form as paragraphs` 断言即使开启
+  `--import-table-candidates-as-tables`，短标签两列 prose 与 invoice summary 表单仍保持
+  `tables_imported = 0`，保存重开后也不会产生 DOCX table。
+- 已同步 `pdf_import_docs_contract_test.ps1`，让公开 scope 文档中的 `short-label prose`
+  与 `free-form forms` 边界追到 importer 级测试，而不只停留在 parser candidate 层。
+- 已完成验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_table_heuristic|pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `0d7efc2 test: lock PDF import prose negative boundaries`。
+- 已知边界：
+  本轮不改变 importer 启发式、不新增 CLI JSON 字段、不运行 full visual gate；负样本只固定
+  text-first importer 的保守结构行为，不新增或提交 `output/` 视觉产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

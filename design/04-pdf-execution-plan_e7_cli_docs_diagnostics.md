@@ -325,3 +325,24 @@
   本轮不改变 importer 决策、不改变 CLI JSON schema；bounded preflight 只作为资源受限窗口的
   import diagnostics 辅助证据，不替代 full visual gate verdict；不新增或提交 `output/`
   视觉 gate 产物。
+
+2026-06-15 继续推进（PDF import prose / form 负样本契约）：
+
+- 已把用户可见 scope 边界继续向 importer 层收口：新增
+  `PDF text importer keeps short-label prose as paragraphs` 与
+  `PDF text importer keeps invoice summary form as paragraphs`，固定开启
+  `import_table_candidates_as_tables` 后短标签两列 prose 与 invoice summary 表单仍不会被
+  提升成 DOCX table。
+- 已让 `pdf_import_docs_contract_test.ps1` 的 scope coverage anchor 指向新增 importer
+  测试，确保 `short-label prose` 与 `free-form forms` 文档边界能回归到真实导入行为。
+- 验证命令：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_table_heuristic|pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `0d7efc2 test: lock PDF import prose negative boundaries`。
+- 已知边界：
+  本轮只锁定 text-first PDF import 的保守负样本行为；不改变 table candidate
+  heuristic、不新增 CLI JSON schema、不替代 full visual gate，也不新增或提交 `output/`
+  视觉 gate 产物。
