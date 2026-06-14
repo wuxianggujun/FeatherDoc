@@ -75,6 +75,9 @@ int main() {
 
 - `dev` is the active development branch.
 - `master` is kept as the stable/release branch.
+- Codex/local automation work should continue directly on the current `dev`
+  branch by default. Do not create `codex/*` or other task branches unless the
+  maintainer explicitly requests a new branch.
 - Release tags should be created only after version, changelog, CI, and release
   checks are aligned.
 

@@ -139,8 +139,8 @@ release metadata 文档继续覆盖 governance warning contract。已通过：
 2. 保留 ``codex/release-governance-warning-entrypoints`` 作为只读参考，不直接合并。
 3. 保留 ``codex/pdf-cjk-copy-search-gate`` 和 ``codex/pdf-cjk-bullet-fallback`` 作为
    PDF 参考库存，不直接合并。
-4. 若需要继续治理主线，从当前 ``dev`` 新建任务分支，小步手工摘录旧分支中仍有价值的
-   schema calibration 或 release rollup 片段。
+4. 若需要继续治理主线，默认直接在当前 ``dev`` 上小步手工摘录旧分支中仍有价值的
+   schema calibration 或 release rollup 片段；只有维护者明确要求时才新建任务分支。
 5. 每次摘录后运行文档治理和发布治理相关轻量测试。
 6. 推送 ``dev``，``master`` 只在发布确认后从 ``dev`` 合入。
 
