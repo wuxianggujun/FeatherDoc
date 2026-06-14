@@ -111,6 +111,100 @@ TEST_CASE("PDF text importer keeps free-form column drift prose as paragraphs") 
     }
 }
 
+TEST_CASE("PDF text importer keeps short-label prose as paragraphs") {
+    const auto input_path =
+        featherdoc::test_support::write_two_column_short_label_prose_pdf(
+            "featherdoc-pdf-import-two-column-short-label-prose-import.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-two-column-short-label-prose.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::none);
+    CHECK_EQ(import_result.tables_imported, 0U);
+    CHECK_GE(import_result.paragraphs_imported, 1U);
+    CHECK_FALSE(document.inspect_table(0U).has_value());
+
+    const auto text = featherdoc::test_support::collect_document_text(document);
+    CHECK(featherdoc::test_support::contains_text(
+        text, "Two-column labels sample"));
+    CHECK(featherdoc::test_support::contains_text(text, "Topic"));
+    CHECK(featherdoc::test_support::contains_text(text, "Scope"));
+    CHECK(featherdoc::test_support::contains_text(text, "Closed"));
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    CHECK_FALSE(reopened.inspect_table(0U).has_value());
+    const auto reopened_text =
+        featherdoc::test_support::collect_document_text(reopened);
+    CHECK(featherdoc::test_support::contains_text(
+        reopened_text, "Two-column labels sample"));
+    CHECK(featherdoc::test_support::contains_text(reopened_text, "Topic"));
+    CHECK(featherdoc::test_support::contains_text(reopened_text, "Closed"));
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
+TEST_CASE("PDF text importer keeps invoice summary form as paragraphs") {
+    const auto input_path =
+        featherdoc::test_support::write_invoice_summary_pdf(
+            "featherdoc-pdf-import-invoice-summary-form-import.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-invoice-summary-form.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::none);
+    CHECK_EQ(import_result.tables_imported, 0U);
+    CHECK_GE(import_result.paragraphs_imported, 2U);
+    CHECK_FALSE(document.inspect_table(0U).has_value());
+
+    const auto text = featherdoc::test_support::collect_document_text(document);
+    CHECK(featherdoc::test_support::contains_text(text, "Invoice summary"));
+    CHECK(featherdoc::test_support::contains_text(text, "Invoice No."));
+    CHECK(featherdoc::test_support::contains_text(text, "FeatherDoc QA"));
+    CHECK(featherdoc::test_support::contains_text(
+        text, "Footer note: layout is intentionally uneven"));
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    CHECK_FALSE(reopened.inspect_table(0U).has_value());
+    const auto reopened_text =
+        featherdoc::test_support::collect_document_text(reopened);
+    CHECK(featherdoc::test_support::contains_text(reopened_text,
+                                                  "Invoice summary"));
+    CHECK(featherdoc::test_support::contains_text(reopened_text,
+                                                  "Invoice No."));
+    CHECK(featherdoc::test_support::contains_text(reopened_text,
+                                                  "FeatherDoc QA"));
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
 TEST_CASE("PDF text importer can opt in to two-row table import") {
     const auto input_path =
         featherdoc::test_support::write_two_row_header_data_table_pdf(

@@ -703,13 +703,19 @@ $scopeCoverageAnchors = @(
         Label = "Short-label prose stays paragraphs"
         DocExpected = "short-label prose"
         Text = $pdfImportTableHeuristicTestsText
-        Expected = "PDFium parser does not classify two-column short-label prose as table candidate"
+        Expected = "PDF text importer keeps short-label prose as paragraphs"
     },
     @{
         Label = "Free-form column drift stays paragraphs"
         DocExpected = "free-form"
         Text = $pdfImportTableHeuristicTestsText
         Expected = "PDF text importer keeps free-form column drift prose as paragraphs"
+    },
+    @{
+        Label = "Invoice summary form stays paragraphs"
+        DocExpected = "free-form"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF text importer keeps invoice summary form as paragraphs"
     },
     @{
         Label = "Local anchor drift split"
