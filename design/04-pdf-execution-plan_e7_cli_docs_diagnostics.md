@@ -221,7 +221,21 @@
   本轮不改变 importer 决策、不改变 CLI JSON schema，只把已有字段的内部对象、
   CLI 输出和文档契约三者闭环固定；`inconsistent_source_rows` 仍作为内部一致性兜底，
   没有新增稳定用户 fixture；当前未新增视觉 gate 产物，视觉验证仍沿用既有 E7 样本记录。
+- 后续已把公开 JSON 示例补齐为真实风格对象：
+  `docs/en/api/pdf_workflow.rst` 和 `docs/zh-CN/api/pdf_workflow.rst` 的
+  `table_continuation_diagnostics` 不再展示空数组，而是展开 `created_new_table` /
+  `no_previous_table` 与 `merged_with_previous_table` / `none` 两个 diagnostic object，
+  覆盖 `source_row_offset`、`minimum_continuation_confidence`、header match、布尔判定、
+  `disposition` 和 `blocker` 等用户可见字段。
+- 对应 docs contract 已同步固定：
+  `pdf_import_docs_contract_test.ps1` 要求示例保留 diagnostics 数组、`has_previous_table`
+  的 false/true 两种状态、`source_rows_consistent`、合并 disposition、`no_previous_table`
+  和 `none` blocker；RST JSON code block 仍由 `ConvertFrom-Json` 校验。
+- 本轮追加验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `272bfff docs: show realistic PDF import diagnostics JSON`。
 - 下一阶段入口：
-  可以继续把当前语言本地化 `docs/*/api/pdf_workflow.rst` 中的 import diagnostics
-  示例整理得更接近真实 CLI 输出，或推进新的 PDF import 负样本 / visual gate
-  以覆盖更复杂的自由表单、嵌套合并、扫描/OCR 边界。
+  继续推进新的 PDF import 负样本 / visual gate，以覆盖更复杂的自由表单、
+  嵌套合并、扫描/OCR 边界；保持生成产物仅作为本地证据，不纳入提交。

@@ -882,6 +882,26 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 详情见：
   `design/04-pdf-execution-plan_e7_cli_docs_diagnostics.md`。
 
+2026-06-14 继续推进（PDF import diagnostics JSON 示例契约）：
+
+- 已将 `docs/en/api/pdf_workflow.rst` 与 `docs/zh-CN/api/pdf_workflow.rst`
+  的成功 JSON 示例从空 `table_continuation_diagnostics` 数组改为两个真实风格
+  diagnostic object：首个候选 `created_new_table` / `no_previous_table`，续页候选
+  `merged_with_previous_table` / `none`。
+- 示例现在显式展示用户可见字段：
+  `page_index`、`block_index`、`source_row_offset`、`continuation_confidence`、
+  `minimum_continuation_confidence`、所有 continuation 布尔判定、
+  `header_match_kind`、`skipped_repeating_header`、`disposition` 和 `blocker`。
+- 已同步 `pdf_import_docs_contract_test.ps1`，固定 diagnostics 数组形态、false/true
+  状态、合并 disposition、`no_previous_table` 与 `none` blocker，并继续要求 RST JSON
+  code block 可被 `ConvertFrom-Json` 解析。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已知边界：
+  本轮只同步公开文档示例与 docs contract，不改变 importer 决策、不改变 CLI JSON schema，
+  不新增或提交 `output/` 视觉 gate 产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
