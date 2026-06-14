@@ -398,6 +398,8 @@ $requiredPdfImportJsonDiagnosticsDocsTerms = @(
     "not_near_page_top",
     "inconsistent_source_rows",
     "internal consistency guard",
+    "normalizes each table-candidate row to the detected column anchors",
+    "stable user-triggered blocker",
     "column_count_mismatch",
     "column_anchors_mismatch",
     "repeated_header_mismatch",
@@ -799,6 +801,14 @@ foreach ($blockerMember in $blockerMembers) {
 Assert-ContainsText `
     -Text $englishPdfWorkflowDocsText `
     -ExpectedText '``inconsistent_source_rows`` is an internal consistency guard' `
+    -Label "docs/en/api/pdf_workflow.rst"
+Assert-ContainsText `
+    -Text $englishPdfWorkflowDocsText `
+    -ExpectedText 'normalizes each table-candidate row to the detected column anchors' `
+    -Label "docs/en/api/pdf_workflow.rst"
+Assert-ContainsText `
+    -Text $englishPdfWorkflowDocsText `
+    -ExpectedText 'stable user-triggered blocker' `
     -Label "docs/en/api/pdf_workflow.rst"
 
 Assert-RstToctreeContainsEntries `

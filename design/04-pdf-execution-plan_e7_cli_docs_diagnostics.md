@@ -273,3 +273,19 @@
 - 下一阶段入口：
   继续推进新的 PDF import 负样本 / visual gate，以覆盖更复杂的自由表单、
   嵌套合并和视觉审查边界；保持生成产物仅作为本地证据，不纳入提交。
+
+2026-06-15 继续推进（inconsistent_source_rows 文档边界）：
+
+- 已回到实现层确认：当前 PDF parser 的 `build_table_candidate()` 会按检测到的
+  column anchors 为每个候选行预填同等数量的 cells，因此正常 `import-pdf`
+  路径不应稳定产生行宽不一致的 `PdfParsedTableCandidate`。
+- 本轮不新增不稳定 PDF fixture；`inconsistent_source_rows` 继续作为 importer
+  内部一致性兜底，而不是常规用户可触发 blocker。
+- 已同步 `docs/en/api/pdf_workflow.rst` 与 `docs/zh-CN/api/pdf_workflow.rst`，
+  说明正常导入不应依赖该 blocker 作为稳定诊断，并用
+  `pdf_import_docs_contract_test.ps1` 固定该用户可见边界。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已知边界：
+  本轮不改变 importer 决策、不改变 CLI JSON schema，不新增 visual gate 产物。

@@ -220,9 +220,11 @@ Each diagnostic object uses these stable fields:
 ``not_first_block_on_page``, ``not_near_page_top``,
 ``inconsistent_source_rows``, ``column_count_mismatch``,
 ``column_anchors_mismatch``, ``repeated_header_mismatch`` or
-``continuation_confidence_below_threshold``. ``inconsistent_source_rows`` is an
-internal consistency guard for malformed table candidates.
-``inconsistent_source_rows`` is an internal consistency guard.
+``continuation_confidence_below_threshold``.
+``inconsistent_source_rows`` is an internal consistency guard for malformed
+table candidates. The current parser
+normalizes each table-candidate row to the detected column anchors, so normal
+imports should not rely on it as a stable user-triggered blocker.
 
 Common continuation blockers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -961,6 +961,19 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只补轻量 visual gate 前置说明与文档契约，不运行 full visual gate，不新增或提交
   `output/` 视觉产物。
 
+2026-06-15 继续推进（PDF import inconsistent source rows 边界）：
+
+- 已确认当前 `build_table_candidate()` 会按检测到的 column anchors 为候选表每一行预填
+  cells，正常 public import 路径不应稳定触发 `inconsistent_source_rows`。
+- 因此本轮不新增不稳定 PDF fixture，而是把该 blocker 固定为 importer 内部一致性兜底：
+  双语 `pdf_workflow.rst` 已说明正常导入不应依赖它作为稳定用户可触发诊断，
+  `pdf_import_docs_contract_test.ps1` 同步固定该边界。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已知边界：
+  本轮不改变 importer 决策、不改变 CLI JSON schema，不新增或提交 `output/` 视觉产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

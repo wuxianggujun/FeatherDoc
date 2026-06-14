@@ -198,7 +198,9 @@ PDF 导入 JSON 诊断
 ``not_first_block_on_page``、``not_near_page_top``、
 ``inconsistent_source_rows``、``column_count_mismatch``、
 ``column_anchors_mismatch``、``repeated_header_mismatch`` 或
-``continuation_confidence_below_threshold``。``inconsistent_source_rows`` 是内部一致性保护。
+``continuation_confidence_below_threshold``。``inconsistent_source_rows`` 是内部一致性保护；
+当前 parser 会按检测到的列锚点补齐候选表的每一行，因此正常导入不应把它当作稳定的用户可触发
+blocker。
 
 常见 continuation blockers：
 
