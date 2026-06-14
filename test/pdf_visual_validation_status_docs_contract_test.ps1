@@ -939,6 +939,8 @@ foreach ($marker in @(
     "pdf_full_ctest_guarded_test.ps1",
     "pdf_ctest_remaining_guarded",
     "pdf_ctest_remaining_guarded_test.ps1",
+    "pdf_ctest_bounded_subset_summary",
+    "pdf_ctest_bounded_subset_summary_test.ps1",
     "TIMEOUT 60"
 )) {
     Assert-ContainsText -Text $cmakeLists -ExpectedText $marker `
