@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <numeric>
+#include <vector>
 
 namespace {
 
@@ -96,6 +97,17 @@ void check_table_continuation_diagnostic(
              expected.header_matches_previous);
 }
 
+void check_initial_table_continuation_diagnostic(
+    const std::vector<featherdoc::pdf::PdfTableContinuationDiagnostic>
+        &diagnostics,
+    std::uint32_t minimum_continuation_confidence = 0U) {
+    REQUIRE_FALSE(diagnostics.empty());
+    auto expected = expected_no_previous_table_continuation();
+    expected.minimum_continuation_confidence =
+        minimum_continuation_confidence;
+    check_table_continuation_diagnostic(diagnostics.front(), expected);
+}
+
 }  // namespace
 
 TEST_CASE("PDF table import merges compatible table candidates across page boundary") {
@@ -117,6 +129,8 @@ TEST_CASE("PDF table import merges compatible table candidates across page bound
     CHECK_EQ(import_result.paragraphs_imported, 2U);
     CHECK_EQ(import_result.tables_imported, 1U);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    check_initial_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics);
     check_table_continuation_diagnostic(
         import_result.table_continuation_diagnostics[1],
         expected_compatible_pagebreak_continuation());
@@ -189,6 +203,8 @@ TEST_CASE(
     CHECK_EQ(import_result.paragraphs_imported, 2U);
     CHECK_EQ(import_result.tables_imported, 2U);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    check_initial_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics, 90U);
     const auto &diagnostic = import_result.table_continuation_diagnostics[1];
     auto expected_diagnostic = expected_compatible_pagebreak_continuation();
     expected_diagnostic.minimum_continuation_confidence = 90U;
@@ -270,6 +286,8 @@ TEST_CASE("PDF table import does not merge cross-page tables with incompatible w
     CHECK_EQ(second_parsed_page.content_blocks[1].kind,
              featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    check_initial_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics);
     auto expected_diagnostic = expected_compatible_pagebreak_continuation();
     expected_diagnostic.continuation_confidence = 55U;
     expected_diagnostic.column_anchors_match = false;
@@ -343,6 +361,8 @@ TEST_CASE("PDF table import does not merge cross-page tables that start too low 
     CHECK_EQ(import_result.paragraphs_imported, 2U);
     CHECK_EQ(import_result.tables_imported, 2U);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    check_initial_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics);
     auto expected_diagnostic = expected_compatible_pagebreak_continuation();
     expected_diagnostic.continuation_confidence = 45U;
     expected_diagnostic.is_near_page_top = false;
@@ -414,6 +434,8 @@ TEST_CASE("PDF table import does not merge through an intervening paragraph") {
     CHECK_EQ(import_result.paragraphs_imported, 3U);
     CHECK_EQ(import_result.tables_imported, 2U);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    check_initial_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics);
     auto expected_diagnostic = expected_no_previous_table_continuation();
     check_table_continuation_diagnostic(
         import_result.table_continuation_diagnostics[1], expected_diagnostic);
@@ -529,6 +551,8 @@ TEST_CASE("PDF table import preserves consecutive table body order") {
     CHECK_EQ(import_result.paragraphs_imported, 2U);
     CHECK_EQ(import_result.tables_imported, 2U);
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    check_initial_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics);
     auto expected_diagnostic = expected_compatible_pagebreak_continuation();
     expected_diagnostic.continuation_confidence = 35U;
     expected_diagnostic.is_first_block_on_page = false;
