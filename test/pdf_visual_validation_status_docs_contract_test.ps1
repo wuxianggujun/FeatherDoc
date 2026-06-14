@@ -44,6 +44,7 @@ $releaseReadinessScript = @(
 $visualFullGateGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_visual_full_gate_guarded.ps1"
 $fullCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_full_ctest_guarded.ps1"
 $remainingCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_ctest_remaining_guarded.ps1"
+$boundedCtestScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_ctest_bounded_subset.ps1"
 $governanceReportScript = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
     Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "write_pdf_visual_release_gate_preflight_governance_report_*.ps1" |
@@ -570,6 +571,14 @@ foreach ($marker in @(
     "pdf_import_docs_contract",
     "table_continuation_diagnostics",
     "failure_kind = no_text_paragraphs",
+    "import_visual_gate_scope = bounded_smoke_import_preflight",
+    "import_visual_gate_boundary",
+    "bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict",
+    "import_visual_artifact_policy",
+    "does_not_generate_or_commit_output_visual_artifacts",
+    "import_diagnostics_contract_tests",
+    "import_diagnostics_contract_fields",
+    "failure_kind=no_text_paragraphs",
     "image-only / no-text",
     "pdf_cjk_anchor_font_matrix_boundary_contract",
     "pdf_cjk_font_search_density_flow_contract",
@@ -630,6 +639,40 @@ Assert-TextParagraphContainsAll -Text $releaseChecklistDoc `
         "skipped"
     ) `
     -Message "PDF release readiness checklist should keep skipped bounded CTest failure semantics in one paragraph."
+
+Assert-TextParagraphContainsAll -Text $releaseChecklistDoc `
+    -Anchor "bounded_smoke_import_preflight" `
+    -ExpectedFragments @(
+        "bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict",
+        "does_not_generate_or_commit_output_visual_artifacts",
+        "pdf_cli_import",
+        "pdf_import_failure",
+        "pdf_import_table_heuristic",
+        "table_continuation_diagnostics",
+        "failure_kind=no_text_paragraphs",
+        "visual gate verdict",
+        "output/"
+    ) `
+    -Message "PDF release readiness checklist should keep bounded import diagnostics preflight scope and boundary in one paragraph."
+
+foreach ($marker in @(
+    "import_visual_gate_scope",
+    "bounded_smoke_import_preflight",
+    "import_visual_gate_boundary",
+    "bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict",
+    "import_visual_artifact_policy",
+    "does_not_generate_or_commit_output_visual_artifacts",
+    "import_diagnostics_contract_tests",
+    "import_diagnostics_contract_fields",
+    "table_continuation_diagnostics",
+    "failure_kind=no_text_paragraphs",
+    "pdf_cli_import",
+    "pdf_import_failure",
+    "pdf_import_table_heuristic"
+)) {
+    Assert-ContainsText -Text $boundedCtestScript -ExpectedText $marker `
+        -Message "run_pdf_ctest_bounded_subset.ps1 should preserve bounded import diagnostics summary marker '$marker'."
+}
 
 foreach ($template in @(
     @{ Label = "RELEASE_ARTIFACT_TEMPLATE.md"; Text = $releaseArtifactTemplateEn },

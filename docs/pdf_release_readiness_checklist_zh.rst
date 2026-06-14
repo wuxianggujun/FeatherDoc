@@ -497,7 +497,18 @@ OCR 或任意视觉精确还原。
    该子集同时作为 PDF import diagnostics 的轻量视觉门禁前置证据：
    ``pdf_cli_import`` 固定用户可见 ``table_continuation_diagnostics`` 与
    ``failure_kind = no_text_paragraphs`` JSON，``pdf_import_failure`` 固定
-   image-only / no-text 负样本不会生成目标 DOCX。固定标记：
+   image-only / no-text 负样本不会生成目标 DOCX。``smoke-import`` summary
+   还必须保留 ``import_visual_gate_scope = bounded_smoke_import_preflight``、
+   ``import_visual_gate_boundary =
+   bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict``、
+   ``import_visual_artifact_policy =
+   does_not_generate_or_commit_output_visual_artifacts``、
+   ``import_diagnostics_contract_tests`` 中的 ``pdf_cli_import``、
+   ``pdf_import_failure`` 和 ``pdf_import_table_heuristic``，以及
+   ``import_diagnostics_contract_fields`` 中的
+   ``table_continuation_diagnostics`` 和 ``failure_kind=no_text_paragraphs``。
+   这些字段只证明资源受限窗口里的 import diagnostics preflight，不替代 full
+   visual gate verdict，也不要求生成或提交 ``output/`` 视觉产物。固定标记：
    ``pdf_import_smoke_diagnostics_release_trace``。
 
    资源受限时还可以补跑静态契约子集：

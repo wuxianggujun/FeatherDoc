@@ -70,6 +70,20 @@ function Invoke-CapturedCommand {
     }
 }
 
+function Get-SubsetMetadataValue {
+    param(
+        [System.Collections.IDictionary]$Config,
+        [string]$Key,
+        [object]$DefaultValue
+    )
+
+    if ($Config.Contains($Key)) {
+        return $Config[$Key]
+    }
+
+    return $DefaultValue
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedCtestExecutable = Resolve-CtestExecutable -Executable $CtestExecutable
@@ -86,6 +100,18 @@ if (-not (Test-Path -LiteralPath $resolvedBuildDir)) {
 $subsets = [ordered]@{
     "smoke-import" = [ordered]@{
         description = "PDF smoke/import executable subset"
+        import_visual_gate_scope = "bounded_smoke_import_preflight"
+        import_visual_gate_boundary = "bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict"
+        import_visual_artifact_policy = "does_not_generate_or_commit_output_visual_artifacts"
+        import_diagnostics_contract_tests = @(
+            "pdf_cli_import",
+            "pdf_import_failure",
+            "pdf_import_table_heuristic"
+        )
+        import_diagnostics_contract_fields = @(
+            "table_continuation_diagnostics",
+            "failure_kind=no_text_paragraphs"
+        )
         tests = @(
             "pdf_document_generator_probe",
             "pdf_font_resolver",
@@ -232,6 +258,15 @@ $skippedTests = @(
     }
 )
 
+$importDiagnosticsContractTests = @(Get-SubsetMetadataValue `
+    -Config $subsetConfig `
+    -Key "import_diagnostics_contract_tests" `
+    -DefaultValue @())
+$importDiagnosticsContractFields = @(Get-SubsetMetadataValue `
+    -Config $subsetConfig `
+    -Key "import_diagnostics_contract_fields" `
+    -DefaultValue @())
+
 $status = if ($runResult.exit_code -eq 0 -and $skippedTests.Count -eq 0) { "pass" } else { "fail" }
 $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
@@ -239,6 +274,20 @@ $summary = [ordered]@{
     verdict = $status
     subset = $Subset
     subset_description = $subsetConfig.description
+    import_visual_gate_scope = [string](Get-SubsetMetadataValue `
+        -Config $subsetConfig `
+        -Key "import_visual_gate_scope" `
+        -DefaultValue "")
+    import_visual_gate_boundary = [string](Get-SubsetMetadataValue `
+        -Config $subsetConfig `
+        -Key "import_visual_gate_boundary" `
+        -DefaultValue "")
+    import_visual_artifact_policy = [string](Get-SubsetMetadataValue `
+        -Config $subsetConfig `
+        -Key "import_visual_artifact_policy" `
+        -DefaultValue "")
+    import_diagnostics_contract_tests = $importDiagnosticsContractTests
+    import_diagnostics_contract_fields = $importDiagnosticsContractFields
     repo_root = $repoRoot
     build_dir = $resolvedBuildDir
     ctest_executable = $resolvedCtestExecutable
