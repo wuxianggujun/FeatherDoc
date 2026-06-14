@@ -860,6 +860,28 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 发布包 safety 回归现在会在 staging 后确认三份 PDF import 文档不仅存在，还保留总览页到
   JSON diagnostics / scope 页的入口、JSON parse-error 小节，以及 scope 页的支持范围标题。
 
+2026-06-14 继续推进（PDF import diagnostics 契约闭环）：
+
+- 已补强 importer 层 continuation diagnostics 回归，固定
+  `source_row_offset`、`continuation_confidence`、`minimum_continuation_confidence`、
+  `header_match_kind`、`blocker`、`disposition` 以及关键布尔判定字段，覆盖合并、
+  阈值阻断、列锚点不匹配、页顶距离过低、中间段落重置和非页内首个 block 等路径。
+- 已补强 CLI / 文档契约：CLI JSON 回归确认关键 diagnostic 字段可被用户看到；
+  `pdf_import_docs_contract_test.ps1` 反向固定 CLI command / output writer 必须写出
+  `table_continuation_diagnostics_count`、`table_continuation_diagnostics` 和每个
+  diagnostic object key。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 120`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import|pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；
+  `git diff --check` 通过。
+- 已知边界：
+  本轮不改变 importer 行为或 CLI JSON schema，不新增视觉 gate 产物；
+  `inconsistent_source_rows` 继续作为内部一致性兜底，暂不新增用户稳定 fixture。
+- 详情见：
+  `design/04-pdf-execution-plan_e7_cli_docs_diagnostics.md`。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

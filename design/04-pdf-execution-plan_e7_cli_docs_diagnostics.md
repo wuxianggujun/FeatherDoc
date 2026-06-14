@@ -191,3 +191,37 @@
   抽出独立 `docs/pdf_import_*.rst` 页面，或开始把 `BUILDING_PDF.md` 中重复的用户内容
   收敛为指向 docs 的链接。
 
+2026-06-14 继续推进（PDF import diagnostics 契约闭环）：
+
+- 已补强 importer 层 continuation diagnostics 回归：在
+  `pdf_import_table_heuristic_import_continuation_tests.cpp` 中集中固定
+  `source_row_offset`、`continuation_confidence`、`minimum_continuation_confidence`、
+  `header_match_kind`、`blocker`、`disposition` 以及全部关键布尔判定字段，
+  覆盖可合并、阈值阻断、列锚点不匹配、页顶距离过低、中间段落重置和非页内首个 block 等路径。
+- 已补强 CLI / 文档契约可见性：`pdf_cli_import_tests.cpp` 现在确认
+  `has_previous_table`、`source_rows_consistent`、`source_row_offset`、
+  `previous_has_repeating_header`、`source_has_repeating_header` 和
+  `header_matches_previous` 等字段确实出现在 `import-pdf --json` 输出中；
+  `pdf_import_docs_contract_test.ps1` 反向扫描 CLI command / output writer，
+  固定 summary key 与每个 diagnostic object key 都由 CLI JSON 写出。
+- 已完成验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 120`
+  通过；
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_cli_import_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import|pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；
+  `git diff --check` 通过。
+- 本轮已提交并推送：
+  `3bca24c test: lock PDF import continuation diagnostics` 和
+  `30c9905 test: expose PDF import CLI diagnostics contract`。
+- 已知边界：
+  本轮不改变 importer 决策、不改变 CLI JSON schema，只把已有字段的内部对象、
+  CLI 输出和文档契约三者闭环固定；`inconsistent_source_rows` 仍作为内部一致性兜底，
+  没有新增稳定用户 fixture；当前未新增视觉 gate 产物，视觉验证仍沿用既有 E7 样本记录。
+- 下一阶段入口：
+  可以继续把当前语言本地化 `docs/*/api/pdf_workflow.rst` 中的 import diagnostics
+  示例整理得更接近真实 CLI 输出，或推进新的 PDF import 负样本 / visual gate
+  以覆盖更复杂的自由表单、嵌套合并、扫描/OCR 边界。
