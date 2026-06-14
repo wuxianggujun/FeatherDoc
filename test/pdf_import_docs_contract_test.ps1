@@ -294,6 +294,7 @@ $chineseApiIndexPath = Join-Path $resolvedRepoRoot "docs\zh-CN\api\index.rst"
 $changelogPath = Join-Path $resolvedRepoRoot "CHANGELOG.md"
 $cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
 $pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf_document_importer.hpp"
+$pdfCliImportCommandsPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli_pdf_import_commands.cpp"
 $pdfCliImportOutputPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli_pdf_import_output.cpp"
 $pdfCliImportTestsPath = Join-Path $resolvedRepoRoot "test\pdf_cli_import_tests.cpp"
 $pdfImportStructureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_structure_tests.cpp"
@@ -307,6 +308,7 @@ $chineseApiIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $chineseApiI
 $changelogText = Get-Content -Raw -Encoding UTF8 -LiteralPath $changelogPath
 $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
+$pdfCliImportCommandsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportCommandsPath
 $pdfCliImportOutputText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportOutputPath
 $pdfCliImportTestsTextParts = Get-ChildItem -LiteralPath (Split-Path -Parent $pdfCliImportTestsPath) -Filter "pdf_cli_import*.cpp" |
     Sort-Object Name |
@@ -445,6 +447,32 @@ $requiredPdfImportScopeDocsTerms = @(
     "exact visual reconstruction",
     "arbitrary local column drift",
     "Unsupported cases must fail or remain paragraphs"
+)
+
+$requiredPdfImportCliJsonSummaryKeys = @(
+    '\"table_continuation_diagnostics_count\"',
+    '\"table_continuation_diagnostics\"'
+)
+
+$requiredPdfImportCliJsonDiagnosticFieldKeys = @(
+    '\"page_index\"',
+    '\"block_index\"',
+    '\"source_row_offset\"',
+    '\"continuation_confidence\"',
+    '\"minimum_continuation_confidence\"',
+    '\"has_previous_table\"',
+    '\"is_first_block_on_page\"',
+    '\"is_near_page_top\"',
+    '\"source_rows_consistent\"',
+    '\"column_count_matches\"',
+    '\"column_anchors_match\"',
+    '\"previous_has_repeating_header\"',
+    '\"source_has_repeating_header\"',
+    '\"header_matches_previous\"',
+    '\"header_match_kind\"',
+    '\"skipped_repeating_header\"',
+    '\"disposition\"',
+    '\"blocker\"'
 )
 
 $scopeCoverageAnchors = @(
@@ -704,6 +732,20 @@ Assert-CliMapsEnumMembers `
     -Text $pdfCliImportOutputText `
     -Members $headerMatchKindMembers `
     -Label "cli/featherdoc_cli_pdf_import_output.cpp"
+
+foreach ($key in $requiredPdfImportCliJsonSummaryKeys) {
+    Assert-ContainsText `
+        -Text $pdfCliImportCommandsText `
+        -ExpectedText $key `
+        -Label "cli/featherdoc_cli_pdf_import_commands.cpp"
+}
+
+foreach ($key in $requiredPdfImportCliJsonDiagnosticFieldKeys) {
+    Assert-ContainsText `
+        -Text $pdfCliImportOutputText `
+        -ExpectedText $key `
+        -Label "cli/featherdoc_cli_pdf_import_output.cpp"
+}
 
 $cliJsonBlockerMembers = Get-CliJsonBlockerMembers -Text $pdfCliImportTestsText
 foreach ($blockerMember in $blockerMembers) {

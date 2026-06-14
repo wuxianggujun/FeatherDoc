@@ -159,13 +159,24 @@ TEST_CASE("cli import-pdf reports table continuation diagnostics") {
              std::string::npos);
     CHECK_NE(json.find(R"("minimum_continuation_confidence":0)"),
              std::string::npos);
+    CHECK_NE(json.find(R"("source_row_offset":0)"), std::string::npos);
+    CHECK_NE(json.find(R"("has_previous_table":false)"), std::string::npos);
+    CHECK_NE(json.find(R"("has_previous_table":true)"), std::string::npos);
     CHECK_NE(json.find(R"("is_first_block_on_page":true)"),
              std::string::npos);
     CHECK_NE(json.find(R"("is_near_page_top":true)"),
              std::string::npos);
+    CHECK_NE(json.find(R"("source_rows_consistent":true)"),
+             std::string::npos);
     CHECK_NE(json.find(R"("column_count_matches":true)"),
              std::string::npos);
     CHECK_NE(json.find(R"("column_anchors_match":true)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("previous_has_repeating_header":false)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("source_has_repeating_header":false)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("header_matches_previous":true)"),
              std::string::npos);
     CHECK_NE(json.find(R"("header_match_kind":"not_required")"),
              std::string::npos);
