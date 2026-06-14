@@ -258,6 +258,15 @@
   `cmake --build .bpdf-roundtrip-msvc --target pdf_cli_import_tests` 通过；
   `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import|pdf_import_failure|pdf_import_docs_contract" --output-on-failure --timeout 120`
   通过；`git diff --check` 通过。
+- 后续轻量 visual gate 前置契约已补充：
+  `docs/pdf_release_readiness_checklist_zh.rst` 的 bounded `smoke-import` 说明现在
+  明确 `pdf_cli_import` 固定用户可见 `table_continuation_diagnostics` 与
+  `failure_kind = no_text_paragraphs` JSON，`pdf_import_failure` 固定 image-only /
+  no-text 负样本不写出目标 DOCX；`pdf_visual_validation_status_docs_contract_test.ps1`
+  以 `pdf_import_smoke_diagnostics_release_trace` 固定该 release readiness 入口。
+- 边界：
+  该批只补 release/readiness 文档契约，不运行 full visual gate，不新增或提交
+  `output/` 视觉产物。
 - 下一阶段入口：
   继续推进新的 PDF import 负样本 / visual gate，以覆盖更复杂的自由表单、
   嵌套合并和视觉审查边界；保持生成产物仅作为本地证据，不纳入提交。

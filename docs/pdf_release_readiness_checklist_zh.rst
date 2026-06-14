@@ -494,6 +494,11 @@ OCR 或任意视觉精确还原。
    ``pdf_import_failure`` 和 ``pdf_import_table_heuristic``。summary 必须写出
    ``status = pass``、``verdict = pass``、``subset = smoke-import``、
    ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
+   该子集同时作为 PDF import diagnostics 的轻量视觉门禁前置证据：
+   ``pdf_cli_import`` 固定用户可见 ``table_continuation_diagnostics`` 与
+   ``failure_kind = no_text_paragraphs`` JSON，``pdf_import_failure`` 固定
+   image-only / no-text 负样本不会生成目标 DOCX。固定标记：
+   ``pdf_import_smoke_diagnostics_release_trace``。
 
    资源受限时还可以补跑静态契约子集：
 

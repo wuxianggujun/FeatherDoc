@@ -939,6 +939,20 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮不改变 CLI JSON schema，只固定现有 failure kind 的用户可见输出；不新增或提交
   `output/` 视觉 gate 产物。
 
+2026-06-14 继续推进（PDF import diagnostics 轻量 visual gate 前置契约）：
+
+- 已同步 `docs/pdf_release_readiness_checklist_zh.rst`，把 PDF import diagnostics /
+  no-text 边界纳入 bounded `smoke-import` 子集说明：`pdf_cli_import` 固定用户可见
+  `table_continuation_diagnostics` 与 `failure_kind = no_text_paragraphs` JSON，
+  `pdf_import_failure` 固定 image-only / no-text 负样本不写出目标 DOCX。
+- 已扩展 `pdf_visual_validation_status_docs_contract_test.ps1`，固定
+  `pdf_import_smoke_diagnostics_release_trace`、`table_continuation_diagnostics`、
+  `failure_kind = no_text_paragraphs` 和 `image-only / no-text` 必须保留在 release
+  readiness checklist 中。
+- 已知边界：
+  本轮只补轻量 visual gate 前置说明与文档契约，不运行 full visual gate，不新增或提交
+  `output/` 视觉产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
