@@ -902,6 +902,24 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只同步公开文档示例与 docs contract，不改变 importer 决策、不改变 CLI JSON schema，
   不新增或提交 `output/` 视觉 gate 产物。
 
+2026-06-14 继续推进（PDF import image-only 负样本契约）：
+
+- 已新增 image-only placeholder PDF fixture：页面包含矩形和线条图形，但不包含 text run，
+  用于模拟 scanned / image-only 页面对 PDFium 可见但没有可提取文字的边界。
+- 已扩展 `pdf_import_failure_tests.cpp`，固定该类非空页面导入失败时返回
+  `PdfDocumentImportFailureKind::no_text_paragraphs`，错误信息继续提示
+  `text paragraphs only`。
+- 已同步 `pdf_import_docs_contract_test.ps1` 的 scope 覆盖锚点，将公开文档中的
+  `scanned PDFs`、`OCR` 和 `image-only` 声明绑定到该负样本回归，避免 unsupported
+  scope 只停留在文档文字。
+- 已完成验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_failure_tests` 通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_failure|pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已知边界：
+  该 fixture 只固定 no-text/image-only 失败分类，不引入 OCR，不改变 importer 行为，
+  不新增或提交 `output/` 视觉 gate 产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

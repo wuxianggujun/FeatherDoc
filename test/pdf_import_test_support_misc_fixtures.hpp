@@ -197,6 +197,53 @@ write_out_of_order_two_column_pdf(std::string_view filename) {
 }
 
 [[nodiscard]] inline std::filesystem::path
+write_image_only_placeholder_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title = "FeatherDoc image-only PDF import boundary";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.rectangles.push_back(featherdoc::pdf::PdfRectangle{
+        featherdoc::pdf::PdfRect{72.0, 548.0, 468.0, 176.0},
+        featherdoc::pdf::PdfRgbColor{0.18, 0.22, 0.28},
+        featherdoc::pdf::PdfRgbColor{0.94, 0.95, 0.97},
+        1.2,
+        true,
+        true});
+
+    // Keep this fixture text-free: it models scanned/image-only pages where
+    // PDFium can see page graphics but cannot extract text paragraphs.
+    for (std::size_t row = 1U; row < 4U; ++row) {
+        const auto y = 548.0 + 44.0 * static_cast<double>(row);
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{72.0, y},
+            featherdoc::pdf::PdfPoint{540.0, y},
+            featherdoc::pdf::PdfRgbColor{0.72, 0.74, 0.78},
+            0.8});
+    }
+    for (std::size_t column = 1U; column < 3U; ++column) {
+        const auto x = 72.0 + 156.0 * static_cast<double>(column);
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{x, 548.0},
+            featherdoc::pdf::PdfPoint{x, 724.0},
+            featherdoc::pdf::PdfRgbColor{0.72, 0.74, 0.78},
+            0.8});
+    }
+
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
 write_aligned_list_pdf(std::string_view filename) {
     featherdoc::pdf::PdfDocumentLayout layout;
     layout.metadata.title = "FeatherDoc aligned list PDF import structure";

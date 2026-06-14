@@ -496,6 +496,24 @@ $scopeCoverageAnchors = @(
         Expected = "PDF text importer classifies detected table candidates"
     },
     @{
+        Label = "Scanned PDF import boundary"
+        DocExpected = "scanned PDFs"
+        Text = $pdfImportFailureTestsText
+        Expected = "PDF text importer classifies image-only pages without text paragraphs"
+    },
+    @{
+        Label = "OCR import boundary"
+        DocExpected = "OCR"
+        Text = $pdfImportFailureTestsText
+        Expected = "PDF text importer classifies image-only pages without text paragraphs"
+    },
+    @{
+        Label = "Image-only import boundary"
+        DocExpected = "image-only"
+        Text = $pdfImportFailureTestsText
+        Expected = "PDF text importer classifies image-only pages without text paragraphs"
+    },
+    @{
         Label = "Opt-in table promotion"
         DocExpected = "Opt-in table promotion"
         Text = $pdfImportTableHeuristicTestsText

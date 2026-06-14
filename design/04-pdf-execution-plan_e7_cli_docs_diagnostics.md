@@ -236,6 +236,15 @@
   通过；`git diff --check` 通过。
 - 已提交并推送：
   `272bfff docs: show realistic PDF import diagnostics JSON`。
+- 后续负样本契约已补充：
+  `test/pdf_import_failure_tests.cpp` 增加 image-only placeholder PDF fixture，
+  固定有页面图形但无可提取文字时仍归类为 `no_text_paragraphs`；
+  `pdf_import_docs_contract_test.ps1` 将 `scanned PDFs`、`OCR` 和 `image-only`
+  scope 声明绑定到该失败回归锚点。
+- 对应验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_failure_tests` 通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_failure|pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
 - 下一阶段入口：
   继续推进新的 PDF import 负样本 / visual gate，以覆盖更复杂的自由表单、
-  嵌套合并、扫描/OCR 边界；保持生成产物仅作为本地证据，不纳入提交。
+  嵌套合并和视觉审查边界；保持生成产物仅作为本地证据，不纳入提交。
