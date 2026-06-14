@@ -245,6 +245,19 @@
   `cmake --build .bpdf-roundtrip-msvc --target pdf_import_failure_tests` 通过；
   `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_failure|pdf_import_docs_contract" --output-on-failure --timeout 120`
   通过；`git diff --check` 通过。
+- 后续 CLI failure JSON 契约已补充：
+  `pdf_cli_import_threshold_tests.cpp` 使用同一 image-only placeholder fixture 走
+  `featherdoc_cli import-pdf --json`，固定失败输出包含 `ok:false`、`stage:"import"`、
+  `failure_kind:"no_text_paragraphs"`、`input` 和 `output`，且不写出目标 DOCX。
+- 对应公开文档与 docs contract 已同步：
+  `docs/*/api/pdf_workflow.rst` 明确 scanned / image-only PDFs without extractable
+  text paragraphs 会报告 `no_text_paragraphs`；`pdf_import_docs_contract_test.ps1`
+  反查 `pdf_cli_import*.cpp` 必须覆盖 `table_candidates_detected` 和
+  `no_text_paragraphs` 两类 failure JSON。
+- 本轮追加验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_cli_import_tests` 通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import|pdf_import_failure|pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
 - 下一阶段入口：
   继续推进新的 PDF import 负样本 / visual gate，以覆盖更复杂的自由表单、
   嵌套合并和视觉审查边界；保持生成产物仅作为本地证据，不纳入提交。

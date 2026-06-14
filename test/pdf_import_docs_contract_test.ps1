@@ -426,7 +426,9 @@ $requiredPdfImportJsonDiagnosticsDocsTerms = @(
     "extract_text_disabled",
     "extract_geometry_disabled",
     "table_candidates_detected",
-    "no_text_paragraphs"
+    "no_text_paragraphs",
+    "Scanned or image-only PDFs without extractable text paragraphs report",
+    "leave the target DOCX unwritten"
 )
 
 $requiredPdfImportScopeDocsTerms = @(
@@ -480,6 +482,11 @@ $requiredPdfImportCliJsonDiagnosticFieldKeys = @(
     '\"skipped_repeating_header\"',
     '\"disposition\"',
     '\"blocker\"'
+)
+
+$requiredPdfImportCliJsonFailureKinds = @(
+    '"failure_kind":"table_candidates_detected"',
+    '"failure_kind":"no_text_paragraphs"'
 )
 
 $scopeCoverageAnchors = @(
@@ -770,6 +777,13 @@ foreach ($key in $requiredPdfImportCliJsonDiagnosticFieldKeys) {
         -Text $pdfCliImportOutputText `
         -ExpectedText $key `
         -Label "cli/featherdoc_cli_pdf_import_output.cpp"
+}
+
+foreach ($failureKind in $requiredPdfImportCliJsonFailureKinds) {
+    Assert-ContainsText `
+        -Text $pdfCliImportTestsText `
+        -ExpectedText $failureKind `
+        -Label "test/pdf_cli_import*.cpp"
 }
 
 $cliJsonBlockerMembers = Get-CliJsonBlockerMembers -Text $pdfCliImportTestsText

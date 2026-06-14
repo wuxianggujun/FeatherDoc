@@ -257,6 +257,43 @@ TEST_CASE("cli import-pdf rejects table candidates by default") {
     CHECK_NE(json.find(R"("output":)"), std::string::npos);
 }
 
+TEST_CASE("cli import-pdf reports image-only pages without text as json") {
+    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
+    std::error_code error;
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const fs::path source =
+        featherdoc::test_support::write_image_only_placeholder_pdf(
+            "featherdoc-cli-import-image-only-placeholder.pdf");
+    const fs::path output = work_dir / "image-only-placeholder.docx";
+    const fs::path json_output =
+        work_dir / "image-only-placeholder-import.json";
+    remove_if_exists(output);
+    remove_if_exists(json_output);
+
+    REQUIRE(fs::exists(source));
+
+    CHECK_EQ(run_cli({"import-pdf",
+                      source.string(),
+                      "--output",
+                      output.string(),
+                      "--json"},
+                     json_output),
+             1);
+
+    REQUIRE_FALSE(fs::exists(output));
+
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("command":"import-pdf")"), std::string::npos);
+    CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
+    CHECK_NE(json.find(R"("stage":"import")"), std::string::npos);
+    CHECK_NE(json.find(R"("failure_kind":"no_text_paragraphs")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("input":)"), std::string::npos);
+    CHECK_NE(json.find(R"("output":)"), std::string::npos);
+}
+
 TEST_CASE("cli import-pdf reports confidence threshold parse errors as json") {
     const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
     std::error_code error;

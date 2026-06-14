@@ -920,6 +920,25 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   该 fixture 只固定 no-text/image-only 失败分类，不引入 OCR，不改变 importer 行为，
   不新增或提交 `output/` 视觉 gate 产物。
 
+2026-06-14 继续推进（PDF import image-only CLI failure JSON 契约）：
+
+- 已扩展 `pdf_cli_import_threshold_tests.cpp`，用 image-only placeholder fixture 覆盖
+  `featherdoc_cli import-pdf --json` 失败路径，固定输出包含 `ok:false`、
+  `stage:"import"`、`failure_kind:"no_text_paragraphs"`、`input` 和 `output`。
+- 已同步 `docs/en/api/pdf_workflow.rst` 与 `docs/zh-CN/api/pdf_workflow.rst`，
+  说明没有可提取文本段落的 scanned / image-only PDF 会报告 `no_text_paragraphs`，
+  并且不会写出目标 DOCX。
+- 已增强 `pdf_import_docs_contract_test.ps1`，反查 `pdf_cli_import*.cpp` 必须覆盖
+  `table_candidates_detected` 与 `no_text_paragraphs` 两类 failure JSON，避免
+  `failure_kind` 只在 writer 映射或文档枚举中存在。
+- 已完成验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_cli_import_tests` 通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import|pdf_import_failure|pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已知边界：
+  本轮不改变 CLI JSON schema，只固定现有 failure kind 的用户可见输出；不新增或提交
+  `output/` 视觉 gate 产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

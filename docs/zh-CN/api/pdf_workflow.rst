@@ -273,7 +273,8 @@ PDF 导入 JSON 诊断
 ``document_population_failed``、``extract_text_disabled``、
 ``extract_geometry_disabled``、``table_candidates_detected`` 或
 ``no_text_paragraphs``。未启用 ``--import-table-candidates-as-tables`` 且检测到表格候选时，
-会报告 ``table_candidates_detected``，并且不会写出目标 DOCX。
+会报告 ``table_candidates_detected``，并且不会写出目标 DOCX。没有可提取文本段落的扫描件
+或 image-only PDF 会报告 ``no_text_paragraphs``，同样不会写出目标 DOCX。
 
 命令行解析错误仍使用 ``stage`` 为 ``parse`` 的通用 JSON 形状。当前消息包括
 ``missing value after --min-table-continuation-confidence``、

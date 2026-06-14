@@ -307,7 +307,8 @@ Failure JSON keeps ``ok`` set to ``false`` and reports the ``import`` stage:
 ``no_text_paragraphs``. Running without
 ``--import-table-candidates-as-tables`` against a PDF where table candidates are
 detected reports ``table_candidates_detected`` and does not write the target
-DOCX.
+DOCX. Scanned or image-only PDFs without extractable text paragraphs report
+``no_text_paragraphs`` and also leave the target DOCX unwritten.
 
 Command-line parse errors
 ~~~~~~~~~~~~~~~~~~~~~~~~~
