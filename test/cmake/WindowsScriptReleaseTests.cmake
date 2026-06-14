@@ -582,6 +582,24 @@
 
         add_test(
             NAME
+            pdf_document_table_merged_cant_split_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_document_table_merged_cant_split_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(
+            pdf_document_table_merged_cant_split_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;layout;smoke")
+
+        add_test(
+            NAME
             pdf_rtl_bidi_light_contract
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
