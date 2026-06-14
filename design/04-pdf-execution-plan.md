@@ -974,6 +974,35 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 已知边界：
   本轮不改变 importer 决策、不改变 CLI JSON schema，不新增或提交 `output/` 视觉产物。
 
+2026-06-15 继续推进（PDF import diagnostics 字段顺序与 bounded preflight 契约）：
+
+- 已把 bounded `smoke-import` 子集从“文档说明”推进为可回归 summary 契约：
+  `run_pdf_ctest_bounded_subset.ps1` 在 `smoke-import` summary 中写出
+  `bounded_smoke_import_preflight` scope、`does_not_replace_full_visual_gate_verdict`
+  boundary、`does_not_generate_or_commit_output_visual_artifacts` artifact policy、
+  诊断契约测试列表和诊断字段列表。
+- 已新增 `pdf_ctest_bounded_subset_summary_test.ps1` 并注册到 CTest，固定 fake
+  `smoke-import` summary 的字段值和 10 个 smoke/import 测试顺序；同时修复
+  `pdf_cli_export_tests.cpp` 的重复 binary helper 定义，确保 bounded 子集能完整跑通。
+- 已把 `table_continuation_diagnostics` 的 per-diagnostic JSON 字段顺序写入
+  `docs/en/api/pdf_workflow.rst` 与 `docs/zh-CN/api/pdf_workflow.rst`，并让
+  `pdf_import_docs_contract_test.ps1` 同时校验英文示例、中文示例和 CLI output writer
+  的字段顺序，避免用户文档示例和实际 CLI JSON drift。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract|pdf_visual_validation_status_docs_contract" --output-on-failure --timeout 120`
+  通过；
+  `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 -Subset smoke-import -BuildDir .\.bpdf-roundtrip-msvc -OutputJson .\build\pdf-ctest-bounded-subset-current\summary.json`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_ctest_bounded_subset_summary|pdf_visual_validation_status_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `bd4ab81 test: expose PDF import bounded visual gate contract`、
+  `0c13f79 test: lock PDF bounded import gate summary` 和
+  `d4bdda9 docs: lock PDF import diagnostic field order`。
+- 已知边界：
+  本轮不改变 importer 决策、不改变 CLI JSON schema；bounded preflight 不替代 full
+  visual gate verdict；不新增或提交 `output/` 视觉 gate 产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

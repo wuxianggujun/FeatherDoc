@@ -289,3 +289,39 @@
   通过；`git diff --check` 通过。
 - 已知边界：
   本轮不改变 importer 决策、不改变 CLI JSON schema，不新增 visual gate 产物。
+
+2026-06-15 继续推进（PDF import diagnostics 字段顺序与 bounded preflight 契约）：
+
+- 已补强 bounded `smoke-import` 子集的 summary 契约：
+  `scripts/run_pdf_ctest_bounded_subset.ps1` 现在在 `smoke-import` summary 中写出
+  `import_visual_gate_scope = bounded_smoke_import_preflight`、
+  `import_visual_gate_boundary =
+  bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict`、
+  `import_visual_artifact_policy =
+  does_not_generate_or_commit_output_visual_artifacts`，并列出
+  `import_diagnostics_contract_tests` 与 `import_diagnostics_contract_fields`。
+- 已新增 `pdf_ctest_bounded_subset_summary_test.ps1`，用 fake CTest 固定
+  `smoke-import` summary 的字段值、诊断测试列表、诊断字段列表和 10 个 smoke/import
+  测试顺序，避免该轻量门禁只停留在文档描述里。
+- 已修复 `pdf_cli_export_tests.cpp` 中与 `cli_test_support.hpp` 重复的 binary file
+  helper 定义，保证 bounded `smoke-import` 子集能在当前 `.bpdf-roundtrip-msvc`
+  构建目录完整跑通。
+- 已同步 `docs/en/api/pdf_workflow.rst` 与 `docs/zh-CN/api/pdf_workflow.rst`，
+  明确 `table_continuation_diagnostics` 内每个 diagnostic object 的用户可见字段
+  按 CLI JSON emission order 展示；`pdf_import_docs_contract_test.ps1` 同时校验
+  英文文档、中文文档和 `cli/featherdoc_cli_pdf_import_output.cpp` 中的字段顺序。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract|pdf_visual_validation_status_docs_contract" --output-on-failure --timeout 120`
+  通过；
+  `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 -Subset smoke-import -BuildDir .\.bpdf-roundtrip-msvc -OutputJson .\build\pdf-ctest-bounded-subset-current\summary.json`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_ctest_bounded_subset_summary|pdf_visual_validation_status_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `bd4ab81 test: expose PDF import bounded visual gate contract`、
+  `0c13f79 test: lock PDF bounded import gate summary` 和
+  `d4bdda9 docs: lock PDF import diagnostic field order`。
+- 已知边界：
+  本轮不改变 importer 决策、不改变 CLI JSON schema；bounded preflight 只作为资源受限窗口的
+  import diagnostics 辅助证据，不替代 full visual gate verdict；不新增或提交 `output/`
+  视觉 gate 产物。
