@@ -470,6 +470,27 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 本轮低资源整合仅完成 sample、manifest、manifest parser 断言和文档说明同步；
   真实导出、PDFium 回读和 PNG 视觉门禁仍需在允许构建/渲染时补跑确认。
 
+2026-06-14：
+
+- 已在 `.bpdf-roundtrip-msvc` 中补跑
+  `pdf_regression_document-table-merged-cant-split-text`，确认该样本可真实导出 PDF，
+  并通过 PDFium 回读校验 3 页、页眉页脚、重复表头和 merged cant-split 行关键文本。
+- 已将生成的
+  `.bpdf-roundtrip-msvc/test/featherdoc-pdf-regression-document-table-merged-cant-split-text.pdf`
+  渲染为 PNG，并生成样本级 contact sheet；目检确认 3 页非空，Page 2 在重复表头下保留
+  merged cant-split 行，未见明显裁剪、重叠或页眉页脚错位。
+- 样本级视觉证据产物写入
+  `output/pdf-document-table-merged-cant-split-visual/summary.json` 与
+  `output/pdf-document-table-merged-cant-split-visual/contact-sheet.png`；这些仍是本地验证产物，
+  不作为版本库源文件提交。
+
+通过命令：
+
+```powershell
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_regression_document-table-merged-cant-split-text$" --output-on-failure --timeout 120
+.\.venv-pdf-visual-smoke\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-regression-document-table-merged-cant-split-text.pdf --output-dir .\output\pdf-document-table-merged-cant-split-visual\pages --summary .\output\pdf-document-table-merged-cant-split-visual\summary.json --contact-sheet .\output\pdf-document-table-merged-cant-split-visual\contact-sheet.png --dpi 144
+```
+
 ## E7：PDFium -> AST 读入方向
 
 ### 目标
