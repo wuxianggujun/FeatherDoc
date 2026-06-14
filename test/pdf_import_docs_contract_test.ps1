@@ -282,6 +282,27 @@ function Assert-RstJsonCodeBlocksParse {
     }
 }
 
+function Assert-TextContainsFragmentsInOrder {
+    param(
+        [string]$Text,
+        [string[]]$Fragments,
+        [string]$Label
+    )
+
+    $searchOffset = 0
+    foreach ($fragment in $Fragments) {
+        $index = $Text.IndexOf(
+            $fragment,
+            $searchOffset,
+            [System.StringComparison]::Ordinal)
+        if ($index -lt 0) {
+            throw "$Label does not contain expected fragment '$fragment' after offset $searchOffset."
+        }
+
+        $searchOffset = $index + $fragment.Length
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 }
@@ -466,6 +487,48 @@ $requiredPdfImportCliJsonSummaryKeys = @(
 )
 
 $requiredPdfImportCliJsonDiagnosticFieldKeys = @(
+    '\"page_index\"',
+    '\"block_index\"',
+    '\"source_row_offset\"',
+    '\"continuation_confidence\"',
+    '\"minimum_continuation_confidence\"',
+    '\"has_previous_table\"',
+    '\"is_first_block_on_page\"',
+    '\"is_near_page_top\"',
+    '\"source_rows_consistent\"',
+    '\"column_count_matches\"',
+    '\"column_anchors_match\"',
+    '\"previous_has_repeating_header\"',
+    '\"source_has_repeating_header\"',
+    '\"header_matches_previous\"',
+    '\"header_match_kind\"',
+    '\"skipped_repeating_header\"',
+    '\"disposition\"',
+    '\"blocker\"'
+)
+
+$pdfImportDiagnosticDocsFieldOrder = @(
+    '"page_index"',
+    '"block_index"',
+    '"source_row_offset"',
+    '"continuation_confidence"',
+    '"minimum_continuation_confidence"',
+    '"has_previous_table"',
+    '"is_first_block_on_page"',
+    '"is_near_page_top"',
+    '"source_rows_consistent"',
+    '"column_count_matches"',
+    '"column_anchors_match"',
+    '"previous_has_repeating_header"',
+    '"source_has_repeating_header"',
+    '"header_matches_previous"',
+    '"header_match_kind"',
+    '"skipped_repeating_header"',
+    '"disposition"',
+    '"blocker"'
+)
+
+$pdfImportDiagnosticCliFieldOrder = @(
     '\"page_index\"',
     '\"block_index\"',
     '\"source_row_offset\"',
@@ -678,6 +741,18 @@ Assert-RstJsonCodeBlocksParse `
 Assert-RstJsonCodeBlocksParse `
     -Text $chinesePdfWorkflowDocsText `
     -Label "docs/zh-CN/api/pdf_workflow.rst"
+Assert-TextContainsFragmentsInOrder `
+    -Text $englishPdfWorkflowDocsText `
+    -Fragments $pdfImportDiagnosticDocsFieldOrder `
+    -Label "docs/en/api/pdf_workflow.rst PDF import diagnostic JSON field order"
+Assert-TextContainsFragmentsInOrder `
+    -Text $chinesePdfWorkflowDocsText `
+    -Fragments $pdfImportDiagnosticDocsFieldOrder `
+    -Label "docs/zh-CN/api/pdf_workflow.rst PDF import diagnostic JSON field order"
+Assert-TextContainsFragmentsInOrder `
+    -Text $pdfCliImportOutputText `
+    -Fragments $pdfImportDiagnosticCliFieldOrder `
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp PDF import diagnostic JSON field order"
 
 foreach ($marker in @(
     "PDF",

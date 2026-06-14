@@ -192,6 +192,16 @@ PDF 导入 JSON 诊断
   ``merged_with_previous_table``。
 * ``blocker``：拒绝跨页合并的第一个原因，成功合并时为 ``none``。
 
+诊断对象字段按 CLI JSON 输出顺序展示，用户可见示例应与 CLI 实现保持一致：
+``page_index``、``block_index``、``source_row_offset``、
+``continuation_confidence``、``minimum_continuation_confidence``、
+``has_previous_table``、``is_first_block_on_page``、``is_near_page_top``、
+``source_rows_consistent``、``column_count_matches``、
+``column_anchors_match``、``previous_has_repeating_header``、
+``source_has_repeating_header``、``header_matches_previous``、
+``header_match_kind``、``skipped_repeating_header``、``disposition`` 和
+``blocker``。
+
 ``header_match_kind`` 可以是 ``none``、``not_required``、``exact``、
 ``normalized_text``、``plural_variant``、``canonical_text`` 或 ``token_set``。
 ``blocker`` 可以是 ``none``、``no_previous_table``、

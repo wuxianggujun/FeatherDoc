@@ -214,6 +214,17 @@ Each diagnostic object uses these stable fields:
 * ``blocker``: the first reason a cross-page merge was rejected, or ``none``
   when the table was merged.
 
+Diagnostic object fields are intentionally shown in CLI JSON emission order.
+Keep the user-facing example aligned with the CLI implementation:
+``page_index``, ``block_index``, ``source_row_offset``,
+``continuation_confidence``, ``minimum_continuation_confidence``,
+``has_previous_table``, ``is_first_block_on_page``, ``is_near_page_top``,
+``source_rows_consistent``, ``column_count_matches``,
+``column_anchors_match``, ``previous_has_repeating_header``,
+``source_has_repeating_header``, ``header_matches_previous``,
+``header_match_kind``, ``skipped_repeating_header``, ``disposition`` and
+``blocker``.
+
 ``header_match_kind`` can be ``none``, ``not_required``, ``exact``,
 ``normalized_text``, ``plural_variant``, ``canonical_text`` or ``token_set``.
 ``blocker`` can be ``none``, ``no_previous_table``,
