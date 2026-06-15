@@ -1344,6 +1344,25 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只锁 release metadata helper 的透传行为，不改变 release note 文案、
   package assets、governance handoff Markdown、bounded summary JSON 或 importer 逻辑。
 
+2026-06-15 继续推进（PDF import diagnostics release report 字段契约）：
+
+- 已补 `release_candidate_visual_verdict_candidate_report_assertions.ps1`，把 release
+  candidate generated reports 中的 import diagnostics 字段断言从前三个样例字段升级为
+  复用 `Get-PdfImportDiagnosticsContractFields` 的完整字段清单。
+- 覆盖 `final_review.md` 的 Key outputs / Step status、`release_handoff.md`、
+  `ARTIFACT_GUIDE.md`、`REVIEWER_CHECKLIST.md`、`START_HERE.md`、
+  `release_body.zh-CN.md` 和 `release_summary.zh-CN.md`，确认
+  `PDF bounded CTest import diagnostics contract fields` / `import_diagnostics_fields=`
+  不只存在于 summary metadata，而是能进入 reviewer-facing release report 文本。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "release_candidate_visual_verdict_reports" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `b05a2d9 test: lock PDF import diagnostics release report fields`。
+- 已知边界：
+  本轮只补 release report 测试契约，不改变 release writer 输出形状、
+  metadata helper、bounded summary JSON、CLI JSON schema 或 importer 逻辑。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

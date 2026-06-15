@@ -666,3 +666,28 @@
 - 已知边界：
   本轮不改 release 文案生成脚本、不改 package assets、不改 bounded summary 字段来源，
   只补 metadata helper 层的透传/显示顺序回归契约。
+
+2026-06-15 继续推进（PDF import diagnostics release report 字段契约）：
+
+- 已补 `release_candidate_visual_verdict_candidate_report_assertions.ps1`，将
+  release candidate generated reports 中的
+  `PDF bounded CTest import diagnostics contract fields` 和
+  `import_diagnostics_fields=` 断言升级为完整字段清单，而不是只检查
+  `table_continuation_diagnostics`、`table_continuation_diagnostics=[]` 和
+  `tables_imported=0`。
+- 新断言复用 `Get-PdfImportDiagnosticsContractFields`，覆盖
+  `source_row_offset=0`、`skipped_repeating_header=false`、
+  `disposition=created_new_table`、四类 blocker、confidence 分数、阈值字段以及
+  column/header 判定字段，确保 release-facing Markdown / summary text 与 bounded
+  summary、release metadata helper 使用同一 import diagnostics 契约。
+- 覆盖面包括 `final_review.md` Key outputs / Step status、release handoff、
+  artifact guide、reviewer checklist、START_HERE、中文 release body 和中文 release
+  summary；这补上了 metadata passthrough 之后的用户可见 report 层闭环。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "release_candidate_visual_verdict_reports" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `b05a2d9 test: lock PDF import diagnostics release report fields`。
+- 已知边界：
+  本轮只收紧 release report 测试断言，不改变 release writer 文案模板、
+  package assets、bounded summary 字段来源、CLI JSON schema 或 importer 续表逻辑。
