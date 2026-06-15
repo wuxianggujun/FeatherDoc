@@ -146,7 +146,14 @@ PdfDocumentImportResult PdfDocumentImporter::import_text(
         return result;
     }
 
-    return populate_document_from_parsed_pdf(document, parse_result.document,
+    return import_parsed_document(std::move(parse_result.document), document,
+                                  options);
+}
+
+PdfDocumentImportResult PdfDocumentImporter::import_parsed_document(
+    PdfParsedDocument parsed_document, featherdoc::Document &document,
+    const PdfDocumentImportOptions &options) {
+    return populate_document_from_parsed_pdf(document, std::move(parsed_document),
                                              options);
 }
 

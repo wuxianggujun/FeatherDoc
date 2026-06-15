@@ -841,3 +841,26 @@
 - 已知边界：
   本轮不新增 CLI JSON 字段、不改文档 JSON 示例、不改变 visual gate 或 release
   assets；`inconsistent_source_rows` 仍需后续单独评估底层构造入口。
+
+2026-06-15 继续推进（inconsistent_source_rows importer 构造覆盖）：
+
+- 已新增 `PdfDocumentImporter::import_parsed_document()`，让 importer 测试可以直接
+  输入受控 `PdfParsedDocument`，不再依赖真实 PDF fixture 触发行宽不一致候选。
+- `pdf_import_table_heuristic_import_continuation_tests.cpp` 现在构造两页 table-only
+  parsed document：第一页建立 3 列 previous table，第二页保持 column anchors 兼容，
+  但第二行只有 2 个 cells，稳定覆盖 `inconsistent_source_rows`。
+- 新回归固定 importer diagnostic：
+  `has_previous_table = true`、`is_first_block_on_page = true`、
+  `is_near_page_top = true`、`source_rows_consistent = false`、
+  `column_count_matches = true`、`column_anchors_match = true`、
+  `continuation_confidence = 25`、`disposition = created_new_table`、
+  `blocker = inconsistent_source_rows`。
+- 已完成验证：
+  `pdf_import_table_heuristic_tests.exe --test-case="PDF parsed document import reports inconsistent source row continuation blocker"`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_table_heuristic" --output-on-failure --timeout 120`
+  通过。
+- 已知边界：
+  本轮不改变 CLI JSON schema、不新增用户稳定 PDF fixture、不改 release assets 或
+  visual gate 产物；`inconsistent_source_rows` 仍按文档定义保留为 malformed parsed
+  table candidate 的内部一致性保护。

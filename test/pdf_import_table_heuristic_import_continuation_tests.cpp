@@ -10,7 +10,9 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <initializer_list>
 #include <numeric>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -140,7 +142,127 @@ void check_initial_table_continuation_diagnostic(
     check_table_continuation_diagnostic(diagnostics.front(), expected);
 }
 
+[[nodiscard]] featherdoc::pdf::PdfParsedTableCell
+make_parsed_table_cell(std::size_t column_index, const char *text,
+                       double x_points, double y_points) {
+    featherdoc::pdf::PdfParsedTableCell cell;
+    cell.text = text;
+    cell.bounds = featherdoc::pdf::PdfRect{x_points, y_points, 120.0, 20.0};
+    cell.column_index = column_index;
+    cell.has_text = true;
+    return cell;
+}
+
+[[nodiscard]] featherdoc::pdf::PdfParsedTableRow
+make_parsed_table_row(double y_points,
+                      std::initializer_list<const char *> cell_texts) {
+    featherdoc::pdf::PdfParsedTableRow row;
+    row.bounds = featherdoc::pdf::PdfRect{72.0, y_points, 360.0, 20.0};
+
+    std::size_t column_index = 0U;
+    for (const auto *text : cell_texts) {
+        row.cells.push_back(make_parsed_table_cell(
+            column_index, text, 72.0 + static_cast<double>(column_index) * 120.0,
+            y_points));
+        ++column_index;
+    }
+
+    return row;
+}
+
+[[nodiscard]] featherdoc::pdf::PdfParsedTableCandidate
+make_parsed_table_candidate(
+    double top_points,
+    std::initializer_list<std::initializer_list<const char *>> row_texts) {
+    featherdoc::pdf::PdfParsedTableCandidate table;
+    table.column_anchor_x_points = {72.0, 192.0, 312.0};
+
+    std::size_t row_index = 0U;
+    for (const auto &row : row_texts) {
+        table.rows.push_back(make_parsed_table_row(
+            top_points - static_cast<double>(row_index + 1U) * 20.0, row));
+        ++row_index;
+    }
+
+    const double height_points = static_cast<double>(table.rows.size()) * 20.0;
+    table.bounds =
+        featherdoc::pdf::PdfRect{72.0, top_points - height_points, 360.0,
+                                 height_points};
+    return table;
+}
+
+[[nodiscard]] featherdoc::pdf::PdfParsedPage
+make_table_only_page(featherdoc::pdf::PdfParsedTableCandidate table) {
+    featherdoc::pdf::PdfParsedPage page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.table_candidates.push_back(std::move(table));
+    page.content_blocks.push_back(featherdoc::pdf::PdfParsedContentBlock{
+        featherdoc::pdf::PdfParsedContentBlockKind::table_candidate,
+        page.table_candidates.front().bounds, 0U});
+    return page;
+}
+
+[[nodiscard]] featherdoc::pdf::PdfParsedDocument
+make_inconsistent_source_rows_continuation_document() {
+    featherdoc::pdf::PdfParsedDocument document;
+    document.pages.push_back(make_table_only_page(make_parsed_table_candidate(
+        760.0, {{"P1 R1 C1", "P1 R1 C2", "P1 R1 C3"},
+                {"P1 R2 C1", "P1 R2 C2", "P1 R2 C3"}})));
+    document.pages.push_back(make_table_only_page(make_parsed_table_candidate(
+        760.0, {{"P2 R1 C1", "P2 R1 C2", "P2 R1 C3"},
+                {"P2 R2 C1", "P2 R2 C2"}})));
+    return document;
+}
+
 }  // namespace
+
+TEST_CASE(
+    "PDF parsed document import reports inconsistent source row continuation blocker") {
+    auto parsed_document = make_inconsistent_source_rows_continuation_document();
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-inconsistent-source-rows.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImporter importer;
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result = importer.import_parsed_document(
+        std::move(parsed_document), document, options);
+    CHECK_FALSE(import_result.success);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::
+                 document_population_failed);
+    CHECK_EQ(import_result.tables_imported, 1U);
+    REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    auto expected_initial_diagnostic =
+        expected_no_previous_table_continuation(0U, 0U);
+    expected_initial_diagnostic.is_first_block_on_page = true;
+    check_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics.front(),
+        expected_initial_diagnostic);
+
+    auto expected_diagnostic =
+        expected_compatible_table_continuation(1U, 0U);
+    expected_diagnostic.continuation_confidence = 25U;
+    expected_diagnostic.source_rows_consistent = false;
+    expected_diagnostic.disposition =
+        featherdoc::pdf::PdfTableContinuationDisposition::created_new_table;
+    expected_diagnostic.blocker =
+        featherdoc::pdf::PdfTableContinuationBlocker::inconsistent_source_rows;
+    check_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics[1], expected_diagnostic);
+
+    const auto imported_table = document.inspect_table(0U);
+    REQUIRE(imported_table.has_value());
+    CHECK_EQ(imported_table->row_count, 2U);
+    CHECK_EQ(imported_table->column_count, 3U);
+    CHECK_FALSE(document.inspect_table(1U).has_value());
+
+    std::filesystem::remove(docx_path);
+}
 
 TEST_CASE("PDF table import merges compatible table candidates across page boundary") {
     const auto input_path =

@@ -1499,6 +1499,23 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮继续只补 importer 层回归，不改变 continuation heuristic、CLI JSON schema、
   用户文档示例、release assets 或 full visual gate verdict。
 
+2026-06-15 继续推进（importer parsed-document 构造诊断入口）：
+
+- 已新增 `PdfDocumentImporter::import_parsed_document()`，复用既有 parsed PDF
+  填充逻辑，让测试可以绕过真实 PDF 排版和 PDFium parser，直接构造
+  `PdfParsedDocument` 覆盖 importer 层边界。
+- 已用该入口在 `pdf_import_table_heuristic_import_continuation_tests.cpp`
+  构造两页表格候选：第一页写入 3 列表格，第二页保留相同列锚点但包含一行
+  2-cell malformed row，从而稳定触发 `inconsistent_source_rows` blocker。
+- 新断言固定该内部一致性兜底的 diagnostic object：
+  `source_rows_consistent = false`、`column_count_matches = true`、
+  `column_anchors_match = true`、`continuation_confidence = 25`、
+  `disposition = created_new_table` 和 `blocker = inconsistent_source_rows`。
+- 已知边界：
+  本轮不新增不稳定 PDF fixture，不改变 CLI JSON schema 或用户文档对
+  `inconsistent_source_rows` 的定位；它仍是 malformed parsed table candidate
+  的 importer 内部保护，而不是常规用户可稳定触发的 import-pdf blocker。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
