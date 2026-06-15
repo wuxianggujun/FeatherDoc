@@ -1427,6 +1427,19 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 本轮不改变 importer、CLI JSON schema、docs diagnostics 字段或 visual gate
   产物，只收紧测试调度契约。
 
+2026-06-15 继续推进（bounded smoke-import timeout 同步）：
+
+- 已同步 `scripts/run_pdf_ctest_bounded_subset.ps1`：`smoke-import` 子集因为包含完整
+  `pdf_cli_import` 聚合入口，`ctest_timeout_seconds` 与实际 CTest property 一起提升到
+  `120`；其它 bounded static / regression 子集继续默认 `60` 秒。
+- 已补 `pdf_ctest_bounded_subset_summary_test.ps1`，fake CTest 现在会校验
+  `--timeout 120`，并断言 summary 中写出 `ctest_timeout_seconds = 120`。
+- 已同步发布准入清单和视觉状态文档，避免 release / visual gate 前置证据仍把
+  `smoke-import` 误描述为 60 秒窗口。
+- 已知边界：
+  本轮只调整 bounded subset 调度与文档契约，不改变测试集合、importer 行为、
+  CLI JSON schema 或 full visual gate verdict。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

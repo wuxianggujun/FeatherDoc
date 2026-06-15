@@ -101,6 +101,7 @@ if (-not (Test-Path -LiteralPath $resolvedBuildDir)) {
 $subsets = [ordered]@{
     "smoke-import" = [ordered]@{
         description = "PDF smoke/import executable subset"
+        ctest_timeout_seconds = 120
         import_visual_gate_scope = "bounded_smoke_import_preflight"
         import_visual_gate_boundary = "bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict"
         import_visual_artifact_policy = "does_not_generate_or_commit_output_visual_artifacts"
@@ -221,6 +222,10 @@ $subsets = [ordered]@{
 
 $subsetConfig = $subsets[$Subset]
 $selectedTests = @($subsetConfig.tests)
+$ctestTimeoutSeconds = [int](Get-SubsetMetadataValue `
+    -Config $subsetConfig `
+    -Key "ctest_timeout_seconds" `
+    -DefaultValue 60)
 $regex = "^($(($selectedTests | ForEach-Object { [regex]::Escape($_) }) -join '|'))$"
 
 $listResult = Invoke-CapturedCommand `
@@ -246,7 +251,11 @@ if ($missingTests.Count -gt 0) {
 
 $runResult = Invoke-CapturedCommand `
     -ExecutablePath $resolvedCtestExecutable `
-    -Arguments @("--test-dir", $resolvedBuildDir, "-R", $regex, "--output-on-failure", "--timeout", "60")
+    -Arguments @(
+        "--test-dir", $resolvedBuildDir,
+        "-R", $regex,
+        "--output-on-failure",
+        "--timeout", ([string]$ctestTimeoutSeconds))
 
 foreach ($line in $runResult.lines) {
     Write-Host $line
@@ -298,7 +307,7 @@ $summary = [ordered]@{
     repo_root = $repoRoot
     build_dir = $resolvedBuildDir
     ctest_executable = $resolvedCtestExecutable
-    ctest_timeout_seconds = 60
+    ctest_timeout_seconds = $ctestTimeoutSeconds
     selected_test_count = $selectedTests.Count
     skipped_test_count = $skippedTests.Count
     selected_tests = $selectedTests

@@ -496,7 +496,7 @@ OCR 或任意视觉精确还原。
    ``pdf_cli_export``、``pdf_cli_import``、``pdf_import_structure``、
    ``pdf_import_failure`` 和 ``pdf_import_table_heuristic``。summary 必须写出
    ``status = pass``、``verdict = pass``、``subset = smoke-import``、
-   ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
+   ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 120``。
    该子集同时作为 PDF import diagnostics 的轻量视觉门禁前置证据：
    ``pdf_cli_import`` 固定用户可见 ``table_continuation_diagnostics`` 与
    ``failure_kind = no_text_paragraphs`` JSON，``pdf_import_failure`` 固定
@@ -551,6 +551,8 @@ OCR 或任意视觉精确还原。
    ``pdf_cjk_anchor_font_matrix_boundary_contract``。summary 必须写出
    ``status = pass``、``verdict = pass``、``subset = contract-static``、
    ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
+   ``smoke-import`` 单独使用 120 秒是因为它包含完整 ``pdf_cli_import`` 聚合入口；
+   其它 bounded static / regression 子集仍保持 60 秒调度窗口。
    固定标记：``pdf_ctest_bounded_subset_release_trace``、
    ``pdf_ctest_bounded_contract_static_release_trace``。
 

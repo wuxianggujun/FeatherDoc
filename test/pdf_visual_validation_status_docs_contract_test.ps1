@@ -294,6 +294,7 @@ $buildingPdfFixtureMarkers = @(
     "skipped_test_count = 0",
     "***Skipped",
     "selected_test_count = 10",
+    "ctest_timeout_seconds = 120",
     "ctest_timeout_seconds = 60"
 )
 
@@ -621,6 +622,7 @@ foreach ($marker in @(
     "skipped_test_count = 0",
     "***Skipped",
     "selected_test_count = 10",
+    "ctest_timeout_seconds = 120",
     "ctest_timeout_seconds = 60",
     "pdf_document_generator_probe",
     "pdf_import_table_heuristic",

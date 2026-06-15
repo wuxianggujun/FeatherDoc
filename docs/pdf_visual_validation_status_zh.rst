@@ -544,7 +544,9 @@ rebuild 补齐辅助证据，readiness summary 必须额外暴露
   ``subset = cjk-flow-static``、``subset = regression-basic-text``、
   ``subset = regression-styled-document``、``subset = regression-business-samples``、
   ``subset = regression-table-layout``、
-  ``selected_test_count = 10``、``skipped_test_count = 0`` 和
+  ``selected_test_count = 10``、``skipped_test_count = 0`` 和 bounded
+  ``ctest_timeout_seconds``。``smoke-import`` 因包含完整 ``pdf_cli_import`` 聚合入口
+  使用 ``ctest_timeout_seconds = 120``；其它 bounded static / regression 子集仍使用
   ``ctest_timeout_seconds = 60``。``scripts/run_pdf_ctest_bounded_subset.ps1`` 遇到任何
   ``***Skipped`` CTest 项时会把 ``status`` / ``verdict`` 标记为 ``fail`` 并返回失败。
 * 固定标记：``pdf_ctest_bounded_subset_release_trace``、

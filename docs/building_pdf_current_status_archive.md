@@ -279,7 +279,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.
 `pdf_text_metrics`、`pdf_text_shaper`、`pdf_document_adapter_font`、`pdf_cli_export`、
 `pdf_cli_import`、`pdf_import_structure`、`pdf_import_failure` 和
 `pdf_import_table_heuristic`。summary 中的 `status = pass`、`verdict = pass`、
-`subset = smoke-import`、`selected_test_count = 10` 和 `ctest_timeout_seconds = 60`
+`subset = smoke-import`、`selected_test_count = 10` 和 `ctest_timeout_seconds = 120`
 只能证明这条 bounded 子集通过，不替代完整 visual gate 或 `pdf_regression_`
 全量样本链。
 

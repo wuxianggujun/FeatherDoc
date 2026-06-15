@@ -85,6 +85,12 @@ if ($args -contains "-N") {
     exit 0
 }
 
+$timeoutIndex = [Array]::IndexOf($args, "--timeout")
+if ($timeoutIndex -lt 0 -or $timeoutIndex + 1 -ge $args.Count -or $args[$timeoutIndex + 1] -ne "120") {
+    Write-Error "Expected smoke-import bounded CTest timeout 120, got args: $($args -join ' ')"
+    exit 2
+}
+
 Write-Output "Test project fixture"
 for ($index = 0; $index -lt $tests.Count; ++$index) {
     Write-Output ("{0}/{1} Test #{2}: {3} ........................   Passed    0.01 sec" -f ($index + 1), $tests.Count, ($index + 1), $tests[$index])
@@ -123,6 +129,8 @@ Assert-Equal -Actual ([int]$summary.skipped_test_count) -Expected 0 `
     -Message "Smoke-import summary should preserve zero skipped tests."
 Assert-Equal -Actual ([int]$summary.exit_code) -Expected 0 `
     -Message "Smoke-import summary should preserve ctest exit code."
+Assert-Equal -Actual ([int]$summary.ctest_timeout_seconds) -Expected 120 `
+    -Message "Smoke-import summary should preserve the bounded ctest timeout."
 
 Assert-SequenceEqual `
     -Actual @($summary.import_diagnostics_contract_tests | ForEach-Object { [string]$_ }) `

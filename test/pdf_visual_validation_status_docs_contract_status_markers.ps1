@@ -231,6 +231,7 @@ $statusMarkers = @(
     "regression-table-layout",
     "selected_test_count = 10",
     "skipped_test_count = 0",
+    "ctest_timeout_seconds = 120",
     "ctest_timeout_seconds = 60",
     "pdf_cjk_font_search_density_flow_contract",
     "pdf_cjk_list_page_flow_contract",

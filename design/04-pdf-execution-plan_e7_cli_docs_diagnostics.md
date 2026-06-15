@@ -778,3 +778,14 @@
 - 已知边界：
   本轮只调整 CTest 调度契约，不拆分 `pdf_cli_import_tests` 目标，不改变 CLI 输出、
   importer 续表 heuristics、文档 JSON schema 或 release assets。
+
+2026-06-15 继续推进（smoke-import bounded preflight timeout 同步）：
+
+- `scripts/run_pdf_ctest_bounded_subset.ps1` 已把 `smoke-import` 的
+  `ctest_timeout_seconds` 提升到 `120`，与 `pdf_cli_import` 聚合入口的 CTest
+  property 保持一致；其它 bounded 子集继续默认 `60`。
+- `pdf_ctest_bounded_subset_summary_test.ps1` 现在同时校验 fake CTest 收到
+  `--timeout 120`，并固定 summary 的 `ctest_timeout_seconds=120`。
+- 已知边界：
+  该批次只同步 bounded preflight 调度窗口和文档，不改变 CLI diagnostics 内容、
+  importer 续表逻辑、release assets 字段或 full visual gate 产物。
