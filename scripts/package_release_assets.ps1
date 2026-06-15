@@ -283,6 +283,9 @@ if ($hasPdfVisualGateEvidence) {
 Write-Step "Sanitizing staged release materials"
 Sanitize-StagedReleaseMaterials -RepoRoot $repoRoot -RootPaths $releaseMaterialRoots
 
+Write-Step "Checking staged bundled font policy"
+Assert-NoBundledReleaseFontFiles -RootPaths @($releaseMaterialRoots + @($stageGalleryRoot))
+
 if ($runStrictReleaseMaterialAudit) {
     Write-Step "Checking staged project-template checklist handoff evidence"
     Assert-StagedProjectTemplateChecklistHandoffEvidence -ReleaseCandidateRoot $stageReleaseCandidateRoot

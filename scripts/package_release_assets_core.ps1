@@ -201,6 +201,38 @@ function New-ZipArchive {
     Compress-Archive -LiteralPath $SourcePaths -DestinationPath $ZipPath -CompressionLevel Optimal
 }
 
+function Get-BundledReleaseFontFiles {
+    param([string[]]$RootPaths)
+
+    $fontExtensions = @(".ttf", ".otf", ".ttc")
+    $fontFiles = [System.Collections.Generic.List[string]]::new()
+    foreach ($rootPath in $RootPaths) {
+        if ([string]::IsNullOrWhiteSpace($rootPath) -or -not (Test-Path -LiteralPath $rootPath)) {
+            continue
+        }
+
+        foreach ($file in Get-ChildItem -LiteralPath $rootPath -Recurse -File) {
+            if ($fontExtensions -contains $file.Extension.ToLowerInvariant()) {
+                [void]$fontFiles.Add($file.FullName)
+            }
+        }
+    }
+
+    return @($fontFiles | Sort-Object -Unique)
+}
+
+function Assert-NoBundledReleaseFontFiles {
+    param([string[]]$RootPaths)
+
+    $fontFiles = @(Get-BundledReleaseFontFiles -RootPaths $RootPaths)
+    if ($fontFiles.Count -eq 0) {
+        return
+    }
+
+    $preview = @($fontFiles | Select-Object -First 5) -join "; "
+    throw "Release package staging contains font binaries, but the current CJK font distribution policy forbids bundled TTF/OTF/TTC files without explicit license manifest support. Remove these files or add reviewed bundled-font license evidence before packaging. First files: $preview"
+}
+
 function Get-ResolvedReleaseVersion {
     param(
         [string]$ExplicitVersion,

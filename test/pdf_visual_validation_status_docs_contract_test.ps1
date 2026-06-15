@@ -450,12 +450,35 @@ $cjkFontDistributionPolicyChecklistMarkers = @(
     "Source Han Serif",
     "SIL Open Font License 1.1",
     "release assets manifest",
+    "Assert-NoBundledReleaseFontFiles",
     "CJK bundled font"
 )
 
 foreach ($marker in $cjkFontDistributionPolicyChecklistMarkers) {
     $message = "PDF release readiness checklist should preserve CJK font distribution policy marker '{0}'." -f $marker
     Assert-ContainsText -Text $releaseChecklistDoc -ExpectedText $marker -Message $message
+}
+
+$cjkFontDistributionPackageScriptGuardMarkers = @(
+    "Assert-NoBundledReleaseFontFiles",
+    "Get-BundledReleaseFontFiles",
+    "Checking staged bundled font policy",
+    "current CJK font distribution policy forbids bundled TTF/OTF/TTC files"
+)
+
+foreach ($marker in $cjkFontDistributionPackageScriptGuardMarkers) {
+    $message = "package release assets scripts should preserve CJK font distribution package guard marker '{0}'." -f $marker
+    Assert-ContainsText -Text $packageAssetsScript -ExpectedText $marker -Message $message
+}
+
+$cjkFontDistributionPackageGuardTestMarkers = @(
+    "current CJK font distribution policy forbids bundled TTF/OTF/TTC files",
+    "NotoSansSC-Regular.ttf"
+)
+
+foreach ($marker in $cjkFontDistributionPackageGuardTestMarkers) {
+    $message = "package release assets safety tests should preserve CJK font distribution package guard marker '{0}'." -f $marker
+    Assert-ContainsText -Text $packageAssetsSafetyTest -ExpectedText $marker -Message $message
 }
 
 $pdfPackageManifestMarkers = @(

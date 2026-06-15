@@ -737,6 +737,9 @@ Source Han Sans / Source Han Serif 等 SIL Open Font License 1.1 字体；打包
 必须把 upstream source URL、精确版本、字体文件名、LICENSE / NOTICE、
 Reserved Font Name 义务和 release assets manifest 审计字段一并补齐。缺任一项时，
 发布清单必须把 CJK bundled font 标为未完成，不能把本机字体复制进发行包。
+``scripts/package_release_assets.ps1`` 会在创建 ZIP 前通过
+``Assert-NoBundledReleaseFontFiles`` 拒绝 staging 中的 ``.ttf`` / ``.otf`` /
+``.ttc`` 字体文件。
 
 核心头入口调整只影响 C++ include 路径与安装布局，不扩大 PDF 导出 / 导入
 发布边界。

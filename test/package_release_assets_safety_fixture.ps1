@@ -807,6 +807,28 @@ $packageScript = Join-Path $resolvedRepoRoot "scripts\package_release_assets.ps1
     -OutputRoot $outputRoot `
     -KeepStaging
 
+$fontPolicyOutputRoot = Join-Path $resolvedWorkingDir "release-assets-font-policy"
+$dummyBundledFontPath = Join-Path $installPrefix "share\FeatherDoc\fonts\NotoSansSC-Regular.ttf"
+New-Item -ItemType Directory -Path (Split-Path -Parent $dummyBundledFontPath) -Force | Out-Null
+Set-Content -LiteralPath $dummyBundledFontPath -Encoding ASCII -Value "not a real font"
+try {
+    & $packageScript `
+        -SummaryJson $summaryPath `
+        -OutputRoot $fontPolicyOutputRoot `
+        -KeepStaging
+    throw "package_release_assets.ps1 unexpectedly packaged a bundled font file without license manifest evidence."
+} catch {
+    $message = $_.Exception.Message
+    if ($message -notmatch [regex]::Escape("current CJK font distribution policy forbids bundled TTF/OTF/TTC files")) {
+        throw "package_release_assets.ps1 rejected the bundled font with an unexpected message: $message"
+    }
+    if ($message -notmatch [regex]::Escape("NotoSansSC-Regular.ttf")) {
+        throw "package_release_assets.ps1 bundled-font rejection did not name the staged font file: $message"
+    }
+} finally {
+    Remove-Item -LiteralPath $dummyBundledFontPath -Force -ErrorAction SilentlyContinue
+}
+
 $stagingRoot = Join-Path $outputRoot "v1.6.4\staging"
 $stagedSummaryPath = Join-Path $stagingRoot "release-candidate-checks\report\summary.json"
 $stagedGateSummaryPath = Join-Path $stagingRoot "word-visual-release-gate\report\gate_summary.json"
