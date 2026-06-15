@@ -394,3 +394,32 @@
   bounded `smoke-import` 只作为资源受限窗口的 import diagnostics / prose-form
   preflight 辅助证据，不替代 full visual gate verdict；本轮不新增或提交 `output/`
   视觉 gate 产物。
+
+2026-06-15 继续推进（PDF import diagnostics governance source-report 契约）：
+
+- 已把 bounded `smoke-import` 中的 diagnostics / prose-form 契约继续向治理层传递：
+  `Get-PdfBoundedCtestSummaryInfo` 聚合
+  `import_diagnostics_contract_tests`、`import_diagnostics_contract_fields` 和
+  `import_negative_boundary_contract_cases`，release blocker rollup source report 再暴露
+  `pdf_bounded_ctest_import_diagnostics_contract_tests`、
+  `pdf_bounded_ctest_import_diagnostics_contract_fields` 和
+  `pdf_bounded_ctest_import_negative_boundary_contract_cases`。
+- 已补 `build_release_governance_handoff_report_include_rollup` 回归，固定
+  JSON summary 与 Markdown `source_report:` block 同时展示
+  `pdf_import_table_heuristic`、`table_continuation_diagnostics=[]` 和
+  `short_label_prose_remains_paragraphs`。
+- 已同步 `BUILDING_PDF.md` 与 PDF release readiness checklist，明确这些字段是
+  bounded preflight 的 release governance handoff 证据，不能替代 full visual gate
+  verdict。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "release_candidate_visual_verdict|build_release_governance_handoff_report_include_rollup|pdf_visual_validation_status_docs_contract" --output-on-failure --timeout 120`
+  中除首次文档缺口外的 release candidate / handoff 测试均通过；补齐
+  `BUILDING_PDF.md` 后，
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_visual_validation_status_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `edf08c0 test: expose PDF import diagnostics governance contract`。
+- 已知边界：
+  本轮只打通 bounded summary -> release blocker source report -> governance handoff
+  Markdown 的用户可见诊断链路，不改变 importer merge heuristic、不新增 CLI JSON
+  schema 字段，也不新增或提交 `output/` 视觉产物。
