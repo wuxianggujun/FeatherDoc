@@ -15,6 +15,9 @@
 顶层构建默认启用 ``BUILD_CLI``，因此会构建 ``featherdoc_cli``。如果只需要库，
 可以显式传入 ``-DBUILD_CLI=OFF``。
 
+PDF 支持仍是实验性、显式开启的能力。只有在需要 PDF 工作流页面和 CLI 入口时，
+才构建 ``FEATHERDOC_BUILD_PDF`` 和 ``FEATHERDOC_BUILD_PDF_IMPORT``。
+
 最小 C++ 用法
 -------------
 

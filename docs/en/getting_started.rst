@@ -15,6 +15,10 @@ Install And Build
 Top-level builds enable ``BUILD_CLI`` by default, so ``featherdoc_cli`` is built
 unless ``-DBUILD_CLI=OFF`` is passed explicitly.
 
+PDF support is experimental and opt-in. Build ``FEATHERDOC_BUILD_PDF`` and
+``FEATHERDOC_BUILD_PDF_IMPORT`` only when you need the PDF workflow pages and
+CLI entry points.
+
 Minimal C++ Usage
 -----------------
 

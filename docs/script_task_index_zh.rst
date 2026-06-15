@@ -398,6 +398,11 @@ PDF 保守维护入口
   前置条件。
 - ``scripts/check_pdf_controlled_visual_smoke.ps1``：运行受控 PDF visual smoke
   检查。
+- ``scripts/pdf_import_diagnostics_contract_fields.ps1``：提供 PDF 导入 bounded
+  CTest 和 release material 复用的导入诊断 contract field 列表，确保
+  ``table_continuation_diagnostics``、``column_count_mismatch``、
+  ``continuation_confidence_below_threshold`` 等字段在报告、交接和回归测试中
+  保持同一顺序。
 - ``scripts/check_pdf_controlled_visual_smoke.py``：执行受控 PDF visual smoke
   产物检查。
 - ``scripts/check_pdf_text_layer.py``：检查 PDF text layer 产物。
