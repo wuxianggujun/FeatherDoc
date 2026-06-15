@@ -1486,6 +1486,19 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只补用户可见文档和静态契约，不改变 CLI JSON 输出、importer 续表逻辑、
   release assets 或 full visual gate 产物。
 
+2026-06-15 继续推进（importer continuation 重复表头与列数诊断契约）：
+
+- 已扩展 `pdf_import_table_heuristic_import_continuation_tests.cpp` 专项覆盖：
+  repeated-header 续页合并跳过源表头、repeated-header mismatch、column count
+  mismatch 三类 importer diagnostic。
+- 新断言固定 `source_row_offset = 1`、`continuation_confidence = 95`、
+  `header_match_kind = exact`、`skipped_repeating_header = true` 的成功合并路径，
+  以及 `repeated_header_mismatch` 的 70 分和 `column_count_mismatch` 的 30 分
+  阻断路径。
+- 已知边界：
+  本轮继续只补 importer 层回归，不改变 continuation heuristic、CLI JSON schema、
+  用户文档示例、release assets 或 full visual gate verdict。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

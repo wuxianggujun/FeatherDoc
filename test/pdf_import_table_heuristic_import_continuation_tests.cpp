@@ -62,6 +62,21 @@ expected_compatible_table_continuation(std::size_t page_index,
 }
 
 [[nodiscard]] ExpectedTableContinuationDiagnostic
+expected_repeated_header_continuation(std::size_t page_index,
+                                      std::size_t block_index) {
+    auto expected = expected_compatible_table_continuation(page_index,
+                                                          block_index);
+    expected.source_row_offset = 1U;
+    expected.continuation_confidence = 95U;
+    expected.header_match_kind =
+        featherdoc::pdf::PdfTableContinuationHeaderMatchKind::exact;
+    expected.previous_has_repeating_header = true;
+    expected.source_has_repeating_header = true;
+    expected.skipped_repeating_header = true;
+    return expected;
+}
+
+[[nodiscard]] ExpectedTableContinuationDiagnostic
 expected_no_previous_table_continuation(std::size_t page_index,
                                         std::size_t block_index) {
     ExpectedTableContinuationDiagnostic expected;
@@ -114,12 +129,14 @@ void check_initial_table_continuation_diagnostic(
     const std::vector<featherdoc::pdf::PdfTableContinuationDiagnostic>
         &diagnostics,
     std::uint32_t minimum_continuation_confidence = 0U,
-    std::size_t page_index = 0U, std::size_t block_index = 1U) {
+    std::size_t page_index = 0U, std::size_t block_index = 1U,
+    bool source_has_repeating_header = false) {
     REQUIRE_FALSE(diagnostics.empty());
     auto expected =
         expected_no_previous_table_continuation(page_index, block_index);
     expected.minimum_continuation_confidence =
         minimum_continuation_confidence;
+    expected.source_has_repeating_header = source_has_repeating_header;
     check_table_continuation_diagnostic(diagnostics.front(), expected);
 }
 
@@ -191,6 +208,142 @@ TEST_CASE("PDF table import merges compatible table candidates across page bound
     CHECK_EQ(reopened_table->row_count, 6U);
     CHECK_EQ(reopened_table->column_count, 3U);
     CHECK_FALSE(reopened.inspect_table(1U).has_value());
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
+TEST_CASE("PDF table import continuation diagnostic skips repeated source header") {
+    const auto input_path =
+        featherdoc::test_support::write_invoice_grid_pagebreak_subtotal_pdf(
+            "featherdoc-pdf-import-continuation-repeated-header.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-continuation-repeated-header.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 1U);
+    REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    check_initial_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics, 0U, 0U, 1U, true);
+    check_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics[1],
+        expected_repeated_header_continuation(1U, 0U));
+
+    const auto merged_table = document.inspect_table(0U);
+    REQUIRE(merged_table.has_value());
+    CHECK_EQ(merged_table->row_count, 7U);
+    CHECK_EQ(merged_table->column_count, 4U);
+    CHECK_FALSE(document.inspect_table(1U).has_value());
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
+TEST_CASE(
+    "PDF table import continuation diagnostic reports repeated header mismatch") {
+    const auto input_path =
+        featherdoc::test_support::
+            write_invoice_grid_pagebreak_subtotal_semantic_header_variant_pdf(
+                "featherdoc-pdf-import-continuation-repeated-header-mismatch.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-continuation-repeated-header-mismatch.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 2U);
+    REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    check_initial_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics, 0U, 0U, 1U, true);
+    auto expected_diagnostic =
+        expected_repeated_header_continuation(1U, 0U);
+    expected_diagnostic.source_row_offset = 0U;
+    expected_diagnostic.continuation_confidence = 70U;
+    expected_diagnostic.header_match_kind =
+        featherdoc::pdf::PdfTableContinuationHeaderMatchKind::none;
+    expected_diagnostic.header_matches_previous = false;
+    expected_diagnostic.skipped_repeating_header = false;
+    expected_diagnostic.blocker =
+        featherdoc::pdf::PdfTableContinuationBlocker::
+            repeated_header_mismatch;
+    expected_diagnostic.disposition =
+        featherdoc::pdf::PdfTableContinuationDisposition::created_new_table;
+    check_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics[1], expected_diagnostic);
+
+    REQUIRE(document.inspect_table(0U).has_value());
+    REQUIRE(document.inspect_table(1U).has_value());
+    CHECK_FALSE(document.inspect_table(2U).has_value());
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
+TEST_CASE("PDF table import continuation diagnostic reports column count mismatch") {
+    const auto input_path =
+        featherdoc::test_support::
+            write_invoice_grid_pagebreak_subtotal_column_count_mismatch_pdf(
+                "featherdoc-pdf-import-continuation-column-count-mismatch.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-continuation-column-count-mismatch.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 2U);
+    REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    check_initial_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics, 0U, 0U, 1U, true);
+    auto expected_diagnostic =
+        expected_repeated_header_continuation(1U, 0U);
+    expected_diagnostic.source_row_offset = 0U;
+    expected_diagnostic.continuation_confidence = 30U;
+    expected_diagnostic.header_match_kind =
+        featherdoc::pdf::PdfTableContinuationHeaderMatchKind::none;
+    expected_diagnostic.header_matches_previous = false;
+    expected_diagnostic.column_count_matches = false;
+    expected_diagnostic.column_anchors_match = false;
+    expected_diagnostic.skipped_repeating_header = false;
+    expected_diagnostic.blocker =
+        featherdoc::pdf::PdfTableContinuationBlocker::column_count_mismatch;
+    expected_diagnostic.disposition =
+        featherdoc::pdf::PdfTableContinuationDisposition::created_new_table;
+    check_table_continuation_diagnostic(
+        import_result.table_continuation_diagnostics[1], expected_diagnostic);
+
+    const auto first_table = document.inspect_table(0U);
+    const auto second_table = document.inspect_table(1U);
+    REQUIRE(first_table.has_value());
+    REQUIRE(second_table.has_value());
+    CHECK_EQ(first_table->column_count, 4U);
+    CHECK_EQ(second_table->column_count, 3U);
+    CHECK_FALSE(document.inspect_table(2U).has_value());
 
     if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
         std::filesystem::remove(docx_path);

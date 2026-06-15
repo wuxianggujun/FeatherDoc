@@ -830,3 +830,14 @@
 - 已知边界：
   该批次只补文档可见性和静态契约，不改变 CLI JSON schema、importer 续表
   heuristic、release assets 或 full visual gate verdict。
+
+2026-06-15 继续推进（importer continuation 重复表头与列数诊断契约）：
+
+- `pdf_import_table_heuristic_import_continuation_tests.cpp` 现在专项覆盖
+  repeated-header 合并、repeated-header mismatch 和 column-count mismatch。
+- 这些断言把 importer 层的 `source_row_offset=1`、`skipped_repeating_header=true`、
+  `continuation_confidence=95`、`repeated_header_mismatch=70` 和
+  `column_count_mismatch=30` 固定到同一个 continuation diagnostic helper 中。
+- 已知边界：
+  本轮不新增 CLI JSON 字段、不改文档 JSON 示例、不改变 visual gate 或 release
+  assets；`inconsistent_source_rows` 仍需后续单独评估底层构造入口。
