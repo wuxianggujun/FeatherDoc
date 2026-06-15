@@ -1,6 +1,8 @@
 #include "cli_test_support.hpp"
 #include "cli_style_test_support.hpp"
 
+#include <algorithm>
+
 TEST_CASE("cli repair-style-numbering imports catalog repairs before style fixes") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =

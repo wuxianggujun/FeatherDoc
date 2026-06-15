@@ -1,5 +1,7 @@
 #include "cli_numbering_catalog_test_support.hpp"
 
+#include <algorithm>
+
 TEST_CASE(
     "cli ensure-numbering-definition and set-paragraph-numbering manage custom numbering") {
     const fs::path working_directory = fs::current_path();
