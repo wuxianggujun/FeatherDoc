@@ -465,3 +465,28 @@
 - 已知边界：
   本轮只补公开文档与 docs contract，不新增 CLI JSON 字段、不改变 importer 合并
   启发式，也不运行 full visual gate。
+
+2026-06-15 继续推进（PDF import blocker diagnostic object 契约）：
+
+- 已继续收紧 `pdf_cli_import_tests.cpp` 的 CLI JSON diagnostics 契约：拆表负样本现在
+  不只查找 blocker 字符串，而是要求完整 diagnostic object 出现在
+  `table_continuation_diagnostics` 中。
+- 新增覆盖四类用户最常见 blocker：
+  `repeated_header_mismatch` 固定 `continuation_confidence = 70`、header 不匹配；
+  `column_anchors_mismatch` 固定 `continuation_confidence = 55`、列数匹配但列锚点不匹配；
+  `continuation_confidence_below_threshold` 固定 `continuation_confidence = 85` 与
+  `minimum_continuation_confidence = 90`；
+  `column_count_mismatch` 固定 `continuation_confidence = 30`、列数和列锚点均不匹配。
+- 四个 object 均固定 `source_row_offset = 0`、`skipped_repeating_header = false`、
+  `disposition = created_new_table` 和字段输出顺序，避免后续 CLI 仍输出 blocker
+  字符串但丢失上下文判定。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import" --output-on-failure --timeout 120`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `f400970 test: lock PDF import blocker diagnostics`。
+- 已知边界：
+  本轮不新增 CLI JSON 字段、不改变 importer 判断逻辑；只把既有 blocker 场景的
+  用户可见 object 形状锁成回归契约。

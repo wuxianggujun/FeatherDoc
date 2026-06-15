@@ -1142,6 +1142,28 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只补用户可见 workflow 文档契约，不改变 importer continuation heuristic、
   CLI JSON schema 或 release bundle 内容，也不新增或提交 `output/` 视觉产物。
 
+2026-06-15 继续推进（PDF import blocker diagnostic object 契约）：
+
+- 已把 `pdf_cli_import_tests.cpp` 中的拆表负样本从散点字段断言升级为完整
+  `table_continuation_diagnostics` object 契约，覆盖
+  `repeated_header_mismatch`、`column_anchors_mismatch`、
+  `continuation_confidence_below_threshold` 和 `column_count_mismatch` 四类用户可见
+  blocker。
+- 每个 object 均固定字段顺序和值，包括 `source_row_offset = 0`、
+  `has_previous_table = true`、页顶判定、列数/列锚点判定、repeated-header 判定、
+  `skipped_repeating_header = false`、`disposition = created_new_table` 以及对应
+  blocker；同时固定规则型 `continuation_confidence` 分数：70、55、85/90 和 30。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import" --output-on-failure --timeout 120`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `f400970 test: lock PDF import blocker diagnostics`。
+- 已知边界：
+  本轮只锁定现有 CLI blocker JSON 展示契约，不改变 importer continuation heuristic、
+  blocker 枚举或用户文档 schema，也不新增视觉产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
