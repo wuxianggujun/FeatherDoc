@@ -423,3 +423,24 @@
   本轮只打通 bounded summary -> release blocker source report -> governance handoff
   Markdown 的用户可见诊断链路，不改变 importer merge heuristic、不新增 CLI JSON
   schema 字段，也不新增或提交 `output/` 视觉产物。
+
+2026-06-15 继续推进（PDF repeated-header subtotal CLI diagnostic object 契约）：
+
+- 已在 `pdf_cli_import_tests.cpp` 中新增完整 JSON object 断言，固定 repeated-header
+  subtotal 续页合并时的用户可见诊断对象，而不再只依赖散点字段查找。
+- 该断言覆盖 `source_row_offset = 1`、`continuation_confidence = 95`、
+  `minimum_continuation_confidence = 0`、所有 continuation 布尔判定、
+  `header_match_kind = exact`、`skipped_repeating_header = true`、
+  `disposition = merged_with_previous_table` 和 `blocker = none`，并固定 object
+  字段顺序。
+- 已应用到 missing-unit、sparse-body、amount-only body 三个 CLI subtotal 合并场景，
+  与已有 `table_continuation_diagnostics_count = 2`、`tables_imported = 1` 和
+  DOCX 单表结构断言形成闭环。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `631239e test: lock PDF repeated header CLI diagnostics`。
+- 已知边界：
+  只固定 CLI JSON 诊断展示契约，不改变 importer continuation heuristic、不新增 CLI
+  JSON schema 字段，也不新增或提交 `output/` 视觉产物。

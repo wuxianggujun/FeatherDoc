@@ -861,3 +861,23 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   跨页 subtotal 诊断、更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-06-15 继续推进（repeated-header subtotal CLI diagnostic object 契约）：
+
+- 已在 CLI 层补强 repeated-header subtotal 诊断契约：missing-unit、sparse-body 与
+  amount-only body 三个跨页 subtotal 合并样本现在都要求 JSON 中出现完整
+  `merged_with_previous_table` diagnostic object。
+- 该 object 固定 `source_row_offset = 1` 与 `skipped_repeating_header = true`，明确
+  续页首行 repeated header 被识别并跳过；同时固定 `continuation_confidence = 95`、
+  `header_match_kind = exact`、`previous_has_repeating_header = true`、
+  `source_has_repeating_header = true`、`column_count_matches = true`、
+  `column_anchors_match = true` 和 `blocker = none`。
+- 这样 repeated-header subtotal 的用户可见 CLI 证据与 importer 侧单表导入、
+  subtotal 行保存重开契约对齐，避免后续 JSON 字段顺序或关键诊断值退化。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `631239e test: lock PDF repeated header CLI diagnostics`。
+- 已知边界：
+  本轮不扩展 subtotal 识别能力，不改变 continuation merge heuristic；仅固定已支持
+  受控样本的 CLI JSON diagnostic object。

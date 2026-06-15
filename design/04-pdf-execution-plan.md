@@ -1098,6 +1098,30 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   verdict；本轮不改变 importer 启发式、不新增 CLI JSON schema 字段、不提交
   `output/` 或 build 产物。
 
+2026-06-15 继续推进（PDF repeated-header subtotal CLI diagnostic object 契约）：
+
+- 已补 `pdf_cli_import_tests.cpp` 本地 helper，固定 repeated-header 续页合并时的完整
+  `table_continuation_diagnostics` JSON object，覆盖字段顺序和值：
+  `source_row_offset = 1`、`continuation_confidence = 95`、
+  `minimum_continuation_confidence = 0`、`has_previous_table = true`、
+  `is_first_block_on_page = true`、`is_near_page_top = true`、
+  `source_rows_consistent = true`、`column_count_matches = true`、
+  `column_anchors_match = true`、`previous_has_repeating_header = true`、
+  `source_has_repeating_header = true`、`header_matches_previous = true`、
+  `header_match_kind = exact`、`skipped_repeating_header = true`、
+  `disposition = merged_with_previous_table` 和 `blocker = none`。
+- 已把该完整 object 契约应用到三个用户可见 CLI subtotal 场景：
+  missing-unit、sparse-body 与 amount-only body，防止后续只保留散点字段但破坏
+  JSON object 顺序或关键诊断值。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `631239e test: lock PDF repeated header CLI diagnostics`。
+- 已知边界：
+  本轮只收紧 CLI JSON 诊断契约，不改变 importer merge heuristic、不新增 CLI JSON
+  schema 字段，不运行 full visual gate，也不新增或提交 `output/` 视觉产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
