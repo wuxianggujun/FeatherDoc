@@ -30,6 +30,23 @@ function Assert-NotContainsText {
     }
 }
 
+function Assert-Equal {
+    param($Actual, $Expected, [string]$Message)
+    if ($Actual -ne $Expected) {
+        throw "$Message Expected='$Expected' Actual='$Actual'."
+    }
+}
+
+function Assert-SequenceEqual {
+    param([object[]]$Actual, [object[]]$Expected, [string]$Message)
+
+    Assert-Equal -Actual $Actual.Count -Expected $Expected.Count -Message "$Message Count mismatch."
+    for ($index = 0; $index -lt $Expected.Count; ++$index) {
+        Assert-Equal -Actual ([string]$Actual[$index]) -Expected ([string]$Expected[$index]) `
+            -Message "$Message Index $index mismatch."
+    }
+}
+
 function Assert-LineContainsAll {
     param(
         [string[]]$Lines,
@@ -71,6 +88,32 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 $visualMetadataHelperPath = Join-Path (Join-Path $resolvedRepoRoot "scripts") "release_visual_metadata_helpers.ps1"
 Assert-ScriptParses -Path $visualMetadataHelperPath
 $visualMetadataHelperText = Get-Content -Raw -LiteralPath $visualMetadataHelperPath
+. $visualMetadataHelperPath
+. (Join-Path $PSScriptRoot "pdf_import_diagnostics_contract_field_helpers.ps1")
+
+$expectedImportDiagnosticsContractFields = @(Get-PdfImportDiagnosticsContractFields)
+$pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary ([pscustomobject][ordered]@{
+        pdf_bounded_ctest = [pscustomobject][ordered]@{
+            status = "pass"
+            summary_count = 1
+            pass_count = 1
+            selected_test_count = 10
+            skipped_test_count = 0
+            import_diagnostics_contract_tests = @("pdf_cli_import", "pdf_import_failure", "pdf_import_table_heuristic")
+            import_diagnostics_contract_fields = @($expectedImportDiagnosticsContractFields)
+            import_negative_boundary_contract_cases = @("short_label_prose_remains_paragraphs", "invoice_summary_form_remains_paragraphs")
+        }
+    })
+Assert-SequenceEqual `
+    -Actual @($pdfBoundedCtestEvidence.import_diagnostics_contract_fields | ForEach-Object { [string]$_ }) `
+    -Expected $expectedImportDiagnosticsContractFields `
+    -Message "Get-PdfBoundedCtestEvidence should preserve import diagnostics contract fields without filtering or reordering."
+$pdfBoundedCtestImportDiagnosticsDisplay = Get-PdfBoundedCtestImportDiagnosticsDisplay -Evidence $pdfBoundedCtestEvidence
+Assert-Equal `
+    -Actual ([string]$pdfBoundedCtestImportDiagnosticsDisplay.fields) `
+    -Expected ($expectedImportDiagnosticsContractFields -join ", ") `
+    -Message "Get-PdfBoundedCtestImportDiagnosticsDisplay should preserve import diagnostics contract field display order."
+
 Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$summaryVerdict = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_verdict" -f $TaskKey)' `
     -Message "release_visual_metadata_helpers.ps1 should read same-run task verdict fields from the release summary before falling back to the visual gate summary."
