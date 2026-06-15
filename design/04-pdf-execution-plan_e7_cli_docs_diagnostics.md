@@ -734,3 +734,16 @@
 - 已知边界：
   本轮只补 release assets manifest 的诊断字段闭环并放宽单个 release package 测试超时，
   不改变 CLI JSON schema、importer 逻辑、release writer 模板或 full visual gate。
+
+2026-06-15 继续推进（PDF import diagnostics release assets allow-incomplete 超时同步）：
+
+- 已将 `package_release_assets_allow_incomplete` 的 CTest timeout 从 `60` 提升到 `120`，
+  与 `package_release_assets_safety` 保持一致，给 Windows 下的 staging / ZIP creation /
+  manifest audit 留出稳定窗口。
+- 该批次仅调整测试超时，不改 release script 行为，不新增 manifest 字段，也不动
+  `visual_gate=skipped` 语义。
+- 已完成验证：
+  `cmake --build .bpdf-roundtrip-msvc --target rebuild_cache`
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "package_release_assets_allow_incomplete" --output-on-failure --timeout 120`
+  `git diff --check`
+- 仍按当前 `dev` 分支单线推进，不新建分支，不做额外功能扩展。

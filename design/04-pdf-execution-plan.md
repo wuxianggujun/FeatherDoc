@@ -1401,6 +1401,20 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只扩展 package release assets safety 的诊断字段闭环并放宽该测试超时，
   不改变 release writer、CLI JSON schema、importer 续表逻辑或 full visual gate 产物。
 
+2026-06-15 继续推进（PDF import diagnostics release assets allow-incomplete 超时同步）：
+
+- 已同步 `package_release_assets_allow_incomplete` 的 CTest timeout 到 `TIMEOUT 120`，
+  与 `package_release_assets_safety` 保持一致的 release 包装窗口，避免 AllowIncomplete
+  入口在 Windows 上因 staging / ZIP creation 耗时波动被 60 秒默认门槛误伤。
+- 该入口仍然保留 `visual_gate=skipped` 语义，不新增 manifest 字段、不裁剪 release
+  note bundle 内容，也不改变 package script 的行为。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "package_release_assets_allow_incomplete" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已知边界：
+  本轮只调整 AllowIncomplete 包装测试超时，不改变 package script、manifest schema、
+  release note bundle 或文档正文。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
