@@ -1042,6 +1042,31 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮不改变 importer 启发式和 CLI JSON schema，只固定用户可见的保守导入结果；
   未运行 full visual gate，不新增或提交 `output/` 视觉产物。
 
+2026-06-15 继续推进（PDF bounded smoke-import prose / form preflight 契约）：
+
+- 已把 prose/form 负样本继续纳入 bounded `smoke-import` summary：
+  `scripts/run_pdf_ctest_bounded_subset.ps1` 现在在 `smoke-import` summary 中写出
+  `table_continuation_diagnostics=[]`、`tables_imported=0`、
+  `import_table_candidates_as_tables=true`，并新增
+  `import_negative_boundary_contract_cases`。
+- 已固定 `import_negative_boundary_contract_cases` 的两个 case：
+  `short_label_prose_remains_paragraphs` 和
+  `invoice_summary_form_remains_paragraphs`，把 importer -> CLI -> bounded preflight
+  串成可回归闭环。
+- 已同步 `docs/pdf_release_readiness_checklist_zh.rst` 与
+  `pdf_visual_validation_status_docs_contract_test.ps1`，让发布清单和 docs contract
+  同时固定这些 bounded preflight 字段。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_ctest_bounded_subset_summary|pdf_visual_validation_status_docs_contract" --output-on-failure --timeout 120`
+  通过；
+  `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_pdf_ctest_bounded_subset.ps1 -Subset smoke-import -BuildDir .\.bpdf-roundtrip-msvc -OutputJson .\build\pdf-ctest-bounded-subset-current\summary.json`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `26304e4 test: extend PDF bounded import prose contract`。
+- 已知边界：
+  bounded `smoke-import` 只证明资源受限窗口里的 import diagnostics / prose-form
+  preflight，不替代 full visual gate verdict；本轮不新增或提交 `output/` 视觉产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
