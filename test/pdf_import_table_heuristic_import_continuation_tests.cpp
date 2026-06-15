@@ -16,6 +16,8 @@
 namespace {
 
 struct ExpectedTableContinuationDiagnostic {
+    std::size_t page_index{0U};
+    std::size_t block_index{0U};
     std::size_t source_row_offset{0U};
     std::uint32_t continuation_confidence{0U};
     std::uint32_t minimum_continuation_confidence{0U};
@@ -34,11 +36,15 @@ struct ExpectedTableContinuationDiagnostic {
     bool previous_has_repeating_header{false};
     bool source_has_repeating_header{false};
     bool header_matches_previous{false};
+    bool skipped_repeating_header{false};
 };
 
 [[nodiscard]] ExpectedTableContinuationDiagnostic
-expected_compatible_pagebreak_continuation() {
+expected_compatible_table_continuation(std::size_t page_index,
+                                       std::size_t block_index) {
     ExpectedTableContinuationDiagnostic expected;
+    expected.page_index = page_index;
+    expected.block_index = block_index;
     expected.continuation_confidence = 85U;
     expected.header_match_kind =
         featherdoc::pdf::PdfTableContinuationHeaderMatchKind::not_required;
@@ -56,8 +62,11 @@ expected_compatible_pagebreak_continuation() {
 }
 
 [[nodiscard]] ExpectedTableContinuationDiagnostic
-expected_no_previous_table_continuation() {
+expected_no_previous_table_continuation(std::size_t page_index,
+                                        std::size_t block_index) {
     ExpectedTableContinuationDiagnostic expected;
+    expected.page_index = page_index;
+    expected.block_index = block_index;
     expected.header_match_kind =
         featherdoc::pdf::PdfTableContinuationHeaderMatchKind::not_required;
     expected.blocker =
@@ -73,6 +82,8 @@ expected_no_previous_table_continuation() {
 void check_table_continuation_diagnostic(
     const featherdoc::pdf::PdfTableContinuationDiagnostic &diagnostic,
     const ExpectedTableContinuationDiagnostic &expected) {
+    CHECK_EQ(diagnostic.page_index, expected.page_index);
+    CHECK_EQ(diagnostic.block_index, expected.block_index);
     CHECK_EQ(diagnostic.source_row_offset, expected.source_row_offset);
     CHECK_EQ(diagnostic.continuation_confidence,
              expected.continuation_confidence);
@@ -95,14 +106,18 @@ void check_table_continuation_diagnostic(
              expected.source_has_repeating_header);
     CHECK_EQ(diagnostic.header_matches_previous,
              expected.header_matches_previous);
+    CHECK_EQ(diagnostic.skipped_repeating_header,
+             expected.skipped_repeating_header);
 }
 
 void check_initial_table_continuation_diagnostic(
     const std::vector<featherdoc::pdf::PdfTableContinuationDiagnostic>
         &diagnostics,
-    std::uint32_t minimum_continuation_confidence = 0U) {
+    std::uint32_t minimum_continuation_confidence = 0U,
+    std::size_t page_index = 0U, std::size_t block_index = 1U) {
     REQUIRE_FALSE(diagnostics.empty());
-    auto expected = expected_no_previous_table_continuation();
+    auto expected =
+        expected_no_previous_table_continuation(page_index, block_index);
     expected.minimum_continuation_confidence =
         minimum_continuation_confidence;
     check_table_continuation_diagnostic(diagnostics.front(), expected);
@@ -133,7 +148,7 @@ TEST_CASE("PDF table import merges compatible table candidates across page bound
         import_result.table_continuation_diagnostics);
     check_table_continuation_diagnostic(
         import_result.table_continuation_diagnostics[1],
-        expected_compatible_pagebreak_continuation());
+        expected_compatible_table_continuation(1U, 0U));
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 3U);
@@ -206,7 +221,8 @@ TEST_CASE(
     check_initial_table_continuation_diagnostic(
         import_result.table_continuation_diagnostics, 90U);
     const auto &diagnostic = import_result.table_continuation_diagnostics[1];
-    auto expected_diagnostic = expected_compatible_pagebreak_continuation();
+    auto expected_diagnostic =
+        expected_compatible_table_continuation(1U, 0U);
     expected_diagnostic.minimum_continuation_confidence = 90U;
     expected_diagnostic.blocker =
         featherdoc::pdf::PdfTableContinuationBlocker::
@@ -288,7 +304,8 @@ TEST_CASE("PDF table import does not merge cross-page tables with incompatible w
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
     check_initial_table_continuation_diagnostic(
         import_result.table_continuation_diagnostics);
-    auto expected_diagnostic = expected_compatible_pagebreak_continuation();
+    auto expected_diagnostic =
+        expected_compatible_table_continuation(1U, 0U);
     expected_diagnostic.continuation_confidence = 55U;
     expected_diagnostic.column_anchors_match = false;
     expected_diagnostic.blocker =
@@ -363,7 +380,8 @@ TEST_CASE("PDF table import does not merge cross-page tables that start too low 
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
     check_initial_table_continuation_diagnostic(
         import_result.table_continuation_diagnostics);
-    auto expected_diagnostic = expected_compatible_pagebreak_continuation();
+    auto expected_diagnostic =
+        expected_compatible_table_continuation(1U, 0U);
     expected_diagnostic.continuation_confidence = 45U;
     expected_diagnostic.is_near_page_top = false;
     expected_diagnostic.blocker =
@@ -436,7 +454,8 @@ TEST_CASE("PDF table import does not merge through an intervening paragraph") {
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
     check_initial_table_continuation_diagnostic(
         import_result.table_continuation_diagnostics);
-    auto expected_diagnostic = expected_no_previous_table_continuation();
+    auto expected_diagnostic =
+        expected_no_previous_table_continuation(1U, 1U);
     check_table_continuation_diagnostic(
         import_result.table_continuation_diagnostics[1], expected_diagnostic);
 
@@ -553,7 +572,8 @@ TEST_CASE("PDF table import preserves consecutive table body order") {
     REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
     check_initial_table_continuation_diagnostic(
         import_result.table_continuation_diagnostics);
-    auto expected_diagnostic = expected_compatible_pagebreak_continuation();
+    auto expected_diagnostic =
+        expected_compatible_table_continuation(0U, 2U);
     expected_diagnostic.continuation_confidence = 35U;
     expected_diagnostic.is_first_block_on_page = false;
     expected_diagnostic.is_near_page_top = false;

@@ -810,3 +810,13 @@
 - 已知边界：
   本轮只改善验证入口粒度，不改变 CLI JSON diagnostics 字段、importer 续表逻辑、
   release assets 或 visual gate 产物。
+
+2026-06-15 继续推进（importer continuation diagnostic 位置字段契约）：
+
+- `pdf_import_table_heuristic_import_continuation_tests.cpp` 的 diagnostic helper
+  现在把 `page_index`、`block_index` 与 `skipped_repeating_header` 纳入统一断言。
+- 这让 importer 层与 CLI JSON 层对 continuation diagnostics 的位置字段和
+  repeated-header 跳过语义保持同一条契约链路，而不是只在 CLI string 断言中覆盖。
+- 已知边界：
+  本轮不改变 importer 决策、不新增 CLI JSON 字段、不触碰 release assets 或
+  full visual gate 产物。

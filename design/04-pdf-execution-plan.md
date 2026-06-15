@@ -1462,6 +1462,18 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只新增测试调度入口，不拆分源码文件、不改变 CLI/importer 行为、不改变
   bounded summary 或 release/readiness schema。
 
+2026-06-15 继续推进（importer continuation diagnostic 位置字段契约）：
+
+- 已收紧 `pdf_import_table_heuristic_import_continuation_tests.cpp` 的 importer 层
+  continuation diagnostic helper：除既有续表判断字段外，统一固定
+  `page_index`、`block_index` 和 `skipped_repeating_header`。
+- 该回归覆盖跨页续接、阈值阻断、列锚点不匹配、非页顶、跨页中间段落阻断、
+  同页非首块阻断等样本，避免 importer 内部 diagnostic 与 CLI JSON 位置字段
+  或 repeated-header 跳过语义发生漂移。
+- 已知边界：
+  本轮只补 importer 测试契约，不改变 continuation heuristic、CLI JSON schema、
+  release/readiness 字段或 full visual gate 产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
