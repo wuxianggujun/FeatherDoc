@@ -547,7 +547,23 @@ foreach ($bounded in @(
             import_diagnostics_contract_fields = @(
                 "table_continuation_diagnostics",
                 "table_continuation_diagnostics=[]",
-                "tables_imported=0"
+                "tables_imported=0",
+                "import_table_candidates_as_tables=true",
+                "failure_kind=no_text_paragraphs",
+                "source_row_offset=0",
+                "skipped_repeating_header=false",
+                "disposition=created_new_table",
+                "blocker=repeated_header_mismatch",
+                "blocker=column_count_mismatch",
+                "blocker=column_anchors_mismatch",
+                "blocker=continuation_confidence_below_threshold",
+                "continuation_confidence=70",
+                "continuation_confidence=55",
+                "continuation_confidence=85",
+                "continuation_confidence=30",
+                "minimum_continuation_confidence=90",
+                "column_count_matches=false",
+                "column_anchors_match=false"
             )
             import_negative_boundary_contract_cases = @(
                 "short_label_prose_remains_paragraphs",
@@ -578,6 +594,22 @@ foreach ($bounded in @(
 $pdfBoundedCtestInfo = Get-PdfBoundedCtestSummaryInfo `
     -SummaryJson @($boundedSmokePath, $boundedBusinessPath) `
     -RepoRoot $resolvedRepoRoot
+$expectedImportDiagnosticContractFields = @(
+    "source_row_offset=0",
+    "skipped_repeating_header=false",
+    "disposition=created_new_table",
+    "blocker=repeated_header_mismatch",
+    "blocker=column_count_mismatch",
+    "blocker=column_anchors_mismatch",
+    "blocker=continuation_confidence_below_threshold",
+    "continuation_confidence=70",
+    "continuation_confidence=55",
+    "continuation_confidence=85",
+    "continuation_confidence=30",
+    "minimum_continuation_confidence=90",
+    "column_count_matches=false",
+    "column_anchors_match=false"
+)
 if ($pdfBoundedCtestInfo.status -ne "pass" -or
     [int]$pdfBoundedCtestInfo.summary_count -ne 2 -or
     [int]$pdfBoundedCtestInfo.pass_count -ne 2 -or
@@ -588,6 +620,11 @@ if ($pdfBoundedCtestInfo.status -ne "pass" -or
     @($pdfBoundedCtestInfo.import_diagnostics_contract_fields) -notcontains "table_continuation_diagnostics=[]" -or
     @($pdfBoundedCtestInfo.import_negative_boundary_contract_cases) -notcontains "short_label_prose_remains_paragraphs") {
     throw "PDF bounded CTest summaries were not aggregated as auxiliary release evidence."
+}
+foreach ($expectedImportDiagnosticContractField in $expectedImportDiagnosticContractFields) {
+    if (@($pdfBoundedCtestInfo.import_diagnostics_contract_fields) -notcontains $expectedImportDiagnosticContractField) {
+        throw "PDF bounded CTest summaries did not preserve import diagnostic contract field '$expectedImportDiagnosticContractField'."
+    }
 }
 
 $fullPdfCtestSummaryPath = Join-Path $boundedCtestDir "full-pdf-ctest-summary.json"
