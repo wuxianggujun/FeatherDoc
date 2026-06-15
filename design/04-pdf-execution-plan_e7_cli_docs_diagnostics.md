@@ -512,3 +512,29 @@
 - 已知边界：
   本轮只补公开文档契约，不新增或更改 CLI JSON 字段、不改变 importer 续表启发式，
   也不运行 full visual gate。
+
+2026-06-15 继续推进（PDF import blocker diagnostics rollup 字段链路）：
+
+- 已把 blocker diagnostic object 关键字段加入 `smoke-import` bounded summary 的
+  `import_diagnostics_contract_fields`，让 release candidate 汇总、release blocker
+  rollup 和 governance handoff 可以沿现有
+  `pdf_bounded_ctest_import_diagnostics_contract_fields` 链路追踪完整 blocker
+  diagnostics，而不只看到 `table_continuation_diagnostics` 字段名。
+- 字段清单覆盖四类 blocker、`source_row_offset=0`、
+  `skipped_repeating_header=false`、`disposition=created_new_table`、
+  `continuation_confidence=70/55/85/30`、`minimum_continuation_confidence=90`、
+  `column_count_matches=false` 和 `column_anchors_match=false`。
+- 已同步 release readiness checklist 和两个 contract 测试：
+  `pdf_ctest_bounded_subset_summary_test.ps1` 固定 bounded summary JSON，
+  `pdf_visual_validation_status_docs_contract_test.ps1` 固定文档和脚本 marker。
+- 验证命令：
+  直接运行 `test\pdf_ctest_bounded_subset_summary_test.ps1` 通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_visual_validation_status_docs_contract|release_candidate_visual_verdict_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 验证备注：
+  更宽的 release candidate 组合测试因长链路 timeout，不作为本批字段契约失败依据。
+- 已提交并推送：
+  `e560756 test: expose PDF import blocker diagnostics rollup fields`。
+- 已知边界：
+  本轮只补 release/governance 证据字段链路，不新增 CLI 字段、不改变 importer 逻辑，
+  也不生成或提交 `output/` 视觉产物。

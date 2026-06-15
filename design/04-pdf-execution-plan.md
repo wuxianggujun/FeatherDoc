@@ -1187,6 +1187,38 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只补公开 workflow 文档与 docs contract，不改变 CLI JSON schema、importer
   blocker 判断或 release bundle 内容，也不新增视觉产物。
 
+2026-06-15 继续推进（PDF import blocker diagnostics rollup 字段链路）：
+
+- 已把 `scripts/run_pdf_ctest_bounded_subset.ps1` 的
+  `smoke-import.import_diagnostics_contract_fields` 从基础 import 字段扩展到完整
+  blocker diagnostic object 的关键用户可见值，确保后续
+  release candidate summaries、release blocker rollup 和 governance handoff 继续通过
+  既有转发链路暴露这些字段。
+- 新增字段包括 `source_row_offset=0`、`skipped_repeating_header=false`、
+  `disposition=created_new_table`、四类 blocker、`continuation_confidence=70/55/85/30`、
+  `minimum_continuation_confidence=90`、`column_count_matches=false` 和
+  `column_anchors_match=false`。
+- 已同步 `docs/pdf_release_readiness_checklist_zh.rst` 与
+  `pdf_visual_validation_status_docs_contract_test.ps1`，固定 release readiness 文档必须
+  保留这些 import diagnostics preflight 字段；`pdf_ctest_bounded_subset_summary_test.ps1`
+  同步固定 summary JSON 的字段顺序。
+- 已完成验证：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test\pdf_ctest_bounded_subset_summary_test.ps1 -RepoRoot . -WorkingDir .bpdf-roundtrip-msvc\test\pdf_ctest_bounded_subset_summary_direct`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_visual_validation_status_docs_contract|release_candidate_visual_verdict_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 验证备注：
+  较宽的
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_ctest_bounded_subset_summary|pdf_visual_validation_status_docs_contract|release_candidate_visual_verdict" --output-on-failure --timeout 120`
+  因 `pdf_ctest_bounded_subset_summary` 60s CTest property 和
+  `release_candidate_visual_verdict*` 长链路触发 timeout；未出现字段断言失败，已改用上述
+  聚焦 contract 验证。
+- 已提交并推送：
+  `e560756 test: expose PDF import blocker diagnostics rollup fields`。
+- 已知边界：
+  本轮只扩展 bounded summary / release readiness 的字段链路，不改变 importer、CLI JSON
+  schema、release bundle 渲染模板或 full visual gate verdict。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
