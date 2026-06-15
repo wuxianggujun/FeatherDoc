@@ -504,6 +504,27 @@ function Get-PdfBoundedCtestEvidence {
     return [pscustomobject]$evidence
 }
 
+function Get-PdfBoundedCtestImportDiagnosticsDisplay {
+    param([AllowNull()]$Evidence)
+
+    $tests = @(Get-OptionalPropertyArray -Object $Evidence -Name "import_diagnostics_contract_tests" |
+        ForEach-Object { [string]$_ } |
+        Where-Object { -not ([string]::IsNullOrWhiteSpace($_)) })
+    $fields = @(Get-OptionalPropertyArray -Object $Evidence -Name "import_diagnostics_contract_fields" |
+        ForEach-Object { [string]$_ } |
+        Where-Object { -not ([string]::IsNullOrWhiteSpace($_)) })
+    $cases = @(Get-OptionalPropertyArray -Object $Evidence -Name "import_negative_boundary_contract_cases" |
+        ForEach-Object { [string]$_ } |
+        Where-Object { -not ([string]::IsNullOrWhiteSpace($_)) })
+
+    return [pscustomobject][ordered]@{
+        has_evidence = ($tests.Count -gt 0 -or $fields.Count -gt 0 -or $cases.Count -gt 0)
+        tests = ($tests -join ", ")
+        fields = ($fields -join ", ")
+        negative_boundary_cases = ($cases -join ", ")
+    }
+}
+
 function Get-OptionalPropertyArray {
     param(
         $Object,

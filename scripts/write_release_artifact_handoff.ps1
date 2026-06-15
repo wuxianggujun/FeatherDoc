@@ -339,6 +339,7 @@ $supersededReviewTasksCount = Get-SupersededReviewTaskCount -ReportPath $superse
 $pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
 $pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath -RepoRoot $repoRoot
 $pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
+$pdfBoundedCtestImportDiagnostics = Get-PdfBoundedCtestImportDiagnosticsDisplay -Evidence $pdfBoundedCtestEvidence
 
 $installedDataDir = ""
 $installedQuickstartEn = ""
@@ -459,6 +460,11 @@ if ($pdfBoundedCtestEvidence.status -ne "not_available") {
     [void]$handoffLines.Add("- PDF bounded CTest auxiliary evidence: status=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status), summaries=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.summary_count), pass=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.pass_count), selected_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.selected_test_count), skipped_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.skipped_test_count)")
     [void]$handoffLines.Add("- PDF bounded CTest auxiliary subsets: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.subsets) -join ', '))")
     [void]$handoffLines.Add("- PDF bounded CTest auxiliary summaries: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+    if ($pdfBoundedCtestImportDiagnostics.has_evidence) {
+        [void]$handoffLines.Add("- PDF bounded CTest import diagnostics contract tests: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.tests)")
+        [void]$handoffLines.Add("- PDF bounded CTest import diagnostics contract fields: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.fields)")
+        [void]$handoffLines.Add("- PDF bounded CTest import negative boundary cases: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.negative_boundary_cases)")
+    }
 }
 [void]$handoffLines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
 [void]$handoffLines.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")
@@ -518,6 +524,10 @@ if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
 [void]$handoffLines.Add("- PDF bounded CTest auxiliary evidence: $(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status)")
 [void]$handoffLines.Add("- PDF bounded CTest summaries / pass: $(Get-DisplayValue -Value ('{0}/{1}' -f $pdfBoundedCtestEvidence.summary_count, $pdfBoundedCtestEvidence.pass_count))")
 [void]$handoffLines.Add("- PDF bounded CTest selected / skipped tests: $(Get-DisplayValue -Value ('{0}/{1}' -f $pdfBoundedCtestEvidence.selected_test_count, $pdfBoundedCtestEvidence.skipped_test_count))")
+if ($pdfBoundedCtestImportDiagnostics.has_evidence) {
+    [void]$handoffLines.Add("- PDF bounded CTest import diagnostics contract fields: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.fields)")
+    [void]$handoffLines.Add("- PDF bounded CTest import negative boundary cases: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.negative_boundary_cases)")
+}
 [void]$handoffLines.Add("- Superseded review tasks: $(Get-DisplayValue -Value $supersededReviewTasksCount)")
 [void]$handoffLines.Add("- Section page setup task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir)")
 [void]$handoffLines.Add("- Page number fields task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir)")
@@ -567,6 +577,9 @@ if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
     [void]$handoffLines.Add("- PDF visual gate evidence: (not available)")
 }
 [void]$handoffLines.Add("- PDF bounded CTest auxiliary summaries: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+if ($pdfBoundedCtestImportDiagnostics.has_evidence) {
+    [void]$handoffLines.Add("- PDF bounded CTest import diagnostics contract tests: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.tests)")
+}
 [void]$handoffLines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
 [void]$handoffLines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")
 [void]$handoffLines.Add("- Document review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $documentTaskDir)")

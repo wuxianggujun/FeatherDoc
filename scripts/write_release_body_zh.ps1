@@ -163,6 +163,7 @@ $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummar
 $pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
 $pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath -RepoRoot $repoRoot
 $pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
+$pdfBoundedCtestImportDiagnostics = Get-PdfBoundedCtestImportDiagnosticsDisplay -Evidence $pdfBoundedCtestEvidence
 
 $installedDataDir = ""
 $installedQuickstartZh = ""
@@ -295,6 +296,11 @@ if ($pdfBoundedCtestEvidence.status -ne "not_available") {
     [void]$lines.Add("- PDF bounded CTest auxiliary evidence：status=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status), summaries=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.summary_count), pass=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.pass_count), selected_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.selected_test_count), skipped_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.skipped_test_count)")
     [void]$lines.Add("- PDF bounded CTest auxiliary subsets：$(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.subsets) -join ', '))")
     [void]$lines.Add("- PDF bounded CTest auxiliary summaries：$(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+    if ($pdfBoundedCtestImportDiagnostics.has_evidence) {
+        [void]$lines.Add("- PDF bounded CTest import diagnostics contract tests：$(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.tests)")
+        [void]$lines.Add("- PDF bounded CTest import diagnostics contract fields：$(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.fields)")
+        [void]$lines.Add("- PDF bounded CTest import negative boundary cases：$(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.negative_boundary_cases)")
+    }
     [void]$lines.Add("- PDF bounded CTest boundary：辅助证据不能替代 full visual gate verdict。")
 }
 [void]$lines.Add("- Smoke verdict：$(Get-DisplayValue -Value $smokeVerdict)")

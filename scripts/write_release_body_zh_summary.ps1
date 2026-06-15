@@ -259,13 +259,23 @@ function Add-PdfBoundedCtestEvidenceShortSummaryBullets {
         return
     }
 
+    $importDiagnostics = Get-PdfBoundedCtestImportDiagnosticsDisplay -Evidence $PdfBoundedCtestEvidence
+    $diagnosticsSuffix = if ($importDiagnostics.has_evidence) {
+        ' import_diagnostics_fields={0} negative_boundary_cases={1}' -f `
+            (Get-DisplayValue -Value $importDiagnostics.fields),
+            (Get-DisplayValue -Value $importDiagnostics.negative_boundary_cases)
+    } else {
+        ''
+    }
+
     Add-UniqueLine -Lines $Lines -Line (
-        'PDF bounded CTest 辅助证据已进入短摘要：status={0} summaries={1} pass={2} selected_tests={3} skipped_tests={4}；该证据只补充资源受限复核，不替代 full visual gate verdict。' -f `
+        'PDF bounded CTest 辅助证据已进入短摘要：status={0} summaries={1} pass={2} selected_tests={3} skipped_tests={4}{5}；该证据只补充资源受限复核，不替代 full visual gate verdict。' -f `
             (Get-DisplayValue -Value $status),
             (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "summary_count")),
             (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "pass_count")),
             (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "selected_test_count")),
-            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "skipped_test_count"))
+            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfBoundedCtestEvidence -Name "skipped_test_count")),
+            $diagnosticsSuffix
     )
 }
 

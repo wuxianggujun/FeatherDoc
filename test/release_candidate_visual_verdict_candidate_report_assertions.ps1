@@ -64,6 +64,12 @@ foreach ($assertion in @(
         "PDF visual baseline manifest samples: 42",
         "PDF visual baselines: 44"
     ) -Message ("{0} should keep PDF visual status, verdict, paths, and counts in one Markdown list run." -f $assertion.Label)
+    Assert-ContainsText -Text $content -ExpectedText "PDF bounded CTest import diagnostics contract fields" `
+        -Message ("{0} should expose bounded PDF import diagnostics contract fields." -f $assertion.Label)
+    Assert-ContainsText -Text $content -ExpectedText "table_continuation_diagnostics=[]" `
+        -Message ("{0} should expose the bounded PDF import diagnostics field sample." -f $assertion.Label)
+    Assert-ContainsText -Text $content -ExpectedText "short_label_prose_remains_paragraphs" `
+        -Message ("{0} should expose bounded PDF import negative boundary cases." -f $assertion.Label)
 }
 
 $candidateReleaseHandoff = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseHandoffPath
@@ -85,6 +91,8 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Key o
     "PDF bounded CTest summaries:",
     "smoke-summary.json",
     "business-summary.json",
+    "PDF bounded CTest import diagnostics contract fields:",
+    "table_continuation_diagnostics=[]",
     "PDF release readiness summary:",
     "release-readiness-summary.json",
     "PDF full CTest summary:",
@@ -95,6 +103,9 @@ Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Step 
     "PDF bounded CTest subsets: smoke-import, regression-business-samples",
     "PDF bounded CTest selected tests: 20",
     "PDF bounded CTest skipped tests: 0",
+    "PDF bounded CTest import diagnostics contract tests: pdf_cli_import, pdf_import_table_heuristic",
+    "PDF bounded CTest import diagnostics contract fields: table_continuation_diagnostics, table_continuation_diagnostics=[], tables_imported=0",
+    "PDF bounded CTest import negative boundary cases: short_label_prose_remains_paragraphs, invoice_summary_form_remains_paragraphs",
     "PDF visual release evidence accepted: True (fresh full guarded False, pass summary before outer timeout False, segmented full coverage True)",
     "PDF full CTest readiness: timeout (95.7% complete)",
     "PDF full CTest progress: 133/139 completed, 6 not run",
@@ -254,7 +265,11 @@ Assert-MarkdownListRunContainsAll -Text $candidateReleaseBody -Anchor "PDF visua
     "PDF visual baseline manifest samples",
     "42",
     "PDF visual baselines",
-    "44"
+    "44",
+    "PDF bounded CTest import diagnostics contract fields",
+    "table_continuation_diagnostics=[]",
+    "PDF bounded CTest import negative boundary cases",
+    "short_label_prose_remains_paragraphs"
 ) -Message "release_body.zh-CN.md should keep PDF visual status, verdict, paths, and counts in one Markdown list run."
 
 $candidateReleaseSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseSummaryPath
@@ -263,7 +278,9 @@ foreach ($fragment in @(
         "verdict=pass",
         "aggregate-contact-sheet.png",
         "cjk_copy_search_count=43",
-        "visual_baseline_count=44"
+        "visual_baseline_count=44",
+        "import_diagnostics_fields=table_continuation_diagnostics, table_continuation_diagnostics=[], tables_imported=0",
+        "negative_boundary_cases=short_label_prose_remains_paragraphs, invoice_summary_form_remains_paragraphs"
     )) {
     Assert-ContainsText -Text $candidateReleaseSummary -ExpectedText $fragment `
         -Message ("release_summary.zh-CN.md should expose PDF visual gate fragment '{0}'." -f $fragment)
@@ -295,6 +312,12 @@ Assert-LineContainsAll -Text $candidateReviewerChecklist -Fragments @(
     'visual baseline manifest samples `42`',
     'visual baselines `44`'
 ) -Message "REVIEWER_CHECKLIST.md should keep PDF visual finalize verdict, paths, and counts on one reviewer signoff line."
+Assert-LineContainsAll -Text $candidateReviewerChecklist -Fragments @(
+    'Confirm the bounded import diagnostics contract is visible to reviewers',
+    'pdf_cli_import, pdf_import_table_heuristic',
+    'table_continuation_diagnostics=[]',
+    'short_label_prose_remains_paragraphs'
+) -Message "REVIEWER_CHECKLIST.md should keep bounded import diagnostics contract fields on one reviewer signoff line."
 
 $localAbsolutePathPattern = '(?i)\b[a-z]:(?:\\\\|\\)[^\s"''`<>|]+|(?<!\w)/(?:Users|home)/[^\s"''`<>|]+'
 foreach ($releaseMaterialPath in @(

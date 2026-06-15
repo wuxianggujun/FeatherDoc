@@ -339,6 +339,7 @@ $consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smo
 $gateSummaryPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "summary_json"
 $gateFinalReviewPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "final_review"
 $pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
+$pdfBoundedCtestImportDiagnostics = Get-PdfBoundedCtestImportDiagnosticsDisplay -Evidence $pdfBoundedCtestEvidence
 
 $visualVerdict = ""
 $readmeGalleryStatus = ""
@@ -484,6 +485,11 @@ if ($pdfBoundedCtestEvidence.status -ne "not_available") {
     [void]$lines.Add("- PDF bounded CTest auxiliary evidence: status=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status), summaries=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.summary_count), pass=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.pass_count), selected_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.selected_test_count), skipped_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.skipped_test_count)")
     [void]$lines.Add("- PDF bounded CTest auxiliary subsets: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.subsets) -join ', '))")
     [void]$lines.Add("- PDF bounded CTest auxiliary summaries: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+    if ($pdfBoundedCtestImportDiagnostics.has_evidence) {
+        [void]$lines.Add("- PDF bounded CTest import diagnostics contract tests: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.tests)")
+        [void]$lines.Add("- PDF bounded CTest import diagnostics contract fields: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.fields)")
+        [void]$lines.Add("- PDF bounded CTest import negative boundary cases: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.negative_boundary_cases)")
+    }
 }
 [void]$lines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
 [void]$lines.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")
@@ -689,6 +695,12 @@ if ($pdfBoundedCtestEvidence.status -ne "not_available") {
             $pdfBoundedCtestEvidence.skipped_test_count,
             (@($pdfBoundedCtestEvidence.subsets) -join ', '))
     Add-CheckboxLine -Lines $lines -Text ('Open the bounded CTest summary list when you need to verify the auxiliary evidence source set: {0}' -f (Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', ')))
+    if ($pdfBoundedCtestImportDiagnostics.has_evidence) {
+        Add-CheckboxLine -Lines $lines -Text ('Confirm the bounded import diagnostics contract is visible to reviewers: tests `{0}`, fields `{1}`, negative boundary cases `{2}`.' -f `
+                $pdfBoundedCtestImportDiagnostics.tests,
+                $pdfBoundedCtestImportDiagnostics.fields,
+                $pdfBoundedCtestImportDiagnostics.negative_boundary_cases)
+    }
 }
 Add-CheckboxLine -Lines $lines -Text 'Confirm the fixed PDF release readiness checklist has been reviewed before publishing: `docs/pdf_release_readiness_checklist_zh.rst`.'
 if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence) {

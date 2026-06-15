@@ -48,6 +48,24 @@
     } else {
         "(not available)"
     }
+    $pdfBoundedCtestImportDiagnosticsContractTests = @(Get-OptionalPropertyValue -Object $summary.steps.pdf_bounded_ctest -Name "import_diagnostics_contract_tests")
+    $pdfBoundedCtestImportDiagnosticsContractFields = @(Get-OptionalPropertyValue -Object $summary.steps.pdf_bounded_ctest -Name "import_diagnostics_contract_fields")
+    $pdfBoundedCtestImportNegativeBoundaryCases = @(Get-OptionalPropertyValue -Object $summary.steps.pdf_bounded_ctest -Name "import_negative_boundary_contract_cases")
+    $pdfBoundedCtestImportDiagnosticsContractTestsDisplay = if ($pdfBoundedCtestImportDiagnosticsContractTests.Count -gt 0) {
+        $pdfBoundedCtestImportDiagnosticsContractTests -join ", "
+    } else {
+        "(not available)"
+    }
+    $pdfBoundedCtestImportDiagnosticsContractFieldsDisplay = if ($pdfBoundedCtestImportDiagnosticsContractFields.Count -gt 0) {
+        $pdfBoundedCtestImportDiagnosticsContractFields -join ", "
+    } else {
+        "(not available)"
+    }
+    $pdfBoundedCtestImportNegativeBoundaryCasesDisplay = if ($pdfBoundedCtestImportNegativeBoundaryCases.Count -gt 0) {
+        $pdfBoundedCtestImportNegativeBoundaryCases -join ", "
+    } else {
+        "(not available)"
+    }
 
     $readmeGalleryStatusLine = switch ($summary.readme_gallery.status) {
         "completed" {
@@ -163,6 +181,9 @@
 - PDF bounded CTest subsets: $pdfBoundedCtestSubsetsDisplay
 - PDF bounded CTest selected tests: $($summary.steps.pdf_bounded_ctest.selected_test_count)
 - PDF bounded CTest skipped tests: $($summary.steps.pdf_bounded_ctest.skipped_test_count)
+- PDF bounded CTest import diagnostics contract tests: $pdfBoundedCtestImportDiagnosticsContractTestsDisplay
+- PDF bounded CTest import diagnostics contract fields: $pdfBoundedCtestImportDiagnosticsContractFieldsDisplay
+- PDF bounded CTest import negative boundary cases: $pdfBoundedCtestImportNegativeBoundaryCasesDisplay
 - PDF full CTest readiness: $($summary.steps.pdf_full_ctest_readiness.full_ctest_status) ($($summary.steps.pdf_full_ctest_readiness.completion_percent)% complete)
 - PDF full CTest progress: $($summary.steps.pdf_full_ctest_readiness.completed_test_count)/$($summary.steps.pdf_full_ctest_readiness.selected_test_count) completed, $($summary.steps.pdf_full_ctest_readiness.not_run_test_count) not run
 - PDF full CTest observed failures: $($summary.steps.pdf_full_ctest_readiness.failed_test_count), zero failed observed $($summary.steps.pdf_full_ctest_readiness.zero_failed_tests_observed)
@@ -217,6 +238,7 @@ $wordVisualStandardReviewMetadataEvidenceMarkdown
 - PDF visual segmented gate summary: $pdfVisualSegmentedGateSummaryDisplayPath
 - PDF visual segmented gate contact sheet: $pdfVisualSegmentedGateContactSheetDisplayPath
 - PDF bounded CTest summaries: $pdfBoundedCtestSummaryDisplay
+- PDF bounded CTest import diagnostics contract fields: $pdfBoundedCtestImportDiagnosticsContractFieldsDisplay
 - PDF release readiness summary: $pdfFullCtestReadinessSummaryDisplayPath
 - PDF full CTest summary: $pdfFullCtestSummaryDisplayPath
 "@
