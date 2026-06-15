@@ -1474,6 +1474,18 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只补 importer 测试契约，不改变 continuation heuristic、CLI JSON schema、
   release/readiness 字段或 full visual gate 产物。
 
+2026-06-15 继续推进（PDF import 成功 JSON 公共字段文档契约）：
+
+- 已同步英文/中文 PDF workflow 文档：`import-pdf --json` 成功示例现在展示
+  `write_json_mutation_result` 提供的公共 mutation 字段 `in_place`、`sections`、
+  `headers` 和 `footers`，再接 PDF import 专属字段。
+- 已补 `pdf_import_docs_contract_test.ps1`，同时固定用户文档示例和 CLI 公共
+  mutation writer 的字段链路，避免用户文档只展示 import 专属字段而漏掉实际
+  JSON 根字段。
+- 已知边界：
+  本轮只补用户可见文档和静态契约，不改变 CLI JSON 输出、importer 续表逻辑、
+  release assets 或 full visual gate 产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

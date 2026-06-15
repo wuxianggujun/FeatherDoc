@@ -131,14 +131,19 @@ PDF Import JSON Diagnostics
 This section documents the PDF import JSON diagnostics emitted by
 ``featherdoc_cli import-pdf --json``.
 
-Successful JSON output includes the common fields ``command``, ``ok``,
-``input`` and ``output`` plus import counters:
+Successful JSON output includes the common mutation fields ``command``,
+``ok``, ``in_place``, ``sections``, ``headers`` and ``footers``, then the PDF
+import fields ``input`` and ``output`` plus import counters:
 
 .. code-block:: json
 
    {
      "command": "import-pdf",
      "ok": true,
+     "in_place": false,
+     "sections": 1,
+     "headers": 0,
+     "footers": 0,
      "input": "input.pdf",
      "output": "imported.docx",
      "paragraphs_imported": 2,

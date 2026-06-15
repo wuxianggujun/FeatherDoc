@@ -315,6 +315,7 @@ $chineseApiIndexPath = Join-Path $resolvedRepoRoot "docs\zh-CN\api\index.rst"
 $changelogPath = Join-Path $resolvedRepoRoot "CHANGELOG.md"
 $cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
 $pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf_document_importer.hpp"
+$cliCommandSupportPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli_command_support.hpp"
 $pdfCliImportCommandsPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli_pdf_import_commands.cpp"
 $pdfCliImportOutputPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli_pdf_import_output.cpp"
 $pdfCliImportTestsPath = Join-Path $resolvedRepoRoot "test\pdf_cli_import_tests.cpp"
@@ -329,6 +330,7 @@ $chineseApiIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $chineseApiI
 $changelogText = Get-Content -Raw -Encoding UTF8 -LiteralPath $changelogPath
 $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
+$cliCommandSupportText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cliCommandSupportPath
 $pdfCliImportCommandsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportCommandsPath
 $pdfCliImportOutputText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportOutputPath
 $pdfCliImportTestsTextParts = Get-ChildItem -LiteralPath (Split-Path -Parent $pdfCliImportTestsPath) -Filter "pdf_cli_import*.cpp" |
@@ -379,6 +381,11 @@ $requiredPdfImportDocsTerms = @(
 $requiredPdfImportJsonDiagnosticsDocsTerms = @(
     "PDF Import JSON Diagnostics",
     "PDF import JSON diagnostics",
+    "common mutation fields",
+    '"in_place": false',
+    '"sections": 1',
+    '"headers": 0',
+    '"footers": 0',
     '"table_continuation_diagnostics_count": 2',
     '"table_continuation_diagnostics": [',
     "page_index",
@@ -502,6 +509,13 @@ $requiredPdfImportScopeDocsTerms = @(
     "exact visual reconstruction",
     "arbitrary local column drift",
     "Unsupported cases must fail or remain paragraphs"
+)
+
+$requiredPdfImportCommonMutationJsonKeys = @(
+    '\"in_place\"',
+    '\"sections\"',
+    '\"headers\"',
+    '\"footers\"'
 )
 
 $requiredPdfImportCliJsonSummaryKeys = @(
@@ -795,6 +809,11 @@ foreach ($marker in @(
     "featherdoc_cli import-pdf input.pdf --output imported.docx --json",
     "--import-table-candidates-as-tables",
     "--min-table-continuation-confidence",
+    "mutation",
+    '"in_place": false',
+    '"sections": 1',
+    '"headers": 0',
+    '"footers": 0',
     "table_continuation_diagnostics_count",
     "table_continuation_diagnostics",
     "column_anchors_mismatch",
@@ -823,6 +842,13 @@ foreach ($marker in @(
     "Unsupported cases must fail or remain paragraphs"
 )) {
     Assert-ContainsText -Text $chinesePdfWorkflowDocsText -ExpectedText $marker -Label "docs/zh-CN/api/pdf_workflow.rst"
+}
+
+foreach ($key in $requiredPdfImportCommonMutationJsonKeys) {
+    Assert-ContainsText `
+        -Text $cliCommandSupportText `
+        -ExpectedText $key `
+        -Label "cli/featherdoc_cli_command_support.hpp"
 }
 
 foreach ($anchor in $scopeCoverageAnchors) {

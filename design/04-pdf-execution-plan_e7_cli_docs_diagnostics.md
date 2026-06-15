@@ -820,3 +820,13 @@
 - 已知边界：
   本轮不改变 importer 决策、不新增 CLI JSON 字段、不触碰 release assets 或
   full visual gate 产物。
+
+2026-06-15 继续推进（PDF import 成功 JSON 公共 mutation 字段文档契约）：
+
+- 英文/中文 `pdf_workflow.rst` 的 `import-pdf --json` 成功示例已补齐公共
+  mutation 根字段：`in_place`、`sections`、`headers` 和 `footers`。
+- `pdf_import_docs_contract_test.ps1` 现在同时验证文档示例包含这些字段，并确认字段
+  来自 `cli/featherdoc_cli_command_support.hpp` 的公共 JSON mutation writer。
+- 已知边界：
+  该批次只补文档可见性和静态契约，不改变 CLI JSON schema、importer 续表
+  heuristic、release assets 或 full visual gate verdict。

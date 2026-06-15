@@ -118,13 +118,19 @@ PDF 导入 JSON 诊断
 
 本节说明 ``featherdoc_cli import-pdf --json`` 输出的 PDF import JSON diagnostics。
 
-成功 JSON 包含 ``command``、``ok``、``input``、``output`` 和导入计数：
+成功 JSON 包含通用 mutation 字段 ``command``、``ok``、``in_place``、
+``sections``、``headers`` 和 ``footers``，随后是 PDF import 字段
+``input``、``output`` 和导入计数：
 
 .. code-block:: json
 
    {
      "command": "import-pdf",
      "ok": true,
+     "in_place": false,
+     "sections": 1,
+     "headers": 0,
+     "footers": 0,
      "input": "input.pdf",
      "output": "imported.docx",
      "paragraphs_imported": 2,
