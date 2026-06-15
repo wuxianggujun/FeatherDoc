@@ -247,14 +247,19 @@ Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
 Assert-NotContains -Path $bodyPath -UnexpectedText $installDir -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText $resolvedWorkingDir -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText 'draft' -Label 'release_body.zh-CN.md'
-Assert-NotContains -Path $bodyPath -UnexpectedText '鑽夌' -Label 'release_body.zh-CN.md'
-Assert-NotContains -Path $bodyPath -UnexpectedText '鍙戝竷璇存槑鑽夌' -Label 'release_body.zh-CN.md'
-Assert-NotContains -Path $bodyPath -UnexpectedText '璇峰湪鍙戝竷鍓嶈ˉ榻? -Label 'release_body.zh-CN.md'
-Assert-NotContains -Path $bodyPath -UnexpectedText '杩欎唤鏂囦欢鐢?`write_release_body_zh.ps1` 鑷姩鐢熸垚' -Label 'release_body.zh-CN.md'
+$draftWord = -join (0x8349, 0x7a3f | ForEach-Object { [char]$_ })
+$releaseDraft = -join (0x53d1, 0x5e03, 0x8bf4, 0x660e, 0x8349, 0x7a3f | ForEach-Object { [char]$_ })
+$fillBeforeRelease = -join (0x8bf7, 0x5728, 0x53d1, 0x5e03, 0x524d, 0x8865, 0x9f50 | ForEach-Object { [char]$_ })
+$generatedByScript = (-join (0x8fd9, 0x4efd, 0x6587, 0x4ef6, 0x7531 | ForEach-Object { [char]$_ })) +
+    ([char]96) + 'write_release_body_zh.ps1' + ([char]96) +
+    (-join (0x81ea, 0x52a8, 0x751f, 0x6210 | ForEach-Object { [char]$_ }))
+Assert-NotContains -Path $bodyPath -UnexpectedText $draftWord -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText $releaseDraft -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText $fillBeforeRelease -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText $generatedByScript -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $shortPath -UnexpectedText 'draft' -Label 'release_summary.zh-CN.md'
-Assert-NotContains -Path $shortPath -UnexpectedText '鑽夌' -Label 'release_summary.zh-CN.md'
-Assert-NotContains -Path $shortPath -UnexpectedText '杩欎唤鏂囦欢鐢?`write_release_body_zh.ps1` 鑷姩鐢熸垚' -Label 'release_summary.zh-CN.md'
-
+Assert-NotContains -Path $shortPath -UnexpectedText $draftWord -Label 'release_summary.zh-CN.md'
+Assert-NotContains -Path $shortPath -UnexpectedText $generatedByScript -Label 'release_summary.zh-CN.md'
 $guidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $checklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $startHerePath = Join-Path (Split-Path -Parent $reportDir) "START_HERE.md"
