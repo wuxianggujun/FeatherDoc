@@ -7,6 +7,11 @@
 
 namespace {
 
+void expect_table_continuation_diagnostic(
+    const std::string &json, const std::string &expected_diagnostic) {
+    CHECK_NE(json.find(expected_diagnostic), std::string::npos);
+}
+
 void expect_repeated_header_merged_diagnostic(const std::string &json) {
     const std::string expected_diagnostic =
         R"({"page_index":1,"block_index":0,"source_row_offset":1)"
@@ -25,7 +30,91 @@ void expect_repeated_header_merged_diagnostic(const std::string &json) {
         R"(,"skipped_repeating_header":true)"
         R"(,"disposition":"merged_with_previous_table")"
         R"(,"blocker":"none"})";
-    CHECK_NE(json.find(expected_diagnostic), std::string::npos);
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
+}
+
+void expect_repeated_header_mismatch_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":0)"
+        R"(,"continuation_confidence":70)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":true)"
+        R"(,"previous_has_repeating_header":true)"
+        R"(,"source_has_repeating_header":true)"
+        R"(,"header_matches_previous":false)"
+        R"(,"header_match_kind":"none")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"repeated_header_mismatch"})";
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
+}
+
+void expect_column_anchors_mismatch_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":0)"
+        R"(,"continuation_confidence":55)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":false)"
+        R"(,"previous_has_repeating_header":true)"
+        R"(,"source_has_repeating_header":true)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"exact")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"column_anchors_mismatch"})";
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
+}
+
+void expect_confidence_below_threshold_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":0)"
+        R"(,"continuation_confidence":85)"
+        R"(,"minimum_continuation_confidence":90)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":true)"
+        R"(,"previous_has_repeating_header":false)"
+        R"(,"source_has_repeating_header":false)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"not_required")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"continuation_confidence_below_threshold"})";
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
+}
+
+void expect_column_count_mismatch_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":0)"
+        R"(,"continuation_confidence":30)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":false)"
+        R"(,"column_anchors_match":false)"
+        R"(,"previous_has_repeating_header":true)"
+        R"(,"source_has_repeating_header":true)"
+        R"(,"header_matches_previous":false)"
+        R"(,"header_match_kind":"none")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"column_count_mismatch"})";
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
 }
 
 } // namespace
@@ -379,6 +468,7 @@ TEST_CASE(
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"repeated_header_mismatch")"),
              std::string::npos);
+    expect_repeated_header_mismatch_diagnostic(json);
 }
 
 TEST_CASE(
@@ -439,6 +529,7 @@ TEST_CASE(
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"column_anchors_mismatch")"),
              std::string::npos);
+    expect_column_anchors_mismatch_diagnostic(json);
 }
 
 TEST_CASE(
@@ -494,6 +585,7 @@ TEST_CASE(
     CHECK_NE(
         json.find(R"("blocker":"continuation_confidence_below_threshold")"),
         std::string::npos);
+    expect_confidence_below_threshold_diagnostic(json);
 }
 
 TEST_CASE("cli import-pdf reports missing cell continuation merge diagnostics") {
@@ -683,6 +775,7 @@ TEST_CASE(
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"column_count_mismatch")"),
              std::string::npos);
+    expect_column_count_mismatch_diagnostic(json);
 }
 
 TEST_CASE("cli import-pdf reports amount-only continuation merge diagnostics") {
