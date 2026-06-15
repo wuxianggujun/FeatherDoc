@@ -3,6 +3,7 @@
 #include "pdf_cli_import_test_support.hpp"
 
 #include <string>
+#include <vector>
 
 TEST_CASE("cli import-pdf writes a DOCX file and json summary") {
     const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
@@ -45,6 +46,76 @@ TEST_CASE("cli import-pdf writes a DOCX file and json summary") {
     CHECK_NE(json.find(R"("tables_imported":0)"), std::string::npos);
     CHECK_NE(json.find(R"("table_continuation_diagnostics_count":0)"),
              std::string::npos);
+}
+
+TEST_CASE(
+    "cli import-pdf keeps prose and forms as paragraphs with table promotion") {
+    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
+    std::error_code error;
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const auto assert_paragraph_import =
+        [&](const fs::path &source, const std::string &output_filename,
+            const std::string &json_filename,
+            const std::vector<std::string> &expected_texts) {
+            const fs::path output = work_dir / output_filename;
+            const fs::path json_output = work_dir / json_filename;
+            remove_if_exists(output);
+            remove_if_exists(json_output);
+
+            REQUIRE(fs::exists(source));
+
+            CHECK_EQ(run_cli({"import-pdf",
+                              source.string(),
+                              "--output",
+                              output.string(),
+                              "--import-table-candidates-as-tables",
+                              "--json"},
+                             json_output),
+                     0);
+
+            REQUIRE(fs::exists(output));
+
+            featherdoc::Document document;
+            open_imported_document(output, document);
+            CHECK_FALSE(document.inspect_table(0U).has_value());
+
+            const auto text = collect_non_empty_document_text(document);
+            for (const auto &expected_text : expected_texts) {
+                CHECK_NE(text.find(expected_text), std::string::npos);
+            }
+
+            const auto json = read_text_file(json_output);
+            CHECK_NE(json.find(R"("command":"import-pdf")"),
+                     std::string::npos);
+            CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
+            CHECK_NE(json.find(R"("paragraphs_imported":)"),
+                     std::string::npos);
+            CHECK_NE(json.find(R"("tables_imported":0)"),
+                     std::string::npos);
+            CHECK_NE(
+                json.find(R"("table_continuation_diagnostics_count":0)"),
+                std::string::npos);
+            CHECK_NE(json.find(R"("table_continuation_diagnostics":[])"),
+                     std::string::npos);
+            CHECK_NE(json.find(R"("import_table_candidates_as_tables":true)"),
+                     std::string::npos);
+        };
+
+    assert_paragraph_import(
+        featherdoc::test_support::write_two_column_short_label_prose_pdf(
+            "featherdoc-cli-import-two-column-short-label-prose.pdf"),
+        "two-column-short-label-prose.docx",
+        "two-column-short-label-prose-import.json",
+        {"Two-column labels sample", "Topic", "Scope", "Closed"});
+
+    assert_paragraph_import(
+        featherdoc::test_support::write_invoice_summary_pdf(
+            "featherdoc-cli-import-invoice-summary-form.pdf"),
+        "invoice-summary-form.docx", "invoice-summary-form-import.json",
+        {"Invoice summary", "Invoice No.", "FeatherDoc QA",
+         "Footer note: layout is intentionally uneven"});
 }
 
 TEST_CASE("cli import-pdf can import table candidates as tables") {
