@@ -5,6 +5,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "pdf_import_diagnostics_contract_field_helpers.ps1")
 
 function Assert-Equal {
     param($Actual, $Expected, [string]$Message)
@@ -129,27 +130,7 @@ Assert-SequenceEqual `
     -Message "Smoke-import summary should preserve import diagnostics contract tests."
 Assert-SequenceEqual `
     -Actual @($summary.import_diagnostics_contract_fields | ForEach-Object { [string]$_ }) `
-    -Expected @(
-        "table_continuation_diagnostics",
-        "table_continuation_diagnostics=[]",
-        "tables_imported=0",
-        "import_table_candidates_as_tables=true",
-        "failure_kind=no_text_paragraphs",
-        "source_row_offset=0",
-        "skipped_repeating_header=false",
-        "disposition=created_new_table",
-        "blocker=repeated_header_mismatch",
-        "blocker=column_count_mismatch",
-        "blocker=column_anchors_mismatch",
-        "blocker=continuation_confidence_below_threshold",
-        "continuation_confidence=70",
-        "continuation_confidence=55",
-        "continuation_confidence=85",
-        "continuation_confidence=30",
-        "minimum_continuation_confidence=90",
-        "column_count_matches=false",
-        "column_anchors_match=false"
-    ) `
+    -Expected @(Get-PdfImportDiagnosticsContractFields) `
     -Message "Smoke-import summary should preserve import diagnostics contract fields."
 Assert-SequenceEqual `
     -Actual @($summary.import_negative_boundary_contract_cases | ForEach-Object { [string]$_ }) `

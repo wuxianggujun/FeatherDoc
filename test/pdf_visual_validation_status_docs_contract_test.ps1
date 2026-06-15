@@ -5,6 +5,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "pdf_visual_validation_status_docs_contract_helpers.ps1")
+. (Join-Path $PSScriptRoot "pdf_import_diagnostics_contract_field_helpers.ps1")
 
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     throw "RepoRoot is required."
@@ -597,25 +598,8 @@ foreach ($marker in @(
     "import_visual_artifact_policy",
     "does_not_generate_or_commit_output_visual_artifacts",
     "import_diagnostics_contract_tests",
-    "import_diagnostics_contract_fields",
-    "failure_kind=no_text_paragraphs",
-    "table_continuation_diagnostics=[]",
-    "tables_imported=0",
-    "import_table_candidates_as_tables=true",
-    "source_row_offset=0",
-    "skipped_repeating_header=false",
-    "disposition=created_new_table",
-    "blocker=repeated_header_mismatch",
-    "blocker=column_count_mismatch",
-    "blocker=column_anchors_mismatch",
-    "blocker=continuation_confidence_below_threshold",
-    "continuation_confidence=70",
-    "continuation_confidence=55",
-    "continuation_confidence=85",
-    "continuation_confidence=30",
-    "minimum_continuation_confidence=90",
-    "column_count_matches=false",
-    "column_anchors_match=false",
+    "import_diagnostics_contract_fields"
+) + (Get-PdfImportDiagnosticsContractFields) + @(
     "import_negative_boundary_contract_cases",
     "short_label_prose_remains_paragraphs",
     "invoice_summary_form_remains_paragraphs",
@@ -682,40 +666,24 @@ Assert-TextParagraphContainsAll -Text $releaseChecklistDoc `
 
 Assert-TextParagraphContainsAll -Text $releaseChecklistDoc `
     -Anchor "bounded_smoke_import_preflight" `
-    -ExpectedFragments @(
+    -ExpectedFragments (@(
         "bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict",
         "does_not_generate_or_commit_output_visual_artifacts",
         "pdf_cli_import",
         "pdf_import_failure",
         "pdf_import_table_heuristic",
-        "table_continuation_diagnostics",
-        "table_continuation_diagnostics=[]",
-        "tables_imported=0",
-        "import_table_candidates_as_tables=true",
-        "source_row_offset=0",
-        "skipped_repeating_header=false",
-        "disposition=created_new_table",
-        "blocker=repeated_header_mismatch",
-        "blocker=column_count_mismatch",
-        "blocker=column_anchors_mismatch",
-        "blocker=continuation_confidence_below_threshold",
-        "continuation_confidence=70",
-        "continuation_confidence=55",
-        "continuation_confidence=85",
-        "continuation_confidence=30",
-        "minimum_continuation_confidence=90",
-        "column_count_matches=false",
-        "column_anchors_match=false",
+        "import_diagnostics_contract_fields"
+    ) + (Get-PdfImportDiagnosticsContractFields) + @(
         "import_negative_boundary_contract_cases",
         "short_label_prose_remains_paragraphs",
         "invoice_summary_form_remains_paragraphs",
         "failure_kind=no_text_paragraphs",
         "visual gate verdict",
         "output/"
-    ) `
+    )) `
     -Message "PDF release readiness checklist should keep bounded import diagnostics preflight scope and boundary in one paragraph."
 
-foreach ($marker in @(
+foreach ($marker in (@(
     "import_visual_gate_scope",
     "bounded_smoke_import_preflight",
     "import_visual_gate_boundary",
@@ -723,24 +691,8 @@ foreach ($marker in @(
     "import_visual_artifact_policy",
     "does_not_generate_or_commit_output_visual_artifacts",
     "import_diagnostics_contract_tests",
-    "import_diagnostics_contract_fields",
-    "table_continuation_diagnostics=[]",
-    "tables_imported=0",
-    "import_table_candidates_as_tables=true",
-    "source_row_offset=0",
-    "skipped_repeating_header=false",
-    "disposition=created_new_table",
-    "blocker=repeated_header_mismatch",
-    "blocker=column_count_mismatch",
-    "blocker=column_anchors_mismatch",
-    "blocker=continuation_confidence_below_threshold",
-    "continuation_confidence=70",
-    "continuation_confidence=55",
-    "continuation_confidence=85",
-    "continuation_confidence=30",
-    "minimum_continuation_confidence=90",
-    "column_count_matches=false",
-    "column_anchors_match=false",
+    "import_diagnostics_contract_fields"
+) + (Get-PdfImportDiagnosticsContractFields) + @(
     "import_negative_boundary_contract_cases",
     "short_label_prose_remains_paragraphs",
     "invoice_summary_form_remains_paragraphs",
@@ -749,7 +701,7 @@ foreach ($marker in @(
     "pdf_cli_import",
     "pdf_import_failure",
     "pdf_import_table_heuristic"
-)) {
+))) {
     Assert-ContainsText -Text $boundedCtestScript -ExpectedText $marker `
         -Message "run_pdf_ctest_bounded_subset.ps1 should preserve bounded import diagnostics summary marker '$marker'."
 }
