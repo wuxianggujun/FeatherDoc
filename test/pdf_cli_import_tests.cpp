@@ -5,6 +5,31 @@
 #include <string>
 #include <vector>
 
+namespace {
+
+void expect_repeated_header_merged_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":1)"
+        R"(,"continuation_confidence":95)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":true)"
+        R"(,"previous_has_repeating_header":true)"
+        R"(,"source_has_repeating_header":true)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"exact")"
+        R"(,"skipped_repeating_header":true)"
+        R"(,"disposition":"merged_with_previous_table")"
+        R"(,"blocker":"none"})";
+    CHECK_NE(json.find(expected_diagnostic), std::string::npos);
+}
+
+} // namespace
+
 TEST_CASE("cli import-pdf writes a DOCX file and json summary") {
     const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
     std::error_code error;
@@ -530,6 +555,7 @@ TEST_CASE("cli import-pdf reports missing cell continuation merge diagnostics") 
     CHECK_NE(json.find(R"("disposition":"merged_with_previous_table")"),
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"none")"), std::string::npos);
+    expect_repeated_header_merged_diagnostic(json);
 }
 
 TEST_CASE("cli import-pdf reports sparse row continuation merge diagnostics") {
@@ -591,6 +617,7 @@ TEST_CASE("cli import-pdf reports sparse row continuation merge diagnostics") {
     CHECK_NE(json.find(R"("disposition":"merged_with_previous_table")"),
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"none")"), std::string::npos);
+    expect_repeated_header_merged_diagnostic(json);
 }
 
 TEST_CASE(
@@ -717,4 +744,5 @@ TEST_CASE("cli import-pdf reports amount-only continuation merge diagnostics") {
     CHECK_NE(json.find(R"("disposition":"merged_with_previous_table")"),
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"none")"), std::string::npos);
+    expect_repeated_header_merged_diagnostic(json);
 }
