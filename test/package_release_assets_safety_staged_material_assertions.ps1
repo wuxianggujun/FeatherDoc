@@ -273,17 +273,33 @@ Assert-Contains -Path $stagedProjectTemplateDeliveryReadinessSummaryPath -Expect
 Assert-Contains -Path $stagedProjectTemplateDeliveryReadinessSummaryPath -ExpectedText 'latest_schema_approval_gate_status' -Label 'staged project-template readiness summary'
 Assert-Contains -Path $stagedProjectTemplateOnboardingGovernanceSummaryPath -ExpectedText 'featherdoc.project_template_onboarding_governance_report.v1' -Label 'staged project-template onboarding governance summary'
 Assert-Contains -Path $stagedProjectTemplateOnboardingGovernanceSummaryPath -ExpectedText 'schema_approval_status_summary' -Label 'staged project-template onboarding governance summary'
-if ($stagedSummary.release_handoff -ne $expectedSanitizedAbsolutePath) {
-    throw "staged summary.json did not sanitize release_handoff to the expected placeholder."
+$expectedStagedReleaseHandoff = Convert-TestPathToRepoRelativeDisplay `
+    -Path $releaseHandoffPath `
+    -RepoRoot $resolvedRepoRoot
+if ((Convert-TestComparablePathValue -Value $stagedSummary.release_handoff) -ne
+    (Convert-TestComparablePathValue -Value $expectedStagedReleaseHandoff)) {
+    throw "staged summary.json did not sanitize release_handoff to the expected public relative path."
 }
-if ($stagedGateSummary.report_dir -ne $expectedSanitizedAbsolutePath) {
-    throw "staged gate_summary.json did not sanitize report_dir to the expected placeholder."
+$expectedStagedGateReportDir = Convert-TestPathToRepoRelativeDisplay `
+    -Path $gateReportDir `
+    -RepoRoot $resolvedRepoRoot
+if ((Convert-TestComparablePathValue -Value $stagedGateSummary.report_dir) -ne
+    (Convert-TestComparablePathValue -Value $expectedStagedGateReportDir)) {
+    throw "staged gate_summary.json did not sanitize report_dir to the expected public relative path."
 }
-if ($stagedSummary.pdf_visual_gate_summary_json -ne $expectedSanitizedAbsolutePath) {
-    throw "staged summary.json did not sanitize pdf_visual_gate_summary_json to the expected placeholder."
+$expectedStagedPdfGateSummary = Convert-TestPathToRepoRelativeDisplay `
+    -Path $pdfGateSummaryPath `
+    -RepoRoot $resolvedRepoRoot
+if ((Convert-TestComparablePathValue -Value $stagedSummary.pdf_visual_gate_summary_json) -ne
+    (Convert-TestComparablePathValue -Value $expectedStagedPdfGateSummary)) {
+    throw "staged summary.json did not sanitize pdf_visual_gate_summary_json to the expected public relative path."
 }
-if ($stagedPdfGateSummary.output_dir -ne $expectedSanitizedAbsolutePath) {
-    throw "staged PDF visual gate summary.json did not sanitize output_dir to the expected placeholder."
+$expectedStagedPdfGateOutputDir = Convert-TestPathToRepoRelativeDisplay `
+    -Path $pdfGateOutputDir `
+    -RepoRoot $resolvedRepoRoot
+if ((Convert-TestComparablePathValue -Value $stagedPdfGateSummary.output_dir) -ne
+    (Convert-TestComparablePathValue -Value $expectedStagedPdfGateOutputDir)) {
+    throw "staged PDF visual gate summary.json did not sanitize output_dir to the expected public relative path."
 }
 if ($stagedPdfGateSummary.cjk_copy_search.Count -ne 2) {
     throw "staged PDF visual gate summary.json lost CJK copy/search entries."
@@ -363,6 +379,23 @@ $manifestPdfBoundedCtestSummaryJsonDisplay = @($manifest.pdf_bounded_ctest_evide
 foreach ($expectedDisplay in $pdfBoundedCtestSummaryJsonDisplay) {
     if (-not ($manifestPdfBoundedCtestSummaryJsonDisplay -contains $expectedDisplay)) {
         throw "release_assets_manifest.json lost bounded PDF CTest summary display '$expectedDisplay'."
+    }
+}
+$manifestPdfImportDiagnosticsContractTests = @($manifest.pdf_bounded_ctest_evidence.import_diagnostics_contract_tests |
+    ForEach-Object { [string]$_ })
+foreach ($expectedTest in $pdfImportDiagnosticsContractTests) {
+    if (-not ($manifestPdfImportDiagnosticsContractTests -contains $expectedTest)) {
+        throw "release_assets_manifest.json lost bounded PDF CTest import diagnostics contract test '$expectedTest'."
+    }
+}
+Assert-PdfImportDiagnosticsContractFieldsPresent `
+    -Actual @($manifest.pdf_bounded_ctest_evidence.import_diagnostics_contract_fields) `
+    -MessagePrefix "release_assets_manifest.json lost bounded PDF CTest import diagnostics contract field."
+$manifestPdfImportNegativeBoundaryContractCases = @($manifest.pdf_bounded_ctest_evidence.import_negative_boundary_contract_cases |
+    ForEach-Object { [string]$_ })
+foreach ($expectedCase in $pdfImportNegativeBoundaryContractCases) {
+    if (-not ($manifestPdfImportNegativeBoundaryContractCases -contains $expectedCase)) {
+        throw "release_assets_manifest.json lost bounded PDF CTest import negative boundary case '$expectedCase'."
     }
 }
 $wordVisualStandardReviewMetadata = @($manifest.word_visual_standard_review_metadata)

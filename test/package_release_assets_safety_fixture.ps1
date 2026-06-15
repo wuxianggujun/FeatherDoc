@@ -1,3 +1,5 @@
+. (Join-Path $PSScriptRoot "pdf_import_diagnostics_contract_field_helpers.ps1")
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $workingDirParent = Split-Path -Parent $resolvedWorkingDir
@@ -83,6 +85,15 @@ $pdfBoundedCtestSummaryJsonDisplay = @(
 )
 $pdfBoundedCtestSubsetsText = $pdfBoundedCtestSubsets -join ', '
 $pdfBoundedCtestSummaryJsonDisplayText = $pdfBoundedCtestSummaryJsonDisplay -join ', '
+$pdfImportDiagnosticsContractTests = @(
+    "pdf_cli_import",
+    "pdf_import_table_heuristic"
+)
+$pdfImportDiagnosticsContractFields = @(Get-PdfImportDiagnosticsContractFields)
+$pdfImportNegativeBoundaryContractCases = @(
+    "short_label_prose_remains_paragraphs",
+    "invoice_summary_form_remains_paragraphs"
+)
 $summaryPath = Join-Path $reportDir "summary.json"
 $installedReadmePath = Join-Path $installPrefix "share\FeatherDoc\README.md"
 $installedChangelogPath = Join-Path $installPrefix "share\FeatherDoc\CHANGELOG.md"
@@ -782,6 +793,9 @@ $summary = [ordered]@{
             selected_test_count = 70
             subsets = $pdfBoundedCtestSubsets
             summary_json_display = $pdfBoundedCtestSummaryJsonDisplay
+            import_diagnostics_contract_tests = $pdfImportDiagnosticsContractTests
+            import_diagnostics_contract_fields = $pdfImportDiagnosticsContractFields
+            import_negative_boundary_contract_cases = $pdfImportNegativeBoundaryContractCases
         }
     }
 }
@@ -833,4 +847,3 @@ $stagedSummary = Get-Content -Raw -LiteralPath $stagedSummaryPath | ConvertFrom-
 $stagedGateSummary = Get-Content -Raw -LiteralPath $stagedGateSummaryPath | ConvertFrom-Json
 $stagedPdfGateSummary = Get-Content -Raw -LiteralPath $stagedPdfGateSummaryPath | ConvertFrom-Json
 $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
-
