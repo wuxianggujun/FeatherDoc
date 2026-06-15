@@ -43,26 +43,9 @@ if ([int]$candidateSummary.steps.pdf_bounded_ctest.summary_count -ne 2 -or
     @($candidateSummary.steps.pdf_bounded_ctest.import_negative_boundary_contract_cases) -notcontains "short_label_prose_remains_paragraphs") {
     throw "Release candidate summary did not preserve PDF bounded CTest auxiliary evidence."
 }
-foreach ($expectedImportDiagnosticContractField in @(
-    "source_row_offset=0",
-    "skipped_repeating_header=false",
-    "disposition=created_new_table",
-    "blocker=repeated_header_mismatch",
-    "blocker=column_count_mismatch",
-    "blocker=column_anchors_mismatch",
-    "blocker=continuation_confidence_below_threshold",
-    "continuation_confidence=70",
-    "continuation_confidence=55",
-    "continuation_confidence=85",
-    "continuation_confidence=30",
-    "minimum_continuation_confidence=90",
-    "column_count_matches=false",
-    "column_anchors_match=false"
-)) {
-    if (@($candidateSummary.steps.pdf_bounded_ctest.import_diagnostics_contract_fields) -notcontains $expectedImportDiagnosticContractField) {
-        throw "Release candidate summary did not preserve import diagnostic contract field '$expectedImportDiagnosticContractField'."
-    }
-}
+Assert-PdfImportDiagnosticsContractFieldsPresent `
+    -Actual @($candidateSummary.steps.pdf_bounded_ctest.import_diagnostics_contract_fields) `
+    -MessagePrefix "Release candidate summary did not preserve import diagnostic contract fields."
 if ([string]$candidateSummary.pdf_release_readiness_summary_json -ne $expectedPdfReadinessSummaryPath -or
     [string]$candidateSummary.steps.pdf_full_ctest_readiness.summary_json -ne $expectedPdfReadinessSummaryPath -or
     [string]$candidateSummary.steps.pdf_full_ctest_readiness.status -ne "pass" -or

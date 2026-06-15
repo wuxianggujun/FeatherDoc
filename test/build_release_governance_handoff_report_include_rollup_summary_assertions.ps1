@@ -125,26 +125,9 @@
     Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_import_diagnostics_contract_fields) -join ",") `
         -ExpectedText "table_continuation_diagnostics=[]" `
         -Message "Handoff summary should expose PDF import diagnostics contract fields from bounded CTest evidence."
-    foreach ($expectedImportDiagnosticField in @(
-        "source_row_offset=0",
-        "skipped_repeating_header=false",
-        "disposition=created_new_table",
-        "blocker=repeated_header_mismatch",
-        "blocker=column_count_mismatch",
-        "blocker=column_anchors_mismatch",
-        "blocker=continuation_confidence_below_threshold",
-        "continuation_confidence=70",
-        "continuation_confidence=55",
-        "continuation_confidence=85",
-        "continuation_confidence=30",
-        "minimum_continuation_confidence=90",
-        "column_count_matches=false",
-        "column_anchors_match=false"
-    )) {
-        Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_import_diagnostics_contract_fields) -join ",") `
-            -ExpectedText $expectedImportDiagnosticField `
-            -Message "Handoff summary should expose PDF import diagnostic contract field '$expectedImportDiagnosticField'."
-    }
+    Assert-PdfImportDiagnosticsContractFieldsPresent `
+        -Actual @($pdfEvidence.pdf_bounded_ctest_import_diagnostics_contract_fields) `
+        -MessagePrefix "Handoff summary should expose PDF import diagnostic contract fields."
     Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_import_negative_boundary_contract_cases) -join ",") `
         -ExpectedText "short_label_prose_remains_paragraphs" `
         -Message "Handoff summary should expose PDF import negative boundary cases from bounded CTest evidence."

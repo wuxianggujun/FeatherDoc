@@ -49,25 +49,9 @@
         -Message "Handoff Markdown should expose the PDF import diagnostics contract tests field."
     Assert-ContainsText -Text $markdown -ExpectedText "table_continuation_diagnostics=[]" `
         -Message "Handoff Markdown should expose the PDF import diagnostics contract field list."
-    foreach ($expectedImportDiagnosticField in @(
-        "source_row_offset=0",
-        "skipped_repeating_header=false",
-        "disposition=created_new_table",
-        "blocker=repeated_header_mismatch",
-        "blocker=column_count_mismatch",
-        "blocker=column_anchors_mismatch",
-        "blocker=continuation_confidence_below_threshold",
-        "continuation_confidence=70",
-        "continuation_confidence=55",
-        "continuation_confidence=85",
-        "continuation_confidence=30",
-        "minimum_continuation_confidence=90",
-        "column_count_matches=false",
-        "column_anchors_match=false"
-    )) {
-        Assert-ContainsText -Text $markdown -ExpectedText $expectedImportDiagnosticField `
-            -Message "Handoff Markdown should expose PDF import diagnostic contract field '$expectedImportDiagnosticField'."
-    }
+    Assert-PdfImportDiagnosticsBlockerContractFieldsInText `
+        -Text $markdown `
+        -MessagePrefix "Handoff Markdown should expose PDF import diagnostic contract fields."
     Assert-ContainsText -Text $markdown -ExpectedText "short_label_prose_remains_paragraphs" `
         -Message "Handoff Markdown should expose the PDF import negative boundary contract cases."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_status: ``pass``" `
@@ -176,7 +160,7 @@
         "report_markdown_display:",
         "docx_functional_smoke_readiness.md"
     ) -Message "Handoff Markdown should keep DOCX readiness evidence and source identity in one source_report block."
-    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
+    $pdfSourceReportExpectedFragments = @(
         "schema=``featherdoc.release_candidate_summary``",
         "pdf_visual_gate_status: ``loaded``",
         "full_visual_gate_status: ``pass``",
@@ -201,21 +185,8 @@
         "pdf_bounded_ctest_import_diagnostics_contract_tests:",
         "pdf_import_table_heuristic",
         "pdf_bounded_ctest_import_diagnostics_contract_fields:",
-        "table_continuation_diagnostics=[]",
-        "source_row_offset=0",
-        "skipped_repeating_header=false",
-        "disposition=created_new_table",
-        "blocker=repeated_header_mismatch",
-        "blocker=column_count_mismatch",
-        "blocker=column_anchors_mismatch",
-        "blocker=continuation_confidence_below_threshold",
-        "continuation_confidence=70",
-        "continuation_confidence=55",
-        "continuation_confidence=85",
-        "continuation_confidence=30",
-        "minimum_continuation_confidence=90",
-        "column_count_matches=false",
-        "column_anchors_match=false",
+        "table_continuation_diagnostics=[]"
+    ) + (Get-PdfImportDiagnosticsBlockerContractFields) + @(
         "pdf_bounded_ctest_import_negative_boundary_contract_cases:",
         "short_label_prose_remains_paragraphs",
         "pdf_full_ctest_readiness_status: ``pass``",
@@ -270,7 +241,10 @@
         "pdf_visual_segmented_gate_aggregate_contact_sheet_bytes: ``1822428``",
         "pdf_visual_segmented_gate_aggregate_rebuild_status: ``pass``",
         "pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count: ``44``"
-    ) -Message "Handoff Markdown should keep PDF visual gate source-report evidence in one source_report block."
+    )
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" `
+        -ExpectedFragments $pdfSourceReportExpectedFragments `
+        -Message "Handoff Markdown should keep PDF visual gate source-report evidence in one source_report block."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "source_report:" -ExpectedFragments @(
         "schema=``featherdoc.release_candidate_summary``",
         "project_template_readiness_checklist_entrypoints_status: ``declared``",
