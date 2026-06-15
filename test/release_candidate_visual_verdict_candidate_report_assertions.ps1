@@ -6,6 +6,68 @@ $candidateArtifactGuidePath = Join-Path $candidateOutputDir "report\ARTIFACT_GUI
 $candidateReviewerChecklistPath = Join-Path $candidateOutputDir "report\REVIEWER_CHECKLIST.md"
 $candidateStartHerePath = Join-Path $candidateOutputDir "START_HERE.md"
 
+$pdfImportDiagnosticsContractFields = @(Get-PdfImportDiagnosticsContractFields)
+$pdfImportDiagnosticsContractFieldsText = $pdfImportDiagnosticsContractFields -join ", "
+$pdfImportDiagnosticsFieldLineFragments = @(
+    "PDF bounded CTest import diagnostics contract fields"
+) + $pdfImportDiagnosticsContractFields
+$pdfImportDiagnosticsFieldSummaryFragments = @(
+    "import_diagnostics_fields={0}" -f $pdfImportDiagnosticsContractFieldsText
+)
+$pdfImportDiagnosticsFieldSectionFragments = @(
+    "PDF bounded CTest import diagnostics contract fields:"
+) + $pdfImportDiagnosticsContractFields
+$pdfImportDiagnosticsKeyOutputFragments = @(
+    "PDF visual gate summary:",
+    "summary.json",
+    "PDF visual gate contact sheet:",
+    "aggregate-contact-sheet.png",
+    "PDF bounded CTest summaries:",
+    "smoke-summary.json",
+    "business-summary.json",
+    "PDF release readiness summary:",
+    "release-readiness-summary.json",
+    "PDF full CTest summary:",
+    "pdf-ctest-full-current\summary.json"
+) + $pdfImportDiagnosticsFieldSectionFragments
+$pdfReleaseSummaryFragments = @(
+    "PDF visual gate",
+    "verdict=pass",
+    "aggregate-contact-sheet.png",
+    "cjk_copy_search_count=43",
+    "visual_baseline_count=44",
+    "negative_boundary_cases=short_label_prose_remains_paragraphs, invoice_summary_form_remains_paragraphs"
+) + $pdfImportDiagnosticsFieldSummaryFragments
+$pdfImportDiagnosticsReviewerChecklistFragments = @(
+    'Confirm the bounded import diagnostics contract is visible to reviewers',
+    'pdf_cli_import, pdf_import_table_heuristic',
+    'short_label_prose_remains_paragraphs'
+) + $pdfImportDiagnosticsContractFields
+$pdfImportDiagnosticsBodyListFragments = @(
+    "PDF visual gate summary",
+    "summary.json",
+    "PDF visual gate evidence status",
+    "loaded",
+    "PDF visual gate verdict",
+    "pass",
+    "PDF visual gate aggregate contact sheet",
+    "aggregate-contact-sheet.png",
+    "PDF CJK manifest samples",
+    "43",
+    "PDF CJK copy/search samples",
+    "43",
+    "PDF CJK missing text count",
+    "0",
+    "PDF visual baseline manifest samples",
+    "42",
+    "PDF visual baselines",
+    "44",
+    "PDF bounded CTest import diagnostics contract fields"
+) + $pdfImportDiagnosticsContractFields + @(
+    "PDF bounded CTest import negative boundary cases",
+    "short_label_prose_remains_paragraphs"
+)
+
 foreach ($assertion in @(
         @{ Path = $candidateFinalReviewPath; Label = "final_review.md" },
         @{ Path = $candidateReleaseHandoffPath; Label = "release_handoff.md" },
@@ -64,10 +126,8 @@ foreach ($assertion in @(
         "PDF visual baseline manifest samples: 42",
         "PDF visual baselines: 44"
     ) -Message ("{0} should keep PDF visual status, verdict, paths, and counts in one Markdown list run." -f $assertion.Label)
-    Assert-ContainsText -Text $content -ExpectedText "PDF bounded CTest import diagnostics contract fields" `
-        -Message ("{0} should expose bounded PDF import diagnostics contract fields." -f $assertion.Label)
-    Assert-ContainsText -Text $content -ExpectedText "table_continuation_diagnostics=[]" `
-        -Message ("{0} should expose the bounded PDF import diagnostics field sample." -f $assertion.Label)
+    Assert-LineContainsAll -Text $content -Fragments $pdfImportDiagnosticsFieldLineFragments `
+        -Message ("{0} should expose all bounded PDF import diagnostics contract fields on one reviewer-facing line." -f $assertion.Label)
     Assert-ContainsText -Text $content -ExpectedText "short_label_prose_remains_paragraphs" `
         -Message ("{0} should expose bounded PDF import negative boundary cases." -f $assertion.Label)
 }
@@ -83,28 +143,15 @@ Assert-ContainsText -Text $candidateReleaseHandoff -ExpectedText "attempt-summar
     -Message "release_handoff.md should preserve the PDF fresh-attempt warning evidence path."
 
 $candidateFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateFinalReviewPath
-Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Key outputs" -Fragments @(
-    "PDF visual gate summary:",
-    "summary.json",
-    "PDF visual gate contact sheet:",
-    "aggregate-contact-sheet.png",
-    "PDF bounded CTest summaries:",
-    "smoke-summary.json",
-    "business-summary.json",
-    "PDF bounded CTest import diagnostics contract fields:",
-    "table_continuation_diagnostics=[]",
-    "PDF release readiness summary:",
-    "release-readiness-summary.json",
-    "PDF full CTest summary:",
-    "pdf-ctest-full-current\summary.json"
-) -Message "final_review.md should keep PDF visual and full CTest readiness outputs inside the Key outputs section."
+Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Key outputs" -Fragments $pdfImportDiagnosticsKeyOutputFragments `
+    -Message "final_review.md should keep PDF visual and full CTest readiness outputs inside the Key outputs section."
 Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Step status" -Fragments @(
     "PDF bounded CTest summaries: 2 summaries, 2 pass",
     "PDF bounded CTest subsets: smoke-import, regression-business-samples",
     "PDF bounded CTest selected tests: 20",
     "PDF bounded CTest skipped tests: 0",
     "PDF bounded CTest import diagnostics contract tests: pdf_cli_import, pdf_import_table_heuristic",
-    "PDF bounded CTest import diagnostics contract fields: table_continuation_diagnostics, table_continuation_diagnostics=[], tables_imported=0",
+    ("PDF bounded CTest import diagnostics contract fields: {0}" -f $pdfImportDiagnosticsContractFieldsText),
     "PDF bounded CTest import negative boundary cases: short_label_prose_remains_paragraphs, invoice_summary_form_remains_paragraphs",
     "PDF visual release evidence accepted: True (fresh full guarded False, pass summary before outer timeout False, segmented full coverage True)",
     "PDF full CTest readiness: timeout (95.7% complete)",
@@ -248,40 +295,11 @@ foreach ($fragments in @(
     }
 }
 Assert-MarkdownListRunContainsAll -Text $candidateReleaseBody -Anchor "PDF visual gate summary" -Fragments @(
-    "PDF visual gate summary",
-    "summary.json",
-    "PDF visual gate evidence status",
-    "loaded",
-    "PDF visual gate verdict",
-    "pass",
-    "PDF visual gate aggregate contact sheet",
-    "aggregate-contact-sheet.png",
-    "PDF CJK manifest samples",
-    "43",
-    "PDF CJK copy/search samples",
-    "43",
-    "PDF CJK missing text count",
-    "0",
-    "PDF visual baseline manifest samples",
-    "42",
-    "PDF visual baselines",
-    "44",
-    "PDF bounded CTest import diagnostics contract fields",
-    "table_continuation_diagnostics=[]",
-    "PDF bounded CTest import negative boundary cases",
-    "short_label_prose_remains_paragraphs"
-) -Message "release_body.zh-CN.md should keep PDF visual status, verdict, paths, and counts in one Markdown list run."
+    $pdfImportDiagnosticsBodyListFragments
+) -Message "release_body.zh-CN.md should keep PDF visual status, verdict, paths, counts, and import diagnostics contract fields in one Markdown list run."
 
 $candidateReleaseSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseSummaryPath
-foreach ($fragment in @(
-        "PDF visual gate",
-        "verdict=pass",
-        "aggregate-contact-sheet.png",
-        "cjk_copy_search_count=43",
-        "visual_baseline_count=44",
-        "import_diagnostics_fields=table_continuation_diagnostics, table_continuation_diagnostics=[], tables_imported=0",
-        "negative_boundary_cases=short_label_prose_remains_paragraphs, invoice_summary_form_remains_paragraphs"
-    )) {
+foreach ($fragment in $pdfReleaseSummaryFragments) {
     Assert-ContainsText -Text $candidateReleaseSummary -ExpectedText $fragment `
         -Message ("release_summary.zh-CN.md should expose PDF visual gate fragment '{0}'." -f $fragment)
 }
@@ -312,12 +330,8 @@ Assert-LineContainsAll -Text $candidateReviewerChecklist -Fragments @(
     'visual baseline manifest samples `42`',
     'visual baselines `44`'
 ) -Message "REVIEWER_CHECKLIST.md should keep PDF visual finalize verdict, paths, and counts on one reviewer signoff line."
-Assert-LineContainsAll -Text $candidateReviewerChecklist -Fragments @(
-    'Confirm the bounded import diagnostics contract is visible to reviewers',
-    'pdf_cli_import, pdf_import_table_heuristic',
-    'table_continuation_diagnostics=[]',
-    'short_label_prose_remains_paragraphs'
-) -Message "REVIEWER_CHECKLIST.md should keep bounded import diagnostics contract fields on one reviewer signoff line."
+Assert-LineContainsAll -Text $candidateReviewerChecklist -Fragments $pdfImportDiagnosticsReviewerChecklistFragments `
+    -Message "REVIEWER_CHECKLIST.md should keep all bounded import diagnostics contract fields on one reviewer signoff line."
 
 $localAbsolutePathPattern = '(?i)\b[a-z]:(?:\\\\|\\)[^\s"''`<>|]+|(?<!\w)/(?:Users|home)/[^\s"''`<>|]+'
 foreach ($releaseMaterialPath in @(
