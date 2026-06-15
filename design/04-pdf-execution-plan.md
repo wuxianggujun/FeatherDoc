@@ -1239,6 +1239,26 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只锁 release/governance Markdown 输出可见性，不改变 importer、CLI JSON schema、
   bounded summary 生成逻辑或 full visual gate verdict；未生成或提交 `output/` 视觉产物。
 
+2026-06-15 继续推进（PDF import diagnostics release candidate 字段契约）：
+
+- 已补 `release_candidate_visual_verdict_contract` 的 bounded CTest fixture 与
+  candidate summary 断言，确认完整 import diagnostics contract fields 能从
+  bounded CTest summary 聚合到 release candidate summary 的
+  `steps.pdf_bounded_ctest.import_diagnostics_contract_fields`。
+- 新增断言固定 `source_row_offset=0`、`skipped_repeating_header=false`、
+  `disposition=created_new_table`、四类 blocker、
+  `continuation_confidence=70/55/85/30`、`minimum_continuation_confidence=90`、
+  `column_count_matches=false` 和 `column_anchors_match=false`，补上 bounded summary
+  与 release/governance rollup 之间的 release candidate 中间层契约。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "release_candidate_visual_verdict_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `a92cea4 test: lock PDF import diagnostics release candidate fields`。
+- 已知边界：
+  本轮只补 release candidate summary 的字段保留契约，不改变 visual verdict 判定、
+  importer heuristic、CLI JSON schema 或 release governance Markdown writer。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

@@ -562,3 +562,24 @@
 - 已知边界：
   本轮只补 release/governance Markdown 可见性测试契约，不改生产渲染脚本、
   importer heuristic、CLI JSON schema 或 full visual gate verdict。
+
+2026-06-15 继续推进（PDF import diagnostics release candidate 字段契约）：
+
+- 已补 `release_candidate_visual_verdict_contract_checks.ps1` 中的 bounded CTest
+  fixture，确保 `Get-PdfBoundedCtestSummaryInfo` 聚合时覆盖完整
+  `import_diagnostics_contract_fields`，不再只验证
+  `table_continuation_diagnostics=[]` 和 `tables_imported=0`。
+- 已补 `release_candidate_visual_verdict_candidate_core_assertions.ps1`，固定
+  release candidate summary 的 `steps.pdf_bounded_ctest.import_diagnostics_contract_fields`
+  必须保留 `source_row_offset=0`、`skipped_repeating_header=false`、
+  `disposition=created_new_table`、四类 blocker、`continuation_confidence=70/55/85/30`、
+  `minimum_continuation_confidence=90`、`column_count_matches=false` 和
+  `column_anchors_match=false`。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "release_candidate_visual_verdict_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `a92cea4 test: lock PDF import diagnostics release candidate fields`。
+- 已知边界：
+  本轮只锁 release candidate summary 中间层字段链路，不改 visual verdict 状态机、
+  release blocker rollup writer、governance handoff Markdown 或 importer 逻辑。
