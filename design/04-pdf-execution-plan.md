@@ -1440,6 +1440,16 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只调整 bounded subset 调度与文档契约，不改变测试集合、importer 行为、
   CLI JSON schema 或 full visual gate verdict。
 
+2026-06-15 继续推进（bounded subset 默认 timeout 回归）：
+
+- 已扩展 `pdf_ctest_bounded_subset_summary_test.ps1`，新增 `contract-static` fake
+  CTest 路径，固定普通 bounded static 子集继续使用默认 `ctest_timeout_seconds=60`。
+- 该回归与 `smoke-import=120` 断言配对，避免后续把 `pdf_cli_import` 聚合入口的
+  120 秒例外误扩散到所有 bounded 子集。
+- 已知边界：
+  本轮只补测试契约，不改变 `run_pdf_ctest_bounded_subset.ps1` 的子集列表、
+  release/readiness 输出字段、importer 或 CLI JSON。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

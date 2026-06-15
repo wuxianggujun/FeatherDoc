@@ -789,3 +789,13 @@
 - 已知边界：
   该批次只同步 bounded preflight 调度窗口和文档，不改变 CLI diagnostics 内容、
   importer 续表逻辑、release assets 字段或 full visual gate 产物。
+
+2026-06-15 继续推进（bounded preflight 默认 timeout guard）：
+
+- `pdf_ctest_bounded_subset_summary_test.ps1` 已新增 `contract-static` fake CTest
+  覆盖，确认非 `smoke-import` 的 bounded static 子集继续使用默认
+  `ctest_timeout_seconds=60`。
+- 该 guard 与上一批 `smoke-import=120` 一起固定 timeout 分层：只有包含
+  `pdf_cli_import` 聚合入口的 import preflight 使用 120，其它 bounded 子集保持 60。
+- 已知边界：
+  本轮只补测试防漂移，不新增 release 字段、不改变 CLI diagnostics 或 importer 行为。

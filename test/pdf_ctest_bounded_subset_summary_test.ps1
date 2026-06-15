@@ -163,4 +163,79 @@ Assert-SequenceEqual `
     ) `
     -Message "Smoke-import summary should preserve selected smoke/import test order."
 
+$fakeContractStaticCtest = Join-Path $resolvedWorkingDir "fake-ctest-contract-static.ps1"
+@'
+$tests = @(
+    "pdf_import_docs_contract",
+    "pdf_ctest_timeout_contract",
+    "pdf_ctest_label_contract",
+    "pdf_bidi_line_layout_static_contract",
+    "pdf_document_style_gallery_contract",
+    "pdf_document_font_matrix_contract",
+    "pdf_document_table_font_matrix_contract",
+    "pdf_cjk_copy_search_matrix_contract",
+    "pdf_cjk_font_embed_matrix_contract",
+    "pdf_cjk_anchor_font_matrix_boundary_contract"
+)
+
+if ($args -contains "-N") {
+    Write-Output "Test project fixture"
+    for ($index = 0; $index -lt $tests.Count; ++$index) {
+        Write-Output ("  Test #{0}: {1}" -f ($index + 1), $tests[$index])
+    }
+    exit 0
+}
+
+$timeoutIndex = [Array]::IndexOf($args, "--timeout")
+if ($timeoutIndex -lt 0 -or $timeoutIndex + 1 -ge $args.Count -or $args[$timeoutIndex + 1] -ne "60") {
+    Write-Error "Expected contract-static bounded CTest timeout 60, got args: $($args -join ' ')"
+    exit 2
+}
+
+Write-Output "Test project fixture"
+for ($index = 0; $index -lt $tests.Count; ++$index) {
+    Write-Output ("{0}/{1} Test #{2}: {3} ........................   Passed    0.01 sec" -f ($index + 1), $tests.Count, ($index + 1), $tests[$index])
+}
+Write-Output "100% tests passed, 0 tests failed out of 10"
+Write-Output "Total Test time (real) = 0.10 sec"
+exit 0
+'@ | Set-Content -LiteralPath $fakeContractStaticCtest -Encoding UTF8
+
+$contractStaticSummaryPath = Join-Path $resolvedWorkingDir "contract-static-summary.json"
+$contractStaticResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
+    "-Subset", "contract-static",
+    "-BuildDir", $buildDir,
+    "-OutputJson", $contractStaticSummaryPath,
+    "-CtestExecutable", $fakeContractStaticCtest
+)
+Assert-Equal -Actual $contractStaticResult.ExitCode -Expected 0 `
+    -Message "Passing fake contract-static subset should complete successfully. Output: $($contractStaticResult.Text)"
+
+$contractStaticSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $contractStaticSummaryPath | ConvertFrom-Json
+Assert-Equal -Actual ([string]$contractStaticSummary.status) -Expected "pass" `
+    -Message "Contract-static summary should report pass status."
+Assert-Equal -Actual ([string]$contractStaticSummary.verdict) -Expected "pass" `
+    -Message "Contract-static summary should report pass verdict."
+Assert-Equal -Actual ([string]$contractStaticSummary.subset) -Expected "contract-static" `
+    -Message "Contract-static summary should preserve subset name."
+Assert-Equal -Actual ([int]$contractStaticSummary.selected_test_count) -Expected 10 `
+    -Message "Contract-static summary should preserve selected test count."
+Assert-Equal -Actual ([int]$contractStaticSummary.ctest_timeout_seconds) -Expected 60 `
+    -Message "Contract-static summary should preserve the default bounded ctest timeout."
+Assert-SequenceEqual `
+    -Actual @($contractStaticSummary.selected_tests | ForEach-Object { [string]$_ }) `
+    -Expected @(
+        "pdf_import_docs_contract",
+        "pdf_ctest_timeout_contract",
+        "pdf_ctest_label_contract",
+        "pdf_bidi_line_layout_static_contract",
+        "pdf_document_style_gallery_contract",
+        "pdf_document_font_matrix_contract",
+        "pdf_document_table_font_matrix_contract",
+        "pdf_cjk_copy_search_matrix_contract",
+        "pdf_cjk_font_embed_matrix_contract",
+        "pdf_cjk_anchor_font_matrix_boundary_contract"
+    ) `
+    -Message "Contract-static summary should preserve selected static contract test order."
+
 Write-Host "PDF bounded CTest subset summary contract passed."
