@@ -728,5 +728,15 @@ OCR 或任意视觉精确还原。
 图片 / 页眉页脚 / RTL 探针和 visual baseline 证据。导入侧当前发布边界是
 text-first、表格 opt-in 和保守失败；不支持 OCR、扫描件、任意 PDF 视觉精确
 还原或通用 PDF 转 Word。
+
+CJK 字体分发策略：当前发行包不重新分发 CJK TTF / OTF / TTC 字体文件。
+PDF writer 和 visual gate 只接受调用方通过 ``--cjk-font-file`` /
+``--font-map``、``FEATHERDOC_PDF_CJK_FONT``、``FEATHERDOC_TEST_CJK_FONT``
+或系统字体候选提供的字体。若后续需要随包分发，候选限定为 Noto Sans CJK /
+Source Han Sans / Source Han Serif 等 SIL Open Font License 1.1 字体；打包前
+必须把 upstream source URL、精确版本、字体文件名、LICENSE / NOTICE、
+Reserved Font Name 义务和 release assets manifest 审计字段一并补齐。缺任一项时，
+发布清单必须把 CJK bundled font 标为未完成，不能把本机字体复制进发行包。
+
 核心头入口调整只影响 C++ include 路径与安装布局，不扩大 PDF 导出 / 导入
 发布边界。

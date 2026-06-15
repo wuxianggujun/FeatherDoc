@@ -54,6 +54,15 @@ Common options:
 * ``--summary-json <path>`` writes a machine-readable export summary.
 * ``--json`` prints a machine-readable command result.
 
+CJK font sourcing is explicit. Current release artifacts do not redistribute
+CJK TTF / OTF / TTC font binaries; callers provide fonts through
+``--cjk-font-file``, ``--font-map``, ``FEATHERDOC_PDF_CJK_FONT``, the test-only
+``FEATHERDOC_TEST_CJK_FONT``, or installed platform font candidates. Bundling a
+CJK font in a future release requires an OFL 1.1 font such as Noto Sans CJK,
+Source Han Sans, or Source Han Serif, plus source URL, exact version, font file
+names, LICENSE / NOTICE, Reserved Font Name obligations, and release manifest
+audit evidence.
+
 Successful JSON includes ``command``, ``ok``, ``output``, ``bytes_written`` and
 the effective option set:
 

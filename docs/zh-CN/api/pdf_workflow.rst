@@ -52,6 +52,13 @@ PDF 导出
 * ``--summary-json <path>`` 写出机器可读导出摘要。
 * ``--json`` 输出机器可读命令结果。
 
+CJK 字体来源必须显式可追溯。当前发行包不重新分发 CJK TTF / OTF / TTC 字体文件；
+调用方通过 ``--cjk-font-file``、``--font-map``、``FEATHERDOC_PDF_CJK_FONT``、
+测试专用 ``FEATHERDOC_TEST_CJK_FONT`` 或已安装的系统字体候选提供字体。未来若随包
+分发 CJK 字体，必须选择 Noto Sans CJK、Source Han Sans 或 Source Han Serif 等
+OFL 1.1 字体，并在 release manifest 中记录 source URL、精确版本、字体文件名、
+LICENSE / NOTICE、Reserved Font Name 义务和打包审计证据。
+
 成功 JSON 包含 ``command``、``ok``、``output``、``bytes_written`` 和实际选项：
 
 .. code-block:: json

@@ -181,9 +181,12 @@ Phase 1 的重点是：
 
 **子任务**：
 
-- [ ] 选定一个可随发行包分发的开源 CJK TTF（思源黑体 / 思源宋体 / Noto CJK 之一），列出许可证义务；
-      当前测试先使用 `FEATHERDOC_TEST_CJK_FONT`、`FEATHERDOC_PDF_CJK_FONT` 或系统字体候选，
-      不把字体文件重新分发进仓库
+- [x] 发行字体策略已收口：当前发行包不重新分发 CJK TTF / OTF / TTC 字体文件；
+      运行时和测试先使用 `--cjk-font-file` / `--font-map`、`FEATHERDOC_PDF_CJK_FONT`、
+      `FEATHERDOC_TEST_CJK_FONT` 或系统字体候选。未来若随包分发，只能选择
+      Noto Sans CJK / Source Han Sans / Source Han Serif 这类 SIL Open Font License 1.1
+      字体，并在 release manifest 同步记录 upstream source URL、精确版本、字体文件名、
+      LICENSE / NOTICE 和 Reserved Font Name 义务。
 - [x] 通过 PDFio 实现字体子集嵌入（不嵌入整个 20 MB 字体）
 - [x] 写 /ToUnicode CMap，使 PDFium 能回读正确 Unicode 文本
 - [x] 中文 sample → PDF → 用 PDFium 反向提取文本，断言文本一致

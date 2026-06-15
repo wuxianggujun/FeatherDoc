@@ -28,7 +28,9 @@ $buildingPdfDoc = @(
 $releaseChecklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_release_readiness_checklist_zh.rst"
 $releaseArtifactTemplateEn = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "RELEASE_ARTIFACT_TEMPLATE.md"
 $releaseArtifactTemplateZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
+$roadmapDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "design\02-current-roadmap.md"
 $pdfWorkflowDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\pdf_workflow.rst"
+$pdfWorkflowDocZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\pdf_workflow.rst"
 $dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
 $preflightScript = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
@@ -381,6 +383,79 @@ $pdfImportBoundaryMarkers = @(
 foreach ($marker in $pdfImportBoundaryMarkers) {
     Assert-ContainsText -Text $pdfWorkflowDoc -ExpectedText $marker `
         -Message "docs/en/api/pdf_workflow.rst should preserve PDF import boundary marker '$marker'."
+}
+
+$cjkFontDistributionPolicyWorkflowMarkers = @(
+    "Current release artifacts do not redistribute",
+    "CJK TTF / OTF / TTC font binaries",
+    "FEATHERDOC_PDF_CJK_FONT",
+    "FEATHERDOC_TEST_CJK_FONT",
+    "Noto Sans CJK",
+    "Source Han Sans",
+    "Source Han Serif",
+    "LICENSE / NOTICE",
+    "Reserved Font Name",
+    "release manifest"
+)
+
+foreach ($marker in $cjkFontDistributionPolicyWorkflowMarkers) {
+    $message = "PDF workflow doc should preserve CJK font distribution policy marker '{0}'." -f $marker
+    Assert-ContainsText -Text $pdfWorkflowDoc -ExpectedText $marker -Message $message
+}
+
+$cjkFontDistributionPolicyRoadmapMarkers = @(
+    "CJK TTF / OTF / TTC",
+    "--cjk-font-file",
+    "--font-map",
+    "FEATHERDOC_PDF_CJK_FONT",
+    "FEATHERDOC_TEST_CJK_FONT",
+    "Noto Sans CJK",
+    "Source Han Sans",
+    "Source Han Serif",
+    "SIL Open Font License 1.1",
+    "release manifest",
+    "LICENSE / NOTICE",
+    "Reserved Font Name"
+)
+
+foreach ($marker in $cjkFontDistributionPolicyRoadmapMarkers) {
+    $message = "PDF roadmap should preserve CJK font distribution policy marker '{0}'." -f $marker
+    Assert-ContainsText -Text $roadmapDoc -ExpectedText $marker -Message $message
+}
+
+$cjkFontDistributionPolicyZhMarkers = @(
+    "CJK TTF / OTF / TTC",
+    "FEATHERDOC_PDF_CJK_FONT",
+    "FEATHERDOC_TEST_CJK_FONT",
+    "Noto Sans CJK",
+    "Source Han Sans",
+    "Source Han Serif",
+    "LICENSE / NOTICE",
+    "Reserved Font Name"
+)
+
+foreach ($marker in $cjkFontDistributionPolicyZhMarkers) {
+    $message = "PDF workflow zh doc should preserve CJK font distribution policy marker '{0}'." -f $marker
+    Assert-ContainsText -Text $pdfWorkflowDocZh -ExpectedText $marker -Message $message
+}
+
+$cjkFontDistributionPolicyChecklistMarkers = @(
+    "CJK TTF / OTF / TTC",
+    "--cjk-font-file",
+    "--font-map",
+    "FEATHERDOC_PDF_CJK_FONT",
+    "FEATHERDOC_TEST_CJK_FONT",
+    "Noto Sans CJK",
+    "Source Han Sans",
+    "Source Han Serif",
+    "SIL Open Font License 1.1",
+    "release assets manifest",
+    "CJK bundled font"
+)
+
+foreach ($marker in $cjkFontDistributionPolicyChecklistMarkers) {
+    $message = "PDF release readiness checklist should preserve CJK font distribution policy marker '{0}'." -f $marker
+    Assert-ContainsText -Text $releaseChecklistDoc -ExpectedText $marker -Message $message
 }
 
 $pdfPackageManifestMarkers = @(
