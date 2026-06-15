@@ -649,3 +649,20 @@
 - 已知边界：
   本轮只改变生产脚本内部字段清单来源，不改变 bounded summary JSON 形状、
   release/governance rollup 字段链路、CLI JSON schema 或 importer 续表逻辑。
+
+2026-06-15 继续推进（PDF import diagnostics release metadata 透传契约）：
+
+- 已补 `release_visual_verdict_metadata_consistency_test.ps1`，用动态 fixture 验证
+  `release_visual_metadata_helpers.ps1` 的 `Get-PdfBoundedCtestEvidence` 会按原顺序保留
+  `import_diagnostics_contract_fields`，不做过滤、排序或字段裁剪。
+- `Get-PdfBoundedCtestImportDiagnosticsDisplay` 也被固定为按同一顺序 join 字段清单，
+  让 release body / artifact guide / reviewer checklist 复用 display helper 时仍保留
+  完整 blocker diagnostic 字段可见性。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "release_visual_verdict_metadata_consistency" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `f3c6dcc test: lock PDF import diagnostics metadata passthrough`。
+- 已知边界：
+  本轮不改 release 文案生成脚本、不改 package assets、不改 bounded summary 字段来源，
+  只补 metadata helper 层的透传/显示顺序回归契约。

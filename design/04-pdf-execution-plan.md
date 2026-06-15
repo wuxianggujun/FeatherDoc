@@ -1326,6 +1326,24 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只抽出生产字段清单，不改变 summary JSON 字段值、字段顺序、CLI JSON schema、
   importer heuristic 或 release visual verdict。
 
+2026-06-15 继续推进（PDF import diagnostics release metadata 透传契约）：
+
+- 已补 `release_visual_verdict_metadata_consistency_test.ps1` 的动态契约，直接
+  dot-source `release_visual_metadata_helpers.ps1` 并构造 `pdf_bounded_ctest`
+  summary，确认 `Get-PdfBoundedCtestEvidence` 对
+  `import_diagnostics_contract_fields` 只做原样数组透传，不过滤、不重排。
+- 同一测试还固定 `Get-PdfBoundedCtestImportDiagnosticsDisplay` 的 `fields` 展示顺序
+  必须与 `Get-PdfImportDiagnosticsContractFields` 一致，避免 release note / artifact
+  writer 使用 display helper 时丢失 blocker 诊断字段顺序。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "release_visual_verdict_metadata_consistency" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `f3c6dcc test: lock PDF import diagnostics metadata passthrough`。
+- 已知边界：
+  本轮只锁 release metadata helper 的透传行为，不改变 release note 文案、
+  package assets、governance handoff Markdown、bounded summary JSON 或 importer 逻辑。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
