@@ -488,6 +488,9 @@ scope 行必须直接携带 `segmented_visual_gate_auxiliary_only`；segmented s
 - `header_match_kind` 记录 repeated-header 命中路径，例如 `exact`、
   `normalized_text`、`plural_variant`、`canonical_text` 或 `token_set`。
 - `source_row_offset` 记录续接时跳过的源行数，常见值 `1` 表示重复表头被跳过。
+- `skipped_repeating_header=true` 确认被跳过的源行就是续页重复表头。
+- `continuation_confidence` 是规则型诊断分数，不是概率 (not a probability)；当前受控的
+  repeated-header continuation 合并路径使用 score `95`。
 
 需要保留测试 DOCX 并做 Word -> PDF 视觉 smoke 时，可运行：
 

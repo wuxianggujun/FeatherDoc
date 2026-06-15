@@ -335,6 +335,20 @@ foreach ($marker in $pdfExportSupportMatrixMarkers) {
         -Message "BUILDING_PDF.md should preserve PDF export support matrix marker '$marker'."
 }
 
+$buildingPdfImportDeveloperDiagnosticMarkers = @(
+    'PdfDocumentImportResult::table_continuation_diagnostics',
+    'skipped_repeating_header=true',
+    'continuation_confidence',
+    'not a probability',
+    'repeated-header continuation',
+    'score `95`'
+)
+
+foreach ($marker in $buildingPdfImportDeveloperDiagnosticMarkers) {
+    Assert-ContainsText -Text $buildingPdfDoc -ExpectedText $marker `
+        -Message "BUILDING_PDF.md should preserve PDF import developer diagnostic marker '$marker'."
+}
+
 $pdfImportBoundaryMarkers = @(
     "The importer is text-first.",
     "extractable PDF text and character geometry",
