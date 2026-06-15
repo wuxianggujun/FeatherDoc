@@ -626,3 +626,26 @@
   `97645b5 test: reuse PDF import diagnostics contract fields`。
 - 已知边界：
   本轮不改文档正文或生产脚本输出，只降低 bounded summary / docs contract 的字段漂移风险。
+
+2026-06-15 继续推进（PDF import diagnostics 生产脚本字段 helper）：
+
+- 已新增 `scripts/pdf_import_diagnostics_contract_fields.ps1`，将 bounded
+  `smoke-import` 的 `import_diagnostics_contract_fields` 生产清单集中到脚本 helper。
+- `run_pdf_ctest_bounded_subset.ps1` 现在通过
+  `Get-PdfImportDiagnosticsContractFields` 生成字段清单；测试侧
+  `test/pdf_import_diagnostics_contract_field_helpers.ps1` 继续保留独立精确期望，
+  由 `pdf_ctest_bounded_subset_summary_test.ps1` 验证两边输出一致，避免生产 helper
+  错改后测试也同步放宽。
+- `pdf_visual_validation_status_docs_contract_test.ps1` 已把该脚本 helper 文本并入
+  bounded CTest script markers，确保 release readiness/docs contract 仍能追踪字段
+  来源。
+- 验证命令：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test\pdf_ctest_bounded_subset_summary_test.ps1 -RepoRoot . -WorkingDir .bpdf-roundtrip-msvc\test\pdf_ctest_bounded_subset_summary_direct`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_visual_validation_status_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `09ffea5 test: share bounded PDF import diagnostics fields`。
+- 已知边界：
+  本轮只改变生产脚本内部字段清单来源，不改变 bounded summary JSON 形状、
+  release/governance rollup 字段链路、CLI JSON schema 或 importer 续表逻辑。

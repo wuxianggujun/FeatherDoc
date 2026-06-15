@@ -1302,6 +1302,30 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只扩展测试 helper 的使用面，不改变 `scripts/run_pdf_ctest_bounded_subset.ps1`
   的字段输出、不改 docs 内容、不改 CLI JSON schema 或 importer heuristic。
 
+2026-06-15 继续推进（PDF import diagnostics 生产脚本字段 helper）：
+
+- 已新增 `scripts/pdf_import_diagnostics_contract_fields.ps1`，将 bounded
+  `smoke-import.import_diagnostics_contract_fields` 的生产字段清单从
+  `run_pdf_ctest_bounded_subset.ps1` 抽出，避免生产脚本继续内嵌完整 blocker
+  diagnostics 字段列表。
+- `scripts/run_pdf_ctest_bounded_subset.ps1` 现在 dot-source 该 helper 并通过
+  `Get-PdfImportDiagnosticsContractFields` 写入 summary；`pdf_ctest_bounded_subset_summary_test.ps1`
+  仍用测试侧 helper 固定精确输出顺序和值，因此脚本 helper 变更仍会被 bounded
+  summary contract 捕获。
+- `pdf_visual_validation_status_docs_contract_test.ps1` 同步把
+  `scripts/pdf_import_diagnostics_contract_fields.ps1` 纳入 bounded CTest script marker
+  聚合，保持 release readiness/docs contract 对生产字段来源的可见性。
+- 已完成验证：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test\pdf_ctest_bounded_subset_summary_test.ps1 -RepoRoot . -WorkingDir .bpdf-roundtrip-msvc\test\pdf_ctest_bounded_subset_summary_direct`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_visual_validation_status_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过（仅保留既有 CRLF/LF warning）。
+- 已提交并推送：
+  `09ffea5 test: share bounded PDF import diagnostics fields`。
+- 已知边界：
+  本轮只抽出生产字段清单，不改变 summary JSON 字段值、字段顺序、CLI JSON schema、
+  importer heuristic 或 release visual verdict。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
