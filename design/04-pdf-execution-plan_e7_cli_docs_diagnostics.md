@@ -346,3 +346,26 @@
   本轮只锁定 text-first PDF import 的保守负样本行为；不改变 table candidate
   heuristic、不新增 CLI JSON schema、不替代 full visual gate，也不新增或提交 `output/`
   视觉 gate 产物。
+
+2026-06-15 继续推进（PDF import prose / form CLI 用户可见契约）：
+
+- 已在 `pdf_cli_import_tests.cpp` 增加
+  `cli import-pdf keeps prose and forms as paragraphs with table promotion`，
+  将 short-label prose 与 invoice summary form 的保守边界从 importer 层推进到
+  CLI JSON 用户可见层。
+- 回归固定 `--import-table-candidates-as-tables --json` 的输出契约：
+  `ok = true`、`paragraphs_imported` 存在、`tables_imported = 0`、
+  `table_continuation_diagnostics_count = 0`、
+  `table_continuation_diagnostics = []` 和
+  `import_table_candidates_as_tables = true`；导出的 DOCX 保存重开后不包含 table。
+- 验证命令：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_cli_import_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import|pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `f027db1 test: expose PDF import prose CLI contract`。
+- 已知边界：
+  本轮不改变 CLI JSON schema、不改变 importer/table candidate heuristic；该测试只固定
+  用户可见的 prose/form 负样本结果，不替代 full visual gate，也不新增或提交 `output/`
+  视觉 gate 产物。

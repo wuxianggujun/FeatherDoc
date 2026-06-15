@@ -1022,6 +1022,26 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮不改变 importer 启发式、不新增 CLI JSON 字段、不运行 full visual gate；负样本只固定
   text-first importer 的保守结构行为，不新增或提交 `output/` 视觉产物。
 
+2026-06-15 继续推进（PDF import prose / form CLI 用户可见契约）：
+
+- 已把上一批 importer 负样本继续推进到 CLI 用户可见 JSON：新增
+  `cli import-pdf keeps prose and forms as paragraphs with table promotion`，
+  覆盖 short-label prose 与 invoice summary form 两个样本。
+- 该 CLI 回归固定用户开启 `--import-table-candidates-as-tables --json` 后仍能看到
+  成功导入结果：`ok = true`、`tables_imported = 0`、
+  `table_continuation_diagnostics_count = 0`、`table_continuation_diagnostics = []`
+  和 `import_table_candidates_as_tables = true`，同时保存后的 DOCX 不包含 table。
+- 已完成验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_cli_import_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_cli_import|pdf_import_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `f027db1 test: expose PDF import prose CLI contract`。
+- 已知边界：
+  本轮不改变 importer 启发式和 CLI JSON schema，只固定用户可见的保守导入结果；
+  未运行 full visual gate，不新增或提交 `output/` 视觉产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
