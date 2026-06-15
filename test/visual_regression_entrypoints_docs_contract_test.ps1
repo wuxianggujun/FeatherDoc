@@ -31,6 +31,26 @@ function Get-RepoFileText {
     return Get-Content -Raw -Encoding UTF8 -LiteralPath $path
 }
 
+function Get-TestCMakeRegistrationText {
+    param(
+        [string]$Root
+    )
+
+    $cmakePaths = @(
+        (Join-Path $Root "test\CMakeLists.txt")
+    )
+    $cmakeModuleDir = Join-Path $Root "test\cmake"
+    if (Test-Path -LiteralPath $cmakeModuleDir) {
+        $cmakePaths += Get-ChildItem -LiteralPath $cmakeModuleDir -Filter "*.cmake" |
+            Sort-Object Name |
+            ForEach-Object { $_.FullName }
+    }
+
+    return ($cmakePaths | ForEach-Object {
+            Get-Content -Raw -Encoding UTF8 -LiteralPath $_
+        }) -join "`n"
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     throw "RepoRoot is required."
 }
@@ -38,11 +58,13 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
 $visualValidationDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\visual_validation_zh.rst"
-$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+$cmakeLists = Get-TestCMakeRegistrationText -Root $resolvedRepoRoot
 $basicTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\basic_tests.cpp"
 $templatePartContentTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\template_part_content_unit_tests.cpp"
+$templatePartContentReviewOmmlTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\template_part_content_review_omml_tests.cpp"
 $cliTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\cli_tests.cpp"
 $cliSemanticDiffTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\cli_semantic_diff_tests.cpp"
+$cliSemanticDiffAlignmentTests = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\cli_semantic_diff_alignment_tests.cpp"
 
 $visualEntrypoints = @(
     [ordered]@{
@@ -71,7 +93,7 @@ $visualEntrypoints = @(
             "make_omml_nary",
             "make_omml_delimiter"
         )
-        testText = $basicTests + "`n" + $templatePartContentTests
+        testText = $basicTests + "`n" + $templatePartContentTests + "`n" + $templatePartContentReviewOmmlTests
         testMarkers = @(
             "document and template part can inspect append replace and remove OMML",
             "OMML builder helpers create appendable formulas"
@@ -105,7 +127,7 @@ $visualEntrypoints = @(
             "Header AFTER",
             "SemanticDiffApprovedOutline"
         )
-        testText = $cliTests + "`n" + $cliSemanticDiffTests
+        testText = $cliTests + "`n" + $cliSemanticDiffTests + "`n" + $cliSemanticDiffAlignmentTests
         testMarkers = @(
             "cli semantic-diff reports document changes and can fail on diff",
             "cli semantic-diff reports header and footer template part changes"
@@ -168,7 +190,7 @@ $visualEntrypoints = @(
             "Current page",
             "Total pages"
         )
-        testText = $basicTests + "`n" + $templatePartContentTests
+        testText = $basicTests + "`n" + $templatePartContentTests + "`n" + $templatePartContentReviewOmmlTests
         testMarkers = @(
             "header and footer template parts can append page number fields",
             "template part page number fields report unavailable parts"

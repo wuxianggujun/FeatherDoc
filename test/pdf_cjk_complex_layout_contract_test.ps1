@@ -56,7 +56,13 @@ $samplePath = Join-Path $resolvedRepoRoot "samples\pdf_regression_sample.cpp"
 $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
 $manifestTestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest_test.cpp"
 $cmakePath = Join-Path $resolvedRepoRoot "test\CMakeLists.txt"
-
+$cmakeModuleDir = Join-Path $resolvedRepoRoot "test\cmake"
+$cmakeTextParts = @(Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakePath)
+if (Test-Path -LiteralPath $cmakeModuleDir) {
+    $cmakeTextParts += Get-ChildItem -LiteralPath $cmakeModuleDir -Filter "*.cmake" |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+}
 $sampleTextParts = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $samplePath
 )
@@ -66,7 +72,7 @@ $sampleTextParts += Get-ChildItem -LiteralPath (Split-Path -Parent $samplePath) 
 $sampleText = $sampleTextParts -join "`n"
 $manifestText = Get-Content -Raw -LiteralPath $manifestPath
 $manifestTestText = Get-Content -Raw -LiteralPath $manifestTestPath
-$cmakeText = Get-Content -Raw -LiteralPath $cmakePath
+$cmakeText = $cmakeTextParts -join "`n"
 
 $sampleId = "document-cjk-complex-layout-text"
 $sampleKind = "document_cjk_complex_layout_text"

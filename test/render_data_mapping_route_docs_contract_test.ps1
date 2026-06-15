@@ -31,6 +31,26 @@ function Get-RepoFileText {
     return Get-Content -Raw -Encoding UTF8 -LiteralPath $path
 }
 
+function Get-TestCMakeRegistrationText {
+    param(
+        [string]$Root
+    )
+
+    $cmakePaths = @(
+        (Join-Path $Root "test\CMakeLists.txt")
+    )
+    $cmakeModuleDir = Join-Path $Root "test\cmake"
+    if (Test-Path -LiteralPath $cmakeModuleDir) {
+        $cmakePaths += Get-ChildItem -LiteralPath $cmakeModuleDir -Filter "*.cmake" |
+            Sort-Object Name |
+            ForEach-Object { $_.FullName }
+    }
+
+    return ($cmakePaths | ForEach-Object {
+            Get-Content -Raw -Encoding UTF8 -LiteralPath $_
+        }) -join "`n"
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     throw "RepoRoot is required."
 }
@@ -41,7 +61,7 @@ $governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "d
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $schemaJson = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "samples\template_render_data_mapping.schema.json"
 $sampleMappingJson = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "samples\chinese_invoice_template.render_data_mapping.json"
-$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+$cmakeLists = Get-TestCMakeRegistrationText -Root $resolvedRepoRoot
 
 $convertScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\convert_render_data_to_patch_plan.ps1"
 $lintScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\lint_render_data_mapping.ps1"
