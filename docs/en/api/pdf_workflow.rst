@@ -232,6 +232,25 @@ Keep the user-facing example aligned with the CLI implementation:
 ``inconsistent_source_rows``, ``column_count_mismatch``,
 ``column_anchors_mismatch``, ``repeated_header_mismatch`` or
 ``continuation_confidence_below_threshold``.
+
+When a repeated-header continuation is merged, the diagnostic records the
+rule-based decision explicitly: ``source_row_offset = 1`` means the first
+source row was skipped as the repeated header,
+``skipped_repeating_header = true``, ``continuation_confidence = 95``,
+``header_match_kind = exact`` and ``blocker = none``. This confidence is a
+deterministic heuristic score, not a probability.
+
+.. code-block:: json
+
+   {
+     "source_row_offset": 1,
+     "continuation_confidence": 95,
+     "header_match_kind": "exact",
+     "skipped_repeating_header": true,
+     "disposition": "merged_with_previous_table",
+     "blocker": "none"
+   }
+
 ``inconsistent_source_rows`` is an internal consistency guard for malformed
 table candidates. The current parser
 normalizes each table-candidate row to the detected column anchors, so normal
