@@ -1122,6 +1122,26 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只收紧 CLI JSON 诊断契约，不改变 importer merge heuristic、不新增 CLI JSON
   schema 字段，不运行 full visual gate，也不新增或提交 `output/` 视觉产物。
 
+2026-06-15 继续推进（PDF repeated-header diagnostics 公开 workflow 契约）：
+
+- 已同步 `docs/en/api/pdf_workflow.rst` 与 `docs/zh-CN/api/pdf_workflow.rst`，
+  将 repeated-header 续页合并诊断从 CLI 回归证据沉淀到用户可见 API workflow 文档：
+  `source_row_offset = 1` 表示跳过续页首行重复表头，
+  `skipped_repeating_header = true`、`continuation_confidence = 95`、
+  `header_match_kind = exact`、`disposition = merged_with_previous_table` 和
+  `blocker = none` 固定为该受控合并路径的公开说明。
+- 已用 `pdf_import_docs_contract_test.ps1` 固定中英文 workflow 文档必须保留上述
+  字段值和 JSON 片段；PowerShell contract marker 保持 ASCII-only，避免
+  Windows PowerShell 5.1 对无 BOM UTF-8 脚本文字量的解析漂移。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract|docs_bilingual_entrypoints_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `a22352c docs: document PDF repeated header diagnostics contract`。
+- 已知边界：
+  本轮只补用户可见 workflow 文档契约，不改变 importer continuation heuristic、
+  CLI JSON schema 或 release bundle 内容，也不新增或提交 `output/` 视觉产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

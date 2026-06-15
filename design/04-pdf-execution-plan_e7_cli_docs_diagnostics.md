@@ -444,3 +444,24 @@
 - 已知边界：
   只固定 CLI JSON 诊断展示契约，不改变 importer continuation heuristic、不新增 CLI
   JSON schema 字段，也不新增或提交 `output/` 视觉产物。
+
+2026-06-15 继续推进（PDF repeated-header diagnostics 公开 workflow 契约）：
+
+- 已把 repeated-header 续页合并的关键诊断值同步到
+  `docs/en/api/pdf_workflow.rst` 与 `docs/zh-CN/api/pdf_workflow.rst`，让
+  CLI JSON 中已固定的 `source_row_offset = 1`、`skipped_repeating_header = true`、
+  `continuation_confidence = 95`、`header_match_kind = exact` 和 `blocker = none`
+  在用户可见 workflow 文档中也有稳定解释。
+- 文档同时说明 `continuation_confidence = 95` 是确定性的启发式诊断分数，
+  不是概率；并给出最小 JSON 片段，避免只在测试断言里保留该契约。
+- 已补 `pdf_import_docs_contract_test.ps1` marker，固定中英文 workflow 文档必须
+  保留上述字段值；脚本侧 marker 继续使用 ASCII-only 字面量，兼容
+  Windows PowerShell 5.1。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract|docs_bilingual_entrypoints_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `a22352c docs: document PDF repeated header diagnostics contract`。
+- 已知边界：
+  本轮只补公开文档与 docs contract，不新增 CLI JSON 字段、不改变 importer 合并
+  启发式，也不运行 full visual gate。

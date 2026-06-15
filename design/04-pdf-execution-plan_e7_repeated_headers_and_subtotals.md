@@ -881,3 +881,21 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 已知边界：
   本轮不扩展 subtotal 识别能力，不改变 continuation merge heuristic；仅固定已支持
   受控样本的 CLI JSON diagnostic object。
+
+2026-06-15 继续推进（repeated-header diagnostics 公开 workflow 契约）：
+
+- 已将 repeated-header subtotal CLI diagnostic object 中最关键的合并语义同步到
+  双语 `pdf_workflow.rst`：`source_row_offset = 1` 明确表示续页首行 repeated
+  header 被跳过，`skipped_repeating_header = true`、`continuation_confidence = 95`、
+  `header_match_kind = exact` 与 `blocker = none` 固定为该受控路径的公开文档契约。
+- 文档补充了最小 JSON 片段，并明确 `continuation_confidence = 95` 只是规则型
+  启发式分数，不是概率模型，避免 subtotal / repeated-header 证据只停留在
+  `pdf_cli_import_tests.cpp` 内。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract|docs_bilingual_entrypoints_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `a22352c docs: document PDF repeated header diagnostics contract`。
+- 已知边界：
+  本轮不改变 repeated-header 或 subtotal 合并能力，不新增视觉产物；仅完成用户可见
+  workflow 文档和 docs contract 闭环。
