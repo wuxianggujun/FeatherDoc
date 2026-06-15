@@ -1164,6 +1164,29 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只锁定现有 CLI blocker JSON 展示契约，不改变 importer continuation heuristic、
   blocker 枚举或用户文档 schema，也不新增视觉产物。
 
+2026-06-15 继续推进（PDF import blocker diagnostics 公开 workflow 契约）：
+
+- 已把 `docs/en/api/pdf_workflow.rst` 与 `docs/zh-CN/api/pdf_workflow.rst`
+  的代表性 continuation blocker 片段从最小字段扩展为完整 diagnostic object，
+  让用户文档与 `pdf_cli_import_tests.cpp` 中已锁定的 CLI JSON object 契约对齐。
+- 公开文档现在覆盖 `repeated_header_mismatch`、`column_count_mismatch`、
+  `column_anchors_mismatch` 和 `continuation_confidence_below_threshold` 四类拆表场景，
+  并展示 `page_index`、`block_index`、`source_row_offset = 0`、页顶判定、
+  列数/列锚点判定、repeated-header 判定、`skipped_repeating_header = false`、
+  `disposition = created_new_table`、对应 blocker 与规则型 confidence 分数。
+- `pdf_import_docs_contract_test.ps1` 已固定这些公开片段必须保留
+  `continuation_confidence` 的 70、55、85、30 四个值，以及
+  `column_count_mismatch`、`column_count_matches = false`、
+  `column_anchors_match = false` 等关键用户诊断入口。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract|docs_bilingual_entrypoints_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `8cc196d docs: document PDF import blocker diagnostics contract`。
+- 已知边界：
+  本轮只补公开 workflow 文档与 docs contract，不改变 CLI JSON schema、importer
+  blocker 判断或 release bundle 内容，也不新增视觉产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

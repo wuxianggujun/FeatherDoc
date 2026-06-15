@@ -490,3 +490,25 @@
 - 已知边界：
   本轮不新增 CLI JSON 字段、不改变 importer 判断逻辑；只把既有 blocker 场景的
   用户可见 object 形状锁成回归契约。
+
+2026-06-15 继续推进（PDF import blocker diagnostics 公开 workflow 契约）：
+
+- 已将 CLI 已锁定的 blocker diagnostic object 继续同步到双语
+  `pdf_workflow.rst`，避免公开文档只列 blocker 名称而缺少上下文字段。
+- `repeated_header_mismatch`、`column_count_mismatch`、`column_anchors_mismatch` 和
+  `continuation_confidence_below_threshold` 现在都以完整 JSON object 形式展示，
+  字段顺序与 CLI JSON emission order 对齐。
+- 文档片段明确四类 blocker 的关键判定组合：header mismatch、column count
+  mismatch、column anchor mismatch，以及 `continuation_confidence = 85` /
+  `minimum_continuation_confidence = 90` 的阈值阻断。
+- 已补 `pdf_import_docs_contract_test.ps1` marker 固定公开 workflow 必须保留
+  `continuation_confidence = 70/55/85/30`、`column_count_matches = false`、
+  `column_anchors_match = false` 和 `blocker = column_count_mismatch`。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract|docs_bilingual_entrypoints_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `8cc196d docs: document PDF import blocker diagnostics contract`。
+- 已知边界：
+  本轮只补公开文档契约，不新增或更改 CLI JSON 字段、不改变 importer 续表启发式，
+  也不运行 full visual gate。
