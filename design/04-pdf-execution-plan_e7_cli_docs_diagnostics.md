@@ -538,3 +538,27 @@
 - 已知边界：
   本轮只补 release/governance 证据字段链路，不新增 CLI 字段、不改变 importer 逻辑，
   也不生成或提交 `output/` 视觉产物。
+
+2026-06-15 继续推进（PDF import blocker diagnostics Markdown rollup 可见性）：
+
+- 已把 include-rollup 测试 fixture 中的
+  `smoke-import.import_diagnostics_contract_fields` 补齐到与 bounded CTest summary
+  一致，确保 governance handoff 使用的 nested release blocker rollup evidence 能携带
+  完整 blocker diagnostic 字段清单。
+- `build_release_governance_handoff_report_include_rollup_summary_assertions.ps1`
+  现在固定 summary JSON 中必须保留 `source_row_offset=0`、
+  `skipped_repeating_header=false`、`disposition=created_new_table`、四类 blocker、
+  `continuation_confidence=70/55/85/30`、`minimum_continuation_confidence=90`、
+  `column_count_matches=false` 和 `column_anchors_match=false`。
+- `build_release_governance_handoff_report_include_rollup_markdown_assertions.ps1`
+  同步固定 release governance handoff Markdown 的全局文本和同一个
+  `source_report:` block，确认用户交接材料能看到 blocker 类型、confidence 分数和
+  column/header 判定，而不是只看到 `table_continuation_diagnostics=[]`。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "build_release_governance_handoff_report_include_rollup" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `28231cf test: lock PDF import blocker diagnostics markdown rollup`。
+- 已知边界：
+  本轮只补 release/governance Markdown 可见性测试契约，不改生产渲染脚本、
+  importer heuristic、CLI JSON schema 或 full visual gate verdict。

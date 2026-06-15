@@ -1219,6 +1219,26 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只扩展 bounded summary / release readiness 的字段链路，不改变 importer、CLI JSON
   schema、release bundle 渲染模板或 full visual gate verdict。
 
+2026-06-15 继续推进（PDF import blocker diagnostics Markdown rollup 可见性）：
+
+- 已补 `build_release_governance_handoff_report_include_rollup` fixture 与断言，确认
+  `pdf_bounded_ctest_import_diagnostics_contract_fields` 中的完整 blocker diagnostic
+  字段不只进入 nested rollup summary JSON，也会出现在 release governance handoff
+  Markdown 的 `source_report:` block 中。
+- Markdown 契约现在固定 `source_row_offset=0`、`skipped_repeating_header=false`、
+  `disposition=created_new_table`、四类 blocker、
+  `continuation_confidence=70/55/85/30`、`minimum_continuation_confidence=90`、
+  `column_count_matches=false` 和 `column_anchors_match=false`，避免后续
+  release-facing Markdown 只保留字段名而丢失用户可诊断的 blocker 依据。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "build_release_governance_handoff_report_include_rollup" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `28231cf test: lock PDF import blocker diagnostics markdown rollup`。
+- 已知边界：
+  本轮只锁 release/governance Markdown 输出可见性，不改变 importer、CLI JSON schema、
+  bounded summary 生成逻辑或 full visual gate verdict；未生成或提交 `output/` 视觉产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
