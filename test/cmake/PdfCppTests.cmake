@@ -134,6 +134,8 @@ if(TARGET FeatherDocPdf)
         )
         add_dependencies(pdf_cli_import_tests featherdoc_cli)
         featherdoc_set_test_labels(pdf_cli_import cli smoke pdf import)
+        set_tests_properties(pdf_cli_import PROPERTIES
+            TIMEOUT 120)
         if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
             set_tests_properties(pdf_cli_import PROPERTIES
                 ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")

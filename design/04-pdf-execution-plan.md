@@ -735,7 +735,8 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 2026-05-15 继续推进（PDF CTest 超时契约回归）：
 
 - 已新增 `pdf_ctest_timeout_contract_test.ps1`，直接扫描生成后的
-  `CTestTestfile.cmake`，要求所有 `LABELS` 包含 `pdf` 的测试都带 `TIMEOUT 60`。
+  `CTestTestfile.cmake`，要求所有 `LABELS` 包含 `pdf` 的测试都带 bounded
+  `TIMEOUT`；默认仍为 `60`，只有已量测的聚合入口可以显式登记例外。
 - 已把该契约挂入 CTest，标签为 `pdf;ctest;smoke`，自身也显式设置 60 秒超时。
 - 该回归覆盖 C++ helper、PowerShell 文档契约、视觉 gate 和动态 regression 测试，
   避免后续新增 PDF 测试时绕过统一调度边界。
@@ -1414,6 +1415,17 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 已知边界：
   本轮只调整 AllowIncomplete 包装测试超时，不改变 package script、manifest schema、
   release note bundle 或文档正文。
+
+2026-06-15 继续推进（pdf_cli_import 聚合入口超时契约）：
+
+- 已将 `pdf_cli_import` 这个聚合 CTest 入口的 `TIMEOUT` 从默认 `60` 提升到
+  `120`，匹配当前 CLI import diagnostics 回归样本数量，避免完整入口在 Windows
+  上因 60 秒 CTest property 被误判为超时。
+- 已同步 `pdf_ctest_timeout_contract_test.ps1`：PDF CTest 仍默认要求 bounded
+  `TIMEOUT 60`，但允许命名、可审计的量测例外；当前唯一例外为
+  `pdf_cli_import=120`。
+- 本轮不改变 importer、CLI JSON schema、docs diagnostics 字段或 visual gate
+  产物，只收紧测试调度契约。
 
 ## Owner
 

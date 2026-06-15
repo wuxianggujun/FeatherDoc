@@ -766,3 +766,15 @@
 - 已知边界：
   本轮只补 CLI/docs 用户可见契约，不改变 importer 续表启发式、CLI JSON schema、
   release assets 或 visual gate 产物。
+
+2026-06-15 继续推进（pdf_cli_import 聚合 CTest 调度契约）：
+
+- `pdf_cli_import` 已积累多组 CLI JSON diagnostics、threshold、page-position 和
+  merge-boundary 回归，完整 CTest 入口在 Windows 上不再适合沿用 PDF 默认
+  `TIMEOUT 60`。
+- 已将该聚合入口显式设置为 `TIMEOUT 120`，并更新
+  `pdf_ctest_timeout_contract_test.ps1`，让 contract 继续要求 PDF 测试有 bounded
+  timeout，同时只允许命名例外 `pdf_cli_import=120`。
+- 已知边界：
+  本轮只调整 CTest 调度契约，不拆分 `pdf_cli_import_tests` 目标，不改变 CLI 输出、
+  importer 续表 heuristics、文档 JSON schema 或 release assets。
