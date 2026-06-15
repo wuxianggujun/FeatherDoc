@@ -49,6 +49,25 @@
         -Message "Handoff Markdown should expose the PDF import diagnostics contract tests field."
     Assert-ContainsText -Text $markdown -ExpectedText "table_continuation_diagnostics=[]" `
         -Message "Handoff Markdown should expose the PDF import diagnostics contract field list."
+    foreach ($expectedImportDiagnosticField in @(
+        "source_row_offset=0",
+        "skipped_repeating_header=false",
+        "disposition=created_new_table",
+        "blocker=repeated_header_mismatch",
+        "blocker=column_count_mismatch",
+        "blocker=column_anchors_mismatch",
+        "blocker=continuation_confidence_below_threshold",
+        "continuation_confidence=70",
+        "continuation_confidence=55",
+        "continuation_confidence=85",
+        "continuation_confidence=30",
+        "minimum_continuation_confidence=90",
+        "column_count_matches=false",
+        "column_anchors_match=false"
+    )) {
+        Assert-ContainsText -Text $markdown -ExpectedText $expectedImportDiagnosticField `
+            -Message "Handoff Markdown should expose PDF import diagnostic contract field '$expectedImportDiagnosticField'."
+    }
     Assert-ContainsText -Text $markdown -ExpectedText "short_label_prose_remains_paragraphs" `
         -Message "Handoff Markdown should expose the PDF import negative boundary contract cases."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_status: ``pass``" `
@@ -183,6 +202,20 @@
         "pdf_import_table_heuristic",
         "pdf_bounded_ctest_import_diagnostics_contract_fields:",
         "table_continuation_diagnostics=[]",
+        "source_row_offset=0",
+        "skipped_repeating_header=false",
+        "disposition=created_new_table",
+        "blocker=repeated_header_mismatch",
+        "blocker=column_count_mismatch",
+        "blocker=column_anchors_mismatch",
+        "blocker=continuation_confidence_below_threshold",
+        "continuation_confidence=70",
+        "continuation_confidence=55",
+        "continuation_confidence=85",
+        "continuation_confidence=30",
+        "minimum_continuation_confidence=90",
+        "column_count_matches=false",
+        "column_anchors_match=false",
         "pdf_bounded_ctest_import_negative_boundary_contract_cases:",
         "short_label_prose_remains_paragraphs",
         "pdf_full_ctest_readiness_status: ``pass``",
