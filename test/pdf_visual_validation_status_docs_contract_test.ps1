@@ -45,7 +45,10 @@ $releaseReadinessScript = @(
 $visualFullGateGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_visual_full_gate_guarded.ps1"
 $fullCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_full_ctest_guarded.ps1"
 $remainingCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_ctest_remaining_guarded.ps1"
-$boundedCtestScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_ctest_bounded_subset.ps1"
+$boundedCtestScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_ctest_bounded_subset.ps1"
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\pdf_import_diagnostics_contract_fields.ps1"
+) -join "`n"
 $governanceReportScript = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
     Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "write_pdf_visual_release_gate_preflight_governance_report_*.ps1" |
