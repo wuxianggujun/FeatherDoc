@@ -126,8 +126,10 @@ foreach ($assertion in @(
         "PDF visual baseline manifest samples: 42",
         "PDF visual baselines: 44"
     ) -Message ("{0} should keep PDF visual status, verdict, paths, and counts in one Markdown list run." -f $assertion.Label)
-    Assert-LineContainsAll -Text $content -Fragments $pdfImportDiagnosticsFieldLineFragments `
-        -Message ("{0} should expose all bounded PDF import diagnostics contract fields on one reviewer-facing line." -f $assertion.Label)
+    Assert-MarkdownListRunContainsAll -Text $content `
+        -Anchor "PDF bounded CTest import diagnostics contract fields" `
+        -Fragments $pdfImportDiagnosticsFieldLineFragments `
+        -Message ("{0} should expose all bounded PDF import diagnostics contract fields in one reviewer-facing list run." -f $assertion.Label)
     Assert-ContainsText -Text $content -ExpectedText "short_label_prose_remains_paragraphs" `
         -Message ("{0} should expose bounded PDF import negative boundary cases." -f $assertion.Label)
 }
@@ -330,8 +332,10 @@ Assert-LineContainsAll -Text $candidateReviewerChecklist -Fragments @(
     'visual baseline manifest samples `42`',
     'visual baselines `44`'
 ) -Message "REVIEWER_CHECKLIST.md should keep PDF visual finalize verdict, paths, and counts on one reviewer signoff line."
-Assert-LineContainsAll -Text $candidateReviewerChecklist -Fragments $pdfImportDiagnosticsReviewerChecklistFragments `
-    -Message "REVIEWER_CHECKLIST.md should keep all bounded import diagnostics contract fields on one reviewer signoff line."
+Assert-MarkdownListRunContainsAll -Text $candidateReviewerChecklist `
+    -Anchor 'Confirm the bounded import diagnostics contract is visible to reviewers' `
+    -Fragments $pdfImportDiagnosticsReviewerChecklistFragments `
+    -Message "REVIEWER_CHECKLIST.md should keep all bounded import diagnostics contract fields in one reviewer signoff list run."
 
 $localAbsolutePathPattern = '(?i)\b[a-z]:(?:\\\\|\\)[^\s"''`<>|]+|(?<!\w)/(?:Users|home)/[^\s"''`<>|]+'
 foreach ($releaseMaterialPath in @(

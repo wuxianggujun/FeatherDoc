@@ -1516,6 +1516,19 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   `inconsistent_source_rows` 的定位；它仍是 malformed parsed table candidate
   的 importer 内部保护，而不是常规用户可稳定触发的 import-pdf blocker。
 
+2026-06-15 继续推进（bounded import diagnostics 字段补链）：
+
+- 已把 importer 层新增的 `inconsistent_source_rows` 构造覆盖继续透传到
+  bounded `smoke-import` summary 字段清单：`Get-PdfImportDiagnosticsContractFields`
+  现在包含 `source_rows_consistent=false`、`blocker=inconsistent_source_rows` 和
+  `continuation_confidence=25`。
+- 已同步测试侧独立 helper 与 `docs/pdf_release_readiness_checklist_zh.rst` 的显式
+  字段说明，使 bounded CTest summary、release/readiness 文档和 release-facing
+  report 测试继续复用同一字段契约。
+- 已知边界：
+  本轮只补 bounded/release evidence 的字段链路，不改变 importer heuristic、
+  CLI JSON schema、release assets 结构或 full visual gate verdict。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

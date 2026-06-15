@@ -14,6 +14,7 @@ $candidateReuseKey = [ordered]@{
     status = "complete"
     script_last_write_utc = (Get-Item -LiteralPath $scriptPath).LastWriteTimeUtc.Ticks
     test_last_write_utc = (Get-Item -LiteralPath $MyInvocation.MyCommand.Path).LastWriteTimeUtc.Ticks
+    import_diagnostics_contract_fields_text = (@(Get-PdfImportDiagnosticsContractFields) -join "`n")
 }
 New-Item -ItemType Directory -Path $releaseGovernanceHandoffInputRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $releaseGovernanceSourceDir -Force | Out-Null
@@ -333,9 +334,19 @@ if ($Scenario -eq "candidate_reports" -and
     $reuseMarker = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReuseMarkerPath | ConvertFrom-Json
     $reuseStatusProperty = $reuseMarker.PSObject.Properties["status"]
     $reuseStatus = if ($null -ne $reuseStatusProperty) { [string]$reuseStatusProperty.Value } else { "" }
+    $reuseImportDiagnosticsFieldsProperty =
+        $reuseMarker.PSObject.Properties["import_diagnostics_contract_fields_text"]
+    $reuseImportDiagnosticsFieldsText =
+        if ($null -ne $reuseImportDiagnosticsFieldsProperty) {
+            [string]$reuseImportDiagnosticsFieldsProperty.Value
+        } else {
+            ""
+        }
     if ($reuseStatus -eq "complete" -and
         [string]$reuseMarker.script_last_write_utc -eq [string]$candidateReuseKey.script_last_write_utc -and
-        [string]$reuseMarker.test_last_write_utc -eq [string]$candidateReuseKey.test_last_write_utc) {
+        [string]$reuseMarker.test_last_write_utc -eq [string]$candidateReuseKey.test_last_write_utc -and
+        $reuseImportDiagnosticsFieldsText -eq
+            [string]$candidateReuseKey.import_diagnostics_contract_fields_text) {
         $shouldRunCandidate = $false
     }
 }
@@ -345,6 +356,8 @@ if ($shouldRunCandidate) {
         status = "running"
         script_last_write_utc = $candidateReuseKey.script_last_write_utc
         test_last_write_utc = $candidateReuseKey.test_last_write_utc
+        import_diagnostics_contract_fields_text =
+            $candidateReuseKey.import_diagnostics_contract_fields_text
         started_at_utc = [DateTime]::UtcNow.ToString("o")
     }
     Write-TestJson -Path $candidateReuseMarkerPath -Value $candidateRunningKey

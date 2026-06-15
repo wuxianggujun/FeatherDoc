@@ -864,3 +864,19 @@
   本轮不改变 CLI JSON schema、不新增用户稳定 PDF fixture、不改 release assets 或
   visual gate 产物；`inconsistent_source_rows` 仍按文档定义保留为 malformed parsed
   table candidate 的内部一致性保护。
+
+2026-06-15 继续推进（inconsistent_source_rows bounded evidence 字段补链）：
+
+- `scripts/pdf_import_diagnostics_contract_fields.ps1` 的
+  `Get-PdfImportDiagnosticsContractFields` 已纳入
+  `source_rows_consistent=false`、`blocker=inconsistent_source_rows` 和
+  `continuation_confidence=25`，让 bounded `smoke-import` summary 能追踪新增
+  importer 级诊断覆盖。
+- `test/pdf_import_diagnostics_contract_field_helpers.ps1` 保留独立期望，并同步
+  blocker-only 字段清单，继续防止生产 helper 与测试 helper 一起漂移。
+- `docs/pdf_release_readiness_checklist_zh.rst` 的 bounded smoke-import 段落已同步
+  显式列出这 3 个字段，使 release readiness 文档、bounded summary 与 release
+  report 断言共享同一可见证据。
+- 已知边界：
+  本轮只补字段契约透传，不改变 `pdf_cli_import` 输出、不改变 importer 续表决策、
+  不新增 release asset 字段，也不运行 full visual gate。

@@ -517,12 +517,14 @@ OCR 或任意视觉精确还原。
    ``tables_imported=0``、``import_table_candidates_as_tables=true`` 和
    ``failure_kind=no_text_paragraphs``；该字段清单还必须保留完整 blocker diagnostic
    object 的用户可见关键值：``source_row_offset=0``、
-   ``skipped_repeating_header=false``、``disposition=created_new_table``、
+   ``skipped_repeating_header=false``、``source_rows_consistent=false``、
+   ``disposition=created_new_table``、``blocker=inconsistent_source_rows``、
    ``blocker=repeated_header_mismatch``、``blocker=column_count_mismatch``、
    ``blocker=column_anchors_mismatch``、
    ``blocker=continuation_confidence_below_threshold``、
    ``continuation_confidence=70``、``continuation_confidence=55``、
-   ``continuation_confidence=85``、``continuation_confidence=30``、
+   ``continuation_confidence=85``、``continuation_confidence=25``、
+   ``continuation_confidence=30``、
    ``minimum_continuation_confidence=90``、``column_count_matches=false`` 和
    ``column_anchors_match=false``；summary 还必须保留
    ``import_negative_boundary_contract_cases`` 中的
