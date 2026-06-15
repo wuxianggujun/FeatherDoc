@@ -799,3 +799,14 @@
   `pdf_cli_import` 聚合入口的 import preflight 使用 120，其它 bounded 子集保持 60。
 - 已知边界：
   本轮只补测试防漂移，不新增 release 字段、不改变 CLI diagnostics 或 importer 行为。
+
+2026-06-15 继续推进（CLI import threshold 轻量 CTest 入口）：
+
+- 已注册 `pdf_cli_import_threshold`，复用 `pdf_cli_import_tests.exe` 并用
+  `--source-file=*pdf_cli_import_threshold_tests.cpp` 过滤 threshold / no-text /
+  parse-error 等 CLI import 边界。
+- `pdf_cli_import` 完整聚合入口保留；两者通过同一个
+  `RESOURCE_LOCK pdf_cli_import_fixtures` 串行访问共享测试工作目录。
+- 已知边界：
+  本轮只改善验证入口粒度，不改变 CLI JSON diagnostics 字段、importer 续表逻辑、
+  release assets 或 visual gate 产物。

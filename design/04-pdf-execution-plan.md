@@ -1450,6 +1450,18 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只补测试契约，不改变 `run_pdf_ctest_bounded_subset.ps1` 的子集列表、
   release/readiness 输出字段、importer 或 CLI JSON。
 
+2026-06-15 继续推进（pdf_cli_import threshold 轻量入口）：
+
+- 已新增 `pdf_cli_import_threshold` CTest 入口，复用 `pdf_cli_import_tests.exe`，
+  通过 doctest `--source-file=*pdf_cli_import_threshold_tests.cpp` 只跑 threshold /
+  no-text / parse-error 相关 CLI import case。
+- 原 `pdf_cli_import` 聚合入口保持不变，继续作为完整 CLI import diagnostics 回归；
+  两个入口共享 `RESOURCE_LOCK pdf_cli_import_fixtures`，避免并发写同一个
+  `pdf_cli_import` 工作目录时互相清理输出。
+- 已知边界：
+  本轮只新增测试调度入口，不拆分源码文件、不改变 CLI/importer 行为、不改变
+  bounded summary 或 release/readiness schema。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

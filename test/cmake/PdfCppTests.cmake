@@ -135,13 +135,35 @@ if(TARGET FeatherDocPdf)
         add_dependencies(pdf_cli_import_tests featherdoc_cli)
         featherdoc_set_test_labels(pdf_cli_import cli smoke pdf import)
         set_tests_properties(pdf_cli_import PROPERTIES
+            RESOURCE_LOCK pdf_cli_import_fixtures
             TIMEOUT 120)
+        add_test(
+            NAME
+            pdf_cli_import_threshold
+            COMMAND
+            pdf_cli_import_tests
+            --source-file=*pdf_cli_import_threshold_tests.cpp
+        )
+        featherdoc_set_test_labels(
+            pdf_cli_import_threshold
+            cli
+            smoke
+            pdf
+            import
+            threshold
+        )
+        set_tests_properties(pdf_cli_import_threshold PROPERTIES
+            RESOURCE_LOCK pdf_cli_import_fixtures)
         if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
             set_tests_properties(pdf_cli_import PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+            set_tests_properties(pdf_cli_import_threshold PROPERTIES
                 ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
         endif()
         if(TARGET pdf_document_adapter_font_tests)
             set_tests_properties(pdf_cli_import PROPERTIES
+                DEPENDS pdf_document_adapter_font)
+            set_tests_properties(pdf_cli_import_threshold PROPERTIES
                 DEPENDS pdf_document_adapter_font)
         endif()
     endif()
