@@ -1,5 +1,56 @@
 #include "pdf_cli_import_test_support.hpp"
 
+namespace {
+
+void expect_table_continuation_diagnostic(
+    const std::string &json, const std::string &expected_diagnostic) {
+    CHECK_NE(json.find(expected_diagnostic), std::string::npos);
+}
+
+void expect_not_near_page_top_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":0)"
+        R"(,"continuation_confidence":45)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":false)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":true)"
+        R"(,"previous_has_repeating_header":false)"
+        R"(,"source_has_repeating_header":false)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"not_required")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"not_near_page_top"})";
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
+}
+
+void expect_not_first_block_on_page_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":0,"block_index":2,"source_row_offset":0)"
+        R"(,"continuation_confidence":35)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":false)"
+        R"(,"is_near_page_top":false)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":true)"
+        R"(,"previous_has_repeating_header":false)"
+        R"(,"source_has_repeating_header":false)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"not_required")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"not_first_block_on_page"})";
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
+}
+
+} // namespace
+
 TEST_CASE(
     "cli import-pdf reports isolated amount-only continuation merge diagnostics") {
     const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
@@ -171,6 +222,7 @@ TEST_CASE(
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"not_near_page_top")"),
              std::string::npos);
+    expect_not_near_page_top_diagnostic(json);
 }
 
 TEST_CASE(
@@ -218,6 +270,7 @@ TEST_CASE(
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"not_first_block_on_page")"),
              std::string::npos);
+    expect_not_first_block_on_page_diagnostic(json);
 }
 
 TEST_CASE("cli import-pdf rejects table candidates by default") {

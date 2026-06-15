@@ -340,7 +340,22 @@ blocker。
 .. code-block:: json
 
    {
+     "page_index": 0,
+     "block_index": 2,
+     "source_row_offset": 0,
+     "continuation_confidence": 35,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
      "is_first_block_on_page": false,
+     "is_near_page_top": false,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": false,
+     "source_has_repeating_header": false,
+     "header_matches_previous": true,
+     "header_match_kind": "not_required",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "not_first_block_on_page"
    }
@@ -348,8 +363,22 @@ blocker。
 .. code-block:: json
 
    {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 45,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
      "is_first_block_on_page": true,
      "is_near_page_top": false,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": false,
+     "source_has_repeating_header": false,
+     "header_matches_previous": true,
+     "header_match_kind": "not_required",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "not_near_page_top"
    }

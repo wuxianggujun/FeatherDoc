@@ -747,3 +747,22 @@
   `ctest --test-dir .bpdf-roundtrip-msvc -R "package_release_assets_allow_incomplete" --output-on-failure --timeout 120`
   `git diff --check`
 - 仍按当前 `dev` 分支单线推进，不新建分支，不做额外功能扩展。
+
+2026-06-15 继续推进（PDF import page-position blocker diagnostic object 契约）：
+
+- 已将 `not_first_block_on_page` 与 `not_near_page_top` 两类 page-position
+  continuation blocker 从 CLI 测试里的零散字段检查升级为完整 diagnostic object 契约。
+- 双语 `pdf_workflow.rst` 中对应 JSON 示例同步补齐 CLI emission order 下的完整字段，
+  覆盖 `page_index`、`block_index`、`source_row_offset`、`continuation_confidence`、
+  `minimum_continuation_confidence`、column/header 判断、`disposition` 与 `blocker`。
+- `pdf_import_docs_contract_test.ps1` 已新增 marker，固定 `continuation_confidence=35/45`、
+  `block_index=2` 与 page-position blocker 的用户可见字段。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-roundtrip-msvc --target pdf_cli_import_tests'`
+  `.\.bpdf-roundtrip-msvc\test\pdf_cli_import_tests.exe --test-case="cli import-pdf reports low page table continuation diagnostics"`
+  `.\.bpdf-roundtrip-msvc\test\pdf_cli_import_tests.exe --test-case="cli import-pdf reports non-first block continuation diagnostics"`
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_import_docs_contract" --output-on-failure --timeout 120`
+  `git diff --check`
+- 已知边界：
+  本轮只补 CLI/docs 用户可见契约，不改变 importer 续表启发式、CLI JSON schema、
+  release assets 或 visual gate 产物。
