@@ -691,3 +691,27 @@
 - 已知边界：
   本轮只收紧 release report 测试断言，不改变 release writer 文案模板、
   package assets、bounded summary 字段来源、CLI JSON schema 或 importer 续表逻辑。
+
+2026-06-15 继续推进（PDF import diagnostics release bundle 字段契约）：
+
+- 已扩展 `release_note_bundle_visual_verdict_metadata_test.ps1` 的 fixture，将
+  `steps.pdf_bounded_ctest` 补齐为带 import diagnostics evidence 的真实 release
+  note bundle 输入：包含 `pdf_cli_import` / `pdf_import_table_heuristic` 测试列表、
+  完整 `Get-PdfImportDiagnosticsContractFields` 字段清单和 prose/form 负样本 case。
+- 测试现在固定 `write_release_note_bundle.ps1` 生成的 release handoff、artifact guide、
+  reviewer checklist、START_HERE 和中文 release body 中必须出现
+  `PDF bounded CTest import diagnostics contract fields`，并保留
+  `source_row_offset=0`、`continuation_confidence=70`、
+  `minimum_continuation_confidence=90`、`column_anchors_match=false` 等关键字段。
+- 中文短摘要 `release_summary.zh-CN.md` 同步固定
+  `import_diagnostics_fields=<完整字段清单>` 和
+  `negative_boundary_cases=short_label_prose_remains_paragraphs, invoice_summary_form_remains_paragraphs`，
+  让 release note bundle 的短文本入口也不丢字段。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "release_note_bundle_visual_verdict_metadata" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过（仅保留既有 CRLF/LF warning）。
+- 已提交并推送：
+  `a9ce7f2 test: lock PDF import diagnostics release bundle fields`。
+- 已知边界：
+  本轮只收紧 release note bundle 测试契约，不改变 release writer 模板、package assets、
+  bounded summary 字段来源、CLI JSON schema 或 importer 续表逻辑。

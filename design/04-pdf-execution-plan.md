@@ -1363,6 +1363,24 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只补 release report 测试契约，不改变 release writer 输出形状、
   metadata helper、bounded summary JSON、CLI JSON schema 或 importer 逻辑。
 
+2026-06-15 继续推进（PDF import diagnostics release bundle 字段契约）：
+
+- 已补 `release_note_bundle_visual_verdict_metadata_test.ps1`，在 release note bundle
+  fixture 的 `steps.pdf_bounded_ctest` 中加入
+  `import_diagnostics_contract_tests`、`import_diagnostics_contract_fields` 和
+  `import_negative_boundary_contract_cases`。
+- 回归现在固定 `write_release_note_bundle.ps1` 生成的 release handoff、artifact guide、
+  reviewer checklist、START_HERE、中文 release body 和中文 release summary 都能展示完整
+  import diagnostics 字段清单，而不是只展示 bounded CTest auxiliary 计数。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "release_note_bundle_visual_verdict_metadata" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过（仅保留既有 CRLF/LF warning）。
+- 已提交并推送：
+  `a9ce7f2 test: lock PDF import diagnostics release bundle fields`。
+- 已知边界：
+  本轮只补 release note bundle 测试 fixture 与断言，不改变 release writer 模板、
+  release metadata helper、bounded summary JSON、CLI JSON schema 或 importer 逻辑。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
