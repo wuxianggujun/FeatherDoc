@@ -1381,6 +1381,26 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只补 release note bundle 测试 fixture 与断言，不改变 release writer 模板、
   release metadata helper、bounded summary JSON、CLI JSON schema 或 importer 逻辑。
 
+2026-06-15 继续推进（PDF import diagnostics release assets manifest 契约）：
+
+- 已补 `package_release_assets_safety_test.ps1`，把 `steps.pdf_bounded_ctest` 里的
+  `import_diagnostics_contract_tests`、`import_diagnostics_contract_fields` 和
+  `import_negative_boundary_contract_cases` 一并透传到 `release_assets_manifest.json`，
+  让 release assets 层也能直接看到完整 bounded CTest import diagnostics 证据。
+- 已同步 `test/cmake/WindowsScriptReleaseTests.cmake`，将
+  `package_release_assets_safety` 的 CTest 超时从 `TIMEOUT 60` 调整为
+  `TIMEOUT 120`，避免 release assets 打包和校验阶段在真实 Windows 环境下因压缩封装
+  耗时被误判为超时失败。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "package_release_assets_safety" --output-on-failure --timeout 120`
+  通过；`cmake --build .bpdf-roundtrip-msvc --target rebuild_cache` 通过；
+  `git diff --check` 通过。
+- 已提交并推送：
+  `0b942ee test: lock PDF import diagnostics release assets fields`。
+- 已知边界：
+  本轮只扩展 package release assets safety 的诊断字段闭环并放宽该测试超时，
+  不改变 release writer、CLI JSON schema、importer 续表逻辑或 full visual gate 产物。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

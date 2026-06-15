@@ -715,3 +715,22 @@
 - 已知边界：
   本轮只收紧 release note bundle 测试契约，不改变 release writer 模板、package assets、
   bounded summary 字段来源、CLI JSON schema 或 importer 续表逻辑。
+2026-06-15 继续推进（PDF import diagnostics release assets manifest 契约）：
+
+- 已把 `steps.pdf_bounded_ctest` 的 import diagnostics 证据继续向 release assets manifest
+  透传，确认 `release_assets_manifest.json` 也保留
+  `import_diagnostics_contract_tests`、`import_diagnostics_contract_fields` 和
+  `import_negative_boundary_contract_cases`。
+- 已同步 `test/cmake/WindowsScriptReleaseTests.cmake`，把
+  `package_release_assets_safety` 的 CTest timeout 从 `60` 提升到 `120`。
+  这次不是放松契约，而是给 release assets 打包、sanitization、ZIP creation 和 manifest
+  audit 留出真实 Windows 波动空间，避免正常耗时被误判成超时。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "package_release_assets_safety" --output-on-failure --timeout 120`
+  通过；`cmake --build .bpdf-roundtrip-msvc --target rebuild_cache` 通过；
+  `git diff --check` 通过。
+- 已提交并推送：
+  `0b942ee test: lock PDF import diagnostics release assets fields`。
+- 已知边界：
+  本轮只补 release assets manifest 的诊断字段闭环并放宽单个 release package 测试超时，
+  不改变 CLI JSON schema、importer 逻辑、release writer 模板或 full visual gate。
