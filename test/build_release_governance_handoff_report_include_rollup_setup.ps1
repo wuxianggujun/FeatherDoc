@@ -134,6 +134,22 @@
                     ".\build\pdf-ctest-bounded-regression-business-samples-current\summary.json",
                     ".\build\pdf-ctest-bounded-regression-table-layout-current\summary.json"
                 )
+                import_diagnostics_contract_tests = @(
+                    "pdf_cli_import",
+                    "pdf_import_failure",
+                    "pdf_import_table_heuristic"
+                )
+                import_diagnostics_contract_fields = @(
+                    "table_continuation_diagnostics",
+                    "table_continuation_diagnostics=[]",
+                    "tables_imported=0",
+                    "import_table_candidates_as_tables=true",
+                    "failure_kind=no_text_paragraphs"
+                )
+                import_negative_boundary_contract_cases = @(
+                    "short_label_prose_remains_paragraphs",
+                    "invoice_summary_form_remains_paragraphs"
+                )
             }
             pdf_full_ctest_readiness = [ordered]@{
                 requested = $true

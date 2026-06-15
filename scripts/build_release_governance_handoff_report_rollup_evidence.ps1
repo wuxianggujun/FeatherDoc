@@ -7,10 +7,18 @@ function Get-PdfVisualGateRollupEvidence {
             $status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_status"
             $segmentedStatus = Get-JsonString -Object $sourceReport -Name "pdf_visual_segmented_gate_status"
             $fullCtestReadinessStatus = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_status"
+            $boundedCtestSummaryCount = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_bounded_ctest_summary_count")
+            $boundedCtestImportDiagnosticsContractTests = @(Get-JsonArray -Object $sourceReport -Name "pdf_bounded_ctest_import_diagnostics_contract_tests")
+            $boundedCtestImportDiagnosticsContractFields = @(Get-JsonArray -Object $sourceReport -Name "pdf_bounded_ctest_import_diagnostics_contract_fields")
+            $boundedCtestImportNegativeBoundaryContractCases = @(Get-JsonArray -Object $sourceReport -Name "pdf_bounded_ctest_import_negative_boundary_contract_cases")
             if ([string]::IsNullOrWhiteSpace($verdict) -and
                 [string]::IsNullOrWhiteSpace($status) -and
                 [string]::IsNullOrWhiteSpace($segmentedStatus) -and
-                [string]::IsNullOrWhiteSpace($fullCtestReadinessStatus)) {
+                [string]::IsNullOrWhiteSpace($fullCtestReadinessStatus) -and
+                [string]::IsNullOrWhiteSpace([string]$boundedCtestSummaryCount) -and
+                $boundedCtestImportDiagnosticsContractTests.Count -eq 0 -and
+                $boundedCtestImportDiagnosticsContractFields.Count -eq 0 -and
+                $boundedCtestImportNegativeBoundaryContractCases.Count -eq 0) {
                 continue
             }
 
@@ -28,12 +36,15 @@ function Get-PdfVisualGateRollupEvidence {
                 pdf_visual_gate_cjk_missing_text_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_cjk_missing_text_count")
                 pdf_visual_gate_visual_baseline_manifest_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_visual_baseline_manifest_count")
                 pdf_visual_gate_visual_baseline_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_visual_baseline_count")
-                pdf_bounded_ctest_summary_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_bounded_ctest_summary_count")
+                pdf_bounded_ctest_summary_count = $boundedCtestSummaryCount
                 pdf_bounded_ctest_pass_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_bounded_ctest_pass_count")
                 pdf_bounded_ctest_skipped_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_bounded_ctest_skipped_test_count")
                 pdf_bounded_ctest_selected_test_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_bounded_ctest_selected_test_count")
                 pdf_bounded_ctest_subsets = @(Get-JsonArray -Object $sourceReport -Name "pdf_bounded_ctest_subsets")
                 pdf_bounded_ctest_summary_json_display = @(Get-JsonArray -Object $sourceReport -Name "pdf_bounded_ctest_summary_json_display")
+                pdf_bounded_ctest_import_diagnostics_contract_tests = @($boundedCtestImportDiagnosticsContractTests)
+                pdf_bounded_ctest_import_diagnostics_contract_fields = @($boundedCtestImportDiagnosticsContractFields)
+                pdf_bounded_ctest_import_negative_boundary_contract_cases = @($boundedCtestImportNegativeBoundaryContractCases)
                 pdf_full_ctest_readiness_requested = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_full_ctest_readiness_requested")
                 pdf_full_ctest_readiness_status = $fullCtestReadinessStatus
                 pdf_full_ctest_readiness_verdict = Get-JsonString -Object $sourceReport -Name "pdf_full_ctest_readiness_verdict"

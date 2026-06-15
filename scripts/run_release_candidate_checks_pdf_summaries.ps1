@@ -464,6 +464,12 @@ function Get-PdfBoundedCtestSummaryInfo {
     $summaries = New-Object 'System.Collections.Generic.List[object]'
     $subsets = New-Object 'System.Collections.Generic.List[string]'
     $displayPaths = New-Object 'System.Collections.Generic.List[string]'
+    $importDiagnosticsContractTests = New-Object 'System.Collections.Generic.List[string]'
+    $importDiagnosticsContractFields = New-Object 'System.Collections.Generic.List[string]'
+    $importNegativeBoundaryContractCases = New-Object 'System.Collections.Generic.List[string]'
+    $seenImportDiagnosticsContractTests = @{}
+    $seenImportDiagnosticsContractFields = @{}
+    $seenImportNegativeBoundaryContractCases = @{}
     $passCount = 0
     $selectedTestCount = 0
     $skippedTestCount = 0
@@ -483,6 +489,20 @@ function Get-PdfBoundedCtestSummaryInfo {
             }
             if (-not [string]::IsNullOrWhiteSpace($subset)) {
                 $subsets.Add($subset) | Out-Null
+            }
+            foreach ($entry in @(
+                    @{ Values = @(Get-OptionalPropertyValue -Object $summary -Name "import_diagnostics_contract_tests"); Target = $importDiagnosticsContractTests; Seen = $seenImportDiagnosticsContractTests },
+                    @{ Values = @(Get-OptionalPropertyValue -Object $summary -Name "import_diagnostics_contract_fields"); Target = $importDiagnosticsContractFields; Seen = $seenImportDiagnosticsContractFields },
+                    @{ Values = @(Get-OptionalPropertyValue -Object $summary -Name "import_negative_boundary_contract_cases"); Target = $importNegativeBoundaryContractCases; Seen = $seenImportNegativeBoundaryContractCases }
+                )) {
+                foreach ($value in @($entry.Values)) {
+                    $text = [string]$value
+                    if ([string]::IsNullOrWhiteSpace($text) -or $entry.Seen.ContainsKey($text)) {
+                        continue
+                    }
+                    $entry.Seen[$text] = $true
+                    $entry.Target.Add($text) | Out-Null
+                }
             }
             $selectedTestCount += $selected
             $skippedTestCount += $skipped
@@ -524,6 +544,9 @@ function Get-PdfBoundedCtestSummaryInfo {
         subsets = @($subsets.ToArray())
         summary_json = @($paths)
         summary_json_display = @($displayPaths.ToArray())
+        import_diagnostics_contract_tests = @($importDiagnosticsContractTests.ToArray())
+        import_diagnostics_contract_fields = @($importDiagnosticsContractFields.ToArray())
+        import_negative_boundary_contract_cases = @($importNegativeBoundaryContractCases.ToArray())
         summaries = @($summaries.ToArray())
         error_count = $errorCount
         errors = @($errors.ToArray())

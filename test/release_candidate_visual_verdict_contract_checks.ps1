@@ -540,8 +540,27 @@ New-Item -ItemType Directory -Path $boundedCtestDir -Force | Out-Null
 $boundedSmokePath = Join-Path $boundedCtestDir "smoke-summary.json"
 $boundedBusinessPath = Join-Path $boundedCtestDir "business-summary.json"
 foreach ($bounded in @(
-        [ordered]@{ path = $boundedSmokePath; subset = "smoke-import" },
-        [ordered]@{ path = $boundedBusinessPath; subset = "regression-business-samples" }
+        [ordered]@{
+            path = $boundedSmokePath
+            subset = "smoke-import"
+            import_diagnostics_contract_tests = @("pdf_cli_import", "pdf_import_table_heuristic")
+            import_diagnostics_contract_fields = @(
+                "table_continuation_diagnostics",
+                "table_continuation_diagnostics=[]",
+                "tables_imported=0"
+            )
+            import_negative_boundary_contract_cases = @(
+                "short_label_prose_remains_paragraphs",
+                "invoice_summary_form_remains_paragraphs"
+            )
+        },
+        [ordered]@{
+            path = $boundedBusinessPath
+            subset = "regression-business-samples"
+            import_diagnostics_contract_tests = @("pdf_cli_import")
+            import_diagnostics_contract_fields = @("tables_imported=0")
+            import_negative_boundary_contract_cases = @("invoice_summary_form_remains_paragraphs")
+        }
     )) {
     ([ordered]@{
             status = "pass"
@@ -551,6 +570,9 @@ foreach ($bounded in @(
             skipped_test_count = 0
             ctest_timeout_seconds = 60
             exit_code = 0
+            import_diagnostics_contract_tests = @($bounded.import_diagnostics_contract_tests)
+            import_diagnostics_contract_fields = @($bounded.import_diagnostics_contract_fields)
+            import_negative_boundary_contract_cases = @($bounded.import_negative_boundary_contract_cases)
         } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath ([string]$bounded.path) -Encoding UTF8
 }
 $pdfBoundedCtestInfo = Get-PdfBoundedCtestSummaryInfo `
@@ -561,7 +583,10 @@ if ($pdfBoundedCtestInfo.status -ne "pass" -or
     [int]$pdfBoundedCtestInfo.pass_count -ne 2 -or
     [int]$pdfBoundedCtestInfo.selected_test_count -ne 20 -or
     [int]$pdfBoundedCtestInfo.skipped_test_count -ne 0 -or
-    @($pdfBoundedCtestInfo.subsets) -notcontains "regression-business-samples") {
+    @($pdfBoundedCtestInfo.subsets) -notcontains "regression-business-samples" -or
+    @($pdfBoundedCtestInfo.import_diagnostics_contract_tests) -notcontains "pdf_import_table_heuristic" -or
+    @($pdfBoundedCtestInfo.import_diagnostics_contract_fields) -notcontains "table_continuation_diagnostics=[]" -or
+    @($pdfBoundedCtestInfo.import_negative_boundary_contract_cases) -notcontains "short_label_prose_remains_paragraphs") {
     throw "PDF bounded CTest summaries were not aggregated as auxiliary release evidence."
 }
 

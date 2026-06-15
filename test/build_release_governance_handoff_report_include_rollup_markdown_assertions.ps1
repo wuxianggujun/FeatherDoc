@@ -45,6 +45,12 @@
         -Message "Handoff Markdown should expose the PDF bounded CTest skipped test count."
     Assert-ContainsText -Text $markdown -ExpectedText "regression-business-samples" `
         -Message "Handoff Markdown should expose the PDF bounded CTest subset names."
+    Assert-ContainsText -Text $markdown -ExpectedText "pdf_bounded_ctest_import_diagnostics_contract_tests:" `
+        -Message "Handoff Markdown should expose the PDF import diagnostics contract tests field."
+    Assert-ContainsText -Text $markdown -ExpectedText "table_continuation_diagnostics=[]" `
+        -Message "Handoff Markdown should expose the PDF import diagnostics contract field list."
+    Assert-ContainsText -Text $markdown -ExpectedText "short_label_prose_remains_paragraphs" `
+        -Message "Handoff Markdown should expose the PDF import negative boundary contract cases."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_status: ``pass``" `
         -Message "Handoff Markdown should expose PDF full CTest readiness status."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_full_ctest_readiness_verdict: ``pass_with_warnings``" `
@@ -173,6 +179,12 @@
         "regression-table-layout",
         "pdf_bounded_ctest_summary_json_display:",
         "pdf-ctest-bounded-regression-business-samples-current\summary.json",
+        "pdf_bounded_ctest_import_diagnostics_contract_tests:",
+        "pdf_import_table_heuristic",
+        "pdf_bounded_ctest_import_diagnostics_contract_fields:",
+        "table_continuation_diagnostics=[]",
+        "pdf_bounded_ctest_import_negative_boundary_contract_cases:",
+        "short_label_prose_remains_paragraphs",
         "pdf_full_ctest_readiness_status: ``pass``",
         "pdf_full_ctest_readiness_verdict: ``pass_with_warnings``",
         "pdf_full_ctest_readiness_release_ready: ``True``",

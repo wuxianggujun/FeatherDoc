@@ -234,6 +234,9 @@ function New-ReportMarkdown {
             $lines.Add("    - pdf_bounded_ctest_selected_test_count: ``$($evidence.pdf_bounded_ctest_selected_test_count)``") | Out-Null
             $lines.Add("    - pdf_bounded_ctest_subsets: ``$(@($evidence.pdf_bounded_ctest_subsets) -join ', ')``") | Out-Null
             $lines.Add("    - pdf_bounded_ctest_summary_json_display: ``$(@($evidence.pdf_bounded_ctest_summary_json_display) -join ', ')``") | Out-Null
+            $lines.Add("    - pdf_bounded_ctest_import_diagnostics_contract_tests: ``$(@($evidence.pdf_bounded_ctest_import_diagnostics_contract_tests) -join ', ')``") | Out-Null
+            $lines.Add("    - pdf_bounded_ctest_import_diagnostics_contract_fields: ``$(@($evidence.pdf_bounded_ctest_import_diagnostics_contract_fields) -join ', ')``") | Out-Null
+            $lines.Add("    - pdf_bounded_ctest_import_negative_boundary_contract_cases: ``$(@($evidence.pdf_bounded_ctest_import_negative_boundary_contract_cases) -join ', ')``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$evidence.pdf_full_ctest_readiness_status)) {
                 $lines.Add("    - pdf_full_ctest_readiness_status: ``$($evidence.pdf_full_ctest_readiness_status)``") | Out-Null
                 $lines.Add("    - pdf_full_ctest_readiness_verdict: ``$($evidence.pdf_full_ctest_readiness_verdict)``") | Out-Null

@@ -346,7 +346,10 @@ build\pdf-ctest-bounded-regression-table-layout-current\summary.json
 release governance 会在同一个 `source_report:` block 中保留
 `pdf_bounded_ctest_summary_count`、`pdf_bounded_ctest_pass_count`、
 `pdf_bounded_ctest_skipped_test_count`、`pdf_bounded_ctest_selected_test_count`、
-`pdf_bounded_ctest_subsets` 和 `pdf_bounded_ctest_summary_json_display`。
+`pdf_bounded_ctest_subsets`、`pdf_bounded_ctest_summary_json_display`、
+`pdf_bounded_ctest_import_diagnostics_contract_tests`、
+`pdf_bounded_ctest_import_diagnostics_contract_fields` 和
+`pdf_bounded_ctest_import_negative_boundary_contract_cases`。
 固定标记：`pdf_bounded_ctest_governance_trace`、
 `pdf_bounded_ctest_source_report_block_trace`。
 `release_blocker_rollup.md` 的 `Source Report Contracts` 也必须在同一个

@@ -37,7 +37,10 @@ if ([int]$candidateSummary.steps.pdf_bounded_ctest.summary_count -ne 2 -or
     [int]$candidateSummary.steps.pdf_bounded_ctest.pass_count -ne 2 -or
     [int]$candidateSummary.steps.pdf_bounded_ctest.selected_test_count -ne 20 -or
     [int]$candidateSummary.steps.pdf_bounded_ctest.skipped_test_count -ne 0 -or
-    @($candidateSummary.steps.pdf_bounded_ctest.subsets) -notcontains "regression-business-samples") {
+    @($candidateSummary.steps.pdf_bounded_ctest.subsets) -notcontains "regression-business-samples" -or
+    @($candidateSummary.steps.pdf_bounded_ctest.import_diagnostics_contract_tests) -notcontains "pdf_import_table_heuristic" -or
+    @($candidateSummary.steps.pdf_bounded_ctest.import_diagnostics_contract_fields) -notcontains "table_continuation_diagnostics=[]" -or
+    @($candidateSummary.steps.pdf_bounded_ctest.import_negative_boundary_contract_cases) -notcontains "short_label_prose_remains_paragraphs") {
     throw "Release candidate summary did not preserve PDF bounded CTest auxiliary evidence."
 }
 if ([string]$candidateSummary.pdf_release_readiness_summary_json -ne $expectedPdfReadinessSummaryPath -or

@@ -134,6 +134,12 @@ function Add-PdfBoundedCtestEvidenceFields {
         -Value @(Get-JsonArray -Object $pdfBoundedCtest -Name "subsets")
     Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_summary_json_display" `
         -Value @(Get-JsonArray -Object $pdfBoundedCtest -Name "summary_json_display")
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_import_diagnostics_contract_tests" `
+        -Value @(Get-JsonArray -Object $pdfBoundedCtest -Name "import_diagnostics_contract_tests")
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_import_diagnostics_contract_fields" `
+        -Value @(Get-JsonArray -Object $pdfBoundedCtest -Name "import_diagnostics_contract_fields")
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_bounded_ctest_import_negative_boundary_contract_cases" `
+        -Value @(Get-JsonArray -Object $pdfBoundedCtest -Name "import_negative_boundary_contract_cases")
 }
 
 function Get-PdfFullCtestReadinessEvidenceObject {

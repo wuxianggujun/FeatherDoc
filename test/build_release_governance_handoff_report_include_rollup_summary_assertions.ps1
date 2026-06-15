@@ -119,6 +119,15 @@
     Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_summary_json_display) -join ",") `
         -ExpectedText "pdf-ctest-bounded-regression-table-layout-current\summary.json" `
         -Message "Handoff summary should expose PDF bounded CTest summary display paths from the nested rollup."
+    Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_import_diagnostics_contract_tests) -join ",") `
+        -ExpectedText "pdf_import_table_heuristic" `
+        -Message "Handoff summary should expose PDF import diagnostics contract tests from bounded CTest evidence."
+    Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_import_diagnostics_contract_fields) -join ",") `
+        -ExpectedText "table_continuation_diagnostics=[]" `
+        -Message "Handoff summary should expose PDF import diagnostics contract fields from bounded CTest evidence."
+    Assert-ContainsText -Text (@($pdfEvidence.pdf_bounded_ctest_import_negative_boundary_contract_cases) -join ",") `
+        -ExpectedText "short_label_prose_remains_paragraphs" `
+        -Message "Handoff summary should expose PDF import negative boundary cases from bounded CTest evidence."
     Assert-Equal -Actual ([string]$pdfEvidence.pdf_full_ctest_readiness_status) -Expected "pass" `
         -Message "Handoff summary should expose PDF full CTest readiness status from the nested rollup."
     Assert-Equal -Actual ([string]$pdfEvidence.pdf_full_ctest_readiness_verdict) -Expected "pass_with_warnings" `

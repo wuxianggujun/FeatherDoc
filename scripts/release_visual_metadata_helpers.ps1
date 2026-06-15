@@ -470,6 +470,9 @@ function Get-PdfBoundedCtestEvidence {
         subsets = @()
         summary_json = @()
         summary_json_display = @()
+        import_diagnostics_contract_tests = @()
+        import_diagnostics_contract_fields = @()
+        import_negative_boundary_contract_cases = @()
         error_count = ""
         errors = @()
         summaries = @()
@@ -491,6 +494,9 @@ function Get-PdfBoundedCtestEvidence {
     $evidence.subsets = @(Get-OptionalPropertyArray -Object $source -Name "subsets")
     $evidence.summary_json = @(Get-OptionalPropertyArray -Object $source -Name "summary_json")
     $evidence.summary_json_display = @(Get-OptionalPropertyArray -Object $source -Name "summary_json_display")
+    $evidence.import_diagnostics_contract_tests = @(Get-OptionalPropertyArray -Object $source -Name "import_diagnostics_contract_tests")
+    $evidence.import_diagnostics_contract_fields = @(Get-OptionalPropertyArray -Object $source -Name "import_diagnostics_contract_fields")
+    $evidence.import_negative_boundary_contract_cases = @(Get-OptionalPropertyArray -Object $source -Name "import_negative_boundary_contract_cases")
     $evidence.error_count = Get-OptionalPropertyValue -Object $source -Name "error_count"
     $evidence.errors = @(Get-OptionalPropertyArray -Object $source -Name "errors")
     $evidence.summaries = @(Get-OptionalPropertyArray -Object $source -Name "summaries")
