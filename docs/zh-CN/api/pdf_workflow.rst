@@ -233,6 +233,7 @@ blocker。
 
 常见 continuation blockers：
 
+* ``column_count_mismatch``：候选表格检测到的列数与上一张表不一致。
 * ``repeated_header_mismatch``：重复表头语义不匹配。
 * ``column_anchors_mismatch``：列锚点漂移超过容忍范围。
 * ``continuation_confidence_below_threshold``：未达到
@@ -242,11 +243,27 @@ blocker。
 
 代表性诊断片段：
 
+下面的完整 blocker diagnostic object 按 CLI JSON 字段顺序展示常见拆表场景：
+
 .. code-block:: json
 
    {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 70,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": true,
+     "source_has_repeating_header": true,
      "header_matches_previous": false,
      "header_match_kind": "none",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "repeated_header_mismatch"
    }
@@ -254,8 +271,45 @@ blocker。
 .. code-block:: json
 
    {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 30,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
+     "column_count_matches": false,
+     "column_anchors_match": false,
+     "previous_has_repeating_header": true,
+     "source_has_repeating_header": true,
+     "header_matches_previous": false,
+     "header_match_kind": "none",
+     "skipped_repeating_header": false,
+     "disposition": "created_new_table",
+     "blocker": "column_count_mismatch"
+   }
+
+.. code-block:: json
+
+   {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 55,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
      "column_count_matches": true,
      "column_anchors_match": false,
+     "previous_has_repeating_header": true,
+     "source_has_repeating_header": true,
+     "header_matches_previous": true,
+     "header_match_kind": "exact",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "column_anchors_mismatch"
    }
@@ -263,8 +317,22 @@ blocker。
 .. code-block:: json
 
    {
-     "continuation_confidence": 80,
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 85,
      "minimum_continuation_confidence": 90,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": false,
+     "source_has_repeating_header": false,
+     "header_matches_previous": true,
+     "header_match_kind": "not_required",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "continuation_confidence_below_threshold"
    }
