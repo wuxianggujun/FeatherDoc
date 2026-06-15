@@ -606,3 +606,23 @@
 - 已知边界：
   本轮只降低测试字段漂移风险，不改 CLI JSON 输出、importer 续表逻辑、
   release candidate visual verdict 状态机或 governance handoff Markdown writer。
+
+2026-06-15 继续推进（PDF import diagnostics helper 覆盖 bounded/docs contract）：
+
+- 已把 `pdf_ctest_bounded_subset_summary_test.ps1` 的
+  `import_diagnostics_contract_fields` 期望值替换为
+  `Get-PdfImportDiagnosticsContractFields`，保留字段顺序断言，同时消除 bounded
+  summary contract 中的重复清单。
+- 已把 `pdf_visual_validation_status_docs_contract_test.ps1` 中 release readiness
+  checklist paragraph、bounded CTest script marker 和 building-PDF fixture marker 的
+  import diagnostics 字段列表改为从同一 helper 拼接，确保 docs contract 与
+  release-facing summary/governance contract 使用同一字段来源。
+- 验证命令：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test\pdf_ctest_bounded_subset_summary_test.ps1 -RepoRoot . -WorkingDir .bpdf-roundtrip-msvc\test\pdf_ctest_bounded_subset_summary_direct`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_visual_validation_status_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `97645b5 test: reuse PDF import diagnostics contract fields`。
+- 已知边界：
+  本轮不改文档正文或生产脚本输出，只降低 bounded summary / docs contract 的字段漂移风险。

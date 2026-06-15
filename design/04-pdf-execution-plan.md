@@ -1282,6 +1282,26 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只收敛测试 helper，不改生产脚本、bounded summary 字段来源、CLI JSON schema、
   importer heuristic 或 release visual verdict。
 
+2026-06-15 继续推进（PDF import diagnostics helper 覆盖 bounded/docs contract）：
+
+- 已让 `pdf_ctest_bounded_subset_summary_test.ps1` 复用
+  `Get-PdfImportDiagnosticsContractFields`，继续以顺序断言固定
+  `smoke-import.import_diagnostics_contract_fields`，但不再在该测试内复制完整字段清单。
+- 已让 `pdf_visual_validation_status_docs_contract_test.ps1` 复用同一 helper 拼接
+  release readiness checklist、bounded CTest script marker 和 paragraph block 的
+  import diagnostics 字段断言，确保文档/脚本可见性与 bounded summary / release candidate /
+  governance handoff 使用同一份测试字段清单。
+- 已完成验证：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test\pdf_ctest_bounded_subset_summary_test.ps1 -RepoRoot . -WorkingDir .bpdf-roundtrip-msvc\test\pdf_ctest_bounded_subset_summary_direct`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_visual_validation_status_docs_contract" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `97645b5 test: reuse PDF import diagnostics contract fields`。
+- 已知边界：
+  本轮只扩展测试 helper 的使用面，不改变 `scripts/run_pdf_ctest_bounded_subset.ps1`
+  的字段输出、不改 docs 内容、不改 CLI JSON schema 或 importer heuristic。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
