@@ -1259,6 +1259,29 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   本轮只补 release candidate summary 的字段保留契约，不改变 visual verdict 判定、
   importer heuristic、CLI JSON schema 或 release governance Markdown writer。
 
+2026-06-15 继续推进（PDF import diagnostics 契约字段 helper 收敛）：
+
+- 已新增 `test/pdf_import_diagnostics_contract_field_helpers.ps1`，将完整
+  `import_diagnostics_contract_fields` 清单和 blocker-only Markdown 断言清单集中到
+  一个测试 helper，避免 release candidate 与 governance handoff 测试继续复制
+  `source_row_offset=0`、四类 blocker、confidence 分数和 column/header 判定字段。
+- 已让 `release_candidate_visual_verdict_contract_checks.ps1`、
+  `release_candidate_visual_verdict_candidate_core_assertions.ps1`、
+  `build_release_governance_handoff_report_include_rollup_setup.ps1`、
+  `build_release_governance_handoff_report_include_rollup_summary_assertions.ps1` 和
+  `build_release_governance_handoff_report_include_rollup_markdown_assertions.ps1`
+  复用该 helper，同时保留原有 summary JSON / Markdown source_report block 的可见性断言。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "build_release_governance_handoff_report_include_rollup|release_candidate_visual_verdict_contract" --output-on-failure --timeout 120`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^release_candidate_visual_verdict$" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `c5f03f6 test: share PDF import diagnostics contract fields`。
+- 已知边界：
+  本轮只收敛测试 helper，不改生产脚本、bounded summary 字段来源、CLI JSON schema、
+  importer heuristic 或 release visual verdict。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

@@ -583,3 +583,26 @@
 - 已知边界：
   本轮只锁 release candidate summary 中间层字段链路，不改 visual verdict 状态机、
   release blocker rollup writer、governance handoff Markdown 或 importer 逻辑。
+
+2026-06-15 继续推进（PDF import diagnostics 契约字段 helper 收敛）：
+
+- 已新增 `test/pdf_import_diagnostics_contract_field_helpers.ps1`，集中维护完整
+  `import_diagnostics_contract_fields` 清单、blocker-only 字段清单，以及 array/text
+  断言 helper。
+- release candidate fixture、release candidate summary assertion、governance handoff
+  include-rollup fixture、summary assertion 和 Markdown assertion 已改为复用该 helper；
+  后续新增或调整 `source_row_offset=0`、`skipped_repeating_header=false`、
+  `disposition=created_new_table`、四类 blocker、`continuation_confidence=70/55/85/30`、
+  `minimum_continuation_confidence=90`、`column_count_matches=false` 和
+  `column_anchors_match=false` 时，只需要更新一处测试清单即可同步两条 release-facing
+  证据链。
+- 验证命令：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "build_release_governance_handoff_report_include_rollup|release_candidate_visual_verdict_contract" --output-on-failure --timeout 120`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^release_candidate_visual_verdict$" --output-on-failure --timeout 120`
+  通过；`git diff --check` 通过。
+- 已提交并推送：
+  `c5f03f6 test: share PDF import diagnostics contract fields`。
+- 已知边界：
+  本轮只降低测试字段漂移风险，不改 CLI JSON 输出、importer 续表逻辑、
+  release candidate visual verdict 状态机或 governance handoff Markdown writer。
