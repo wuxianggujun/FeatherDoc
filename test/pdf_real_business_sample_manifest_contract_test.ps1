@@ -34,6 +34,44 @@ function New-TextFromCodePoints {
     return $builder.ToString()
 }
 
+function Get-ManifestSampleById {
+    param(
+        [object[]]$Samples,
+        [string]$SampleId
+    )
+
+    $sample = $Samples | Where-Object { [string]$_.id -eq $SampleId } | Select-Object -First 1
+    Assert-True -Condition ($null -ne $sample) `
+        -Message "PDF regression manifest should contain sample '$SampleId'."
+    return $sample
+}
+
+function Assert-ManifestIntegerProperty {
+    param(
+        $Sample,
+        [string]$PropertyName,
+        [int64]$ExpectedValue,
+        [string]$SampleId
+    )
+
+    $actualValue = Get-OptionalPropertyValue -Object $Sample -Name $PropertyName
+    Assert-True -Condition ($null -ne $actualValue) `
+        -Message "PDF regression manifest sample '$SampleId' should define '$PropertyName'."
+    Assert-True -Condition ([int64]$actualValue -eq $ExpectedValue) `
+        -Message "PDF regression manifest sample '$SampleId' should set '$PropertyName' to $ExpectedValue, got $actualValue."
+}
+
+function Assert-ManifestAbsentProperty {
+    param(
+        $Sample,
+        [string]$PropertyName,
+        [string]$SampleId
+    )
+
+    Assert-True -Condition ($null -eq (Get-OptionalPropertyValue -Object $Sample -Name $PropertyName)) `
+        -Message "PDF regression manifest sample '$SampleId' should not define '$PropertyName'."
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     throw "RepoRoot is required."
 }
@@ -120,6 +158,51 @@ foreach ($sampleId in @($allBusinessSampleIds.ToArray())) {
     Assert-True -Condition ($buildingPdfText -match [regex]::Escape($sampleId)) `
         -Message "BUILDING_PDF.md should preserve real business sample '$sampleId'."
 }
+
+$expectedPdfByteRanges = [ordered]@{
+    "contract-cjk-style" = @(56000, 65500)
+    "document-contract-cjk-style" = @(35000, 43000)
+    "invoice-grid-text" = @(40000, 50000)
+    "document-invoice-table-text" = @(9000, 15000)
+    "image-report-text" = @(76000, 86000)
+    "cjk-image-report-text" = @(36000, 45000)
+    "document-cjk-image-wrap-stress-text" = @(68000, 78000)
+    "long-report-text" = @(54000, 65000)
+    "document-long-flow-text" = @(14000, 18000)
+    "sectioned-report-text" = @(58000, 70000)
+    "header-footer-text" = @(52000, 62000)
+    "document-cjk-table-wrap-page-flow-text" = @(43000, 52000)
+}
+
+foreach ($entry in $expectedPdfByteRanges.GetEnumerator()) {
+    $sampleId = [string]$entry.Key
+    $sample = Get-ManifestSampleById -Samples $manifest.samples -SampleId $sampleId
+    Assert-ManifestIntegerProperty -Sample $sample -PropertyName "expected_pdf_min_bytes" -ExpectedValue ([int64]$entry.Value[0]) -SampleId $sampleId
+    Assert-ManifestIntegerProperty -Sample $sample -PropertyName "expected_pdf_max_bytes" -ExpectedValue ([int64]$entry.Value[1]) -SampleId $sampleId
+}
+
+foreach ($sampleId in @("image-report-text", "cjk-image-report-text")) {
+    $sample = Get-ManifestSampleById -Samples $manifest.samples -SampleId $sampleId
+    Assert-ManifestIntegerProperty -Sample $sample -PropertyName "expected_image_count" -ExpectedValue 2 -SampleId $sampleId
+
+    $imageDimensions = Get-OptionalPropertyValue -Object $sample -Name "expected_image_dimensions"
+    Assert-True -Condition ($null -ne $imageDimensions) `
+        -Message "PDF regression manifest sample '$sampleId' should define 'expected_image_dimensions'."
+
+    $imageDimensionEntries = @($imageDimensions)
+    Assert-True -Condition ($imageDimensionEntries.Count -eq 1) `
+        -Message "PDF regression manifest sample '$sampleId' should define exactly one expected image dimension entry."
+
+    $imageDimension = $imageDimensionEntries[0]
+    $imageDimensionId = "$sampleId image-dimension"
+    Assert-ManifestIntegerProperty -Sample $imageDimension -PropertyName "width" -ExpectedValue 1 -SampleId $imageDimensionId
+    Assert-ManifestIntegerProperty -Sample $imageDimension -PropertyName "height" -ExpectedValue 1 -SampleId $imageDimensionId
+    Assert-ManifestIntegerProperty -Sample $imageDimension -PropertyName "count" -ExpectedValue 2 -SampleId $imageDimensionId
+}
+
+$imageWrapStressSample = Get-ManifestSampleById -Samples $manifest.samples -SampleId "document-cjk-image-wrap-stress-text"
+Assert-ManifestAbsentProperty -Sample $imageWrapStressSample -PropertyName "expected_image_count" -SampleId "document-cjk-image-wrap-stress-text"
+Assert-ManifestAbsentProperty -Sample $imageWrapStressSample -PropertyName "expected_image_dimensions" -SampleId "document-cjk-image-wrap-stress-text"
 
 $businessSubsetMatch = [regex]::Match(
     $boundedSubsetScriptText,

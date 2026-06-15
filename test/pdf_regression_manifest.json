@@ -111,7 +111,9 @@
       ],
       "expect_cjk": true,
       "expect_unicode": true,
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expected_pdf_min_bytes": 56000,
+      "expected_pdf_max_bytes": 65500
     },
     {
       "id": "document-contract-cjk-style",
@@ -142,7 +144,9 @@
         "bold",
         "color",
         "underline-signature"
-      ]
+      ],
+      "expected_pdf_min_bytes": 35000,
+      "expected_pdf_max_bytes": 43000
     },
     {
       "id": "three-page-text",
@@ -481,7 +485,9 @@
         "Document header area",
         "Header footer sample",
         "Page 1 footer marker"
-      ]
+      ],
+      "expected_pdf_min_bytes": 52000,
+      "expected_pdf_max_bytes": 62000
     },
     {
       "id": "header-footer-rtl-text",
@@ -554,7 +560,9 @@
         "Invoice grid sample",
         "Line item alpha",
         "Total USD 42"
-      ]
+      ],
+      "expected_pdf_min_bytes": 40000,
+      "expected_pdf_max_bytes": 50000
     },
     {
       "id": "image-caption-text",
@@ -577,7 +585,9 @@
         "Sectioned report sample",
         "Appendix paragraph one keeps the second section",
         "Appendix paragraph three closes the wider section"
-      ]
+      ],
+      "expected_pdf_min_bytes": 58000,
+      "expected_pdf_max_bytes": 70000
     },
     {
       "id": "list-report-text",
@@ -602,7 +612,9 @@
         "Background section",
         "Operational findings",
         "Action plan"
-      ]
+      ],
+      "expected_pdf_min_bytes": 54000,
+      "expected_pdf_max_bytes": 65000
     },
     {
       "id": "image-report-text",
@@ -616,7 +628,16 @@
         "Figure 2:",
         "Page 2 text extraction remains intact"
       ],
-      "expected_image_count": 2
+      "expected_image_count": 2,
+      "expected_pdf_min_bytes": 76000,
+      "expected_pdf_max_bytes": 86000,
+      "expected_image_dimensions": [
+        {
+          "width": 1,
+          "height": 1,
+          "count": 2
+        }
+      ]
     },
     {
       "id": "cjk-report-text",
@@ -648,7 +669,16 @@
       ],
       "expected_image_count": 2,
       "expect_cjk": true,
-      "expect_unicode": true
+      "expect_unicode": true,
+      "expected_pdf_min_bytes": 36000,
+      "expected_pdf_max_bytes": 45000,
+      "expected_image_dimensions": [
+        {
+          "width": 1,
+          "height": 1,
+          "count": 2
+        }
+      ]
     },
     {
       "id": "document-eastasia-style-probe",
@@ -720,7 +750,9 @@
         "Page 1 of 5",
         "Page 5 of 5"
       ],
-      "expect_visual_baseline": true
+      "expect_visual_baseline": true,
+      "expected_pdf_min_bytes": 14000,
+      "expected_pdf_max_bytes": 18000
     },
     {
       "id": "document-invoice-table-text",
@@ -737,7 +769,9 @@
         "Grand total",
         "USD 135"
       ],
-      "expect_visual_baseline": true
+      "expect_visual_baseline": true,
+      "expected_pdf_min_bytes": 9000,
+      "expected_pdf_max_bytes": 15000
     },
     {
       "id": "mixed-cjk-punctuation-text",
@@ -1523,7 +1557,9 @@
         "cjk-image-wrap-stress-flow",
         "cjk-image-wrap-header-footer",
         "cjk-image-wrap-table-keys"
-      ]
+      ],
+      "expected_pdf_min_bytes": 68000,
+      "expected_pdf_max_bytes": 78000
     },
     {
       "id": "document-cjk-extreme-page-breaks-text",
@@ -1829,7 +1865,9 @@
         "cjk-table-repeat-header",
         "cjk-table-vertical-merge",
         "cjk-header-footer-flow"
-      ]
+      ],
+      "expected_pdf_min_bytes": 43000,
+      "expected_pdf_max_bytes": 52000
     },
     {
       "id": "document-cjk-font-embed-wrap-mix-lite-text",
