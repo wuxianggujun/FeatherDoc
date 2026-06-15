@@ -110,7 +110,14 @@ $subsets = [ordered]@{
         )
         import_diagnostics_contract_fields = @(
             "table_continuation_diagnostics",
+            "table_continuation_diagnostics=[]",
+            "tables_imported=0",
+            "import_table_candidates_as_tables=true",
             "failure_kind=no_text_paragraphs"
+        )
+        import_negative_boundary_contract_cases = @(
+            "short_label_prose_remains_paragraphs",
+            "invoice_summary_form_remains_paragraphs"
         )
         tests = @(
             "pdf_document_generator_probe",
@@ -266,6 +273,10 @@ $importDiagnosticsContractFields = @(Get-SubsetMetadataValue `
     -Config $subsetConfig `
     -Key "import_diagnostics_contract_fields" `
     -DefaultValue @())
+$importNegativeBoundaryContractCases = @(Get-SubsetMetadataValue `
+    -Config $subsetConfig `
+    -Key "import_negative_boundary_contract_cases" `
+    -DefaultValue @())
 
 $status = if ($runResult.exit_code -eq 0 -and $skippedTests.Count -eq 0) { "pass" } else { "fail" }
 $summary = [ordered]@{
@@ -288,6 +299,7 @@ $summary = [ordered]@{
         -DefaultValue "")
     import_diagnostics_contract_tests = $importDiagnosticsContractTests
     import_diagnostics_contract_fields = $importDiagnosticsContractFields
+    import_negative_boundary_contract_cases = $importNegativeBoundaryContractCases
     repo_root = $repoRoot
     build_dir = $resolvedBuildDir
     ctest_executable = $resolvedCtestExecutable

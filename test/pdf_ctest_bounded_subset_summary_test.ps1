@@ -129,8 +129,21 @@ Assert-SequenceEqual `
     -Message "Smoke-import summary should preserve import diagnostics contract tests."
 Assert-SequenceEqual `
     -Actual @($summary.import_diagnostics_contract_fields | ForEach-Object { [string]$_ }) `
-    -Expected @("table_continuation_diagnostics", "failure_kind=no_text_paragraphs") `
+    -Expected @(
+        "table_continuation_diagnostics",
+        "table_continuation_diagnostics=[]",
+        "tables_imported=0",
+        "import_table_candidates_as_tables=true",
+        "failure_kind=no_text_paragraphs"
+    ) `
     -Message "Smoke-import summary should preserve import diagnostics contract fields."
+Assert-SequenceEqual `
+    -Actual @($summary.import_negative_boundary_contract_cases | ForEach-Object { [string]$_ }) `
+    -Expected @(
+        "short_label_prose_remains_paragraphs",
+        "invoice_summary_form_remains_paragraphs"
+    ) `
+    -Message "Smoke-import summary should preserve import negative boundary contract cases."
 Assert-SequenceEqual `
     -Actual @($summary.selected_tests | ForEach-Object { [string]$_ }) `
     -Expected @(

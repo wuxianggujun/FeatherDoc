@@ -497,7 +497,11 @@ OCR 或任意视觉精确还原。
    该子集同时作为 PDF import diagnostics 的轻量视觉门禁前置证据：
    ``pdf_cli_import`` 固定用户可见 ``table_continuation_diagnostics`` 与
    ``failure_kind = no_text_paragraphs`` JSON，``pdf_import_failure`` 固定
-   image-only / no-text 负样本不会生成目标 DOCX。``smoke-import`` summary
+   image-only / no-text 负样本不会生成目标 DOCX；``pdf_cli_import`` 还固定
+   short-label prose 与 invoice summary form 在开启
+   ``--import-table-candidates-as-tables --json`` 后仍保持 ``tables_imported = 0``、
+   ``table_continuation_diagnostics = []`` 和
+   ``import_table_candidates_as_tables = true``。``smoke-import`` summary
    还必须保留 ``import_visual_gate_scope = bounded_smoke_import_preflight``、
    ``import_visual_gate_boundary =
    bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict``、
@@ -506,7 +510,12 @@ OCR 或任意视觉精确还原。
    ``import_diagnostics_contract_tests`` 中的 ``pdf_cli_import``、
    ``pdf_import_failure`` 和 ``pdf_import_table_heuristic``，以及
    ``import_diagnostics_contract_fields`` 中的
-   ``table_continuation_diagnostics`` 和 ``failure_kind=no_text_paragraphs``。
+   ``table_continuation_diagnostics``、``table_continuation_diagnostics=[]``、
+   ``tables_imported=0``、``import_table_candidates_as_tables=true`` 和
+   ``failure_kind=no_text_paragraphs``；summary 还必须保留
+   ``import_negative_boundary_contract_cases`` 中的
+   ``short_label_prose_remains_paragraphs`` 和
+   ``invoice_summary_form_remains_paragraphs``。
    这些字段只证明资源受限窗口里的 import diagnostics preflight，不替代 full
    visual gate verdict，也不要求生成或提交 ``output/`` 视觉产物。固定标记：
    ``pdf_import_smoke_diagnostics_release_trace``。
