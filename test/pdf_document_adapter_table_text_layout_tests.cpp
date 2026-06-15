@@ -1,5 +1,7 @@
 #include "pdf_document_adapter_font_test_support.hpp"
 
+#include <algorithm>
+
 TEST_CASE("document PDF adapter preserves table cell run styling") {
     const auto regular_font =
         make_temp_font_file("featherdoc-adapter-table-regular.ttf");

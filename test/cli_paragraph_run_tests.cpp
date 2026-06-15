@@ -2,6 +2,8 @@
 #include "cli_test_support.hpp"
 #include "cli_style_test_support.hpp"
 
+#include <algorithm>
+
 namespace {
 
 void create_cli_paragraph_list_fixture(const fs::path &path) {

@@ -1,6 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "cli_numbering_catalog_test_support.hpp"
 
+#include <algorithm>
+
 TEST_CASE("cli inspect-numbering lists custom numbering definitions") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_numbering_source.docx";

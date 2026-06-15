@@ -1,5 +1,7 @@
 #include "cli_table_test_support.hpp"
 
+#include <algorithm>
+
 namespace {
 TEST_CASE("cli append-table-row appends a body row") {
     const fs::path working_directory = fs::current_path();
